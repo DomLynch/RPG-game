@@ -126,7 +126,10 @@ const signedIn = async (db: SupabaseClient): Promise<string | null> => { try { r
 export function flushClaims(db: SupabaseClient, userId: string, storage: StoragePort, report: (error: unknown) => void): Promise<number> {
   flushing = flushing.then(async () => {
     let left = 0;
-    if (held.acked.size && saveClaims(storage, loadClaims(storage).filter((c) => !held.acked.has(c.record)))) held.acked.clear();   // removals a full device refused
+    // Retry final words and removals before the network: recovered storage must keep a take through an offline reload.
+    if ((held.unsaved.length || held.acked.size) && saveClaims(storage, outbox(storage))) {
+      held.unsaved = []; held.acked.clear();
+    }
     for (const claim of outbox(storage).filter((c) => c.final && c.userId === userId)) {
       if (await signedIn(db) !== userId || await postClaim(db, claim, report) === 'keep') break;
       held.unsaved = held.unsaved.filter((u) => u.record !== claim.record);

@@ -5,6 +5,12 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-02 10:48 (+04) — offline selected-reward persistence repair, pending exact-head review/release
+- Lead authorized the narrow storage-recovery defect on live base `ffa4eea8`. `flushClaims` now retries saving the merged outbox before awaiting the network, clearing unsaved/acknowledged holds only after a successful local write. Account-specific posting and per-post session checks retain their existing behavior. No auth, schema or server writes.
+- Fail-first regression reproduced a successful bank, failed finalise of `goblin.Helmet`, recovered device storage, offline insert, then reload settling the stale claim with `piece:null`. Same regression now passes. A second regression covers a failed retry retaining both holds, both accounts' durable final choices on recovery, no acknowledged-claim resurrection and no other-account posting.
+- Validation: 20/20 claim tests; required `node scripts/quality-stop-targeted.mjs` (ESLint, test typecheck, 123/123 tests); all three `.quality-gate.json` completion commands (22+10+2 tests). Zero failures/skips. Self-review and preliminary Auditer read PASS; final committed-head review and coordinated CI/release checks remain owed. Three Semble searches and actual-worktree-root CodeGraph used; post-edit graph includes flushClaims→outbox without a stale-index banner. No build/browser/full-suite slot used.
+- Next: Auditer exact-head verdict, Lead CI/release slot, Deploy publication and affected-flow browser/live verification. Separate duel gameplay proof remains open: hosted schema verified but metrics rows were zero at 10:38; Duel/Lead own the real signed-in account step. PVP_REWARDS remains held. Receipts: `artifacts/backend-offline-reward/` in the isolated worktree; Lead maintains the canonical batch note.
+
 ## 2026-10-02 07:45 (+04) — HANDOFF before /clear. READ FIRST, then the 10-01 evening entry below, then memory's NOW block
 1. **LIVE c107068c** (curl release.json 07:40). Deploy lock `~/.claude/state/deploy_in_flight.json` absent at 07:40, so no
    run was in flight by that check.

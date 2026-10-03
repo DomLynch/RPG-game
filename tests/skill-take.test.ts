@@ -44,11 +44,17 @@ test('the cloud: a new move is a change to save, the device keeps its own, a fre
 // Re-pinned (Daily removed, Dom 2026-09-29): the daily leg is gone.
 test('the duel hands the equipped move to the player\'s fighter', () => {
   const storage = memory(), ports = { storage, trial: loadTrial(storage), scorecard: loadScorecard(storage), profile: loadProfile(storage, () => 'device').profile };
-  const m = new Match(OPPONENTS.veteran, 'dev', ports, 731, 'longsword', 'witchfire');
+  const m = new Match(OPPONENTS.veteran, 'dev', ports, 731, 'longsword', 'witchfire', 15);
   const skillOfFighter = () => m.practice.duel.fighters[0].skill;
   assert.equal(skillOfFighter(), 'witchfire');
-  assert.equal(m.practice.duel.fighters[1].skill, null, 'the opponent carries no player move');
+  assert.equal(m.practice.duel.fighters[1].skill, null, 'ordinary class-A fights remain outside phase-two activation');
+  m.setLevel(16);
+  assert.equal(m.practice.duel.fighters[1].skill, 'shove', 'class B uses the opponent’s existing skill');
+  m.setLevel(36);
+  assert.equal(skillOfFighter(), 'witchfire', 'entering the boss band preserves the equipped move');
+  assert.equal(m.practice.duel.fighters[1].skill, 'shove', 'PvE boss specials use the opponent\'s own move, never the player\'s equipped Witch-fire');
   m.rematch();
   assert.equal(skillOfFighter(), 'witchfire', 'a rematch keeps it');
+  assert.equal(m.practice.duel.fighters[1].skill, 'shove', 'a rematch keeps the opponent\'s own move');
   assert.equal(m.weapon, 'longsword');
 });

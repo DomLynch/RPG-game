@@ -173,6 +173,12 @@ export const RULES = {
   // perfectBlock: a block in the first ticks of a held guard costs perfectBlockCost of the normal price.
   // breakCost: a broken guard loses this much stamina (not all of it): from a full bar the defender keeps one roll to escape the follow-up.
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, breakCost: 60, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: true,   // owner 2026-09-20: five sides on the Guard button (duel.ts covers()); null = straight = thrust
+  // Special Moves (Dom 2026-09-29 via Strategy / Lead; Combat): the SKILL slot's rule when a fighter carries `specialShare` (duel.ts withSpecials).
+  // A committed windup (2 s at 60 Hz: no guard, roll or parry, blows land normally, nothing interrupts it), then an unblockable, undodgeable
+  // hit for `damage` of the target's max health (`bossDamage` for an opponent from level `bossFrom`: career.ts level = 1 + wins, five
+  // sub-ranks a title, so rank 8 begins at 36). Cast inside `reach`; cooldown from commitment; first available `first` ticks in. One row,
+  // so a ruling is a one-line change; PvP reads the same `damage`.
+  special: { windup: 120, cooldown: 1200, first: 1200, reach: 3, damage: .2, bossDamage: .3, bossFrom: 36 },
   skillCooldown: 900,   // the equipped skill's cooldown (15 s): spent at commitment, so a whiff, a block, a parry and a stuffed windup all spend it; ticks down like parryCooldown (duel.ts)
   regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,   // 40 stamina/s after .75 s; a raised guard regenerates at half rate
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
@@ -680,7 +686,26 @@ export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, rec
 // disengage, circle, step, interrupt, kick, dash) stay at easy's from 1 to 6, so the orc still chains, the goblin never guards.
 // At an anchor level the anchor itself is returned, so levels 6 / 18 / 46 fight exactly as easy / normal / hard did (same RNG draws).
 export const LEVELS = 46;
-export const LEVEL_ANCHORS = { novice: 1, easy: 6, normal: 18, hard: 46 } as const;
+// The named special an opponent casts at a ladder level (Strategy 2026-10-01, docs/briefs/specials/): ranks 8 / 9 / 10 (career.ts: five levels a rank, so 36 / 41 / 46).
+// Identity only: windup, share, cooldown and the unblockable release are RULES.special for every special. Null = the opponent's class skill names it (below rank 8, or no set).
+// The Centurion's id is 'veteran'. The picks are the briefs' starred ones.
+const SPECIAL_SETS = {
+  veteran: ['quake', 'charge', 'tithe'],   // Shield Quake, The Charge, Blood Tithe
+  nightborn: ['redwind', 'hadesshadow', 'nyxnightfall'],   // Red Wind, Hades' Shadow, Nyx Nightfall
+  executioner: ['bayingcircle', 'longshadow', 'harvestsweep'],   // Arawn, Thanatos, The Reaper
+  goblin: ['dirtyfistful', 'gone', 'threeliars'],   // Reynard, Hermes, Loki
+  pitborn: ['crackingground', 'ashfall', 'windwall'],   // Antaeus, Surtr, Typhon
+  dwarf: ['theword', 'threeblows', 'rimshake'],   // Ptah, Goibniu, Hephaestus
+  shieldmaiden: ['baredface', 'thering', 'aegissweep'],   // Penthesilea, Brynhildr, Athena
+  witch: ['avalonmist', 'foretoldstep', 'theprice'],   // Morgan le Fay, Merlin, Odin
+  plaguedoctor: ['plagueflies', 'poisonstain', 'lastbreath'],   // Apollo, Hecate, Resheph
+  knight: ['thesling', 'wrath', 'stormfollowshim'],   // Hector, Achilles, Thor
+} as const;
+export type SpecialName = typeof SPECIAL_SETS[keyof typeof SPECIAL_SETS][number];
+export const specialOf = (opponent: OpponentId, level: number): SpecialName | null => {
+  const set = (SPECIAL_SETS as Partial<Record<OpponentId, readonly SpecialName[]>>)[opponent];
+  return set && level >= 36 ? set[level >= 46 ? 2 : level >= 41 ? 1 : 0] : null;
+};export const LEVEL_ANCHORS = { novice: 1, easy: 6, normal: 18, hard: 46 } as const;
 // The novice (Combat's L1 screen, 2026-09-27: tap-attack wins /48 at 48 seeds): slow to notice, rarely answers, swings a quarter as often.
 const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 30, ...(easy.tellReaction === undefined ? {} : { tellReaction: easy.tellReaction + 30 }), accuracy: .1, parry: 0, dodge: 0, aggression: easy.aggression * .25, lapse: .95, read: .1 });
 // The novice BODY (option C, Strategy yes 2026-09-27 09:5x): no skill rule alone clears the level-1 gate, because a player's light never

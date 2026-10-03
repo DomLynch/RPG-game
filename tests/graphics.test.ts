@@ -29,6 +29,12 @@ import * as detmath from '../src/detmath.ts';
 import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
+import * as specialLook from '../src/special-look.ts';
+import * as sparringSpecials from '../src/sparring-specials.ts';
+import * as sparringSpecialRuntime from '../src/sparring-special-runtime.ts';
+import * as specialAudio from '../src/audio/special.ts';
+import * as specialIdentity from '../src/special-identity.ts';
+import * as classSpecialIdentity from '../src/class-special-identity.ts';
 // The build's API is stubbed per test: the harness has no network and no env.
 // clip.ts behind a mutable copy (as shareModule): a test swaps recordClip for a recorder whose stop() it resolves by hand.
 const clipModule: Record<string, unknown> = { ...clip };
@@ -59,7 +65,10 @@ class Element extends EventTarget {
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
 // The Pit stub: never opens unless a test swaps openPit (the F6 test below), as tests swap matchModule.Match.
-const pitCoordinator = { openPit: (..._: unknown[]): Promise<unknown> => new Promise(() => {}), loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} };
+const pitCoordinator = { openPit: (stage?: unknown): Promise<unknown> => { void stage; return new Promise(() => {}); }, loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} };
+const captureMatch = (receive: (live: match.Match) => void) => class extends match.Match {
+  constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); receive(this); }
+};
 function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false, hostname = 'localhost') {   // localhost: the release checks' local build; 'frankendom.com' for the live site
   const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search, hostname } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug; hostname for the local-build rule (#1093)
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
@@ -68,15 +77,27 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
-  let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {};
+  let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {}, finisherOverride: string | null = null;
+  let sceneArena: unknown;
   const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
-  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); }, snapshot: () => [...stored], sessionSnapshot: () => [...sessionStored], arena: () => sceneArena, finisher: () => finisherOverride };
+  const specialCalls: string[] = [], specialWants: string[] = [], specialActors: Array<0 | 1 | undefined> = [], specialCutActors: Array<0 | 1 | undefined> = []; let specialCuts = 0;
+  const feedbackModule = { ...feedback, createFeedback: (...args: Parameters<typeof feedback.createFeedback>) => {
+    const real = feedback.createFeedback(...args);
+    return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
+  } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  modules['./sparring-specials.ts'] = sparringSpecials;
+  modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
+  Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });
+  const sceneModule = modules['./scene.ts'] as { createScene: (...args: unknown[]) => unknown };
+  const makeScene = sceneModule.createScene;
+  sceneModule.createScene = (...args: unknown[]) => { sceneArena = args[3]; return makeScene(...args); };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
@@ -84,9 +105,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   };
+  Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
   runInNewContext(code, context);   // main.ts's globalThis is this object: the ?debug __pit handle lands on it
   element('welcome').hidden = true;
-  return { get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -95,6 +117,96 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     failDraw(lose = true) { failDraw = true; loseDuringDraw = lose; }, failRebuild() { failRebuild = true; },
   };
 }
+test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manual band and starts only on Start', () => {
+  const app = boot({}, undefined, {}, '?debug&opponent=nightborn');
+  const select = app.element('spar-special'), difficulty = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  assert.equal(select.value, 'lunge', 'approved class A is the matching default');
+  assert.equal(select.children.length, 6, 'all five class bands shown');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(select.value, 'nyx', 'Nightborn10 auto selects Nyx');
+  app.element('spar-skill').value = 'miasma'; app.element('spar-weapon').value = 'estoc';
+  select.value = 'cuts'; select.dispatchEvent(new Event('change'));
+  assert.equal(difficulty.value, '46', 'manual B preview keeps visible opponent difficulty');
+  assert.match(app.element('spar-special-status').textContent, /Seven Cuts · L4–7 special; opponent difficulty/);
+  assert.deepEqual(app.replaced, [], 'all field changes wait for Start');
+  app.element('spar-start').click();
+  assert.deepEqual(Object.fromEntries(new URL(app.replaced[0], 'https://frankendom.com').searchParams), { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '46', skill: 'miasma', special: 'cuts', yourSpecial: 'none', arena: 'ladder' });
+  opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
+  assert.equal(select.value, 'price', 'class change removes stale Nightborn selection');
+  difficulty.value = '10'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(select.value, 'wake', 'difficulty change resets a class-valid matching band');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(select.disabled, true); assert.match(app.element('spar-special-status').textContent, /Dummy does not cast/);
+  app.element('spar-start').click(); assert.equal(new URL(app.replaced[1], 'https://frankendom.com').searchParams.get('special'), 'none');
+});
+test('Sparring Stage/Finisher picks are inert until Start; explicit Ladder beats stale session and only valid combined finishers apply', () => {
+  const seed = { 'session:frankendom.arena-override': 'a' };
+  const app = boot({}, undefined, seed, '?debug&opponent=nightborn');
+  const stage = app.element('arena-select'), finisher = app.element('finisher-select'), before = app.storage.snapshot(), sessionBefore = app.storage.sessionSnapshot();
+  stage.value = 'c'; stage.dispatchEvent(new Event('change')); finisher.value = 'opened'; finisher.dispatchEvent(new Event('change'));
+  assert.deepEqual(app.replaced, []); assert.equal(app.reloads, 0); assert.deepEqual(app.storage.snapshot(), before);
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'no session arena write before Start');
+  assert.equal(app.storage.finisher(), null, 'pick does not change current fight');
+  app.element('spar-start').click();
+  const started = new URL(app.replaced[0], 'https://frankendom.com');
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'Start uses URL override without writing configuration');
+  assert.equal(started.searchParams.get('arena'), 'c'); assert.equal(started.searchParams.get('finisher'), 'opened');
+  const booted = boot({}, undefined, seed, started.search);
+  assert.equal(booted.storage.arena(), 'c'); assert.equal(booted.storage.finisher(), 'opened');
+  stage.value = ''; stage.dispatchEvent(new Event('change')); app.element('spar-start').click();
+  const ladder = new URL(app.replaced[1], 'https://frankendom.com'); assert.equal(ladder.searchParams.get('arena'), 'ladder');
+  const cleared = boot({}, undefined, seed, ladder.search);
+  assert.equal(cleared.storage.arena(), 'ladder'); assert.equal(cleared.element('arena-select').value, '');
+  assert.equal(boot({}, undefined, seed, '?debug&arena=d&finisher=opened').storage.arena(), 'd', 'standalone arena URL still beats session');
+  assert.equal(boot({}, undefined, seed, '?debug&finisher=opened').storage.finisher(), null, 'standalone finisher param does not introduce a new mechanism');
+  for (const invalid of ['fake', 'opened-junk', 'opened!', 'opened%2Djunk', 'opened%21']) {
+    const bogus = boot({}, undefined, seed, started.search.replace('opened', invalid));
+    assert.equal(bogus.storage.finisher(), null, invalid); assert.equal(bogus.element('finisher-select').value, 'auto', invalid);
+  }
+  assert.equal(boot({}, undefined, seed, started.search.replace('opened', '%6fpened')).storage.finisher(), 'opened', 'exact decoded valid value remains supported');
+  for (const invalid of ['a!', 'a%21', 'c-junk', 'fake']) {
+    const bogus = boot({}, undefined, seed, started.search.replace('arena=c', `arena=${invalid}`));
+    assert.equal(bogus.storage.arena(), 'ladder', `${invalid}: malformed combined Stage cannot become a valid prefix or stale session`);
+  }
+  assert.equal(boot({}, undefined, seed, started.search.replace('arena=c', 'arena=%63')).storage.arena(), 'c');
+});
+test('combined Sparring preview actual main preserves kit/difficulty and accepted opponent cast cue', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const app = boot({}, undefined, {}, '?debug&spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx');
+    assert.deepEqual([live.mode, live.level, live.weapon, live.skill, live.recorder], ['sparring', 6, 'estoc', 'miasma', null]);
+    assert.equal(app.element('spar-special').value, 'nyx', 'manual cross-band selection survives boot');
+    assert.match(app.element('spar-special-status').textContent, /L10 special; opponent difficulty/);
+    assert.equal(live.practice.duel.fighters[1].specialName, 'nyxnightfall');
+    assert.equal(live.practice.duel.fighters[1].specialShare, moves.RULES.special.bossDamage);
+    app.tick(); app.key('KeyF');
+    for (let i = 0; i < 1800 && !live.fightLog.some(e => e.type === 'SpecialStarted' && e.actor === 1) && !live.practice.finish; i++) app.tick();
+    assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted' && e.actor === 1 && e.name === 'nyxnightfall'));
+    assert.ok(app.specialCalls.includes('nyx'), 'accepted selected opponent cast plays its own cue');
+    assert.deepEqual(app.errors, []);
+  } finally { matchModule.Match = Original; }
+});
+test('invalid combined preview is visibly refused and cannot tick, rematch career or open PvP', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const app = boot({}, undefined, {}, '?debug&spar=1&opponent=witch&weapon=estoc&difficulty=46&skill=miasma&special=nyx&duel=new');
+    assert.match(app.element('replay-banner').textContent, /special move test link is invalid/);
+    const tick = live.practice.duel.tick, epoch = live.epoch, before = app.storage.snapshot();
+    app.key('KeyF'); for (let i = 0; i < 30; i++) app.tick(); app.element('reset-button').click();
+    assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch);
+    assert.deepEqual(app.storage.snapshot(), before); assert.equal(app.duelPage, undefined);
+    assert.deepEqual(app.specialCalls, []); assert.deepEqual(app.specialWants, []);
+  } finally { matchModule.Match = Original; }
+});
+test('explicit unavailable none actual main disables Sparring specials at a live B difficulty', () => {
+  const app = boot({}, undefined, {}, '?debug&spar=1&opponent=executioner&weapon=estoc&difficulty=20&skill=miasma&special=none');
+  app.tick();
+  assert.deepEqual(app.rendered.duel.fighters.map(f => f.specialShare), [undefined, undefined]);
+  assert.equal(app.element('spar-special').value, 'none');
+  assert.deepEqual(app.specialCalls, []);
+});
 test('graphics restoration resumes one loop, clears inputs and preserves the current fight', () => {
   const app = boot(); app.tick(); app.key('KeyF'); app.tick();
   const before = app.element('target-health').value;
@@ -586,13 +698,22 @@ test('the Sparring tab\'s opponent picker lists the ladder, shows the current ru
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
-test('the arena test pick reloads into the new arena on its own: changing only the arena is enough (Dom, 2026-09-24)', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+test('the Sparring Stage pick waits for Start and carries the selected arena without changing the ladder', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, { 'session:frankendom.arena.v1': 'a' }, '?debug'); app.tick();
+  const sessionBefore = app.storage.sessionSnapshot();
+  const storedBefore = app.storage.snapshot(), arenaBefore = app.storage.arena();
   const select = app.element('arena-select');
   select.value = 'b'; select.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.replaced.length, 1, 'one navigation, without touching Opponent');
-  assert.ok(!app.replaced[0].includes('arena='), `a URL arena would win over the pick, so it is dropped: ${app.replaced[0]}`);
-  assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
+  assert.deepEqual([app.replaced, app.reloads], [[], 0], 'the Stage pick starts nothing');
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'the Stage pick writes no session preference');
+  assert.deepEqual(app.storage.snapshot(), storedBefore, 'the Stage pick writes no fighter, reward or record');
+  assert.equal(app.storage.arena(), arenaBefore, 'the live arena is unchanged');
+  app.element('difficulty-select').value = 'dummy'; app.element('difficulty-select').dispatchEvent(new Event('change'));
+  app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'miasma';
+  app.element('spar-start').click(); app.tick();
+  assert.deepEqual(app.replaced, ['/?opponent=goblin&spar=1&weapon=estoc&difficulty=dummy&skill=miasma&special=none&yourSpecial=none&arena=b'], 'Start carries exactly the opponent, kit, player MOVE, special NONE and selected Stage');
+  assert.deepEqual(app.storage.snapshot(), storedBefore, 'Start writes no fighter, reward or record');
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'Start writes no session preference');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
@@ -612,9 +733,9 @@ test('Sparring tab: the Opponent picker and Difficulty wait for Start sparring, 
   assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'the dummy is never stored');
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
-  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
+  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire&special=none&yourSpecial=none&arena=ladder'], 'Start carries the Dwarf, dummy, estoc, Witch-fire, no special and Ladder Stage');
   difficulty.value = '12'; app.element('spar-start').click(); app.tick();
-  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire', 'a numbered level rides the link as is');
+  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire&special=none&yourSpecial=none&arena=ladder', 'a numbered level rides the link as is');
   assert.deepEqual([player.errors, app.errors], [[], []]);
 });
 
@@ -914,7 +1035,7 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
   const mintShare = shareModule.mintShare, Match = matchModule.Match;
   let answer: ((id: string) => void) | null = null, live: match.Match | null = null;
   const minted: string[] = [];
-  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  matchModule.Match = captureMatch(value => { live = value; });
   apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
   shareModule.mintShare = (_api: unknown, record: { outcome: string }) => new Promise<string>((r) => { minted.push(record.outcome); answer = r; });
   session.db = { from: () => ({ insert: async () => ({ error: null }) }), auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
@@ -1126,8 +1247,8 @@ test('kill links: a retired record version converts — the warden\'s still, who
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const fight = rec.finish('killed');
-  // A pre-12 header has no skill byte: drop it from this build's packing (it sits after the weapon string).
-  const legacy = (b: Uint8Array) => { let o = 3; for (let k = 0; k < 3; k++) o += 1 + b[o]; return new Uint8Array([...b.subarray(0, o), ...b.subarray(o + 1)]); };
+  // A pre-12 header has no skill byte, nor the specials byte after it (v21): drop both from this build's packing (they sit after the weapon string).
+  const legacy = (b: Uint8Array) => { let o = 3; for (let k = 0; k < 3; k++) o += 1 + b[o]; return new Uint8Array([...b.subarray(0, o), ...b.subarray(o + 2)]); };
   const retired = async (outcome: record.Outcome, v: number) => {
     const bytes = legacy(record.packRecord({ ...fight, outcome })); bytes[2] = v;   // the same bytes under a version this build no longer reads
     const gz = new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
@@ -1195,7 +1316,8 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
   const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
-  assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
+  if (app.rendered.finish.move === 'skill_shove') assert.equal(lines[0], `The Scutum Shove landed on your ${app.rendered.finish.location}.`);
+  else assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
   for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
   assert.equal(el.hidden, false, 'the rank row is permanent: a rematch keeps it (Dom 2026-09-24)');
@@ -1238,6 +1360,34 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
 // GPT audit of e65a6d8 (2026-09-30, F4): the owed-time rule used fightLive() (welcome hidden, journal closed, no finish), which is true
 // for a returning player the whole time the fight waits behind the loading card, so 30 s hidden during the download owed 30 s of fight
 // (1,800 ticks) the moment the rigs came in. The rule is fightPlayable(): rigs in, versus card gone, graphics up — the ?perf sampler's.
+test('a failed versus still never starts an unready fight or accrues loading time; ready fighters resume normally', () => {
+  const app = boot();
+  app.report('Loading warriors…', 'loading');
+  app.element('versus-portrait').dispatchEvent(new Event('error'));
+  app.element('versus-still').dispatchEvent(new Event('load'));
+  app.tick();
+  assert.equal(app.element('versus').hidden, false, 'the loading card is up');
+  const before = app.rendered.duel.tick;
+  app.element('versus-still').dispatchEvent(new Event('error'));
+  assert.equal(app.element('versus').hidden, true, 'the failed still is dismissed');
+  app.key('KeyF');
+  for (let i = 0; i < 120; i++) app.tick();
+  assert.equal(app.rendered.duel.tick, before, 'dismissing the card does not run an unseen fight');
+  assert.equal(app.storage.getItem('frankendom.fight.v1'), null, 'an unready fight is never marked abandoned');
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick();
+  assert.equal(app.rendered.duel.tick, before, 'returning while still loading runs no fight');
+  app.report('', 'ready'); app.tick();
+  assert.ok(app.rendered.duel.tick > before && app.rendered.duel.tick - before <= 2, 'ready resumes with one frame, no loading/background catch-up');
+  app.element('versus-still').dispatchEvent(new Event('error'));
+  const ready = app.rendered.duel.tick;
+  for (let i = 0; i < 120; i++) app.tick();
+  assert.ok(app.rendered.duel.tick - ready >= 120 && app.rendered.duel.tick - ready <= 123, 'a late still failure leaves the ready fight advancing at normal time');
+  assert.deepEqual(app.errors, []);
+});
+
 test('F4: time hidden while the rigs are still loading is not owed to the fight; hidden once playable it is', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();
@@ -1729,10 +1879,14 @@ test('a clip still being made when the next fight starts never lands on it: no S
     const app = boot({}, undefined, {}, '?opponent=veteran'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
     for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins: a loss, so Rematch begins in place
     assert.ok(app.rendered.finish, 'the fight ends');
+    const cutsBeforeClip = app.specialCuts;
     app.element('clip-button').click();
     assert.equal(app.element('clip-button').dataset.state, 'recording');
     for (let i = 0; i < 2000 && !stops; i++) app.tick();   // the re-play reaches the kill and the hold runs out: endClip(true) asks for the file
     assert.equal(stops, 1, 'the clip was stopped to be kept');
+    app.tick(0);
+    assert.ok(app.specialCuts >= cutsBeforeClip + 2, 'actual clip entry and exit each cancel old actor audio');
+    assert.equal(app.specialCutActors.at(-1), undefined, 'clip lifecycle cancels both actors');
     app.element('reset-button').click(); app.tick();   // Rematch while the file is still being made
     assert.ok(!app.rendered.finish, 'a new fight is on');
     finish(new Blob(['old fight'], { type: 'video/webm' })); for (let i = 0; i < 5; i++) await Promise.resolve();
@@ -1762,4 +1916,217 @@ test('a clip still being made when a second clip of the same fight starts never 
     assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip is still recording, not SEND');
     assert.equal(app.element('debug').dataset.clip, undefined, 'the first file is not kept');
   } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
+});
+
+// Real main boot and sim-event dispatch, with the real lookup/Match and observed feedback calls.
+test('special previews boot with the real audio lookup; a cast starts once and a fizzle cuts it', () => {
+  for (const id of Object.keys(specialLook.SPECIAL_TESTS)) {
+    const app = boot({}, undefined, {}, `?special=${id}`);
+    const cue = specialAudio.SPECIAL_CUE_OF[id];
+    assert.deepEqual(app.specialWants, cue ? [cue] : [], `${id} prefetches only its authored cue`);
+    assert.ok(app.specialWants.every(want => typeof want === 'string'), 'quiet previews never request undefined');
+    assert.deepEqual(app.errors, []);
+  }
+  const app = boot({}, undefined, {}, '?special=tithe');
+  app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  app.rendered.duel.fighters[1].skillCooldown = 0;
+  for (let i = 0; i < 180 && !app.specialCalls.length; i++) app.tick();
+  assert.deepEqual(app.specialCalls, ['tithe'], 'accepted opponent SpecialStarted routes the cue');
+  assert.ok(app.rendered.duel.fighters[1].special, 'real sim windup is active');
+  const tick = app.rendered.duel.tick;
+  for (let i = 0; i < 5; i++) app.tick(0);
+  assert.equal(app.rendered.duel.tick, tick, 'five drawn frames without a sim tick');
+  assert.deepEqual(app.specialCalls, ['tithe'], 'render repeats do not restart the cue');
+  app.rendered.duel.fighters[1].health = 1;
+  app.rendered.duel.fighters[0].special = 1;   // release on the next real sim tick, killing the winding-up foe
+  const starts = app.specialCalls.length;
+  for (let i = 0; i < 90 && !app.specialCuts; i++) app.tick();
+  assert.equal(app.specialCuts, 1, 'real sim SpecialFizzled cuts the cue');
+  assert.equal(app.specialCalls.length, starts, 'player release does not start an opponent preview cue');
+  for (let i = 0; i < 5; i++) app.tick(0);
+  assert.equal(app.specialCuts, 1, 'render repeats do not repeat cancellation');
+});
+
+test('ordinary PvE actual main dispatches both accepted actors once and invalidates epoch/rewind', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); live.setLevel(46);
+    app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    assert.equal(live.specials, true, 'ordinary PvE is activated at Match boundary');
+    const [player, foe] = live.practice.duel.fighters;
+    // Both named casts are sim fixtures; this does not assign a player boss in production.
+    player.specialName = 'tithe'; player.skill = 'pommel'; player.skillCooldown = 0;
+    player.phase = 'ready'; player.age = 0; foe.phase = 'ready'; foe.age = 0;
+    foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 };
+    foe.skillCooldown = 0; live.skill = 'pommel';
+    app.element('skill-button').dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
+    for (let i = 0; i < 180 && app.specialCalls.length < 2; i++) app.tick();
+    assert.deepEqual(app.specialCalls, ['tithe', 'tithe']);
+    assert.deepEqual(app.specialActors, [0, 1]);
+    const tick = live.practice.duel.tick;
+    for (let i = 0; i < 5; i++) app.tick(0);
+    assert.equal(live.practice.duel.tick, tick); assert.equal(app.specialCalls.length, 2);
+    live.epoch++; app.tick(0); assert.equal(app.specialCutActors.at(-1), undefined);
+    const cuts = app.specialCuts; live.practice.duel.tick = 0; app.tick(0);
+    assert.equal(app.specialCuts, cuts + 1, 'rewind cuts both before any new sim event');
+    assert.equal(app.specialCalls.length, 2); assert.deepEqual(app.errors, []);
+  } finally { matchModule.Match = Original; }
+});
+
+test('ordinary PvE actual main consumes quiet catch-up casts without playing them later', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); live.setLevel(46);
+    app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready';
+    foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
+    Object.assign(app.document, { hidden: true }); app.document.dispatchEvent(new Event('visibilitychange'));
+    app.tick(1000); Object.assign(app.document, { hidden: false }); app.document.dispatchEvent(new Event('visibilitychange')); app.tick();
+    assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted'), 'real simulator committed the catch-up cast');
+    assert.equal(app.specialCalls.length, 0, 'quiet catch-up has no cue');
+    for (let i = 0; i < 5; i++) app.tick(0);
+    assert.equal(app.specialCalls.length, 0, 'resuming cannot replay the accepted old cast');
+  } finally { matchModule.Match = Original; }
+});
+
+test('phase-two ordinary PvE actual main keeps A off and dispatches four B cues plus two quiet casts despite picker changes', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  const classes = [['witch', 'stirring'], ['plaguedoctor', 'pulse'], ['knight', 'swing'], ['nightborn', 'cuts'], ['goblin', null], ['veteran', null]] as const;
+  try {
+    for (const [opponent, cue] of classes) for (const level of [1, 15, 16, 35]) {
+      const active = level >= 16, app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
+      app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+      const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready'; player.health = foe.health = 10000;
+      foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
+      assert.deepEqual(live.specialIdentity, { opponent, level }); assert.equal(live.specials, active, `${opponent} L${level} phase`);
+      assert.equal(foe.specialShare, active ? moves.RULES.special.damage : undefined);
+      live.setLevel(active ? 1 : 46);   // a picker cannot retarget the already built A/B fight
+      for (let i = 0; i < 180 && !live.fightLog.some(e => e.type === 'SpecialStarted'); i++) app.tick();
+      assert.equal(live.fightLog.some(e => e.type === 'SpecialStarted'), active); assert.equal(live.specials, active);
+      assert.deepEqual(live.specialIdentity, { opponent, level });
+      if (active) assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted' && e.actor === 1 && e.name === undefined), 'real accepted unnamed B cast');
+      assert.deepEqual(app.specialCalls, active && cue ? [cue] : []); assert.deepEqual(app.specialActors, active && cue ? [1] : []);
+      if (active && cue) assert.ok(app.specialWants.length > 0 && app.specialWants.every(want => want === cue));
+      else assert.deepEqual(app.specialWants, [], 'A and the two unauthored B cues stay quiet');
+      for (let i = 0; i < 5; i++) app.tick(0);
+      assert.deepEqual(app.specialCalls, active && cue ? [cue] : []); assert.deepEqual(app.errors, []);
+    }
+  } finally { matchModule.Match = Original; }
+});
+
+test('boss-first ordinary PvE actual main dispatches all thirty named boss identities from captured ranks', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  const bosses = [
+    ['veteran', ['quake', 'charge', 'tithe']], ['nightborn', ['redwind', 'hadesshadow', 'nyxnightfall']],
+    ['goblin', ['dirtyfistful', 'gone', 'threeliars']], ['pitborn', ['crackingground', 'ashfall', 'windwall']],
+    ['executioner', ['bayingcircle', 'longshadow', 'harvestsweep']], ['dwarf', ['theword', 'threeblows', 'rimshake']],
+    ['shieldmaiden', ['baredface', 'thering', 'aegissweep']], ['witch', ['avalonmist', 'foretoldstep', 'theprice']],
+    ['plaguedoctor', ['plagueflies', 'poisonstain', 'lastbreath']], ['knight', ['thesling', 'wrath', 'stormfollowshim']],
+  ] as const;
+  try {
+    for (const [opponent, names] of bosses) for (const [rank, name] of names.entries()) {
+      const level = 36 + rank * 5, app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
+      app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+      const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready'; player.health = foe.health = 10000;
+      foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
+      assert.equal(live.specials, true); assert.equal(foe.specialName, name); assert.deepEqual(live.specialIdentity, { opponent, level });
+      live.setLevel(1);   // the captured boss remains active even if the picker now points below the cutoff
+      for (let i = 0; i < 180 && !live.fightLog.some(e => e.type === 'SpecialStarted'); i++) app.tick();
+      assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted' && e.name === name), `${opponent} L${level} real named cast`);
+      const id = specialIdentity.bossSpecialId(name)!; const cue = specialAudio.SPECIAL_CUE_OF[id]!;
+      assert.deepEqual(app.specialCalls, [cue]); assert.deepEqual(app.specialActors, [1]);
+      assert.ok(app.specialWants.length > 0); assert.ok(app.specialWants.every(want => want === cue));
+      for (let i = 0; i < 5; i++) app.tick(0);
+      assert.deepEqual(app.specialCalls, [cue]); assert.deepEqual(app.errors, []);
+    }
+  } finally { matchModule.Match = Original; }
+});
+
+
+test('independent Your special catalog survives foe class/rank/Dummy resets and Start serializes both without saving', () => {
+  const app = boot({}, undefined, {}, '?debug&opponent=nightborn');
+  const your = app.element('spar-skill'), foe = app.element('spar-special'), difficulty = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  const before = app.storage.snapshot(), sessionBefore = app.storage.sessionSnapshot();
+  your.value = 'special:price'; your.dispatchEvent(new Event('change'));
+  assert.match(app.element('spar-player-status').textContent, /Your fighter: The Price.*Cast with SKILL/);
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); assert.equal(foe.value, 'nyx');
+  foe.value = 'none'; foe.dispatchEvent(new Event('change')); assert.equal(your.value, 'special:price');
+  opponent.value = 'witch'; opponent.dispatchEvent(new Event('change')); assert.equal(foe.value, 'price');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change')); assert.equal(foe.value, 'none');
+  assert.equal(your.value, 'special:price'); assert.deepEqual(app.replaced, []);
+  assert.deepEqual(app.storage.snapshot(), before); assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore);
+  app.element('spar-start').click();
+  const params = new URL(app.replaced[0], 'https://frankendom.com').searchParams;
+  assert.equal(params.get('yourSpecial'), 'price'); assert.equal(params.get('skill'), 'none'); assert.equal(params.get('special'), 'none');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); your.value = 'none'; your.dispatchEvent(new Event('change'));
+  assert.equal(foe.value, 'price', 'changing Your move never clears foe');
+  app.element('spar-start').click();
+  const none = new URL(app.replaced[1], 'https://frankendom.com').searchParams;
+  assert.equal(none.get('special'), 'price'); assert.equal(none.get('skill'), 'none'); assert.equal(none.get('yourSpecial'), 'none');
+  your.value = 'special:fake'; app.element('spar-start').click(); assert.equal(app.replaced.length, 2, 'invalid tagged choice refuses Start');
+  assert.match(app.element('replay-banner').textContent, /Choose valid special moves/);
+});
+test('legacy both-ability link remains represented by two independent fields and unchanged Start retains both', () => {
+  const app = boot({}, undefined, {}, '?spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx');
+  assert.equal(app.element('spar-skill').value, 'miasma'); assert.equal(app.element('spar-special').value, 'nyx');
+  app.element('spar-start').click();
+  const params = new URL(app.replaced[0], 'https://frankendom.com').searchParams;
+  assert.equal(params.get('skill'), 'miasma'); assert.equal(params.get('special'), 'nyx'); assert.equal(params.get('yourSpecial'), 'none');
+});
+
+
+test('actual main boots independent registered player/foe casts, manual SKILL and per-actor cues without persistence', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    for (const [player, foe, difficulty] of [['price', 'none', 'dummy'], ['none', 'nyx', '6'], ['price', 'nyx', '6'], ['wake', 'none', 'dummy'], ['standfast', 'none', 'dummy']] as const) {
+      const app = boot({}, undefined, {}, `?spar=1&opponent=nightborn&weapon=estoc&difficulty=${difficulty}&skill=none&special=${foe}&yourSpecial=${player}`);
+      const before = app.storage.snapshot(), epoch = live.epoch;
+      assert.equal(live.mode, 'sparring'); assert.equal(live.recorder, null); assert.equal(live.weapon, 'estoc');
+      assert.deepEqual(live.specialIdentity.presets, [player === 'none' ? null : player, foe === 'none' ? null : foe]);
+      assert.equal(app.element('spar-skill').value, player === 'none' ? 'none' : `special:${player}`);
+      assert.equal(app.element('spar-special').value, foe);
+      assert.equal(live.practice.duel.fighters[0].specialShare === undefined, player === 'none');
+      assert.equal(live.practice.duel.fighters[1].specialShare === undefined, foe === 'none');
+      app.tick(); app.key('KeyF'); app.tick(); app.release('KeyF');
+      for (let i = 0; i < 400 && !live.practice.finish; i++) app.tick();
+      assert.equal(live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'), false, 'no automatic player cast');
+      if (player !== 'none') {
+        assert.equal(app.element('skill-button').attributes.get('aria-disabled'), 'false', 'real HUD enables actual ready skill');
+        app.element('skill-button').dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
+        app.tick();
+        assert.ok(live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'), 'actual input dispatch starts player preset');
+        if (player === 'standfast') assert.equal(app.specialActors.includes(0), false, 'Stand Fast stays silent');
+        else assert.ok(app.specialCalls.some((cue, i) => cue === (player === 'price' ? 'theprice' : 'wake') && app.specialActors[i] === 0), 'preset dispatch uses authored cue ID on player actor');
+      } else assert.equal(app.element('skill-button').attributes.get('aria-disabled'), 'true');
+      if (foe === 'nyx') {
+        for (let i = 0; i < 1800 && !live.fightLog.some(e => e.actor === 1 && e.type === 'SpecialStarted') && !live.practice.finish; i++) app.tick();
+        assert.ok(live.fightLog.some(e => e.actor === 1 && e.type === 'SpecialStarted' && e.name === 'nyxnightfall'));
+        assert.ok(app.specialCalls.some((cue, i) => cue === 'nyx' && app.specialActors[i] === 1));
+        assert.equal(app.specialCalls.filter((cue, i) => cue === 'nyx' && app.specialActors[i] === 1).length, live.fightLog.filter(e => e.actor === 1 && e.type === 'SpecialStarted').length, 'foe cue not duplicated by legacy preview route');
+      }
+      assert.equal(live.epoch, epoch); assert.deepEqual(app.storage.snapshot(), before); assert.deepEqual(app.errors, []);
+    }
+  } finally { matchModule.Match = Original; }
+});
+test('actual main new-form legacy Miasma remains SKILL and explicit preset off; malformed/non-Spar player links pause visibly', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const good = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx&yourSpecial=none';
+    const app = boot({}, undefined, {}, good);
+    assert.equal(live.skill, 'miasma'); assert.equal(live.practice.duel.fighters[0].specialShare, undefined);
+    assert.deepEqual(live.specialIdentity.presets, [null, 'nyx']);
+    assert.equal(app.specialWants.includes('pulse'), false, 'legacy Miasma is not Doctor B');
+    for (const search of [good.replace('yourSpecial=none', 'yourSpecial=price'), good.replace('yourSpecial=none', 'yourSpecial=fake'), `${good}&yourSpecial=none`, good.replace('spar=1', 'spar=0')]) {
+      const invalid = boot({}, undefined, {}, search), tick = live.practice.duel.tick, epoch = live.epoch, before = invalid.storage.snapshot();
+      assert.match(invalid.element('replay-banner').textContent, /special move test link is invalid/);
+      invalid.key('KeyF'); for (let i = 0; i < 20; i++) invalid.tick(); invalid.element('reset-button').click();
+      assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch); assert.deepEqual(invalid.storage.snapshot(), before);
+    }
+  } finally { matchModule.Match = Original; }
 });

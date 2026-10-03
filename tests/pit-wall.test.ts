@@ -43,6 +43,43 @@ function stage(loot: Loot = { owned: [], equipped: {} }, prop?: Stage['prop']): 
 }
 const instanced = (group: THREE.Group, name: string) => group.getObjectByName(name) as THREE.InstancedMesh | undefined;
 
+test('disposal before a deferred skull load prevents late mounting and releases only owned resources once', async () => {
+  let resolve!: (asset: THREE.Mesh | null) => void;
+  const pending = new Promise<THREE.Mesh | null>(done => { resolve = done; });
+  const group = new THREE.Group(), bone = new THREE.MeshStandardMaterial();
+  const asset = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+  let sharedDisposals = 0, ownedDisposals = 0;
+  for (const resource of [bone, asset.geometry, asset.material]) resource.addEventListener('dispose', () => sharedDisposals++);
+  const wall = buildWall(stage(undefined, () => pending), group, PORTRAIT_KEYS, -3, bone);
+  const niches = instanced(group, 'skull-niches')!;
+  niches.addEventListener('dispose', () => ownedDisposals++);
+  niches.geometry.addEventListener('dispose', () => ownedDisposals++);
+  (niches.material as THREE.Material).addEventListener('dispose', () => ownedDisposals++);
+  wall.dispose(); wall.dispose();
+  const count = group.children.length;
+  resolve(asset); await wall.ready;
+  wall.restock(['veteran-1']); wall.dispose();
+  assert.equal(group.children.length, count);
+  assert.equal(instanced(group, 'skulls'), undefined);
+  assert.equal(ownedDisposals, 3);
+  assert.equal(sharedDisposals, 0);
+});
+
+test('disposal after loading releases instances once, leaves shared skull resources intact, and prevents restock', async () => {
+  const asset = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+  const group = new THREE.Group(), bone = new THREE.MeshStandardMaterial();
+  let sharedDisposals = 0, instanceDisposals = 0;
+  for (const resource of [bone, asset.geometry, asset.material]) resource.addEventListener('dispose', () => sharedDisposals++);
+  const wall = buildWall(stage(undefined, async () => asset), group, PORTRAIT_KEYS, -3, bone);
+  await wall.ready; wall.restock(['veteran-1']);
+  const skulls = instanced(group, 'skulls')!;
+  skulls.addEventListener('dispose', () => instanceDisposals++);
+  wall.dispose(); wall.dispose(); wall.restock(['veteran-1', 'knight-10']);
+  assert.equal(skulls.count, 1);
+  assert.equal(instanceDisposals, 1);
+  assert.equal(sharedDisposals, 0);
+});
+
 test('an empty niche is a carved cell: vertex-coloured rim, sides and dark back, proud of the wall by its depth', () => {
   const g = nicheGeometry();
   assert.ok(g.getAttribute('color'), 'one material, the colours in the vertices');

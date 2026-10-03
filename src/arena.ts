@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { specialGust } from './special-gust.ts';
 import type { CombatEvent } from './combat.ts';
 import { CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
@@ -15,6 +16,8 @@ import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
 // floor, and nothing reaches inside the camera clamp (scene.ts cameraPose, 11.5 m) at fighter height. Lights, fog, tone mapping and the
 // camera stay in scene.ts. `update` receives the simulation's events so the arena may react (crowd, braziers, banners); never gameplay.
 // `floor` is the sand: the decal target for the presentation lane (planar UVs, u = x / SAND_TILE, v = z / SAND_TILE).
+// Preview-only (special-fx-executioner.ts, the Harvest Sweep): extra forward lean by a seat's angle round the pit, on top of the crowd's mood. Null draws nothing.
+export const crowdWave: { lean: ((angle: number) => number) | null } = { lean: null };
 export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
@@ -90,7 +93,7 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 
 export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES['1']): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
-  const { wall, tiers, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
+  const { wall, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, tiers = LAYOUT.tiers.slice(0, theme.tiers ?? LAYOUT.tiers.length), polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
   // half size — the generators are size-parametric, so this costs nothing but sharpness on a small screen.
   const phone = phoneTier();
@@ -224,14 +227,16 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const wallRows = [0, 0.25, 0.7, 1.5, wall.top];   // enough vertical samples to keep foot stains localized
   for (let i = 1; i < wallRows.length; i++) stones.push(band(wall.inner, flat(wallRows[i - 1]), wall.inner, flat(wallRows[i]), 2, wallTint, gateSkip));
   stones.push(band(wall.inner, flat(wall.top), wall.outer, flat(wall.top), 2, wallTint, gateSkip));           // its walkway
+  // Open stands (no parapet): the top walkway and the ground past it are the pit's own sand, not dressed stone (Dom 2026-10-03: too clean).
+  const grit: THREE.BufferGeometry[] = [], open = theme.parapet === false, dirt: Tint = (x, _y, z) => { const k = 0.5 * (0.8 + 0.6 * (mottle(x / 7 + 0.5, z / 7 + 0.5) - 0.5)); return [k, k * 0.95, k * 0.9]; };   // trodden, patchy, darker than the pit
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
-    const top = (a: number, s: number) => tierTop(i, a, s), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s), outer = inner + tierDepth + (i === tiers.length - 1 ? 1.9 : 0);
-    stones.push(band(inner, under, inner, top, 2, tierTint), band(inner, top, outer, top, 2, tierTint));
+    const top = (a: number, s: number) => tierTop(i, a, s), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s), outer = i === tiers.length - 1 && theme.parapet !== false ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
+    stones.push(band(inner, under, inner, top, 2, tierTint)); (open && i === tiers.length - 1 ? grit : stones).push(band(inner, top, outer, top, open && i === tiers.length - 1 ? SAND_TILE : 2, open && i === tiers.length - 1 ? dirt : tierTint));
     inner = outer;
   });
-  const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - tiers[tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
-  stones.push(band(parapet.inner, topTier, parapet.inner, parapetTop, 2, tierTint), band(parapet.inner, parapetTop, parapet.outer, parapetTop, 2, tierTint), band(parapet.outer, parapetTop, parapet.outer, flat(0), 2, tierTint));
+  const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
+  if (theme.parapet !== false) stones.push(band(parapet.inner, topTier, parapet.inner, parapetTop, 2, tierTint), band(parapet.inner, parapetTop, parapet.outer, parapetTop, 2, tierTint), band(parapet.outer, parapetTop, parapet.outer, flat(0), 2, tierTint));
   // The gate: capped posts either side, a voussoir arch proud of the wall face over the opening, the dark passage behind the bars.
   for (const side of [-1, 1]) {
     const a = gate + side * (gateWidth / 2 + 0.35) / wall.inner, [x, z] = polar((wall.inner + wall.outer) / 2, a);
@@ -244,7 +249,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     } }
   { const [x, z] = polar(wall.outer + 1.4, gate); stones.push(prop(box(gateWidth, 2.5, 3.2), x, 1.25, z, gate, 1, 2, SOOT, -5)); }
   // Ruined colonnade on the top walkway: a few columns stand whole with their capitals, the rest are broken at random heights or gone.
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < (theme.colonnade === false ? 0 : 24); i++) {
     const a = i / 24 * TAU + 0.13, r = ruin(a), [x, z] = polar(colonnade, a), foot = tierTop(tiers.length - 1, a, Math.floor(a / TAU * LAYOUT.segments));
     if (r > 0.7) continue;
     const whole = hash(i, 0, 11) > 0.55 && r < 0.2, h = whole ? 4.6 : 1 + hash(i, 1, 11) * 2.6;
@@ -261,7 +266,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   }
   for (let i = 0; i < 40; i++) {
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
-    const tier = 1 + (i % 3), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments)), s = 0.5 + hash(i, 6, 13) * 0.6;
+    const tier = 1 + (i % Math.min(3, tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments)), s = 0.5 + hash(i, 6, 13) * 0.6;
     const rubble = prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3);
     rubble.computeBoundingBox(); crowdObstacles.push(rubble.boundingBox!.clone().expandByScalar(0.4)); stones.push(rubble);
   }
@@ -446,11 +451,27 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // zenith vertex would sit over the play circle, and the camera's pitch clamp never looks within 3.6° of straight up.
   const dome = mesh(new THREE.SphereGeometry(150, 40, 20, 0, TAU, Math.PI * 0.02, Math.PI * 0.54), sky, 'sky', false); dome.receiveShadow = false;
   const ridges: THREE.BufferGeometry[] = [band(wall.inner, flat(-0.03), 150, flat(-0.03), 1, () => [1, 1, 1])];
-  for (let i = 0; i < 40; i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
+  if (theme.backdrop) {   // the painted far world (Dom 2026-10-03, arena-wow): one painting, mirrored eight times round a ring inside the dome; its
+    // faded foot meets the haze over the wall, its faded head the sky. Unfogged like the dome, and no ridges in front of it.
+    // No DOM (the node tests): a blank map the strip's size, so the cost test still counts it.
+    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(theme.backdrop);
+    map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 8;
+    map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;   // 0.9 MB without mips: the arena's texture budget is 12 MB
+    // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
+    const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
+    materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
+    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17; ring.rotation.y = 0.3;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37° ring.receiveShadow = false;
+  }
+  for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
     ridges.push(prop(cylinder((2 + hash(i, 4, 43) * 5), 14 + hash(i, 1, 43) * 16, h, 7), x, h / 2 - 3, z, new THREE.Euler(0, hash(i, 2, 43) * 3, 0), new THREE.Vector3(1.7 + hash(i, 3, 43), 1, 1), 1, [1, 1, 1], -5));
   }
-  mesh(mergeGeometries(ridges), plain, 'plain', false);
+  // Open stands: the ground past the walkway is never seen except as a sliver under the painted world; unfogged and dark like the
+  // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
+  const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;
+  if (open) materials.push(plainMaterial);
+  mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
+  if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
 
   // Motion. Only dt-driven: a hit-stop passes dt 0 and everything holds its pose with the fighters.
   let time = 0, flare = 0, mood: 'idle' | 'cheer' | 'lean' | 'recoil' = 'idle', since = 0;
@@ -473,6 +494,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // reads it while the wall has no bodies, so the implementation simply does not take it.
   let rise = 0, riseOpen = false;
   function update(dt: number, events: CombatEvent[], camera?: THREE.Camera) {
+    const gust = specialGust.k;   // a special's wind (special-gust.ts) snapping the banner cloths; 0 leaves them exactly as before
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const was = rise; rise = riseStep(rise, riseOpen, dt);
     if (rise !== was) { gateBars.position.y = riseMetres(rise); props.liftGate(riseMetres(rise)); }   // the portcullis (procedural or authored) rises with the gate's open; props is built after update(0) and a still gate never reads it
@@ -483,7 +505,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     }
     if (since > 2.2) mood = 'idle';
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
-    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
+    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1) + gust * (0.5 + 0.2 * Math.sin(time * 19 + k * 2.7)) * Math.sin(time * 13 + k * 1.3), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
     drapeAngles.forEach((a, k) => { const [x, z] = polar(drapeR, a); place(banners, bannerAngles.length + k, x, wall.top - 0.05, z, 0.008 * Math.sin(time * 0.9 + k * 2.3), a, drapeDrop, theme.banner[0] / drapeDrop); });   // flat to the stone: a breath, not a sway
     banners.instanceMatrix.needsUpdate = true;
     // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;
@@ -492,7 +514,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       const lean = 0.13 * Math.sin(time * 2.2 + k * 1.7) + 0.05 * Math.sin(time * 5.1 + k * 2.9);
       const breathe = 1 + 0.06 * Math.sin(time * 2.9 + k * 2.1) + 0.04 * Math.sin(time * 7.3 + k) + flare * 0.25;
       const lick = 1 + 0.08 * Math.sin(time * 4.7 + k * 3.7);
-      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(lean, k * 1.3 + time * 0.35 * (k % 2 ? 1 : -1), 0, 'YXZ')); scale.set(lick, breathe, lick);
+      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(lean, k * 1.3 + time * 0.35 * (k % 2 ? 1 : -1), 0, 'YXZ')); scale.set(lick, breathe * (theme.flame ?? 1), lick);   // taller, not wider: the tongue's width already sits at the camera clamp
       flames.setMatrixAt(k, matrix.compose(position, quaternion, scale));
     });
     flames.instanceMatrix.needsUpdate = true;
@@ -513,7 +535,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       }
       p.needsUpdate = true; }
     for (const { mesh, people } of crowds) {
-      people.forEach((p, i) => { if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale, p.width); });
+      people.forEach((p, i) => { if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt + (crowdWave.lean ? crowdWave.lean(Math.atan2(p.z, p.x)) : 0), p.yaw, p.scale, p.width); });
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
