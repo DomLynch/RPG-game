@@ -1,21 +1,11 @@
-## 2026-10-03 — Portrait background only, direct owner correction; publication pending
-
-- Dom rejected landscape trial camera changes and asks only newest portrait background with the original camera/character size/feel. Opt-in `?arena=portrait`, native Stage option; default ring and `?arena=art1` preserved.
-- New screen-space background helper retains native `createCameraRig`, original scene lens/lighting/environment/effects and native floor geometry/UVs for shadows/gore; only picture fit/crop changes. No camera, fighter, simulation, input or combat asset edits. Owner source941x1672 compressed full-resolution416656bytes with SHA provenance.
-- Focused retry/crop/environment/floor/teardown regression passed. Initial configured test-fixture typing error fixed; configured531/531PASS, appTSC and mandatory CPUcompletion34/34PASS. First unique-output native run PASS with exact classic camera/lens/projected head/feet equality; final corrected floor-focused source run exit0/PASS with exact camera/lens/projection parity, real movement/Price/finisher/default/Pit/gate/rematch, zero page/console/HTTP/attempted writes;10 nativePNG in artifacts/portrait-background/final-fit. Independent source review found and closed probe output-directory collision (separate trial defaults +receipt.trial).
-- Required existing source Spar and art1 workflows both exit0/PASS; Spar retains the pre-existing Nightborn optional missing-texture warnings, unchanged original asset. Crop-only successor closes observed foreground railing overlap; runtime10 before/after SHA256 identical during corrected capture. Next: final frozen-head/pixel reconciliation, sole Deploy publication and public receipt. No LIVE/phone acceptance claim for portrait yet.
-
 # Visuals & world — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## 2026-10-03 — Image 1 static arena trial (source verified, publication pending)
-
-- Direct owner request: image 1 first, real 3D fighters, preserve existing ring; image 2 awaits owner feedback. Lead grants scoped conditional scene/camera and native Stage carry. Branch `world/static-arena-one-20261003`, isolated `/Users/domininclynch/Developer/frankendom-world-static-arena-20261003`, base `950db85c`.
-- Opt-in `?arena=art1`; ordinary/default 3D builder and its assets remain intact. Fixed-angle camera follows both fighters in the same calibrated world projection; invisible planar shadow floor and image foreground parapet. No simulation, collision radius, rig, combat, lights or old-special changes.
-- Owner PNG 1672×941 preserved as full-resolution WebP, 435,096 bytes; hashes and origin in `src/assets/arena/art1-source.md`. Config retains prior completion/release rows and appends repeatable source/built/public trial workflow (release row 51).
-- Final configured command PASS535/535, zero failures/skips, source lint/test types; app types PASS. CPU completion34 PASS and existing source Sparring completion PASS. Final new source workflow exit0/PASS: genuine Stage/Start, joystick, Price damage/recovery, attacks/decap completion, storage, landscape/default and real career Pit/gate/rematch return. All page/console/HTTP/attempted backend-write arrays empty; receipt `artifacts/static-arena-final/receipt.json`, ten untouched PNGs. Independent source review closed failed-image retry and Pit/Gear lens issues; native pixels reviewed. Historical probe negatives retained separately.
-- Production/script/config hashes unchanged before/after final capture; all owned browser/server processes closed/FREE. Original arena/camera modules unchanged. No deployment or physical-phone acceptance claim yet. Next: exact frozen candidate to Lead/sole Deploy and live verification. Latest owner request queues the new portrait artwork AFTER this landscape is published; original image 2 remains held.
+## 2026-10-03 — Owner rejected both image arena trials; restore default
+- Removed both trial modules, two image assets/provenance, Stage options, scene/camera adapters, and trial-only tests/browser workflow/gate rows. Production main/scene/index and original50 release rows restored byte-for-byte to pre-trial950db85c; native arena/camera/characters/combat/sim unchanged.
+- Existing Sparring workflow gains no-write checks for original Stage choices and retired trial URL/tab-storage fallback to the default camera. No new production framework or runtime dependency.
+- Source530/530, completion34/34, app types and native Sparring/old-link/storage fallback PASS (source runner exit0, errors[]); independent Auditer review, sole Deploy Mac Metal qualification/publication and live default/Gear/Pit verification pending; previous evidence retained in ignored artifacts/Git history. No live cleanup claim yet.
 
 ## 2026-10-01 ~18:3x (+04) — HANDOFF #5 before /clear. READ FIRST, then handoff #4 below (still true except where this says otherwise)
 

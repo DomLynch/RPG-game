@@ -31,17 +31,6 @@
       "node",
       "scripts/sparring-browser-check.mjs",
       "--source"
-    ],
-    [
-      "node",
-      "scripts/static-arena-browser-check.mjs",
-      "--source"
-    ],
-    [
-      "node",
-      "scripts/static-arena-browser-check.mjs",
-      "--source",
-      "--portrait"
     ]
   ],
   "release_commands": [
@@ -355,63 +344,9 @@
     [
       "node",
       "scripts/pit-exit-check.mjs"
-    ],
-    [
-      "node",
-      "scripts/static-arena-browser-check.mjs"
-    ],
-    [
-      "node",
-      "scripts/static-arena-browser-check.mjs",
-      "--portrait"
     ]
   ],
   "release_triggers": [
-    {
-      "paths": [
-        "src/scene.ts"
-      ],
-      "rows": [
-        "equip-fallback-check",
-        "static-arena-browser-check"
-      ]
-    },
-    {
-      "paths": [
-        "src/portrait-background.ts",
-        "src/assets/arena/portrait.webp"
-      ],
-      "rows": [
-        "static-arena-browser-check",
-        "pit-exit-check"
-      ]
-    },
-    {
-      "paths": [
-        "src/static-arena.ts",
-        "src/assets/arena/art1.webp"
-      ],
-      "rows": [
-        "roster-browser-check",
-        "record-replay-check",
-        "kill-link-check",
-        "finisher-preview:first",
-        "account-database-check",
-        "account-browser-check",
-        "double-tap-browser-check",
-        "clip-send-tour-check",
-        "pit-exit-check",
-        "static-arena-browser-check"
-      ]
-    },
-    {
-      "paths": [
-        "scripts/static-arena-browser-check.mjs"
-      ],
-      "rows": [
-        "static-arena-browser-check"
-      ]
-    },
     {
       "paths": [
         "docs/**",
