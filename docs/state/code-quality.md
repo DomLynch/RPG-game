@@ -1,4 +1,16 @@
 # Code quality lane (Auditer + fixer)
+## 2026-10-03 (afternoon) — RESUME HERE (Dom: "save your work", cleared): nothing owed; #1354 follow-ups are Lead's to route
+
+**READ FIRST:** memory `frankendom_handoff_2026-10-03_pm` (this entry's twin), then `feedback_gh_pr_comment_verify_landed` and `frankendom_deploy_hook_matches_comment_text`.
+
+**Now.** Nothing owed. Trunk = live = 4ec98e13 (the #1351 merge) at the time of writing. The #1306 delta named in the entry below is closed: #1306 reached trunk at b746a9b8. If Lead sends a new head of #1354, delta-check it against 2420a28e.
+
+**Done since the 03:4x entry.** (1) Strategy's 2026-10-03 cleanup audit: PASS, reply sent to Strategy. PR #1353 @ 1700640c removes only two trunk lines (Weapons row in PROJECT_STATE.md, one Nightborn heading), its handover script only fetches/reads/writes one file; all 15 closed-as-merged heads are ancestors of trunk; all 14 closed stale-draft branches still exist on origin (1340/1341 superseded by merged #1351); the four pushed branches are ahead of trunk and not in it; no tracked file missing in 108 worktrees. (2) #1354 Arena 1 wow step 1 PASS @ 2420a28e for Dom's play-test, comment verified (type-check exit 0; arena + arena-themes + check-budget 34/34 locally; CI was partly pending at post time).
+
+**Open (not mine to fix unless routed).** #1354 findings on the PR: F1 rubble tier 3 sits 0.6 m past the open stands' rim on Arena 1 (r 17.9 vs walkway end 17.30; fix `min(3, tiers.length - 1)` in arena.ts's rubble line); F2 the re-pinned geometry invariant skips the whole merged 'stone' mesh for Arena 1, so the wall and gate arch are not compared although the comment says so; F3 `ring.receiveShadow = false;` is inside a comment. Carried: #1305 and #1307 HOLD for Dom; ops note DUEL_RELAY_PLAYERS=1 needed on the VPS relay for signed-in non-admins to get a room.
+
+**Gotchas (new).** A geometry probe is cheap and beats reading: a 10-line script in a scratch worktree's tests/ folder that builds the arena and prints min/max radius per mesh name settled F1 in one run (delete the probe before removing the worktree). The state PR can merge under you: check `git merge-base --is-ancestor <entry sha> trunk` before appending, and branch fresh from trunk when the old PR is merged (this entry: cherry-picked the unmerged 03:4x entry onto code-quality/state-1003).
+
 ## 2026-10-03 (03:4x UTC) — RESUME HERE (Dom: "save your work, full handover"): Dom opened duels to players; 14 PASS tonight; owed = #1306 delta @ 19c3a5d8
 
 **READ FIRST:** memory `frankendom_handoff_2026-10-03_0340` (this entry's twin), `feedback_gh_pr_comment_verify_landed`, `frankendom_deploy_hook_matches_comment_text`.
