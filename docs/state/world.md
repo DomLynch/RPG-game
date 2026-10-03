@@ -1,3 +1,10 @@
+## 2026-10-03 — Portrait background only, direct owner correction; publication pending
+
+- Dom rejected landscape trial camera changes and asks only newest portrait background with the original camera/character size/feel. Opt-in `?arena=portrait`, native Stage option; default ring and `?arena=art1` preserved.
+- New screen-space background helper retains native `createCameraRig`, original scene lens/lighting/environment/effects and native floor geometry/UVs for shadows/gore; only picture fit/crop changes. No camera, fighter, simulation, input or combat asset edits. Owner source941x1672 compressed full-resolution416656bytes with SHA provenance.
+- Focused retry/crop/environment/floor/teardown regression passed. Initial configured test-fixture typing error fixed; configured531/531PASS, appTSC and mandatory CPUcompletion34/34PASS. First unique-output native run PASS with exact classic camera/lens/projected head/feet equality; final floor-focused source run exit0/PASS with exact camera/lens/projection parity, real movement/Price/finisher/default/Pit/gate/rematch, zero page/console/HTTP/attempted writes;10 nativePNG in artifacts/portrait-background/final. Independent source review found and closed probe output-directory collision (separate trial defaults +receipt.trial).
+- Next: required existing Spar/art1 completion workflows, frozen-head review, sole Deploy publication and public receipt. No LIVE/phone acceptance claim for portrait yet.
+
 # Visuals & world — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).

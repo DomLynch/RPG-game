@@ -1,3 +1,4 @@
+import { addPortraitBackground } from './portrait-background.ts';
 import { buildStaticArena, createStaticCameraRig, restoreArenaLens } from './static-arena.ts';
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
@@ -88,7 +89,7 @@ export function createScene(
   // nothing and every line below is the fight it always was.
   peerKit?: Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>,
 ) {
-  const theme = arenaFor(opponentId, arenaOverride);
+  const theme = arenaFor(opponentId, arenaOverride === 'portrait' ? undefined : arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
   const PHONE = phoneTier(),
@@ -171,7 +172,9 @@ export function createScene(
   ) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = arenaOverride === 'art1' ? buildStaticArena(scene) : buildArena(scene, theme),
+  const baseArena = arenaOverride === 'art1' ? buildStaticArena(scene) : buildArena(scene, theme);
+  const portrait = arenaOverride === 'portrait' ? addPortraitBackground(scene, baseArena) : undefined;
+  const arena = portrait ?? baseArena,
     footDust = createFootDust(scene, dustToneFor(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
@@ -482,6 +485,7 @@ export function createScene(
   let width = 1, height = 1;
   const resize = () => {
     width = document.documentElement.clientWidth || innerWidth; height = document.documentElement.clientHeight || innerHeight;
+    portrait?.resize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
