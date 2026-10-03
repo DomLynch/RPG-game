@@ -27,6 +27,15 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## Now (2026-10-03 22:05 +04) — supersedes the 10-02 handover "Now" block below (its Done/Open/Gotchas still stand)
+- **Newest run: `65c054c9`** (10-03 22:23, #1305 Executioner L3 body lift, #1313 Executioner L8 body lift, #1282 Nightborn L9 albedo + steel-green; Dom's look yes per Lead, recorded on each PR; 50/50 local, 0 trusted, wall 701s; verified release.json, VPS current/previous 6b312a95, index cmp, supabase.co 1, relay 200). Everything below about 6b312a95 as "live" is superseded by this line.
+- **Before it: `6b312a95`** (10-03 21:49, #1347 online timing, desync settlement, WebRTC ownership; 50/50 local, 0 trusted, wall 535s). Chain today: c62dd7eb (17:21, #1354 Arena 1 wow step 1; wall 1782s at load up to 290), 21669d20 (20:44, #1358 Arena 1 level pit + flatter locked camera, Dom picked look test 10; wall 443s), 6b312a95. Verified each: release.json, VPS current/previous, index cmp, supabase.co 1, relay health 200. v:20 not checked. Box FREE, no hold, nothing queued.
+- Docs/merge-only today, head-pinned: #1356, #1326 (handover), #1355, #1353 (carries scripts/handover-lanes.sh: 20-line helper, no callers). No release for those.
+- **Relay on the VPS is unchanged** (installed from cc912812); `git diff cc912812 HEAD -- scripts/duel-relay.mjs ops` is empty at 6b312a95, no reinstall owed. Signed-in non-admin mint is still unverified by Deploy.
+- **/preview/ is empty** and arena look tests 1-10 are deleted (lived in the old release dir; the last, arena-low10, went with the 21669d20 switch). A new look test = `vite build --base /preview/<name>/` from the named branch sha in a scratch tree (copy `.env.production.local` in), rsync dist/ to `/var/www/frankendom/current/preview/<name>/`, curl 200, no rows/lock.
+- Not READY (Lead's list, 10-03 20:00s): #1352 (Auditor reading), #1305, #1313, #1282 (Dom's look verdicts), #1280 (targets combat/specials-sim, not trunk), #1241 (post-beta draft), specials base.
+- **Disk rule bit today:** the Data volume fell from 70 GB to 11 GB free in a day (other lanes' dated worktrees under ~/Developer, 1-6 GB each, some unmerged: not mine to delete). Lead waived the 20 GB rule for the one #1358 run (13 GB, watcher aborts below 6); Lead then removed 11 merged clean extra copies with Dom's approval, 20 GB free, 39 GB at the #1347 run. Check `df -g /` before every launch; under 20 GB: hold and tell Lead with the number.
+
 ## Handover 2026-10-02 ~08:40 +04 (Dom moves Frankendom work to GPT today) — supersedes the 07:55 and 04:55 blocks below
 
 ### Now
