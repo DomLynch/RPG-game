@@ -1,3 +1,7 @@
+## 2026-10-03 — Seven class A resumed, source stage
+
+Lead verified direct owner resume. Branch `combat/seven-class-a`, base `3348ddfbac760290baa9a36979fc8f6678c3e08b`. Combat added Set Foot (`setfoot`), Heel Reap (`heelreap`) and stationary Pale Lunge (`lunge`) factories; historical ground-line geometry reviewed, Seven Cuts retained. Focused lifecycle tests first failed missing exports, then own/new plus existing factory tests passed 17/17; scoped ESLint and app TypeScript passed. No pose/travel/mechanics/audio/asset changes. Normal gameplay A stays OFF. Remaining: maker source review/intake, 50-entry shared catalogue and real both-side tests, full CPU gates then Lead-authorized single native 28-case capture and independent review; sole Deploy publishes. Source-only, no browser/build/release acceptance yet.
+
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).

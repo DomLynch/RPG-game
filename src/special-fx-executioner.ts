@@ -146,6 +146,33 @@ export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, expo
     clear() { cast = null; hide(); },
   };
 }
+// Preview class A: a compact hooked scuff at the caster's heel; no boss sweep.
+export function createHeelReap(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'heel reap'; root.visible = false; scene.add(root);
+  const geometry = surface((l, a) => { const angle = -0.9 + l * 2.4, radius = 0.48 + (a - 0.5) * 0.23; return [Math.cos(angle) * radius - 0.4, 0.026, Math.sin(angle) * radius + 0.3]; }, 24, 3);
+  const material = new THREE.MeshBasicMaterial({ map: paintSheet(41, cutLook(exposure > 1.5), true), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const hook = new THREE.Mesh(geometry, material); hook.visible = false; root.add(hook);
+  const dustGeometry = new THREE.PlaneGeometry(1, 1); dustGeometry.rotateX(-Math.PI / 2);
+  const dustMaterial = new THREE.MeshBasicMaterial({ map: poolMap(19), color: exposure > 1.5 ? '#24150e' : '#392416', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const dust = new THREE.Mesh(dustGeometry, dustMaterial); dust.visible = false; root.add(dust);
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = hook.visible = dust.visible = false; material.opacity = dustMaterial.opacity = 0; };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isExecutionerCast);
+      const caster = feet[1], target = feet[0]; if (!cast || !caster || !target) { hide(); return; }
+      const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 80), flick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 10);
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      hook.scale.set(build, 1, build); hook.rotation.y = -0.25 * flick; material.opacity = build * fade * 0.94; hook.visible = material.opacity > 0.001;
+      dust.position.set(-0.42 - flick * 0.18, 0.03, 0.25 + flick * 0.18); dust.scale.set(0.23 + flick * 0.2, 1, 0.3 + flick * 0.15);
+      dustMaterial.opacity = flick * fade * 0.85; dust.visible = dustMaterial.opacity > 0.001;
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
 const TRAILS = 11, GRIT = 160;
 const RIM_R = 4.4;   // metres from the fighters' midpoint: where the trails start. The fight camera sees about this far, so they come in from the frame's edge; the arena's wall is further than the camera shows
 

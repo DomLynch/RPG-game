@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, CUTS, cutAt, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, lerp, paintSheet, smooth, type SandLook } from './special-fx-wind.ts';
+import { clamp01, hash, lerp, paintSheet, smooth, surface, type SandLook } from './special-fx-wind.ts';
 
 // Seven Cuts, the Nightborn's ranks 4-7 class special (Nightborn lane; Dom's pick via Lead 2026-10-01, with his rule for every special: nothing pale or glowing
 // washes over the fighters). Presentation only, on the same seam and the same 120-tick timeline as Hades' cloud and Red Wind (special-timing.ts), on the
@@ -13,6 +13,45 @@ import { clamp01, hash, lerp, paintSheet, smooth, type SandLook } from './specia
 
 export const inkLook = (): SandLook => ({ core: new THREE.Color(0.008, 0.008, 0.009), edge: new THREE.Color(0.03, 0.028, 0.026), dim: false });   // linear working-space colours, tone-mapped by the arena's exposure
 const CAP = 0.88;
+
+// Reviewed Pale Lunge ground line, isolated from Seven Cuts. Common special A,
+// stationary and tick-driven: no Estoc Lunge movement, held pose or new hit lane.
+export function createPaleLunge(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const pit = exposure > 1.5, root = new THREE.Group(); root.name = 'pale lunge'; root.visible = false; scene.add(root);
+  const make = (geometry: THREE.BufferGeometry, seed: number) => {
+    const material = new THREE.MeshBasicMaterial({ map: paintSheet(seed, inkLook()), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
+    const mesh = new THREE.Mesh(geometry, material); mesh.visible = false; root.add(mesh); return mesh;
+  };
+  const ribbons = [[-0.95, 0.2], [-0.7, 0.11], [-0.5, 0.07]].map(([bulge, width], i) => make(surface((l, a) => [bulge * Math.sin(Math.PI * l) ** 1.2 + (a - 0.5) * width * (pit ? 2.4 : 1) * (1.15 - 0.6 * l), 0, l], 28, 2), 11 + i * 4));
+  const plane = new THREE.PlaneGeometry(1, 1); plane.rotateX(Math.PI / 2);
+  const stubs = Array.from({ length: 6 }, (_, i) => make(plane, 31 + i * 3));
+  const pieces = [...ribbons, ...stubs];
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const mesh of pieces) { mesh.visible = false; mesh.material.opacity = 0; } };
+  const show = (mesh: typeof ribbons[number], opacity: number) => { mesh.material.opacity = clamp01(opacity) * (pit ? 0.97 : CAP); mesh.visible = opacity > 0.001; };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false);
+      const caster = feet[1], target = feet[0]; if (!cast || !caster || !target) { hide(); return; }
+      const phase = castPhase(cast, tick), age = (cast.fizzled ?? tick) - cast.start, run = smooth(age / (LAND_AT - 6));
+      const rel = cast.landed === null ? -1 : tick - cast.landed, life = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      const len = Math.hypot(target.x - caster.x, target.z - caster.z), seed = cast.start;
+      root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      ribbons.forEach((r, i) => {
+        r.position.set(0, 0.07 + 0.004 * i, 0); r.scale.set(1 + 0.5 * (rel >= 0 ? smooth(rel / 10) : 0), 1, Math.max(0.001, len * (i ? 0.8 + 0.2 * hash(i + seed, 202) : 1) * run));
+        show(r, (0.5 + 0.5 * run) * life);
+      });
+      stubs.forEach((stub, i) => {
+        const k = rel >= 0 ? smooth(rel / 8) : 0, angle = Math.PI + (i - 2.5) * 0.42 + (hash(i + seed, 211) - 0.5) * 0.3;
+        const length = (0.35 + 0.35 * hash(i + seed, 212)) * k * (pit ? 1.7 : 1);
+        stub.position.set(Math.sin(angle) * length * 0.5, 0.075, len + Math.cos(angle) * length * 0.5); stub.rotation.y = angle;
+        stub.scale.set((0.12 + 0.06 * hash(i, 213)) * (pit ? 2.2 : 1), 1, Math.max(0.001, length)); show(stub, k * life);
+      });
+    },
+    clear() { cast = null; hide(); },
+  };
+}
 
 export type SevenCuts = ReturnType<typeof createSevenCuts>;
 export function createSevenCuts(scene: THREE.Scene, opponent: OpponentId, look: SandLook = inkLook()) {
