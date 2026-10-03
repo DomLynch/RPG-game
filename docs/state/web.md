@@ -1,3 +1,10 @@
+## 2026-10-03 — final held Ground Set NIGHT lateral clearance candidate; all-four retake pending
+
+- Duel11cdd final27PASS/1HOLD: Ground Set actor1 NIGHT still merges with foot shadow in qualified held tell/payoff. Physically inspected current375 pixels and raw tell258windup0.65/payoff314recover0.311 under `seven-class-a-foe-clearance-20261003`; forward-only f002 remains a retained negative for native readability.
+- Exactly ONE existing Ground position line changed: same continuous NIGHT positive-cos yaw weight adds up to0.35 outward lateral spacing to both existing fleck rows. Existing forward correction retained. All other source bytes exact: DAY/opposite-facing NIGHT placement, Cut Mark/private helpers/resources/pool/size/colour/opacity/clock/fade/G1yield/clear unchanged. No style/light/glow/stomp/pose/assets/framework/mechanics changes.
+- Added3 lateral-clearance/accepted-placement assertions to existing meaningful placement test; original12 cases and same-active side-on continuity remain byte-identical. Actual pre-fix lateral assertion RED retained; final14/14 focused PASS, scoped lint/types exit0, diffcheck PASS. `artifacts/seven-class-a-web/ground-lateral-receipt.json` binds hashes/receipts; all prior negatives preserved.
+- Native readability UNVERIFIED after delta. Auditer affected one-line source binding; Combat owns ONE all4 Ground retake and explicit other24 carry. No Web browser/build/fullgate/variants/integration writes. All owned processes closed: FREE.
+
 ## 2026-10-03 — Ground Set opponent NIGHT foot-shadow placement repair; native retake pending
 
 - Duel final source-fcf42 verdict25PASS/3HOLD: Web only Ground Set actor1 NIGHT held. Actual actor1 NIGHT held-tell/payoff and accepted actor0 NIGHT reference pixels read; raw tell258windup0.65/land300/payoff314recover0.311. Minimum cause-specific placement correction from current399 source.

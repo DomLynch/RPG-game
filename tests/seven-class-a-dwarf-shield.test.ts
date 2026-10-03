@@ -42,6 +42,9 @@ test('Ground Set camera-facing NIGHT patches sit in front of foot shadow; DAY an
     const z = parts(root).map(p => p.position.z);
     if (inFront) assert.ok(Math.min(...z) > 0.05 && Math.max(...z) < 0.8, 'small static patches clear the camera-facing foot shadow');
     else assert.ok(Math.min(...z) < -0.2 && Math.max(...z) < 0.3, 'accepted DAY/player patches retain their stance placement');
+    const lateral = parts(root).map(p => Math.abs(p.position.x));
+    if (inFront) assert.ok(Math.min(...lateral) > 0.67 && Math.max(...lateral) < 0.9, 'both existing NIGHT rows clear the projected foot/body shadow laterally');
+    else assert.ok(Math.max(...lateral) < 0.56, 'DAY and reverse-facing NIGHT lateral placement stays unchanged');
     const positions = parts(root).map(p => p.position.toArray());
     render(100 + LAND_AT, [event(cases[0], 'SpecialLanded', 100 + LAND_AT)], false, anchors);
     render(100 + LAND_AT + 14, [], false, anchors);
