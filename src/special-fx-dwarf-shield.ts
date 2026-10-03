@@ -382,7 +382,7 @@ function createStanceMark(scene: THREE.Scene, opponent: OpponentId, exposure: nu
           p.scale.set((edge ? 0.08 : 0.34) * (0.6 + build * 0.4), 1, 0.26);
         } else {
           // Two broken weight patches; no ring, upward plume or promised stomp.
-          p.position.set((j % 2 ? 1 : -1) * ((night ? 0.36 : 0.22) + noise * (night ? 0.14 : 0.16)) + (edge ? 0.028 : 0), edge ? 0.024 : 0.018, -0.27 + Math.floor(j / 2) * 0.11);
+          p.position.set((j % 2 ? 1 : -1) * ((night ? 0.36 : 0.22) + noise * (night ? 0.14 : 0.16)) + (edge ? 0.028 : 0), edge ? 0.024 : 0.018, -0.27 + Math.floor(j / 2) * 0.11 + (night ? 0.35 * Math.max(0, Math.cos(root.rotation.y)) : 0));
           p.scale.set((edge ? 0.045 : night ? 0.2 : 0.14) * (0.65 + build * 0.35) * (1 + strike * 0.3), 1, (edge ? 0.09 : 0.16) * (1 + strike * 0.18));
         }
         p.material.opacity = build * fade * (edge ? 0.65 : 0.95); p.visible = p.material.opacity > 0.001;
