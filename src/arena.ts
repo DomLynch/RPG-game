@@ -34,8 +34,8 @@ const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-f
 const ruinNoise = fbm(6, 3, 5), ruin = (angle: number) => smooth(0.56, 0.78, ruinNoise(angle / TAU, 0.37));   // where the tiers have collapsed
 // Height of tier `i`'s tread at an angle: its base height less the collapse, jittered per segment, never below the tier beneath it.
 // `drop` lowers every tread (theme.standsDrop) so more far world shows over the stands; never below the tread beneath.
-function tierTop(i: number, angle: number, segment: number, drop = 0): number {
-  const below = i === 0 ? LAYOUT.wall.top : tierTop(i - 1, angle, segment, drop);
+function tierTop(i: number, angle: number, segment: number, drop = 0, base = LAYOUT.wall.top): number {
+  const below = i === 0 ? base : tierTop(i - 1, angle, segment, drop, base);
   return Math.max(below + 0.12, LAYOUT.tiers[i] - drop - ruin(angle) * (0.3 + 0.7 * i / 4) * 2.4 + (hash(segment, i, 3) - 0.5) * 0.06);
 }
 export const inGate = (angle: number, r: number, margin = 0) => Math.abs(Math.atan2(Math.sin(angle - LAYOUT.gate), Math.cos(angle - LAYOUT.gate))) * r < LAYOUT.gateWidth / 2 + margin;
@@ -94,7 +94,8 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 
 export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES['1']): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
-  const { wall, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, tiers = LAYOUT.tiers.slice(0, theme.tiers ?? LAYOUT.tiers.length), drop = theme.standsDrop ?? 0, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
+  const { tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, wall = { ...LAYOUT.wall, top: theme.wallTop ?? LAYOUT.wall.top }, gk = wall.top / LAYOUT.wall.top,   // gk: the gate shrinks with a lower wall
+    tiers = LAYOUT.tiers.slice(0, theme.tiers ?? LAYOUT.tiers.length), drop = theme.standsDrop ?? 0, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
   // half size — the generators are size-parametric, so this costs nothing but sharpness on a small screen.
   const phone = phoneTier();
@@ -232,26 +233,26 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const grit: THREE.BufferGeometry[] = [], open = theme.parapet === false, dirt: Tint = (x, _y, z) => { const k = 0.5 * (0.8 + 0.6 * (mottle(x / 7 + 0.5, z / 7 + 0.5) - 0.5)); return [k, k * 0.95, k * 0.9]; };   // trodden, patchy, darker than the pit
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
-    const top = (a: number, s: number) => tierTop(i, a, s, drop), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s, drop), outer = i === tiers.length - 1 && theme.parapet !== false ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
+    const top = (a: number, s: number) => tierTop(i, a, s, drop, wall.top), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s, drop, wall.top), outer = i === tiers.length - 1 && theme.parapet !== false ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
     stones.push(band(inner, under, inner, top, 2, tierTint)); (open && i === tiers.length - 1 ? grit : stones).push(band(inner, top, outer, top, open && i === tiers.length - 1 ? SAND_TILE : 2, open && i === tiers.length - 1 ? dirt : tierTint));
     inner = outer;
   });
-  const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s, drop), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
+  const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s, drop, wall.top), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
   if (theme.parapet !== false) stones.push(band(parapet.inner, topTier, parapet.inner, parapetTop, 2, tierTint), band(parapet.inner, parapetTop, parapet.outer, parapetTop, 2, tierTint), band(parapet.outer, parapetTop, parapet.outer, flat(0), 2, tierTint));
   // The gate: capped posts either side, a voussoir arch proud of the wall face over the opening, the dark passage behind the bars.
   for (const side of [-1, 1]) {
     const a = gate + side * (gateWidth / 2 + 0.35) / wall.inner, [x, z] = polar((wall.inner + wall.outer) / 2, a);
-    stones.push(prop(box(0.7, 3.4, wall.outer - wall.inner + 0.3), x, 1.7, z, a, 1, 2, STONE, 0), prop(box(0.95, 0.3, wall.outer - wall.inner + 0.3), x, 3.55, z, a, 1, 2, STONE, 3.2));
+    stones.push(prop(box(0.7, 3.4 * gk, wall.outer - wall.inner + 0.3), x, 1.7 * gk, z, a, 1, 2, STONE, 0), prop(box(0.95, 0.3, wall.outer - wall.inner + 0.3), x, 3.4 * gk + 0.15, z, a, 1, 2, STONE, 3.2 * gk));
   }
   { const [gx, gz] = polar(12.15, gate);   // arch centre: wedges span 11.55–12.75, never inside the camera clamp
     for (let i = 0; i < 9; i++) {
-      const phi = (i + 0.5) / 9 * Math.PI, lx = Math.cos(phi) * 1.75, ly = 1.3 + Math.sin(phi) * 1.75, key = i === 4 ? 1.18 : 1;
+      const phi = (i + 0.5) / 9 * Math.PI, lx = Math.cos(phi) * 1.75, ly = (1.3 + Math.sin(phi) * 1.75) * gk, key = i === 4 ? 1.18 : 1;
       stones.push(prop(box(0.55 * key, 0.66 * key, 1.2), gx - lx * Math.cos(gate), ly, gz + lx * Math.sin(gate), new THREE.Euler(0, gate, phi - Math.PI / 2, 'YXZ'), 1, 2, STONE, ly - 0.8));
     } }
-  { const [x, z] = polar(wall.outer + 1.4, gate); stones.push(prop(box(gateWidth, 2.5, 3.2), x, 1.25, z, gate, 1, 2, SOOT, -5)); }
+  { const [x, z] = polar(wall.outer + 1.4, gate); stones.push(prop(box(gateWidth, 2.5 * gk, 3.2), x, 1.25 * gk, z, gate, 1, 2, SOOT, -5)); }
   // Ruined colonnade on the top walkway: a few columns stand whole with their capitals, the rest are broken at random heights or gone.
   for (let i = 0; i < (theme.colonnade === false ? 0 : 24); i++) {
-    const a = i / 24 * TAU + 0.13, r = ruin(a), [x, z] = polar(colonnade, a), foot = tierTop(tiers.length - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop);
+    const a = i / 24 * TAU + 0.13, r = ruin(a), [x, z] = polar(colonnade, a), foot = tierTop(tiers.length - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop, wall.top);
     if (r > 0.7) continue;
     const whole = hash(i, 0, 11) > 0.55 && r < 0.2, h = whole ? 4.6 : 1 + hash(i, 1, 11) * 2.6;
     stones.push(prop(cylinder(0.4, 0.46, h, 14), x, foot + h / 2, z, 0, 1, 2, [seg(i), seg(i), seg(i) * 0.98], foot));
@@ -267,7 +268,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   }
   for (let i = 0; i < 40; i++) {
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
-    const tier = 1 + (i % Math.min(3, tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop), s = 0.5 + hash(i, 6, 13) * 0.6;
+    const tier = 1 + (i % Math.min(3, tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop, wall.top), s = 0.5 + hash(i, 6, 13) * 0.6;
     if (tier >= tiers.length) continue;   // its tread is the top one, and open stands end there: no block out past the edge
     const rubble = prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3);
     rubble.computeBoundingBox(); crowdObstacles.push(rubble.boundingBox!.clone().expandByScalar(0.4)); stones.push(rubble);
@@ -300,9 +301,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const bars: THREE.BufferGeometry[] = [];
   { const [gx, gz] = polar(wall.inner + 0.45, gate), across = new THREE.Vector3(Math.cos(gate), 0, -Math.sin(gate)), RUST: [number, number, number] = [1.5, 0.95, 0.65];
     for (let i = 0; i < 9; i++) { const t = (i - 4) * 0.36;
-      bars.push(prop(cylinder(0.06, 0.06, 2.5, 6), gx + across.x * t, 1.28, gz + across.z * t, 0, 1, 1, RUST, -5));
+      bars.push(prop(cylinder(0.06, 0.06, 2.5 * gk, 6), gx + across.x * t, 1.28 * gk, gz + across.z * t, 0, 1, 1, RUST, -5));
       bars.push(prop(cylinder(0.001, 0.075, 0.24, 6), gx + across.x * t, 0.14, gz + across.z * t, 0, 1, 1, RUST, -5)); }
-    for (const y of [0.42, 1.08, 1.74, 2.4]) bars.push(prop(box(gateWidth - 0.1, 0.09, 0.09), gx, y, gz, gate, 1, 1, RUST, -5)); }
+    for (const y of [0.42, 1.08, 1.74, 2.4]) bars.push(prop(box(gateWidth - 0.1, 0.09, 0.09), gx, y * gk, gz, gate, 1, 1, RUST, -5)); }
   const gateBars = mesh(mergeGeometries(bars), iron, 'gate bars');
   for (let i = 0; i < 5; i++) {
     const a = [0.55, 2.05, 2.75, 4.3, 5.6][i], [x, z] = polar(wall.inner + 0.06, a), out = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
@@ -428,7 +429,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a);
       if (crowdObstacles.some(b => x >= b.min.x && x <= b.max.x && z >= b.min.z && z <= b.max.z)) continue;
       const fraction = a / TAU * LAYOUT.segments - segment, next = (segment + 1) % LAYOUT.segments;
-      const y = THREE.MathUtils.lerp(tierTop(i, segment / LAYOUT.segments * TAU, segment, drop), tierTop(i, (segment + 1) / LAYOUT.segments * TAU, next, drop), fraction);
+      const y = THREE.MathUtils.lerp(tierTop(i, segment / LAYOUT.segments * TAU, segment, drop, wall.top), tierTop(i, (segment + 1) / LAYOUT.segments * TAU, next, drop, wall.top), fraction);
       (occupied ? seats : vacancies).push({ id: i * 256 + s, x, y, z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.84 + hash(s, i, 29) * 0.32, width: 0.88 + hash(s, i, 81) * 0.24, phase: hash(s, i, 31) });
     }
   });
@@ -550,7 +551,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // The SIM IS UNTOUCHED: RULES.wall.loiter, the WhipRaised/lash events and the whip audio all stand, so wall-hugging is
   // punished exactly as before. Only the bodies went. The replacement is baked silhouettes plus a streak, no skinning.
   update(0, []);
-  const props = loadArenaProps(group, phone, (what) => { if (what === 'gateBars') gateBars.visible = false; });
+  const props = loadArenaProps(group, phone, gk, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
     group, floor, update, raiseGate(open: boolean) { riseOpen = open; }, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed

@@ -21,10 +21,10 @@ export function cameraPose(
 ) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
-  const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
+  const back = locked ? Math.max(4.6, distance * 0.75 + 3.0) : 7.5 * Math.cos(pitch);   // look test 2026-10-03: flatter lock, between the old lock and free view
   let x = state.x + Math.sin(yaw) * back,
     z = state.z + Math.cos(yaw) * back,
-    y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
+    y = locked ? Math.max(2.8, distance * 0.95) : 1 + 7.5 * Math.sin(pitch);
   // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's back at close range. Where a man at this gap would be
   // hidden below the player's shoulders, step the lock camera over the player's left shoulder so the line to him passes
   // SIDE_CLEAR per unit of missing height beside the player's spine; nothing for a man or a bigger one, nothing once in the clear.
