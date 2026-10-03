@@ -30,9 +30,10 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
 ## Handover 2026-10-02 ~08:40 +04 (Dom moves Frankendom work to GPT today) — supersedes the 07:55 and 04:55 blocks below
 
 ### Now
-- Queue: **#1300 @3cfafa62 + #1314 in ONE run**, only on Lead's full-sha GO (#1314 head was ddafe297, a docs commit on the Auditer-passed 14281157; Web's stills for #1314 still owed). Relay health is already 200, so that condition holds. Then the night-batch base queue (specials base `finishers/hades-shadow-claw-fx`, #1279/#1232, held; #1282 Nightborn HOLD).
-- Box FREE, no hold, nothing running at the time of writing. Check `curl https://frankendom.com/release.json`, `pgrep -f '^bash scripts/deploy.sh'`, `cat ~/.claude/state/deploy_in_flight.json` before any launch.
-- Runner recipe: `.claude/skills/deploy-run`; template runner ~/Developer/deploy-run1/r9.sh (edit TRUNK_WANT/TREE_WANT/PAIRS via sed; macOS `sed -i ''`).
+- **Live: `c62dd7eb`** (10-03 17:21 +04, #1354 Arena 1 wow step 1; 50/50 local, 0 trusted, wall 1782s at load up to 290). Before it: ffa4eea8 (10-02 08:18, #1300 + #1314 duels for signed-in players), then 4ec98e13. Box FREE, no hold.
+- Nothing queued. #1357 (Arena 1 Auditor F1-F3 @543de0d1) is NOT READY (CI, Auditor delta read, stills owed). Dom wants arena tweaks through look-test previews: the next one asks for a fresh `/preview/<name>/` publish (skill look-test). **/preview/ is empty now**: the 4ec98e13 and c62dd7eb releases carry no preview/ dir (dropped on a run between ffa4eea8 and 4ec98e13), so any preview must be created fresh, and copied forward with `cp -al previous/preview current/preview` after each publish only if previous has one.
+- Held: #1279/#1232 specials base, #1282 Nightborn HOLD, specials base `finishers/hades-shadow-claw-fx`.
+- Launch preconditions: `curl https://frankendom.com/release.json`, `pgrep -f '^bash scripts/deploy.sh'`, `cat ~/.claude/state/deploy_in_flight.json`, load < 40, disk >= 20 GB. Recipe: `.claude/skills/deploy-run`.
 
 ### Done today (10-02)
 - Live shas in order: 8e1e18a9, b12dd75c, a2dd848c (duel x4), 5bbbf9df, f1f4040f, a0c7c226, f2e52e4a, ae37426d, 51e092ae (#1277 share row + #1309 DUEL allow-list fix-forward), **c107068c at 07:39 (#1307 Brynhildr L9 night bronze, alone)**. All 50/50 local, 0 trusted. c107068c verified: release.json, VPS current c107068c / previous 51e092ae, index cmp, supabase.co 1, 8 previews (hades hades-claw hades-v3 hitfx nightrim pit pit-stone pit-stone-c59) copied from previous and all HTTP 200. v:20 not checked.
