@@ -496,7 +496,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       const lean = 0.13 * Math.sin(time * 2.2 + k * 1.7) + 0.05 * Math.sin(time * 5.1 + k * 2.9);
       const breathe = 1 + 0.06 * Math.sin(time * 2.9 + k * 2.1) + 0.04 * Math.sin(time * 7.3 + k) + flare * 0.25;
       const lick = 1 + 0.08 * Math.sin(time * 4.7 + k * 3.7);
-      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(lean, k * 1.3 + time * 0.35 * (k % 2 ? 1 : -1), 0, 'YXZ')); scale.set(lick, breathe, lick);
+      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(lean, k * 1.3 + time * 0.35 * (k % 2 ? 1 : -1), 0, 'YXZ')); scale.set(lick * (theme.flame ?? 1), breathe * (theme.flame ?? 1), lick * (theme.flame ?? 1));
       flames.setMatrixAt(k, matrix.compose(position, quaternion, scale));
     });
     flames.instanceMatrix.needsUpdate = true;
