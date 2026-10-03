@@ -33,7 +33,7 @@ test('Knuckle Dirt accepts only normalized Goblin jab, supports late loading, an
 test('foot-sized gather stays stationary, feet remain unchanged, frozen tick cannot drift or flick without landing', () => {
   const m = make(), original = m.feet.map(v => v.toArray()); m.render(0, [start()]); m.render(80);
   assert.equal(m.root.visible, true); assert.ok(m.sprites.filter(s => s.visible).length >= 10);
-  assert.ok(m.sprites.every(s => Math.hypot(s.position.x, s.position.z - 0.22) < 0.23 && s.position.y < 0.12));
+  assert.ok(m.sprites.every(s => Math.hypot(s.position.x - 0.46, s.position.z - 0.28) < 0.23 && s.position.y < 0.12));
   const pose = m.snapshot(), anchor = m.root.position.clone();
   for (let i = 0; i < 100; i++) m.render(80);
   assert.deepEqual(m.snapshot(), pose); assert.deepEqual(m.feet.map(v => v.toArray()), original);
@@ -60,15 +60,31 @@ test('yield cancels active gather and landed tail, keeps pool, and rearms at fre
 });
 
 test('accepted landing makes one low directional flick; fizzle never does; tail, timeout and clear rearm', () => {
-  const m = make(); m.render(0, [start()]); m.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')]); m.render(LAND_AT + 9);
-  const flying = m.sprites.filter(s => s.visible && s.position.z > 0.4); assert.ok(flying.length >= 8);
-  assert.ok(flying.every(s => s.position.y < 0.22 && Math.abs(s.position.x) < 0.2));
+  const m = make(); m.render(0, [start()]); m.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')]);
+  const origin = m.sprites.slice(12).reduce((sum, s) => sum + s.position.z, 0) / 12; m.render(LAND_AT + 9);
+  const flying = m.sprites.slice(12); assert.ok(flying.every(s => s.visible));
+  assert.ok(flying.reduce((sum, s) => sum + s.position.z, 0) / flying.length > origin + 0.15, 'early flick advances toward foe');
+  assert.ok(flying.every(s => s.position.y < 0.28 && Math.abs(s.position.x - 0.46) < 0.2));
   assert.ok(Math.abs(m.root.rotation.y - Math.PI / 2) < 1e-9, 'local forward points toward foe');
   m.render(LAND_AT + SPECIAL_RECOVER); assert.equal(m.root.visible, false);
   m.render(300, [start(300)]); m.render(340); m.render(340, [end(340, 'SpecialFizzled')]); m.render(350);
   assert.ok(m.sprites.every(s => !s.visible || s.position.z < 0.4)); m.fx.clear(); assert.equal(m.root.visible, false);
   m.render(0, [start()]); m.render(LAND_AT + SPECIAL_RECOVER + CAST_MARGIN); assert.equal(m.root.visible, false);
   m.render(0, [start()]); m.render(60); assert.equal(m.root.visible, true);
+});
+
+test('payoff at saved capture ages stays low, outside body centre and opaque through one flick', () => {
+  for (const exposure of [1, 2]) {
+    const m = make(exposure); m.render(0, [start()]); m.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')]);
+    for (const age of [14, 15]) {
+      m.render(LAND_AT + age);
+      const flying = m.sprites.slice(12);
+      assert.ok(flying.every(s => s.visible && s.material.opacity > 0.5 && s.scale.x >= 0.055));
+      assert.ok(flying.every(s => s.position.x > 0.25 && s.position.y < 0.28 && s.position.z > 0.4));
+    }
+    m.render(LAND_AT + 30); assert.ok(m.sprites.slice(12).every(s => !s.visible), 'one flick ends before common recovery');
+    m.render(LAND_AT + SPECIAL_RECOVER); assert.equal(m.root.visible, false);
+  }
 });
 
 test('missing feet cannot replay stale patch; pools and private maps dispose through manager in day and night', () => {

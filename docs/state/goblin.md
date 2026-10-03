@@ -4,6 +4,12 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Knuckle Dirt A — 2026-10-03 bounded payoff readability correction
+
+- Lead requested one factory-only correction after independent Duel held all four actor0/1 DAY/NIGHT375 payoff frames on integrated c251. Inspected the actual saved JPGs and raw bounds: captures are 14–15 ticks after landing, when the prior 18-tick flick was nearly transparent and tiny grains sat close to body/shadow.
+- Same 24-grain pool and dark palette; grains now 0.055–0.080m, stationary patch centred 0.46m to caster's front-foot outer side, low directed flick remains visible for 30 ticks within unchanged 45-tick recovery. One accepted-land pulse; no waves, rig/clip/audio/mechanics changes. G1 early-yield preserved; old Goblin helpers unchanged.
+- New sampled-payoff regression failed against prior0a factory before correction. Focused new7+old15 tests22/22 PASS; app/test typechecks and owned lint all exit0 PASS. Exact delta receipt follows; native visual acceptance requires the single integrated changed-factory capture. No build/browser performed by Goblin.
+
 ## Knuckle Dirt A — 2026-10-03 G1 finisher-yield correction
 
 - Independently reported P2/G1 reproduced on `00ea3365`: active gather remained visible when yielding because shared `advanceCast` suppresses only new casts. New factory now clears its cast/anchor and hides all grains before returning on yield; shared helpers and existing Goblin effects unchanged.

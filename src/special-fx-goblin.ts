@@ -66,7 +66,7 @@ export function createKnuckleDirt(scene: THREE.Scene, opponent: OpponentId, expo
   const look = sand(exposure), edge = exposure > 1.5 ? new THREE.Color(0.24, 0.15, 0.075) : look.edge;
   const grains = Array.from({ length: 24 }, (_, i) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: i % 6 === 0 ? edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true }));
-    s.visible = false; s.scale.setScalar(0.025 + 0.018 * hash(i, 31)); root.add(s); return s;
+    s.visible = false; s.scale.setScalar(0.055 + 0.025 * hash(i, 31)); root.add(s); return s;
   });
   const accepts: typeof isHadesShadow = (id, actor, move) => id === 'goblin' && actor === 1 && move === 'skill_jab';
   let cast: Cast | null = null, anchored = false;
@@ -88,12 +88,13 @@ export function createKnuckleDirt(scene: THREE.Scene, opponent: OpponentId, expo
       if (phase.phase === 'done') return;
       const age = Math.max(0, (cast.fizzled ?? tick) - cast.start), ended = cast.landed ?? cast.fizzled;
       const gather = smooth((Math.min(age, FALL_AT) + 1) / FALL_AT), fade = ended === null ? 1 : 1 - phase.k;
-      const flick = cast.landed === null ? 0 : clamp01((tick - cast.landed) / 18);
+      const flick = cast.landed === null ? 0 : clamp01((tick - cast.landed) / 30);
       for (let i = 0; i < grains.length; i++) {
         const s = grains[i], flying = i >= 12 && cast.landed !== null;
-        const x = (hash(i, 32) - 0.5) * 0.2, z = 0.22 + (hash(i, 33) - 0.5) * 0.23;
-        s.position.set(x + (flying ? x * flick * 0.5 : 0), 0.018 + 0.025 * hash(i, 34) + (flying ? 0.15 * Math.sin(Math.PI * flick) : 0.035 * gather), z + (flying ? (0.45 + 0.2 * hash(i, 35)) * flick : 0));
-        s.material.opacity = flying ? 0.85 * (1 - flick) * fade : 0.85 * gather * fade;
+        const x = (hash(i, 32) - 0.5) * 0.24, z = 0.28 + (hash(i, 33) - 0.5) * 0.23;
+        // Outer front-foot side: the single low flick clears the body/shadow instead of fading underneath it.
+        s.position.set(0.46 + x + (flying ? x * flick * 0.5 : 0), 0.018 + 0.025 * hash(i, 34) + (flying ? 0.18 * Math.sin(Math.PI * flick) : 0.035 * gather), z + (flying ? (0.55 + 0.2 * hash(i, 35)) * flick : 0));
+        s.material.opacity = flying ? 0.9 * (1 - smooth((flick - 0.65) / 0.35)) * fade : 0.85 * gather * fade;
         s.visible = s.material.opacity > 0.01; root.visible ||= s.visible;
       }
     },
