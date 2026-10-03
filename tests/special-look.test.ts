@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import { Match } from '../src/match.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { actorPose, initialPractice, stepPractice } from '../src/combat.ts';
-import { withSpecials } from '../src/duel.ts';
+import { stepDuel, withSpecials } from '../src/duel.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam, specialStage } from '../src/special-look.ts';
-import { STRATEGIES, act, arena } from './strategies.ts';
+import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
 test('?special=hades names the Nightborn at rank 9 (level 41); anything else is no test', () => {
   assert.equal(specialParam('?special=hades'), 'hades');
@@ -21,12 +21,34 @@ test('?special=hades names the Nightborn at rank 9 (level 41); anything else is 
 
 test('special stages: the windup runs 0..1 to the strike, then SPECIAL_RECOVER ticks of recovery, read off the sim state alone', () => {
   const S = RULES.special, d = withSpecials(arena(OPPONENTS.nightborn), 41, 'lunge'), f = d.fighters[1];
-  assert.equal(specialStage({ ...f, skillCooldown: S.first }), null, 'before the first cast');
+  assert.equal(specialStage(f), null, 'before the first cast');
   assert.deepEqual(specialStage({ ...f, special: S.windup }), { stage: 'windup', progress: 0 });
-  assert.deepEqual(specialStage({ ...f, special: 1, skillCooldown: S.cooldown - S.windup + 2 }), { stage: 'windup', progress: 1 - 1 / S.windup });
-  assert.deepEqual(specialStage({ ...f, special: 0, skillCooldown: S.cooldown - S.windup + 1 }), { stage: 'recover', progress: 0 }, 'the strike tick');
-  assert.equal(specialStage({ ...f, special: 0, skillCooldown: S.cooldown - S.windup + 1 - SPECIAL_RECOVER }), null, 'recovered');
+  assert.deepEqual(specialStage({ ...f, special: 1 }), { stage: 'windup', progress: 1 - 1 / S.windup });
+  assert.deepEqual(specialStage({ ...f, special: 0, specialRecover: S.recovery }), { stage: 'recover', progress: 0 }, 'the strike tick');
+  assert.deepEqual(specialStage({ ...f, special: 0, specialRecover: 1 }), { stage: 'recover', progress: (S.recovery - 1) / SPECIAL_RECOVER }, 'the last recovery tick');
+  assert.equal(specialStage({ ...f, special: 0, specialRecover: 0 }), null, 'recovered');
   assert.equal(specialStage({ ...arena(OPPONENTS.nightborn).fighters[1], special: 5 }), null, 'no specials in the fight: nothing to draw');
+});
+
+// Dom's final rule (RULES.special, 2026-10-01) re-arms the cooldown at the RELEASE, so the recovery is read off the sim's own
+// `specialRecover`, not off the cooldown: stepped through the real sim, the stage follows the cast with no gap and no late replay.
+test('special stages through the real sim: windup to the release, recovery from the release tick for SPECIAL_RECOVER ticks, then nothing', () => {
+  const S = RULES.special;
+  let d = withSpecials(arena(OPPONENTS.nightborn), 41, 'lunge');
+  d.fighters[1].skillCooldown = 0;
+  assert.equal(SPECIAL_RECOVER, S.recovery, 'the drawn recovery is the sim\'s no-attack recovery');
+  const stages: (string | null)[] = [];
+  let released = -1;
+  for (let i = 0; i < S.windup + SPECIAL_RECOVER + 200; i++) {
+    d = stepDuel(d, [idle(), i === 0 ? act('skill') : idle()]);
+    const f = d.fighters[1], stage = specialStage(f);
+    if (released < 0 && !f.special && i > 0) { released = i; assert.deepEqual(stage, { stage: 'recover', progress: 0 }, 'the release tick opens the recovery'); }
+    stages.push(stage?.stage ?? null);
+  }
+  assert.ok(released > 0, 'the cast released');
+  assert.ok(stages.slice(0, released).every(s => s === 'windup'), 'windup on every tick to the release');
+  assert.ok(stages.slice(released, released + SPECIAL_RECOVER).every(s => s === 'recover'), 'recovery on every tick after it');
+  assert.ok(stages.slice(released + SPECIAL_RECOVER).every(s => s === null), 'and no second recovery later');
 });
 
 test('the ?special=hades page writes nothing: a sparring fight with specials, no recorder, no reward, no stored row', () => {
