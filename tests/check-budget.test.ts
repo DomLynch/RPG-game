@@ -362,3 +362,27 @@ test('the shipped Pit props hold the shape the loader relies on (gate: two nodes
   assert.deepEqual(shapes.gate, { meshes: 2, primitives: 2, moved: 1 });
   for (const [name, shape] of Object.entries(shapes)) if (name !== 'gate') assert.deepEqual(shape, { meshes: 1, primitives: 1, moved: 0 }, name);
 });
+
+// The approved maul trio streams outside the initial/per-fight download; storage and per-file limits still bind.
+test('approved maul trio fits storage while the set and per-file gates still reject excess', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src), dir = join(f.dist, 'weapons/shapes');
+    mkdirSync(dir, { recursive: true });
+    for (const band of ['plain', 'crafted', 'ornate']) writeFileSync(join(dir, `maul-${band}.glb`), readFileSync(`public/weapons/shapes/maul-${band}.glb`));
+    const m = await measure(f.dist, f.src);
+    assert.equal(m.shapeFiles.length, 3);
+    assert.ok(m.shapeFiles.every((file: { gzip: number }) => file.gzip < 1_450_000));
+    const bytes = m.shapeFiles.reduce((n: number, file: { gzip: number }) => n + file.gzip, 0);
+    assert.ok(bytes > 1_000_000 && bytes < 3_000_000, 'approved trio needs its own three-file storage line');
+    assert.equal(m.fight, before.fight, 'streamed shapes do not alter per-fight budget');
+    assert.equal(m.total, before.total, 'shape storage remains outside TOTAL');
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    assert.equal(gate(), 'PASS');
+    writeFileSync(join(dir, 'maul-extra.glb'), randomBytes(100_000));
+    assert.match(gate(), /the maul weapon shapes exceed 3 MB gzip/);
+    rmSync(join(dir, 'maul-extra.glb'));
+    writeFileSync(join(dir, 'maul-ornate.glb'), randomBytes(1_450_000));
+    assert.match(gate(), /weapon shape maul-ornate.glb exceeds 1.45 MB gzip/);
+  } finally { f.cleanup(); }
+});
