@@ -4,6 +4,12 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Knuckle Dirt A — 2026-10-03 minimum foe-flank repair
+
+- Current source-fcf42 independent verdict reported25PASS/3HOLD, with Knuckle foe DAY/NIGHT tell/payoff obscured; player readable. Maker viewed all four foe JPGs and raw14/15tick payoff phases. Source yaw/placement points positive local lateral offset into the near player's silhouette for the foe. Sim-centre transform estimates are diagnostic only; actual footbone/camera projection is not logged.
+- Lead approved universal spacing, avoiding preset/body-rig assumptions: **only production change is local lateral origin0.46→0.85m**. Grain size/palette/opacity/24pool, one acceptedLand30tick flick,45recover, common clock and G1yield unchanged; all old Goblin code preserved. Both player and foe inputs require native re-judging.
+- Near-target flank regression failed before fix; scoped suite23/23PASS checks both recorded facing directions. No build/browser/fullgate. Combat owns one combined8 affected native capture after maker source reviews; remaining20 carry requires unchanged-input evidence.
+
 ## Knuckle Dirt A — 2026-10-03 bounded payoff readability correction
 
 - Lead requested one factory-only correction after independent Duel held all four actor0/1 DAY/NIGHT375 payoff frames on integrated c251. Inspected the actual saved JPGs and raw bounds: captures are 14–15 ticks after landing, when the prior 18-tick flick was nearly transparent and tiny grains sat close to body/shadow.

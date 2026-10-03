@@ -33,7 +33,7 @@ test('Knuckle Dirt accepts only normalized Goblin jab, supports late loading, an
 test('foot-sized gather stays stationary, feet remain unchanged, frozen tick cannot drift or flick without landing', () => {
   const m = make(), original = m.feet.map(v => v.toArray()); m.render(0, [start()]); m.render(80);
   assert.equal(m.root.visible, true); assert.ok(m.sprites.filter(s => s.visible).length >= 10);
-  assert.ok(m.sprites.every(s => Math.hypot(s.position.x - 0.46, s.position.z - 0.28) < 0.23 && s.position.y < 0.12));
+  assert.ok(m.sprites.every(s => Math.hypot(s.position.x - 0.85, s.position.z - 0.28) < 0.23 && s.position.y < 0.12));
   const pose = m.snapshot(), anchor = m.root.position.clone();
   for (let i = 0; i < 100; i++) m.render(80);
   assert.deepEqual(m.snapshot(), pose); assert.deepEqual(m.feet.map(v => v.toArray()), original);
@@ -64,7 +64,7 @@ test('accepted landing makes one low directional flick; fizzle never does; tail,
   const origin = m.sprites.slice(12).reduce((sum, s) => sum + s.position.z, 0) / 12; m.render(LAND_AT + 9);
   const flying = m.sprites.slice(12); assert.ok(flying.every(s => s.visible));
   assert.ok(flying.reduce((sum, s) => sum + s.position.z, 0) / flying.length > origin + 0.15, 'early flick advances toward foe');
-  assert.ok(flying.every(s => s.position.y < 0.28 && Math.abs(s.position.x - 0.46) < 0.2));
+  assert.ok(flying.every(s => s.position.y < 0.28 && Math.abs(s.position.x - 0.85) < 0.2));
   assert.ok(Math.abs(m.root.rotation.y - Math.PI / 2) < 1e-9, 'local forward points toward foe');
   m.render(LAND_AT + SPECIAL_RECOVER); assert.equal(m.root.visible, false);
   m.render(300, [start(300)]); m.render(340); m.render(340, [end(340, 'SpecialFizzled')]); m.render(350);
@@ -85,6 +85,23 @@ test('payoff at saved capture ages stays low, outside body centre and opaque thr
     m.render(LAND_AT + 30); assert.ok(m.sprites.slice(12).every(s => !s.visible), 'one flick ends before common recovery');
     m.render(LAND_AT + SPECIAL_RECOVER); assert.equal(m.root.visible, false);
   }
+});
+
+test('grit clears the near-target flank in both foe and player facing directions', () => {
+  const feet = [new THREE.Vector3(0.024, 0, 2.160), new THREE.Vector3(0.300, 0, 1.198)] as const;
+  const foe = [{ special: 0, rig: 'hero' }, { special: 0, skill: 'jab', rig: 'goblin' }] as unknown as readonly [Fighter, Fighter];
+  const m = make(); m.render(0, [start()], false, feet, foe); m.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')], false, feet, foe);
+  m.render(LAND_AT + 14, [], false, feet, foe); m.root.updateMatrixWorld(true);
+  const points = m.sprites.slice(12).map(s => s.getWorldPosition(new THREE.Vector3()));
+  assert.ok(points.every(p => p.x > feet[0].x + 0.65), 'low foe flick lies beyond near-player flank');
+  assert.ok(points.every(p => p.y < 0.28));
+  const player = make(), playerFeet = [new THREE.Vector3(0.411, 0, 2.977), new THREE.Vector3(0, 0, 3.962)] as const;
+  const hero = [{ special: 0 }, { special: 0, skill: 'jab', rig: 'hero' }] as unknown as readonly [Fighter, Fighter];
+  player.render(0, [start()], false, playerFeet, hero);
+  player.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')], false, playerFeet, hero);
+  player.render(LAND_AT + 14, [], false, playerFeet, hero); player.root.updateMatrixWorld(true);
+  assert.ok(player.sprites.slice(12).every(s => s.getWorldPosition(new THREE.Vector3()).x < playerFeet[0].x - 0.65), 'player flick remains outside target flank');
+  assert.ok(player.sprites.every(s => Math.abs(s.position.x - 0.85) < 0.2));
 });
 
 test('missing feet cannot replay stale patch; pools and private maps dispose through manager in day and night', () => {

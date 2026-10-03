@@ -93,7 +93,7 @@ export function createKnuckleDirt(scene: THREE.Scene, opponent: OpponentId, expo
         const s = grains[i], flying = i >= 12 && cast.landed !== null;
         const x = (hash(i, 32) - 0.5) * 0.24, z = 0.28 + (hash(i, 33) - 0.5) * 0.23;
         // Outer front-foot side: the single low flick clears the body/shadow instead of fading underneath it.
-        s.position.set(0.46 + x + (flying ? x * flick * 0.5 : 0), 0.018 + 0.025 * hash(i, 34) + (flying ? 0.18 * Math.sin(Math.PI * flick) : 0.035 * gather), z + (flying ? (0.55 + 0.2 * hash(i, 35)) * flick : 0));
+        s.position.set(0.85 + x + (flying ? x * flick * 0.5 : 0), 0.018 + 0.025 * hash(i, 34) + (flying ? 0.18 * Math.sin(Math.PI * flick) : 0.035 * gather), z + (flying ? (0.55 + 0.2 * hash(i, 35)) * flick : 0));
         s.material.opacity = flying ? 0.9 * (1 - smooth((flick - 0.65) / 0.35)) * fade : 0.85 * gather * fade;
         s.visible = s.material.opacity > 0.01; root.visible ||= s.visible;
       }
