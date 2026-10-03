@@ -51,10 +51,11 @@ export const specialParam = (search: string): SpecialTest | null => {
 };
 
 // Where a fighter stands in his own special: winding up (progress 0..1 to the strike), or recovering after it (0..1). Null otherwise. The
-// recovery is read off the cooldown the cast spent (RULES.special.cooldown at the cast tick, one less every tick after), so it needs no memory.
-export function specialStage(f: Pick<Fighter, 'specialShare' | 'special' | 'skillCooldown' | 'health'>): { stage: 'windup' | 'recover'; progress: number } | null {
+// recovery is read off the sim's own no-attack recovery (duel.ts specialRecover: RULES.special.recovery on the release tick, one less every
+// tick after), so it needs no memory. Not off the cooldown: that re-arms at the release (Dom's final rule, 2026-10-01), not at the cast.
+export function specialStage(f: Pick<Fighter, 'specialShare' | 'special' | 'specialRecover' | 'health'>): { stage: 'windup' | 'recover'; progress: number } | null {
   if (f.specialShare === undefined || !f.health) return null;
   if (f.special) return { stage: 'windup', progress: 1 - f.special / RULES.special.windup };
-  const since = RULES.special.cooldown - RULES.special.windup + 1 - f.skillCooldown;   // 0 on the strike tick
+  const since = f.specialRecover ? RULES.special.recovery - f.specialRecover : -1;   // 0 on the strike tick
   return since >= 0 && since < SPECIAL_RECOVER ? { stage: 'recover', progress: since / SPECIAL_RECOVER } : null;
 }

@@ -2127,7 +2127,9 @@ test('actual main boots independent registered player/foe casts, manual SKILL an
       if (player !== 'none') {
         assert.equal(app.element('skill-button').attributes.get('aria-disabled'), 'false', 'real HUD enables actual ready skill');
         app.element('skill-button').dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
-        app.tick();
+        // The press can land in the last ticks of a hit reaction (the level-6 foe's blow): the sim buffers it like any action and the cast
+        // starts as the reaction ends (RULES.bufferWindow 10, bufferTtl 11), so allow that long, no longer.
+        for (let i = 0; i < 12 && !live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'); i++) app.tick();
         assert.ok(live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'), 'actual input dispatch starts player preset');
         if (player === 'standfast') assert.equal(app.specialActors.includes(0), false, 'Stand Fast stays silent');
         else assert.ok(app.specialCalls.some((cue, i) => cue === (player === 'price' ? 'theprice' : 'wake') && app.specialActors[i] === 0), 'preset dispatch uses authored cue ID on player actor');
