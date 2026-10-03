@@ -158,7 +158,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;
   }
   // The sand: flat to the wall's foot (and under it, so the gateway floor is sand), darkening toward the wall and mottled at large scale.
-  const floor = mesh(disc(wall.outer + 0.1, 36, (x, _y, z) => { const r = Math.hypot(x, z), k = (0.92 + 0.28 * (mottle(x / 26 + 0.5, z / 26 + 0.5) - 0.5)) * (1 - 0.42 * smooth(10.2, wall.inner, r)); return [k, k * 0.99, k * 0.97]; }), sand, 'sand', false);
+  const floor = mesh(disc(theme.flatStands ? 17 : wall.outer + 0.1, 36, (x, _y, z) => { const r = Math.hypot(x, z), k = (0.92 + 0.28 * (mottle(x / 26 + 0.5, z / 26 + 0.5) - 0.5)) * (1 - 0.42 * smooth(10.2, wall.inner, r)); return [k, k * 0.99, k * 0.97]; }), sand, 'sand', false);
   floor.userData.tile = SAND_TILE;
   // The boundary ring at the play radius: a dark inlay trodden flush with the sand (the simulation's wall, visible).
   const ring = mesh(new THREE.RingGeometry(PLAY_RADIUS - 0.05, PLAY_RADIUS + 0.05, 128), boundary, 'boundary', false); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.012;
@@ -228,14 +228,16 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const tierTint: Tint = (_x, y, _z, a) => { const k = (0.88 + 0.18 * (hash(Math.floor(a * 40), Math.floor(y), 6) - 0.5)) * (1 - 0.35 * ruin(a)) * masonryShade(y, a); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * gg, k * 0.98 * gb]; };
   const flat = (h: number) => () => h, gateSkip = theme.gate === false ? undefined : (a: number) => inGate(a, wall.inner);
   const wallRows = [0, 0.25, 0.7, 1.5].filter(h => h < wall.top).concat(wall.top);   // enough vertical samples to keep foot stains localized
-  for (let i = 1; i < wallRows.length; i++) stones.push(band(wall.inner, flat(wallRows[i - 1]), wall.inner, flat(wallRows[i]), 2, wallTint, gateSkip));
-  stones.push(band(wall.inner, flat(wall.top), wall.outer, flat(wall.top), 2, wallTint, gateSkip));           // its walkway
+  // Flat stands (Dom 2026-10-03): no kerb, no treads; the sand runs level under the crowd's feet.
+  for (let i = 1; i < (theme.flatStands ? 0 : wallRows.length); i++) stones.push(band(wall.inner, flat(wallRows[i - 1]), wall.inner, flat(wallRows[i]), 2, wallTint, gateSkip));
+  if (!theme.flatStands) stones.push(band(wall.inner, flat(wall.top), wall.outer, flat(wall.top), 2, wallTint, gateSkip));           // its walkway
   // Open stands (no parapet): the top walkway and the ground past it are the pit's own sand, not dressed stone (Dom 2026-10-03: too clean).
   const grit: THREE.BufferGeometry[] = [], open = theme.parapet === false, dirt: Tint = (x, _y, z) => { const k = 0.5 * (0.8 + 0.6 * (mottle(x / 7 + 0.5, z / 7 + 0.5) - 0.5)); return [k, k * 0.95, k * 0.9]; };   // trodden, patchy, darker than the pit
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
     const top = (a: number, s: number) => tierTop(i, a, s, drop, wall.top), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s, drop, wall.top), outer = i === tiers.length - 1 && theme.parapet !== false ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
-    if (!theme.flatStands) stones.push(band(inner, under, inner, top, 2, tierTint)); (open && (theme.flatStands || i === tiers.length - 1) ? grit : stones).push(band(inner, top, outer, top, open && (theme.flatStands || i === tiers.length - 1) ? SAND_TILE : 2, open && (theme.flatStands || i === tiers.length - 1) ? dirt : tierTint));
+    if (theme.flatStands) return;
+    stones.push(band(inner, under, inner, top, 2, tierTint)); (open && (theme.flatStands || i === tiers.length - 1) ? grit : stones).push(band(inner, top, outer, top, open && (theme.flatStands || i === tiers.length - 1) ? SAND_TILE : 2, open && (theme.flatStands || i === tiers.length - 1) ? dirt : tierTint));
     inner = outer;
   });
   const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s, drop, wall.top), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
@@ -432,7 +434,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a);
       if (crowdObstacles.some(b => x >= b.min.x && x <= b.max.x && z >= b.min.z && z <= b.max.z)) continue;
       const fraction = a / TAU * LAYOUT.segments - segment, next = (segment + 1) % LAYOUT.segments;
-      const y = THREE.MathUtils.lerp(tierTop(i, segment / LAYOUT.segments * TAU, segment, drop, wall.top), tierTop(i, (segment + 1) / LAYOUT.segments * TAU, next, drop, wall.top), fraction);
+      const y = theme.flatStands ? 0 : THREE.MathUtils.lerp(tierTop(i, segment / LAYOUT.segments * TAU, segment, drop, wall.top), tierTop(i, (segment + 1) / LAYOUT.segments * TAU, next, drop, wall.top), fraction);
       (occupied ? seats : vacancies).push({ id: i * 256 + s, x, y, z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.84 + hash(s, i, 29) * 0.32, width: 0.88 + hash(s, i, 81) * 0.24, phase: hash(s, i, 31) });
     }
   });

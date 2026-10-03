@@ -52,7 +52,7 @@ const ARENA_1: ArenaTheme = {
   id: '1', name: 'The Ash Pit', textures: { floor: 'sand', patch: 'blood', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
   fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
   light: { sun: [-24, 12, -15] },
-  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0.4, gate: false, flatStands: true, backdropDrop: 3, backdropTurn: 0.3, backdropScale: 0.45,
+  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, backdropDrop: 3, backdropTurn: 0.3, backdropScale: 0.45,
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
