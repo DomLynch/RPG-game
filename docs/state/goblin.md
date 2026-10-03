@@ -4,6 +4,11 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Knuckle Dirt A — 2026-10-03 G1 finisher-yield correction
+
+- Independently reported P2/G1 reproduced on `00ea3365`: active gather remained visible when yielding because shared `advanceCast` suppresses only new casts. New factory now clears its cast/anchor and hides all grains before returning on yield; shared helpers and existing Goblin effects unchanged.
+- Regression covers active gather and landed tail yielding, no later stale payoff, retained pool and fresh-anchor rearm. Targeted plus existing Goblin tests **21/21 PASS**. Build/browser and visual acceptance remain pending the allocated integration window.
+
 ## Knuckle Dirt A — 2026-10-03 source ready, integration pending
 
 - Resumed by Dom/Lead on exact base `3348ddfbac760290baa9a36979fc8f6678c3e08b`, isolated `goblin/seven-class-a` checkout. New `createKnuckleDirt(scene, opponent, exposure)` only: pooled 24 grains, stationary caster-foot gather and one low foe-directed flick on accepted `SpecialLanded`. Native jab clock and normalized caster 1; no rig writes or shared routing edits.

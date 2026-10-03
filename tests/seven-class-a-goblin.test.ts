@@ -41,6 +41,24 @@ test('foot-sized gather stays stationary, feet remain unchanged, frozen tick can
   assert.deepEqual(m.root.position, anchor); assert.ok(m.sprites.every(s => s.position.z < 0.4 && s.position.y < 0.12), 'no predicted payoff');
 });
 
+test('yield cancels active gather and landed tail, keeps pool, and rearms at fresh feet', () => {
+  for (const landed of [false, true]) {
+    const m = make(), pool = [...m.root.children]; m.render(0, [start()]); m.render(80);
+    if (landed) { m.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')]); m.render(LAND_AT + 9); }
+    assert.equal(m.root.visible, true);
+    const tick = landed ? LAND_AT + 10 : 81;
+    m.render(tick, [], true);
+    assert.equal(m.root.visible, false, landed ? 'landed tail yields' : 'active gather yields');
+    assert.ok(m.sprites.every(s => !s.visible && s.material.opacity === 0));
+    m.render(tick + 1, [end(tick + 1, 'SpecialLanded')]);
+    assert.equal(m.root.visible, false, 'cancelled cast cannot resume or pay off');
+    assert.deepEqual(m.root.children, pool, 'yield retains pool');
+    m.render(300, [start(300)], false, [new THREE.Vector3(6, 0, 0), new THREE.Vector3(4, 0, 0)]);
+    m.render(340); assert.equal(m.root.visible, true); assert.equal(m.root.position.x, 4, 'fresh cast resets anchor');
+    assert.deepEqual(m.root.children, pool, 'rearm reuses pool');
+  }
+});
+
 test('accepted landing makes one low directional flick; fizzle never does; tail, timeout and clear rearm', () => {
   const m = make(); m.render(0, [start()]); m.render(LAND_AT, [end(LAND_AT, 'SpecialLanded')]); m.render(LAND_AT + 9);
   const flying = m.sprites.filter(s => s.visible && s.position.z > 0.4); assert.ok(flying.length >= 8);
