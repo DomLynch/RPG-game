@@ -1,3 +1,4 @@
+import { buildStaticArena, createStaticCameraRig, restoreArenaLens } from './static-arena.ts';
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
@@ -102,8 +103,8 @@ export function createScene(
   // Special Moves (special-look.ts): the tick each side was last struck by a special (its head-hit stagger is presentation only). The cloud
   // is Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
   const specialStruck = [-Infinity, -Infinity];
-  scene.background = new THREE.Color(theme.fog);
-  scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
+  scene.background = new THREE.Color(arenaOverride === 'art1' ? '#17100d' : theme.fog);
+  scene.fog = arenaOverride === 'art1' ? null : new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
   // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
   // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
@@ -170,7 +171,7 @@ export function createScene(
   ) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = buildArena(scene, theme),
+  const arena = arenaOverride === 'art1' ? buildStaticArena(scene) : buildArena(scene, theme),
     footDust = createFootDust(scene, dustToneFor(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
@@ -466,7 +467,7 @@ export function createScene(
   const blade = createBladeBlood();
   let heading = Math.PI;
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
-  const rig = createCameraRig(camera);
+  const rig = arenaOverride === 'art1' ? createStaticCameraRig(camera) : createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
@@ -546,7 +547,10 @@ export function createScene(
         setArenaVisible(on) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }
-          else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
+          else {
+            if (arenaOverride === 'art1') restoreArenaLens(camera);
+            pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
+          }
         },
         hero: {
           // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the

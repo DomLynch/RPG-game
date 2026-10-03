@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-03 — Image 1 static arena trial (source verified, publication pending)
+
+- Direct owner request: image 1 first, real 3D fighters, preserve existing ring; image 2 awaits owner feedback. Lead grants scoped conditional scene/camera and native Stage carry. Branch `world/static-arena-one-20261003`, isolated `/Users/domininclynch/Developer/frankendom-world-static-arena-20261003`, base `950db85c`.
+- Opt-in `?arena=art1`; ordinary/default 3D builder and its assets remain intact. Fixed-angle camera follows both fighters in the same calibrated world projection; invisible planar shadow floor and image foreground parapet. No simulation, collision radius, rig, combat, lights or old-special changes.
+- Owner PNG 1672×941 preserved as full-resolution WebP, 435,096 bytes; hashes and origin in `src/assets/arena/art1-source.md`. Config retains prior completion/release rows and appends repeatable source/built/public trial workflow (release row 51).
+- Final configured command PASS535/535, zero failures/skips, source lint/test types; app types PASS. CPU completion34 PASS and existing source Sparring completion PASS. Final new source workflow exit0/PASS: genuine Stage/Start, joystick, Price damage/recovery, attacks/decap completion, storage, landscape/default and real career Pit/gate/rematch return. All page/console/HTTP/attempted backend-write arrays empty; receipt `artifacts/static-arena-final/receipt.json`, ten untouched PNGs. Independent source review closed failed-image retry and Pit/Gear lens issues; native pixels reviewed. Historical probe negatives retained separately.
+- Production/script/config hashes unchanged before/after final capture; all owned browser/server processes closed/FREE. Original arena/camera modules unchanged. No deployment or physical-phone acceptance claim yet. Next: exact frozen candidate to Lead/sole Deploy and live verification. Latest owner request queues the new portrait artwork AFTER this landscape is published; original image 2 remains held.
+
 ## 2026-10-01 ~18:3x (+04) — HANDOFF #5 before /clear. READ FIRST, then handoff #4 below (still true except where this says otherwise)
 
 ### Now
