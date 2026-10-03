@@ -238,3 +238,39 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
     clear() { cast = null; hide(); },
   };
 }
+
+// Class A: one stance-local patch gathers beside the Cleave, then sets down sharply on the accepted strike.
+// The scene manager normalizes either real caster to actor 1 and owns this group's resources.
+export function createCleaverSet(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'cleaver set'; root.visible = false; scene.add(root);
+  const look: SandLook = exposure > 1.5
+    ? { core: new THREE.Color(0.012, 0.008, 0.004), edge: new THREE.Color(0.1, 0.052, 0.025), dim: true }
+    : { core: new THREE.Color(0.06, 0.03, 0.014), edge: new THREE.Color(0.25, 0.135, 0.06), dim: false };
+  const maps = [1, 4, 7].map(seed => clodMap(seed, look));
+  const clods = Array.from({ length: 9 }, (_, i) => {
+    const material = new THREE.SpriteMaterial({ map: maps[i % maps.length], transparent: true, opacity: 0, depthWrite: false, fog: true });
+    const clod = new THREE.Sprite(material); clod.name = 'set clod'; clod.visible = false;
+    clod.scale.set(0.18 + hash(i, 5) * 0.08, 0.16 + hash(i, 7) * 0.06, 1); root.add(clod); return clod;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const clod of clods) { clod.visible = false; clod.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isPitbornSpecial);
+      const from = feet[1], to = feet[0]; if (!cast || !from || !to) { hide(); return; }
+      const phase = castPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      const settle = cast.landed === null ? 0 : smooth((tick - cast.landed) / 8);
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z); root.visible = true;
+      for (let i = 0; i < clods.length; i++) {
+        const clod = clods[i];
+        clod.position.set(0.48 + (hash(i, 8) - 0.5) * (0.36 - 0.12 * build),
+          0.045 + (0.08 + hash(i, 3) * 0.08) * build * (1 - settle),
+          0.3 + (i - 4) * (0.075 - 0.025 * build) + settle * 0.12);
+        clod.material.opacity = build * fade * 0.9; clod.visible = clod.material.opacity > 0.001;
+      }
+    },
+    clear() { cast = null; hide(); },
+  };
+}
