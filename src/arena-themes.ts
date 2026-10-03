@@ -30,7 +30,8 @@ export type ArenaTheme = {
   // Optional, Arena 1 when absent: the key light's position (scene.ts; flicker sways it like firelight so shadows move), the weather
   // cloud, the floor's roughness (low = wet: it mirrors the sky; puddles go lower still), additive shafts of light from above.
   light?: { sun: [number, number, number]; flicker?: number }; weather?: Weather; wet?: number; shafts?: number;
-  flame?: number;   // brazier flame size, x Arena 1's old flame (1 when absent)
+  flame?: number;   // brazier flame height, x Arena 1's old flame (1 when absent)
+  tiers?: number;   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | 'a' | 'b' | 'c' | 'd';
@@ -43,7 +44,7 @@ const ARENA_1: ArenaTheme = {
   id: '1', name: 'The Ash Pit', textures: { floor: 'sand', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
   fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
   light: { sun: [-24, 12, -15] },
-  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.8, backdrop: '/arena/backdrop-1.webp',
+  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, backdrop: '/arena/backdrop-1.webp',
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,

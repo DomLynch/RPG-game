@@ -70,7 +70,7 @@ test('the crowd stands on the tiers, outside the clamp, and never moves past the
     const c = sectors[Math.floor(((Math.atan2(pos.x, pos.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 12)];
     c[0]++; if (radius < LAYOUT.wall.outer + 2 * LAYOUT.tierDepth) c[1]++;
   }
-  for (const [i, [total, front]] of sectors.entries()) assert.ok(total >= 24 && front >= 8, `sector ${i}: ${total} total, ${front} front`);
+  for (const [i, [total, front]] of sectors.entries()) assert.ok(total >= 16 && front >= 8, `sector ${i}: ${total} total, ${front} front`);   // 16, not 24: Arena 1 stands three tiers, not five, since the backdrop (2026-10-03)
   let moved = 0, tilted = 0;
   const measure = () => { for (const m of crowd) for (let i = 0; i < m.count; i++) { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); x.decompose(pos, q, s); rest.get(m.name)![i].decompose(pos0, q0, s); moved = Math.max(moved, pos.distanceTo(pos0)); tilted = Math.max(tilted, q.angleTo(q0)); } };
   arena.update(0, [{ tick: 1, type: 'Killed', actor: 0, target: 1 } as never]); measure(); assert.equal(moved, 0, 'a hit-stop (dt 0) moved the crowd');
@@ -126,7 +126,9 @@ test('front tiers are occupied and crowd instances vary in build, height and gar
       assert.ok(rgbLuminance(c) < 0.1, 'spectator clothing competes with the fighters');
     }
   }
-  assert.ok(front >= 30 && rear > front, `${front} front, ${rear} rear: keep both depth and clear gaps`);
+  // Arena 1 has three tiers since the far-world backdrop (Dom 2026-10-03, arena-wow): the rear is one tier, not three, so it holds
+  // fewer than the front; it must still be clearly peopled.
+  assert.ok(front >= 30 && rear >= front / 2, `${front} front, ${rear} rear: keep both depth and clear gaps`);
   assert.ok(Math.max(...widths) - Math.min(...widths) > 0.2);
   assert.ok(Math.max(...heights) - Math.min(...heights) > 0.3);
   assert.ok(dyes.size > 30, 'crowd uniforms repeat');
