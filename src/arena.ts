@@ -234,7 +234,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     inner = outer;
   });
   const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
-  stones.push(band(parapet.inner, topTier, parapet.inner, parapetTop, 2, tierTint), band(parapet.inner, parapetTop, parapet.outer, parapetTop, 2, tierTint), band(parapet.outer, parapetTop, parapet.outer, flat(0), 2, tierTint));
+  if (theme.parapet !== false) stones.push(band(parapet.inner, topTier, parapet.inner, parapetTop, 2, tierTint), band(parapet.inner, parapetTop, parapet.outer, parapetTop, 2, tierTint), band(parapet.outer, parapetTop, parapet.outer, flat(0), 2, tierTint));
   // The gate: capped posts either side, a voussoir arch proud of the wall face over the opening, the dark passage behind the bars.
   for (const side of [-1, 1]) {
     const a = gate + side * (gateWidth / 2 + 0.35) / wall.inner, [x, z] = polar((wall.inner + wall.outer) / 2, a);
@@ -458,7 +458,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
     const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
     materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
-    const ring = mesh(new THREE.CylinderGeometry(118, 118, 49, 64, 1, true), paint, 'backdrop', false); ring.position.y = 22; ring.receiveShadow = false;
+    const ring = mesh(new THREE.CylinderGeometry(118, 118, 49, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17; ring.receiveShadow = false;
   }
   for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
