@@ -1,12 +1,18 @@
-// Real phone-size game UI: select a shipped finisher, win by normal controls, verify held clip and next-opponent reset.
+// Real phone-size career UI: win by normal controls, verify a selected finisher's held clip, rewards and next-opponent reset.
+// Presentation selection uses the existing debug view on the initial document; the real Sparring form/Start path is checked separately.
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) from the first press on: every wait below is page time, so the
 // scripted duel lands on the same ticks on a loaded MacBook and on a software-GL CI runner (the real-time version hung in
-// locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and journal setup stay on real time.
+// locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and presentation setup stay on real time.
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';
+import process from 'node:process';
+import console from 'node:console';
+import { URL } from 'node:url';
+import { setTimeout } from 'node:timers';
+/* global localStorage, sessionStorage, document, window, performance, requestAnimationFrame */
 
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0}});
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -33,14 +39,13 @@ await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // the seeded guest is a returning player: no card
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
-await page.getByRole('button', {name:'Menu and field journal'}).tap();
-await page.locator('#sparring-tab').tap();   // the finisher picker sits on the admin Sparring tab (Dom 2026-09-29)
-await page.locator('#finisher-select').selectOption(finisher);
-await page.getByRole('button', {name:'Close journal'}).tap();
-
 const clips = async () => (await page.locator('#debug').getAttribute('data-clips')) ?? '';
 await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after the journal closes before the first press
+// Keep this a career fight so its existing reward/latch assertions still apply. The form is inert until Start, which would enter
+// reward-free Sparring. Set only the allowlisted presentation on this document; the next-rung reload gets the normal Auto selection.
+await page.waitForFunction(() => typeof globalThis.__view?.setFinisherOverride === 'function');
+await page.evaluate(selected => globalThis.__view.setFinisherOverride(selected), finisher);
+const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after presentation setup before the first press
 // The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
 // paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Fight" (was "Draw sword" before 2026-09-29)),
 // while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
@@ -79,7 +84,7 @@ async function fight(name) {
     const enabled = async id => (await page.locator('#'+id).getAttribute('aria-disabled')) === 'false';
     if(!state.hp || !state.enemy)break;
     const distance=+(state.text.match(/gap ([\d.]+)/)?.[1] ?? Infinity);
-    const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|\-]+)/);
+    const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|-]+)/);
     const stamina=+(state.text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0);
     const punish=+(state.text.split('warden:')[0].match(/punish (\d+)/)?.[1] ?? 0);
     if(punish>0 && state.light && stamina>=22 && distance<2) {
@@ -164,7 +169,7 @@ async function fight(name) {
 await fight('counter-duel');
 const expected = finisher === 'opened' ? /Opened:WaistCut/ : /Death_SplitCrown:Death_SplitCrown/;   // Decapitation reuses Split Crown's collapse
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,selection:'initial-document debug presentation override; not Sparring form proof',splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await run(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {

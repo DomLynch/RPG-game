@@ -27,7 +27,8 @@ test('creatures carry the approved maul and reaper scythe; every role resolves a
     let meshes=0; marker.traverse(o=>{ if ('isMesh' in o && o.isMesh) meshes++; });
     assert(meshes>0, 'both creatures carry their approved weapon');
     for(const name of ['SwordDrawn','SwordSheathed']) asset.scene.getObjectByName(name)?.traverse(o=>assert(!('isMesh' in o && o.isMesh),'no inherited sword mesh'));
-    for(const role of ROLES) assert(asset.animations.some(c=>c.name===clipFor(id,role)),`${id}/${role}`);
+    // ArmedRun is the veteran rig's own optional clip (characters.ts): a rig without it aliases the role to its ArmedWalk and never weights it.
+    for(const role of ROLES.filter(r=>r!=='ArmedRun')) assert(asset.animations.some(c=>c.name===clipFor(id,role)),`${id}/${role}`);
     asset.scene.scale.multiplyScalar(scale);
     const mixer=new AnimationMixer(asset.scene);
     for(const [path,spec] of Object.entries(WEAPONS[id].paths)) {

@@ -45,7 +45,7 @@ try {
  await page.getByRole('button', { name: 'Menu and field journal' }).tap();
  const paused = await page.evaluate(() => window.__audio);
  assert.ok(paused.some(a => a.stop === crowd.id), 'menu stops the live crowd source');
- await page.locator('#close-journal').click(); await run(600);
+ await page.locator('#nav-arena').click(); await run(600);
  assert.equal((await page.evaluate(() => window.__audio)).filter(a => a.offset === crowd.offset).length, 1, 'resume does not replay the cheer');
  await page.screenshot({ path: `${out}/defeat.png` });
  assert.deepEqual(receipt.errors, []); receipt.passed = true;

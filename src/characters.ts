@@ -5,7 +5,7 @@ import { attackSpecs, POMMEL_BASH, type Attack, type Practice } from './combat.t
 import { weaponOf, type Direction, type WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { AnimationMixer, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -26,8 +26,10 @@ export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm', 'Skill_Po
 // The renderer plays roles, never clip positions. The sword's roles are its clip names (the shipped warrior.glb set) plus Thrust: the
 // sword thrusts with its Riposte clip. Each weapon maps roles to its own clips; an unlisted role plays the clip of its own name (the
 // body clips are shared, and a two-handed weapon's fighter starts armed, so Draw never plays for him).
-export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust' | 'Pommel';
-export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust', 'Pommel'];
+export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust' | 'Pommel' | 'ArmedRun';
+// ArmedRun: the Centurion's sprint with the sword arm held low (build-armed-run.mjs). Only a rig that carries the clip plays it, and only with a
+// one-hand weapon; every other rig aliases the role to its ArmedWalk and never gives it weight, so nothing else moves.
+export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust', 'Pommel', 'ArmedRun'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death' },   // Kick and Roll fall back to the shared clips (the warhammer's convention): the hero rig's Maul_* family (2026-09-23) has neither, and the held Minotaur carries plain Kick/Roll too
   reaper: { Idle: 'Reaper_Idle', Walk: 'Reaper_Walk', Jog: 'Reaper_Walk', Run: 'Reaper_Walk', Armed: 'Reaper_Idle', ArmedWalk: 'Reaper_Walk', StrafeLeft: 'Reaper_StrafeLeft', StrafeRight: 'Reaper_StrafeRight', Attack: 'Reaper_Slash', Return: 'Reaper_Slash', Heavy: 'Reaper_Heavy', Thrust: 'Reaper_Thrust', Riposte: 'Reaper_Thrust', Guard: 'Reaper_Guard', BlockImpact: 'Reaper_Guard', Parry: 'Reaper_Guard', Deflected: 'Reaper_Hit', Hit: 'Reaper_Hit', Death: 'Reaper_Death', Kick: 'Reaper_Kick', Roll: 'Reaper_Roll' },
@@ -129,6 +131,17 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   let opponent: FighterAsset | undefined = enemy;
   if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = armOpponent(opponent, enemyPart); } catch (error) { equipFailed(error); }
   return armWarriors(hero, opponent, weapons, part, equipFailed, carry);
+}
+// A live duel's peer drawn on the HERO rig (Strategy 2026-10-01, Option A): the page's second fighter is the hero's own warrior.glb, loaded a
+// second time under another cache key, with the peer's weapon grafted exactly as the player's is (equipWeapon, no shield carry), so he reads
+// as a player and not as the page's roster opponent. Only a ?duel= page reaches this, and only once both kits are known (scene.ts `peerKit`).
+export const PEER_RIG_KEY = '#peer';
+export async function loadPeerWarriors(url: string, weapons: [WeaponId, WeaponId], equipUrl?: string, peerEquipUrl?: string, equipFailed: (error: unknown) => void = () => {}) {
+  const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
+  const [hero, foe, part, foePart] = await Promise.all([loadFighter(url), loadFighter(url + PEER_RIG_KEY), equip(equipUrl), equip(peerEquipUrl)]);
+  let peer = foe;
+  if (foePart) try { if (foePart instanceof Error) throw foePart; peer = equipWeapon(foe, foePart); } catch (error) { equipFailed(error); }
+  return armWarriors(hero, peer, weapons, part, equipFailed);
 }
 // The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
 // load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
@@ -280,7 +293,7 @@ function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): R
     // A player override needs the rig to carry it: the equip file does (tests/weapons.test.ts pins it); a shared opponent rig standing in
     // for the player (buildWarriors without an opponent asset) keeps the shared row.
     const own = player ? PLAYER_CLIPS[weapon]?.[role] : undefined;
-    const name = own && asset.animations.some(a => a.name === own) ? own : clipFor(weapon, role), clip = asset.animations.find(a => a.name === name);
+    const name = own && asset.animations.some(a => a.name === own) ? own : clipFor(weapon, role), clip = asset.animations.find(a => a.name === name) ?? (role === 'ArmedRun' ? asset.animations.find(a => a.name === 'ArmedWalk') : undefined);
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
     clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);
   }
@@ -342,6 +355,9 @@ export const SHIELD_CARRY = {
   carry: { elbow: new Vector3(.35, -.8, .45).normalize(), wrist: new Vector3(-.85, .1, .5).normalize() },
   raised: { elbow: new Vector3(.15, 0, 1).normalize(), wrist: new Vector3(-.9, .35, .3).normalize() },
   strike: { elbow: new Vector3(.6, -.8, -.1).normalize(), wrist: new Vector3(.3, -.2, .93).normalize() },
+  // The Centurion's Shield Quake (special-fx-quake.ts): the board held up and back over the shoulder, then driven down in front of him, rim to the sand.
+  lifted: { elbow: new Vector3(.3, .55, .35).normalize(), wrist: new Vector3(-.2, 1, .25).normalize() },
+  planted: { elbow: new Vector3(.3, -.75, .6).normalize(), wrist: new Vector3(.05, -1, .3).normalize() },
 } as const;
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
@@ -369,6 +385,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
     const actions = {} as Record<Role, AnimationAction>;
+    const armedRun = asset.animations.some(a => a.name === 'ArmedRun') && weaponOf(weapon).grip === 'one-hand';   // the rig carries the clip and holds a one-hand weapon
     for (const role of ROLES) { actions[role] = mixer.clipAction(clips[role]).play(); actions[role].setEffectiveWeight(role === 'Idle' ? 1 : 0); }
     // The weapon on the rig: a WeaponDrawn node (a two-handed weapon, always in hand: no sheathed/drawn swap) or the sword's two nodes.
     // The trail follows the striking part: the node's own contact segment (extras.contact, metres along its Y) or the sword's blade.
@@ -403,6 +420,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
+    let slam = 0;   // Shield Quake's weight, 0 none, 1 the shield held up, 2 driven down (the scene sets it from the cast)
     function carryShield(amount: number, lift: number, open: number) {
       const [upperL, lowerL, handL] = offHand;
       if (!upperL?.parent || !lowerL || !handL || amount <= 0) return;
@@ -415,7 +433,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       uncarried.forEach((q, i) => q.copy(offHand[i]!.quaternion)); carried = true;
       root.updateWorldMatrix(true, false);
       const frame = root.getWorldQuaternion(new Quaternion()), { carry: c, raised: r, strike: s } = SHIELD_CARRY;
-      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).normalize().applyQuaternion(frame);
+      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize().applyQuaternion(frame);
       const elbow = toward('elbow'), wrist = toward('wrist');
       aimBone(upperL, lowerL, elbow, amount);
       aimBone(lowerL, handL, wrist, amount);
@@ -580,6 +598,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
+      slam(weight: number) { slam = weight; },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
@@ -593,8 +612,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (speed < 0.015) speed = 0;
         for (const role of ['Walk', 'Jog', 'Run'] as const) actions[role].setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1);
         const gait = gaitWeights(speed), weights: Partial<Record<Role, number>> = { Idle: gait[0], Walk: gait[1], Jog: gait[2], Run: gait[3] };
-        if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
+        // An armed rig with its own run (armedRun) blends ArmedWalk into it from 3.2 to 4 m/s and keeps it above; without one the armed walk holds to 4.2 and the plain Run takes over, as before.
+        if (pose !== 'sheathed' && (speed < 4.2 || armedRun)) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)), run = armedRun ? MathUtils.smoothstep(speed, 3.2, 4) : 0; weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side)*(1-run); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side*(1-run); weights.ArmedRun = movement*run; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
+        actions.ArmedRun.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.5,speed/(5.2*stride)));   // the sprint's ground speed is the gait table's 5.2 m/s knot
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
         const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';

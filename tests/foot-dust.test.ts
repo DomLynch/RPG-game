@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createFootDust } from '../src/foot-dust.ts';
+import { createFootDust, dustToneFor } from '../src/foot-dust.ts';
+import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 // The sand puff a heavy landing kicks off a planted foot (presentation): a handful of grains from the pool at that foot, rising and drifting
 // outward, gone within the pool's one-second lifetime; a pause (dt 0) holds them like everything else in the pool.
@@ -22,14 +23,19 @@ test('a puff throws 5–9 grains at the foot that rise, spread and die within a 
   dust.dispose(); assert.equal(scene.getObjectByName('foot dust'), undefined);
 });
 
-// Presentation: dust on a wet or paved floor is darker and thinner than the sand's warm tan, so it does not read as a pale ring on grey stone.
-test('stone floors get a darker, thinner dust than sand', () => {
-  const tone = (stone: boolean) => {
-    const scene = new THREE.Scene(); createFootDust(scene, stone);
+// Presentation: dust on a paved/wet floor is darker and thinner than the sand's warm tan, and the Night Pit's clay darker still, so none reads as a pale ring.
+test('stone and clay floors get a darker dust than sand', () => {
+  const tone = (kind: 'sand' | 'stone' | 'clay') => {
+    const scene = new THREE.Scene(); createFootDust(scene, kind);
     const m = (scene.getObjectByName('foot dust') as THREE.Points).material as THREE.PointsMaterial;
     return { luma: m.color.r + m.color.g + m.color.b, opacity: m.opacity };
   };
-  const sand = tone(false), stone = tone(true);
+  const sand = tone('sand'), stone = tone('stone'), clay = tone('clay');
   assert.ok(stone.luma < sand.luma && stone.opacity < sand.opacity, 'stone dust is not darker and thinner');
+  assert.ok(clay.luma < stone.luma, 'clay dust is not darker than stone dust');
   assert.equal(sand.opacity, 0.6, 'sand dust changed');
+});
+
+test('each arena gets its floor\'s dust: Night Pit clay, Rain Yard and Cistern stone, Ash Pit and Blood Sand sand', () => {
+  assert.deepEqual(Object.values(ARENA_THEMES).map(t => `${t.id}:${dustToneFor(t)}`), ['1:sand', 'a:clay', 'b:stone', 'c:sand', 'd:stone']);
 });

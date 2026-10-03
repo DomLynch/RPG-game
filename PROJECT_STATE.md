@@ -9,7 +9,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Strategy | [docs/state/strategy.md](docs/state/strategy.md) | 1 | 2026-09-22 — restart from memory, Brief 13/14 status, loot v2 wielding, tier table, shield brief |
 | Lead | [docs/state/lead.md](docs/state/lead.md) | 20 | 2026-09-21 — Release check 9 (polearm-browser-check) became checks 9–12; everything after ren |
 | Combat | [docs/state/combat.md](docs/state/combat.md) | 47 | 2026-09-26 — Cleave lever closed (no change), Sparring dummy e7d97ac0, Jab closed |
-| Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 27 | 2026-09-28 — #992 estoc + cleaver Pommel live (correction); weapon shapes intake: fit check + rank-band slots (maul first) |
+| Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 28 | 2026-10-02 — HANDOFF TO GPT: class specials (Witch/Plague Doctor/Knight) weapons/class-specials c56fc0ce, night films owed; shields #1199/#1200 live |
 | Character | [docs/state/character.md](docs/state/character.md) | 17 | 2026-09-21 — Loot export v1 — Brief 5, Scalable Chars lane, 2026-09-21 (Strategy's assignment on the owner's "take t |
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) | 24 | 2026-09-27 — frozen at 26082c3c: #868 E2 tour look 1.3 m portrait + #871 waist-cut shadow live; Dwarf gap open |
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |

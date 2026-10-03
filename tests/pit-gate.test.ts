@@ -1,5 +1,6 @@
 // D2 (docs/pit-design.md §9): the gate is the way in. The line he crosses on foot, the door's hide/return rule while he walks, his arrival
 // in the room at the pace he had, and main.ts's wiring: one open per crossing, the hold at the line, the fade, and began() clearing it all.
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -34,7 +35,7 @@ test('the door hides as soon as the stick moves him and returns after 3 s still'
 function gameStage(read: () => { x: number; z: number }, placed: { z: number; speed: number }[]): Stage {
   return {
     scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(51, 0.46), renderer: undefined as unknown as THREE.WebGLRenderer,
-    setArenaVisible() {}, hero: { place(_x, z, _h, speed) { placed.push({ z, speed }); } }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+    setArenaVisible() {}, hero: { place(_x, z, _h, speed) { placed.push({ z, speed }); } }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), legendKeys: () => PORTRAIT_KEYS,
     readMove: read, rackRows: () => [], trophyLine: () => '', gate: () => ({ label: 'Rematch', go() {} }),
   };
 }

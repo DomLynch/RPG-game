@@ -6,6 +6,7 @@ import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
+import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
@@ -28,6 +29,7 @@ export const COMBAT_LEVEL = .375 * MIX, FINISH_LEVEL = 1.5 * MIX;
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a
 // compressor and a −1 dBFS soft ceiling; a share of each voice goes to a short arena reverb. Until the sprite is decoded,
 // the original synthesised layers stand in so no event is ever silent.
+
 export function createFeedback(host?: FeedbackHost) {
   void prepareBell();   // the network-independent opening bell, built while idle so the Draw tap never synthesises it (bell.ts)
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
@@ -41,11 +43,14 @@ export function createFeedback(host?: FeedbackHost) {
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
   let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
-  // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; one plays at a time.
+  // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
   const specialWanted = new Set<SpecialCue>(), specialBuffers = new Map<SpecialCue, AudioBuffer | null>();
-  let specialHeard: { stop(): void } | null = null;
+  const specialHeard: ({ stop(): void } | null)[] = [null, null];
   const specialLoad = () => { if (context) for (const cue of specialWanted) if (!specialBuffers.has(cue)) { specialBuffers.set(cue, null); void loadSpecial(cue, context).then((buffer) => specialBuffers.set(cue, buffer)); } };
-  const specialCut = () => { specialHeard?.stop(); specialHeard = null; };
+  const specialCut = (actor?: 0 | 1) => { for (const side of actor === undefined ? [0, 1] : [actor]) { specialHeard[side]?.stop(); specialHeard[side] = null; } };
+  // Duel lobby cues (audio/duel.ts): the same lazy fetch, never gating a fight. They may overlap (the 3-2-1 ticks), so there is no cut.
+  const duelWanted = new Set<DuelCue>(), duelBuffers = new Map<DuelCue, AudioBuffer | null>();
+  const duelLoad = () => { if (context) for (const cue of duelWanted) if (!duelBuffers.has(cue)) { duelBuffers.set(cue, null); void loadDuel(cue, context).then((buffer) => duelBuffers.set(cue, buffer)); } };
   let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
@@ -57,7 +62,7 @@ export function createFeedback(host?: FeedbackHost) {
       const session = host || typeof navigator === 'undefined' ? undefined : (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
       if (session) try { session.type = 'playback'; } catch { /* unsupported value on older WebKit */ }
       build(context);
-      specialLoad();
+      specialLoad(); duelLoad();
       if (host && host.sprite !== undefined) sprite = host.sprite;
       else loading = loadSprite(context).then(buffer => { sprite = buffer; return !!buffer; }, () => { sprite = null; return false; });
     }
@@ -147,8 +152,12 @@ export function createFeedback(host?: FeedbackHost) {
     // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.
     // It plays into the arena output, past the combat balance, like the crowd bank: the cues are levelled for that path (build-special-audio.mjs).
     want(cue: SpecialCue) { specialWanted.add(cue); specialLoad(); },
-    special(cue: SpecialCue, gain = 1) { specialCut(); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard = playSpecial(context, buffer, arenaOutput, gain); return specialHeard; },
+    special(cue: SpecialCue, gain = 1, actor: 0 | 1 = 1) { specialCut(actor); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard[actor] = playSpecial(context, buffer, arenaOutput, gain); return specialHeard[actor]; },
     cutSpecial: specialCut,
+    dispose() { quieted = true; stopSources(); specialCut(); },
+    // A duel lobby cue: `wantDuel` asks for it to be fetched (once the first tap has made the context), `duel` plays it now at `gain`, silent if it has not loaded.
+    wantDuel(cue: DuelCue) { duelWanted.add(cue); duelLoad(); },
+    duel(cue: DuelCue, gain = 1) { const buffer = duelBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; return playDuel(context, buffer, arenaOutput, gain); },
     // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
     // unlock, on the offline harness, or where the browser has no MediaStream destination.
     stream(): MediaStream | null {

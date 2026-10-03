@@ -185,7 +185,7 @@ try {
       await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))));
       await page.waitForTimeout(200);
       entry.doll = `doll/${piece.id}.png`; await doll.screenshot({ path: path.join(dir, entry.doll) });
-      await page.locator('#close-journal').tap().catch(() => {});
+      await page.locator('#nav-arena').tap().catch(() => {});
     }
     receipt.pieces[piece.id] = entry;
     console.log(`${piece.id}: ${draws.length} draw(s)${entry.dollLayer ? ', no doll layer' : ''}`);

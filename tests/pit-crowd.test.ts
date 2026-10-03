@@ -6,12 +6,13 @@ import * as THREE from 'three';
 import { enter, disposeRoom, CROWD_EVERY_S, CROWD_FIRST_S, CROWD_ROTATION } from '../src/pit/pit.ts';
 import { CROWD_CUES, CROWD_CUTOFF_HZ, CROWD_DB, createArenaAudio } from '../src/audio/arena.ts';
 import { ARENA_MANIFEST } from '../src/audio/arena-manifest.ts';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import type { Stage } from '../src/pit/stage.ts';
 
 const element = () => ({ hidden: false, textContent: '', childElementCount: 0, setAttribute() {}, append() {}, replaceChildren() {}, addEventListener() {}, remove() {} });
 const stage = (): Stage => ({
   scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(62, 0.46, 0.1, 50), renderer: undefined as unknown as THREE.WebGLRenderer,
-  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), legendKeys: () => PORTRAIT_KEYS,
 });
 
 test('the rotation is the arena bank\'s own crowd cues, and every cue has regions in the bank', () => {

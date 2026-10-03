@@ -1,3 +1,8 @@
+## 2026-10-03 — Cleaver Set class A source candidate, Combat integration pending
+- Lead resumed approved seven-A batch at exact3348ddfb; Pit appended only createCleaverSet(scene, opponent, exposure) plus tests/seven-class-a-pitborn.test.ts. ID cleaverset and actor1 normalization confirmed by Combat; existing Pitborn module bytes unchanged before appended factory.
+- One pooled nine-clod stance-local patch; dark warm DAY/NIGHT texture, short accepted-landing settle, no terrain wave/travel/pose writes. Seven new focused tests + six existing Pitborn tests pass; scoped strict types/lint pass. Clear/yield/fizzle/frozen ticks/timeout/current feet/replay/rearm/texture reuse covered; actual manager disposal and real actor0/1 integration remain Combat validation.
+- Source only: no registry/routes/mechanics/audio/rig/kit/camera/input/storage/rewards edits; no build/browser/fullgate/publication. Next: Combat imports clean commit for commonA preview/normalAOFF; Lead grants integrated gates and native DAY/NIGHT375 review. CPU/browser/deploy FREE after focused commands exit; retained red/green receipts in artifacts/cleaver-set.
+
 # The Pit — project state
 
 ## 2026-10-01 ~01:3x (+04) — HANDOFF at PR-A hand-over (context 511k). READ FIRST, then memory `project_pit_noblack_pr_0930i.md` (state + PR-A + PR-B plan + Audio contract)
