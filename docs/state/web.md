@@ -1,3 +1,10 @@
+## 2026-10-03 — Ground Set and Cut Mark A source candidate; integration/visual checks pending
+
+- Direct Dom resume via Lead; fresh base `3348ddfbac760290baa9a36979fc8f6678c3e08b`, isolated `web/seven-class-a`. Combat contract: `groundset`/`cutmark`, exports `createGroundSet(scene, opponent, exposure)`/`createCutMark(...)`, existing normalized caster1 render/clear and manager disposal.
+- Appended 69 lines to `src/special-fx-dwarf-shield.ts`; original module prefix byte-identical (SHA256 `fa21532adff2784ac1fec09d1057eacd228f7a169f8953dbbc757e63652e1982`). All B/boss/helpers preserved. Compact pooled ground planes: stationary Dwarf weight patches, Shieldmaiden torn stripe plus one accepted-landing sidecut. Dark body/narrow warm edge; no pose/kit/audio/mechanics changes.
+- `tests/seven-class-a-dwarf-shield.test.ts`: missing exports RED preserved; actual 12/12 focused CPU PASS, real sim events for either caster, non-origin/yaw, DAY/NIGHT numerical bounds, frozen events, landing-only payoff, fizzle, clear/rearm/yield (active gather AND landed recovery)/epoch, late-load/stale-counter protection, private pooling and exact-once manager disposal. Scoped lint/types and diff check PASS. Receipts under ignored `artifacts/seven-class-a-web/`.
+- Combat owns integration and all registry/routes/identity. Full gate/build/browser/release checks remain HELD for Lead slot. No rendered 375px DAY/NIGHT acceptance, publication or physical-phone claim. No owned worker/listener: FREE. Next: Combat batch intake, independent review, Lead-slotted combined CPU/browser checks.
+
 ## 2026-10-02 — two independent Sparring special selectors (source implementation, unverified)
 
 - Base actual live b1a1144338d9e96bd6792604f9650daf97326852, isolated web/sparring-independent-specials-20261002. Supersedes abandoned one-control plan; old selector release and Drag artifacts preserved.
