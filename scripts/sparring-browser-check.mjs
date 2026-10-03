@@ -42,11 +42,11 @@ async function check() {
   // Re-pinned (Sparring layout A, Dom 2026-09-29): the Opponent's ten ranks (a fresh fighter's rank 1 at its level 1, the others at their top) and the dummy.
   assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
   const matrix = {
-    veteran: [null, 'standfast', 'shield', 'centurion', 'tithe'], nightborn: [null, 'cuts', 'set', 'hades', 'nyx'],
+    veteran: ['setfoot', 'standfast', 'shield', 'centurion', 'tithe'], nightborn: ['lunge', 'cuts', 'set', 'hades', 'nyx'],
     witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
-    knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: [null, 'ratrun', 'reynard', 'hermes', 'loki'],
-    executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, 'earthfold', 'antaeus', 'surtr', 'typhon'],
-    dwarf: [null, 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, 'gatherededge', 'shield8', 'shield9', 'shield10'],
+    knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: ['knuckledirt', 'ratrun', 'reynard', 'hermes', 'loki'],
+    executioner: ['heelreap', 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: ['cleaverset', 'earthfold', 'antaeus', 'surtr', 'typhon'],
+    dwarf: ['groundset', 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: ['cutmark', 'gatherededge', 'shield8', 'shield9', 'shield10'],
   };
   assert.deepEqual((await page.locator('#opponent-select option').evaluateAll(os => os.map(o => o.value))).sort(), Object.keys(matrix).sort());
   let enabled = 0, disabled = 0;
