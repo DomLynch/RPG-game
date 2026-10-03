@@ -94,7 +94,7 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 
 export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES['1']): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
-  const { tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, wall = { ...LAYOUT.wall, top: theme.wallTop ?? LAYOUT.wall.top }, gk = wall.top / LAYOUT.wall.top,   // gk: the gate shrinks with a lower wall
+  const { tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, wall = { ...LAYOUT.wall, top: theme.wallTop ?? LAYOUT.wall.top }, gk = theme.gate === false ? 1 : wall.top / LAYOUT.wall.top,   // gk: the gate shrinks with a lower wall
     tiers = LAYOUT.tiers.slice(0, theme.tiers ?? LAYOUT.tiers.length), drop = theme.flatStands ? 99 : theme.standsDrop ?? 0,   // flat: every tread clamps to a few cm over the one beneath
     polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
