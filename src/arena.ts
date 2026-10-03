@@ -451,16 +451,16 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // zenith vertex would sit over the play circle, and the camera's pitch clamp never looks within 3.6° of straight up.
   const dome = mesh(new THREE.SphereGeometry(150, 40, 20, 0, TAU, Math.PI * 0.02, Math.PI * 0.54), sky, 'sky', false); dome.receiveShadow = false;
   const ridges: THREE.BufferGeometry[] = [band(wall.inner, flat(-0.03), 150, flat(-0.03), 1, () => [1, 1, 1])];
-  if (theme.backdrop) {   // the painted far world (Dom 2026-10-03, arena-wow): one painting, mirrored six times round a ring inside the dome; its
+  if (theme.backdrop) {   // the painted far world (Dom 2026-10-03, arena-wow): one painting, mirrored eight times round a ring inside the dome; its
     // faded foot meets the haze over the wall, its faded head the sky. Unfogged like the dome, and no ridges in front of it.
     // No DOM (the node tests): a blank map the strip's size, so the cost test still counts it.
-    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(512 * 381 * 4), 512, 381) : new THREE.TextureLoader().load(theme.backdrop);
-    map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 6;
-    map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;   // 0.8 MB without mips: the arena's texture budget is 12 MB
+    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(theme.backdrop);
+    map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 8;
+    map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;   // 0.9 MB without mips: the arena's texture budget is 12 MB
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
     const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
     materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
-    const ring = mesh(new THREE.CylinderGeometry(118, 118, 92, 64, 1, true), paint, 'backdrop', false); ring.position.y = 43;   // sky and far world in one painting, up to ~35° over the walkway ring.receiveShadow = false;
+    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37° ring.receiveShadow = false;
   }
   for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
