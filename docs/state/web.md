@@ -1,3 +1,10 @@
+## 2026-10-03 — Ground Set opponent NIGHT foot-shadow placement repair; native retake pending
+
+- Duel final source-fcf42 verdict25PASS/3HOLD: Web only Ground Set actor1 NIGHT held. Actual actor1 NIGHT held-tell/payoff and accepted actor0 NIGHT reference pixels read; raw tell258windup0.65/land300/payoff314recover0.311. Minimum cause-specific placement correction from current399 source.
+- Exactly ONE factory position line changed: existing Ground Set NIGHT localz adds up to0.35 using continuous positive cosine of existing target-facing yaw. Opposite-facing NIGHT and all DAY positions unchanged; Cut Mark and every private helper/resource/ink/clock/fade/G1yield/clear byte-identical. Static ground placement through payoff, no stomp/pose/step. Initial hard-sign proposal rejected by same-active side-on regression; retained RED receipt, continuous correction passes.
+- Existing12 cases byte-identical plus2 meaningful placement/continuity regressions; actual14/14 focused PASS, scoped lint/types exit0, diffcheck PASS. Original prefix/whole remaining source parity physically asserted. `artifacts/seven-class-a-web/ground-front-receipt.json` binds source/test/RED/check receipts; all old negatives preserved.
+- Combat owns one combined8 affected Knuckle/Ground capture with explicit other20 carry; Auditer affected-delta binding. No Web browser/build/fullgate/variants/integration-checkout writes. Postrepair native look UNVERIFIED. No owned workers/listeners: FREE.
+
 ## 2026-10-03 — bounded Ground Set/Cut Mark readability repair; integrated frames pending
 
 - Lead bounded repair after Duel judged source-c251: Ground Set DAY pass/NIGHT both actors floor blend; Cut Mark all four cases faint smear. Physically viewed native375 held-tell/payoff images for both held night Ground Set actors, both Cut Mark actors DAY/NIGHT, and Ground Set DAY0 reference; phase observations bind held tell to windup0.65 and payoff to recover1/3.

@@ -32,6 +32,38 @@ function setup(c: typeof cases[number], exposure = 1) {
   return { scene, fx, root, render };
 }
 
+test('Ground Set camera-facing NIGHT patches sit in front of foot shadow; DAY and reverse-facing placements stay local', () => {
+  const forward = [new THREE.Vector3(5, 0.1, -1), new THREE.Vector3(5, 0.1, -3)] as const;
+  const reverse = [forward[1], forward[0]] as const;
+  for (const [exposure, anchors, inFront] of [[2, forward, true], [1, forward, false], [2, reverse, false]] as const) {
+    const { root, render } = setup(cases[0], exposure);
+    render(100, [event(cases[0], 'SpecialStarted', 100)], false, anchors);
+    render(180, [], false, anchors);
+    const z = parts(root).map(p => p.position.z);
+    if (inFront) assert.ok(Math.min(...z) > 0.05 && Math.max(...z) < 0.8, 'small static patches clear the camera-facing foot shadow');
+    else assert.ok(Math.min(...z) < -0.2 && Math.max(...z) < 0.3, 'accepted DAY/player patches retain their stance placement');
+    const positions = parts(root).map(p => p.position.toArray());
+    render(100 + LAND_AT, [event(cases[0], 'SpecialLanded', 100 + LAND_AT)], false, anchors);
+    render(100 + LAND_AT + 14, [], false, anchors);
+    assert.deepEqual(parts(root).map(p => p.position.toArray()), positions, 'placement is stationary through payoff, never a step/stomp');
+  }
+});
+
+test('Ground Set same active NIGHT cast crosses a side-on facing without a placement jump', () => {
+  const { root, render } = setup(cases[0], 2);
+  const caster = new THREE.Vector3(5, 0.1, -3);
+  const front = [new THREE.Vector3(7, 0.1, -2.999), caster] as const;
+  const back = [new THREE.Vector3(7, 0.1, -3.001), caster] as const;
+  render(100, [event(cases[0], 'SpecialStarted', 100)], false, front);
+  render(180, [], false, front);
+  const positions = parts(root).map(p => p.position.clone());
+  const resources = parts(root).map(p => [p.geometry, p.material, p.material.map]);
+  render(180, [], false, back);
+  assert.ok(root.visible);
+  parts(root).forEach((p, i) => assert.ok(p.position.distanceTo(positions[i]) < 0.005, 'tiny facing change must not cause a 35cm jump'));
+  assert.deepEqual(parts(root).map(p => [p.geometry, p.material, p.material.map]), resources);
+});
+
 for (const c of cases) {
   test(`${c.root}: real sim accepted clock for either caster feeds the normalized factory without state writes`, () => {
     for (const actor of [0, 1] as const) {
