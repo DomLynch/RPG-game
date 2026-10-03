@@ -39,7 +39,10 @@ export type ArenaTheme = {
   standsDrop?: number;   // metres every stand tread (and its crowd) sits lower, so the far world shows over them (Dom 2026-10-03)
   backdropDrop?: number;
   backdropTurn?: number;   // ring yaw: which part of the painting faces the fight camera (0.3 centres the statue at 40 m)
-  backdropScale?: number;   // <1 brings the painted ring in (40 m x scale) at the same angular size   // metres the painted far world sits lower
+  backdropScale?: number;
+  backdropRepeat?: number;   // copies of the painting round the ring (8): more copies, each narrower
+  backdropTall?: number;   // the ring's height factor: <1 shrinks the painting vertically
+  spectators?: boolean;   // false: no crowd   // <1 brings the painted ring in (40 m x scale) at the same angular size   // metres the painted far world sits lower
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | 'a' | 'b' | 'c' | 'd';
@@ -52,7 +55,7 @@ const ARENA_1: ArenaTheme = {
   id: '1', name: 'The Ash Pit', textures: { floor: 'sand', patch: 'blood', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
   fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
   light: { sun: [-24, 12, -15] },
-  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, backdropDrop: 3, backdropTurn: 0.3, backdropScale: 0.45,
+  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, backdropDrop: 7, backdropTurn: 0.6, backdropScale: 0.45, backdropRepeat: 8.9, backdropTall: 0.9, spectators: false,
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,

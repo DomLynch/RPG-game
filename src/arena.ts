@@ -426,7 +426,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; width: number; phase: number; id: number; dye: number };
   const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length * 2;
   const people: Spectator[][] = Array.from({ length: cells }, () => []), seats: Omit<Spectator, 'dye'>[] = [], vacancies: Omit<Spectator, 'dye'>[] = [];
-  tiers.forEach((_h, i) => {
+  (theme.spectators === false ? [] : tiers).forEach((_h, i) => {   // no spectators: an empty pit (Dom 2026-10-03)
     const r = wall.outer + i * tierDepth + 0.55, step = 1.05 / r, count = Math.floor(TAU / step);
     for (let s = 0; s < count; s++) {
       const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.28, occupied = hash(s, i, 19) > 1 - 0.6 * theme.fill + 0.18 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
@@ -463,13 +463,13 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // faded foot meets the haze over the wall, its faded head the sky. Unfogged like the dome, and no ridges in front of it.
     // No DOM (the node tests): a blank map the strip's size, so the cost test still counts it.
     const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(theme.backdrop);
-    map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 8;
+    map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = theme.backdropRepeat ?? 8;
     map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;   // 0.9 MB without mips: the arena's texture budget is 12 MB
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
     const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
     materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
     // backdropScale: the ring scaled about the centre keeps its angular size but sits closer, so no ground shows between crowd and painting.
-    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); const near = theme.backdropScale ?? 1; ring.scale.setScalar(near); ring.position.y = (17 - (theme.backdropDrop ?? 0)) * near; ring.rotation.y = theme.backdropTurn ?? 0.3; ring.receiveShadow = false;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37°
+    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); const near = theme.backdropScale ?? 1; ring.scale.set(near, near * (theme.backdropTall ?? 1), near); ring.position.y = (17 - (theme.backdropDrop ?? 0)) * near; ring.rotation.y = theme.backdropTurn ?? 0.3; ring.receiveShadow = false;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37°
   }
   for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
