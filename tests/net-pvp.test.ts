@@ -171,6 +171,7 @@ test("Match 'pvp': the driver steps the fight, the end waits for a settled finis
   match.startPvp(driver);
   assert.equal(match.mode, 'pvp'); assert.equal(match.recorder, null); assert.ok(match.practiceOnly);
   assert.equal(match.step(idleIntent), 'stepped', 'a finish a rollback could still undo does not end the match');
+  assert.throws(() => match.end(false), /settled/, 'an early caller cannot record an unverified PvP win');
   settled = true;
   assert.equal(match.step(idleIntent), 'ended');
   const ended = match.end(false);
@@ -216,6 +217,99 @@ function idlePair() {
   return { pages, step, link, sent };
 }
 const seconds = (s: number) => Math.round(s * 60);
+
+// An already lethal confirmed fixture makes the interval before the first hash check observable.
+// Both real rollback sessions still exchange their own inputs, acks and fingerprints.
+function finishingPair(diverge = false, loseNotice = false) {
+  let now = 0, dropped = false;
+  const pending: { to: Side; message: DuelMessage }[] = [];
+  const send = (from: Side) => (message: DuelMessage) => {
+    if (loseNotice && from === 0 && message.k === 'net') message = { ...message, p: { ...message.p, h: null } };
+    if (loseNotice && from === 0 && (message.k as string) === 'desync' && !dropped) { dropped = true; return; }
+    pending.push({ to: from === 0 ? 1 : 0, message });
+  };
+  const kit = { weapon: 'longsword', skill: null } as const;
+  const pages: [PvpDuel, PvpDuel] = [new PvpDuel(0, kit, send(0), () => now, 'room0000'), new PvpDuel(1, kit, send(1), () => now, 'room0000')];
+  for (const side of [0, 1] as const) {
+    const duel = pvpDuel();
+    duel.finish = { victim: 1, location: 'head', move: 'thrust', heading: 0 };
+    if (diverge && side === 1) duel.fighters[0].health -= 1;
+    pages[side].session = new RollbackSession(side, duel);
+    pages[side].stage = 'fighting';
+  }
+  const step = (frames: number) => {
+    for (let f = 0; f < frames; f++) {
+      now += FRAME_MS;
+      for (const { to, message } of pending.splice(0)) pages[to].receive(message);
+      for (const page of pages) page.frame(idleIntent());
+    }
+  };
+  return { pages, step };
+}
+
+test('desync settlement: a short confirmed finish waits for the peer fingerprint before declaring a result', () => {
+  const { pages, step } = finishingPair();
+  step(8);
+  for (const page of pages) {
+    assert.ok(page.session!.confirmedDuel().finish);
+    assert.ok(page.session!.acked >= 2, 'the peer has acked the lethal inputs');
+    assert.equal(page.settled, false, 'input acknowledgment alone cannot certify equal states');
+    assert.equal(page.result, null);
+  }
+  step(60);
+  for (const page of pages) { assert.equal(page.settled, true); assert.equal(page.result, 'finished'); }
+});
+
+test('desync settlement: differing confirmed states end both pages as No contest without advancing again', () => {
+  const { pages, step } = finishingPair(true);
+  step(70);
+  for (const page of pages) {
+    assert.equal(page.result, 'no-contest');
+    assert.equal(page.settled, false);
+    assert.equal(page.over, true);
+    assert.ok(page.session!.stats.desyncs.length > 0, 'the original mismatch tick remains diagnostic evidence');
+  }
+  const ticks = pages.map(p => p.session!.duel.tick);
+  step(100);
+  assert.deepEqual(pages.map(p => p.session!.duel.tick), ticks, 'a disagreement never resumes the simulation');
+});
+
+test('desync settlement: the peer receives No contest even if its hash comparison and first notice were lost', () => {
+  const { pages, step } = finishingPair(true, true);
+  step(100);
+  assert.ok(pages[0].session!.stats.desyncs.length > 0);
+  assert.deepEqual(pages[1].session!.stats.desyncs, [], 'the second page learned the terminal outcome from its peer');
+  for (const page of pages) { assert.equal(page.result, 'no-contest'); assert.equal(page.settled, false); }
+});
+
+test('desync settlement: a fingerprint received before its local checkpoint stops the confirming frame', () => {
+  const { pages, step } = finishingPair();
+  pages[0].receive({ k: 'net', r: 'room0000', p: { f: 3, a: 2, h: [30, '0000000000000000'], i: packIntents([]) } });
+  assert.deepEqual(pages[0].session!.stats.desyncs, [], 'a future fingerprint is not yet a disagreement');
+  step(70);
+  assert.deepEqual(pages[0].session!.stats.desyncs, [30]);
+  for (const page of pages) assert.equal(page.result, 'no-contest');
+});
+
+test('desync settlement: a peer without the settlement protocol is refused before play', () => {
+  const page = new PvpDuel(0, { weapon: 'longsword', skill: null }, () => {}, () => 0, 'room0000');
+  page.receive({ k: 'hello', r: 'room0000', v: RECORD_VERSION, kit: { weapon: 'longsword', skill: null } });
+  page.frame(idleIntent());
+  assert.equal(page.stage, 'refused');
+  assert.equal(page.session, null);
+  assert.match(page.refused!, /reload/i);
+});
+
+test('desync settlement: a delayed mismatching checkpoint revokes a previously settled result', () => {
+  const { pages, step } = finishingPair();
+  step(70);
+  assert.equal(pages[0].result, 'finished');
+  const packet = pages[1].session!.outgoing();
+  pages[0].receive({ k: 'net', r: 'room0000', p: toWire({ ...packet, hash: [30, '0000000000000000'] }) });
+  assert.deepEqual(pages[0].session!.stats.desyncs, [30]);
+  assert.equal(pages[0].settled, false);
+  assert.equal(pages[0].result, 'no-contest');
+});
 
 test('gate 3: a cut link says "waiting" after 3 s and is abandoned on both pages after 15 s; an abandoned page stops sending', () => {
   const { pages: [a, b], step, link, sent } = idlePair();
@@ -368,4 +462,13 @@ test('ready gate (Option A): a page still loading its rigs holds the duel; no si
   b.setReady(true); step(seconds(10));
   assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting');
   assert.equal(a.result, null); assert.equal(b.result, null);
+});
+
+
+test('desync settlement: a reordered legacy go cannot bypass the protocol handshake', () => {
+  const kit = { weapon: 'longsword', skill: null } as const;
+  const page = new PvpDuel(1, kit, () => {}, () => 0, 'room0000');
+  page.receive({ k: 'go', r: 'room0000', delay: 2, kits: [kit, kit] });
+  assert.equal(page.session, null);
+  assert.equal(page.stage, 'refused');
 });

@@ -91,8 +91,8 @@ test('a live duel rejects hostile packets: no throw, no change, and it stays in 
 test('a guest never starts a duel at a hostile go delay', () => {
   for (const delay of [NaN, Infinity, -3, 0, 1.5, 1e6, '4', null]) {
     const page = new PvpDuel(1, { weapon: 'longsword', skill: null }, () => {}, () => 0);
-    page.receive({ k: 'hello', v: RECORD_VERSION, kit: { weapon: 'longsword', skill: null } });
-    assert.doesNotThrow(() => page.receive({ k: 'go', delay, kits: [{ weapon: 'longsword', skill: null }, { weapon: 'longsword', skill: null }] } as unknown as DuelMessage));
+    page.receive({ k: 'hello', v: RECORD_VERSION, sync: 1, kit: { weapon: 'longsword', skill: null } });
+    assert.doesNotThrow(() => page.receive({ k: 'go', sync: 1, delay, kits: [{ weapon: 'longsword', skill: null }, { weapon: 'longsword', skill: null }] } as unknown as DuelMessage));
     if (page.session) {
       const d = page.session.delay;
       assert.ok(Number.isSafeInteger(d) && d >= NET.delay && d <= NET.maxDelay, `delay ${String(delay)} started a session at ${d}`);

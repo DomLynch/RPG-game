@@ -29,9 +29,10 @@ export const fromWire = (w: WirePacket): NetPacket => ({ from: w.f, ack: w.a, ha
 
 // Every message names its room (`r`, the relay room both tokens share): a message for another duel is refused.
 type Body =
-  | { k: 'hello'; v: number; kit: Kit; rdy?: boolean }
+  | { k: 'hello'; v: number; kit: Kit; rdy?: boolean; sync?: number }
+  | { k: 'desync' }
   | { k: 'ping'; n: number } | { k: 'pong'; n: number }
-  | { k: 'go'; delay: number; kits: [Kit, Kit] }
+  | { k: 'go'; delay: number; kits: [Kit, Kit]; sync?: number }
   | { k: 'net'; p: WirePacket };
 export type DuelMessage = Body & { r: string };
 
@@ -47,13 +48,14 @@ export function parseMessage(raw: unknown, room: string): DuelMessage | null {
     if (typeof raw === 'string' && raw.length > MESSAGE_CAP) return null;
     const m: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
-    const { k, r, v, n, delay, kits, kit, p } = m as Record<string, unknown>;
+    const { k, r, v, n, delay, kits, kit, p, sync } = m as Record<string, unknown>;
     if ((r ?? '') !== room) return null;
-    if (k === 'hello') return whole(v, 255) ? { k, r: room, v, kit: cleanKit(kit as Partial<Kit>), ...(typeof (m as Record<string, unknown>).rdy === 'boolean' ? { rdy: (m as Record<string, unknown>).rdy as boolean } : {}) } : null;
+    if (k === 'hello') return whole(v, 255) ? { k, r: room, v, kit: cleanKit(kit as Partial<Kit>), ...(whole(sync, 255) ? { sync } : {}), ...(typeof (m as Record<string, unknown>).rdy === 'boolean' ? { rdy: (m as Record<string, unknown>).rdy as boolean } : {}) } : null;
+    if (k === 'desync') return { k, r: room };
     if (k === 'ping' || k === 'pong') return whole(n, 1_000_000) ? { k, r: room, n } : null;
     if (k === 'go') {
       if (!whole(delay, NET.maxDelay) || delay < NET.delay || !Array.isArray(kits) || kits.length !== 2) return null;
-      return { k, r: room, delay, kits: [cleanKit(kits[0] as Partial<Kit>), cleanKit(kits[1] as Partial<Kit>)] };
+      return { k, r: room, delay, ...(whole(sync, 255) ? { sync } : {}), kits: [cleanKit(kits[0] as Partial<Kit>), cleanKit(kits[1] as Partial<Kit>)] };
     }
     if (k !== 'net' || !p || typeof p !== 'object') return null;
     const { f, a, h, i } = p as Record<string, unknown>;
@@ -85,8 +87,9 @@ export function cleanKit(kit: Partial<Kit> | null | undefined): Kit {
 // record's version. Both kits ride it whole, gear included: that is where the Loadout lives (as the piece ids it is derived from).
 export type PvpRecord = { v: number; build: string; delay: number; kits: [Kit, Kit]; ticks: number; intents: [string, string] };
 
+const SYNC_VERSION = 1;   // settlement requires peer fingerprints and a shared No contest notice
 export const PING = { every: 6, samples: 10, maxFrames: 300, hello: 30 };
-export type Stage = 'waiting' | 'measuring' | 'fighting' | 'refused' | 'abandoned' | 'forfeit' | 'left';
+export type Stage = 'waiting' | 'measuring' | 'fighting' | 'refused' | 'abandoned' | 'forfeit' | 'left' | 'desynced';
 // How a duel ended, as duel_metrics.result records it: played to a settled finish, the other page left (we win), this page left (we lose),
 // or neither could say (No contest). PVP_REWARDS stays false: none of them touches marks, rank or loot.
 export type DuelResult = 'finished' | 'forfeit-win' | 'forfeit-loss' | 'no-contest';
@@ -147,18 +150,20 @@ export class PvpDuel {
     return { v: RECORD_VERSION, build, delay: this.goDelay, kits: this.kits, ticks: confirmed, intents: [packIntents(log[0]), packIntents(log[1])] };
   }
   // The finish is settled: it is in the confirmed state (both real intents, so no rollback can take it back) AND the peer has acked this
-  // side's intents through that tick, so the peer holds everything it needs to confirm the same finish with no further packet. Latched.
+  // side's intents through that tick AND its fingerprint agrees at/after the finish. Input acks alone do not prove equal states.
+  // Latched unless a delayed checkpoint reveals disagreement; that always takes precedence over a result.
   // Not "confirmed up to the present tick": the side that started first leads its peer by a few frames all duel, so that never holds.
   // (One gap no two-party protocol closes: a link that dies one way inside that last round trip leaves one page settled and the other
   // abandoned. The verifier's replay of both streams is the authority for results; PVP_REWARDS stays false until it is.)
   get settled(): boolean {
     const s = this.session;
+    if (this.over || s?.stats.desyncs.length) return false;
     if (this.latched || !s) return this.latched;
     if (this.finishTick === null && s.confirmedDuel().finish) this.finishTick = s.confirmed;
-    return this.latched = this.finishTick !== null && s.acked >= this.finishTick;
+    return this.latched = this.finishTick !== null && s.acked >= this.finishTick && s.agreed >= this.finishTick;
   }
-  // The duel has ended without a settled finish (or was refused): this page sends and steps nothing more.
-  get over(): boolean { return this.stage === 'refused' || this.stage === 'abandoned' || this.stage === 'forfeit' || this.stage === 'left'; }
+  // The duel has ended without a settled finish (or was refused): no more steps; disagreement notices may be repeated.
+  get over(): boolean { return this.stage === 'refused' || this.stage === 'abandoned' || this.stage === 'forfeit' || this.stage === 'left' || this.stage === 'desynced'; }
   // The peer has been silent long enough for the page to say so.
   get silent(): boolean { return this.stage === 'fighting' && this.now() - this.lastHeard > SILENCE.waitMs; }
   // The page tells the driver how its own link to the relay is (true up, false down, null unknown), on its own clock. A break marks this
@@ -166,25 +171,32 @@ export class PvpDuel {
   setLink(up: boolean | null): void { this.link = up; if (up === false && this.stage === 'fighting') this.linkLost = true; }
   // How the duel ended, once it has: the metrics row's `result`.
   get result(): DuelResult | null {
-    return this.stage === 'forfeit' ? 'forfeit-win' : this.stage === 'left' ? 'forfeit-loss' : this.stage === 'abandoned' ? 'no-contest' : this.settled ? 'finished' : null;
+    return this.stage === 'forfeit' ? 'forfeit-win' : this.stage === 'left' ? 'forfeit-loss' : this.stage === 'abandoned' || this.stage === 'desynced' ? 'no-contest' : this.settled ? 'finished' : null;
   }
   metrics(): NetMetrics | null { return this.session?.metrics() ?? null; }
 
   // Raw data from the transport: parsed and checked here; anything refused changes nothing but the `rejected` count.
   receive(raw: unknown): void {
-    if (this.over) return;
+    if (this.over && this.stage !== 'desynced') return;
     const m = parseMessage(raw, this.room);
     const packet = m?.k === 'net' && this.session ? fromWire(m.p) : null;
     if (!m || (packet && !this.session!.accepts(packet))) { this.rejected++; return; }
+    // A lost notice is repeated whenever the still-playing peer sends again, even if this page stopped framing.
+    if (this.stage === 'desynced') { if (m.k === 'net') this.send({ k: 'desync' }); return; }
     this.lastHeard = this.now(); this.linkLost = false;
     if (m.k === 'hello') {
       if (m.v !== RECORD_VERSION) { this.refuse(m.v > RECORD_VERSION ? 'Your opponent is on a newer build: reload the page' : 'Your opponent is on an older build: ask them to reload'); return; }
+      if (m.sync !== SYNC_VERSION) { this.refuse('Your opponent uses a different duel protocol: both players must reload'); return; }
       this.peerKit ??= cleanKit(m.kit);
       this.peerReady = m.rdy !== false;
-    } else if (m.k === 'ping') this.send({ k: 'pong', n: m.n });
+    } else if (m.k === 'desync') { if (this.session) this.disagree(); }
+    else if (m.k === 'ping') this.send({ k: 'pong', n: m.n });
     else if (m.k === 'pong') { const at = this.sentAt.get(m.n); if (at !== undefined) { this.sentAt.delete(m.n); this.rttMs.push(this.now() - at); } }
-    else if (m.k === 'go') { if (this.side === 1 && !this.session && this.ready) this.start(m.delay, [m.kits[0], this.kit]); }   // our own kit as we sent it, never as echoed
-    else if (packet) { this.heard = true; this.session!.receive(packet); }
+    else if (m.k === 'go') {
+      if (m.sync !== SYNC_VERSION) { this.refuse('Your opponent uses a different duel protocol: both players must reload'); return; }
+      if (this.side === 1 && !this.session && this.ready) this.start(m.delay, [m.kits[0], this.kit]);
+    }   // our own kit as we sent it, never as echoed
+    else if (packet) { this.heard = true; this.session!.receive(packet); if (this.session!.stats.desyncs.length) this.disagree(); }
   }
 
   // One 60 Hz tick: the lobby's repeats and pings, or one rollback frame. Returns the practice to draw.
@@ -197,13 +209,14 @@ export class PvpDuel {
     if (this.stage === 'fighting' && this.link !== null && this.lastFrameAt && at - this.lastFrameAt > SILENCE.rejoinMs) { this.stage = 'left'; return this.quiet(); }
     this.lastFrameAt = at;
     if (this.over) return this.quiet();
-    if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, kit: this.kit, rdy: this.ready });
+    if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, sync: SYNC_VERSION, kit: this.kit, rdy: this.ready });
     if (this.side === 0 && this.stage === 'waiting' && this.peerKit && this.peerReady && this.ready) { this.stage = 'measuring'; this.measureFrom = this.frames; }
     if (this.stage === 'measuring') this.measure();
     const session = this.session;
     if (!session) return this.quiet();
-    if (this.side === 0 && !this.heard) this.send({ k: 'go', delay: this.goDelay, kits: [this.kit, this.peerKit!] });
+    if (this.side === 0 && !this.heard) this.send({ k: 'go', sync: SYNC_VERSION, delay: this.goDelay, kits: [this.kit, this.peerKit!] });
     const { advanced, depth } = session.frame(intent);
+    if (session.stats.desyncs.length) { this.disagree(); return this.quiet(); }
     this.send({ k: 'net', p: toWire(session.outgoing()) });
     // Silence (the rules at SILENCE): ended only once nothing is left to confirm here (a finish the peer's intents already decide still settles first).
     if (!this.settled && session.known <= session.confirmed) {
@@ -218,6 +231,11 @@ export class PvpDuel {
     const shown = session.duel.finish && !confirmed.finish ? confirmed : session.duel;
     if (!advanced && !depth && !events.length) return this.quiet();
     return this.practice = project(viewAs({ ...shown, events }, this.side), AI, this.practice);
+  }
+
+  private disagree(): void {
+    this.stage = 'desynced'; this.latched = false;
+    this.send({ k: 'desync' });
   }
 
   private quiet(): Practice { return this.practice.events.length ? this.practice = { ...this.practice, events: [] } : this.practice; }
@@ -241,6 +259,6 @@ export class PvpDuel {
 
   private refuse(why: string): void {
     this.stage = 'refused'; this.refused = why;
-    this.send({ k: 'hello', v: RECORD_VERSION, kit: this.kit });   // the other page refuses too, on the same check
+    this.send({ k: 'hello', v: RECORD_VERSION, sync: SYNC_VERSION, kit: this.kit });   // the other page refuses too, on the same check
   }
 }

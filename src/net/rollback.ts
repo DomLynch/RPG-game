@@ -91,6 +91,7 @@ export class RollbackSession {
   private readonly used = new Map<number, Intent>();    // the peer intent each stepped tick used, real or predicted
   private readonly states = new Map<number, Duel>();    // snapshots by tick, from `confirmed` on
   private readonly peerHashes = new Map<number, string>();
+  agreed = 0;   // newest confirmed checkpoint whose fingerprint matches the peer's
   private localNext: number;   // the tick the next local intent is scheduled for
   private peerKnown: number;   // the peer's intents are known for every tick up to here
   private peerAcked: number;   // the peer has every one of ours up to here
@@ -252,6 +253,9 @@ export class RollbackSession {
 
   private checkHash(t: number): void {
     const mine = this.hashes.get(t), theirs = this.peerHashes.get(t);
-    if (mine && theirs && mine !== theirs && !this.stats.desyncs.includes(t)) this.stats.desyncs.push(t);
+    if (mine && theirs) {
+      if (mine === theirs) this.agreed = Math.max(this.agreed, t);
+      else if (!this.stats.desyncs.includes(t)) this.stats.desyncs.push(t);
+    }
   }
 }

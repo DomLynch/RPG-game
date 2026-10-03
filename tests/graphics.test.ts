@@ -635,6 +635,35 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
   app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
 });
 
+test('online clock ignores stored solo tempo and every contact pause while continuing input sampling', () => {
+  const Match = matchModule.Match;
+  try {
+    for (const tempo of ['50', '60']) {
+      let live!: match.Match;
+      matchModule.Match = captureMatch(value => { live = value; });
+      const app = boot({ id: 'tester-0001' }, undefined, { 'frankendom.tempo.v1': tempo });
+      app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+      let samples = 0;
+      let events: combat.Practice['events'] = [];
+      live.startPvp({ frame: () => { samples++; return { ...live.practice, events }; },
+        get practice() { return live.practice; }, settled: false });
+      // Actual main frame loop and Match wiring, including each ordinary/heavy/kill contact.
+      for (const type of ['Hit', 'Blocked', 'Parried', 'GuardBroken', 'PostureBroken', 'Killed', 'SpecialLanded'] as const) {
+        events = [{ type, tick: 1, actor: 0, target: 1, move: 'heavy_overhead', charged: true }];
+        const before = samples;
+        for (let i = 0; i < 60; i++) { app.tick(1000 / 60); assert.equal(app.renderedFrozen, false, type); }
+        assert.ok(samples - before >= 59 && samples - before <= 61, `${tempo} Hz preference, ${type}: ${samples - before} online samples/sec`);
+      }
+      // Even changing the solo preference during the duel cannot alter network cadence.
+      app.element('tempo-mode').click();
+      const before = samples;
+      for (let i = 0; i < 60; i++) app.tick(1000 / 60);
+      assert.ok(samples - before >= 59 && samples - before <= 61);
+      assert.equal(app.storage.getItem('frankendom.tempo.v1'), tempo === '50' ? '60' : '50');
+    }
+  } finally { matchModule.Match = Match; }
+});
+
 test('a kill link that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A Goblin record opened on a page that booted the Veteran: a fresh link re-opens the page on the record's rig; a stale one must not.

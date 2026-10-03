@@ -747,15 +747,14 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
-const step = () => 1 / tempoHz;
+const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/network cadence never inherits the solo preference
 let hitStop = 0;
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
-// presentation clock; every tick still runs, in order. NOT in a live duel (`?duel=`, the Duel lane's one switch): there the hit-stop would
+// presentation clock; every tick still runs, in order. NOT in a live duel: there the hit-stop would
 // hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
-const inDuel = /[?&]duel=/.test(location.search);
-const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
 function stopFor(events: CombatEvent[]): number {
-  if (!inDuel && events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
+  if (match.mode === 'pvp') return 0;   // all contact pauses are offline-only, not just the added impact tier
+  if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
@@ -766,7 +765,7 @@ function stopFor(events: CombatEvent[]): number {
       e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base,
     );
   }
-  return ms + impactStop(events);
+  return ms + impactStopMs(events);
 }
 // The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,
 // drawn by style.css #combat-status[data-face]::before from --face once the file has loaded, for the same level the line names. No face
