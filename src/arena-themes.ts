@@ -36,11 +36,15 @@ export type ArenaKey = '1' | 'a' | 'b' | 'c' | 'd';
 const ONE: RGB = [1, 1, 1];
 // Arena 1's numbers, exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes: its maps are byte-identical.
 const ARENA_1: ArenaTheme = {
-  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [169, 168, 156], sun: [70, 52, 30], ground: [128, 104, 78] } },
-  fog: '#a9a89c', fogDensity: 0.018, hemisphere: ['#c9cfc6', '#4a4238', 1.6], sun: ['#ffe2b8', 4.2], exposure: 1.3,
+  // Golden hour (Dom 2026-10-03, arena-wow brief step 1): a low warm sun from one side for long hard shadows, a cool sky fill so the
+  // shade goes blue against the warm key, a honey haze at the rim and gold dust in the air. Settings only; the maps are unchanged.
+  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [206, 170, 124], sun: [96, 58, 20], ground: [120, 92, 66], sunV: 0.62 } },
+  fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
+  light: { sun: [-24, 12, -15] },
+  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 },
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
-  motes: '#847b6e', plain: '#4a463f', gateLight: 0.55, drape: false,
+  motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
 };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
