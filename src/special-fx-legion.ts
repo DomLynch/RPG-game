@@ -45,9 +45,10 @@ export function createSetFoot(scene: THREE.Scene, opponent: OpponentId, exposure
       const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 65);
       const kick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 12), fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
-      const flank = Math.cos(root.rotation.y) < 0 ? 1 : -1;   // expose the heel mark on clear ground beside the body shadow
+      const sideX = -Math.cos(root.rotation.y), sideZ = -Math.sin(root.rotation.y);   // clear ground beside the body shadow, continuous while turning
       marks.forEach((mark, i) => {
-        mark.position.set(flank * (i === 0 ? 0.58 : 0.54 + (i - 1) * 0.12), 0.025 + i * 0.003, i === 0 ? -0.06 : 0.22 + kick * (0.32 + i * 0.09));
+        const side = i === 0 ? 0.58 : 0.54 + (i - 1) * 0.12;
+        mark.position.set(sideX * side, 0.025 + i * 0.003, sideZ * side + (i === 0 ? -0.06 : 0.22 + kick * (0.32 + i * 0.09)));
         mark.scale.set(i === 0 ? 1.0 * build : 0.22 + kick * 0.12, 1, i === 0 ? 1.1 * build : 0.3 + kick * 0.36);
         mark.material.opacity = (i === 0 ? build : kick) * fade * 0.95; mark.visible = mark.material.opacity > 0.001;
       });

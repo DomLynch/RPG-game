@@ -58,3 +58,13 @@ for (const [name, opponent, skill, module, exportName] of cases.slice(0, 2)) for
   }
   fx.clear(); disposeSpecialGroup(scene);
 });
+
+for (const [name, opponent, skill, module, exportName] of cases.slice(0, 2)) test(`${name}: turning past a side-on target cannot jump the ground mark`, () => {
+  const factory = (module as unknown as Record<string, Factory>)[exportName], scene = new THREE.Scene(), fx = factory(scene, opponent, 1);
+  const fighters = [{ special: 0 }, { special: 0, skill }] as unknown as readonly [Fighter, Fighter];
+  fx.render(0, [{ type: 'SpecialStarted', tick: 1, actor: 1, move: `skill_${skill}` } as CombatEvent], fighters, 80, [new THREE.Vector3(1, 0, 0.001), new THREE.Vector3()], false);
+  const root = scene.getObjectByName(name)!, mark = root.children[0]; root.updateMatrixWorld(true); const before = mark.getWorldPosition(new THREE.Vector3());
+  fx.render(0, [], fighters, 80, [new THREE.Vector3(1, 0, -0.001), new THREE.Vector3()], false); root.updateMatrixWorld(true);
+  assert.ok(mark.getWorldPosition(new THREE.Vector3()).distanceTo(before) < 0.01, 'continuous caster-local side placement, no half-metre switch');
+  fx.clear(); disposeSpecialGroup(scene);
+});

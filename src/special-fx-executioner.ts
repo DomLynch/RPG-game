@@ -167,9 +167,9 @@ export function createHeelReap(scene: THREE.Scene, opponent: OpponentId, exposur
       const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 80), flick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 10);
       const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
-      const flank = Math.cos(root.rotation.y) < 0 ? 1 : -1;
-      hook.position.x = flank * 0.65; hook.scale.set(build, 1, build); hook.rotation.y = -0.25 * flick; material.opacity = build * fade * 0.94; hook.visible = material.opacity > 0.001;
-      dust.position.set(flank * (0.72 + flick * 0.18), 0.03, 0.25 + flick * 0.18); dust.scale.set(0.23 + flick * 0.2, 1, 0.3 + flick * 0.15);
+      const sideX = -Math.cos(root.rotation.y), sideZ = -Math.sin(root.rotation.y);
+      hook.position.set(sideX * 0.65, 0, sideZ * 0.65); hook.scale.set(build, 1, build); hook.rotation.y = -0.25 * flick; material.opacity = build * fade * 0.94; hook.visible = material.opacity > 0.001;
+      dust.position.set(sideX * (0.72 + flick * 0.18), 0.03, sideZ * (0.72 + flick * 0.18) + 0.25 + flick * 0.18); dust.scale.set(0.23 + flick * 0.2, 1, 0.3 + flick * 0.15);
       dustMaterial.opacity = flick * fade * 0.85; dust.visible = dustMaterial.opacity > 0.001;
     },
     clear() { cast = null; hide(); },
