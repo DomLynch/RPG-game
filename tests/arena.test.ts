@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildArena, LAYOUT, PLAY_RADIUS, CAMERA_CLAMP, SAND_TILE } from '../src/arena.ts';
+import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { luminance, sandAlbedo } from '../src/assets/arena/textures.ts';
 import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
 import { RADIUS } from '../src/sim.ts';
@@ -10,8 +11,8 @@ import { RADIUS } from '../src/sim.ts';
 // Mean linear luminance of the hero's skin albedo (warrior.glb material "Skin", baseColorTexture), measured by scripts/arena-preview.mjs
 // (stats.json skinLuminance) on 2026-09-17 at 9d08824. The floor must sit below it: fighters stay the brightest thing on screen.
 const SKIN_SAMPLE = 0.166, FLOOR_CAP = 0.35;
-function built() {
-  const scene = new THREE.Scene(), arena = buildArena(scene); scene.updateMatrixWorld(true);
+function built(theme?: Parameters<typeof buildArena>[1]) {
+  const scene = new THREE.Scene(), arena = buildArena(scene, theme); scene.updateMatrixWorld(true);
   const meshes: THREE.Mesh[] = []; arena.group.traverse(o => { if (o instanceof THREE.Mesh) meshes.push(o); });
   return { scene, arena, meshes };
 }
@@ -28,6 +29,10 @@ function* vertices(m: THREE.Mesh) {
 const worldBox = (m: THREE.Mesh) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld); };
 const rgbLuminance = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 const shared = built();
+// Arena 1 is an empty level pit since 2026-10-03 (Dom: no spectators), so the crowd tests read Arena A, whose stands are full.
+const crowded = built(ARENA_THEMES.a);
+// Arena 1's own dyes with its crowd switched back on: the dye-mixing rule was tuned on them.
+const arena1Crowd = built({ ...ARENA_THEMES['1'], spectators: true });
 
 test('the play radius the arena is built for is the simulation\'s', () => { assert.equal(PLAY_RADIUS, RADIUS); });
 
@@ -55,7 +60,7 @@ test('the floor is sand, darker than the hero\'s skin, flat to the camera clamp,
 });
 
 test('the crowd stands on the tiers, outside the clamp, and never moves past the readable-brutality cap; a hit-stop holds it still [slow]', () => {
-  const { scene, arena } = built(), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
+  const { scene, arena } = built(ARENA_THEMES.a), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
   const count = crowd.reduce((n, m) => n + m.count, 0); assert.ok(count >= 150 && count <= 600, `${count} spectators`);
   const rest = new Map<string, THREE.Matrix4[]>(); for (const m of crowd) rest.set(m.name, Array.from({ length: m.count }, (_, i) => { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); return x; }));
   const pos = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(), pos0 = new THREE.Vector3(), q0 = new THREE.Quaternion();
@@ -65,12 +70,12 @@ test('the crowd stands on the tiers, outside the clamp, and never moves past the
     rest.get(m.name)![i].decompose(pos, q, s); const radius = Math.hypot(pos.x, pos.z);
     assert.ok(radius > LAYOUT.wall.outer, 'a spectator off the tiers');
     ray.set(new THREE.Vector3(pos.x, 12, pos.z), new THREE.Vector3(0, -1, 0));
-    const support = ray.intersectObject(stone)[0];
+    const support = ray.intersectObjects([stone, ...arena.group.children.filter(o => o.name === 'walkway sand')])[0];   // open stands: the top tread is sand
     assert.ok(support && Math.abs(pos.y - support.point.y) < 0.035, 'spectator floating above a tread or intersecting rubble');
     const c = sectors[Math.floor(((Math.atan2(pos.x, pos.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 12)];
     c[0]++; if (radius < LAYOUT.wall.outer + 2 * LAYOUT.tierDepth) c[1]++;
   }
-  for (const [i, [total, front]] of sectors.entries()) assert.ok(total >= 24 && front >= 8, `sector ${i}: ${total} total, ${front} front`);
+  for (const [i, [total, front]] of sectors.entries()) assert.ok(total >= 16 && front >= 8, `sector ${i}: ${total} total, ${front} front`);   // 16, not 24: Arena 1 stands three tiers, not five, since the backdrop (2026-10-03)
   let moved = 0, tilted = 0;
   const measure = () => { for (const m of crowd) for (let i = 0; i < m.count; i++) { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); x.decompose(pos, q, s); rest.get(m.name)![i].decompose(pos0, q0, s); moved = Math.max(moved, pos.distanceTo(pos0)); tilted = Math.max(tilted, q.angleTo(q0)); } };
   arena.update(0, [{ tick: 1, type: 'Killed', actor: 0, target: 1 } as never]); measure(); assert.equal(moved, 0, 'a hit-stop (dt 0) moved the crowd');
@@ -88,7 +93,7 @@ test('the arena updates and disposes without touching the fighters [slow]', () =
 });
 
 test('spectators have solid, readable bodies and distinct roster proportions', () => {
-  const crowds = shared.meshes.filter(m => m.name.startsWith('crowd '));
+  const crowds = crowded.meshes.filter(m => m.name.startsWith('crowd '));
   const heights = new Map<string, number>();
   for (const m of crowds) {
     const size = worldBox(m).getSize(new THREE.Vector3());
@@ -115,7 +120,7 @@ test('arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 12 MB of t
 test('front tiers are occupied and crowd instances vary in build, height and garment dye', () => {
   let front = 0, rear = 0;
   const widths: number[] = [], heights: number[] = [], dyes = new Set<string>();
-  for (const m of shared.meshes) if (m instanceof THREE.InstancedMesh && m.name.startsWith('crowd ')) {
+  for (const m of crowded.meshes) if (m instanceof THREE.InstancedMesh && m.name.startsWith('crowd ')) {
     const mask = m.geometry.getAttribute('garment');
     assert.ok(Array.from(mask.array).includes(0) && Array.from(mask.array).includes(1), 'dye must distinguish skin from garments');
     for (let i = 0; i < m.count; i++) {
@@ -126,7 +131,9 @@ test('front tiers are occupied and crowd instances vary in build, height and gar
       assert.ok(rgbLuminance(c) < 0.1, 'spectator clothing competes with the fighters');
     }
   }
-  assert.ok(front >= 30 && rear > front, `${front} front, ${rear} rear: keep both depth and clear gaps`);
+  // Arena 1 has three tiers since the far-world backdrop (Dom 2026-10-03, arena-wow): the rear is one tier, not three, so it holds
+  // fewer than the front; it must still be clearly peopled.
+  assert.ok(front >= 30 && rear >= front / 2, `${front} front, ${rear} rear: keep both depth and clear gaps`);
   assert.ok(Math.max(...widths) - Math.min(...widths) > 0.2);
   assert.ok(Math.max(...heights) - Math.min(...heights) > 0.3);
   assert.ok(dyes.size > 30, 'crowd uniforms repeat');
@@ -136,7 +143,7 @@ test('nearby spectators mix kinds and garment colours, with subdued red and navy
   const palette = CROWD_DYES.map(hex => new THREE.Color(hex));
   for (const c of palette.slice(0, 2)) { assert.ok(Math.max(c.r, c.g, c.b) < 0.065, 'red or navy is too bright'); assert.ok(Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) < 0.04, 'red or navy is too saturated'); }
   const tones = palette.map(c => new THREE.Vector3(c.r, c.g, c.b).normalize()), people: { p: THREE.Vector3; kind: string; dye: number }[] = [];
-  for (const m of shared.meshes) if (m instanceof THREE.InstancedMesh && m.name.startsWith('crowd ')) for (let i = 0; i < m.count; i++) {
+  for (const m of arena1Crowd.meshes) if (m instanceof THREE.InstancedMesh && m.name.startsWith('crowd ')) for (let i = 0; i < m.count; i++) {
     const matrix = new THREE.Matrix4(), c = new THREE.Color(); m.getMatrixAt(i, matrix); m.getColorAt(i, c);
     const tone = new THREE.Vector3(c.r, c.g, c.b).normalize();
     const dye = tones.map((t, dye) => ({ dye, d: t.distanceTo(tone) })).sort((a, b) => a.d - b.d)[0].dye;
@@ -154,7 +161,7 @@ test('nearby spectators mix kinds and garment colours, with subdued red and navy
 });
 
 test('with a camera, spectators outside its frustum collapse to nothing and the rest stand; without one everybody stands', () => {
-  const { arena } = built(), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
+  const { arena } = built(ARENA_THEMES.a), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
   const camera = new THREE.PerspectiveCamera(51, 393 / 852, 0.1, 180); camera.position.set(0, 4.2, 9.5); camera.lookAt(0, 0.8, -2.5); camera.updateMatrixWorld(true);
   const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
   const m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();

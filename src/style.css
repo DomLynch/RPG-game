@@ -1988,6 +1988,9 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): SHARE and CLIP in two slots. One tap (Dom 2026-09-28):
      they show at once on the end screen; the old SHARE step that led to them is gone. */
   .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }
+  /* DUEL, LINK, CLIP (Strategy 2026-10-02): one row of three, DUEL first and a little larger, off the bodies and the stick. Landscape: the
+     two old slots plus DUEL on their left. Portrait (below): the row sits in the clear sand above the fighters' heads. */
+  .actions[data-gestures=cluster] #duel-button { left: -229px; width: 68px; height: 68px; top: 24px; font-size: 12px; }
   .actions[data-gestures=cluster] #share-link { left: -155px; }
   .actions[data-gestures=cluster] #clip-button { left: -81px; }
   .actions[data-gestures=cluster] #share-status {
@@ -2002,11 +2005,31 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
     opacity: 1;
   }
 }
+@media (orientation: portrait) and (max-width: 900px), (orientation: portrait) and (pointer: coarse) {
+  /* Portrait phone: the row is fixed to the screen, centred, about 190 px below the top: the far wall and the sand behind the fighters (the camera keeps
+     both bodies in the lower two thirds), clear of the thumb row. The corpse and the pool lie below it. */
+  .actions[data-gestures=cluster] .clip-pick { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 188px); }
+  .actions[data-gestures=cluster] #duel-button { left: calc(50% - 105px); top: calc(env(safe-area-inset-top, 0px) + 184px); }
+  .actions[data-gestures=cluster] #share-link { left: calc(50% - 25px); }
+  .actions[data-gestures=cluster] #clip-button { left: calc(50% + 45px); }
+  /* No DUEL (a player not on the admins roster): LINK and CLIP centre as a pair, no empty slot where DUEL would be (Strategy 2026-10-02). */
+  :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #share-link { left: calc(50% - 65px); }
+  :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #clip-button { left: calc(50% + 5px); }
+  /* A win with gear to take (Strategy 2026-10-02, the win still): the loot panel fills y 190..497 at 375, right where the row sits, so it moves to the
+     sand under the panel (the panel's bottom, then the Next button's band): row-above-the-heads on a loss, row-under-the-panel on a win. */
+  :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] .clip-pick { top: calc(env(safe-area-inset-top, 0px) + 512px); }
+  :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #duel-button { top: calc(env(safe-area-inset-top, 0px) + 508px); }
+}
+/* Until Dom opens duels (Strategy 2026-10-02) only the admins roster (and ?debug on a local build) see DUEL: no player taps it into "admins only". LINK and CLIP stay for everyone. */
+:root:not([data-duel-tools='true']) #duel-button { display: none !important; }
 /* Desktop (one tap, Dom 2026-09-28): SHARE and CLIP sit side by side right of Rematch (CLIP in a fourth column on that row) instead
    of CLIP wrapping onto a third grid row under the controls. The phone cluster places them absolutely (above), so this stays off phones. */
 @media (min-width: 901px) and (not (pointer: coarse)) {
-  #actions #share-link { grid-row: 1; grid-column: 3; }
-  #actions #clip-button { grid-row: 1; grid-column: 4; }
+  #actions #duel-button { grid-row: 1; grid-column: 3; }
+  #actions #share-link { grid-row: 1; grid-column: 4; }
+  #actions #clip-button { grid-row: 1; grid-column: 5; }
+  :root:not([data-duel-tools='true']) #actions #share-link { grid-column: 3; }
+  :root:not([data-duel-tools='true']) #actions #clip-button { grid-column: 4; }
 }
 /* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
    (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a
@@ -2151,7 +2174,10 @@ dialog .rank-seg { --rank-fill: var(--js); }
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
 /* Every Sparring select shrinks to the line (the Difficulty labels "46 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
 .sparring-row .menu-select { max-width: 100%; min-width: 0; }
-.sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; background: var(--jp); color: var(--jf); color-scheme: dark; }
+.sparring-row .menu-select select:disabled { opacity: 1; color: var(--jm); }
+.sparring-fighter { width: 100%; min-width: 0; }
+#spar-special-status, #spar-player-status { width: 100%; margin: 0; color: var(--jf); font: 13px/1.5 "Instrument Sans", Arial, sans-serif; }
 .dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
 .sparring-row strong { width: 100%; }
 /* The glint (Dom 2026-09-29, final: no star, no outline): the item itself (icon and label) turns gold (#f2d27a) and back; the glint takes

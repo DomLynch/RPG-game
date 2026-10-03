@@ -198,7 +198,9 @@ const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new 
 async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
   const rec = createRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
-  const bytes = packRecord(rec.finish(outcome));
+  const packed = packRecord(rec.finish(outcome));
+  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then (v21) the specials byte
+  const bytes = version >= 21 ? packed : new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]);
   bytes[2] = version;   // the version byte (record.ts: 'F', 'K', version)
   return toBase64Url(await gzip(bytes));
 }
@@ -229,6 +231,14 @@ test('--accept on a reach hold still refuses a lost fight or another opponent fr
   const gone = { ...fakeDb([], FRESH), claim: async () => ({ ...held('AAAA', 'goblin'), note: 'HELD v19: the replay ends in "died", the record says "killed"' }) };
   await assert.rejects(acceptHeld(gone, 1, 'chromium @10 on fc2254aa'), (error: Error) => !/reach hold|fails a check/.test(error.message), 'a divergence hold whose record no longer decodes: the decode error itself');
   for (const db of [lost, other, noHeader, gone]) assert.equal(db.settled.size, 0);
+});
+
+// Bump 21 (Special Moves behind the record's flag) reaches no fight: a v20 claim pending at the publish still verifies on the v21 build.
+test('a v20 win claim pending across bump 21 still verifies (REACH[21] is empty)', async () => {
+  const packed = packRecord(await decodeRecord(await goblinKill()));
+  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte
+  const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]); v20[2] = 20;
+  assert.equal(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH), null);
 });
 
 // F2 (Auditer on 0895d84c; Strategy's A+ 2026-10-01): one FIGHT is one claim, whatever its string.

@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 20;   // 20: bump 20 (2026-09-28, Dom via Strategy / Lead) — the Plague Doctor fights with the estoc, not the longsword (roster.ts; his archetype row is the Nightborn's, who fights with it). REACH[20]: the Plague Doctor at every level. Inside the same unreleased bump (2026-09-29): his easy tellReaction 15 (moves.ts), closing the estoc's L6 thrust-from-range hole. And the sim's math (2026-09-29, Strategy ruling (b)): v20 on steps on src/detmath.ts (sin/cos/atan2/hypot on + − * / sqrt, the same bits in every engine; Node's V8 and Chromium's had split a Dwarf link on a 1-ulp atan2); v18/v19 records replay on the engine's own Math, frozen, picked by this version field through detmath.underRecord, so no shared link becomes a fresh fight.
+export const RECORD_VERSION = 21;   // 21: bump 21 (2026-09-29, Dom's GO via Lead; Combat) — Special Moves on the SKILL slot (duel.ts withSpecials, RULES.special), behind a per-fight flag the header now carries (one byte after the skill). With the flag off a v21 fight steps bit for bit as v20 (every new branch reads a field only withSpecials sets), so v20 stays readable (REACH[21] is empty).
+// 20: bump 20 (2026-09-28, Dom via Strategy / Lead) — the Plague Doctor fights with the estoc, not the longsword (roster.ts; his archetype row is the Nightborn's, who fights with it). REACH[20]: the Plague Doctor at every level. Inside the same unreleased bump (2026-09-29): his easy tellReaction 15 (moves.ts), closing the estoc's L6 thrust-from-range hole. And the sim's math (2026-09-29, Strategy ruling (b)): v20 on steps on src/detmath.ts (sin/cos/atan2/hypot on + − * / sqrt, the same bits in every engine; Node's V8 and Chromium's had split a Dwarf link on a 1-ulp atan2); v18/v19 records replay on the engine's own Math, frozen, picked by this version field through detmath.underRecord, so no shared link becomes a fresh fight.
 // 19: bump 19 (2026-09-28, RV18 content rebased on RV19; SCOPE shield line, Lead split from RV17) — the Centurion carries gladius + scutum from Legionary (moves.ts LOADOUT_FROM, level 6 on; the Recruit keeps the trident); the scutum is a guard profile only (wide: both flanks, stops heavies, costScale .75, posture drains ×1.5).
 // 18: bump 18 (2026-09-28, RV19 in the lane's numbering; Strategy ruling) — the Centurion's own knobs (moves.ts OWN_KNOBS: tellReaction 15 on the thrust and the pommel strike, braceHeavy 1): every level fights another Centurion. The Skeleton, his archetype twin, is unchanged.
 // 17: bump 17 (2026-09-27, RV17; Lead ruling) — the Witch's easy SKILL fields retuned (reaction 26 -> 15, parry .05 -> .2, lapse .5 -> .35, read .5 -> .65; identity and normal / hard untouched), so levels 1–17 fight another Witch: thrust from range beat her 46–48 / 48 at L10–16.
@@ -58,7 +59,9 @@ export const RECORD_VERSION = 20;   // 20: bump 20 (2026-09-28, Dom via Strategy
 // is still refused at decode, with the same "version" message, so the page converts it into a fight exactly as before.
 // [18, 19] -> [18, 19, 20] with the writer bump to 20: widened under the standing rule (Strategy, 2026-09-28): bump 20 declares its reach
 // in REACH below, and an older record is read wherever no later bump reached its fight.
-export const READABLE_VERSIONS = [18, 19, 20] as const;
+// [18, 19, 20] -> [18, 19, 20, 21] with the writer bump to 21: widened, and REACH[21] is empty. Bump 21 adds Special Moves behind a flag the
+// record carries; a record without the flag (every v18–v20 record) steps exactly as before, so no older fight is reached.
+export const READABLE_VERSIONS = [18, 19, 20, 21] as const;
 // Each bump's REACH (the standing rule, Strategy 2026-09-28): the fights bump N can change, as (opponent, from level). A record of version
 // k is refused when any bump after k reaches its opponent at its level; everything else is read. Literals on purpose, not the data they
 // describe (LOADOUT_FROM, ROSTER): a reach records what that bump changed and must not move when the data moves later (that change bumps
@@ -66,11 +69,12 @@ export const READABLE_VERSIONS = [18, 19, 20] as const;
 export const REACH: Readonly<Record<number, readonly { opponent: OpponentId; from: number }[]>> = {
   19: [{ opponent: 'veteran', from: 6 }],   // the Centurion's gladius + scutum from Legionary (moves.ts LOADOUT_FROM)
   20: [{ opponent: 'plaguedoctor', from: 1 }],   // the Plague Doctor's estoc (roster.ts), every level
+  21: [],   // Special Moves, behind the record's own flag: a fight without it is unchanged
 };
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
-export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; skill?: SkillId; level: number; seed: number };   // skill: the player's equipped skill; absent = none. level: the opponent's ladder level, 1–46 (moves.ts profileAt; version 16)
+export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; skill?: SkillId; level: number; seed: number; specials?: boolean };   // specials: the fight had Special Moves (version 21; absent = off)   // skill: the player's equipped skill; absent = none. level: the opponent's ladder level, 1–46 (moves.ts profileAt; version 16)
 export type FightRecord = RecordMeta & { v: RecordVersion; ticks: number; outcome: Outcome; intents: Intent[] };
 
 // Quantization: the stick to 1/127 per axis, the camera yaw to 1/128 of a half-turn (about 1.4°). The live game steps the
@@ -119,7 +123,7 @@ export function createRecorder(meta: RecordMeta) {
 }
 
 // ---- binary layout ---------------------------------------------------------------------------------------------------------
-// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | skill u8 (version 12; 0 = none) | profile u8 (version 16: the level, 1–46) | seed u32 LE | ticks u32 LE | outcome u8
+// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | skill u8 (version 12; 0 = none) | specials u8 (version 21; 0 = off, 1 = on) | profile u8 (version 16: the level, 1–46) | seed u32 LE | ticks u32 LE | outcome u8
 // then six columns of `ticks` bytes each: x i8, z i8, yaw-delta u8 (byte yaw minus previous byte yaw, mod 256), action u8, dir u8, flags u8.
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
@@ -131,12 +135,12 @@ export function packRecord(r: FightRecord): Uint8Array {
   const level = r.level, outcome = OUTCOMES.indexOf(r.outcome), skill = SKILLS.indexOf(r.skill ?? null);
   if (!Number.isInteger(level) || level < 1 || level > LEVELS || outcome < 0) throw Error('Fight record: unknown level or outcome');
   if (skill < 0) throw Error('Fight record: unknown skill');
-  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
+  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 1 + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
   let o = 0;
   out[o++] = 0x46; out[o++] = 0x4b; out[o++] = RECORD_VERSION;
   out[o++] = build.length; out.set(build, o); o += build.length;
   out[o++] = opp.length; out.set(opp, o); o += opp.length; out[o++] = wpn.length; out.set(wpn, o); o += wpn.length;
-  out[o++] = skill; out[o++] = level; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
+  out[o++] = skill; out[o++] = r.specials ? 1 : 0; out[o++] = level; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
   const col = (k: number) => head + k * n;
   let prevYaw = 0;
   for (let i = 0; i < n; i++) {
@@ -160,9 +164,11 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
   const build = str(), opponent = str() as OpponentId, weapon = str() as WeaponId;
   if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
-  if (o + 1 + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
+  if (o + 1 + (v >= 21 ? 1 : 0) + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const skill = SKILLS[bytes[o++]];   // undefined past the table: an unknown skill is refused, never read as none
   if (skill === undefined) throw Error('Fight record: unknown skill');
+  const flag = v >= 21 ? bytes[o++] : 0;   // before version 21 there is no byte: no specials
+  if (flag > 1) throw Error('Fight record: unknown specials flag');
   const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (level < 1 || level > LEVELS || !outcome) throw Error('Fight record: unknown level or outcome');
   for (let bump = v + 1; bump <= RECORD_VERSION; bump++) for (const r of REACH[bump] ?? []) if (opponent === r.opponent && level >= r.from)
@@ -184,7 +190,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   }
   // The version PARSED, not the constant: returning `RECORD_VERSION` here would let a decode-then-repack silently relabel an older
   // record as this build's, and packRecord's guard above would then throw on a record this function had just called well-formed.
-  return { v: v as RecordVersion, build, opponent, weapon, ...(skill ? { skill } : {}), level, seed, ticks: n, outcome, intents };
+  return { v: v as RecordVersion, build, opponent, weapon, ...(skill ? { skill } : {}), level, seed, ...(flag ? { specials: true } : {}), ticks: n, outcome, intents };
 }
 
 // ---- transport: gzip + base64url (no padding). CompressionStream is in every browser the game targets and in Node ≥ 18. --------

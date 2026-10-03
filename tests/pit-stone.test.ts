@@ -6,12 +6,13 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { buildRoom } from '../src/pit/room.ts';
 import { FLOOR, WALL, stoneBytes } from '../src/pit/stone-maps.ts';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import type { Stage } from '../src/pit/stage.ts';
 import { pitLookFrom, pitStoneFrom } from '../src/look-flag.ts';
 
 const stage = (look?: 'stone-proc'): Stage => ({
   scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
-  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), ...(look ? { look } : {}),
+  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), legendKeys: () => PORTRAIT_KEYS, ...(look ? { look } : {}),
 });
 const draws = (group: THREE.Object3D) => { let n = 0; group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) n++; }); return n; };
 

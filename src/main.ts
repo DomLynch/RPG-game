@@ -10,7 +10,7 @@ import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beaco
 import { session } from './session.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
-import { replayParam, verifyRecord } from './replay.ts';
+import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -28,16 +28,22 @@ import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, re
 import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
+import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
+import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
+import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
+import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
-import { LADDER, opponentFor } from './ladder.ts';
+import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
@@ -417,7 +423,11 @@ try {
 // in the stored record, not the URL; when the record's warden is not the one this page booted, the page is re-opened once with
 // `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
-const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
+const sparPreview = resolveSparringPreview(window.location?.search ?? '', CARRIED_WEAPONS);
+const invalidSparringPreview = !replayText && !sharedId && sparPreview.invalid;
+const specialTest = sparPreview.special;   // standalone previews keep their warden; combined Sparring links validate the explicit opponent/kit
+const specialCue = specialCueFor(specialTest);   // this preview's sound, if it has one
+const urlOpponent = specialTest ? SPECIAL_TESTS[specialTest].opponent : /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
 // Difficulty (the Opponent's ten legends and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries
@@ -458,25 +468,24 @@ for (const [id, label] of FINISHER_OPTIONS) {
   option.textContent = label;
   finisherSelect.append(option);
 }
-finisherSelect.addEventListener('change', () => {
-  const value = finisherSelect.value;
-  view.setFinisherOverride(value === 'auto' ? null : (value as FinisherId));
-});
+const sparParams = new URLSearchParams(window.location?.search ?? '');
+const requestedFinisher = sparParams.get('finisher');
+const sparFinisher = !replayText && !sharedId && sparPreview.kit && FINISHER_OPTIONS.some(([id]) => id === requestedFinisher) ? requestedFinisher as FinisherId : null;
+finisherSelect.value = sparFinisher ?? 'auto';   // only supported existing clips, for this combined Sparring fight
 // The arena test override (Options tab beside Opponent, gated with the admin test tools): which arena the NEXT fight builds in. The arena is built at load and
 // Next reloads the page, so the pick is stored and read at load; `?arena=` in the URL still wins. Unset = the ladder band decides.
 // Test tool only: no ladder or progress change, and nothing is read or built when it is unset.
 const ARENA_PICK_KEY = 'frankendom.arena-override';
 const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY) ?? ''; } catch { return ''; } })();
 const arenaSelect = element<HTMLSelectElement>('arena-select');
-arenaSelect.value = storedArena; if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // the options are index.html's (ArenaKey values); an unknown stored key reads as Ladder and arenaFor() ignores it
-arenaSelect.addEventListener('change', () => {
-  try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
-  // The arena is built at load, so a pick only shows after one (Dom on his phone, 2026-09-24: an arena-only change did nothing until he also
-  // changed Opponent). Reload the way the opponent pick does, dropping `?arena=`, which would otherwise win over the stored pick.
-  const url = new URL(location.href);
-  url.searchParams.delete('arena');
-  location.replace(url.href);
-});
+const rawArena = sparParams.get('arena');
+const requestedArena = sparPreview.kit && rawArena !== null
+  ? ['1', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
+const sparArena = sparPreview.kit ? requestedArena : undefined;
+arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
+if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
+// Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
 // The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
 // tab's storage is still read at boot, so the release rows that seed one (arena-audio, clip-send-tour, player-bot) keep their fight.
 const kit = devKit((() => { try { return sessionStorage.getItem(DEV_KIT_KEY); } catch { return null; } })(), CARRIED_WEAPONS);
@@ -541,8 +550,58 @@ function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): vo
   difficultySelect.replaceChildren(...ranks, option('dummy', 'Dummy'));
   difficultySelect.value = value;
 }
-opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
-difficultySelect.addEventListener('change', () => showDifficulty(difficultySelect.value));   // a fresh pick is a rank's top: rebuilt, the fight's own level leaves the list
+const specialSelect = element<HTMLSelectElement>('spar-special');
+const playerSpecialSelect = element<HTMLSelectElement>('spar-skill');
+function showPlayerSpecialSummary(): void {
+  const choice = playerSparringChoice(playerSpecialSelect.value);
+  element('spar-player-status').textContent = !choice ? 'Your fighter: unsupported choice. Choose an available move before Start.'
+    : choice.special ? `Your fighter: ${SPECIAL_LABELS[choice.special]} · ${ROSTER[SPECIAL_TESTS[choice.special].opponent].name} ${SPECIAL_BANDS[specialBand(SPECIAL_TESTS[choice.special].level)!]}. Cast with SKILL; your body and weapon stay the same.`
+    : choice.skill ? `Your fighter: ${SKILLS[choice.skill].name}. Cast with SKILL.` : 'Your fighter: special move off.';
+}
+function showPlayerSpecial(): void {
+  const legacy = document.createElement('optgroup'); legacy.label = 'Legacy player moves';
+  for (const id of SPARRING_SKILLS) legacy.append(option(id, SKILLS[id].name));
+  const classes = [...new Set(Object.values(SPECIAL_TESTS).map(test => test.opponent))];
+  const groups = classes.flatMap(id => sparringSpecialOptions(id).map(({ band, ids, unavailable }, i) => {
+    const group = document.createElement('optgroup'); group.label = `${ROSTER[id].name} · ${band}`;
+    if (ids.length) for (const preset of ids) {
+      const supported = SUPPORTED_PLAYER_SPECIALS.includes(preset), row = option(`special:${preset}`, `${SPECIAL_LABELS[preset]}${supported ? '' : ' · player cast unavailable'}`);
+      row.disabled = !supported; group.append(row);
+    } else { const row = option(`unavailable:${id}:${i}`, unavailable); row.disabled = true; group.append(row); }
+    return group;
+  }));
+  playerSpecialSelect.replaceChildren(option('none', 'None'), legacy, ...groups);
+  playerSpecialSelect.value = sparPreview.yourSpecial ? `special:${sparPreview.yourSpecial}` : match.skill ?? 'none';
+  showPlayerSpecialSummary();
+}
+playerSpecialSelect.addEventListener('change', showPlayerSpecialSummary);
+function showSpecialSummary(): void {
+  const selected = specialSelect.value as SpecialTest, difficulty = Number(difficultySelect.value);
+  const test = Object.hasOwn(SPECIAL_TESTS, selected) ? SPECIAL_TESTS[selected] : null;
+  const band = test ? specialBand(test.level) : null;
+  element('spar-special-status').textContent = difficultySelect.value === 'dummy'
+    ? 'Opponent: Dummy does not cast special moves.'
+    : test && band !== null ? `Opponent: ${SPECIAL_LABELS[selected]} · ${SPECIAL_BANDS[band]} special; opponent difficulty ${difficultySelect.selectedOptions?.[0]?.textContent ?? difficulty}.${band === 0 ? ' Explicit preview only; career A stays off.' : ''}${selected === 'drag' ? ' Ground Drag night readability remains on hold.' : ''}`
+    : specialSelect.value === 'none' ? 'Opponent: special move off.' : 'Opponent: unsupported choice. Choose an available move before Start.';
+}
+function showSparringSpecial(selected?: SpecialTest | null): void {
+  const groups = sparringSpecialOptions(opponentSelect.value);
+  specialSelect.replaceChildren(option('none', 'None'), ...groups.map(({ band, ids, unavailable }, i) => {
+    const group = document.createElement('optgroup'); group.label = band;
+    if (ids.length) for (const id of ids) group.append(option(id, SPECIAL_LABELS[id]));
+    else { const missing = option(`unavailable-${i}`, unavailable); missing.disabled = true; group.append(missing); }
+    return group;
+  }));
+  const dummy = difficultySelect.value === 'dummy', difficulty = Number(difficultySelect.value);
+  const validSelected = selected && SPECIAL_TESTS[selected].opponent === opponentSelect.value ? selected : null;
+  const id = dummy || selected === null ? null : validSelected ?? defaultSparringSpecial(opponentSelect.value, difficulty);
+  specialSelect.value = id ?? 'none';
+  specialSelect.disabled = dummy;
+  showSpecialSummary();
+}
+opponentSelect.addEventListener('change', () => { showDifficulty(difficultySelect.value); showSparringSpecial(); });
+difficultySelect.addEventListener('change', () => { showDifficulty(difficultySelect.value); showSparringSpecial(); });
+specialSelect.addEventListener('change', showSpecialSummary);
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -605,7 +664,7 @@ const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
-  if (beaconSent || match.replay || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  if (beaconSent || match.replay || specialTest || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
   if (automated(nav, window.location?.search ?? '')) return;
   beaconSent = true;
@@ -626,7 +685,7 @@ const loadedLine = () => {
   return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
 };
 const replayBanner = element('replay-banner'), shareStatus = element('share-status');
-const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
+const duelButton = element<HTMLButtonElement>('duel-button'), shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
 let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; killedAt: number | null; completeAt: number | null; title: string } | null = null;
@@ -670,6 +729,7 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
+  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
   Blocked: 30,
   Hit: 50,
   Parried: 70,
@@ -687,15 +747,14 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
-const step = () => 1 / tempoHz;
+const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/network cadence never inherits the solo preference
 let hitStop = 0;
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
-// presentation clock; every tick still runs, in order. NOT in a live duel (`?duel=`, the Duel lane's one switch): there the hit-stop would
+// presentation clock; every tick still runs, in order. NOT in a live duel: there the hit-stop would
 // hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
-const inDuel = /[?&]duel=/.test(location.search);
-const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
 function stopFor(events: CombatEvent[]): number {
-  if (!inDuel && events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
+  if (match.mode === 'pvp') return 0;   // all contact pauses are offline-only, not just the added impact tier
+  if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
@@ -706,7 +765,7 @@ function stopFor(events: CombatEvent[]): number {
       e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base,
     );
   }
-  return ms + impactStop(events);
+  return ms + impactStopMs(events);
 }
 // The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,
 // drawn by style.css #combat-status[data-face]::before from --face once the file has loaded, for the same level the line names. No face
@@ -822,7 +881,7 @@ function renderStats() {
 // site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
 // on a local build, where the release checks run.
 const debugTools = debug && localBuild;
-if (debugTools) testTools.dataset.debug = 'true';
+if (debugTools) { testTools.dataset.debug = 'true'; document.documentElement.dataset.duelTools = 'true'; }   // DUEL (the end-screen share row) follows the admin tools: shown for the roster and for ?debug on a local build, hidden for every other player until Dom opens duels
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
 function openJournal() {
@@ -860,7 +919,7 @@ journal.addEventListener('scroll', () => gear?.fit());
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
-const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
+const paused = () => invalidSparringPreview || !assetsReady || graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
@@ -892,7 +951,7 @@ function settleClaim(piece: string | null): Promise<void> {
 // kept in the back/forward cache may return to its loot choice, so it sends nothing; a tab merely hidden is not left.
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
-window.addEventListener('pagehide', (event) => { if (!event.persisted) sendBeacon(); });
+window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
@@ -910,6 +969,7 @@ function sparEnd(shown: boolean) {
 // The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
 // press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
 function nextFight(): void {
+  if (invalidSparringPreview) { element<HTMLInputElement>('journal-tab-arena').checked = true; journal.showModal(); return; }
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
@@ -949,8 +1009,10 @@ function nextFight(): void {
 resetButton.addEventListener('click', nextFight);
 // One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
-function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
+function showShare() { duelButton.hidden = false; shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
 shareLink.addEventListener('click', () => { void shareFight(); });
+// DUEL (Strategy 2026-10-02): the same page with ?duel=new, where the lobby mints the room and the challenger's wait offers the guest's link to the share sheet.
+duelButton.addEventListener('click', () => { const u = new URL(location.href); u.search = ''; u.hash = ''; if (u.pathname.startsWith('/s/')) u.pathname = '/'; u.searchParams.set('duel', 'new'); location.assign(u.href); });
 // The clip: the record's last CLIP_LEAD seconds and its finish re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
 // back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
 // One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
@@ -967,11 +1029,11 @@ clipButton.addEventListener('click', () => {
   if (!record || match.replay) return;
   feedback.unlock();
   let recording: ClipRecording;
-  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
+  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; LINK sends the link."); return; }
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
@@ -1008,7 +1070,7 @@ function endClip(keep: boolean) {
 function dropClip() {
   clipEpoch++;
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
-  clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
+  clipFile = null; duelButton.hidden = shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
 // The share sheet needs a fresh tap on most phones (transient activation lapses during the ~10 s): tried at once, and on refusal
 // the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
@@ -1124,22 +1186,33 @@ if (replayText || sharedId) {
 // daily endpoint and tables are left in place, unused by this client.
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
-const sparKit = !replayText && !sharedId ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
+// `?special=hades` (special-look.ts) is a sparring page too: its warden at his rank's level, the longsword, no move, Special Moves on.
+const sparKit = replayText || sharedId || invalidSparringPreview ? null : sparPreview.kit ?? (specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null } : null);
 if (sparKit) {
   welcome.hidden = true; watching = false;
-  match.startSparring(sparKit);
-  banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
+  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first, level: SPECIAL_TESTS[specialTest].level } : sparPreview.off ? { first: 0, enabled: false } : null, sparPreview.selection);
+  if (!sparPreview.selection && specialCue) feedback.want(specialCue);
+  for (const id of match.specialIdentity.presets ?? []) { const cue = specialCueFor(id); if (cue) feedback.want(cue); }
+  // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
+  if (specialTest || sparPreview.selection) Object.assign(globalThis, { __special: () => ({
+    tick: match.practice.duel.tick, mode: match.mode, recorder: !!match.recorder, practiceOnly: match.practiceOnly, stages: match.practice.duel.fighters.map((f) => specialStage(f)), presets: match.specialIdentity.presets,
+    fighters: match.practice.duel.fighters.map(f => ({ skill: f.skill, weapon: f.weapon, rig: f.rig, scale: f.scale, specialName: f.specialName, specialShare: f.specialShare, skillCooldown: f.skillCooldown, phase: f.phase, health: f.health, maxHealth: f.maxHealth, x: f.body.x, z: f.body.z })),
+    events: match.fightLog.map(event => ({ ...event })),
+  }) });
+  banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
-else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
+else if (invalidSparringPreview) banner('That special move test link is invalid. Choose valid Sparring picks and press Start sparring.', true);   // paused until a corrected link starts; never silently becomes a career fight
+else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // legacy ordinary Sparring link behavior
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
-const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
+const duelAsked = !invalidSparringPreview && !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The peer is drawn on the hero's rig with the kit his handshake names (scene.ts `peerKit`), so the rigs load behind the loading card until
 // the lobby has that kit (or null: the duel ended first and the page loads the ordinary rigs). A page with no `?duel=` has none of this.
-const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy');
+const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy'), duelSend = element('duel-send');
+const DUEL_TEXT = '1v1 me in Frankendom ⚔️';   // the challenge's share text; deploy/frankendom.com.conf gives a duel link the same og:title
 // Cancel leaves the duel for the ordinary game: the same page with no ?duel= (the room lapses on the relay by itself).
 element('duel-cancel').addEventListener('click', () => { location.assign(location.pathname || '/'); });
 duelCopy.addEventListener('click', () => {
@@ -1151,15 +1224,21 @@ let giveKit: (kit: { weapon: WeaponId; gear?: readonly string[] } | null) => voi
 const peerKit = duelAsked ? new Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>((resolve) => { giveKit = resolve; }) : undefined;
 if (duelAsked) {
   welcome.hidden = true; watching = false;
+  for (const cue of ['joined', 'go', 'win', 'loss'] as const) feedback.wantDuel(cue);   // fetched after the first tap makes the audio context
   banner('Setting up the duel');
   void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
     say: (text, stale) => banner(text, stale),
     link: (url) => {
       say(url); void (typeof navigator === 'undefined' ? undefined : navigator.clipboard?.writeText(url))?.then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
-      duelLink.value = url; duelWait.hidden = false;   // the challenger's wait: what is happening, the link again, copy, and a way out
+      duelLink.value = url; duelWait.hidden = false;
+      if (typeof navigator !== 'undefined' && navigator.share) { duelSend.hidden = false; duelSend.onclick = () => { void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }; void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }   // the sheet may be refused here (no fresh tap after the page load): the wait panel's Send is the tap   // the challenger's wait: what is happening, the link again, copy, and a way out
     },
-    start: (driver) => { match.startPvp(driver); began(); },
-    peerKit: (kit) => { duelWait.hidden = true; giveKit(kit); },   // the guest is here: the wait panel goes
+    start: (driver) => { match.startPvp(driver); began(); feedback.duel('go'); },   // go only: there is no 3-2-1 window (Strategy 2026-10-02)
+    ended: (result) => {   // the lobby cues (Audio #1288): a settled finish by the fight's winner, a forfeit by who stayed, no contest silent
+      if (result === 'no-contest') return;
+      feedback.duel(result === 'forfeit-win' || (result === 'finished' && wonFight(match.practice.finish)) ? 'win' : 'loss');
+    },
+    peerKit: (kit) => { duelWait.hidden = true; if (kit && duelAsked === 'new') feedback.duel('joined'); giveKit(kit); },   // the guest is here: the wait panel goes, the challenger hears him arrive   // the guest is here: the wait panel goes
     ready: () => assetsReady,
     api, revision,
     // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
@@ -1176,17 +1255,30 @@ if (duelAsked) {
     select.value = value;
   };
   fill('spar-weapon', CARRIED_WEAPONS.map((w): [string, string] => [w, w]), match.weapon);
-  fill('spar-skill', [['none', 'none'], ...SPARRING_SKILLS.map((k): [string, string] => [k, SKILLS[k].name])], match.skill ?? 'none');
+  showPlayerSpecial();
   // Start sparring carries exactly what the tab shows: the one Opponent picker, the one Difficulty control, and the kit (path C, 2026-09-26).
   element('spar-start').addEventListener('click', () => {
     const value = (id: string) => element<HTMLSelectElement>(id).value;
-    location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
+    const player = playerSparringChoice(playerSpecialSelect.value);
+    const special = specialSelect.value === 'none' ? null : Object.hasOwn(SPECIAL_TESTS, specialSelect.value) ? specialSelect.value as SpecialTest : undefined;
+    const kit: SparringKit = { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: player?.skill ?? null };
+    if (!player || special === undefined || (special && (kit.difficulty === 'dummy' || SPECIAL_TESTS[special].opponent !== opponentSelect.value))) {
+      banner('Choose valid special moves for each fighter before Start sparring.', true); return;
+    }
+    const link = new URL(sparringLink(opponentSelect.value, kit, special, player.special), location.origin);
+    if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
+      banner('Choose a valid Sparring kit before Start sparring.', true); return;
+    }
+    link.searchParams.set('arena', ['1', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
+    location.assign(link.pathname + link.search);
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
+showSparringSpecial(sparPreview.off ? null : specialTest ?? undefined);
 element('debug-mode').addEventListener('click', () => {
   debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
@@ -1259,6 +1351,14 @@ function pitStage(): Stage {
       // a reload that never came does not leave him in the light
       setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
     } }),
+    // The skull wall's card for a slot key `<opponent>-<rank>` (legends.ts): the legend, its source and story, the portrait the kill
+    // screen shows, and whether this fighter has beaten it (loot.defeats, Backend #1156; absent = unbeaten).
+    legend: (key) => {
+      const at = key.lastIndexOf('-'), id = key.slice(0, at), rank = Number(key.slice(at + 1));
+      if (!isLegendOpponent(id) || !Number.isInteger(rank) || rank < 1 || rank > 10) return null;
+      const l = legendAt(id, rank), beaten = ((pitLoot() as Loot & { defeats?: string[] }).defeats ?? []).includes(key);
+      return { name: l.name, opponent: ROSTER[id].name, rank, source: l.source, backstory: l.backstory, portrait: `legends/${key}.webp`, beaten };
+    },
   };
 }
 // While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low
@@ -1354,7 +1454,7 @@ try {
       if (kind === 'ready') showPitLook();
     },
     opponent.id,
-    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
+    requestedArena ?? (storedArena || undefined),   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
     weaponSettled.then(() => match.weapon, () => match.weapon),
     (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
       const replay = !!match.replay, asked = match.weapon;
@@ -1376,6 +1476,7 @@ try {
   };
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
+  if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
@@ -1529,7 +1630,7 @@ let last = performance.now(),
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
 const AFK_CAP = 300;
 let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
-const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
+const fightLive = () => !invalidSparringPreview && welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
 // returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
 const fightPlayable = () => fightLive() && assetsReady && !versusUp && !graphicsLost;
@@ -1546,7 +1647,27 @@ document.addEventListener('visibilitychange', () => {
   frames = [];
   reportAt = last;
 });
+// Cast identity survives quiet/mute: a missed start is never replayed after decode or resume.
+let specialAudioEpoch = -1, specialAudioTick = -1, specialAudioClipping = false;
+const specialAudioCasts = [-1, -1];
+function syncSpecialAudio() {
+  const tick = clip?.fresh?.duel.tick ?? match.practice.duel.tick;
+  if (match.epoch !== specialAudioEpoch || tick < specialAudioTick || !!clip !== specialAudioClipping) {
+    if (specialAudioEpoch !== -1) feedback.cutSpecial();
+    specialAudioCasts.fill(-1);
+    specialAudioEpoch = match.epoch;
+  }
+  specialAudioTick = tick; specialAudioClipping = !!clip;
+  if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) {
+    const { opponent, level, presets } = match.specialIdentity;
+    if (presets) { for (const id of presets) { const cue = specialCueFor(id); if (cue) feedback.want(cue); } return; }
+    const id = bossSpecialFor(opponent, level) ?? classSpecialFor(opponent, level);
+    const cue = id ? SPECIAL_CUE_OF[id] : undefined;
+    if (cue) feedback.want(cue);
+  }
+}
 function frame(now: number) {
+  syncSpecialAudio();
   if (view.renderer.getContext().isContextLost()) {
     pauseGraphics();
     return;
@@ -1619,6 +1740,22 @@ function frame(now: number) {
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
+      if (!quiet) {
+        if (specialCue && !match.specialIdentity.presets) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
+          if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
+          else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+        }
+      }
+      if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) for (const e of practice.events) {
+        if (e.type === 'SpecialStarted' && e.tick > specialAudioCasts[e.actor]) {
+          specialAudioCasts[e.actor] = e.tick;   // accepted once per actor/cast tick, even if silent
+          const { opponent, level, presets } = match.specialIdentity;
+          const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
+          const cue = specialCueFor(id);
+          if (!quiet && cue) feedback.special(cue, 1, e.actor);
+        } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
+      }
+      if (quiet) feedback.cutSpecial();
       feedback.update(quiet ? [] : practice.events, deathAudio, {
         match: match.seed,
         ended: !!practice.finish,
@@ -1700,6 +1837,8 @@ function frame(now: number) {
       clip?.fresh ?? match.practice,
       match.frameEvents,
       hitStop > 0,
+      match.epoch,
+      match.specialIdentity,
     );
     match.frameEvents = [];
     if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it

@@ -145,10 +145,12 @@ test('sparring the dummy: the link and picker offer it, the match steps it, it n
   }
 });
 
-test('sparring: the tab holds ONE Opponent picker and ONE Difficulty control beside the kit (Move, Weapon) and Start sparring', () => {
+test('sparring: the tab holds ONE Opponent picker and ONE Difficulty control with independent player/opponent special moves and weapon and Start sparring', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const row = html.slice(html.indexOf('id="sparring-row"'), html.indexOf('id="spar-start"'));
-  assert.match(row, /Move <select id="spar-skill"/); assert.match(row, /Weapon <select id="spar-weapon"/);
+  assert.match(row, /Your special move <select id="spar-skill"/);
+  assert.match(row, /Opponent special move <select id="spar-special"/);
+  assert.match(row, /aria-label="Your fighter"/); assert.match(row, /Weapon <select id="spar-weapon"/);
   assert.doesNotMatch(html, /id="spar-opponent"|id="spar-level"|id="spar-foe"|id="spar-you"/, 'Strategy 2026-09-26: no second Opponent picker, no Level row');
   assert.equal(html.match(/id="opponent-select"/g)?.length, 1); assert.equal(html.match(/id="difficulty-select"/g)?.length, 1);
   assert.doesNotMatch(html, /id="difficulty"[ >]|id="hitstop-mode"/, 'the cycling Difficulty button and the hit-stop toggle are gone');

@@ -10,6 +10,7 @@ export type Path = 'direct' | 'relay';
 export type Candidate = 'host' | 'srflx' | 'prflx' | 'relay';
 export type Transport = {
   path: Path; candidate: Candidate | null;
+  reconnects: number;   // how many times this page's relay socket re-opened after a loss (the metrics row's `reconnects`; 0 = never dropped)
   send(message: DuelMessage): void;
   link(): boolean | null;   // this page's own link to the relay: up, down, or unknown (no beat ever heard)
   onMessage: ((raw: string) => void) | null;   // the peer's message as text: pvp.ts parseMessage is the only reader
@@ -28,7 +29,7 @@ export type Room = { room: string; exp: number; tokens: [string, string] };
 // A page on a server with no relay yet (the SPA answers, or nothing does) says so rather than showing a parse error.
 export async function mintRoom(session: string | null, origin = location.origin): Promise<Room> {
   const res = await fetch(`${origin}/duel/relay/room`, { method: 'POST', headers: session ? { authorization: `Bearer ${session}` } : {} });
-  if (res.status === 401 || res.status === 403) throw new Error('Duels are open to admins only for now: sign in with an admin account');
+  if (res.status === 401 || res.status === 403) throw new Error('Sign in to challenge a friend');
   if (res.status === 429) throw new Error('Too many duels opened from here; wait a minute');
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('application/json')) throw new Error('Duels are not open on this server yet');
   return await res.json() as Room;
@@ -47,13 +48,14 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     let ws: WebSocket, pc: RTCPeerConnection | null = null, channel: RTCDataChannel | null = null, decided = false, closing = false;
     let timer: ReturnType<typeof setTimeout> | undefined, retry: ReturnType<typeof setTimeout> | undefined;
     let beatAt = 0, heardAt = 0, lostAt = 0;   // the last relay beat, the last thing the peer sent by either path, when the relay socket was lost
-    const signal = (message: Wire) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
+    const signal = (message: Wire) => { if (!closing && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
     const transport: Transport = {
-      path: 'relay', candidate: null, onMessage: null, onPeer: null,
+      path: 'relay', candidate: null, reconnects: 0, onMessage: null, onPeer: null,
       // Our own link, as the relay tells it: true while its beats arrive, false once the socket is lost or the beats stop, null when no
       // beat has ever come (an older relay: unknown, so the page never claims a forfeit it cannot back).
       link() { return ws.readyState !== WebSocket.OPEN ? false : beatAt === 0 ? null : Date.now() - beatAt < RECONNECT.beatStaleMs; },
       send(message) {
+        if (closing) return;
         const text = JSON.stringify(message);
         if (transport.path === 'direct' && channel?.readyState === 'open') {
           channel.send(text);
@@ -63,31 +65,59 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
       close() { closing = true; clearTimeout(timer); clearTimeout(retry); channel?.close(); pc?.close(); ws.close(); },
     };
     const heard = (text: string) => { heardAt = Date.now(); transport.onMessage?.(text); };
-    const decide = (path: Path) => { if (decided) return; decided = true; clearTimeout(timer); transport.path = path; resolve(transport); };
-    const open = async () => {
-      transport.candidate = await selectedCandidate(pc!);
+    const decide = (path: Path) => { if (decided || closing) return; decided = true; clearTimeout(timer); transport.path = path; resolve(transport); };
+    // Both sides bound the initial decision from peer arrival, even if the challenger cannot produce an offer.
+    const waitForDirect = () => { if (!closing && !decided && timer === undefined) timer = setTimeout(() => decide('relay'), directMs); };
+    const current = (connection: RTCPeerConnection | null) => !closing && pc === connection;
+    const fallback = (connection: RTCPeerConnection | null) => {
+      if (!current(connection)) return;
+      clearTimeout(timer);
+      pc = null; channel?.close(); channel = null; connection?.close();
+      transport.path = 'relay'; transport.candidate = null;
+      decide('relay');
+    };
+    const open = async (connection: RTCPeerConnection, dc: RTCDataChannel) => {
+      if (!current(connection) || channel !== dc || dc.readyState !== 'open') return;
+      const candidate = await selectedCandidate(connection).catch(() => null);
+      if (!current(connection) || channel !== dc || dc.readyState !== 'open') return;
+      transport.candidate = candidate;
       if (decided) transport.path = 'direct';   // a channel rebuilt after a reconnect takes the packets back from the relay
       else decide('direct');
     };
-    const wire = (dc: RTCDataChannel) => {
+    const wire = (connection: RTCPeerConnection, dc: RTCDataChannel) => {
+      if (!current(connection)) return;
       channel = dc;
-      dc.onopen = () => { void open(); };
-      dc.onmessage = (e) => { if (typeof e.data === 'string') heard(e.data); };
-      dc.onclose = () => { if (channel === dc && transport.path === 'direct') transport.path = 'relay'; };   // a dropped direct path falls back mid-duel (a replaced channel closing does not)
+      dc.onopen = () => { void open(connection, dc); };
+      dc.onmessage = (e) => { if (current(connection) && channel === dc && typeof e.data === 'string') heard(e.data); };
+      dc.onclose = () => { if (current(connection) && channel === dc) { transport.path = 'relay'; transport.candidate = null; } };
+    };
+    const offer = async (connection: RTCPeerConnection) => {
+      try {
+        const description = await connection.createOffer();
+        if (!current(connection)) return;
+        await connection.setLocalDescription(description);
+        if (!current(connection)) return;
+        signal({ t: 'sig', sdp: connection.localDescription!.toJSON() });
+      } catch { fallback(connection); }
     };
     const peer = () => {
-      pc?.close();
-      pc = new RTCPeerConnection({ iceServers });
-      pc.onicecandidate = (e) => { if (e.candidate) signal({ t: 'sig', ice: e.candidate.toJSON() }); };
-      if (side === 0) {
-        wire(pc.createDataChannel('duel', { ordered: false, maxRetransmits: 0 }));
-        void pc.createOffer().then((offer) => pc!.setLocalDescription(offer)).then(() => signal({ t: 'sig', sdp: pc!.localDescription!.toJSON() }));
-      } else pc.ondatachannel = (e) => wire(e.channel);
-      clearTimeout(timer);
-      timer = setTimeout(() => decide('relay'), directMs);
+      if (closing) return null;
+      const previous = pc;
+      pc = null; channel?.close(); channel = null; previous?.close();
+      transport.path = 'relay'; transport.candidate = null;
+      waitForDirect();
+      try {
+        const connection = new RTCPeerConnection({ iceServers });
+        pc = connection;
+        connection.onicecandidate = (e) => { if (current(connection) && e.candidate) signal({ t: 'sig', ice: e.candidate.toJSON() }); };
+        if (side === 0) {
+          wire(connection, connection.createDataChannel('duel', { ordered: false, maxRetransmits: 0 }));
+          void offer(connection);
+        } else connection.ondatachannel = (e) => wire(connection, e.channel);
+        return connection;
+      } catch { fallback(pc); return null; }
     };
-    // The relay forwards the peer's bytes verbatim, so everything here is the peer's data: parsed without throwing, and a malformed
-    // signal is dropped (a bad SDP or candidate fails inside the try, never as an unhandled rejection).
+    // Every setup continuation owns one connection. A replaced/closed peer cannot publish SDP, switch paths, or retire its successor.
     const onMessage = async (e: MessageEvent) => {
       let message: Wire;
       try { message = JSON.parse(String(e.data)) as Wire; } catch { return; }
@@ -97,28 +127,34 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
       else if (message.t === 'peer') {
         transport.onPeer?.(message.up);
         if (!direct) { if (message.up) decide('relay'); }
-        else if (message.up && side === 0) peer();
+        else if (message.up) { waitForDirect(); if (side === 0) peer(); }
       } else if (message.t === 'sig' && direct) {
-        if (message.sdp) {
-          if (side === 1 && message.sdp.type === 'offer') {
-            peer();
-            await pc!.setRemoteDescription(message.sdp);
-            const answer = await pc!.createAnswer();
-            await pc!.setLocalDescription(answer);
-            signal({ t: 'sig', sdp: pc!.localDescription!.toJSON() });
-          } else if (side === 0 && message.sdp.type === 'answer') await pc?.setRemoteDescription(message.sdp);
-        } else if (message.ice) await pc?.addIceCandidate(message.ice).catch(() => undefined);   // a late candidate after close is harmless
+        const connection = side === 1 && message.sdp?.type === 'offer' ? peer() : pc;
+        if (!connection) return;
+        try {
+          if (message.sdp) {
+            if (side === 1 && message.sdp.type === 'offer') {
+              await connection.setRemoteDescription(message.sdp);
+              if (!current(connection)) return;
+              const answer = await connection.createAnswer();
+              if (!current(connection)) return;
+              await connection.setLocalDescription(answer);
+              if (!current(connection)) return;
+              signal({ t: 'sig', sdp: connection.localDescription!.toJSON() });
+            } else if (side === 0 && message.sdp.type === 'answer') await connection.setRemoteDescription(message.sdp);
+          } else if (message.ice) await connection.addIceCandidate(message.ice).catch(() => undefined);   // a late candidate after close is harmless
+        } catch { fallback(connection); }
       }
     };
     const join = () => {
       const socket = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
       ws = socket;
-      socket.onmessage = (e) => { if (ws === socket) void onMessage(e); };
-      socket.onopen = () => { lostAt = 0; };   // beatAt is kept: after a reconnect link() stays false until the first fresh beat, never a hopeful null
+      socket.onmessage = (e) => { if (!closing && ws === socket) void onMessage(e); };
+      socket.onopen = () => { if (lostAt) transport.reconnects++; lostAt = 0; };   // beatAt is kept: after a reconnect link() stays false until the first fresh beat, never a hopeful null
       // Lost before the first decision: the relay is unreachable. Lost after: keep trying until reconnectMs, then leave it to the page's silence rules.
       const lost = () => {
         if (ws !== socket || closing) return;
-        if (!decided) { reject(new Error('duel relay unreachable')); return; }
+        if (!decided) { transport.close(); reject(new Error('duel relay unreachable')); return; }
         lostAt ||= Date.now();
         clearTimeout(retry);   // onerror and onclose both land here: one retry, not two
         if (Date.now() - lostAt < RECONNECT.reconnectMs) retry = setTimeout(join, RECONNECT.retryMs);

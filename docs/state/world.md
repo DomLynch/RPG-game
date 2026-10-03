@@ -2,6 +2,11 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-03 — Owner rejected both image arena trials; restore default
+- Removed both trial modules, two image assets/provenance, Stage options, scene/camera adapters, and trial-only tests/browser workflow/gate rows. Production main/scene/index and original50 release rows restored byte-for-byte to pre-trial950db85c; native arena/camera/characters/combat/sim unchanged.
+- Existing Sparring workflow gains no-write checks for original Stage choices and retired trial URL/tab-storage fallback to the default camera. No new production framework or runtime dependency.
+- Source530/530, completion34/34, app types and native Sparring/old-link/storage fallback PASS (source runner exit0, errors[]); independent Auditer review, sole Deploy Mac Metal qualification/publication and live default/Gear/Pit verification pending; previous evidence retained in ignored artifacts/Git history. No live cleanup claim yet.
+
 ## 2026-10-01 ~18:3x (+04) — HANDOFF #5 before /clear. READ FIRST, then handoff #4 below (still true except where this says otherwise)
 
 ### Now

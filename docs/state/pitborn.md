@@ -5,6 +5,53 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 (+06) — HANDOFF to GPT (Dom moved all Frankendom work to GPT, 10-02). Read the +05 entry below for detail; this is the open-items table
+
+| Item | Head | State / blocker |
+|---|---|---|
+| PR #1260 (Pitborn boss specials), base `finishers/hades-shadow-claw-fx`, head `pitborn/specials-8bd3` | 748eae13 | OPEN, Auditer PASS. Merges only on Lead's GO after the night batch ends (base merges are frozen during captures). Union conflicts in `special-look.ts` / `special-modes.ts`: keep both sides, merge only. |
+| Night Pit colour pass, branch `pitborn/night-colour` (on origin) | f1735ae3 | Strategy PASSed all three Pit films. NOT yet in #1260. tsc / eslint / `tests/special*.test.ts` have NOT run on it (deploy hook refused). Then `git push origin f1735ae3:refs/heads/pitborn/specials-8bd3` (fast-forward, check origin is still 748eae13) and send Lead the new head + receipts. |
+| VPS captures | none running | All nine night-batch and re-film jobs released, exit 0. VPS dist at `/opt/frankendom-shadow/work/pitborn` is f1735ae3 (`work/pitborn-build-night.sh`). |
+| Stills in #1260 | n/a | Not embedded. Clips and strips are only on this Mac in `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/d/{n,r2}/`; regenerate on the VPS (`capture pitborn ./one.sh <antaeus|surtr|typhon> <day|pit>`, `--dpr 2`) if gone. |
+
+## 2026-10-02 (+05) — HANDOFF before /clear. READ FIRST: Night Pit colour pass PASSed at f1735ae3; fold it into #1260 once the checks run
+
+**Now (what the next session picks up):**
+1. **Checks on `f1735ae3` have NOT run.** The deploy-in-flight hook refused tsc, eslint and every test file (even a single file) while deploys a0c7c22 and f2e52e4 ran. When Deploy posts FREE, run from `~/Developer/frankendom-pitborn` on branch `pitborn/night-colour`: `npx tsc --noEmit -p .`, `npx eslint src/special-fx-pitborn.ts`, `node --test tests/special-fx-pitborn.test.ts tests/special-look.test.ts tests/specials.test.ts tests/special-modes.test.ts`.
+2. **Then fold the commit into #1260's branch (Lead's order):** `pitborn/specials-8bd3` is still at 748eae13 and `f1735ae3` is a direct child, so `git push origin f1735ae3:refs/heads/pitborn/specials-8bd3` fast-forwards it with no rewrite (check `git merge-base --is-ancestor 748eae13 f1735ae3` first, and that origin's head is still 748eae13). Send **Lead** the new #1260 head plus the check receipts; the Auditer checks that delta. **#1260 itself merges only after the night batch ends, and Lead calls the GO.**
+3. Optional, not asked: a test pinning the Night Pit looks. None exists; the Pit colours are unpinned.
+
+**Done (10-02):** Night batch filmed at 748eae13 (all six, exit 0, VPS dist `BUILD_OK 748eae13`). Strategy: DAY all PASS; PIT all three FAIL (pale on dark clay: Antaeus whitish cracks and pale flakes, Surtr a pale smoke bank at his legs, Typhon pale strokes across the hero). Fix = a night-only colour pass, `f1735ae3` on `pitborn/night-colour` (on origin, one commit on 748eae13, only `src/special-fx-pitborn.ts`, +10/-11): every change sits in an `exposure > 1.5` branch, day values byte-identical (diff: scratch `d/night-colour.diff`). I removed the now-unused local `sandLook`. Night values: Antaeus seam core (.006,.004,.003) with a dim ember edge (.05,.022,.012), pebbles #14100c; Surtr ash (.02,.018,.016)/(.06,.05,.042), smoke (.012,.011,.01)/(.04,.034,.029); Typhon strokes (.02,.018,.015)/(.035,.031,.026) at the 0.4 cap, specks #14110d. Re-filmed the three Pit clips at f1735ae3 (VPS built via `work/pitborn-build-night.sh`, `BUILD_OK f1735ae3`). Strategy (relayed by Lead): **Antaeus Pit PASS, Surtr Pit PASS, Typhon Pit PASS**; the day PASSes carry; the thin pale swing fan in all three is the game's weapon trail, out of scope. I had looked at all three Pit strips and I looked at only antaeus-pit and typhon-pit of the 748eae13 set.
+Messaged: Strategy (six clips, honest about what I viewed), Executioner ("lock free"), Lead (receipts, twice).
+
+**Open:** the checks and the fold above; the #1260 merge (Lead's GO after the batch ends; the base moves, union in `special-look.ts` and `special-modes.ts`, merge only, no trunk); stills not embedded in #1260 (strips and clips live on this Mac only, in the scratch dir `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/d/` (`n/` = 748eae13 set, `r2/` = the Pit re-films); attach the Pit strips to the PR); PR #1046 (this state doc).
+
+**Gotchas:**
+- `SendMessage` needs the bare name, plus ` [ref]` from `ListAgents` when two rows share it (use the one "on this machine"). `mcp__ccd_session_mgmt__send_message` takes the `local_...` session id, not a name.
+- Lead's relays are the only path for Strategy's verdicts; Strategy is not cc'd by Lead, so pass anything for Strategy to Strategy directly.
+- The VPS capture queue drained fast (all six ran in ~15 minutes, three slots); do not assume a deep queue from the status line. Poll with a bounded `until` loop on the `released at` line in the logs.
+- The deploy hook blocks tsc, eslint and tests including single files; git, gh, ssh and ffmpeg are fine. VPS builds are not affected.
+- Any code change after a PASS = a fresh film. The fold is a fast-forward of an already-PASSed commit, so no new film.
+- Memory: `project_pitborn_boss_specials_2026-10-01.md` (updated 10-02 with this state).
+
+## 2026-10-02 (+04) — HANDOFF before /clear. READ FIRST: night batch is GO and unfilmed; #1260 is Auditer-PASSed and waits to merge after the batch
+
+**Now (what the next session picks up):**
+1. **Night batch (Lead's GO, 10-02):** film Antaeus, Surtr, Typhon **day + night** at **748eae13** (head of `pitborn/specials-8bd3`), 6 jobs, one per call. I am **3rd on the VPS lock after Multi Chars** (they message "lock free"). Send the 5 fps strips + mp4s to **Lead** (not Strategy); when done, message **Executioner** "lock free". #1260 merges into the base only AFTER the batch (so the base does not move mid-capture).
+2. **The VPS dist is NOT confirmed at 748eae13.** My last `ssh frankvps "bash /opt/frankendom-shadow/work/pitborn-build.sh"` died on `git fetch` ("HTTP2 framing layer"), so the dist there is still 44385bb6 (same effect code, but rebuild anyway). Rerun the build, check the printed `BUILD_OK 748eae13`, then film. Recipe: `ssh frankvps "cd /opt/frankendom-shadow/work/pitborn && CAPTURE_WAIT_S=14400 capture pitborn ./one.sh <antaeus|surtr|typhon> <day|pit>"` from a local background Bash with output to a log (one special per call, `--dpr 2`). Fetch `artifacts/pitborn/<kind>-<day|pit>/clip.mp4`, make a strip (`ffmpeg -vf "fps=5,scale=187:-1,tile=8x4" -frames:v 1`), LOOK at it, send paths + honest read to Lead. Scratch dir: `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/d/` (may be gone).
+3. Night code that has never been filmed: Typhon Pit (strokes/sand capped 0.4, mid-dark grey, 5ce2c675) and Antaeus Pit. Surtr Pit passed at a7dbc50f.
+
+**Done (10-02):** Strategy: all three DAY PASS at 44385bb6. Surtr night Pit PASS at a7dbc50f. **#1260** (https://github.com/DomLynch/RPG-game/pull/1260, base `finishers/hades-shadow-claw-fx`, head **748eae13**, re-merged onto base 5575424f, undrafted, MERGEABLE): Auditer **PASS** (virtual merge + `scripts/special-cost.mjs`). Local at 748eae13: tsc, typecheck:tests, eslint clean, `tests/special*.test.ts` 99 pass. Auditer's four notes landed at 44385bb6 (textures shared by seed, `tests/special-fx-pitborn.test.ts`, caps table, registry comment). Typhon phone cost in the PR body: p95 +0.3 ms at x1, +0.5 ms at x4, +62 draws, +127 tris (`node scripts/special-cost.mjs --special typhon --reps 8`).
+
+**Open:** the night films above (Lead, then Strategy PASS/FAIL); #1260 merge into the base after the batch (Lead/Deploy); stills not embedded in #1260 (strips live on this Mac only; attach the night strips to the PR with the batch); PR #1046 (this state doc).
+
+**Gotchas:**
+- Strategy rulings: haze/dust/smoke <= 0.7 day, <= 0.4 Night Pit; cracks, soot, sand marks, small flakes are exempt if darker than the floor and small/on the ground with no sheet over a fighter; Typhon takes NO more density. Any code change after a pass = a fresh film. Nothing changes the code now; do not edit `special-fx-pitborn.ts` without asking.
+- Base moves under #1260 (union in `special-look.ts` and `special-modes.ts`, keep both sides, merge only, no trunk) — Lead says when.
+- The deploy-in-flight hook refuses tsc/eslint/tests/builds until Deploy posts FREE (git/gh/grep fine); the whole command is refused, so wait and retry.
+- Strategy and other sessions restart: `ListAgents`, send by name plus `[ref]`; messages must be self-contained. The `capture` queue can be 6 deep; a "completed" background task for a `( ... ) &` wrapper only means it was backgrounded, check the log for `EXIT`.
+- Memory: `project_pitborn_boss_specials_2026-10-01.md` (updated 10-02).
+
 ## 2026-10-01 19:55 (+04) — HANDOFF before /clear. READ FIRST: the three Pitborn boss specials (ranks 8-10) are built; recapture + PR are what is left
 
 1. **What exists.** Branch `pitborn/specials-8bd3` @ **2f74c4bc** (on origin, no PR yet), on the specials base **8c371bd3** (= #1120 8bd3a8a8 + Strategy's clip-timeout fix + the `travel` hook). Dom approved the picks 10-01; **Strategy now signs off all 30 boss specials** ("PASS/FAIL, you ship on my PASS, no Dom look").

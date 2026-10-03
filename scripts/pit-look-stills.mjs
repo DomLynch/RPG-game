@@ -20,6 +20,9 @@ const loot = {
     'nightborn.Helmet': { opponent: 'nightborn', attempt: 1, healthLeft: 12, recordId: null, day: '2026-09-27', tier: 5 },
     'dwarf.Helmet': { opponent: 'dwarf', attempt: 3, healthLeft: 60, recordId: null, day: '2026-09-29', tier: 4 },
   },
+  // The skull wall (PR B): beaten legends, one per panel row and a few ranks apart. On trunk before Backend's #1156 the profile loader
+  // strips this field, so the wall shows its hundred niches only; once #1156 is in, the same seed lights these slots.
+  defeats: ['veteran-1', 'veteran-7', 'pitborn-3', 'goblin-10', 'nightborn-5', 'executioner-2', 'dwarf-4', 'shieldmaiden-9', 'plaguedoctor-6', 'witch-8', 'knight-1', 'knight-10'],
 };
 const profile = { version: 1, id: 'pit-look-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
 const receipt = { head: execSync('git rev-parse HEAD', { timeout: 10000 }).toString().trim(), origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch and 1280x720', stills: [], draws: {}, errors: [] };
@@ -28,8 +31,8 @@ const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', 
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 try {
   // The visual-PR rule's two widths: the phone (375×812, touch) and a desktop (1280×720).
-  // PIT_POSES="gate,gate@0.5": a pose, or pose@lift (the gate's bars held that far up, `&lift=`); default the three poses at rest.
-  for (const entry of (process.env.PIT_POSES ?? 'rack,trophies,gate').split(',')) for (const width of [375, 1280]) {
+  // PIT_POSES="gate,gate@0.5": a pose, or pose@lift (the gate's bars held that far up, `&lift=`); default the four poses at rest.
+  for (const entry of (process.env.PIT_POSES ?? 'rack,trophies,gate,wall').split(',')) for (const width of [375, 1280]) {
     const [pose, lift = ''] = entry.split('@'), tag = lift ? `${pose}-lift${lift}` : pose;
     const context = await browser.newContext(width === 375 ? { viewport: { width, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width, height: 720 } });
     await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
