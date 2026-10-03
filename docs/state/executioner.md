@@ -3,6 +3,43 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 (+04) morning — HANDOFF before /clear: all night films shot; Knight and Reaper PRs open on HOLD. READ FIRST
+
+**Now (pick up in this order):**
+1. SEND LEAD the Storm night result (not yet sent): VPS `/opt/frankendom-shadow/work/executioner/artifacts/specials/storm/night3/{peak.jpg,strip5fps.png}`,
+   filmed from the #1303 build (dist-knight-np = 0f315acb). My read of peak.jpg: the dark umber rain (#3c332d) is now faint and quiet, nothing pale over the
+   fighters (the first film, pale blue-white rain, failed my read and was fixed in cceb1b94). Strategy judges. Message "Frankendom - Lead Developer" (ListAgents for the ref).
+2. #1303 (Knight Sling/Wrath/Storm, Knight-only on the specials base 5575424f, head 0f315acb, undrafted + HOLD): CI green at last look (2 SUCCESS, 2 SKIPPED).
+   Auditer review next (Lead routes). Merge order vs Multi Chars' #1283 (same file, special-fx-boss.ts, different lines) is Lead's call: whoever merges second merges the other in;
+   expect one-line conflicts on the `const effect = (...)` map and the createBossSpecial `let` block (my held/spun/shook). #1301 (the old 23-commit head) is CLOSED, superseded.
+3. #1304 (Executioner night looks, executioner/night-palette d1a2e83b, 1 file +5 -5 on base, undrafted + HOLD): Reaper night Strategy PASS, Arawn night PASS (@bbc43b3c).
+   Owed on re-merge with trunk: ONE post-blow Pit frame showing the game's foot dust dark (the pale blobs in the film are the old pre-#1298 dust, not my move; d1a2e83b lacks f8672415).
+   Film that from the VPS on a build of the merged head; the film recipe is below.
+
+**Done today (10-02):** night batch: Arawn PASS, Thanatos night PASS (quiet), Wrath day4 PASS + night4 PASS (quiet), Sling night read OK, Reaper night PASS after two darker rounds
+(crescent cap 0.4, cut-sand swaths soot/umber), Storm night fixed from pale rain to dark umber. Wrath wisps near-black [10,8,6] day AND night (Strategy: tone, not opacity; 0.4 ceiling kept);
+peak frame now cut 14 ticks BEFORE the strike (`--peak -14`), because the default (8 after) shows the wisps already gone. #1237 merged earlier (579903e2). #1301 -> #1303, #1304 opened.
+
+**Open — every PR, branch and VPS job (checked 2026-10-02, live release.json c107068c6ea654b3ed907ee49078493a4399b2c5):**
+- PR #1303 Knight Sling/Wrath/Storm: OPEN, undrafted + HOLD, head 0f315acba16578b7e919766c43d5ee7368bf0e5d, base finishers/hades-shadow-claw-fx (5575424f), CLEAN. Blockers: Storm night3 Strategy verdict (my read: PASS, quiet), Auditer review, merge order vs Multi Chars' #1283 (same file, different lines).
+- PR #1304 Arawn/Reaper night looks: OPEN, undrafted + HOLD, head d1a2e83b5612b2c731172621983c8348db15ce5a, same base, CLEAN. Arawn + Reaper night Strategy PASS. Blocker: one post-blow Pit frame of the dark game foot dust, to film after #1304 is re-merged with trunk (d1a2e83b predates f8672415).
+- Branches: executioner/knight-on-base (#1303 head, current), executioner/night-palette (#1304 head), executioner/knight-specials (the closed #1301 head cceb1b94: stale, delete after #1303 merges), executioner/state-1003 (this doc). #1237 MERGED (579903e2).
+- VPS jobs: none running or queued (all films shot). Scratch builds on the VPS: /opt/frankendom-shadow/work/{exec-np,knight-np}, dists dist-exec-np (d1a2e83b) and dist-knight-np (0f315acb), artifacts in work/executioner/artifacts/specials/<move>/night3 (+haze/day4,night4).
+- Local scratch worktrees (safe to delete): /private/tmp/claude-501/{exec-night-fix,knight-rebase,state-wt}.
+**Open:** Reaper +35 ms p95 on SwiftShader still needs a real-phone check before ship. Wrath day5/night5 re-film was DROPPED on purpose (Lead verified 90ad9024 and d55affdd differ only by removing the unused `dim` param; day4/night4 passes carry over).
+Nothing was run on the Mac: the deploy hook blocks tsc/tests/builds there; all checks ran on the VPS.
+
+**Gotchas / recipe:**
+- Film on the VPS only. `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18`, work dir `/opt/frankendom-shadow/work/executioner`, queue with
+  `CAPTURE_WAIT_S=21600 /opt/frankendom-shadow/bin/capture executioner ./run-night.sh <dist> <special> <day|night>` (FIFO, one move per job). Builds: scratch worktrees `../exec-np` (night-palette) and
+  `../knight-np` (knight-on-base), `ln -s ../executioner/node_modules`, `nice -n 15 npx vite build --outDir ../executioner/<dist> --emptyOutDir`. tsc + `node --test tests/special*.test.ts tests/child-process-bounds.test.ts` there too.
+  A job that fails fast with "browserType.launch: Executable doesn't exist" ran outside capture (the env is set by capture): just re-queue it. Never `pkill -f` a pattern that appears in your own ssh command line (it killed my shell, exit 255): use `pgrep -f "name[5]"`.
+- Films must come from the SHIPPING head (Lead): Storm from 0f315acb, Reaper from d1a2e83b. Prove code-identical with `git diff` if a head moved.
+- Dom's rule, Strategy's wording: nothing pale or glowing over the fighters; "quiet beats pale"; a quiet effect at night is accepted. Read peak.jpg yourself before sending; strips go to Lead, Lead forwards.
+- zsh trap: `$B:path` is a history modifier, write `"${B}:path"`. macOS sed has no `-i` without a suffix arg: use python for edits.
+- The worktree sits on executioner/knight-specials (old #1301 head, now stale). Scratch worktrees under /private/tmp/claude-501/{exec-night-fix,knight-rebase,state-wt} are mine: executioner/night-palette, executioner/knight-on-base. Add files by NAME only (never `git add -A src`); untracked src/assets/tmpdiag GLBs bit us before.
+- PR bodies end with the 🤖 Generated with Claude Code line; commits end with the Co-Authored-By line from the harness.
+
 ## 2026-10-01 (+04) late — HANDOFF before /clear: boss specials built but NOT captured, #1243 review half done. READ FIRST
 
 **Now (pick up in this order):**
