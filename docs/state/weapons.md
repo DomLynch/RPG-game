@@ -686,3 +686,9 @@ Sentry still has earlier unresolved load/texture/WebGL issues (6/A/5/9/8); this 
   `artifacts/weapons/scythe-notes.md`, sheets `scythe-A/`, `sche-B/…`, `scythe-C/`, `scythe-v1…v5/`, `executioner-baseline/`.
 - 2026-09-18 (world lane): motes doubled 260 → 520 per owner live feedback ("motes are good. just double their number") after the
   half-size deploy (PR #123). Size stays 0.1 m, opacity 0.62, drift and gust unchanged — same specks, twice the air.
+
+## Approved maul outer bands — 2026-10-03
+- Dom approved the reviewed weapons in Lead. Intake enables the selected maul v3 plain at ranks 1–3 and Ram King ornate at 8–10; existing crafted ranks 4–7 remain byte-identical. Supplied neutral materials retained as approved; no geometry, recolour, loader or mechanics changes.
+- Plain SHA256 `59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86`; ornate `0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0`; crafted unchanged `64e4d3ed9f332ca3238d0216636cf9b8822b47b8925264ff9157a69696e728fd`. All match selected maul-v3 donors exactly.
+- Source validation: targeted gate 61/61; CPU completion checks 34/34; app TypeScript passes. All three pass existing fit contract and Khronos (zero errors/warnings). Accepted ratio warnings remain; ornate X +20%, Z +4.8% allowances disclosed. Fail-before routing regression reproduces missing plain at Knight rank 1.
+- Source candidate only. Sole Deploy owns subsequent review/browser completion (`sparring-browser-check.mjs --source`), current-head CI, release gates, integration and publication; this is a separate following release, not a seven-class-A bundle. No local browser/build, merge or publish performed.
