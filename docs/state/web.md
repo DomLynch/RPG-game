@@ -1,3 +1,10 @@
+## 2026-10-03 — bounded Ground Set/Cut Mark readability repair; integrated frames pending
+
+- Lead bounded repair after Duel judged source-c251: Ground Set DAY pass/NIGHT both actors floor blend; Cut Mark all four cases faint smear. Physically viewed native375 held-tell/payoff images for both held night Ground Set actors, both Cut Mark actors DAY/NIGHT, and Ground Set DAY0 reference; phase observations bind held tell to windup0.65 and payoff to recover1/3.
+- Minimum factory-only delta: Cut Mark uses existing private hard fleck texture, dark stripe width0.24→0.34, stance offset0.43→0.85 and sweep0.82→1.45 to expose endpoints outside body shadow. Ground Set NIGHT-only width0.14→0.20 and outward offset0.22→0.36; DAY placement/colour preserved. Darker NIGHT body, narrow restrained warm edge. No pale fill/glow/lights/high plume/new stomp/pose/assets/clock/mechanics.
+- Entire original B/boss/helpers prefix AND new factory cast-clock/yield/clear/fade sections physically byte-identical to prior source. Existing tests unchanged; actual12/12 focused PASS after Lead CPU closure grant, scoped lint/types exit0, diffcheck PASS. Old receipt preserved; new `artifacts/seven-class-a-web/readability-receipt.json` binds delta.
+- Combat owns one combined changed20-case source capture and batch integration; independent review binds affected delta only. No maker browser/build/full gate/variants/publication. Native readability after repair remains UNVERIFIED. No owned worker/listener: FREE.
+
 ## 2026-10-03 — Ground Set and Cut Mark A source candidate; integration/visual checks pending
 
 - Direct Dom resume via Lead; fresh base `3348ddfbac760290baa9a36979fc8f6678c3e08b`, isolated `web/seven-class-a`. Combat contract: `groundset`/`cutmark`, exports `createGroundSet(scene, opponent, exposure)`/`createCutMark(...)`, existing normalized caster1 render/clear and manager disposal.
