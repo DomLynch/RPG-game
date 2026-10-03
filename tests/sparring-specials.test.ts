@@ -14,13 +14,13 @@ import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 
 const matrix = {
-  veteran: [null, 'standfast', 'shield', 'centurion', 'tithe'], nightborn: [null, 'cuts', 'set', 'hades', 'nyx'],
+  veteran: ['setfoot', 'standfast', 'shield', 'centurion', 'tithe'], nightborn: ['lunge', 'cuts', 'set', 'hades', 'nyx'],
   witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
-  knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: [null, 'ratrun', 'reynard', 'hermes', 'loki'],
-  executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, 'earthfold', 'antaeus', 'surtr', 'typhon'],
-  dwarf: [null, 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, 'gatherededge', 'shield8', 'shield9', 'shield10'],
+  knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: ['knuckledirt', 'ratrun', 'reynard', 'hermes', 'loki'],
+  executioner: ['heelreap', 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: ['cleaverset', 'earthfold', 'antaeus', 'surtr', 'typhon'],
+  dwarf: ['groundset', 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: ['cutmark', 'gatherededge', 'shield8', 'shield9', 'shield10'],
 } as const;
-test('every registered preview appears only under its authoritative class/band; missing slots stay missing', () => {
+test('every registered preview appears only under its authoritative class/band; all fifty slots are registered', () => {
   const seen: string[] = []; let missing = 0;
   for (const [opponent, expected] of Object.entries(matrix)) {
     const groups = sparringSpecialOptions(opponent);
@@ -36,10 +36,9 @@ test('every registered preview appears only under its authoritative class/band; 
     }
     assert.equal(defaultSparringSpecial(opponent, 'dummy'), null);
   }
-  assert.equal(missing, 7);
-  assert.equal(seen.length, 43);
+  assert.equal(missing, 0);
+  assert.equal(seen.length, 50);
   assert.deepEqual(seen.sort(), Object.keys(SPECIAL_TESTS).sort());
-  assert.match(sparringSpecialOptions('nightborn')[0].unavailable, /Pale Lunge held/);
   for (const bad of [0, 47, 1.5, NaN]) assert.equal(specialBand(bad), null);
   assert.equal(defaultSparringSpecial('nightborn', 46), 'nyx', 'visible rank10 is simulation level46');
 });

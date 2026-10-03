@@ -36,7 +36,7 @@ const normalized = (d: Duel) => ({ fighters: [d.fighters[1], d.fighters[0]] as c
 
 for (const c of cases) {
   test(`${c.id} is class B only, independently selectable without a pose or cue substitution`, () => {
-    for (const level of [1, 15, 36, 46]) assert.equal(classSpecialFor(c.opponent, level), null);
+    for (const level of [36, 46]) assert.equal(classSpecialFor(c.opponent, level), null);
     for (const level of [16, 35]) assert.equal(classSpecialFor(c.opponent, level), c.id);
     assert.deepEqual(sparringSpecialOptions(c.opponent)[1].ids, [c.id]);
     assert.equal(specialCueFor(c.id), undefined); assert.equal(SPECIAL_MODES[c.id]?.held, undefined); assert.equal(SPECIAL_MODES[c.id]?.travel, undefined);

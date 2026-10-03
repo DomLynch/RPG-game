@@ -59,6 +59,49 @@ export type GoblinFrame = { hide: boolean; offset: THREE.Vector3 | null };
 export const isGoblinCast: typeof isHadesShadow = (opponent, actor) => opponent === 'goblin' && actor === 1;
 export type GoblinSpecialFx = ReturnType<typeof createGoblinSpecial>;
 
+// Common A: a stationary, foot-sized gather and one low flick on the accepted jab payoff.
+// The manager normalizes either selected fighter to caster 1 and owns these private materials/maps.
+export function createKnuckleDirt(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(), map = speckTexture(); root.name = 'goblin special knuckledirt'; root.visible = false; scene.add(root);
+  const look = sand(exposure), edge = exposure > 1.5 ? new THREE.Color(0.24, 0.15, 0.075) : look.edge;
+  const grains = Array.from({ length: 24 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: i % 6 === 0 ? edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true }));
+    s.visible = false; s.scale.setScalar(0.055 + 0.025 * hash(i, 31)); root.add(s); return s;
+  });
+  const accepts: typeof isHadesShadow = (id, actor, move) => id === 'goblin' && actor === 1 && move === 'skill_jab';
+  let cast: Cast | null = null, anchored = false;
+  const hide = () => { root.visible = false; for (const s of grains) { s.visible = false; s.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; anchored = false; hide(); return; }
+      const before = cast;
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, accepts);
+      hide();
+      if (!cast) { anchored = false; return; }
+      if (!before || before.start !== cast.start || events.some(e => e.type === 'SpecialStarted' && accepts(opponent, e.actor, e.move) && !yielding)) anchored = false;
+      const caster = feet[1], target = feet[0];
+      if (!caster || !target) return;
+      if (!anchored) {
+        root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); anchored = true;
+      }
+      const phase = shadowPhase(cast, tick);
+      if (phase.phase === 'done') return;
+      const age = Math.max(0, (cast.fizzled ?? tick) - cast.start), ended = cast.landed ?? cast.fizzled;
+      const gather = smooth((Math.min(age, FALL_AT) + 1) / FALL_AT), fade = ended === null ? 1 : 1 - phase.k;
+      const flick = cast.landed === null ? 0 : clamp01((tick - cast.landed) / 30);
+      for (let i = 0; i < grains.length; i++) {
+        const s = grains[i], flying = i >= 12 && cast.landed !== null;
+        const x = (hash(i, 32) - 0.5) * 0.24, z = 0.28 + (hash(i, 33) - 0.5) * 0.23;
+        // Outer front-foot side: the single low flick clears the body/shadow instead of fading underneath it.
+        s.position.set(0.85 + x + (flying ? x * flick * 0.5 : 0), 0.018 + 0.025 * hash(i, 34) + (flying ? 0.18 * Math.sin(Math.PI * flick) : 0.035 * gather), z + (flying ? (0.55 + 0.2 * hash(i, 35)) * flick : 0));
+        s.material.opacity = flying ? 0.9 * (1 - smooth((flick - 0.65) / 0.35)) * fade : 0.85 * gather * fade;
+        s.visible = s.material.opacity > 0.01; root.visible ||= s.visible;
+      }
+    },
+    clear() { cast = null; anchored = false; hide(); },
+  };
+}
+
 export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exposure: number, opponent: OpponentId = 'goblin') {
   const look = kind !== 'loki' ? sand(exposure) : dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
   const puffs = Array.from({ length: PUFFS }, (_, i) => {

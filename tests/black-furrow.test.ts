@@ -66,7 +66,7 @@ function paintedBounds(mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMat
 }
 
 test('Black Furrow occupies only Executioner B and resolves independently on either selector', () => {
-  for (const [level, expected] of [[1, null], [15, null], [16, 'blackfurrow'], [35, 'blackfurrow'], [36, null]] as const) assert.equal(classSpecialFor('executioner', level), expected);
+  for (const [level, expected] of [[1, 'heelreap'], [15, 'heelreap'], [16, 'blackfurrow'], [35, 'blackfurrow'], [36, null]] as const) assert.equal(classSpecialFor('executioner', level), expected);
   assert.deepEqual(SPECIAL_TESTS[id], { opponent: 'executioner', level: 21, first: 180 });
   assert.deepEqual(sparringSpecialOptions('executioner')[1].ids, ['blackfurrow']);
   assert.deepEqual(sparringSpecialOptions('pitborn')[1].ids, ['earthfold'], 'the other class B has its own identity');

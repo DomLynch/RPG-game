@@ -109,12 +109,14 @@ test('approved unnamed class routing uses supplied fight metadata and never assi
   const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (id) => { loaded.push(id); return { render() {}, clear() {} }; });
   presentation.prepare(1, [{ ...start(1), name: undefined }], pair, 100, false, { opponent: 'nightborn', level: 16 }); await flush();
   assert.deepEqual(loaded, ['cuts']); assert.equal(presentation.mode(0), undefined);
-  presentation.prepare(2, [], pair, 0, false, { opponent: 'nightborn', level: 15 });
-  assert.equal(scene.children.length, 0, 'unresolved Pale Lunge stays absent');
+  presentation.prepare(2, [], pair, 0, false, { opponent: 'nightborn', level: 15 }); await flush();
+  assert.deepEqual(loaded, ['cuts', 'lunge'], 'approved A resolves when a preview fighter has specialShare');
   presentation.prepare(3, [], pair, 0, false, { opponent: 'goblin', level: 16 }); await flush();
-  assert.deepEqual(loaded, ['cuts', 'ratrun']); assert.equal(presentation.mode(0), undefined, 'Rat Run never assigns a player class');
-  presentation.prepare(4, [], pair, 0, false, { opponent: 'pitborn', level: 15 });
-  assert.equal(scene.children.length, 0, 'a genuinely unresolved class stays absent'); presentation.clear();
+  assert.deepEqual(loaded, ['cuts', 'lunge', 'ratrun']); assert.equal(presentation.mode(0), undefined, 'Rat Run never assigns a player class');
+  presentation.prepare(4, [], pair, 0, false, { opponent: 'pitborn', level: 15 }); await flush();
+  assert.deepEqual(loaded, ['cuts', 'lunge', 'ratrun', 'cleaverset']);
+  presentation.prepare(5, [], pair, 0, false, { opponent: 'pitborn', level: 36 });
+  assert.equal(scene.children.length, 0, 'unnamed class identity never falls through to a boss'); presentation.clear();
 });
 
 

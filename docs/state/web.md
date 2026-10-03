@@ -1,3 +1,31 @@
+## 2026-10-03 — final held Ground Set NIGHT lateral clearance candidate; all-four retake pending
+
+- Duel11cdd final27PASS/1HOLD: Ground Set actor1 NIGHT still merges with foot shadow in qualified held tell/payoff. Physically inspected current375 pixels and raw tell258windup0.65/payoff314recover0.311 under `seven-class-a-foe-clearance-20261003`; forward-only f002 remains a retained negative for native readability.
+- Exactly ONE existing Ground position line changed: same continuous NIGHT positive-cos yaw weight adds up to0.35 outward lateral spacing to both existing fleck rows. Existing forward correction retained. All other source bytes exact: DAY/opposite-facing NIGHT placement, Cut Mark/private helpers/resources/pool/size/colour/opacity/clock/fade/G1yield/clear unchanged. No style/light/glow/stomp/pose/assets/framework/mechanics changes.
+- Added3 lateral-clearance/accepted-placement assertions to existing meaningful placement test; original12 cases and same-active side-on continuity remain byte-identical. Actual pre-fix lateral assertion RED retained; final14/14 focused PASS, scoped lint/types exit0, diffcheck PASS. `artifacts/seven-class-a-web/ground-lateral-receipt.json` binds hashes/receipts; all prior negatives preserved.
+- Native readability UNVERIFIED after delta. Auditer affected one-line source binding; Combat owns ONE all4 Ground retake and explicit other24 carry. No Web browser/build/fullgate/variants/integration writes. All owned processes closed: FREE.
+
+## 2026-10-03 — Ground Set opponent NIGHT foot-shadow placement repair; native retake pending
+
+- Duel final source-fcf42 verdict25PASS/3HOLD: Web only Ground Set actor1 NIGHT held. Actual actor1 NIGHT held-tell/payoff and accepted actor0 NIGHT reference pixels read; raw tell258windup0.65/land300/payoff314recover0.311. Minimum cause-specific placement correction from current399 source.
+- Exactly ONE factory position line changed: existing Ground Set NIGHT localz adds up to0.35 using continuous positive cosine of existing target-facing yaw. Opposite-facing NIGHT and all DAY positions unchanged; Cut Mark and every private helper/resource/ink/clock/fade/G1yield/clear byte-identical. Static ground placement through payoff, no stomp/pose/step. Initial hard-sign proposal rejected by same-active side-on regression; retained RED receipt, continuous correction passes.
+- Existing12 cases byte-identical plus2 meaningful placement/continuity regressions; actual14/14 focused PASS, scoped lint/types exit0, diffcheck PASS. Original prefix/whole remaining source parity physically asserted. `artifacts/seven-class-a-web/ground-front-receipt.json` binds source/test/RED/check receipts; all old negatives preserved.
+- Combat owns one combined8 affected Knuckle/Ground capture with explicit other20 carry; Auditer affected-delta binding. No Web browser/build/fullgate/variants/integration-checkout writes. Postrepair native look UNVERIFIED. No owned workers/listeners: FREE.
+
+## 2026-10-03 — bounded Ground Set/Cut Mark readability repair; integrated frames pending
+
+- Lead bounded repair after Duel judged source-c251: Ground Set DAY pass/NIGHT both actors floor blend; Cut Mark all four cases faint smear. Physically viewed native375 held-tell/payoff images for both held night Ground Set actors, both Cut Mark actors DAY/NIGHT, and Ground Set DAY0 reference; phase observations bind held tell to windup0.65 and payoff to recover1/3.
+- Minimum factory-only delta: Cut Mark uses existing private hard fleck texture, dark stripe width0.24→0.34, stance offset0.43→0.85 and sweep0.82→1.45 to expose endpoints outside body shadow. Ground Set NIGHT-only width0.14→0.20 and outward offset0.22→0.36; DAY placement/colour preserved. Darker NIGHT body, narrow restrained warm edge. No pale fill/glow/lights/high plume/new stomp/pose/assets/clock/mechanics.
+- Entire original B/boss/helpers prefix AND new factory cast-clock/yield/clear/fade sections physically byte-identical to prior source. Existing tests unchanged; actual12/12 focused PASS after Lead CPU closure grant, scoped lint/types exit0, diffcheck PASS. Old receipt preserved; new `artifacts/seven-class-a-web/readability-receipt.json` binds delta.
+- Combat owns one combined changed20-case source capture and batch integration; independent review binds affected delta only. No maker browser/build/full gate/variants/publication. Native readability after repair remains UNVERIFIED. No owned worker/listener: FREE.
+
+## 2026-10-03 — Ground Set and Cut Mark A source candidate; integration/visual checks pending
+
+- Direct Dom resume via Lead; fresh base `3348ddfbac760290baa9a36979fc8f6678c3e08b`, isolated `web/seven-class-a`. Combat contract: `groundset`/`cutmark`, exports `createGroundSet(scene, opponent, exposure)`/`createCutMark(...)`, existing normalized caster1 render/clear and manager disposal.
+- Appended 69 lines to `src/special-fx-dwarf-shield.ts`; original module prefix byte-identical (SHA256 `fa21532adff2784ac1fec09d1057eacd228f7a169f8953dbbc757e63652e1982`). All B/boss/helpers preserved. Compact pooled ground planes: stationary Dwarf weight patches, Shieldmaiden torn stripe plus one accepted-landing sidecut. Dark body/narrow warm edge; no pose/kit/audio/mechanics changes.
+- `tests/seven-class-a-dwarf-shield.test.ts`: missing exports RED preserved; actual 12/12 focused CPU PASS, real sim events for either caster, non-origin/yaw, DAY/NIGHT numerical bounds, frozen events, landing-only payoff, fizzle, clear/rearm/yield (active gather AND landed recovery)/epoch, late-load/stale-counter protection, private pooling and exact-once manager disposal. Scoped lint/types and diff check PASS. Receipts under ignored `artifacts/seven-class-a-web/`.
+- Combat owns integration and all registry/routes/identity. Full gate/build/browser/release checks remain HELD for Lead slot. No rendered 375px DAY/NIGHT acceptance, publication or physical-phone claim. No owned worker/listener: FREE. Next: Combat batch intake, independent review, Lead-slotted combined CPU/browser checks.
+
 ## 2026-10-02 — two independent Sparring special selectors (source implementation, unverified)
 
 - Base actual live b1a1144338d9e96bd6792604f9650daf97326852, isolated web/sparring-independent-specials-20261002. Supersedes abandoned one-control plan; old selector release and Drag artifacts preserved.

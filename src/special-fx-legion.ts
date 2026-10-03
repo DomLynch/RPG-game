@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, castPhase, isBloodTithe, LAND_AT, type Cast } from './special-timing.ts';
+import { advanceCast, shadowPhase, castPhase, isBloodTithe, LAND_AT, type Cast } from './special-timing.ts';
 
 // Accepted Centurion class B: Stand Fast, ranks 4-7 (levels 16-35), previewed at level 21.
 // Combat owns the shared class selector; this effect observes Scutum Shove events only.
@@ -23,6 +23,38 @@ function blot(seed: number) {
   }
   const map = new THREE.DataTexture(pixels, size, size); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
   return map;
+}
+
+// Preview class A: one weighted heel mark and a short forward dirt kick.
+export function createSetFoot(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'set foot'; root.visible = false; scene.add(root);
+  const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
+  const marks = [3, 11, 23].map(seed => {
+    const map = blot(seed), pixels = map.image.data as Uint8Array;
+    for (let a = 3; a < pixels.length; a += 4) pixels[a] = Math.min(255, Math.max(0, (pixels[a] - 6) * 6));
+    const material = new THREE.MeshBasicMaterial({ map, color: exposure > 1.5 ? new THREE.Color(0.002, 0.001, 0.0004) : new THREE.Color(0.004, 0.002, 0.001), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const mesh = new THREE.Mesh(geometry, material); mesh.visible = false; root.add(mesh); return mesh;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const mark of marks) { mark.visible = false; mark.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isBloodTithe);
+      const caster = feet[1], target = feet[0]; if (!cast || !caster || !target) { hide(); return; }
+      const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 65);
+      const kick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 12), fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      const sideX = -Math.cos(root.rotation.y), sideZ = -Math.sin(root.rotation.y);   // clear ground beside the body shadow, continuous while turning
+      marks.forEach((mark, i) => {
+        const side = i === 0 ? 0.58 : 0.54 + (i - 1) * 0.12;
+        mark.position.set(sideX * side, 0.025 + i * 0.003, sideZ * side + (i === 0 ? -0.06 : 0.22 + kick * (0.32 + i * 0.09)));
+        mark.scale.set(i === 0 ? 1.0 * build : 0.22 + kick * 0.12, 1, i === 0 ? 1.1 * build : 0.3 + kick * 0.36);
+        mark.material.opacity = (i === 0 ? build : kick) * fade * 0.95; mark.visible = mark.material.opacity > 0.001;
+      });
+    },
+    clear() { cast = null; hide(); },
+  };
 }
 
 const RING = 26;

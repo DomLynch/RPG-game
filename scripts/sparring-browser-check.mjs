@@ -42,11 +42,11 @@ async function check() {
   // Re-pinned (Sparring layout A, Dom 2026-09-29): the Opponent's ten ranks (a fresh fighter's rank 1 at its level 1, the others at their top) and the dummy.
   assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
   const matrix = {
-    veteran: [null, 'standfast', 'shield', 'centurion', 'tithe'], nightborn: [null, 'cuts', 'set', 'hades', 'nyx'],
+    veteran: ['setfoot', 'standfast', 'shield', 'centurion', 'tithe'], nightborn: ['lunge', 'cuts', 'set', 'hades', 'nyx'],
     witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
-    knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: [null, 'ratrun', 'reynard', 'hermes', 'loki'],
-    executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, 'earthfold', 'antaeus', 'surtr', 'typhon'],
-    dwarf: [null, 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, 'gatherededge', 'shield8', 'shield9', 'shield10'],
+    knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: ['knuckledirt', 'ratrun', 'reynard', 'hermes', 'loki'],
+    executioner: ['heelreap', 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: ['cleaverset', 'earthfold', 'antaeus', 'surtr', 'typhon'],
+    dwarf: ['groundset', 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: ['cutmark', 'gatherededge', 'shield8', 'shield9', 'shield10'],
   };
   assert.deepEqual((await page.locator('#opponent-select option').evaluateAll(os => os.map(o => o.value))).sort(), Object.keys(matrix).sort());
   let enabled = 0, disabled = 0;
@@ -71,10 +71,10 @@ async function check() {
     assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'Dummy selects no registered move, including classes with a registered A');
     assert.equal(await page.locator('#spar-special-status').textContent(), 'Opponent: Dummy does not cast special moves.');
   }
-  assert.deepEqual({ enabled, disabled }, { enabled: 43, disabled: 7 });
+  assert.deepEqual({ enabled, disabled }, { enabled: 50, disabled: 0 });
   receipt.playerCatalog = await page.locator('#spar-skill option').evaluateAll(os => os.map(o => ({ value: o.value, disabled: o.disabled })));
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 43, '43 supported player presets');
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 7, 'missing player slots stay disabled');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 50, '50 supported player presets');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 0, 'all player slots are registered');
   assert.equal(receipt.playerCatalog.filter(o => !o.disabled && o.value !== 'none' && !o.value.startsWith('special:')).length, 11, 'legacy player skills retained');
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);
@@ -115,7 +115,7 @@ async function check() {
   await page.selectOption('#opponent-select', 'nightborn');
   const groups = await page.locator('#spar-special optgroup').evaluateAll(os => os.map(o => o.label));
   assert.deepEqual(groups, ['L1–3', 'L4–7', 'L8', 'L9', 'L10']);
-  assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'held A cannot auto-pick a boss');
+  assert.equal(await page.locator('#spar-special').inputValue(), 'lunge', 'approved class A is the matching default');
   await page.selectOption('#difficulty-select', '46');
   assert.equal(await page.locator('#spar-special').inputValue(), 'nyx', 'Nightborn10 auto-selects Nyx');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'nyx');
