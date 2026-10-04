@@ -97,7 +97,7 @@ async function serveDist(dir) {
 const server = DIST ? await serveDist(DIST) : await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
 if (!DIST) await server.listen();
 const origin = DIST ? server.origin : `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
+const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader","--use-gl=angle","--ignore-gpu-blocklist","--enable-unsafe-swiftshader"] });
 const os = await import('node:os');   // the box's load at the start and end: Lead takes no row 4 / C numbers measured above 15
 const out = { loadStart: os.loadavg().map((v) => +v.toFixed(1)), opponent: OPP, look: LOOK, bytes: (await fs.stat(LOOK_FILE)).size, served: DIST ? `dist ${DIST} (gzip)` : 'vite dev (raw)', mbps: MBPS, latency: LATENCY, load: { off: [], on: [] }, replay: {}, rows: {} };
 const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
