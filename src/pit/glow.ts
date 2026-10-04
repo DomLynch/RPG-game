@@ -76,7 +76,7 @@ export function addGlow(group: THREE.Group, gate: { width: number; height: numbe
 
 // The arena seen through the gate: Arena 1's painted far world, its lower half (the stands in the sun), washed toward the haze.
 export function arenaBeyond(material: THREE.MeshBasicMaterial, textures: THREE.Texture[]) {
-  material.color.set('#7a6248');   // dimmed so the stands read through the bars, not a white glare
+  material.color.set('#f0dab2');   // daylight out there (Dom 10-04: "behind the bars should be daytime arena")   // dimmed so the stands read through the bars, not a white glare
   new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}arena/backdrop-1.webp`, (map) => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.repeat.set(1, 0.55); map.offset.set(0, 0.2);

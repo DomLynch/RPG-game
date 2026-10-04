@@ -274,7 +274,7 @@ export function buildRoom(stage: Stage): Room {
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
     geometries.push(smokeGeometry); group.add(new THREE.Points(smokeGeometry, smoke));
-    const gateLight = new THREE.PointLight(G ? GLOW.light : '#ffe0b0', G ? 2.5 : 6, G ? 9 : 7, 2); gateLight.position.set(0, 1.6, -hd + 0.5); lights.push(gateLight);
+    const gateLight = new THREE.PointLight(G ? GLOW.light : '#ffe0b0', G ? 2.5 : 6, G ? 9 : 7, 2); gateLight.position.set(0, 1.6, G ? -hd - 0.6 : -hd + 0.5); lights.push(gateLight);   // pit-glow: back in the passage, so it comes THROUGH the bars and does not gild the wall (Dom 10-04)
   }
   {
     // Light: one warm KEY (the torch, a spot that casts contact shadows), one cool FILL from the gate, and the point light turned down
@@ -282,7 +282,7 @@ export function buildRoom(stage: Stage): Room {
     const keyAt = sconces[0] ?? [-hw + 0.08, 2.2, 0], key = new THREE.SpotLight(TORCH, S.torch * (G ? 2.2 : 1.6), 14, 1.05, 0.7, 1.4);
     key.position.set(keyAt[0] * 0.8, keyAt[1] + 0.35, keyAt[2] * 0.8); key.target.position.set(0.6, 0.4, -0.4); group.add(key.target);
     key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.03; key.shadow.camera.near = 0.3; key.shadow.camera.far = 14;
-    const fill = new THREE.PointLight(G ? GLOW.fill : '#a9bfd6', G ? 4 : 2.4, 9, 2); fill.position.set(0, 1.9, -hd + 0.4);
+    const fill = new THREE.PointLight(G ? GLOW.fill : '#a9bfd6', G ? 2 : 2.4, 9, 2); fill.position.set(0, 1.9, G ? 0.5 : -hd + 0.4);   // pit-glow: mid-room, not a hot spot on the gate wall
     lights.push(key, fill);
     if (G) lights.push(new THREE.HemisphereLight('#ffcf96', '#5a341a', 1.4));   // pit-glow: the room's warm bounce, so no wall falls to brown
     const ao = new THREE.MeshBasicMaterial({ map: fadeTexture(), color: '#000', transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
