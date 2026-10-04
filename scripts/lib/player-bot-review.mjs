@@ -70,7 +70,8 @@ export function damageSources(events) {
     const hits = sum(e => e.type === 'Hit' && e.actor === actor && e.target === target && !breakKeys.has(`${e.tick}/${e.actor}/${e.target}/${e.move}`));
     const guardBreaks = sum(e => e.type === 'GuardBroken' && e.actor === actor && e.target === target);
     const blockedChip = sum(e => e.type === 'Blocked' && e.actor === target && e.target === actor);
-    return { hits, guardBreaks, blockedChip, total: hits + guardBreaks + blockedChip };
+    const specials = sum(e => e.type === 'SpecialLanded' && e.actor === actor && e.target === target);
+    return { hits, guardBreaks, blockedChip, specials, total: hits + guardBreaks + blockedChip + specials };
   };
   return { player: side(0), opponent: side(1), arena: {
     toPlayer: sum(e => e.type === 'Whipped' && e.target === 0),

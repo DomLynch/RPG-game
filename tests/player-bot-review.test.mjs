@@ -54,10 +54,32 @@ test('damage sources count guard break once and keep arena damage separate', () 
     { tick: 40, type: 'Hit', actor: 1, target: 0, damage: 8 },
   ];
   assert.deepEqual(damageSources(events), {
-    player: { hits: 12, guardBreaks: 27, blockedChip: 2, total: 41 },
-    opponent: { hits: 8, guardBreaks: 0, blockedChip: 0, total: 8 },
+    player: { hits: 12, guardBreaks: 27, blockedChip: 2, specials: 0, total: 41 },
+    opponent: { hits: 8, guardBreaks: 0, blockedChip: 0, specials: 0, total: 8 },
     arena: { toPlayer: 0, toOpponent: 3 },
   });
+});
+
+test('special damage counts for both attackers alongside defender chip, excluding terminal events', () => {
+  const events = [
+    { tick: 10, type: 'SpecialLanded', actor: 0, target: 1, damage: 30 },
+    { tick: 11, type: 'SpecialLanded', actor: 1, target: 0, damage: 40 },
+    { tick: 12, type: 'Blocked', actor: 1, target: 0, damage: 2 },
+    { tick: 13, type: 'Blocked', actor: 0, target: 1, damage: 4 },
+    { tick: 14, type: 'SpecialLanded', actor: 0, target: 1, damage: 0 },
+    { tick: 15, type: 'SpecialFizzled', actor: 1 },
+    { tick: 16, type: 'Killed', actor: 0, target: 1, damage: 30 },
+    { tick: 17, type: 'Killed', actor: 1, target: 0, damage: 40 },
+    { tick: 18, type: 'Whipped', actor: 0, target: 0, damage: 3 },
+  ];
+  const sources = damageSources(events);
+  assert.deepEqual(sources, {
+    player: { hits: 0, guardBreaks: 0, blockedChip: 2, specials: 30, total: 32 },
+    opponent: { hits: 0, guardBreaks: 0, blockedChip: 4, specials: 40, total: 44 },
+    arena: { toPlayer: 3, toOpponent: 0 },
+  });
+  assert.equal(sources.player.total, 32); // runner's damageDealt
+  assert.equal(sources.opponent.total + sources.arena.toPlayer, 47); // runner's damageTaken
 });
 
 test('each defence reports what it earned: damage avoided, window opened and used, distance', async () => {
