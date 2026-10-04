@@ -3,6 +3,7 @@
 // the shafts of light that come through the bars and lie as stripes on the sand, and a golden haze in the gate. room.ts warms the
 // stone, the sand and the lights; pit.ts swaps the arena's fog for a warm one while the room is up. Look test only, never the default.
 import * as THREE from 'three';
+import { patchPixels } from '../assets/arena/textures.ts';
 
 export const GLOW = { fog: '#8a5a30', fogDensity: 0.035, light: '#ffd08a', stone: '#d9a86e', sand: '#f2c58a', fill: '#ffbf7a' };
 
@@ -59,7 +60,7 @@ export function addGlow(group: THREE.Group, gate: { width: number; height: numbe
     new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
   const floorBars = stripes(0.45), airBars = stripes(0.25), halo = glowMap();
   textures.push(floorBars, airBars, halo);
-  const onFloor = glowing(floorBars, 0.55), inAir = glowing(airBars, 0.16), haze = glowing(halo, 0.3);
+  const onFloor = glowing(floorBars, 0.32), inAir = glowing(airBars, 0.07), haze = glowing(halo, 0.1);   // Dom 10-04: the gate was "church/heaven" bright
   materials.push(onFloor, inAir, haze);
   const w = gate.width / 2, z = wallZ;
   // The stripes on the sand: from the gate's foot toward the camera, spreading a little as they go (the sun is low and behind the bars).
@@ -75,11 +76,27 @@ export function addGlow(group: THREE.Group, gate: { width: number; height: numbe
 
 // The arena seen through the gate: Arena 1's painted far world, its lower half (the stands in the sun), washed toward the haze.
 export function arenaBeyond(material: THREE.MeshBasicMaterial, textures: THREE.Texture[]) {
-  material.color.set('#ffe6bf');
+  material.color.set('#a8865e');   // dimmed so the stands read through the bars, not a white glare
   new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}arena/backdrop-1.webp`, (map) => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.repeat.set(1, 0.55); map.offset.set(0, 0.2);
     textures.push(map);
     material.map = map; material.needsUpdate = true;
   }, undefined, () => { /* the plain daylight stays */ });
+}
+
+// Old blood soaked into the sand (Dom 10-04: "the day map with blood stains, use that for our floor"): the arenas' own blood patch
+// (textures.ts patchPixels 'blood', Blood Sand's seed) as dark brown-red stains lying on the Pit's sand, lit by the torches like the floor.
+export function addBloodStains(group: THREE.Group, width: number, depth: number) {
+  const p = patchPixels(256, 'blood', 43);
+  for (let i = 0; i < p.data.length; i += 4) { p.data[i] = 92; p.data[i + 1] = 30; p.data[i + 2] = 20; p.data[i + 3] = Math.round(p.data[i + 3]! * 0.85); }
+  const map = new THREE.DataTexture(p.data, p.width, p.height, THREE.RGBAFormat);
+  map.colorSpace = THREE.SRGBColorSpace; map.magFilter = THREE.LinearFilter; map.minFilter = THREE.LinearFilter; map.needsUpdate = true;
+  map.repeat.set(width / 26, depth / 26); map.offset.set(0.3, 0.35);   // the arena spreads the patch over 26 m: same stain size here
+  const material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+  const geometry = new THREE.PlaneGeometry(width, depth).rotateX(-Math.PI / 2).translate(0, 0.008, 0);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return { textures: [map], materials: [material], geometries: [geometry] };
 }

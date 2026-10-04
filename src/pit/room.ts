@@ -17,7 +17,7 @@ import { buildWall, type Wall } from './wall.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
-import { GLOW, addGlow, arenaBeyond } from './glow.ts';
+import { GLOW, addBloodStains, addGlow, arenaBeyond } from './glow.ts';
 
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
@@ -206,7 +206,7 @@ export function buildRoom(stage: Stage): Room {
     group.add(holder);
   }).catch(() => { /* a bare way out */ }));
   {
-    const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
+    const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: G ? 0.2 : 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
     textures.push(spill.map!, smoke.map!);
     materials.push(spill, smoke);
@@ -268,11 +268,11 @@ export function buildRoom(stage: Stage): Room {
       mount('sconce', (holder) => { holder.position.set(x - inward * 0.08, y - 0.04, z); holder.rotation.y = inward * Math.PI / 2; });
       flameSpots[i] = [x + inward * 0.1, y, z];
     });
-    parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
+    if (!G) parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
     geometries.push(smokeGeometry); group.add(new THREE.Points(smokeGeometry, smoke));
-    const gateLight = new THREE.PointLight(G ? GLOW.light : '#ffe0b0', G ? 14 : 6, G ? 9 : 7, 2); gateLight.position.set(0, 1.6, -hd + 0.5); lights.push(gateLight);
+    const gateLight = new THREE.PointLight(G ? GLOW.light : '#ffe0b0', G ? 7 : 6, G ? 9 : 7, 2); gateLight.position.set(0, 1.6, -hd + 0.5); lights.push(gateLight);
   }
   {
     // Light: one warm KEY (the torch, a spot that casts contact shadows), one cool FILL from the gate, and the point light turned down
@@ -308,7 +308,7 @@ export function buildRoom(stage: Stage): Room {
     mesh.castShadow = material === stone || material === iron || material === wood;   // the key's contact shadows
     group.add(mesh);
   }
-  if (G) { const glow = addGlow(group, gate, -hd); textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
+  if (G) for (const glow of [addGlow(group, gate, -hd), addBloodStains(group, W, D)]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(flameSpots.flat(), 3));
   geometries.push(flamePoints);
   group.add(new THREE.Points(flamePoints, flames));
