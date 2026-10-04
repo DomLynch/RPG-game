@@ -14,7 +14,8 @@ import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
 import { buildWall, type Wall } from './wall.ts';
-import { opponentsOf, skullsFromLoot } from './skulls.ts';
+import { killsFromLoot } from './skulls.ts';
+import { buildBoard, type Board } from './board.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
@@ -22,7 +23,7 @@ import { GLOW, addBloodStains, addFence, addGlow, addGrime, addGroundBlood, addO
 
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
-export type Pick = Zone | `skull:${string}`;   // what a tap can pick: a zone's furniture, or one slot of the skull wall
+export type Pick = Zone | 'board' | `skull:${string}`;   // what a tap can pick: a zone's furniture, the record board, or one slot of the skull wall
 
 export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
@@ -37,8 +38,8 @@ export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number
   trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
   vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
-  duels: { hero: { x: 0.6, z: -0.4, heading: 0.4 }, camera: [1.3, 2.0, 2.0], target: [3.5, 2.1, -3.6] },   // the skull wall's right panel, the duel-beaten players, the gate's edge at the left
-  wall: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the skull wall's left panel, the gate's edge at the right (re-posed for the 10 x 7.5 room: check the stills)
+  wall: { hero: { x: 0.6, z: -0.4, heading: 0.4 }, camera: [1.3, 2.0, 2.0], target: [3.5, 2.1, -3.6] },   // the skull wall, right of the arch, the gate's edge at the left
+  board: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the record board, left of the arch, the gate's edge at the right
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
 export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
@@ -170,7 +171,7 @@ export function buildRoom(stage: Stage): Room {
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
-  let wall: Wall;
+  let wall: Wall, board: Board;
   // A prop from the Stage (public/pit/props/<name>.glb): a still copy in a holder named for it, placed by the caller in the model's own
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
@@ -226,10 +227,11 @@ export function buildRoom(stage: Stage): Room {
     const rugMap = clothTexture([0.48, 0.1, 0.09], 4), rug = new THREE.MeshStandardMaterial({ map: rugMap, roughness: 0.98, transparent: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
     const banner = new THREE.MeshStandardMaterial({ map: clothTexture([0.45, 0.08, 0.08], 9), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
     textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, clay, rug, banner);
-    // The skull wall (wall.ts): the far wall's two panels either side of the gate, in bone; stocked from loot.defeats with the rest.
+    // The skull wall (wall.ts): the far wall's right panel, in bone; stocked from the kills with the rest. The record board (board.ts) is the left one.
     const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
     materials.push(bone);
-    wall = buildWall(stage, group, opponentsOf(stage.legendKeys()), -hd, bone);
+    wall = buildWall(stage, group, -hd, bone);
+    board = buildBoard(group, -hd);   // the record, carved left of the arch where the niches were
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
     // their spots; Lead 2026-09-30): the round red shield with its gold laurel at the far end, the sword and the spear standing by the near
     // post, the helm on its end post, the torn banner behind the near end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
@@ -347,9 +349,11 @@ export function buildRoom(stage: Stage): Room {
   let stocking = 0;
   const stock = (loot: Loot): Promise<void> => {
     const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
-    // The skulls: what is known now (the cached record, else the loot fallback), then the record from Supabase when it lands; a later stock or a dispose wins over it.
-    wall.restock(stage.skullsNow?.() ?? skullsFromLoot(loot, opponentsOf(stage.legendKeys())));
+    // The skulls and the record: what is known now (the cached data, else the loot's kills), then the data from Supabase when it lands; a later stock or a dispose wins over it.
+    wall.restock(stage.skullsNow?.() ?? killsFromLoot(loot));
+    board.restock(stage.recordNow?.());
     if (stage.skulls) void stage.skulls().then((data) => { if (mine === stocking && !disposed) wall.restock(data); }, () => undefined);
+    if (stage.record) void stage.record().then((data) => { if (mine === stocking && !disposed) board.restock(data); }, () => undefined);
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
@@ -385,6 +389,7 @@ export function buildRoom(stage: Stage): Room {
     { id: 'trophies', box: new THREE.Box3(new THREE.Vector3(hw - 1.0, 0, -1.6), new THREE.Vector3(hw, 3.15, 1.6)) },
     { id: 'gate', box: new THREE.Box3(new THREE.Vector3(-gate.width / 2, 0, -hd - 0.3), new THREE.Vector3(gate.width / 2, gate.height, -hd + 0.1)) },
     ...wall.targets,
+    ...board.targets,
   ];
 
   return {
@@ -412,6 +417,7 @@ export function buildRoom(stage: Stage): Room {
       L?.dispose();
       for (const l of lights) l.dispose();   // the key's shadow map
       wall.dispose();
+      board.dispose();
       pieces.clear();
     },
   };

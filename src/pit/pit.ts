@@ -33,7 +33,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal, legend: s.legend, skulls: s.skulls, skullsNow: s.skullsNow, pieceName: s.pieceName } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal, legend: s.legend, skulls: s.skulls, skullsNow: s.skullsNow, record: s.record, recordNow: s.recordNow, pieceName: s.pieceName } : undefined;
 
 // `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
 // `gateAt` (0..1): the `?look=pit&lift=` still: the gate's bars held that far up, no animation and no tap to open it.

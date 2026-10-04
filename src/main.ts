@@ -19,7 +19,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { LEGEND_OPPONENTS, PORTRAIT_KEYS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
+import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
@@ -35,7 +35,7 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
-import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Skulls, type Stage } from './pit-coordinator.ts';
+import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Kills, type PitRecord, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom, skullsDemoFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
@@ -1321,20 +1321,29 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // defeat). `pit` is the one switch frame() reads: while it is set the Pit draws the frame and nothing of the fight runs. `?look=pit` is the
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
-// The skull wall's record (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each Pit visit;
-// the `&skulls=demo` look never touches the network. skullsNow is undefined until the module is in; the room then falls back to loot.defeats.
-let skullMod: SkullsModule | null = null, skullCache: Skulls | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
+// The skull wall's kills and the record board (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each
+// Pit visit; the `&skulls=demo` look never touches the network. skullsNow / recordNow are undefined until the module is in.
+let skullMod: SkullsModule | null = null, killCache: Kills | null = null, recordCache: PitRecord | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
 function pitSkulls() {
   const demo = skullsDemoFrom(window.location?.search ?? '');
   void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
-  const opponents = () => skullMod!.opponentsOf(PORTRAIT_KEYS), local = () => skullMod!.skullsFromLoot(pitLoot(), opponents());
+  // The legend's own name for a kill (legends.ts), else the opponent's class name; this file may read legends.ts, src/pit/ may not.
+  const nameOf = (id: string, rank: number | null): string => { try { return isLegendOpponent(id) ? (rank ? legendAt(id, rank).name : ROSTER[id].name) : (isOpponentId(id) ? ROSTER[id].name : id); } catch { return id; } };
+  const localKills = () => skullMod!.killsFromLoot(pitLoot(), nameOf), localRecord = () => skullMod!.localRecord(pitLoot(), careerMarks(), nameOf);
   return {
-    skullsNow: (): Skulls | undefined => (!skullMod ? undefined : demo ? skullMod.demoSkulls(opponents()) : (skullCache ?? local())),
-    skulls: async (): Promise<Skulls> => {
+    skullsNow: (): Kills | undefined => (!skullMod ? undefined : demo ? skullMod.demoKills(nameOf) : (killCache ?? localKills())),
+    skulls: async (): Promise<Kills> => {
       const m = skullMod ??= await loadSkulls();
-      if (demo) return m.demoSkulls(opponents());
-      skullCache = await m.fetchSkulls(session.db, local(), opponents());
-      return skullCache;
+      if (demo) return m.demoKills(nameOf);
+      killCache = await m.fetchKills(session.db, localKills());
+      return killCache;
+    },
+    recordNow: (): PitRecord | undefined => (!skullMod ? undefined : demo ? skullMod.demoRecord() : (recordCache ?? { ...localRecord(), ...skullMod.splitOf(killCache ?? localKills()) })),
+    record: async (): Promise<PitRecord> => {
+      const m = skullMod ??= await loadSkulls();
+      if (demo) return m.demoRecord();
+      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills());
+      return recordCache;
     },
   };
 }
