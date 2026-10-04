@@ -163,8 +163,8 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
   const { width: W, depth: D, height: H, gateWidth } = room, hw = W / 2, hd = D / 2, side = hw - gateWidth / 2, off = 0.012;
   const torchU = (D / 2 + torchZ) / D;   // the sconces sit near the far end of each side wall
   const walls: Wall[] = [
-    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301, marks: [{ img: 'pool', x: 1.9, y: 0.95, w: 2.6 }] },
-    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307, marks: [{ img: 'splash', x: 1.9, y: 1.95, w: 1.7 }] },
+    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301, marks: [{ img: 'pool', x: 1.9, y: 0.95, w: 2.6 }, { img: 'spray', x: 3.1, y: 2.0, w: 2.0 }] },
+    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307, marks: [{ img: 'splash', x: 1.9, y: 1.95, w: 1.7 }, { img: 'smear', x: 3.1, y: 0.85, w: 2.0 }] },
     // the left wall is turned +90°, so its u runs toward the far wall: the torch sits at 1 - torchU there
     { w: D, h: H, at: [-hw + off, H / 2, 0], turn: Math.PI / 2, seed: 311, torch: 1 - torchU, marks: [{ img: 'spray', x: 5.3, y: 1.8, w: 3.0 }] },
     { w: D, h: H, at: [hw - off, H / 2, 0], turn: -Math.PI / 2, seed: 313, torch: torchU, marks: [{ img: 'smear', x: 3.3, y: 1.2, w: 3.4 }] },
