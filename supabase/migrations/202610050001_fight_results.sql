@@ -9,7 +9,7 @@ begin;
 -- ONLY by report_duel()/settle_forfeits() below, never by a client insert. Each signed-in page registers at duel start (report_duel_start: who
 -- was in the room, with their name, level and gear), then reports its settled result with the final checkpoint hash; the two rows are written when both
 -- players' reports of one room AGREE (one win, one loss, same hash). A player who stays when the other leaves reports a lone forfeit-win: it is held
--- 3 minutes, voided by ANY report from the other player, and otherwise settled by settle_forfeits() (the stayer's win and the leaver's loss, the
+-- 90 seconds, voided by ANY report from the other player, and otherwise settled by settle_forfeits() (the stayer's win and the leaver's loss, the
 -- leaver known from their start row). Both claiming a forfeit, or both silent: nothing is written. A lone client cannot write itself
 -- a win. Two accounts colluding in one room could, which only decorates their own wall: these rows are cosmetic and NEVER feed awards,
 -- rewards, rank or loot. `room` pairs the two rows and makes the write idempotent. A fighter reads only their own rows.
@@ -122,7 +122,7 @@ language sql security definer set search_path = '' as $$
 $$;
 revoke all on function public.write_duel_pair(text, uuid, text, uuid, text) from public, anon, authenticated;
 
--- A forfeit held 3 minutes with no other report from the room settles: the lone reporter's win and the other player's loss. A room with
+-- A forfeit held 90 seconds with no other report from the room settles: the lone reporter's win and the other player's loss. A room with
 -- two reports (a contradiction, or both claiming a forfeit) is never settled. Called by pg_cron each minute where it exists, and at the
 -- start of every report_duel.
 create function public.settle_forfeits() returns integer language plpgsql security definer set search_path = '' as $$
@@ -131,7 +131,7 @@ begin
   for r in
     select f.room, f.user_id stayer, (select s.user_id from public.duel_starts s where s.room = f.room and s.user_id <> f.user_id) leaver
     from public.duel_reports f
-    where f.result = 'forfeit-win' and f.created_at < now() - interval '3 minutes'
+    where f.result = 'forfeit-win' and f.created_at < now() - interval '90 seconds'
       and (select count(*) from public.duel_reports x where x.room = f.room) = 1
       and not exists (select 1 from public.fight_results d where d.room = f.room)
       and (select count(*) from public.duel_starts s where s.room = f.room) = 2

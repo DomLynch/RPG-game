@@ -478,7 +478,7 @@ try {
     end$$;
     delete from public.duel_metrics;`;
   // fight_results (Pit skull walls): AI rows from the owner's own client only; duel rows only through report_duel (two agreeing reports) or
-  // settle_forfeits (a lone forfeit-win held 3 minutes), the identities coming from the start rows.
+  // settle_forfeits (a lone forfeit-win held 90 seconds), the identities coming from the start rows.
   const fightResults = `
     reset role;
     set role authenticated;
@@ -522,7 +522,7 @@ try {
       if public.report_duel('room0003','forfeit-win',null) then raise exception 'Forfeit written at once'; end if;
     end$$;
     reset role;
-    update public.duel_reports set created_at = now() - interval '4 minutes' where room = 'room0003';
+    update public.duel_reports set created_at = now() - interval '2 minutes' where room = 'room0003';
     do $$begin
       if public.settle_forfeits() <> 1 then raise exception 'Held forfeit did not settle'; end if;
       if (select count(*) from public.fight_results where room = 'room0003' and user_id = '11111111-1111-4111-8111-111111111111' and result = 'win') <> 1
@@ -530,7 +530,7 @@ try {
     end$$;
     -- a forfeit the other player contradicts is never settled
     insert into public.duel_starts(room,user_id,name,level) values ('room0004','11111111-1111-4111-8111-111111111111','Aldren',5),('room0004','22222222-2222-4222-8222-222222222222','Bo',6);
-    insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0004','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '4 minutes'),('room0004','22222222-2222-4222-8222-222222222222','loss','bbbbbbbbbbbbbbbb',now());
+    insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0004','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '2 minutes'),('room0004','22222222-2222-4222-8222-222222222222','loss','bbbbbbbbbbbbbbbb',now());
     do $$begin if public.settle_forfeits() <> 0 or exists (select 1 from public.fight_results where room = 'room0004') then raise exception 'Contradicted forfeit settled'; end if; end$$;
     set role authenticated;
     select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
