@@ -1375,6 +1375,11 @@ function closePit() {
   delete document.body.dataset.pit;
   canvas.focus();
 }
+// `?look=pit-glow` (the Pit look test, Dom 2026-10-04: "1 room I can move around"): the page opens straight into the walkable Pit, no fight first.
+function walkPitGlow() {
+  if (pitLook || pit || !pitGlowFrom(window.location.search) || document.body.dataset.pit) return;
+  void openPit(pitStage(), 'win').then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }, (error: unknown) => captureException(error, { tags: { pit: 'glow' } }));
+}
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
@@ -1452,7 +1457,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
-      if (kind === 'ready') showPitLook();
+      if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
     requestedArena ?? (storedArena || undefined),   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
