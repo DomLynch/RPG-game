@@ -23,3 +23,12 @@ export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-pr
   if (tokens.includes('pit-plain')) return undefined;
   return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : 'stone-full';
 }
+// `pit-glow` (Dom 2026-10-04, the painted gladiator cell): the same room relit gold, light through the gate bars, Arena 1 beyond them.
+// `?look=pit-glow` alone opens straight into the glow room to walk, look and tap (main.ts walkPitGlow); `?look=pit,pit-glow` is the still.
+export const pitGlowFrom = (search: string) => (new URLSearchParams(search).get('look') ?? '').split(',').includes('pit-glow');
+// The Pit's look (Dom 2026-10-04: "this is amazing" — the open-air cage, glow-lit, with the realistic blood): the DEFAULT of every Pit visit.
+// `?look=pit-cell` keeps the glow but closes the room (the cell Dom compared it with); `?look=pit-old` is the room as it was before 10-04.
+export const pitOpenLook = (search: string): { glow?: true; cage?: true } => {
+  const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
+  return tokens.includes('pit-old') ? {} : tokens.includes('pit-cell') ? { glow: true } : { glow: true, cage: true };
+};

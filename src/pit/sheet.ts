@@ -6,7 +6,8 @@ import { trophyIds, type Pick } from './room.ts';
 
 export type Sheet = { show(zone: Pick | null): void; hide(): void; dispose(): void };
 
-export function createSheet(game: GameStage, loot: () => Loot, worn: () => void): Sheet {
+// `quiet` (pit-glow, Dom 10-04: "remove this black helper thing"): no sheet in open floor, only at the rack, the trophies and the gate.
+export function createSheet(game: GameStage, loot: () => Loot, worn: () => void, quiet = false): Sheet {
   const root = document.createElement('section'), title = document.createElement('h2'), body = document.createElement('div');
   root.id = 'pit-ui'; root.hidden = true; root.setAttribute('aria-live', 'polite');
   root.append(title, body);
@@ -59,7 +60,7 @@ export function createSheet(game: GameStage, loot: () => Loot, worn: () => void)
     if (zone === 'rack' && (event.target as HTMLElement).closest('[data-wear]')) { render(); worn(); }
   });
   return {
-    show(next) { root.hidden = false; if (next !== zone) { zone = next; render(); } },
+    show(next) { root.hidden = quiet && !next; if (root.hidden) { zone = next; return; } if (next !== zone) { zone = next; render(); } },
     hide() { root.hidden = true; zone = undefined; },
     dispose() { root.remove(); },
   };

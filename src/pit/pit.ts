@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Pick, type Room } from './room.ts';
 import { GATE_OPEN_S } from './gate.ts';
+import { GLOW } from './glow.ts';
 import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
@@ -16,10 +17,12 @@ export const CROWD_FIRST_S = 10, CROWD_EVERY_S = 30;
 export const CROWD_ROTATION = ['reaction', 'jeer', 'chant'] as const;
 let crowdNext = 0;
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
-const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
+const PORTRAIT_FOV = 62, GLOW_FOV = 72;   // pit-glow: Dom 10-04 "zoom out 20%, a bit claustrophobic" (tan 36°/tan 31° = 1.21)   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
 // Dom's phone test 2026-09-30 ("too close, cramped"): the camera stands 40 % farther back along its view line, raised so the gate and the floor read,
 // in a room 25 % bigger each way. Was eye height 2.15, 3.1 m behind him.
 const PULL_Y = 3.0, PULL_Z = 4.35;
+// pit-cage (Dom 10-04: the open yard ends the top-down, boxed-in feel): a flatter view, lower eye and higher aim, so the sky and the painted world show over the fence.
+const CAGE_EYE_Y = 2.4, CAGE_LOOK_Y = 1.9;
 const FIT = { key: 6, body: 2.15, aim: 0.98, turn: 0.012 };   // the sheet's mannequin framing, as gear-room.ts: head to boots with air, the aim height, rad per px of a drag, and the warm key lamp's strength (the night room is torch-lit: without it his gear does not read)
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
 const ARRIVE_WALK = 0.7;   // s: how long he carries the gate walk into the room (D2), unless the stick moves first
@@ -43,7 +46,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   let built: Room;
   try {
     built = (room ??= buildRoom(stage));
-    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); });
+    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); }, !!stage.glow);
   } catch (error) {
     if (room) room.group.visible = false;   // built, then the sheet threw: the room must not stay drawn over the arena
     stage.setArenaVisible(true);
@@ -54,17 +57,21 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   if (gateAt) built.gate.set(Math.min(Math.max(gateAt, 0), 1));
   if (again) void built.restock();   // what he owns may have changed since the last visit (a take)
   const lights = scene.children.filter((c): c is THREE.Light => c instanceof THREE.Light).map((light) => [light, light.intensity] as const);
+  const cage = !!stage.glow && !!stage.cage;
   for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
+  const fog = scene.fog;   // `pit-glow` (glow.ts): a warm haze instead of the arena's fog while the room is up; restored on leave
+  // pit-glow: a warm haze instead of the arena's fog; the cage carries its own golden-hour sky and sun (glow.ts addOpenSky), so its haze is Arena 1's
+  if (stage.glow) scene.fog = cage ? new THREE.FogExp2(GLOW.cageFog, GLOW.cageFogDensity) : new THREE.FogExp2(GLOW.fog, GLOW.fogDensity);
   const fov = camera.fov;
-  if (camera.aspect < 1) { camera.fov = PORTRAIT_FOV; camera.updateProjectionMatrix(); }
+  if (camera.aspect < 1) { camera.fov = stage.glow ? GLOW_FOV : PORTRAIT_FOV; camera.updateProjectionMatrix(); }
   let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry], speed: arrival };
   let autoIn = arrival > 0 ? ARRIVE_WALK : 0;   // seconds of his own momentum left
   const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3(), him = new THREE.Vector3();
   const aim = (w: Walker) => {   // where the camera wants to be for him now: behind and above, leaning toward the zone he is in
     const zone = zoneAt(w.x, w.z);
-    look.set(w.x, 1.15, w.z - 0.6);
+    look.set(w.x, cage ? CAGE_LOOK_Y : 1.15, w.z - 0.6);
     if (zone) look.lerp(focus.set(...FOCUS[zone]), 0.45);
-    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -4.3, 4.3), PULL_Y, THREE.MathUtils.clamp(w.z + PULL_Z, -1.95, EYE_BACK));
+    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -4.3, 4.3), cage ? CAGE_EYE_Y : PULL_Y, THREE.MathUtils.clamp(w.z + PULL_Z, -1.95, EYE_BACK));
     if (lookYaw || lookPitch) { orbitEye(eye, him.set(w.x, 1.15, w.z), lookYaw, lookPitch); look.copy(him); }   // the look orbits HIM (Lead): a drag is to see your fighter, so he stays framed
     return zone;
   };
@@ -111,6 +118,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     built.group.visible = false;
     sheet?.hide();
     for (const [light, intensity] of lights) light.intensity = intensity;
+    scene.fog = fog;
     camera.fov = fov; camera.updateProjectionMatrix();
     stage.setArenaVisible(true);
   };

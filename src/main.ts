@@ -37,7 +37,7 @@ import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparrin
 import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
+import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
@@ -1327,6 +1327,7 @@ function pitStage(): Stage {
   return {
     ...view.pitStage(pitLoot),
     ...(look ? { look } : {}),
+    ...pitOpenLook(window.location?.search ?? ''),   // the cage by default (look-flag.ts)
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
@@ -1375,10 +1376,15 @@ function closePit() {
   delete document.body.dataset.pit;
   canvas.focus();
 }
+// `?look=pit-glow` (the Pit look test, Dom 2026-10-04: "1 room I can move around"): the page opens straight into the walkable Pit, no fight first.
+function walkPitGlow() {
+  if (pitLook || pit || !pitGlowFrom(window.location.search) || document.body.dataset.pit) return;
+  void openPit(pitStage(), 'win').then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }, (error: unknown) => captureException(error, { tags: { pit: 'glow' } }));
+}
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}) };   // Web's stone look test
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search) };   // Web's stone look test
   const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
   pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
@@ -1452,7 +1458,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
-      if (kind === 'ready') showPitLook();
+      if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
     requestedArena ?? (storedArena || undefined),   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
