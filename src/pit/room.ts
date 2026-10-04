@@ -201,12 +201,14 @@ export function buildRoom(stage: Stage): Room {
     const holder = new THREE.Group();
     holder.name = 'gate'; holder.position.set(0, 0, -hd);
     for (const mesh of [nodes.arch, nodes.bars]) { mesh.castShadow = mesh.receiveShadow = true; holder.add(mesh); }
+    // pit-glow (Dom 10-04: the entrance "like heaven"): the pale arch in the wall's own grit, a clone so the shared model stays as it is.
+    if (G && nodes.arch.material instanceof THREE.MeshStandardMaterial) { const arch = nodes.arch.material.clone(); arch.color.set(GLOW.arch); materials.push(arch); nodes.arch.material = arch; }
     bars = nodes.bars; barsRest = bars.position.y;
     lift(frozen);   // a still that asked for the gate part-way up (the look flag) before it landed
     group.add(holder);
   }).catch(() => { /* a bare way out */ }));
   {
-    const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: G ? 0.2 : 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
+    const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: G ? 0.08 : 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
     textures.push(spill.map!, smoke.map!);
     materials.push(spill, smoke);
@@ -272,7 +274,7 @@ export function buildRoom(stage: Stage): Room {
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
     geometries.push(smokeGeometry); group.add(new THREE.Points(smokeGeometry, smoke));
-    const gateLight = new THREE.PointLight(G ? GLOW.light : '#ffe0b0', G ? 7 : 6, G ? 9 : 7, 2); gateLight.position.set(0, 1.6, -hd + 0.5); lights.push(gateLight);
+    const gateLight = new THREE.PointLight(G ? GLOW.light : '#ffe0b0', G ? 2.5 : 6, G ? 9 : 7, 2); gateLight.position.set(0, 1.6, -hd + 0.5); lights.push(gateLight);
   }
   {
     // Light: one warm KEY (the torch, a spot that casts contact shadows), one cool FILL from the gate, and the point light turned down
