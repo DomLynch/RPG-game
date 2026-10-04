@@ -3,7 +3,7 @@
 // never disposes them, and adds to the scene only what it built itself.
 import type * as THREE from 'three';
 import type { Loot, LootId } from '../loot.ts';
-import type { Kills, PitRecord } from './skulls.ts';
+import type { Champion, Kills, PitRecord } from './skulls.ts';
 
 export type ExtraName = 'gate-machinery' | 'water-bucket' | 'whetstone-wheel';   // public/pit/extra/
 // The scene's half (scene.ts pitStage).
@@ -44,6 +44,8 @@ export type GameStage = {
   skullsNow?(): Kills | undefined;   // the last known kills, synchronously (the first stock and the sheet); undefined until the module is in, then the room falls back to an empty wall
   record?(): Promise<PitRecord>;   // the record board's numbers: Supabase pit_record over the loot fallback; never rejects
   recordNow?(): PitRecord | undefined;   // the last known record, synchronously; undefined until the module is in (the board then shows em dashes)
+  champions?(): Promise<Champion[]>;   // the wall of champions: today's daily board headlines (Supabase daily_board_summary); no client = []; never rejects
+  championsNow?(): Champion[] | undefined;   // the last known champions, synchronously; undefined until the module is in (the board then reads empty)
   pieceName?(id: string): string;   // a paperdoll item id's display name, for a duel opponent's gear line
   gateSound?(): { stop(): void } | void;   // the gate began to open (a tap on it): start its winch; stop() on a skip or when the Pit closes (Audio's playGate)
   openJournal?(): void;   // the full loadout sheet (Gear & pack: worn, stored, weapons and armour on/off); the rack opens it. Web's #1155 may add a weapons/armour filter
@@ -54,7 +56,7 @@ export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
 export type Entry = 'win' | 'defeat';
 // Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
-export type Pose = 'rack' | 'trophies' | 'gate' | 'wall' | 'board' | 'vault';   // wall: the skull wall (right of the arch); board: the record board (left of it); vault: Web's stone look test only
+export type Pose = 'rack' | 'trophies' | 'gate' | 'wall' | 'board' | 'champions' | 'vault';   // champions: the wall of champions on the back fence; wall: the skull wall (right of the arch); board: the record board (left of it); vault: Web's stone look test only
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
 export type Pit = { frame(dt: number): void; fitting(el: HTMLElement | null, view?: { width(): number; height(): number }): void; leave(): void; dispose(): void; readonly ready: Promise<void>; readonly extras: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)

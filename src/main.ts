@@ -35,7 +35,7 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
-import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Kills, type PitRecord, type Stage } from './pit-coordinator.ts';
+import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Champion, type Kills, type PitRecord, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom, skullsDemoFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
@@ -1323,7 +1323,7 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 const pitLoot = () => profile.loot ?? emptyLoot();
 // The skull wall's kills and the record board (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each
 // Pit visit; the `&skulls=demo` look never touches the network. skullsNow / recordNow are undefined until the module is in.
-let skullMod: SkullsModule | null = null, killCache: Kills | null = null, recordCache: PitRecord | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
+let skullMod: SkullsModule | null = null, killCache: Kills | null = null, recordCache: PitRecord | null = null, championCache: Champion[] | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
 function pitSkulls() {
   const demo = skullsDemoFrom(window.location?.search ?? '');
   void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
@@ -1344,6 +1344,13 @@ function pitSkulls() {
       if (demo) return m.demoRecord();
       recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills());
       return recordCache;
+    },
+    championsNow: (): Champion[] | undefined => (!skullMod ? undefined : demo ? skullMod.demoChampions() : (championCache ?? [])),
+    champions: async (): Promise<Champion[]> => {
+      const m = skullMod ??= await loadSkulls();
+      if (demo) return m.demoChampions();
+      championCache = await m.fetchChampions(session.db);
+      return championCache;
     },
   };
 }

@@ -40,7 +40,7 @@ function stage(): Stage {
 test('the room\'s volumes: each pose camera taps its own zone at its focus, and the open floor picks nothing', () => {
   const s = stage(), room = buildRoom(s);
   try {
-    assert.deepEqual(room.targets.map((t) => t.id).filter((id) => !id.startsWith('skull:')), ['rack', 'trophies', 'gate', 'board']);   // plus the skull wall's slots (tests/pit-wall.test.ts)
+    assert.deepEqual(room.targets.map((t) => t.id).filter((id) => !id.startsWith('skull:')), ['rack', 'trophies', 'gate', 'board', 'champions']);   // plus the skull wall's slots (tests/pit-wall.test.ts)
     for (const zone of ['rack', 'trophies', 'gate'] as const) {
       const c = camera(POSES[zone].camera, POSES[zone].target), pick = createPicker(c, () => room.targets);
       assert.equal(pick(tapAt(c, FOCUS[zone])), zone, `${zone}: a tap on what the camera leans toward`);

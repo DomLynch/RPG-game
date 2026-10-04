@@ -122,3 +122,64 @@ export function demoKills(nameOf: NameOf = (opponent) => opponent): Kills {
   return [...ai, ...duels].sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''));
 }
 export const demoRecord = (): PitRecord => ({ kills: 73, wins: 73, losses: 19, streak: 4, highestRank: 9, ...splitOf(demoKills()) });
+
+// The wall of champions (docs/briefs/pit-walls/BRIEF.md section 4): today's daily board, from the public RPC daily_board_summary() (jsonb { day,
+// fastest_kill, cleanest_kill, longest_survived, fastest_death, where, pending }; each headline a daily_board row or null; `where` a { location: deaths }
+// object over verified deaths; verified rows rank first on the server). Up to five lines; an empty day is no lines at all.
+export type ChampionKey = 'fastestKill' | 'cleanestKill' | 'longestSurvived' | 'fastestDeath' | 'where' | 'pending';
+export type Champion = { key: ChampionKey; label: string; name: string; value: string; verified: boolean };
+export const NAME_MAX = 16, TICKS_PER_SECOND = 60;
+// A fighter's name on the board: control and bidi-override characters out, whitespace collapsed, at most NAME_MAX characters; 'Fighter' when nothing is left.
+export const boardName = (v: unknown): string => {
+  const s = typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  return s ? [...s].slice(0, NAME_MAX).join('').trim() : 'Fighter';
+};
+const seconds = (ticks: number): string => `${(ticks / TICKS_PER_SECOND).toFixed(1)} s`;
+const metric = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+const HEADLINES: [string, ChampionKey, string, (row: Record<string, unknown>) => string | null][] = [
+  ['fastest_kill', 'fastestKill', 'Fastest kill', (r) => { const t = metric(r.ticks); return t === null ? null : seconds(t); }],
+  ['cleanest_kill', 'cleanestKill', 'Cleanest kill', (r) => { const n = metric(r.taken); return n === null ? null : `${Math.floor(n)} hit${Math.floor(n) === 1 ? '' : 's'}`; }],
+  ['longest_survived', 'longestSurvived', 'Longest survived', (r) => { const t = metric(r.ticks); return t === null ? null : seconds(t); }],
+  ['fastest_death', 'fastestDeath', 'Fastest death', (r) => { const t = metric(r.ticks); return t === null ? null : seconds(t); }],
+];
+// The five lines, in the summary's order; a headline that is null or not the shape is skipped, never thrown on. The fifth is the deadliest place
+// (verified deaths) when there is one, else the unverified count when there is one; an unverified row's name carries a trailing '*'.
+export function championsFromSummary(json: unknown): Champion[] {
+  let summary: unknown = Array.isArray(json) ? json[0] : json;
+  if (typeof summary === 'string') { try { summary = JSON.parse(summary); } catch { return []; } }
+  if (!isObject(summary)) return [];
+  const lines: Champion[] = [];
+  for (const [field, key, label, value] of HEADLINES) {
+    const row = summary[field];
+    if (!isObject(row)) continue;
+    const v = value(row);
+    if (v === null) continue;
+    const verified = row.verified === true;
+    lines.push({ key, label, name: `${boardName(row.display_name)}${verified ? '' : '*'}`, value: v, verified });
+  }
+  const where = isObject(summary.where) ? Object.entries(summary.where).flatMap(([place, n]) => { const c = metric(n); return c && Math.floor(c) > 0 && place.trim() ? [[boardName(place), Math.floor(c)] as const] : []; }) : [];
+  where.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const pending = metric(summary.pending) ?? 0;
+  if (where.length) lines.push({ key: 'where', label: 'Deadliest spot', name: where[0]![0], value: `${where[0]![1]} death${where[0]![1] === 1 ? '' : 's'}`, verified: true });
+  else if (pending >= 1) lines.push({ key: 'pending', label: 'Pending', name: '', value: `${Math.floor(pending)} unverified today`, verified: false });
+  return lines;
+}
+// One line as the board and its sheet read it: "Fastest kill  Wanderer  14.2 s".
+export const championLine = (c: Champion): string => [c.label, c.name, c.value].filter(Boolean).join('  ');
+export const NO_CHAMPIONS = 'No champions yet today.';
+// Never throws: no client (a guest), an RPC error or a throw all leave an empty board.
+export async function fetchChampions(db: SkullDb | null | undefined): Promise<Champion[]> {
+  if (!db) return [];
+  try {
+    const r = await db.rpc('daily_board_summary');
+    return r.error ? [] : championsFromSummary(r.data);
+  } catch { return []; }
+}
+// The `&skulls=demo` look flag: a fixed day, one unverified row, so the board can be judged before real data exists.
+export const demoChampions = (): Champion[] => championsFromSummary({
+  fastest_kill: { display_name: 'Wanderer', ticks: 852, verified: true },
+  cleanest_kill: { display_name: 'Ivy of the Reach', taken: 0, verified: true },
+  longest_survived: { display_name: 'Marcus Vale', ticks: 4310, verified: true },
+  fastest_death: { display_name: 'Dunmore', ticks: 410, verified: false },
+  where: { gate: 3, pit: 1 }, pending: 2,
+});

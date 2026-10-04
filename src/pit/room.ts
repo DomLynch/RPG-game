@@ -16,6 +16,7 @@ import type { PickTarget } from './picker.ts';
 import { buildWall, type Wall } from './wall.ts';
 import { killsFromLoot } from './skulls.ts';
 import { buildBoard, type Board } from './board.ts';
+import { buildChampions, type Champions } from './champions-board.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
@@ -23,7 +24,7 @@ import { GLOW, addBloodStains, addFence, addGlow, addGrime, addGroundBlood, addO
 
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
-export type Pick = Zone | 'board' | `skull:${string}`;   // what a tap can pick: a zone's furniture, the record board, or one slot of the skull wall
+export type Pick = Zone | 'board' | 'champions' | `skull:${string}`;   // what a tap can pick: a zone's furniture, the record board, the wall of champions, or one slot of the skull wall
 
 export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
 export const RACK_SLOTS = 4, TROPHIES = 3;
@@ -40,6 +41,7 @@ export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number
   vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
   wall: { hero: { x: 0.6, z: -0.4, heading: 0.4 }, camera: [1.3, 2.0, 2.0], target: [3.5, 2.1, -3.6] },   // the skull wall, right of the arch, the gate's edge at the left
   board: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the record board, left of the arch, the gate's edge at the right
+  champions: { hero: { x: -2.3, z: 0.6, heading: 0.6 }, camera: [0.3, 1.75, -1.2], target: [0, 1.75, 3.75] },   // the wall of champions on the back fence, seen from the arrival side; he stands clear of it, left
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
 export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
@@ -188,7 +190,7 @@ export function buildRoom(stage: Stage): Room {
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
-  let wall: Wall, board: Board;
+  let wall: Wall, board: Board, champions: Champions;
   // A prop from the Stage (public/pit/props/<name>.glb): a still copy in a holder named for it, placed by the caller in the model's own
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
@@ -248,6 +250,7 @@ export function buildRoom(stage: Stage): Room {
     const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
     materials.push(bone);
     wall = buildWall(stage, group, -hd, bone);
+    champions = buildChampions(group, hd);   // today's champions, burned into a timber board on the back fence, facing the gate
     board = buildBoard(group, -hd);   // the record, carved left of the arch where the niches were
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
     // their spots; Lead 2026-09-30): the round red shield with its gold laurel at the far end, the sword and the spear standing by the near
@@ -370,8 +373,10 @@ export function buildRoom(stage: Stage): Room {
     // The skulls and the record: what is known now (the cached data, else the loot's kills), then the data from Supabase when it lands; a later stock or a dispose wins over it.
     wall.restock(stage.skullsNow?.() ?? killsFromLoot(loot));
     board.restock(stage.recordNow?.());
+    champions.restock(stage.championsNow?.());
     if (stage.skulls) void stage.skulls().then((data) => { if (mine === stocking && !disposed) wall.restock(data); }, () => undefined);
     if (stage.record) void stage.record().then((data) => { if (mine === stocking && !disposed) board.restock(data); }, () => undefined);
+    if (stage.champions) void stage.champions().then((data) => { if (mine === stocking && !disposed) champions.restock(data); }, () => undefined);
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
@@ -408,6 +413,7 @@ export function buildRoom(stage: Stage): Room {
     { id: 'gate', box: new THREE.Box3(new THREE.Vector3(-gate.width / 2, 0, -hd - 0.3), new THREE.Vector3(gate.width / 2, gate.height, -hd + 0.1)) },
     ...wall.targets,
     ...board.targets,
+    ...champions.targets,
   ];
 
   return {
@@ -436,6 +442,7 @@ export function buildRoom(stage: Stage): Room {
       for (const l of lights) l.dispose();   // the key's shadow map
       wall.dispose();
       board.dispose();
+      champions.dispose();
       pieces.clear();
     },
   };

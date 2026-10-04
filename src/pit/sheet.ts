@@ -3,6 +3,7 @@
 import type { GameStage } from './stage.ts';
 import type { Loot } from '../loot.ts';
 import { recordLines } from './board.ts';
+import { NO_CHAMPIONS, championLine } from './skulls.ts';
 import type { Kill } from './skulls.ts';
 import { RACK_SLOTS, rackIds, trophyIds, type Pick } from './room.ts';
 
@@ -48,6 +49,10 @@ export function createSheet(game: GameStage, loot: () => Loot, worn: () => void,
       const r = game.recordNow?.();
       nodes.push(...(r ? recordLines(r).map(line) : [line('Your record is carved here.')]));
       if (r) nodes.push(line(`Computer kills (latest 30): ${r.computerKills ?? '\u2014'} · Duel kills (latest 30): ${r.duelKills ?? '\u2014'}`));
+    } else if (zone === 'champions') {   // the board's five lines in full: feat, name, value
+      title.textContent = "Today's champions";
+      const list = game.championsNow?.() ?? [];
+      nodes.push(...(list.length ? list.map((c) => line(championLine(c))) : [line(NO_CHAMPIONS)]));
     } else if (zone?.startsWith('skull:')) {   // a niche of the wall: that kill's card, or the hint for an empty one
       const k = game.skullsNow?.()?.[Number(zone.slice(6))];
       if (!k) { title.textContent = 'The skull wall'; nodes.push(line(EMPTY_HINT)); }
