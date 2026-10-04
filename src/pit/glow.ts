@@ -191,7 +191,8 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
   const part = (strip: Strip, from: number, to: number, cut = 0): Part => ({ strip, from, to, cut });
   const walls: Wall[] = [
     { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301, marks: [
-      { x: 1.9, y: 0.62, h: 2.6, rot: -Math.PI / 2 + 0.05, wide: 1.3, alpha: 1, main: part('soft-bleed', 0.1, 0.9) },
+      { x: 0.9, y: 0.6, h: 1.1, rot: -Math.PI / 2 + 0.05, wide: 1.0, alpha: 0.8, main: part('soft-bleed', 0.1, 0.5) },
+      { x: 2.7, y: 0.6, h: 0.8, rot: -Math.PI / 2 - 0.08, wide: 1.2, alpha: 0.7, main: part('wet-smear', 0.5, 0.95) },
     ] },
     { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307, marks: [
       { x: 0.95, y: 2.3, h: 1.5, rot: 0.08, wide: 1.2, alpha: 1, main: part('wet-smear', 0.2, 0.7), join: part('soft-bleed', 0.35, 0.8) },
