@@ -337,15 +337,15 @@ test('duel report over a jittered link: both pages report the same checkpoint ha
   let checked = 0;
   for (const [link, seed] of [[{ latencyMs: 15, jitterMs: 10, loss: 0.02 }, 3], [{ latencyMs: 125, jitterMs: 30, loss: 0.1 }, 5], [{ latencyMs: 60, jitterMs: 90, loss: 0.05 }, 7], [{ latencyMs: 15, jitterMs: 10, loss: 0.02 }, 11]] as const) {
     const [a, b] = duelOver(link, 7200, seed);
-    if (!a.settled || !b.settled || !a.session!.duel.finish) continue;
+    assert.ok(a.settled && b.settled && a.session!.duel.finish, `seed ${seed}: both pages settled a finish`);
     const ra = reportBody(a, 'room0000'), rb = reportBody(b, 'room0000');
-    if (!ra || !rb) continue;
+    assert.ok(ra && rb, `seed ${seed}: both pages have a report`);
     checked++;
     assert.equal(ra.p_hash, rb.p_hash, `seed ${seed}: the two pages hash the same checkpoint`);
     assert.deepEqual([ra.p_result, rb.p_result].sort(), ['loss', 'win']);
     assert.equal(a.session!.finishedAt, b.session!.finishedAt, 'the first confirmed finish tick is the same on both pages');
   }
-  assert.ok(checked >= 1, 'at least one seed played to a settled finish');
+  assert.equal(checked, 4, 'all four link and seed pairs played to a settled finish');
 });
 
 test('duel start and forfeit: a page registers its own name, level and gear; a page whose peer left reports a forfeit-win with no hash', () => {
