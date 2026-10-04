@@ -13,7 +13,9 @@ export type SceneStage = {
   hero: { place(x: number, z: number, heading: number, speed: number, dt: number): void };   // the player's rig, walk/idle
   draw(): void;   // one frame of the borrowed renderer; the fight's render() does not run while the Pit shows
   grade(material: THREE.MeshStandardMaterial, kind: 'stone' | 'sand'): void;   // the arena's background grade (colour-grade.ts)
-  arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
+  // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only. `sand: 'arena-1'`: the sand clone carries Arena 1's own sand maps
+  // whichever arena the fight was in (a night or clay arena's cracked floor never reaches the yard): the glow / cage Pit asks for it.
+  arenaMaterials?(options?: { sand?: 'arena-1' }): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;
   glow?: boolean;
   // The arena's seeded noise (assets/arena/textures.ts), for the glow Pit's grime and blood stains: pure pixel maths handed in, since
   // the Pit imports nothing outside three (tests/pit-boundary.test.ts). Absent (tests): no grime, no stains.
