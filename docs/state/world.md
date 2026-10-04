@@ -9,6 +9,12 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 - Stills: ~/Desktop/Business/frankendom-skull-wall/ (VPS, 390x694). Walk link (after Deploy publishes): `?look=pit-glow,pit-cage&arena=1&skulls=demo`; still poses `&pose=wall` (left) and `&pose=duels` (right, new).
 - **Follow-up owed (small, separate PR):** in glow mode the yard floor must always be sand; after a clay arena (`?arena=a`) it uses that arena's cracked clay map (Lead 10-04).
 
+### RULING CHANGE (Lead 10-04, supersedes the two-panel skull wall above; build this when '#1370 is on trunk')
+- ONE skull wall only: the RIGHT panel, 6x5 = 30 niches. Every kill (computer or player) hangs one skull, newest first, capped at 30. Tap a skull = that kill's card: computer = legend portrait/name/rank (rank unknown for old wins), player = name, level, gear, date; W/L-vs-them optional.
+- Data: Backend adds `pit_recent_kills()` (latest 30 win rows, ai+duel) to #1366. Fallback before the migration and for guests: one skull per loot.taken/declined provenance (each take is a kill), newest first (Dom ~29 skulls, not 7).
+- LEFT panel is freed (Dom's pick pending via Lead): leave it empty stone, no niches, until told. `&skulls=demo` seeds a mixed list of ~12 kills.
+- So world/skull-wall @276068d9 needs rework (drop the left 2x5 block and the opponent list sheet; one kill list model), not just a rebase.
+
 ### Done today (10-04)
 - Pit wall blood is IN #1370 (lead/pit-ship 28c6a238, built on my world/pit-blood-cage bec837b0): four generated decals (spray, finger-drag, high splash with runs, cracked pool, puddle) from `scripts/pit-blood-decals.py` (numpy+PIL, run on the VPS), webps in `public/pit/blood/`, `addGroundBlood` in glow.ts, one entry in room.ts. GPT strip crops were compared side by side in the cage's daylight and lost (fresher, drapey); Lead and Dom saw the comparison. Budget PASS (Pit assets 2,332,612 of 2,500,000).
 - Skull wall: `src/pit/skulls.ts` (loot fallback: beaten if in defeats OR any taken/declined provenance, ranks unknown for old wins; reads Backend's `pit_ai_standing()` + `pit_duel_beaten()` via `session.db`, shapes from origin/backend/fight-results 9c7123f5 migration 202610050001), `wall.ts` rebuilt (40 niches; ids `skull:ai:<opponent>` / `skull:duel:<i>`), `sheet.ts`, `pit-coordinator.ts` `loadSkulls()` (main.ts may not import src/pit/: boundary test), `&skulls=demo` look flag.
