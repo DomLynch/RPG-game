@@ -239,7 +239,7 @@ export function buildRoom(stage: Stage): Room {
     parts.push([gold, [laurel, boss]]);
     ironParts.push(...sword, spear.head, ...helm);
     woodParts.push(spear.shaft);
-    parts.push([banner, [plane(0.75, 1.4, 1, { ry: Math.PI / 2, x: -hw + 0.03, y: 2.05, z: 2.75 })]]);
+    if (!G) parts.push([banner, [plane(0.75, 1.4, 1, { ry: Math.PI / 2, x: -hw + 0.03, y: 2.05, z: 2.75 })]]);
     // Right wall: the bed along the wall by the ramp end, the two chests toward the gate, the table between, the skull high above them.
     const bed = { x: hw - 0.55, z: 2.1 };
     woodParts.push(...[[-0.4, -0.85], [0.4, -0.85], [-0.4, 0.85], [0.4, 0.85]].map(([dx, dz]) => box(0.1, 0.4, 0.1, 2, { x: bed.x + dx!, y: 0.2, z: bed.z + dz! })), box(1.0, 0.1, 1.9, 2, { x: bed.x, y: 0.42, z: bed.z }), box(0.1, 0.5, 1.0, 2, { x: bed.x, y: 0.7, z: bed.z + 0.95 }));   // legs, slab, headboard
