@@ -103,9 +103,70 @@ export function addBloodStains(group: THREE.Group, width: number, depth: number)
 
 // Grime on the walls (Dom 10-04: "too symmetrical, fake looking ... a cave, an ancient gladiator room, not a 5* hotel"): over each wall a
 // sheet of its own dirt, so the 2 m stone tile stops repeating. Rising damp darkest at the foot, broad soot-and-sweat blotches that never
-// line up with the blocks, soot climbing above the torches, and old blood: a few splatters at body height with drips run down from them.
+// line up with the blocks, soot climbing above the torches, and the old blood on top (bloodTexture, its own sheet).
 // Lit like the wall (MeshStandardMaterial), one draw per wall; seeds differ so no two walls match.
-type Wall = { w: number; h: number; at: THREE.Vector3Tuple; turn: number; seed: number; torch?: number };   // torch: the sconce's u (0..1) on this wall
+// Old blood on the walls (Dom 10-04: "blood looks fake, uniform and like copy paste, sticker"): GPT's painted combat-blood strips
+// (public/game/img/blood, the screen-edge art Dom called real) cut into separate marks and laid as a few events, not a band: each has its
+// own strip, crop, angle, size and place. Every strip's cut edge is its heart (dense, flung to the right with drips running down), so a mark
+// is drawn from that edge outward; `join` mirrors a second strip off the same edge so a splash bursts both ways. Darkened to dried
+// brown-red once, then drawn into a sheet of its own over the wall's grime, lit like the wall.
+type Strip = 'wet-smear' | 'soft-bleed' | 'dragged-streak';
+type Part = { strip: Strip; from: number; to: number; cut?: number };   // the strip's content rows, 0..1 (rows 250..1290 of 1536 hold the paint); cut: the share of its width dropped from the heart, so only the thin halo and droplets are left
+type Mark = { x: number; y: number; h: number; rot: number; wide: number; alpha: number; main: Part; join?: Part };   // x, y: metres from the wall's left and the floor; h: the strip's length in metres
+const STRIP_ROWS = [250, 1290] as const;
+const BLOOD_PPM = 100;
+const BLOOD_TINT = 'rgba(30,8,6,0.5)';
+
+function loadStrips(): Promise<Record<Strip, HTMLCanvasElement>> {
+  const names: Strip[] = ['wet-smear', 'soft-bleed', 'dragged-streak'];
+  return Promise.all(names.map((name) => new Promise<HTMLCanvasElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d')!;
+      g.drawImage(img, 0, 0);
+      g.globalCompositeOperation = 'source-atop';   // only where there is paint: the strips' fresh red goes dark and dry
+      g.fillStyle = BLOOD_TINT;
+      g.fillRect(0, 0, c.width, c.height);
+      resolve(c);
+    };
+    img.onerror = () => reject(new Error(`blood strip ${name}`));
+    img.src = `/game/img/blood/${name}.webp`;
+  }))).then((canvases) => Object.fromEntries(names.map((n, i) => [n, canvases[i]!])) as Record<Strip, HTMLCanvasElement>);
+}
+
+function drawMark(g: CanvasRenderingContext2D, ch: number, strips: Record<Strip, HTMLCanvasElement>, m: Mark) {
+  const draw = (part: Part, mirror: boolean) => {
+    const src = strips[part.strip], rows = STRIP_ROWS[1] - STRIP_ROWS[0];
+    const sy = STRIP_ROWS[0] + part.from * rows, sh = (part.to - part.from) * rows, k = m.h * BLOOD_PPM / sh;
+    g.save();
+    g.translate(m.x * BLOOD_PPM, ch - m.y * BLOOD_PPM);
+    g.rotate(m.rot);
+    g.scale((mirror ? -1 : 1) * k * m.wide, k);
+    g.globalAlpha = m.alpha;
+    const cut = (part.cut ?? 0) * src.width;
+    g.drawImage(src, cut, sy, src.width - cut, sh, 0, -sh / 2, src.width - cut, sh);
+    g.restore();
+  };
+  draw(m.main, false);
+  if (m.join) draw(m.join, true);
+}
+
+function bloodTexture(w: number, h: number, marks: readonly Mark[]) {
+  const cw = Math.round(w * BLOOD_PPM), ch = Math.round(h * BLOOD_PPM);
+  const canvas = document.createElement('canvas');
+  canvas.width = cw; canvas.height = ch;
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  void loadStrips().then((strips) => {
+    const g = canvas.getContext('2d')!;
+    for (const m of marks) drawMark(g, ch, strips, m);
+    map.needsUpdate = true;
+  }, () => undefined);
+  return map;
+}
+type Wall = { w: number; h: number; at: THREE.Vector3Tuple; turn: number; seed: number; torch?: number; marks?: Mark[] };   // torch: the sconce's u (0..1) on this wall
 function grimeTexture({ w, h, seed, torch }: Wall): THREE.Texture {
   const PX = 96, cw = Math.round(w * PX / 2), ch = Math.round(h * PX / 2);   // 48 px per metre
   const blotch = fbm(4, 5, seed), fine = fbm(24, 3, seed + 7, 0.6), streak = fbm(3, 3, seed + 13);
@@ -122,41 +183,25 @@ function grimeTexture({ w, h, seed, torch }: Wall): THREE.Texture {
       d[i] = 34 - soot * 20; d[i + 1] = 24 - soot * 14; d[i + 2] = 16 - soot * 10; d[i + 3] = a * 255;
     }
     g.putImageData(img, 0, 0);
-    // Old blood: a splatter or two at body height (0.6..1.6 m), drips run down from them, the colour of the floor's stains.
-    let r = seed * 9301 + 49297; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
-    const splats = 2 + Math.floor(rnd() * 3 * w / 4);
-    for (let k = 0; k < splats; k++) {
-      const cx = (0.1 + rnd() * 0.8) * cw, cy = ch - (0.6 + rnd()) * PX / 2, size = (0.22 + rnd() * 0.35) * PX / 2;
-      for (let j = 0; j < 90; j++) {   // the spray: big drops near the heart, fine ones flung out to one side
-        const ang = rnd() * Math.PI * 2, dist = rnd() ** 1.8 * size * 2.2, rr = Math.max(0.6, (1 - dist / (size * 2.2)) * size * 0.28 * (0.4 + rnd()));
-        g.fillStyle = `rgba(${48 + rnd() * 16},${12 + rnd() * 6},${8 + rnd() * 4},${0.65 + rnd() * 0.25})`;
-        g.beginPath(); g.ellipse(cx + Math.cos(ang) * dist * 1.4, cy + Math.sin(ang) * dist, rr * (1 + rnd()), rr, ang, 0, Math.PI * 2); g.fill();
-      }
-      if (rnd() < 0.6) {   // a smear beside it: something bloody dragged along the stone
-        const sw = (0.4 + rnd() * 0.6) * PX / 2, sh = (0.06 + rnd() * 0.08) * PX / 2, sx = cx + (rnd() - 0.5) * size * 2, sy = cy + size * (0.5 + rnd());
-        const smear = g.createLinearGradient(sx, 0, sx + sw, 0);
-        smear.addColorStop(0, 'rgba(48,12,8,0.7)'); smear.addColorStop(0.7, 'rgba(48,12,8,0.3)'); smear.addColorStop(1, 'rgba(48,12,8,0)');
-        g.fillStyle = smear; g.fillRect(sx, sy, sw, sh);
-      }
-      for (let j = 0, n = 3 + Math.floor(rnd() * 5); j < n; j++) {   // drips: thin runs that thin out and stop
-        const x0 = cx + (rnd() - 0.5) * size * 1.6, len = (0.3 + rnd() * 0.8) * PX / 2, wd = 1.2 + rnd() * 2;
-        const run = g.createLinearGradient(0, cy, 0, cy + len);
-        run.addColorStop(0, 'rgba(50,12,8,0.7)'); run.addColorStop(1, 'rgba(50,12,8,0)');
-        g.fillStyle = run; g.fillRect(x0 - wd / 2, cy, wd, len);
-        g.fillStyle = 'rgba(46,11,7,0.65)'; g.beginPath(); g.arc(x0, cy + len * 0.85, wd * 0.9, 0, Math.PI * 2); g.fill();
-      }
-    }
   });
 }
 export function addGrime(group: THREE.Group, room: { width: number; depth: number; height: number; gateWidth: number }, torchZ: number) {
   const { width: W, depth: D, height: H, gateWidth } = room, hw = W / 2, hd = D / 2, side = hw - gateWidth / 2, off = 0.012;
   const torchU = (D / 2 + torchZ) / D;   // the sconces sit near the far end of each side wall
+  const part = (strip: Strip, from: number, to: number, cut = 0): Part => ({ strip, from, to, cut });
   const walls: Wall[] = [
-    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301 },
-    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307 },
-    // the left wall is turned +90°, so its u runs toward the far wall: the torch sits at 1 - torchU there
-    { w: D, h: H, at: [-hw + off, H / 2, 0], turn: Math.PI / 2, seed: 311, torch: 1 - torchU },
-    { w: D, h: H, at: [hw - off, H / 2, 0], turn: -Math.PI / 2, seed: 313, torch: torchU },
+    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301, marks: [
+      { x: 1.9, y: 0.62, h: 2.6, rot: -Math.PI / 2 + 0.05, wide: 1.3, alpha: 1, main: part('soft-bleed', 0.1, 0.9) },
+    ] },
+    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307, marks: [
+      { x: 0.95, y: 2.3, h: 1.5, rot: 0.08, wide: 1.2, alpha: 1, main: part('wet-smear', 0.2, 0.7), join: part('soft-bleed', 0.35, 0.8) },
+    ] },
+    { w: D, h: H, at: [-hw + off, H / 2, 0], turn: Math.PI / 2, seed: 311, torch: 1 - torchU, marks: [
+      { x: 4.7, y: 1.9, h: 1.6, rot: -0.35, wide: 1.8, alpha: 1, main: part('wet-smear', 0.05, 0.95), join: part('dragged-streak', 0.2, 0.8) },
+    ] },
+    { w: D, h: H, at: [hw - off, H / 2, 0], turn: -Math.PI / 2, seed: 313, torch: torchU, marks: [
+      { x: 2.9, y: 1.0, h: 2.6, rot: -Math.PI / 2 + 0.1, wide: 2.0, alpha: 1, main: part('soft-bleed', 0.15, 0.85, 0.2) },
+    ] },
     { w: W, h: H, at: [0, H / 2, hd - off], turn: Math.PI, seed: 317 },
   ];
   const textures: THREE.Texture[] = [], materials: THREE.MeshStandardMaterial[] = [], geometries: THREE.BufferGeometry[] = [];
@@ -168,6 +213,13 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
     mesh.receiveShadow = true;
     group.add(mesh);
     textures.push(map); materials.push(material); geometries.push(geometry);
+    if (!wall.marks) continue;
+    const bloodMap = bloodTexture(wall.w, wall.h, wall.marks);
+    const bloodMaterial = new THREE.MeshStandardMaterial({ map: bloodMap, transparent: true, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const blood = new THREE.Mesh(geometry, bloodMaterial);
+    blood.receiveShadow = true;
+    group.add(blood);
+    textures.push(bloodMap); materials.push(bloodMaterial);
   }
   return { textures, materials, geometries };
 }
