@@ -2,37 +2,27 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## 2026-10-04 ~19:3x (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
+## 2026-10-04 ~22:xx (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
 
 ### Now
-- **Skull wall part B is built and waiting on #1370.** `world/skull-wall` @276068d9 (off lead/pit-ship 28c6a238; 3 commits). Lead's order: do NOT fold into #1370; once #1370 is on trunk, rebase onto trunk and open its OWN PR (visual-pr-stills: left-panel and right-panel stills plus one tap-sheet still each side). Before the PR: re-run `node scripts/quality-stop-targeted.mjs` on the final head (the last commit 276068d9 was not gated) and do one tap test in a browser on each panel (never done: the sheet is unit-tested only).
-- Stills: ~/Desktop/Business/frankendom-skull-wall/ (VPS, 390x694). Walk link (after Deploy publishes): `?look=pit-glow,pit-cage&arena=1&skulls=demo`; still poses `&pose=wall` (left) and `&pose=duels` (right, new).
-- **Follow-up owed (small, separate PR):** in glow mode the yard floor must always be sand; after a clay arena (`?arena=a`) it uses that arena's cracked clay map (Lead 10-04).
-
-### LATEST RULING (Lead 10-04 evening; READ docs/briefs/pit-walls/BRIEF.md on lead/pit-ship @4e1285fe FIRST, it supersedes the ruling below): Dom wants all four: right of the arch = skull wall (latest 30 kills); left of the arch = a record board carved in the stone (kills, W/L, streak, highest rank); the rack = shows his highest-level pieces automatically (provenance tier, then ladder place; tap still opens the backpack/loadout); back fence = a wooden wall of champions from `daily_board_summary()`. #1370 merged as 4056467a, release running; resume when Lead says '#1370 is on trunk'.
-
-### RULING CHANGE (Lead 10-04, supersedes the two-panel skull wall above; build this when '#1370 is on trunk')
-- ONE skull wall only: the RIGHT panel, 6x5 = 30 niches. Every kill (computer or player) hangs one skull, newest first, capped at 30. Tap a skull = that kill's card: computer = legend portrait/name/rank (rank unknown for old wins), player = name, level, gear, date; W/L-vs-them optional.
-- Data: Backend adds `pit_recent_kills()` (latest 30 win rows, ai+duel) to #1366. Fallback before the migration and for guests: one skull per loot.taken/declined provenance (each take is a kill), newest first (Dom ~29 skulls, not 7).
-- LEFT panel is freed (Dom's pick pending via Lead): leave it empty stone, no niches, until told. `&skulls=demo` seeds a mixed list of ~12 kills.
-- So world/skull-wall @276068d9 needs rework (drop the left 2x5 block and the opponent list sheet; one kill list model), not just a rebase.
+- **PR #1372 is OPEN: the Pit walls** (`world/skull-wall` @f19bd17e, base trunk 4056467a; CI was pending when I left). Lead's brief: docs/briefs/pit-walls/BRIEF.md (on lead/pit-ship). It has: skull wall right of the arch (6x5, latest 30 kills), carved record board left of the arch, trophy rack = best 4 pieces (tier, then ladder place), wall of champions on the back fence (daily_board_summary), clay-floor fix (glow/cage always Arena 1 sand), `&skulls=demo` seed, `__pit.tap(id)`/`__pit.sheet()` debug hooks. Stills: evidence/world-pit-walls (stills/pit-walls) and ~/Desktop/Business/frankendom-pit-walls/. Next: watch #1372 CI (Auto-fix offered to Dom), Lead/Auditor review, Lead asks Deploy for /preview/pit-cage/ from my head (4fbea1c7 was published earlier; the polish needs a republish).
+- Data layer reads Backend's RPCs (#1366 @69b5c29d, NOT applied to production yet): `pit_recent_kills()`, `pit_record()`; loot fallback for guests/pre-migration (every taken/declined/defeats entry is a kill, newest by day). Dom's real profile therefore shows his ~30 loot-derived kills until the migration is applied.
 
 ### Done today (10-04)
-- Pit wall blood is IN #1370 (lead/pit-ship 28c6a238, built on my world/pit-blood-cage bec837b0): four generated decals (spray, finger-drag, high splash with runs, cracked pool, puddle) from `scripts/pit-blood-decals.py` (numpy+PIL, run on the VPS), webps in `public/pit/blood/`, `addGroundBlood` in glow.ts, one entry in room.ts. GPT strip crops were compared side by side in the cage's daylight and lost (fresher, drapey); Lead and Dom saw the comparison. Budget PASS (Pit assets 2,332,612 of 2,500,000).
-- Skull wall: `src/pit/skulls.ts` (loot fallback: beaten if in defeats OR any taken/declined provenance, ranks unknown for old wins; reads Backend's `pit_ai_standing()` + `pit_duel_beaten()` via `session.db`, shapes from origin/backend/fight-results 9c7123f5 migration 202610050001), `wall.ts` rebuilt (40 niches; ids `skull:ai:<opponent>` / `skull:duel:<i>`), `sheet.ts`, `pit-coordinator.ts` `loadSkulls()` (main.ts may not import src/pit/: boundary test), `&skulls=demo` look flag.
+- Pit wall blood in #1370 (merged 4056467a): generated decals (scripts/pit-blood-decals.py, numpy+PIL on the VPS) after Dynamic Paint baked blank; GPT strip crops lost the side-by-side.
+- Skull wall rework x3 (two panels -> one wall of kills), record board, rack, champions, clay floor, polish (contrast helper, nails), all in #1372. Built mostly by subagents inside this worktree, reviewed by me.
 
 ### Open
-- Lead: #1370 release, then preview of the skull wall from my head. Backend: RPC migration not applied yet, so Dom's real profile shows the loot-derived skulls (his 7 opponents).
-- Strip variant of the blood: not needed unless Dom asks louder.
-- Old branches left alone: world/pit-blood, world/pit-blood-cage, world/pit-blood-strips (none), lead/pit-look cell stays only as the comparison link.
+- Tap raycast itself is covered by tests/pit-picker, not by the browser tap test (the debug hook skips the ray). Phone `?perf=1` not measured. Known nit: one knot ring grazes 'Vale' on the champions board. The rack still shows nothing in the look stills (no loot).
+- Old branches left alone: world/pit-blood, world/pit-blood-cage, lead/pit-look (cell comparison link only).
 
 ### Gotchas
-- **Dynamic Paint in headless Blender 5.2.2 baked blank** (mesh, vertex and particle brushes; ~40 min lost): do not retry; the numpy generator replaced it. Blender on the VPS is fine for other work.
-- Mac load was ~50 (shared); local SwiftShader screenshots time out. Render on the VPS: work copy `/opt/frankendom-shadow/work/world-cage` is a git worktree of /opt/frankendom-shadow/repo (`git -c safe.directory='*' fetch origin <branch>; checkout --detach`), node_modules symlinked; scripts in /opt/frankendom-shadow/work/world-blood (`run*.sh`, `shot-vps.mjs`, `shot-skulls.mjs`), submitted with `CAPTURE_WAIT_S=28800 setsid -f /opt/frankendom-shadow/bin/capture world ./run3.sh`, poll a DONE file. NEVER rsync src/ or public/ from the Mac (754 MB, hangs); push the branch and fetch on the VPS.
-- zsh: `$VAR` ssh options do not word-split: use wrapper scripts (scratchpad v.sh/sc.sh/rs.sh). macOS `sed -i ''`. `rm -f w2-*.png` with no match aborts a `&&` chain in zsh.
-- At the cage gate pose the camera sees only ~1.5 m of wall either side of the arch (140 px/m, wall 5 m high): wall events must sit within that; skull niches (x 2.3..4.7) are off-screen there, use `pose=wall` / `pose=duels`.
-- The still poses (`?look=pit,...&pose=`) have no GameStage: skulls/demo hooks are added to the still stage in `showPitLook` only when `&skulls=demo`.
-- The Stop hook runs the targeted gate on whatever is in the tree, including a subagent's half-finished edits: let a subagent finish before stopping.
+- **Dynamic Paint in headless Blender 5.2.2 baked blank** (mesh, vertex, particle brushes): do not retry.
+- Render on the VPS: work copy `/opt/frankendom-shadow/work/world-cage` is a git worktree of /opt/frankendom-shadow/repo (`git -c safe.directory='*' fetch origin <branch>; checkout --detach`), node_modules symlinked; scripts in /opt/frankendom-shadow/work/world-blood (run3.sh/run4.sh, shot-skulls.mjs for poses, tap.mjs for the tap test), submitted with `CAPTURE_WAIT_S=28800 setsid -f /opt/frankendom-shadow/bin/capture world ./run4.sh`, poll a DONE file. NEVER rsync src/ or public/ from the Mac (754 MB). The Mac is shared and was at load ~50: local SwiftShader times out.
+- zsh: `$VAR` ssh options do not word-split (use wrapper scripts); macOS `sed -i ''`; a failing `rm -f glob` aborts a `&&` chain.
+- At the cage gate pose the camera sees only ~1.5 m of wall each side of the arch: use `&pose=wall|board|champions` stills (look stills have no GameStage; the demo hooks are added in showPitLook only for `&skulls=demo`).
+- The Stop hook runs the targeted gate and the sparring browser check on whatever is in the tree: a subagent editing src/ concurrently breaks it (page reload mid-check); run the check in an isolated `git worktree` of the committed head (node_modules symlinked) instead.
+- main.ts must not import src/pit/ (pit-boundary test): reach pit code through src/pit-coordinator.ts.
 
 ## 2026-10-03 — Owner rejected both image arena trials; restore default
 - Removed both trial modules, two image assets/provenance, Stage options, scene/camera adapters, and trial-only tests/browser workflow/gate rows. Production main/scene/index and original50 release rows restored byte-for-byte to pre-trial950db85c; native arena/camera/characters/combat/sim unchanged.
