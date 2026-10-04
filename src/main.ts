@@ -1240,6 +1240,7 @@ if (duelAsked) {
     },
     peerKit: (kit) => { duelWait.hidden = true; if (kit && duelAsked === 'new') feedback.duel('joined'); giveKit(kit); },   // the guest is here: the wait panel goes, the challenger hears him arrive   // the guest is here: the wait panel goes
     ready: () => assetsReady,
+    me: () => ({ name: profile.name, level: rankLevel() }),
     api, revision,
     // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
     session: async () => {
