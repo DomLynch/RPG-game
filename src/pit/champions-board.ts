@@ -32,7 +32,7 @@ export function paintChampions(ctx: CanvasRenderingContext2D, champions: readonl
       ctx.beginPath(); ctx.moveTo(x0, y); ctx.bezierCurveTo(x0 + len * 0.3, y + bend, x0 + len * 0.7, y - bend, x0 + len, y + bend * 0.4); ctx.stroke();
     }
     for (let k = 0; k < 2; k++) if (rand() < 0.6) {
-      const x = 40 + rand() * (W - 80), y = y0 + plank * (0.3 + rand() * 0.4), r = 7 + rand() * 9;
+      const x = 40 + rand() * (W - 80), y = y0 + plank * (0.84 + rand() * 0.06), r = 4 + rand() * 4;
       ctx.fillStyle = 'rgba(14,8,4,0.55)'; ctx.beginPath(); ctx.ellipse(x, y, r * 1.5, r, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = 'rgba(14,8,4,0.3)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(x, y, r * 2.4, r * 1.7, 0, 0, Math.PI * 2); ctx.stroke();
     }
