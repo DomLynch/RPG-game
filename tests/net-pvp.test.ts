@@ -311,6 +311,16 @@ test('desync settlement: a delayed mismatching checkpoint revokes a previously s
   assert.equal(pages[0].result, 'no-contest');
 });
 
+test('desync settlement: a peer\'s bare desync notice cannot void a finish this page has settled (Auditor F2)', () => {
+  const { pages, step } = finishingPair();
+  step(70);
+  assert.equal(pages[0].result, 'finished');
+  pages[0].receive({ k: 'desync', r: 'room0000' });
+  assert.equal(pages[0].stage, 'fighting', 'an unproven claim changes nothing once the finish is settled');
+  assert.equal(pages[0].settled, true);
+  assert.equal(pages[0].result, 'finished');
+});
+
 test('gate 3: a cut link says "waiting" after 3 s and is abandoned on both pages after 15 s; an abandoned page stops sending', () => {
   const { pages: [a, b], step, link, sent } = idlePair();
   step(seconds(10));
