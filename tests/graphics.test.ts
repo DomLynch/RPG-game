@@ -1106,7 +1106,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
   let page: ReturnType<typeof boot> | null = null;
   session.db = {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'user-7' } } } }) },   // flushClaims posts only as the flushing account
-    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
+    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { if (table !== 'loot_claims') return { error: null }; calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),   // fight_results (the Pit wall's mirror) is not a claim
     rpc: async (fn: string) => {
       calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
       return { data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null };
@@ -1177,7 +1177,7 @@ test('loot claims: a skill take claims the win with no piece once its Undo line 
   const inserts: Record<string, unknown>[] = [];
   session.db = {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'user-7' } } } }) },
-    from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
+    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { if (table === 'loot_claims') inserts.push(row); return { error: null }; } }),
     rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
   } as never;
   session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
