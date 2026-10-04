@@ -9,6 +9,8 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 - Stills: ~/Desktop/Business/frankendom-skull-wall/ (VPS, 390x694). Walk link (after Deploy publishes): `?look=pit-glow,pit-cage&arena=1&skulls=demo`; still poses `&pose=wall` (left) and `&pose=duels` (right, new).
 - **Follow-up owed (small, separate PR):** in glow mode the yard floor must always be sand; after a clay arena (`?arena=a`) it uses that arena's cracked clay map (Lead 10-04).
 
+### LATEST RULING (Lead 10-04 evening; READ docs/briefs/pit-walls/BRIEF.md on lead/pit-ship @4e1285fe FIRST, it supersedes the ruling below): Dom wants all four: right of the arch = skull wall (latest 30 kills); left of the arch = a record board carved in the stone (kills, W/L, streak, highest rank); the rack = shows his highest-level pieces automatically (provenance tier, then ladder place; tap still opens the backpack/loadout); back fence = a wooden wall of champions from `daily_board_summary()`. #1370 merged as 4056467a, release running; resume when Lead says '#1370 is on trunk'.
+
 ### RULING CHANGE (Lead 10-04, supersedes the two-panel skull wall above; build this when '#1370 is on trunk')
 - ONE skull wall only: the RIGHT panel, 6x5 = 30 niches. Every kill (computer or player) hangs one skull, newest first, capped at 30. Tap a skull = that kill's card: computer = legend portrait/name/rank (rank unknown for old wins), player = name, level, gear, date; W/L-vs-them optional.
 - Data: Backend adds `pit_recent_kills()` (latest 30 win rows, ai+duel) to #1366. Fallback before the migration and for guests: one skull per loot.taken/declined provenance (each take is a kill), newest first (Dom ~29 skulls, not 7).
