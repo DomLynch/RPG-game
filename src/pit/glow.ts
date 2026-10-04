@@ -3,7 +3,7 @@
 // the shafts of light that come through the bars and lie as stripes on the sand, and a golden haze in the gate. room.ts warms the
 // stone, the sand and the lights; pit.ts swaps the arena's fog for a warm one while the room is up. Look test only, never the default.
 import * as THREE from 'three';
-import { patchPixels } from '../assets/arena/textures.ts';
+import { fbm, patchPixels } from '../assets/arena/textures.ts';
 
 export const GLOW = { fog: '#8a5a30', fogDensity: 0.035, light: '#ffd08a', stone: '#d9a86e', sand: '#f2c58a', fill: '#ffbf7a', arch: '#a8875f' };
 
@@ -99,4 +99,75 @@ export function addBloodStains(group: THREE.Group, width: number, depth: number)
   mesh.receiveShadow = true;
   group.add(mesh);
   return { textures: [map], materials: [material], geometries: [geometry] };
+}
+
+// Grime on the walls (Dom 10-04: "too symmetrical, fake looking ... a cave, an ancient gladiator room, not a 5* hotel"): over each wall a
+// sheet of its own dirt, so the 2 m stone tile stops repeating. Rising damp darkest at the foot, broad soot-and-sweat blotches that never
+// line up with the blocks, soot climbing above the torches, and old blood: a few splatters at body height with drips run down from them.
+// Lit like the wall (MeshStandardMaterial), one draw per wall; seeds differ so no two walls match.
+type Wall = { w: number; h: number; at: THREE.Vector3Tuple; turn: number; seed: number; torch?: number };   // torch: the sconce's u (0..1) on this wall
+function grimeTexture({ w, h, seed, torch }: Wall): THREE.Texture {
+  const PX = 96, cw = Math.round(w * PX / 2), ch = Math.round(h * PX / 2);   // 48 px per metre
+  const blotch = fbm(4, 5, seed), fine = fbm(24, 3, seed + 7, 0.6), streak = fbm(3, 3, seed + 13);
+  return painted(cw, ch, (g) => {
+    const img = g.createImageData(cw, ch), d = img.data;
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const u = x / cw, v = y / ch, up = 1 - v;   // v down the texture; up = height on the wall (0 at the floor)
+      const damp = Math.max(0, 1 - up / 0.45) ** 1.2 * (0.55 + 0.45 * blotch(u * 3, 0.2));   // rising damp at the foot, ragged top edge
+      const dirt = Math.max(0, (blotch(u * w / 3, v * h / 3) - 0.34) * 2.4) * (0.6 + 0.4 * fine(u * w / 2, v * h / 2));
+      const runs = Math.max(0, (streak(u * w * 1.6, v * 0.25) - 0.55) * 3) * (0.3 + 0.7 * up);   // water runs down from the vault
+      const soot = torch === undefined ? 0 : Math.max(0, 1 - Math.abs(u - torch) * w / 0.7) * Math.max(0, up - 0.5) * 2 * (0.6 + 0.4 * fine(u * 9, v * 9));
+      const a = Math.min(0.92, damp * 0.85 + dirt * 0.7 + runs * 0.4 + soot * 0.9);
+      const i = (y * cw + x) * 4;
+      d[i] = 34 - soot * 20; d[i + 1] = 24 - soot * 14; d[i + 2] = 16 - soot * 10; d[i + 3] = a * 255;
+    }
+    g.putImageData(img, 0, 0);
+    // Old blood: a splatter or two at body height (0.6..1.6 m), drips run down from them, the colour of the floor's stains.
+    let r = seed * 9301 + 49297; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+    const splats = 2 + Math.floor(rnd() * 3 * w / 4);
+    for (let k = 0; k < splats; k++) {
+      const cx = (0.1 + rnd() * 0.8) * cw, cy = ch - (0.6 + rnd()) * PX / 2, size = (0.22 + rnd() * 0.35) * PX / 2;
+      for (let j = 0; j < 90; j++) {   // the spray: big drops near the heart, fine ones flung out to one side
+        const ang = rnd() * Math.PI * 2, dist = rnd() ** 1.8 * size * 2.2, rr = Math.max(0.6, (1 - dist / (size * 2.2)) * size * 0.28 * (0.4 + rnd()));
+        g.fillStyle = `rgba(${48 + rnd() * 16},${12 + rnd() * 6},${8 + rnd() * 4},${0.65 + rnd() * 0.25})`;
+        g.beginPath(); g.ellipse(cx + Math.cos(ang) * dist * 1.4, cy + Math.sin(ang) * dist, rr * (1 + rnd()), rr, ang, 0, Math.PI * 2); g.fill();
+      }
+      if (rnd() < 0.6) {   // a smear beside it: something bloody dragged along the stone
+        const sw = (0.4 + rnd() * 0.6) * PX / 2, sh = (0.06 + rnd() * 0.08) * PX / 2, sx = cx + (rnd() - 0.5) * size * 2, sy = cy + size * (0.5 + rnd());
+        const smear = g.createLinearGradient(sx, 0, sx + sw, 0);
+        smear.addColorStop(0, 'rgba(48,12,8,0.7)'); smear.addColorStop(0.7, 'rgba(48,12,8,0.3)'); smear.addColorStop(1, 'rgba(48,12,8,0)');
+        g.fillStyle = smear; g.fillRect(sx, sy, sw, sh);
+      }
+      for (let j = 0, n = 3 + Math.floor(rnd() * 5); j < n; j++) {   // drips: thin runs that thin out and stop
+        const x0 = cx + (rnd() - 0.5) * size * 1.6, len = (0.3 + rnd() * 0.8) * PX / 2, wd = 1.2 + rnd() * 2;
+        const run = g.createLinearGradient(0, cy, 0, cy + len);
+        run.addColorStop(0, 'rgba(50,12,8,0.7)'); run.addColorStop(1, 'rgba(50,12,8,0)');
+        g.fillStyle = run; g.fillRect(x0 - wd / 2, cy, wd, len);
+        g.fillStyle = 'rgba(46,11,7,0.65)'; g.beginPath(); g.arc(x0, cy + len * 0.85, wd * 0.9, 0, Math.PI * 2); g.fill();
+      }
+    }
+  });
+}
+export function addGrime(group: THREE.Group, room: { width: number; depth: number; height: number; gateWidth: number }, torchZ: number) {
+  const { width: W, depth: D, height: H, gateWidth } = room, hw = W / 2, hd = D / 2, side = hw - gateWidth / 2, off = 0.012;
+  const torchU = (D / 2 + torchZ) / D;   // the sconces sit near the far end of each side wall
+  const walls: Wall[] = [
+    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301 },
+    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307 },
+    // the left wall is turned +90°, so its u runs toward the far wall: the torch sits at 1 - torchU there
+    { w: D, h: H, at: [-hw + off, H / 2, 0], turn: Math.PI / 2, seed: 311, torch: 1 - torchU },
+    { w: D, h: H, at: [hw - off, H / 2, 0], turn: -Math.PI / 2, seed: 313, torch: torchU },
+    { w: W, h: H, at: [0, H / 2, hd - off], turn: Math.PI, seed: 317 },
+  ];
+  const textures: THREE.Texture[] = [], materials: THREE.MeshStandardMaterial[] = [], geometries: THREE.BufferGeometry[] = [];
+  for (const wall of walls) {
+    const map = grimeTexture(wall);
+    const material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+    const geometry = new THREE.PlaneGeometry(wall.w, wall.h).rotateY(wall.turn).translate(...wall.at);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    textures.push(map); materials.push(material); geometries.push(geometry);
+  }
+  return { textures, materials, geometries };
 }
