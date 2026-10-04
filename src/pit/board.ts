@@ -8,6 +8,8 @@ import { MAX_KILLS, blankRecord, type PitRecord } from './skulls.ts';
 
 export const BOARD = { x0: -4.7, x1: -2.3, y0: 1.0, y1: 3.1, d: 0.04 };   // the slab: 2.4 m wide, 2.1 m tall, flush to the wall, 0.04 m proud
 const W = 512, H = 448, DASH = '—';
+// Limestone a step lighter than the wall's own stone; the cut is deep: labels a mid-dark, values the darkest, so both read at phone size.
+export const SLAB = { stone: '#9a9082', face: '#8f8574', label: '#352d22', value: '#14100a' };
 
 // Tally gates: kills in fives (four strokes crossed by a diagonal) and the marks left over; at most MAX_KILLS marks are cut, the rest is a "+n".
 export function tallyGroups(n: number | null): { fives: number; rest: number; more: number } {
@@ -24,38 +26,38 @@ const rng = (seed: number) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Ma
 // Paints the slab onto a 2D context (512 x 448): pure drawing, deterministic for one record.
 export function paintRecord(ctx: CanvasRenderingContext2D, r: PitRecord): void {
   const rand = rng(7);
-  ctx.fillStyle = '#524b42'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = SLAB.stone; ctx.fillRect(0, 0, W, H);
   // Stone grain: a few thousand small light and dark flecks, and some long faint cracks.
   for (let i = 0; i < 2600; i++) { const v = rand(); ctx.fillStyle = v < 0.5 ? `rgba(20,16,12,${0.05 + rand() * 0.1})` : `rgba(180,165,140,${0.03 + rand() * 0.07})`; ctx.fillRect(rand() * W, rand() * H, 1 + rand() * 3, 1 + rand() * 2); }
   // The recessed face: a lit lower-right lip and a shadowed upper-left lip round the cut-in panel.
-  ctx.fillStyle = '#3d372f'; ctx.fillRect(22, 22, W - 44, H - 44);
-  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(22, 22, W - 44, 7); ctx.fillRect(22, 22, 7, H - 44);
-  ctx.fillStyle = 'rgba(210,190,150,0.22)'; ctx.fillRect(22, H - 29, W - 44, 7); ctx.fillRect(W - 29, 22, 7, H - 44);
+  ctx.fillStyle = SLAB.face; ctx.fillRect(22, 22, W - 44, H - 44);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(22, 22, W - 44, 7); ctx.fillRect(22, 22, 7, H - 44);
+  ctx.fillStyle = 'rgba(245,230,195,0.45)'; ctx.fillRect(22, H - 29, W - 44, 7); ctx.fillRect(W - 29, 22, 7, H - 44);
   ctx.textBaseline = 'alphabetic';
   // One cut glyph run: lit lip below right, shadow above left, then the dark cut; letter-spaced by hand so every browser agrees.
-  const cut = (s: string, x: number, y: number, size: number, space: number, align: 'left' | 'center' = 'left') => {
+  const cut = (s: string, x: number, y: number, size: number, space: number, align: 'left' | 'center' = 'left', ink = SLAB.value) => {
     ctx.font = `bold ${size}px Georgia, 'Times New Roman', serif`; ctx.textAlign = 'left';
     const widths = [...s].map((c) => ctx.measureText(c).width + space), total = widths.reduce((a, b) => a + b, 0) - space;
-    for (const [dx, dy, fill] of [[1.6, 1.6, 'rgba(225,205,165,0.38)'], [-1.4, -1.4, 'rgba(0,0,0,0.75)'], [0, 0, '#26221c']] as const) {
+    for (const [dx, dy, fill] of [[2, 2, 'rgba(250,236,205,0.62)'], [-1.8, -1.8, 'rgba(0,0,0,0.85)'], [0, 0, ink]] as const) {
       ctx.fillStyle = fill; let at = align === 'center' ? x - total / 2 : x;
       [...s].forEach((c, i) => { ctx.fillText(c, at + dx, y + dy); at += widths[i]!; });
     }
     return total;
   };
   const line = (x0: number, x1: number, y: number, width: number) => {
-    for (const [dx, dy, fill] of [[1.5, 1.5, 'rgba(225,205,165,0.38)'], [-1.2, -1.2, 'rgba(0,0,0,0.7)'], [0, 0, '#26221c']] as const) { ctx.fillStyle = fill; ctx.fillRect(x0 + dx, y + dy, x1 - x0, width); }
+    for (const [dx, dy, fill] of [[2, 2, 'rgba(250,236,205,0.62)'], [-1.6, -1.6, 'rgba(0,0,0,0.8)'], [0, 0, SLAB.value]] as const) { ctx.fillStyle = fill; ctx.fillRect(x0 + dx, y + dy, x1 - x0, width); }
   };
   cut('THE RECORD', W / 2, 82, 46, 7, 'center');
   line(54, W - 54, 100, 4);
-  const pair = (label: string, value: number | null, x: number, y: number): number => { const a = cut(label, x, y, 24, 4); return a + 14 + cut(fmt(value), x + a + 14, y + 4, 38, 2); };
+  const pair = (label: string, value: number | null, x: number, y: number): number => { const a = cut(label, x, y, 26, 4, 'left', SLAB.label); return a + 14 + cut(fmt(value), x + a + 14, y + 5, 40, 2); };
   pair('KILLS', r.kills, 54, 152);
-  const w = pair('WINS', r.wins, 54, 208); pair('LOSSES', r.losses, 54 + w + 34, 208);
+  const w = pair('WINS', r.wins, 54, 208); pair('LOSSES', r.losses, 54 + w + 24, 208);
   pair('STREAK', r.streak, 54, 264);
   pair('HIGHEST RANK', r.highestRank, 54, 320);
   // The tally: strokes with a seeded lean and length jitter, five to a gate (the fifth a diagonal through the four).
   const { fives, rest, more } = tallyGroups(r.kills), top = 346, bottom = 410, pitch = 66;
   const stroke = (x0: number, y0: number, x1: number, y1: number) => {
-    for (const [dx, dy, color, wd] of [[1.6, 1.6, 'rgba(225,205,165,0.38)', 5], [-1.3, -1.3, 'rgba(0,0,0,0.7)', 5], [0, 0, '#26221c', 4]] as const) {
+    for (const [dx, dy, color, wd] of [[2, 2, 'rgba(250,236,205,0.62)', 5], [-1.6, -1.6, 'rgba(0,0,0,0.8)', 5], [0, 0, SLAB.value, 4]] as const) {
       ctx.strokeStyle = color; ctx.lineWidth = wd; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x0 + dx, y0 + dy); ctx.lineTo(x1 + dx, y1 + dy); ctx.stroke();
     }
   };

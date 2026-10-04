@@ -3,7 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { BOARD, buildBoard, paintRecord, recordLines, recordTexture, tallyGroups } from '../src/pit/board.ts';
+import { contrast, luminance } from '../src/pit/contrast.ts';
+import { BOARD, SLAB, buildBoard, paintRecord, recordLines, recordTexture, tallyGroups } from '../src/pit/board.ts';
 import { blankRecord, demoKills, demoRecord, fetchRecord, localRecord, recordFromRows, splitOf, type SkullDb } from '../src/pit/skulls.ts';
 import type { Loot } from '../src/loot.ts';
 
@@ -95,4 +96,10 @@ test('the slab is painted when a canvas exists: chiselled glyphs drawn three tim
   calls.length = 0; paintRecord(ctx, blankRecord());
   assert.ok(calls.filter((c) => c.startsWith('fillText:—')).length > 0, 'unknown values are em dashes');
   assert.ok(recordTexture(blankRecord()) instanceof THREE.CanvasTexture);
+});
+
+test('the slab reads at phone size: value text 4.5:1 and labels 3:1 against the carved face', () => {
+  assert.ok(contrast(SLAB.value, SLAB.face) >= 4.5, `values ${contrast(SLAB.value, SLAB.face).toFixed(2)}`);
+  assert.ok(contrast(SLAB.label, SLAB.face) >= 3, `labels ${contrast(SLAB.label, SLAB.face).toFixed(2)}`);
+  assert.ok(luminance(SLAB.face) > 0.2, 'a lit limestone, not the old dark slab');
 });

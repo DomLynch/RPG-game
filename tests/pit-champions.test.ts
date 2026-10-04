@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { PORTRAIT_KEYS } from '../src/legends.ts';
-import { CHAMPIONS, buildChampions, championsTexture } from '../src/pit/champions-board.ts';
+import { contrast } from '../src/pit/contrast.ts';
+import { CHAMPIONS, PLANK, buildChampions, championsTexture, nailSpots, plankRgb } from '../src/pit/champions-board.ts';
 import { POSES, ROOM, buildRoom } from '../src/pit/room.ts';
 import { createPicker } from '../src/pit/picker.ts';
 import { pitLookFrom } from '../src/look-flag.ts';
@@ -115,4 +116,16 @@ test('the room hangs the stage\'s champions now, then the fetched ones once they
 test('the champions pose is a look-flag pose', () => {
   assert.equal(pitLookFrom('?look=pit&pose=champions'), 'champions');
   assert.equal(pitLookFrom('?look=pit&pose=nonsense'), 'rack');
+});
+
+test('burned label and value text 4.5:1 against the darkest plank the board paints', () => {
+  const darkest = plankRgb(PLANK.toneMin);
+  assert.ok(contrast(PLANK.label, darkest) >= 4.5, `labels ${contrast(PLANK.label, darkest).toFixed(2)}`);
+  assert.ok(contrast(PLANK.value, darkest) >= 4.5, `values ${contrast(PLANK.value, darkest).toFixed(2)}`);
+});
+test('iron nails only in the plank margins: the outer 5% of the board, never in a text column', () => {
+  const spots = nailSpots();
+  assert.ok(spots.length >= 10);
+  for (const { x } of spots) assert.ok(x + 7 <= 1024 * 0.05 || x - 7 >= 1024 * 0.95, `nail at ${x}`);
+  assert.deepEqual(nailSpots(), spots, 'deterministic');
 });

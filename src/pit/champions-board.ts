@@ -8,6 +8,15 @@ import { NO_CHAMPIONS, type Champion } from './skulls.ts';
 
 export const CHAMPIONS = { w: 3.0, h: 1.5, y0: 1.0, d: 0.05, x: 0 };   // the board: 3.0 m wide, 1.5 m tall, hung on the fence's inside, its centre on the yard's axis
 const W = 1024, H = 512, PLANKS = 5;
+// Weathered oak, light enough for charred lettering to read at phone size: a plank's tone runs TONE_MIN..TONE_MAX of this base; ink is the near-black burn.
+export const PLANK = { base: [176, 128, 84] as const, toneMin: 0.92, toneMax: 1.08, label: '#0c0603', value: '#0c0603' };
+export const plankRgb = (tone: number): [number, number, number] => [Math.round(PLANK.base[0] * tone), Math.round(PLANK.base[1] * tone), Math.round(PLANK.base[2] * tone)];
+// Iron nails live only in the margins: x within the outer 5% of the board, the header band's corners and each plank's centre.
+export function nailSpots(): { x: number; y: number }[] {
+  const plank = H / PLANKS, spots: { x: number; y: number }[] = [];
+  for (let p = 0; p < PLANKS; p++) { const y = p === 0 ? 30 : p * plank + plank / 2; spots.push({ x: W * 0.03, y }, { x: W * 0.97, y }); }
+  return spots;
+}
 const rng = (seed: number) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 // Paints the board onto a 2D context (1024 x 512): pure drawing, deterministic for one set of lines.
@@ -15,8 +24,8 @@ export function paintChampions(ctx: CanvasRenderingContext2D, champions: readonl
   const rand = rng(11), plank = H / PLANKS;
   // Planks: a base tone each, long grain strokes that wander, a few knots, a dark seam between them.
   for (let p = 0; p < PLANKS; p++) {
-    const y0 = p * plank, tone = 0.8 + rand() * 0.4;
-    ctx.fillStyle = `rgb(${Math.round(58 * tone)},${Math.round(40 * tone)},${Math.round(26 * tone)})`; ctx.fillRect(0, y0, W, plank);
+    const y0 = p * plank, tone = PLANK.toneMin + rand() * (PLANK.toneMax - PLANK.toneMin);
+    ctx.fillStyle = `rgb(${plankRgb(tone).join(',')})`; ctx.fillRect(0, y0, W, plank);
     for (let i = 0; i < 34; i++) {
       const y = y0 + 4 + rand() * (plank - 8), x0 = rand() * W, len = 140 + rand() * 420, bend = (rand() - 0.5) * 6;
       ctx.strokeStyle = rand() < 0.6 ? `rgba(18,11,6,${0.12 + rand() * 0.18})` : `rgba(150,105,66,${0.05 + rand() * 0.08})`; ctx.lineWidth = 0.6 + rand() * 1.6;
@@ -34,13 +43,13 @@ export function paintChampions(ctx: CanvasRenderingContext2D, champions: readonl
   ctx.fillStyle = 'rgba(8,4,2,0.55)'; ctx.fillRect(0, 0, W, 10); ctx.fillRect(0, H - 10, W, 10); ctx.fillRect(0, 0, 10, H); ctx.fillRect(W - 10, 0, 10, H);
   // Burned text: a soft char halo, then the dark burn; letter-spaced by hand so every browser agrees.
   ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-  const burn = (s: string, x: number, y: number, size: number, space: number, align: 'left' | 'center' | 'right' = 'left', fit = Infinity): number => {
+  const burn = (s: string, x: number, y: number, size: number, space: number, align: 'left' | 'center' | 'right' = 'left', fit = Infinity, ink = PLANK.value): number => {
     let px = size;
     const measure = () => { ctx.font = `bold ${px}px Georgia, 'Times New Roman', serif`; const w = [...s].map((c) => ctx.measureText(c).width + space); return { w, total: w.reduce((a, b) => a + b, 0) - space }; };
     let m = measure();
     while (m.total > fit && px > 14) { px -= 2; m = measure(); }
     const at = align === 'center' ? x - m.total / 2 : align === 'right' ? x - m.total : x;
-    for (const [dx, dy, fill] of [[1.2, 1.4, 'rgba(210,150,90,0.16)'], [0, 0, '#140b05']] as const) {
+    for (const [dx, dy, fill] of [[1.2, 1.4, 'rgba(210,150,90,0.16)'], [0, 0, ink]] as const) {
       ctx.fillStyle = fill; ctx.shadowColor = dy === 0 ? 'rgba(0,0,0,0.55)' : 'transparent'; ctx.shadowBlur = dy === 0 ? 3 : 0;
       let cx = at; [...s].forEach((c, i) => { ctx.fillText(c, cx + dx, y + dy); cx += m.w[i]!; });
     }
@@ -48,22 +57,22 @@ export function paintChampions(ctx: CanvasRenderingContext2D, champions: readonl
     return m.total;
   };
   burn("TODAY'S CHAMPIONS", W / 2, 88, 58, 8, 'center');
-  ctx.fillStyle = '#140b05'; ctx.fillRect(90, 108, W - 180, 4);
+  ctx.fillStyle = PLANK.value; ctx.fillRect(90, 108, W - 180, 4);
   if (!champions.length) burn(NO_CHAMPIONS.toUpperCase(), W / 2, 300, 40, 5, 'center', W - 160);
   champions.slice(0, 5).forEach((c, i) => {
     const y = 172 + i * 70;
-    burn(c.label.toUpperCase(), 70, y, 24, 3, 'left', 270);
+    burn(c.label.toUpperCase(), 70, y, 28, 3, 'left', 270, PLANK.label);
     if (c.name) burn(c.name, 370, y + 2, 38, 2, 'left', 380);
     burn(c.value, W - 70, y + 2, 36, 1, 'right', 240);
   });
-  // Iron nails: a dark head with a small lit lip and a drip of rust, at the corners and on every plank's end.
+  // Iron nails: a dark head with a small lit lip and a drip of rust, only in the margins (nailSpots).
   const nail = (x: number, y: number) => {
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.arc(x + 1.5, y + 2, 7, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#2a2927'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(190,185,175,0.35)'; ctx.beginPath(); ctx.arc(x - 1.8, y - 1.8, 2.2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(110,52,24,0.45)'; ctx.fillRect(x - 1, y + 5, 2, 8 + rand() * 12);
+    ctx.fillStyle = 'rgba(110,52,24,0.45)'; ctx.fillRect(x - 1, y + 5, 2, 12);
   };
-  for (let p = 0; p < PLANKS; p++) { const y = p * plank + plank / 2; nail(26, y); nail(W - 26, y); }
+  for (const { x, y } of nailSpots()) nail(x, y);
 }
 
 // The texture. Needs a 2D canvas: with none (a test, a page that cannot make one) it is an empty stand-in and the board stays plain timber.

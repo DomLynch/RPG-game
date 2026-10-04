@@ -61,4 +61,4 @@ export type Entry = 'win' | 'defeat';
 export type Pose = 'rack' | 'trophies' | 'gate' | 'wall' | 'board' | 'champions' | 'vault';   // champions: the wall of champions on the back fence; wall: the skull wall (right of the arch); board: the record board (left of it); vault: Web's stone look test only
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
-export type Pit = { frame(dt: number): void; fitting(el: HTMLElement | null, view?: { width(): number; height(): number }): void; leave(): void; dispose(): void; readonly ready: Promise<void>; readonly extras: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)
+export type Pit = { frame(dt: number): void; fitting(el: HTMLElement | null, view?: { width(): number; height(): number }): void; leave(): void; pick(id: string): boolean; dispose(): void; readonly ready: Promise<void>; readonly extras: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)

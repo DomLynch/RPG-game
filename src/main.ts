@@ -1475,6 +1475,9 @@ if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, valu
   close: closePit,
   // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
   ready: async () => { await pitLooking; await pit?.ready; await pit?.extras; },
+  // The browser tap test: the same function a landed tap runs for that pick id (pit.ts choose), false with no Pit open; sheet() is the bottom sheet's visible text.
+  tap: (id: string) => pit?.pick(id) ?? false,
+  sheet: () => { const el = document.getElementById('pit-ui'); return el && !el.hidden ? el.innerText : ''; },
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise

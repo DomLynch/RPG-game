@@ -95,6 +95,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     if (!built.gate.open()) return finish();   // no bars to lift (the model did not load): straight on
     winch = game.gateSound?.();
   };
+  // What a landed tap does with its pick (the frame's, and ?debug's pick(id) through the same function).
+  const choose = (next: Pick | null) => { picked = next; if (picked === 'gate') tapGate(); else if (picked === 'rack') game?.openJournal?.(); };
   // The loadout sheet over the room (Strategy: the hero standing here IS the mannequin): the camera comes round to his front and frames his whole
   // body in the sheet's stage window, the way gear-room.ts does over the arena; a drag across the window turns the camera round him, kept inside the room.
   let fitting: { el: HTMLElement; view: { width(): number; height(): number }; turn: number; face: number; was: number; light: THREE.PointLight; drag: number | null; off(): void } | null = null;
@@ -143,7 +145,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
         const tap = game.readTap?.();
-        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); else if (picked === 'rack') game.openJournal?.(); }   // a tap on the floor or a wall clears a pick (null), as walking does
+        if (tap) choose(pick(tap));   // a tap on the floor or a wall clears a pick (null), as walking does
         else if (walker.speed > 0) picked = null;
         sheet?.show(picked ?? zone);
       }
@@ -163,6 +165,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       scene.add(f.light); fitting = f;
     },
     leave,
+    pick(id) { if (!shown || !game) return false; choose(id as Pick); sheet?.show(picked); return true; },
     dispose() { leave(); disposeRoom(); },
     get ready() { return built.ready; },
     get extras() { return built.extras; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
