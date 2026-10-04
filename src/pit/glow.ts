@@ -106,8 +106,8 @@ export function addBloodStains(group: THREE.Group, width: number, depth: number)
 // a drag trail by the bed. Flat decals over the floor stains, lit like the sand.
 type Ground = { img: Blood; x: number; z: number; w: number; h: number; turn: number };   // w × h metres (the image's own aspect)
 const GROUND: readonly Ground[] = [
-  { img: 'puddle', x: -3.7, z: 0.9, w: 1.5, h: 1.15, turn: 0.4 },
-  { img: 'smear', x: 3.4, z: 1.7, w: 2.6, h: 0.96, turn: -1.15 },
+  { img: 'puddle', x: -3.4, z: 0.6, w: 2.4, h: 1.85, turn: 0.4 },
+  { img: 'smear', x: 3.1, z: 1.2, w: 3.6, h: 1.33, turn: -1.15 },
 ];
 export function addGroundBlood(group: THREE.Group) {
   const textures: THREE.Texture[] = [], materials: THREE.MeshStandardMaterial[] = [], geometries: THREE.BufferGeometry[] = [];
@@ -133,7 +133,7 @@ export function addGroundBlood(group: THREE.Group) {
 // stop in a bead, finger streaks, a cracked pool), laid where a fight would leave them rather than in a band. One sheet per wall over the
 // grime, lit like the wall (MeshStandardMaterial), never glowing.
 type Blood = 'spray' | 'smear' | 'splash' | 'pool' | 'puddle';
-type Mark = { img: Blood; x: number; y: number; w: number };   // x, y: the image's centre in metres from the wall's left and the floor; w: its width in metres
+type Mark = { img: Blood; x: number; y: number; w: number; flip?: boolean };   // x, y: the image's centre in metres from the wall's left and the floor; w: its width in metres
 const BLOOD_PPM = 200;
 
 function loadBlood(names: readonly Blood[]): Promise<Record<string, HTMLImageElement>> {
@@ -155,7 +155,11 @@ function bloodTexture(w: number, h: number, marks: readonly Mark[]) {
     const g = canvas.getContext('2d')!;
     for (const m of marks) {
       const img = images[m.img]!, dw = m.w * BLOOD_PPM, dh = dw * img.height / img.width;
-      g.drawImage(img, m.x * BLOOD_PPM - dw / 2, ch - m.y * BLOOD_PPM - dh / 2, dw, dh);
+      g.save();
+      g.translate(m.x * BLOOD_PPM, ch - m.y * BLOOD_PPM);
+      if (m.flip) g.scale(-1, 1);
+      g.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+      g.restore();
     }
     map.needsUpdate = true;
   }, () => undefined);
@@ -185,8 +189,8 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
   const { width: W, depth: D, height: H, gateWidth } = room, hw = W / 2, hd = D / 2, side = hw - gateWidth / 2, off = 0.012;
   const torchU = (D / 2 + torchZ) / D;   // the sconces sit near the far end of each side wall
   const walls: Wall[] = [
-    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301, marks: [{ img: 'spray', x: 2.9, y: 1.75, w: 2.4 }] },
-    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307, marks: [{ img: 'splash', x: 1.9, y: 2.1, w: 1.7 }] },
+    { w: side, h: H, at: [-hw + side / 2, H / 2, -hd + off], turn: 0, seed: 301, marks: [{ img: 'spray', x: 3.2, y: 1.9, w: 2.8, flip: true }] },
+    { w: side, h: H, at: [hw - side / 2, H / 2, -hd + off], turn: 0, seed: 307, marks: [{ img: 'splash', x: 0.9, y: 2.3, w: 2.2 }] },
     // the left wall is turned +90°, so its u runs toward the far wall: the torch sits at 1 - torchU there
     { w: D, h: H, at: [-hw + off, H / 2, 0], turn: Math.PI / 2, seed: 311, torch: 1 - torchU, marks: [{ img: 'spray', x: 5.3, y: 1.8, w: 3.0 }] },
     { w: D, h: H, at: [hw - off, H / 2, 0], turn: -Math.PI / 2, seed: 313, torch: torchU, marks: [{ img: 'smear', x: 3.3, y: 1.2, w: 3.4 }] },

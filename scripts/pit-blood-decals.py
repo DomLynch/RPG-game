@@ -61,7 +61,7 @@ class Wall:
     def finish(self, tint=(1.0, 1.0, 1.0)):
         T = self.T
         T = np.clip(T, 0, 3)
-        thin = np.array([128, 52, 38]); thick = np.array([44, 8, 6])
+        thin = np.array([150, 60, 44]); thick = np.array([76, 12, 9])
         rim = np.clip(ndi.gaussian_filter(T, 1.2) - ndi.gaussian_filter(T, 7), 0, None)
         depth = np.clip(T * 0.8 + rim * 1.4, 0, 1.4)
         mott = 0.88 + 0.24 * noise(self.rng, self.h, self.w, 9, 3)
@@ -117,9 +117,9 @@ _nz = {}
 def noise_val(rng, i):
     return 0.5 + 0.5 * math.sin(i * 0.37 + 1.3) * math.sin(i * 0.11)
 
-def splash(seed, W=int(1.1 * PPM), H=int(1.9 * PPM)):
+def splash(seed, W=int(1.1 * PPM), H=int(1.25 * PPM)):
     g = Wall(W, H, seed); rng = g.rng
-    cx, cy = 0.5 * W, 0.2 * H
+    cx, cy = 0.5 * W, 0.26 * H
     g.film(cx, cy, 55, 0.45)
     g.blob(cx, cy, 30, 1.1, rng.random() * 3, 1.6)
     for _ in range(9): g.blob(cx + rng.normal(0, 22), cy + rng.normal(0, 20), rng.uniform(6, 15), rng.uniform(1.0, 1.4), rng.random() * 6.28, 1.1)
@@ -128,7 +128,7 @@ def splash(seed, W=int(1.1 * PPM), H=int(1.9 * PPM)):
         r = max(0.9, 7 * math.exp(-rho / 55) * rng.lognormal(0, 0.4))
         g.blob(cx + math.cos(ang) * rho, cy + math.sin(ang) * rho * 0.9, r * 1.3, 1 + rho / 140, ang, 1.0, tail=r * 1.2 + rho * 0.04)
     for _ in range(7):   # runs: one long, the rest stopping short
-        g.run(cx + rng.normal(0, 24), cy + 14 + rng.uniform(0, 14), rng.choice([rng.uniform(40, 110), rng.uniform(120, 300)]), rng.uniform(2.4, 4.4), 0.9)
+        g.run(cx + rng.normal(0, 24), cy + 14 + rng.uniform(0, 14), rng.choice([rng.uniform(30, 80), rng.uniform(90, 190)]), rng.uniform(2.4, 4.4), 0.9)
     return g.finish()
 
 def pool(seed, W=int(2.1 * PPM), H=int(0.75 * PPM)):
