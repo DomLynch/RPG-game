@@ -146,7 +146,22 @@ def pool(seed, W=int(2.1 * PPM), H=int(0.75 * PPM)):
         g.blob(x, min(y, H - 3), rng.uniform(1.2, 4.2), 1 + rng.random(), 0, 1.0)
     return g.finish()
 
+def puddle(seed, W=int(1.3 * PPM), H=int(1.0 * PPM)):
+    g = Wall(W, H, seed); rng = g.rng
+    ys, xs = np.mgrid[0:H, 0:W]
+    low = noise(rng, H, W, 36, 3); hi = noise(rng, H, W, 10, 3)
+    d = np.hypot((xs - W * 0.45) / (W * 0.30), (ys - H * 0.5) / (H * 0.24))   # a pool lying along the sand, longer than wide
+    field = np.clip((1.0 - d + (low - 0.5) * 0.9) * 3.0 + (hi - 0.5) * 0.3, 0, 1)
+    ridge = np.abs(noise(rng, H, W, 20, 2) - 0.5)
+    crack = (ridge < 0.012).astype(float) * (field > 0.5)
+    g.T += field * 1.3 * (1 - 0.3 * ndi.gaussian_filter(crack, 1.2))
+    g.blob(W * 0.78, H * 0.52, 14, 2.4, 0.1, 1.0, tail=60)   # where it was dragged off
+    for _ in range(46):
+        ang = rng.normal(0.0, 1.3); rho = abs(rng.normal(0, 0.28 * W)) + 0.2 * W
+        g.blob(W * 0.45 + math.cos(ang) * rho, H * 0.5 + math.sin(ang) * rho * 0.7, rng.uniform(1.0, 4.0), 1 + rng.random() * 0.8, ang, 1.0)
+    return g.finish()
+
 if __name__ == '__main__':
     out = sys.argv[1]
-    for name, fn, seed in (('spray', spray, 11), ('smear', smear, 23), ('splash', splash, 37), ('pool', pool, 51)):
+    for name, fn, seed in (('spray', spray, 11), ('smear', smear, 23), ('splash', splash, 37), ('pool', pool, 51), ('puddle', puddle, 67)):
         im = fn(seed); im.save(f'{out}/{name}.png'); im.save(f'{out}/{name}.webp', quality=88, alpha_quality=90, method=6); print(name, im.size)

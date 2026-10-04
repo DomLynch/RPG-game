@@ -17,7 +17,7 @@ import { buildWall, type Wall } from './wall.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
-import { GLOW, addBloodStains, addFence, addGlow, addGrime, arenaBeyond } from './glow.ts';
+import { GLOW, addBloodStains, addFence, addGlow, addGrime, addGroundBlood, arenaBeyond } from './glow.ts';
 
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
@@ -316,7 +316,7 @@ export function buildRoom(stage: Stage): Room {
     group.add(mesh);
   }
   if (C) { const fence = addFence(group, W, D, iron); geometries.push(fence); }
-  if (G) for (const glow of [addGlow(group, gate, -hd), addBloodStains(group, W, D), addGrime(group, { width: W, depth: D, height: H, gateWidth: gate.width }, sconces[0]?.[2] ?? -3.15, C)]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
+  if (G) for (const glow of [addGlow(group, gate, -hd), addBloodStains(group, W, D), addGroundBlood(group), addGrime(group, { width: W, depth: D, height: H, gateWidth: gate.width }, sconces[0]?.[2] ?? -3.15, C)]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(flameSpots.flat(), 3));
   geometries.push(flamePoints);
   group.add(new THREE.Points(flamePoints, flames));
