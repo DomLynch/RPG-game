@@ -17,7 +17,7 @@ import { buildWall, type Wall } from './wall.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
-import { GLOW, addBloodStains, addGlow, addGrime, arenaBeyond } from './glow.ts';
+import { GLOW, addBloodStains, addFence, addGlow, addGrime, arenaBeyond } from './glow.ts';
 
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
@@ -138,6 +138,9 @@ export function buildRoom(stage: Stage): Room {
   stage.grade(stone, 'stone'); stage.grade(floor, 'sand');
   // `?look=pit,pit-glow` (glow.ts): the painting's warm stone and sand floor, the flames larger, the arena's painted world beyond the bars.
   const G = !!stage.glow;
+  // `?look=pit-cage` (Dom 10-04: "keep it open, more like a cage, a metal fence round it so you can see the arena's backdrop"): no vault and no
+  // side or back walls; the far wall stands as the arena's outer wall (taller), iron fences close the other three sides, sand runs out past them.
+  const C = G && !!stage.cage, HW = C ? 7 : H;
   if (G) { stone.color.set(GLOW.stone); if (L && L.vault !== L.wall) L.vault.color.set(GLOW.stone); floor.color.set(GLOW.sand); flames.size = 0.5; arenaBeyond(daylight, textures); }
   const materials = [stone, floor, iron, wood, daylight, flames, ...(L && L.vault !== L.wall ? [L.vault] : []), ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
@@ -146,20 +149,20 @@ export function buildRoom(stage: Stage): Room {
   const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its end post
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
-      plane(side, H, T, { x: -hw + side / 2, y: H / 2, z: -hd }), plane(side, H, T, { x: hw - side / 2, y: H / 2, z: -hd }),
-      plane(gate.width, H - gate.height, T, { y: (H + gate.height) / 2, z: -hd }),
-      plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
-      plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd }),
-      ...(L && L.vault !== L.wall ? [] : vaultStrips(W, D, H, 0.9, 10, T)), ...(L && L.vault !== L.wall ? [] : vaultEnds(W, D, H, 0.9, 10, T)),   // the barrel vault and its lunettes
-      ...(L ? stoneTrim({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, 0.9, T) : []),   // the stone look's plinth, cornice and ribs
+      plane(side, HW, T, { x: -hw + side / 2, y: HW / 2, z: -hd }), plane(side, HW, T, { x: hw - side / 2, y: HW / 2, z: -hd }),
+      plane(gate.width, HW - gate.height, T, { y: (HW + gate.height) / 2, z: -hd }),
+      ...(C ? [] : [plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }), plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd })]),
+      ...(C || (L && L.vault !== L.wall) ? [] : vaultStrips(W, D, H, 0.9, 10, T)), ...(C || (L && L.vault !== L.wall) ? [] : vaultEnds(W, D, H, 0.9, 10, T)),   // the barrel vault and its lunettes
+      ...(L && !C ? stoneTrim({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, 0.9, T) : []),   // the stone look's plinth, cornice and ribs
       // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
       // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
       plane(P, gate.height, T, { ry: Math.PI / 2, x: -gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
       plane(P, gate.height, T, { ry: -Math.PI / 2, x: gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
       plane(gate.width, P, T, { rx: Math.PI / 2, y: gate.height, z: -hd - P / 2 }),
     ]],
-    ...(L && L.vault !== L.wall ? [[L.vault, [...vaultStrips(W, D, H, 0.9, 10, L.tile.vault), ...vaultEnds(W, D, H, 0.9, 10, L.tile.vault)]] as [THREE.Material, THREE.BufferGeometry[]]] : []),   // GPT's vault set: its own material (+1 draw)
-    [floor, [plane(W, D, TF, { rx: -Math.PI / 2 }), plane(gate.width, P, TF, { rx: -Math.PI / 2, z: -hd - P / 2 })]],
+    ...(L && L.vault !== L.wall && !C ? [[L.vault, [...vaultStrips(W, D, H, 0.9, 10, L.tile.vault), ...vaultEnds(W, D, H, 0.9, 10, L.tile.vault)]] as [THREE.Material, THREE.BufferGeometry[]]] : []),   // GPT's vault set: its own material (+1 draw)
+    [floor, [plane(W, D, TF, { rx: -Math.PI / 2 }), plane(gate.width, P, TF, { rx: -Math.PI / 2, z: -hd - P / 2 }),
+      ...(C ? [plane(80, 40, TF, { rx: -Math.PI / 2, y: -0.005, z: 20 - hd + 0.001 })] : [])]],   // cage: the yard's sand runs out past the fences to the painted world
     [iron, ironParts], [wood, woodParts],
     [daylight, [plane(gate.width + 0.4, gate.height + 0.4, 1, { y: gate.height / 2, z: -hd - P })]],   // the arena's daylight at the passage's end
   ];
@@ -310,7 +313,8 @@ export function buildRoom(stage: Stage): Room {
     mesh.castShadow = material === stone || material === iron || material === wood;   // the key's contact shadows
     group.add(mesh);
   }
-  if (G) for (const glow of [addGlow(group, gate, -hd), addBloodStains(group, W, D), addGrime(group, { width: W, depth: D, height: H, gateWidth: gate.width }, sconces[0]?.[2] ?? -3.15)]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
+  if (C) { const fence = addFence(group, W, D, iron); geometries.push(fence); }
+  if (G) for (const glow of [addGlow(group, gate, -hd), addBloodStains(group, W, D), addGrime(group, { width: W, depth: D, height: H, gateWidth: gate.width }, sconces[0]?.[2] ?? -3.15, C)]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(flameSpots.flat(), 3));
   geometries.push(flamePoints);
   group.add(new THREE.Points(flamePoints, flames));

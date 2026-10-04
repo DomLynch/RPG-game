@@ -3,6 +3,7 @@
 // the shafts of light that come through the bars and lie as stripes on the sand, and a golden haze in the gate. room.ts warms the
 // stone, the sand and the lights; pit.ts swaps the arena's fog for a warm one while the room is up. Look test only, never the default.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm, patchPixels } from '../assets/arena/textures.ts';
 
 export const GLOW = { fog: '#8a5a30', fogDensity: 0.035, light: '#ffd08a', stone: '#d9a86e', sand: '#f2c58a', fill: '#ffbf7a', arch: '#a8875f' };
@@ -185,7 +186,7 @@ function grimeTexture({ w, h, seed, torch }: Wall): THREE.Texture {
     g.putImageData(img, 0, 0);
   });
 }
-export function addGrime(group: THREE.Group, room: { width: number; depth: number; height: number; gateWidth: number }, torchZ: number) {
+export function addGrime(group: THREE.Group, room: { width: number; depth: number; height: number; gateWidth: number }, torchZ: number, farOnly = false) {
   const { width: W, depth: D, height: H, gateWidth } = room, hw = W / 2, hd = D / 2, side = hw - gateWidth / 2, off = 0.012;
   const torchU = (D / 2 + torchZ) / D;   // the sconces sit near the far end of each side wall
   const part = (strip: Strip, from: number, to: number, cut = 0): Part => ({ strip, from, to, cut });
@@ -206,6 +207,7 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
     { w: W, h: H, at: [0, H / 2, hd - off], turn: Math.PI, seed: 317 },
   ];
   const textures: THREE.Texture[] = [], materials: THREE.MeshStandardMaterial[] = [], geometries: THREE.BufferGeometry[] = [];
+  if (farOnly) walls.splice(2);   // pit-cage: only the far wall stands; the other sides are iron fence
   for (const wall of walls) {
     const map = grimeTexture(wall);
     const material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
@@ -223,4 +225,28 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
     textures.push(bloodMap); materials.push(bloodMaterial);
   }
   return { textures, materials, geometries };
+}
+
+// The cage's fence (pit-cage): iron bars on the left, right and back sides, 3.2 m tall at 0.16 m, three rails and a spike on every bar.
+// One merged geometry in the room's iron, so it is one draw; the caller owns and frees it.
+export function addFence(group: THREE.Group, width: number, depth: number, iron: THREE.Material): THREE.BufferGeometry {
+  const hw = width / 2, hd = depth / 2, HIGH = 3.2, GAP = 0.16, bars: THREE.BufferGeometry[] = [];
+  const run = (from: THREE.Vector2, to: THREE.Vector2) => {
+    const len = from.distanceTo(to), n = Math.round(len / GAP), dir = to.clone().sub(from).normalize(), turn = Math.atan2(dir.x, dir.y);
+    for (let i = 0; i <= n; i++) {
+      const p = from.clone().addScaledVector(dir, (i / n) * len);
+      bars.push(new THREE.BoxGeometry(0.035, HIGH, 0.035).translate(p.x, HIGH / 2, p.y));
+      bars.push(new THREE.ConeGeometry(0.035, 0.14, 4).translate(p.x, HIGH + 0.07, p.y));
+    }
+    for (const y of [0.18, 1.7, HIGH - 0.12]) bars.push(new THREE.BoxGeometry(0.06, 0.06, len).rotateY(turn).translate((from.x + to.x) / 2, y, (from.y + to.y) / 2));
+  };
+  run(new THREE.Vector2(-hw, -hd), new THREE.Vector2(-hw, hd));
+  run(new THREE.Vector2(hw, -hd), new THREE.Vector2(hw, hd));
+  run(new THREE.Vector2(-hw, hd), new THREE.Vector2(hw, hd));
+  const geometry = mergeGeometries(bars.map((g) => g.toNonIndexed()));
+  for (const g of bars) g.dispose();
+  const mesh = new THREE.Mesh(geometry, iron);
+  mesh.castShadow = mesh.receiveShadow = true;
+  group.add(mesh);
+  return geometry;
 }
