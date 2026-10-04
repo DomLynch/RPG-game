@@ -9,7 +9,7 @@ begin;
 -- ONLY by report_duel()/settle_forfeits() below, never by a client insert. Each signed-in page registers at duel start (report_duel_start: who
 -- was in the room, with their name, level and gear), then reports its settled result with the final checkpoint hash; the two rows are written when both
 -- players' reports of one room AGREE (one win, one loss, same hash). A player who stays when the other leaves reports a lone forfeit-win: it is held
--- 90 seconds, voided by ANY report from the other player, and otherwise settled by settle_forfeits() (the stayer's win and the leaver's loss, the
+-- 90 seconds, withdrawn (even once settled, for 10 minutes) by any report from the other player, and otherwise settled by settle_forfeits() (the stayer's win and the leaver's loss, the
 -- leaver known from their start row). Both claiming a forfeit, or both silent: nothing is written. A lone client cannot write itself
 -- a win. Two accounts colluding in one room could, which only decorates their own wall: these rows are cosmetic and NEVER feed awards,
 -- rewards, rank or loot. `room` pairs the two rows and makes the write idempotent. A fighter reads only their own rows.
@@ -35,6 +35,7 @@ create policy "own results" on public.fight_results for select to authenticated 
 create policy "own ai results" on public.fight_results for insert to authenticated with check (user_id = (select auth.uid()) and kind = 'ai');
 create index fight_results_user_created on public.fight_results (user_id, created_at desc);
 create unique index fight_results_duel_room on public.fight_results (user_id, room) where room is not null;
+create index fight_results_room on public.fight_results (room) where room is not null;
 
 create function public.fight_results_rate() returns trigger language plpgsql security definer set search_path = '' as $$
 begin
@@ -107,6 +108,7 @@ alter table public.duel_reports enable row level security;
 revoke all on public.duel_starts, public.duel_reports from public, anon, authenticated;
 create index duel_starts_created on public.duel_starts (created_at);
 create index duel_reports_created on public.duel_reports (created_at);
+create index duel_reports_forfeit on public.duel_reports (created_at) where result = 'forfeit-win';
 
 -- Internal: both fighters get a fight_results row with the OTHER account's name, level and gear (from their start rows) and an opaque
 -- per-viewer key (md5 of viewer id + opponent id: stable for head-to-head, never the opponent's auth id). Idempotent on (user_id, room).
@@ -123,11 +125,15 @@ $$;
 revoke all on function public.write_duel_pair(text, uuid, text, uuid, text) from public, anon, authenticated;
 
 -- A forfeit held 90 seconds with no other report from the room settles: the lone reporter's win and the other player's loss. A room with
--- two reports (a contradiction, or both claiming a forfeit) is never settled. Called by pg_cron each minute where it exists, and at the
--- start of every report_duel.
+-- two reports (a contradiction, or both claiming a forfeit) is never settled. A settled forfeit stays REVOCABLE for 10 minutes (report_duel
+-- deletes it when the other player reports), so a liar who claims early cannot keep a win over a fight that is still running. Registration and
+-- report rows older than a day are deleted here (the retention). Called by pg_cron each minute where it exists, and at the start of every
+-- report_duel.
 create function public.settle_forfeits() returns integer language plpgsql security definer set search_path = '' as $$
 declare r record; n integer := 0;
 begin
+  delete from public.duel_reports where created_at < now() - interval '1 day';
+  delete from public.duel_starts where created_at < now() - interval '1 day';
   for r in
     select f.room, f.user_id stayer, (select s.user_id from public.duel_starts s where s.room = f.room and s.user_id <> f.user_id) leaver
     from public.duel_reports f
@@ -155,6 +161,7 @@ language plpgsql security definer set search_path = '' as $$
 declare me uuid := auth.uid();
 begin
   if me is null then raise exception 'sign in to register a duel' using errcode = 'insufficient_privilege'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_room, 0));
   if (select count(*) from public.duel_starts where user_id = me and created_at > now() - interval '1 hour') >= 60 then
     raise exception 'duel start cap reached' using errcode = 'insufficient_privilege';
   end if;
@@ -169,13 +176,15 @@ grant execute on function public.report_duel_start(text, text, integer, jsonb) t
 
 -- A registered page reports how its duel ended. 'win'/'loss' carry the fingerprint of the final checkpoint (both pages compute the same one);
 -- when the room's other report arrives and agrees (opposite results, same hash) both fighters get their row. 'forfeit-win' (the peer left)
--- needs both players registered and is held for settle_forfeits(); a report from the peer voids it. Anything else writes nothing. A repeat
+-- needs both players registered and is held for settle_forfeits(); a settled forfeit is revocable for 10 minutes: a report from the peer
+-- withdraws it (and its fight_results rows). Anything else writes nothing. A repeat
 -- of the same report changes nothing. Returns true when a fight_results pair is on record (so a retry is safe).
 create function public.report_duel(p_room text, p_result text, p_hash text) returns boolean
 language plpgsql security definer set search_path = '' as $$
 declare me uuid := auth.uid(); mine public.duel_reports%rowtype; peer public.duel_reports%rowtype;
 begin
   if me is null then raise exception 'sign in to report a duel' using errcode = 'insufficient_privilege'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_room, 0));
   perform public.settle_forfeits();
   if not exists (select 1 from public.duel_starts where room = p_room and user_id = me) then
     raise exception 'register the duel first' using errcode = 'insufficient_privilege';
@@ -187,6 +196,12 @@ begin
     raise exception 'duel report cap reached' using errcode = 'insufficient_privilege';
   end if;
   insert into public.duel_reports (room, user_id, result, hash) values (p_room, me, p_result, p_hash) on conflict (room, user_id) do nothing;
+  select * into peer from public.duel_reports where room = p_room and user_id <> me;
+  if found and peer.result = 'forfeit-win' and p_result <> 'forfeit-win' and peer.created_at > now() - interval '10 minutes' then
+    -- the other player says the fight went on: the forfeit claim, settled or not, is withdrawn (rows and report) and the room pairs normally
+    delete from public.fight_results where room = p_room;
+    delete from public.duel_reports where room = p_room and user_id = peer.user_id;
+  end if;
   select * into mine from public.duel_reports where room = p_room and user_id = me;
   select * into peer from public.duel_reports where room = p_room and user_id <> me;
   if not found or mine.result = 'forfeit-win' or peer.result = 'forfeit-win' or peer.hash <> mine.hash or peer.result = mine.result then

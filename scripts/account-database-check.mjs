@@ -1,7 +1,7 @@
 // Real PostgreSQL role/RLS verification in a disposable, socket-only cluster: a fresh `initdb` cluster on a Unix socket in a
 // tempdir, torn down in `finally`. No DATABASE_URL, no SUPABASE_* env var and no service-role key is ever read here — this
 // check cannot reach a hosted project even if one were configured, and it never should be made to.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -538,9 +538,61 @@ try {
       if (select count(*) from public.fight_results where kind = 'duel') <> 2 then raise exception 'Second fighter sees the wrong rows'; end if;
     end$$;
     reset role;
+    -- the Auditor's B2: A claims a forfeit early, the fight runs past the hold, the forfeit settles, then B honestly reports the win. The claim is withdrawn.
+    insert into public.duel_starts(room,user_id,name,level) values ('room0006','11111111-1111-4111-8111-111111111111','Ay',5),('room0006','22222222-2222-4222-8222-222222222222','Bee',6);
+    insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0006','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '2 minutes');
+    do $$begin if public.settle_forfeits() <> 1 then raise exception 'Setup: the lone forfeit did not settle'; end if; end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin
+      if public.report_duel('room0006','win','cccccccccccccccc') then raise exception 'B2: the honest winner was paired with a withdrawn forfeit'; end if;
+    end$$;
+    reset role;
+    do $$begin
+      if exists (select 1 from public.fight_results where room = 'room0006') then raise exception 'B2: the forfeit rows survived the other player report'; end if;
+      if exists (select 1 from public.duel_reports where room = 'room0006' and result = 'forfeit-win') then raise exception 'B2: the forfeit report survived'; end if;
+    end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    do $$begin
+      if not public.report_duel('room0006','loss','cccccccccccccccc') then raise exception 'B2: the honest pair did not write after the withdrawal'; end if;
+    end$$;
+    reset role;
+    do $$begin
+      if (select result from public.fight_results where room = 'room0006' and user_id = '22222222-2222-4222-8222-222222222222') <> 'win' then raise exception 'B2: B does not hold the win'; end if;
+    end$$;
+    -- a forfeit older than 10 minutes is final
+    insert into public.duel_starts(room,user_id,name,level) values ('room0007','11111111-1111-4111-8111-111111111111','Ay',5),('room0007','22222222-2222-4222-8222-222222222222','Bee',6);
+    insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0007','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '11 minutes');
+    do $$begin if public.settle_forfeits() <> 1 then raise exception 'Setup: the old forfeit did not settle'; end if; end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin perform public.report_duel('room0007','win','dddddddddddddddd'); end$$;
+    reset role;
+    do $$begin if (select count(*) from public.fight_results where room = 'room0007') <> 2 then raise exception 'A forfeit older than 10 minutes was revoked'; end if; end$$;
+    -- retention: rows older than a day are deleted
+    insert into public.duel_starts(room,user_id,name,level,created_at) values ('room0008','11111111-1111-4111-8111-111111111111','Ay',5,now() - interval '2 days');
+    do $$begin perform public.settle_forfeits(); if exists (select 1 from public.duel_starts where room = 'room0008') then raise exception 'Old registration kept'; end if; end$$;
     delete from public.fight_results; delete from public.duel_reports; delete from public.duel_starts;`;
+
   run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene + perfBeacons + duelMetrics + fightResults);
-  console.log('Account database PASS: fight_results (own AI rows; duel rows only from two agreeing reports or a held, uncontradicted forfeit); owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
+  // The Auditor's B3: two reports of one room that overlap pair (the per-room advisory lock makes the second wait for the first).
+  const asUser = (sub, sql) => new Promise((resolve, reject) => {
+    const child = spawn(pg('psql'), ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-tA'], { env }); let out = '', err = '';
+    child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { err += d; });
+    child.on('close', (code) => (code ? reject(new Error(err)) : resolve(out.trim().split('\n'))));
+    child.stdin.end(`set role authenticated; select set_config('request.jwt.claim.sub','${sub}',false) \\gset\n${sql}`);
+  });
+  const A = '11111111-1111-4111-8111-111111111111', B = '22222222-2222-4222-8222-222222222222';
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], `insert into public.duel_starts(room,user_id,name,level) values ('room0009','${A}','Ay',5),('room0009','${B}','Bee',6);`);
+  const [, second] = await Promise.all([
+    asUser(A, "begin; select public.report_duel('room0009','win','eeeeeeeeeeeeeeee'); select pg_sleep(1.5); commit;"),
+    new Promise((r) => setTimeout(r, 500)).then(() => asUser(B, "select public.report_duel('room0009','loss','eeeeeeeeeeeeeeee');")),
+  ]);
+  const answer = second.at(-1);
+  if (answer !== 't') throw new Error(`B3: overlapping reports of one room did not pair (second returned ${answer})`);
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], "do $$begin if (select count(*) from public.fight_results where room = 'room0009') <> 2 then raise exception 'B3: rows after the race'; end if; end$$; delete from public.fight_results; delete from public.duel_reports; delete from public.duel_starts;");
+  console.log('Account database PASS: fight_results (own AI rows; duel rows only from two agreeing reports or a held forfeit revocable for 10 min; per-room lock; retention); owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
