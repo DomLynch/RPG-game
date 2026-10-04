@@ -2,8 +2,12 @@
 // rejected panels over the arena, #670). Built once per page with the room; shown only while the Pit shows.
 import type { GameStage } from './stage.ts';
 import type { Loot } from '../loot.ts';
+import type { AiSkull } from './skulls.ts';
 import { trophyIds, type Pick } from './room.ts';
 
+const DUEL_HINT = 'Beat a real player in a duel to hang their skull here.';
+// "ranks 1, 3, 7 · W 8 · L 2"; a win with no recorded rank (an old one) is "ranks unknown"; an unbeaten opponent has no record to show.
+export const opponentLine = (a: AiSkull): string => (!a.beaten ? 'Not beaten yet' : `${a.ranks.length ? `ranks ${a.ranks.join(', ')}` : 'ranks unknown'} · W ${a.wins} · L ${a.losses}`);
 export type Sheet = { show(zone: Pick | null): void; hide(): void; dispose(): void };
 
 // `quiet` (pit-glow, Dom 10-04: "remove this black helper thing"): no sheet in open floor, only at the rack, the trophies and the gate.
@@ -32,17 +36,29 @@ export function createSheet(game: GameStage, loot: () => Loot, worn: () => void,
       title.textContent = 'Trophies';
       const ids = trophyIds(loot());
       nodes.push(...(ids.length ? ids.map((id) => line(game.trophyLine(id))) : [line('Your best-taken pieces stand here.')]));
-    } else if (zone?.startsWith('skull:')) {   // a slot of the skull wall: the legend's card, or the unbeaten slot's name and rank
-      const card = game.legend?.(zone.slice(6)) ?? null;
-      if (!card) { title.textContent = 'The skull wall'; nodes.push(line('One skull for every legend you beat.')); }
-      else if (!card.beaten) { title.textContent = `${card.opponent} · rank ${card.rank}`; nodes.push(line(`Unbeaten. ${card.name} waits at rank ${card.rank}.`)); }
-      else {
-        title.textContent = `${card.name} · rank ${card.rank}`;
-        const figure = document.createElement('div'), face = document.createElement('img');
-        figure.className = 'pit-skull'; face.src = card.portrait; face.alt = card.name; face.width = 64; face.height = 64; face.loading = 'lazy';
-        figure.append(face, line(card.backstory), Object.assign(line(card.source), { className: 'pit-source' }));
-        nodes.push(figure);
+    } else if (zone?.startsWith('skull:ai:')) {   // a niche of the left panel: every computer opponent, with the ranks beaten and the record
+      title.textContent = 'The skull wall · opponents';
+      const list = document.createElement('ul');
+      list.className = 'pit-opponents';
+      for (const a of game.skullsNow?.()?.ai ?? []) {
+        const top = a.ranks.length ? Math.max(...a.ranks) : 1, card = game.legend?.(`${a.opponent}-${top}`) ?? game.legend?.(`${a.opponent}-1`) ?? null;
+        const row = document.createElement('li'), name = document.createElement('strong');
+        row.className = 'pit-opponent'; name.textContent = card?.opponent ?? a.opponent;
+        if (card) { const face = document.createElement('img'); face.src = card.portrait; face.alt = card.name; face.width = 40; face.height = 40; face.loading = 'lazy'; row.append(face); }
+        row.append(name, line(opponentLine(a)));
+        list.append(row);
       }
+      nodes.push(list);
+    } else if (zone?.startsWith('skull:duel:')) {   // a niche of the right panel: a real player beaten in a duel, or the hint for an empty one
+      const d = game.skullsNow?.()?.duels[Number(zone.slice(11))];
+      if (!d) { title.textContent = 'The skull wall · players'; nodes.push(line(DUEL_HINT)); }
+      else {
+        title.textContent = d.name;
+        const gear = Object.values(d.gear).slice(0, 6).map((id) => game.pieceName?.(id) ?? id);
+        nodes.push(line(`Level ${d.level}`), ...(gear.length ? [line(gear.join(', '))] : []), line(`Last beaten ${d.lastWinAt ? d.lastWinAt.slice(0, 10) : 'long ago'}`), line(`Your record against them: W ${d.wins} · L ${d.losses}`));
+      }
+    } else if (zone?.startsWith('skull:')) {
+      title.textContent = 'The skull wall'; nodes.push(line(DUEL_HINT));
     } else if (zone === 'gate') {
       const gate = game.gate(), button = document.createElement('button');
       title.textContent = 'The gate';

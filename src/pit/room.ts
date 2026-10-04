@@ -14,6 +14,7 @@ import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
 import { buildWall, type Wall } from './wall.ts';
+import { opponentsOf, skullsFromLoot } from './skulls.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
@@ -227,7 +228,7 @@ export function buildRoom(stage: Stage): Room {
     // The skull wall (wall.ts): the far wall's two panels either side of the gate, in bone; stocked from loot.defeats with the rest.
     const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
     materials.push(bone);
-    wall = buildWall(stage, group, stage.legendKeys(), -hd, bone);
+    wall = buildWall(stage, group, opponentsOf(stage.legendKeys()), -hd, bone);
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
     // their spots; Lead 2026-09-30): the round red shield with its gold laurel at the far end, the sword and the spear standing by the near
     // post, the helm on its end post, the torn banner behind the near end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
@@ -345,7 +346,9 @@ export function buildRoom(stage: Stage): Room {
   let stocking = 0;
   const stock = (loot: Loot): Promise<void> => {
     const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
-    wall.restock((loot as Loot & { defeats?: string[] }).defeats);   // Backend's per-legend defeat field (#1156); absent = no skulls
+    // The skulls: what is known now (the cached record, else the loot fallback), then the record from Supabase when it lands; a later stock or a dispose wins over it.
+    wall.restock(stage.skullsNow?.() ?? skullsFromLoot(loot, opponentsOf(stage.legendKeys())));
+    if (stage.skulls) void stage.skulls().then((data) => { if (mine === stocking && !disposed) wall.restock(data); }, () => undefined);
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();

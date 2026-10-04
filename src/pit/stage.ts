@@ -3,6 +3,7 @@
 // never disposes them, and adds to the scene only what it built itself.
 import type * as THREE from 'three';
 import type { Loot, LootId } from '../loot.ts';
+import type { Skulls } from './skulls.ts';
 
 export type ExtraName = 'gate-machinery' | 'water-bucket' | 'whetstone-wheel';   // public/pit/extra/
 // The scene's half (scene.ts pitStage).
@@ -39,6 +40,9 @@ export type GameStage = {
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
   legend?(key: string): LegendCard | null;   // the skull wall's card for a slot key; null for a key that is no legend slot
+  skulls?(): Promise<Skulls>;   // the skull wall's data: the signed-in fighter's record from Supabase merged over the loot fallback; never rejects
+  skullsNow?(): Skulls | undefined;   // the last known data, synchronously (the first stock and the sheet); undefined until there is any, then the room falls back to loot.defeats
+  pieceName?(id: string): string;   // a paperdoll item id's display name, for a duel opponent's gear line
   gateSound?(): { stop(): void } | void;   // the gate began to open (a tap on it): start its winch; stop() on a skip or when the Pit closes (Audio's playGate)
   openJournal?(): void;   // the full loadout sheet (Gear & pack: worn, stored, weapons and armour on/off); the rack opens it. Web's #1155 may add a weapons/armour filter
   crowdSound?(cue: 'reaction' | 'jeer' | 'chant'): { stop(): void } | void;   // the crowd through the walls: one muffled cue (Audio's through); stop() when the Pit closes

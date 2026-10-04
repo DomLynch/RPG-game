@@ -1,17 +1,17 @@
-// The skull wall (Strategy GO 2026-09-30, Lead's conditions): one skull per legend beaten, 10 opponents × 10 ranks, on the far wall's two
-// panels either side of the gate, one row per opponent in LEGEND order (legends.ts PORTRAIT_KEYS: `<opponent>-<rank>`), ranks left to
-// right. Every slot is a dark niche (the silhouette); a beaten legend's slot carries the skull. The skull is a SWAPPABLE ASSET: the
-// Stage's prop('skull') (public/pit/props/skull.glb, World's / GPT's model) fills the slots when it is there; until it lands a beaten slot
-// shows a bone marker in the niche, never a primitive skull (Lead: the plank + egg is not to be multiplied). One InstancedMesh each, so
-// the wall is two draws whatever the count. `defeats` is read DEFENSIVELY: absent, or a key that is not a slot, means no skull.
+// The skull wall (Dom 2026-10-04, docs/briefs/skull-wall/BRIEF.md part B), on the far wall's two panels either side of the gate. LEFT: one niche per
+// computer opponent (10, legends order, a 2 × 5 block); a skull hangs in it when that opponent is beaten, an empty carved niche when not.
+// RIGHT: 30 niches for the real players beaten in duels, latest win first, one skull per player. Every niche, filled or empty, is a tap target
+// (`skull:ai:<opponent>`, `skull:duel:<i>`). The skull is a SWAPPABLE ASSET: the Stage's prop('skull') (public/pit/props/skull.glb) fills
+// the niches when it is there; until it lands a beaten niche shows a bone marker, never a primitive skull (Lead: the plank + egg is not to be
+// multiplied). One InstancedMesh for the niches and one for the skulls, so the wall is two draws whatever the count (skulls.ts is the data).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { PickTarget } from './picker.ts';
 import type { SceneStage } from './stage.ts';
+import type { Skulls } from './skulls.ts';
 
-export type Slot = { key: string; x: number; y: number };
-export const RANKS = 10;
-const OPPONENTS = 10, PER_PANEL = 5;
+export type Slot = { id: string; x: number; y: number };
+const PER_COLUMN = 5, DUEL_COLUMNS = 6, DUEL_SLOTS = DUEL_COLUMNS * PER_COLUMN;
 export const PANEL = { inner: 2.3, outer: 4.7, top: 3.05, rowPitch: 0.5, colPitch: 0.24 };   // x from the gate's side (the arch is 2.8 m wide and the counterweight falls just outside it) out to the wall's corner (the room is 10 m across); rows down from the top
 export const NICHE = { w: 0.2, h: 0.3, d: 0.06, lip: 0.015 };   // a carved cell proud of the wall: its lit arris, its inner sides, its dark back; the lip stays inside colPitch so cells never join into a grid
 // Vertex colours, so one material draws the whole cell (Lead 2026-09-30: an EMPTY niche must read as carved stone, not a black square,
@@ -42,25 +42,25 @@ export function nicheGeometry(): THREE.BufferGeometry {
   for (const g of parts) g.dispose();
   return merged;
 }
-// The 100 slots, in PORTRAIT_KEYS order: the wall's data path needs no legends import (the keys are the Stage's, tests pin the order).
-export function slots(keys: readonly string[]): Slot[] {
-  if (keys.length !== OPPONENTS * RANKS) throw new Error(`the skull wall wants ${OPPONENTS * RANKS} keys, got ${keys.length}`);
-  return keys.map((key, i) => {
-    const opponent = Math.floor(i / RANKS), rank = i % RANKS, side = opponent < PER_PANEL ? -1 : 1, row = opponent % PER_PANEL;
-    const x = side * (PANEL.inner + PANEL.colPitch / 2 + rank * PANEL.colPitch), y = PANEL.top - row * PANEL.rowPitch;
-    return { key, x, y };
-  });
+// The left panel's slots: one niche per computer opponent, in legends order, a compact 2 × 5 block from the panel's inner edge (column by
+// column: the first five opponents in the inner column). Ids are `ai:<opponent>`.
+export function slots(opponents: readonly string[]): Slot[] {
+  return opponents.map((opponent, i) => ({ id: `ai:${opponent}`, x: -(PANEL.inner + PANEL.colPitch / 2 + Math.floor(i / PER_COLUMN) * PANEL.colPitch), y: PANEL.top - (i % PER_COLUMN) * PANEL.rowPitch }));
+}
+// The right panel's 30 slots for the real players beaten in duels: 6 columns × 5 rows from the panel's inner edge, filled row by row, latest win first.
+export function duelSlots(): Slot[] {
+  return Array.from({ length: DUEL_SLOTS }, (_, i) => ({ id: `duel:${i}`, x: PANEL.inner + PANEL.colPitch / 2 + (i % DUEL_COLUMNS) * PANEL.colPitch, y: PANEL.top - Math.floor(i / DUEL_COLUMNS) * PANEL.rowPitch }));
 }
 
 export type Wall = {
   targets: PickTarget<`skull:${string}`>[];
   ready: Promise<void>;   // the skull asset answered (present or not) and the first stock is placed
-  restock(defeats: readonly string[] | undefined): void;   // the beaten keys now: sets which slots carry a skull
+  restock(skulls: Skulls | undefined): void;   // what is beaten now: a skull on each beaten opponent's niche and on the first N duel niches
   dispose(): void;   // the wall's own geometry and materials; the asset's stay the scene's
 };
 
-export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly string[], wallZ: number, bone: THREE.Material): Wall {
-  const list = slots(keys), n = list.length, z = wallZ;   // the cell stands on the wall plane and comes forward NICHE.d
+export function buildWall(stage: SceneStage, group: THREE.Group, opponents: readonly string[], wallZ: number, bone: THREE.Material): Wall {
+  const aiList = slots(opponents), list = [...aiList, ...duelSlots()], n = list.length, z = wallZ;   // the cell stands on the wall plane and comes forward NICHE.d
   const niche = nicheGeometry(), marker = new THREE.CylinderGeometry(0.055, 0.055, 0.02, 12).rotateX(Math.PI / 2);
   const dark = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   const niches = new THREE.InstancedMesh(niche, dark, n);
@@ -70,13 +70,12 @@ export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly 
   niches.instanceMatrix.needsUpdate = true;
   group.add(niches);
   // The skulls: the asset's geometry when it is there, else the bone marker. Built once the asset has answered, so restock() has a mesh.
-  const index = new Map(list.map((s, i) => [s.key, i] as const));
-  let skulls: THREE.InstancedMesh | undefined, wanted: readonly string[] = [];
+  let skulls: THREE.InstancedMesh | undefined, wanted: Slot[] = [];
   let disposed = false;
   const place = () => {
     if (disposed || !skulls) return;
-    const beaten = wanted.filter((k) => index.has(k));
-    beaten.forEach((k, i) => { const s = list[index.get(k)!]!; m.makeTranslation(s.x, s.y, z + NICHE.d / 2); if (skulls!.userData.fit) m.multiply(skulls!.userData.fit as THREE.Matrix4); skulls!.setMatrixAt(i, m); });
+    const beaten = wanted;
+    beaten.forEach((s, i) => { m.makeTranslation(s.x, s.y, z + NICHE.d / 2); if (skulls!.userData.fit) m.multiply(skulls!.userData.fit as THREE.Matrix4); skulls!.setMatrixAt(i, m); });
     skulls.count = beaten.length; skulls.visible = beaten.length > 0; skulls.instanceMatrix.needsUpdate = true;
   };
   // A skull that is absent, 404s or throws is no skull: the wall keeps its silhouettes and markers, and ready still resolves.
@@ -97,9 +96,13 @@ export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly 
     place();
   });
   return {
-    targets: list.map((s) => ({ id: `skull:${s.key}` as const, box: new THREE.Box3(new THREE.Vector3(s.x - PANEL.colPitch / 2, s.y - PANEL.rowPitch / 2, wallZ - 0.05), new THREE.Vector3(s.x + PANEL.colPitch / 2, s.y + PANEL.rowPitch / 2, wallZ + 0.06)) })),   // thin: a slanted ray must not clip the neighbour's box first
+    targets: list.map((s) => ({ id: `skull:${s.id}` as const, box: new THREE.Box3(new THREE.Vector3(s.x - PANEL.colPitch / 2, s.y - PANEL.rowPitch / 2, wallZ - 0.05), new THREE.Vector3(s.x + PANEL.colPitch / 2, s.y + PANEL.rowPitch / 2, wallZ + 0.06)) })),   // thin: a slanted ray must not clip the neighbour's box first
     ready,
-    restock(defeats) { wanted = Array.isArray(defeats) ? defeats.filter((k) => typeof k === 'string') : []; place(); },
+    restock(data) {
+      const ai = Array.isArray(data?.ai) ? data.ai : [], duels = Array.isArray(data?.duels) ? data.duels.length : 0, beaten = new Set(ai.filter((a) => a?.beaten).map((a) => a.opponent));
+      wanted = [...aiList.filter((s) => beaten.has(s.id.slice(3))), ...duelSlots().slice(0, Math.min(duels, DUEL_SLOTS))];
+      place();
+    },
     dispose() { if (disposed) return; disposed = true; niche.dispose(); marker.dispose(); dark.dispose(); niches.dispose(); skulls?.dispose(); },
   };
 }

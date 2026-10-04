@@ -28,6 +28,10 @@ export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: (
   return wanted() ? pit.enter(stage, entry, pose, arrival, gateAt) : undefined;
 }
 // The chunk alone (the walk to the gate, docs/pit-design.md §9): main.ts holds him at the line until it is in, then fades and enters.
+// The skull wall's pure data module (src/pit/skulls.ts), for main.ts's Stage: it rides the Pit's own chunk, so the fight's download never carries it.
+export type SkullsModule = typeof import('./pit/skulls.ts');
+export type { Skulls } from './pit/skulls.ts';
+export const loadSkulls = (): Promise<SkullsModule> => import('./pit/skulls.ts');
 export const loadPit = (): Promise<void> => load().then(() => undefined);
 
 // D2 (docs/pit-design.md §9): the gate line he crosses on foot, 1.5 m inside the wall inside the gate's arc; and the door's rule while

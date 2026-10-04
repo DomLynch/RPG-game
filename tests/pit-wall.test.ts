@@ -1,12 +1,13 @@
-// The skull wall (PR B, Lead's conditions 2026-09-30): 100 slots in PORTRAIT_KEYS order on the far wall's two panels either side of the
-// gate; loot.defeats read defensively (absent → all silhouettes, a stray key → ignored); the skull is a swappable asset (Stage.prop) with
-// bone markers until it lands; a tap on a slot picks `skull:<key>`, and the sheet shows the legend's card.
+// The skull wall (Dom 2026-10-04): 10 niches on the left panel (one per computer opponent), 30 on the right (real players beaten in duels),
+// stocked from skulls.ts; the skull is a swappable asset (Stage.prop) with bone markers until it lands; a tap on a niche picks
+// `skull:ai:<opponent>` / `skull:duel:<i>`, and the sheet shows the opponents' list or the player's card.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { PORTRAIT_KEYS, LEGEND_OPPONENTS } from '../src/legends.ts';
-import { NICHE, PANEL, buildWall, nicheGeometry, slots } from '../src/pit/wall.ts';
+import { NICHE, PANEL, buildWall, duelSlots, nicheGeometry, slots } from '../src/pit/wall.ts';
+import { demoSkulls, opponentsOf, skullsFromLoot, type Skulls } from '../src/pit/skulls.ts';
 import { ROOM, buildRoom, POSES } from '../src/pit/room.ts';
 import { createPicker } from '../src/pit/picker.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
@@ -15,24 +16,24 @@ import type { Loot } from '../src/loot.ts';
 
 const gateHalf = ROOM.gate.width / 2;
 
-test('100 slots in PORTRAIT_KEYS order: one row per opponent, ranks left to right, five opponents a panel, clear of the gate and the corners', () => {
-  const list = slots(PORTRAIT_KEYS);
-  assert.equal(list.length, 100);
-  assert.deepEqual(list.map((s) => s.key), [...PORTRAIT_KEYS]);
-  for (const s of list) {
-    assert.ok(Math.abs(s.x) >= gateHalf + 0.1, `${s.key} at x ${s.x} sits over the gate`);
-    assert.ok(Math.abs(s.x) <= ROOM.width / 2 - 0.2, `${s.key} at x ${s.x} is in the corner`);
-    assert.ok(s.y >= 0.5 && s.y <= ROOM.height - 0.3, `${s.key} at y ${s.y}`);
+const OPPONENTS = opponentsOf(PORTRAIT_KEYS);
+const none = (): Skulls => skullsFromLoot(undefined, OPPONENTS);
+const withAi = (...beaten: string[]): Skulls => ({ ...none(), ai: none().ai.map((a) => ({ ...a, beaten: beaten.includes(a.opponent) })) });
+
+test('10 opponent niches left (2 columns × 5 rows from the panel\'s inner edge), 30 player niches right (6 × 5), clear of the gate and the corners', () => {
+  assert.deepEqual(OPPONENTS, [...LEGEND_OPPONENTS]);
+  const left = slots(OPPONENTS), right = duelSlots();
+  assert.equal(left.length, 10); assert.equal(right.length, 30);
+  assert.deepEqual(left.map((s) => s.id), OPPONENTS.map((o) => `ai:${o}`));
+  assert.deepEqual(right.map((s) => s.id), Array.from({ length: 30 }, (_, i) => `duel:${i}`));
+  for (const s of [...left, ...right]) {
+    assert.ok(Math.abs(s.x) >= gateHalf + 0.1, `${s.id} at x ${s.x} sits over the gate`);
+    assert.ok(Math.abs(s.x) <= ROOM.width / 2 - 0.2, `${s.id} at x ${s.x} is in the corner`);
+    assert.ok(s.y >= 0.5 && s.y <= ROOM.height - 0.3, `${s.id} at y ${s.y}`);
   }
-  const rowOf = (opponent: string) => list.filter((s) => s.key.startsWith(`${opponent}-`));
-  for (const [i, opponent] of LEGEND_OPPONENTS.entries()) {
-    const row = rowOf(opponent);
-    assert.equal(row.length, 10); assert.equal(new Set(row.map((s) => s.y)).size, 1, `${opponent}: one row`);
-    assert.ok(row.every((s) => Math.sign(s.x) === (i < 5 ? -1 : 1)), `${opponent}: ${i < 5 ? 'left' : 'right'} panel`);
-    const out = row.map((s) => Math.abs(s.x));
-    assert.deepEqual(out, [...out].sort((a, b) => a - b), `${opponent}: rank 1 nearest the gate, 10 at the corner`);
-  }
-  assert.throws(() => slots(PORTRAIT_KEYS.slice(1)), /100 keys/);
+  assert.ok(left.every((s) => s.x < 0) && right.every((s) => s.x > 0));
+  assert.equal(new Set(left.map((s) => s.x)).size, 2); assert.equal(new Set(left.map((s) => s.y)).size, 5);
+  assert.equal(new Set(right.map((s) => s.x)).size, 6); assert.equal(new Set(right.map((s) => s.y)).size, 5);
 });
 
 function stage(loot: Loot = { owned: [], equipped: {} }, prop?: Stage['prop']): Stage {
@@ -50,7 +51,7 @@ test('disposal before a deferred skull load prevents late mounting and releases 
   const asset = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
   let sharedDisposals = 0, ownedDisposals = 0;
   for (const resource of [bone, asset.geometry, asset.material]) resource.addEventListener('dispose', () => sharedDisposals++);
-  const wall = buildWall(stage(undefined, () => pending), group, PORTRAIT_KEYS, -3, bone);
+  const wall = buildWall(stage(undefined, () => pending), group, OPPONENTS, -3, bone);
   const niches = instanced(group, 'skull-niches')!;
   niches.addEventListener('dispose', () => ownedDisposals++);
   niches.geometry.addEventListener('dispose', () => ownedDisposals++);
@@ -58,7 +59,7 @@ test('disposal before a deferred skull load prevents late mounting and releases 
   wall.dispose(); wall.dispose();
   const count = group.children.length;
   resolve(asset); await wall.ready;
-  wall.restock(['veteran-1']); wall.dispose();
+  wall.restock(withAi('veteran')); wall.dispose();
   assert.equal(group.children.length, count);
   assert.equal(instanced(group, 'skulls'), undefined);
   assert.equal(ownedDisposals, 3);
@@ -70,11 +71,11 @@ test('disposal after loading releases instances once, leaves shared skull resour
   const group = new THREE.Group(), bone = new THREE.MeshStandardMaterial();
   let sharedDisposals = 0, instanceDisposals = 0;
   for (const resource of [bone, asset.geometry, asset.material]) resource.addEventListener('dispose', () => sharedDisposals++);
-  const wall = buildWall(stage(undefined, async () => asset), group, PORTRAIT_KEYS, -3, bone);
-  await wall.ready; wall.restock(['veteran-1']);
+  const wall = buildWall(stage(undefined, async () => asset), group, OPPONENTS, -3, bone);
+  await wall.ready; wall.restock(withAi('veteran'));
   const skulls = instanced(group, 'skulls')!;
   skulls.addEventListener('dispose', () => instanceDisposals++);
-  wall.dispose(); wall.dispose(); wall.restock(['veteran-1', 'knight-10']);
+  wall.dispose(); wall.dispose(); wall.restock(withAi('veteran', 'knight'));
   assert.equal(skulls.count, 1);
   assert.equal(instanceDisposals, 1);
   assert.equal(sharedDisposals, 0);
@@ -95,79 +96,121 @@ test('an empty niche is a carved cell: vertex-coloured rim, sides and dark back,
   g.dispose();
 });
 
-test('defeats absent: every slot a dark niche and no skull; a stray key is ignored; restock replaces', async () => {
+test('nothing beaten: every niche a dark carved cell and no skull; restock replaces; duel skulls fill the first N player niches', async () => {
   const s = stage(), group = new THREE.Group(), bone = new THREE.MeshStandardMaterial();
-  const wall = buildWall(s, group, PORTRAIT_KEYS, -3, bone);
+  const wall = buildWall(s, group, OPPONENTS, -3, bone);
   await wall.ready;
-  assert.equal(instanced(group, 'skull-niches')?.count, 100);
+  assert.equal(instanced(group, 'skull-niches')?.count, 40);
   const markers = instanced(group, 'skull-markers');
   assert.ok(markers, 'no asset: the bone marker stands in');
   wall.restock(undefined);
-  assert.equal(markers.count, 0); assert.equal(markers.visible, false, 'no defeats: nothing drawn');
-  wall.restock(['veteran-7', 'not-a-slot', 'knight-10']);
-  assert.equal(markers.count, 2, 'two real slots, the stray key ignored'); assert.equal(markers.visible, true);
+  assert.equal(markers.count, 0); assert.equal(markers.visible, false, 'no data: nothing drawn');
+  wall.restock(withAi('veteran', 'knight'));
+  assert.equal(markers.count, 2); assert.equal(markers.visible, true);
   const m = new THREE.Matrix4(), p = new THREE.Vector3();
   markers.getMatrixAt(0, m); p.setFromMatrixPosition(m);
-  const slot = slots(PORTRAIT_KEYS).find((x) => x.key === 'veteran-7')!;
-  assert.ok(Math.abs(p.x - slot.x) < 1e-6 && Math.abs(p.y - slot.y) < 1e-6 && p.z > -3 && p.z < -3 + NICHE.d, `veteran-7 sits inside its cell: ${p.toArray()}`);
-  wall.restock(['goblin-1']);
+  const slot = slots(OPPONENTS).find((x) => x.id === 'ai:veteran')!;
+  assert.ok(Math.abs(p.x - slot.x) < 1e-6 && Math.abs(p.y - slot.y) < 1e-6 && p.z > -3 && p.z < -3 + NICHE.d, `the veteran sits inside its cell: ${p.toArray()}`);
+  wall.restock(withAi('goblin'));
   assert.equal(markers.count, 1, 'a restock replaces the set');
+  wall.restock({ ...withAi('goblin'), duels: demoSkulls(OPPONENTS).duels.slice(0, 4) });
+  assert.equal(markers.count, 5, 'one beaten opponent and four players');
+  markers.getMatrixAt(4, m); p.setFromMatrixPosition(m);
+  const last = duelSlots()[3]!;
+  assert.ok(Math.abs(p.x - last.x) < 1e-6 && Math.abs(p.y - last.y) < 1e-6, 'the fourth player on the fourth right niche');
+  wall.restock({ ...none(), duels: Array.from({ length: 40 }, () => demoSkulls(OPPONENTS).duels[0]!) });
+  assert.equal(markers.count, 30, 'never more than the 30 niches');
   wall.dispose();
 });
 
 test('the skull asset, when the Stage has it, fills the beaten slots (fitted to the niche) and the marker is not used', async () => {
   const skull = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6).translate(3, 3, 3), new THREE.MeshStandardMaterial());
   const s = stage(undefined, async () => skull), group = new THREE.Group();
-  const wall = buildWall(s, group, PORTRAIT_KEYS, -3, new THREE.MeshStandardMaterial());
+  const wall = buildWall(s, group, OPPONENTS, -3, new THREE.MeshStandardMaterial());
   await wall.ready;
   const skulls = instanced(group, 'skulls');
   assert.ok(skulls && !instanced(group, 'skull-markers'));
   assert.equal(skulls.geometry, skull.geometry, 'the asset\'s own geometry, shared');
-  wall.restock(['dwarf-4']);
+  wall.restock(withAi('dwarf'));
   assert.equal(skulls.count, 1);
   const m = new THREE.Matrix4(); skulls.getMatrixAt(0, m);
-  const p = new THREE.Vector3(3, 3, 3).applyMatrix4(m), scale = new THREE.Vector3().setFromMatrixScale(m), slot = slots(PORTRAIT_KEYS).find((x) => x.key === 'dwarf-4')!;   // the asset's own centre lands on the slot
+  const p = new THREE.Vector3(3, 3, 3).applyMatrix4(m), scale = new THREE.Vector3().setFromMatrixScale(m), slot = slots(OPPONENTS).find((x) => x.id === 'ai:dwarf')!;   // the asset's own centre lands on the slot
   assert.ok(Math.abs(p.x - slot.x) < 1e-5 && Math.abs(p.y - slot.y) < 1e-5, `centred on the slot, the asset's own offset undone: ${p.toArray()}`);
   assert.ok(Math.abs(scale.x - NICHE.w / 1.0) < 1e-6, `a 1 m skull scaled to the niche's ${NICHE.w}: ${scale.x}`);
   wall.dispose();
 });
 
-test('the room stocks the wall from loot.defeats and a tap on a slot from the gate camera picks it', async () => {
-  const loot = { owned: [], equipped: {}, defeats: ['pitborn-3', 'witch-9'] } as Loot;
+test('the room stocks the wall from loot.defeats (no record yet) and a tap on a niche from the gate camera picks it', async () => {
+  const loot = { owned: [], equipped: {}, defeats: ['pitborn-3', 'witch-9', 'witch-2'] } as Loot;
   const s = stage(loot), room = buildRoom(s);
   try {
     await room.ready;
     const markers = instanced(room.group, 'skull-markers');
-    assert.equal(markers?.count, 2, 'the two beaten legends');
-    assert.equal(room.targets.filter((t) => t.id.startsWith('skull:')).length, 100);
+    assert.equal(markers?.count, 2, 'two beaten opponents, one skull each');
+    assert.equal(room.targets.filter((t) => t.id.startsWith('skull:')).length, 40);
     const c = new THREE.PerspectiveCamera(62, 0.46, 0.1, 50); c.position.set(...POSES.gate.camera); c.lookAt(...POSES.gate.target); c.updateMatrixWorld();
-    const pick = createPicker(c, () => room.targets), at = (key: string) => { const x = slots(PORTRAIT_KEYS).find((q) => q.key === key)!; const v = new THREE.Vector3(x.x, x.y, -ROOM.depth / 2).project(c); return { x: v.x, y: v.y }; };
-    assert.equal(pick(at('pitborn-3')), 'skull:pitborn-3');
-    assert.equal(pick(at('knight-10')), 'skull:knight-10', 'an unbeaten slot picks too (its card says so)');
+    const pick = createPicker(c, () => room.targets), at = (x: { x: number; y: number }) => { const v = new THREE.Vector3(x.x, x.y, -ROOM.depth / 2).project(c); return { x: v.x, y: v.y }; };
+    assert.equal(pick(at(slots(OPPONENTS).find((q) => q.id === 'ai:pitborn')!)), 'skull:ai:pitborn');
+    assert.equal(pick(at(slots(OPPONENTS).find((q) => q.id === 'ai:knight')!)), 'skull:ai:knight', 'an unbeaten niche picks too');
+    assert.equal(pick(at(duelSlots()[7]!)), 'skull:duel:7', 'an empty player niche picks too (its sheet shows the hint)');
     assert.equal(pick({ x: 0, y: -0.2 }), 'gate', 'the gate between the panels is still the gate');
     assert.ok(PANEL.colPitch * 2 <= NICHE.h * 2, 'a slot\'s pick box is its pitch, so the wall has no dead gaps');
   } finally { room.dispose(); }
 });
 
-// The full stage builds the sheet (sheet.ts), and node has no document: the least element that satisfies it.
-const element = () => ({ hidden: false, textContent: '', childElementCount: 0, className: '', src: '', alt: '', width: 0, height: 0, loading: '', setAttribute() {}, append() {}, replaceChildren() {}, addEventListener() {}, remove() {} });
-test('a tap on a beaten slot shows the legend\'s card; an unbeaten one says who waits there', () => {
-  const made: ReturnType<typeof element>[] = [];
+test('the room hangs the stage\'s skulls now, then the fetched record once it lands, unless a later stock took over', async () => {
+  let land!: (data: Skulls) => void;
+  const s = Object.assign(stage(), { skullsNow: () => withAi('veteran'), skulls: () => new Promise<Skulls>((done) => { land = done; }) }), room = buildRoom(s);
+  try {
+    await room.ready;
+    const markers = instanced(room.group, 'skull-markers')!;
+    assert.equal(markers.count, 1, 'the cached record hangs at once');
+    land({ ...withAi('veteran', 'dwarf'), duels: demoSkulls(OPPONENTS).duels.slice(0, 3) });
+    await new Promise((r) => setTimeout(r, 0));
+    assert.equal(markers.count, 5, 'two opponents and three players');
+  } finally { room.dispose(); }
+});
+
+// The full stage builds the sheet (sheet.ts), and node has no document: a minimal element that keeps its children, so the sheet's text can be read.
+type El = { hidden: boolean; textContent: string; className: string; src: string; alt: string; width: number; height: number; loading: string; children: El[]; childElementCount: number; setAttribute(): void; append(...n: El[]): void; replaceChildren(...n: El[]): void; addEventListener(): void; remove(): void };
+const element = (): El => {
+  const e: El = { hidden: false, textContent: '', className: '', src: '', alt: '', width: 0, height: 0, loading: '', children: [], childElementCount: 0, setAttribute() {}, addEventListener() {}, remove() {}, append(...n) { e.children.push(...n); e.childElementCount = e.children.length; }, replaceChildren(...n) { e.children = n; e.childElementCount = n.length; } };
+  return e;
+};
+const textOf = (e: El): string[] => [e.textContent, ...e.children.flatMap(textOf)].filter(Boolean);
+test('a tap on the left wall lists every opponent with ranks and record; a right skull shows the player; an empty right niche shows the hint', () => {
+  const made: El[] = [];
   (globalThis as { document?: unknown }).document = { createElement: () => { const e = element(); made.push(e); return e; }, body: element() };
   try {
     let tap: { x: number; y: number } | null = null;
-    const s = stage({ owned: [], equipped: {}, defeats: ['veteran-1'] } as Loot);
+    const data: Skulls = {
+      ai: none().ai.map((a) => (a.opponent === 'veteran' ? { ...a, beaten: true, ranks: [1, 3, 7], wins: 8, losses: 2 } : a.opponent === 'dwarf' ? { ...a, beaten: true, wins: 3 } : a)),
+      duels: [{ key: 'u1', name: 'Marcus Vale', level: 24, gear: { head: 'knight.Helmet', weapon: 'veteran.Trident' }, lastWinAt: '2026-10-03T19:20:00Z', wins: 3, losses: 1, draws: 0 }],
+    };
+    const s = stage();
     Object.assign(s, {
       readMove: () => ({ x: 0, z: 0 }), readTap: () => { const t = tap; tap = null; return t; }, rackRows: () => [], trophyLine: () => '', gate: () => ({ label: 'Rematch', go() {} }),
-      legend: (key: string) => (key === 'veteran-1' ? { name: 'Crixus', opponent: 'the Veteran', rank: 1, source: 'Appian', backstory: 'A Gaul.', portrait: 'legends/veteran-1.webp', beaten: true } : key === 'veteran-2' ? { name: 'Ragnar', opponent: 'the Veteran', rank: 2, source: '', backstory: '', portrait: '', beaten: false } : null),
+      skullsNow: () => data, pieceName: (id: string) => `<${id}>`,
+      legend: (key: string) => (key.endsWith('-7') || key.endsWith('-1') ? { name: 'Crixus', opponent: `the ${key.split('-')[0]}`, rank: Number(key.split('-')[1]), source: '', backstory: '', portrait: `legends/${key}.webp`, beaten: true } : null),
     });
-    const pit = enter(s, 'win'), title = made[1]!;
+    const pit = enter(s, 'win'), root = made[0]!, title = made[1]!, body = made[2]!;
     pit.frame(1 / 60); s.camera.updateMatrixWorld();
-    const at = (key: string) => { const x = slots(PORTRAIT_KEYS).find((q) => q.key === key)!; const v = new THREE.Vector3(x.x, x.y, -ROOM.depth / 2).project(s.camera); return { x: v.x, y: v.y }; };
-    tap = at('veteran-1'); pit.frame(1 / 60);
-    assert.equal(title.textContent, 'Crixus · rank 1');
-    tap = at('veteran-2'); pit.frame(1 / 60);
-    assert.equal(title.textContent, 'the Veteran · rank 2');
+    const at = (x: { x: number; y: number }) => { const v = new THREE.Vector3(x.x, x.y, -ROOM.depth / 2).project(s.camera); return { x: v.x, y: v.y }; };
+    tap = at(slots(OPPONENTS)[0]!); pit.frame(1 / 60);
+    assert.equal(title.textContent, 'The skull wall · opponents');
+    const list = body.children[0]!;
+    assert.equal(list.children.length, 10, 'all ten opponents');
+    const rows = list.children.map(textOf);
+    assert.deepEqual(rows[0], ['the veteran', 'ranks 1, 3, 7 · W 8 · L 2']);
+    assert.deepEqual(rows[5], ['the dwarf', 'ranks unknown · W 3 · L 0']);
+    assert.equal(textOf(list.children[1]!).at(-1), 'Not beaten yet');
+    assert.equal(list.children[0]!.children[0]!.src, 'legends/veteran-7.webp', 'the portrait of the highest rank beaten');
+    tap = at(duelSlots()[0]!); pit.frame(1 / 60);
+    assert.equal(title.textContent, 'Marcus Vale');
+    assert.deepEqual(body.children.map((c) => c.textContent), ['Level 24', '<knight.Helmet>, <veteran.Trident>', 'Last beaten 2026-10-03', 'Your record against them: W 3 · L 1']);
+    tap = at(duelSlots()[1]!); pit.frame(1 / 60);
+    assert.deepEqual(body.children.map((c) => c.textContent), ['Beat a real player in a duel to hang their skull here.']);
+    void root;
     pit.dispose();
   } finally { delete (globalThis as { document?: unknown }).document; disposeRoom(); }
 });

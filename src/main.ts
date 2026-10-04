@@ -19,7 +19,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
+import { LEGEND_OPPONENTS, PORTRAIT_KEYS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
@@ -35,9 +35,9 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
-import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
+import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Skulls, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom } from './look-flag.ts';
+import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom, skullsDemoFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
@@ -1321,12 +1321,31 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // defeat). `pit` is the one switch frame() reads: while it is set the Pit draws the frame and nothing of the fight runs. `?look=pit` is the
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
+// The skull wall's record (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each Pit visit;
+// the `&skulls=demo` look never touches the network. skullsNow is undefined until the module is in; the room then falls back to loot.defeats.
+let skullMod: SkullsModule | null = null, skullCache: Skulls | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
+function pitSkulls() {
+  const demo = skullsDemoFrom(window.location?.search ?? '');
+  void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
+  const opponents = () => skullMod!.opponentsOf(PORTRAIT_KEYS), local = () => skullMod!.skullsFromLoot(pitLoot(), opponents());
+  return {
+    skullsNow: (): Skulls | undefined => (!skullMod ? undefined : demo ? skullMod.demoSkulls(opponents()) : (skullCache ?? local())),
+    skulls: async (): Promise<Skulls> => {
+      const m = skullMod ??= await loadSkulls();
+      if (demo) return m.demoSkulls(opponents());
+      skullCache = await m.fetchSkulls(session.db, local(), opponents());
+      return skullCache;
+    },
+  };
+}
 function pitStage(): Stage {
   const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
   return {
     ...view.pitStage(pitLoot),
     ...(look ? { look } : {}),
     ...pitOpenLook(window.location?.search ?? ''),   // the cage by default (look-flag.ts)
+    ...pitSkulls(),
+    pieceName: (id) => { try { return pieceName(id as LootId); } catch { return id; } },
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
