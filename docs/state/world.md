@@ -2,6 +2,30 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-04 ~19:3x (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
+
+### Now
+- **Skull wall part B is built and waiting on #1370.** `world/skull-wall` @276068d9 (off lead/pit-ship 28c6a238; 3 commits). Lead's order: do NOT fold into #1370; once #1370 is on trunk, rebase onto trunk and open its OWN PR (visual-pr-stills: left-panel and right-panel stills plus one tap-sheet still each side). Before the PR: re-run `node scripts/quality-stop-targeted.mjs` on the final head (the last commit 276068d9 was not gated) and do one tap test in a browser on each panel (never done: the sheet is unit-tested only).
+- Stills: ~/Desktop/Business/frankendom-skull-wall/ (VPS, 390x694). Walk link (after Deploy publishes): `?look=pit-glow,pit-cage&arena=1&skulls=demo`; still poses `&pose=wall` (left) and `&pose=duels` (right, new).
+- **Follow-up owed (small, separate PR):** in glow mode the yard floor must always be sand; after a clay arena (`?arena=a`) it uses that arena's cracked clay map (Lead 10-04).
+
+### Done today (10-04)
+- Pit wall blood is IN #1370 (lead/pit-ship 28c6a238, built on my world/pit-blood-cage bec837b0): four generated decals (spray, finger-drag, high splash with runs, cracked pool, puddle) from `scripts/pit-blood-decals.py` (numpy+PIL, run on the VPS), webps in `public/pit/blood/`, `addGroundBlood` in glow.ts, one entry in room.ts. GPT strip crops were compared side by side in the cage's daylight and lost (fresher, drapey); Lead and Dom saw the comparison. Budget PASS (Pit assets 2,332,612 of 2,500,000).
+- Skull wall: `src/pit/skulls.ts` (loot fallback: beaten if in defeats OR any taken/declined provenance, ranks unknown for old wins; reads Backend's `pit_ai_standing()` + `pit_duel_beaten()` via `session.db`, shapes from origin/backend/fight-results 9c7123f5 migration 202610050001), `wall.ts` rebuilt (40 niches; ids `skull:ai:<opponent>` / `skull:duel:<i>`), `sheet.ts`, `pit-coordinator.ts` `loadSkulls()` (main.ts may not import src/pit/: boundary test), `&skulls=demo` look flag.
+
+### Open
+- Lead: #1370 release, then preview of the skull wall from my head. Backend: RPC migration not applied yet, so Dom's real profile shows the loot-derived skulls (his 7 opponents).
+- Strip variant of the blood: not needed unless Dom asks louder.
+- Old branches left alone: world/pit-blood, world/pit-blood-cage, world/pit-blood-strips (none), lead/pit-look cell stays only as the comparison link.
+
+### Gotchas
+- **Dynamic Paint in headless Blender 5.2.2 baked blank** (mesh, vertex and particle brushes; ~40 min lost): do not retry; the numpy generator replaced it. Blender on the VPS is fine for other work.
+- Mac load was ~50 (shared); local SwiftShader screenshots time out. Render on the VPS: work copy `/opt/frankendom-shadow/work/world-cage` is a git worktree of /opt/frankendom-shadow/repo (`git -c safe.directory='*' fetch origin <branch>; checkout --detach`), node_modules symlinked; scripts in /opt/frankendom-shadow/work/world-blood (`run*.sh`, `shot-vps.mjs`, `shot-skulls.mjs`), submitted with `CAPTURE_WAIT_S=28800 setsid -f /opt/frankendom-shadow/bin/capture world ./run3.sh`, poll a DONE file. NEVER rsync src/ or public/ from the Mac (754 MB, hangs); push the branch and fetch on the VPS.
+- zsh: `$VAR` ssh options do not word-split: use wrapper scripts (scratchpad v.sh/sc.sh/rs.sh). macOS `sed -i ''`. `rm -f w2-*.png` with no match aborts a `&&` chain in zsh.
+- At the cage gate pose the camera sees only ~1.5 m of wall either side of the arch (140 px/m, wall 5 m high): wall events must sit within that; skull niches (x 2.3..4.7) are off-screen there, use `pose=wall` / `pose=duels`.
+- The still poses (`?look=pit,...&pose=`) have no GameStage: skulls/demo hooks are added to the still stage in `showPitLook` only when `&skulls=demo`.
+- The Stop hook runs the targeted gate on whatever is in the tree, including a subagent's half-finished edits: let a subagent finish before stopping.
+
 ## 2026-10-03 — Owner rejected both image arena trials; restore default
 - Removed both trial modules, two image assets/provenance, Stage options, scene/camera adapters, and trial-only tests/browser workflow/gate rows. Production main/scene/index and original50 release rows restored byte-for-byte to pre-trial950db85c; native arena/camera/characters/combat/sim unchanged.
 - Existing Sparring workflow gains no-write checks for original Stage choices and retired trial URL/tab-storage fallback to the default camera. No new production framework or runtime dependency.
