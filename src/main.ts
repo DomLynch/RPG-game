@@ -37,7 +37,7 @@ import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparrin
 import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitCageFrom, pitGlowFrom, pitLookFrom, pitStoneFrom } from './look-flag.ts';
+import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
@@ -1326,8 +1326,7 @@ function pitStage(): Stage {
   return {
     ...view.pitStage(pitLoot),
     ...(look ? { look } : {}),
-    ...(pitGlowFrom(window.location?.search ?? '') ? { glow: true } : {}),
-    ...(pitCageFrom(window.location?.search ?? '') ? { cage: true } : {}),
+    ...pitOpenLook(window.location?.search ?? ''),   // the cage by default (look-flag.ts)
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
@@ -1384,7 +1383,7 @@ function walkPitGlow() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...(pitGlowFrom(window.location.search) ? { glow: true } : {}), ...(pitCageFrom(window.location.search) ? { cage: true } : {}) };   // Web's stone look test
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search) };   // Web's stone look test
   const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
   pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;

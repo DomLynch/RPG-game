@@ -14,6 +14,9 @@ export type SceneStage = {
   grade(material: THREE.MeshStandardMaterial, kind: 'stone' | 'sand'): void;   // the arena's background grade (colour-grade.ts)
   arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
   glow?: boolean;
+  // The arena's seeded noise (assets/arena/textures.ts), for the glow Pit's grime and blood stains: pure pixel maths handed in, since
+  // the Pit imports nothing outside three (tests/pit-boundary.test.ts). Absent (tests): no grime, no stains.
+  noise?: { fbm(period: number, octaves: number, seed: number, gain?: number): (u: number, v: number) => number; blood(size: number, seed: number): { width: number; height: number; data: Uint8Array } };
   cage?: boolean;   // `?look=pit-glow,pit-cage`: the open-air cage variant (room.ts C)   // `?look=pit,pit-glow`: Dom's painted-cell look test (glow.ts)
   look?: 'stone' | 'stone-sand' | 'stone-proc' | 'stone-full';   // `?look=pit-stone`: Web's stone look test (stone.ts) on the wall, vault and floor; `-sand` keeps the sand floor, `-proc` is Web's procedural set (the default is GPT's), `-full` adds GPT's AO, damp band and torch soot
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed

@@ -4,9 +4,10 @@
 // stone, the sand and the lights; pit.ts swaps the arena's fog for a warm one while the room is up. Look test only, never the default.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { fbm, patchPixels } from '../assets/arena/textures.ts';
+import type { Stage } from './stage.ts';
+type Noise = NonNullable<Stage['noise']>;
 
-export const GLOW = { fog: '#8a5a30', fogDensity: 0.035, light: '#ffd08a', stone: '#d9a86e', sand: '#f2c58a', fill: '#ffbf7a', arch: '#a8875f' };
+export const GLOW = { fog: '#8a5a30', fogDensity: 0.035, light: '#ffd08a', stone: '#d9a86e', sand: '#f2c58a', fill: '#ffbf7a', arch: '#a8875f', cageFog: '#c9a47a', cageFogDensity: 0.02 };
 
 // A canvas texture: `draw` paints a w × h 2D context.
 function painted(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void): THREE.Texture {
@@ -88,8 +89,8 @@ export function arenaBeyond(material: THREE.MeshBasicMaterial, textures: THREE.T
 
 // Old blood soaked into the sand (Dom 10-04: "the day map with blood stains, use that for our floor"): the arenas' own blood patch
 // (textures.ts patchPixels 'blood', Blood Sand's seed) as dark brown-red stains lying on the Pit's sand, lit by the torches like the floor.
-export function addBloodStains(group: THREE.Group, width: number, depth: number) {
-  const p = patchPixels(256, 'blood', 43);
+export function addBloodStains(group: THREE.Group, width: number, depth: number, noise: Noise) {
+  const p = noise.blood(256, 43);
   for (let i = 0; i < p.data.length; i += 4) { p.data[i] = 92; p.data[i + 1] = 30; p.data[i + 2] = 20; p.data[i + 3] = Math.round(p.data[i + 3]! * 0.85); }
   const map = new THREE.DataTexture(p.data, p.width, p.height, THREE.RGBAFormat);
   map.colorSpace = THREE.SRGBColorSpace; map.magFilter = THREE.LinearFilter; map.minFilter = THREE.LinearFilter; map.needsUpdate = true;
@@ -167,7 +168,7 @@ function bloodTexture(w: number, h: number, marks: readonly Mark[]) {
 }
 
 type Wall = { w: number; h: number; at: THREE.Vector3Tuple; turn: number; seed: number; torch?: number; marks?: Mark[] };   // torch: the sconce's u (0..1) on this wall
-function grimeTexture({ w, h, seed, torch }: Wall): THREE.Texture {
+function grimeTexture({ w, h, seed, torch }: Wall, fbm: Noise['fbm']): THREE.Texture {
   const PX = 96, cw = Math.round(w * PX / 2), ch = Math.round(h * PX / 2);   // 48 px per metre
   const blotch = fbm(4, 5, seed), fine = fbm(24, 3, seed + 7, 0.6), streak = fbm(3, 3, seed + 13);
   return painted(cw, ch, (g) => {
@@ -185,7 +186,7 @@ function grimeTexture({ w, h, seed, torch }: Wall): THREE.Texture {
     g.putImageData(img, 0, 0);
   });
 }
-export function addGrime(group: THREE.Group, room: { width: number; depth: number; height: number; gateWidth: number }, torchZ: number, farOnly = false) {
+export function addGrime(group: THREE.Group, room: { width: number; depth: number; height: number; gateWidth: number }, torchZ: number, noise: Noise, farOnly = false) {
   const { width: W, depth: D, height: H, gateWidth } = room, hw = W / 2, hd = D / 2, side = hw - gateWidth / 2, off = 0.012;
   const torchU = (D / 2 + torchZ) / D;   // the sconces sit near the far end of each side wall
   const walls: Wall[] = [
@@ -199,7 +200,7 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
   const textures: THREE.Texture[] = [], materials: THREE.MeshStandardMaterial[] = [], geometries: THREE.BufferGeometry[] = [];
   if (farOnly) walls.splice(2);   // pit-cage: only the far wall stands; the other sides are iron fence
   for (const wall of walls) {
-    const map = grimeTexture(wall);
+    const map = grimeTexture(wall, noise.fbm);
     const material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
     const geometry = new THREE.PlaneGeometry(wall.w, wall.h).rotateY(wall.turn).translate(...wall.at);
     const mesh = new THREE.Mesh(geometry, material);
@@ -239,4 +240,35 @@ export function addFence(group: THREE.Group, width: number, depth: number, iron:
   mesh.castShadow = mesh.receiveShadow = true;
   group.add(mesh);
   return geometry;
+}
+
+// The cage's open sky (Dom 10-04): the yard stands outside the arena wall under Arena 1's golden hour, whichever arena the fight was in.
+// Its own pieces, so a night or rain arena never shows through: a gradient sky dome, Arena 1's painted far world on a ring (the same
+// settings as arena.ts / arena-themes.ts ARENA_1: 40 m x 0.45, 8.9 copies, 0.9 tall, 7 m down, turned 0.6), and a low warm sun with a
+// cool sky fill. The arena's own lights stay turned down (pit.ts BORROWED_LIGHT), as in the cell.
+export function addOpenSky(group: THREE.Group) {
+  const textures: THREE.Texture[] = [], materials: THREE.Material[] = [], geometries: THREE.BufferGeometry[] = [];
+  const skyMap = painted(4, 256, (g) => {
+    const v = g.createLinearGradient(0, 0, 0, 256);
+    v.addColorStop(0, '#5f6f8c'); v.addColorStop(0.55, '#b59a86'); v.addColorStop(0.8, '#e9b47c'); v.addColorStop(1, '#c9a47a');
+    g.fillStyle = v; g.fillRect(0, 0, 4, 256);
+  });
+  const sky = new THREE.MeshBasicMaterial({ map: skyMap, side: THREE.BackSide, fog: false, depthWrite: false });
+  const dome = new THREE.SphereGeometry(150, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.56);
+  const NEAR = 0.45;
+  const map = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}arena/backdrop-1.webp`);
+  map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 8.9; map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;
+  const paint = new THREE.MeshBasicMaterial({ map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
+  const ring = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true);
+  textures.push(skyMap, map); materials.push(sky, paint); geometries.push(dome, ring);
+  const domeMesh = new THREE.Mesh(dome, sky); domeMesh.renderOrder = -2;
+  const ringMesh = new THREE.Mesh(ring, paint); ringMesh.renderOrder = -1;
+  ringMesh.scale.set(NEAR, NEAR * 0.9, NEAR); ringMesh.position.y = (17 - 7) * NEAR; ringMesh.rotation.y = 0.6;
+  const sun = new THREE.DirectionalLight('#ffb46a', 4.2);
+  sun.position.set(-24, 12, -15); sun.target.position.set(0, 0, 0);
+  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+  Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 60 }); sun.shadow.camera.updateProjectionMatrix();
+  const fill = new THREE.HemisphereLight('#9fb2d4', '#4a3426', 1.1);
+  group.add(domeMesh, ringMesh, sun, sun.target, fill);
+  return { textures, materials, geometries };
 }

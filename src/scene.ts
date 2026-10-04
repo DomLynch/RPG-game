@@ -24,6 +24,7 @@ import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
+import { fbm, patchPixels } from './assets/arena/textures.ts';
 import { arenaFor } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
@@ -543,6 +544,7 @@ export function createScene(
           if (tree) budgetTextures(tree, phoneTier() ? 256 : 512);
           return tree;
         })),
+        noise: { fbm, blood: (size, seed) => patchPixels(size, 'blood', seed) },   // the glow Pit's grime and stains (pit/stage.ts noise)
         setArenaVisible(on) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }

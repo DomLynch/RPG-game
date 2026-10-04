@@ -58,14 +58,10 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   if (again) void built.restock();   // what he owns may have changed since the last visit (a take)
   const lights = scene.children.filter((c): c is THREE.Light => c instanceof THREE.Light).map((light) => [light, light.intensity] as const);
   const cage = !!stage.glow && !!stage.cage;
-  for (const [light, intensity] of lights) light.intensity = intensity * (cage ? 1 : BORROWED_LIGHT);   // the cage stands in the arena's own sun
-  // pit-cage: the arena's sky dome and painted far world stay up round the open yard (everything else of the arena stays hidden).
-  const arena = cage ? scene.getObjectByName('arena') : undefined;
-  const arenaRest = arena ? arena.children.filter((c) => c.name !== 'sky' && c.name !== 'backdrop').map((c) => [c, c.visible] as const) : [];
-  for (const [c] of arenaRest) c.visible = false;
-  if (arena) arena.visible = true;
+  for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
   const fog = scene.fog;   // `pit-glow` (glow.ts): a warm haze instead of the arena's fog while the room is up; restored on leave
-  if (stage.glow && !cage) scene.fog = new THREE.FogExp2(GLOW.fog, GLOW.fogDensity);
+  // pit-glow: a warm haze instead of the arena's fog; the cage carries its own golden-hour sky and sun (glow.ts addOpenSky), so its haze is Arena 1's
+  if (stage.glow) scene.fog = cage ? new THREE.FogExp2(GLOW.cageFog, GLOW.cageFogDensity) : new THREE.FogExp2(GLOW.fog, GLOW.fogDensity);
   const fov = camera.fov;
   if (camera.aspect < 1) { camera.fov = stage.glow ? GLOW_FOV : PORTRAIT_FOV; camera.updateProjectionMatrix(); }
   let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry], speed: arrival };
@@ -123,7 +119,6 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     sheet?.hide();
     for (const [light, intensity] of lights) light.intensity = intensity;
     scene.fog = fog;
-    for (const [c, was] of arenaRest) c.visible = was;   // the arena's own pieces back as they were; setArenaVisible(true) restores the group
     camera.fov = fov; camera.updateProjectionMatrix();
     stage.setArenaVisible(true);
   };
