@@ -9,7 +9,7 @@ import { Match, type PvpDriver } from '../src/match.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
 import { MESSAGE_CAP, PvpDuel, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent } from '../src/net/rollback.ts';
-import { metricsRow, reportBody } from '../src/net/lobby.ts';
+import { metricsRow, reportBody, startBody } from '../src/net/lobby.ts';
 import { viewAs } from '../src/net/view.ts';
 import { loadProfile } from '../src/profile.ts';
 import { quantizeIntent, RECORD_VERSION } from '../src/record.ts';
@@ -321,18 +321,30 @@ test('desync settlement: a peer\'s bare desync notice cannot void a finish this 
   assert.equal(pages[0].result, 'finished');
 });
 
-test('duel report: both settled pages build agreeing reports (opposite results, same hash); none before settling, none for a stranger or a nameless page', () => {
+test('duel report: both settled pages build agreeing reports (opposite results, same hash); none before settling or for a bad room', () => {
   const { pages: [a, b], step } = finishingPair();
-  assert.equal(reportBody(a, 'room0000', { name: 'Aldren', level: 5 }), null, 'nothing before the finish settles');
+  assert.equal(reportBody(a, 'room0000'), null, 'nothing before the finish settles');
   step(70);
-  const ra = reportBody(a, 'room0000', { name: 'Aldren', level: 5 })!, rb = reportBody(b, 'room0000', { name: 'Bo', level: 6 })!;
+  const ra = reportBody(a, 'room0000')!, rb = reportBody(b, 'room0000')!;
   assert.ok(ra && rb);
   assert.deepEqual([ra.p_result, rb.p_result].sort(), ['loss', 'win']);
   assert.equal(ra.p_hash, rb.p_hash);
   assert.match(String(ra.p_hash), /^[0-9a-f]{16}$/);
-  assert.equal(reportBody(a, 'room0000', null), null);
-  assert.equal(reportBody(a, 'room0000', { name: '\u0007 ', level: 5 }), null);
-  assert.equal(reportBody(a, 'x', { name: 'Aldren', level: 5 }), null);
+  assert.equal(reportBody(a, 'x'), null);
+});
+
+test('duel start and forfeit: a page registers its own name, level and gear; a page whose peer left reports a forfeit-win with no hash', () => {
+  const { pages: [a], step } = finishingPair();
+  const start = startBody(a, 'room0000', { name: ' Aldren\u0007 ', level: 5 })!;
+  assert.equal(start.p_name, 'Aldren'); assert.equal(start.p_level, 5); assert.equal(start.p_room, 'room0000');
+  assert.equal(startBody(a, 'room0000', null), null);
+  assert.equal(startBody(a, 'room0000', { name: '\u0007', level: 5 }), null);
+  assert.equal(startBody(a, 'x', { name: 'Aldren', level: 5 }), null);
+  step(1);
+  a.stage = 'forfeit';
+  assert.deepEqual(reportBody(a, 'room0000'), { p_room: 'room0000', p_result: 'forfeit-win', p_hash: null });
+  a.stage = 'left';
+  assert.equal(reportBody(a, 'room0000'), null, 'the page that left reports no win');
 });
 
 test('gate 3: a cut link says "waiting" after 3 s and is abandoned on both pages after 15 s; an abandoned page stops sending', () => {
