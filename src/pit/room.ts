@@ -26,7 +26,7 @@ import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeom
 export type Pick = Zone | 'board' | `skull:${string}`;   // what a tap can pick: a zone's furniture, the record board, or one slot of the skull wall
 
 export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
-export const RACK_SLOTS = 6, TROPHIES = 3;
+export const RACK_SLOTS = 4, TROPHIES = 3;
 const RACK_POST = 1.81;   // GPT's rack: its two posts are centred 1.81 m either side of its centre (1.66..1.97), 0.15 m deep, and top out at 2.5 m (measured from rack.glb)
 export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.17, 2.5, RACK_POST];   // the iron helm's base: on the end post's top, its back clear of the wall
 const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
@@ -53,10 +53,27 @@ export function trophyIds(loot: Loot, count = TROPHIES): LootId[] {
     .sort(([, a], [, b]) => (b.tier ?? 0) - (a.tier ?? 0) || b.day.localeCompare(a.day))
     .slice(0, count).map(([id]) => id);
 }
-// The rack's pieces: owned, not worn, not on the trophy wall, in the order they were won (the full hoard with paging is the room PR's).
-export function rackIds(loot: Loot, trophies: readonly LootId[], count = RACK_SLOTS): LootId[] {
-  const worn = new Set(Object.values(loot.equipped));
-  return loot.owned.filter((id) => !worn.has(id) && !trophies.includes(id)).slice(0, count);
+// The ladder's order of the opponents, from the Stage's legend keys (`<opponent>-<rank>`, the opponents in ladder order): first appearance wins.
+export function ladderOrder(keys: readonly string[]): string[] {
+  const order: string[] = [];
+  for (const key of keys) { const at = key.lastIndexOf('-'), id = at < 1 ? key : key.slice(0, at); if (!order.includes(id)) order.push(id); }
+  return order;
+}
+// A piece's level (the trophy rack, Dom 2026-10-04): the provenance tier (the rung the kill was at, 1..10) first; an old take with no tier ranks by its
+// opponent's place in the ladder, as a fraction below every real tier; a piece with no provenance (a starter) ranks last.
+export function pieceLevel(loot: Loot, id: LootId, order: readonly string[] = []): number {
+  const p = loot.taken?.[id];
+  if (!p) return -1;
+  if (typeof p.tier === 'number' && Number.isFinite(p.tier) && p.tier >= 1) return p.tier;
+  const at = order.indexOf(typeof p.opponent === 'string' ? p.opponent : id.split('.')[0]!);
+  return at < 0 ? 0 : (at + 1) / 100;
+}
+// The rack's pieces: the highest-level owned pieces (pieceLevel), best first, ties by id; not worn and not on the trophy wall.
+export function rackIds(loot: Loot, trophies: readonly LootId[], count = RACK_SLOTS, order: readonly string[] = []): LootId[] {
+  const worn = new Set(Object.values(loot.equipped)), level = new Map<LootId, number>();
+  const hangable = loot.owned.filter((id, i) => !worn.has(id) && !trophies.includes(id) && loot.owned.indexOf(id) === i);
+  for (const id of hangable) level.set(id, pieceLevel(loot, id, order));
+  return hangable.sort((a, b) => level.get(b)! - level.get(a)! || (a < b ? -1 : a > b ? 1 : 0)).slice(0, count);
 }
 
 const hash = (x: number, y: number, s: number) => {
@@ -347,8 +364,9 @@ export function buildRoom(stage: Stage): Room {
   // Hang what the player owns now: called on build and after every wear, so the rack never shows the piece he just put on. The
   // holders are plain groups over shared loot geometry; clearing them frees nothing on the GPU.
   let stocking = 0;
+  const order = ladderOrder(stage.legendKeys());
   const stock = (loot: Loot): Promise<void> => {
-    const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
+    const trophies = trophyIds(loot), rack = rackIds(loot, trophies, RACK_SLOTS, order), mine = ++stocking;
     // The skulls and the record: what is known now (the cached data, else the loot's kills), then the data from Supabase when it lands; a later stock or a dispose wins over it.
     wall.restock(stage.skullsNow?.() ?? killsFromLoot(loot));
     board.restock(stage.recordNow?.());

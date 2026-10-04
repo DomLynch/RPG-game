@@ -1361,7 +1361,7 @@ function pitStage(): Stage {
     gateSound: () => feedback.gate(),
     crowdSound: (cue) => feedback.crowd(cue),
     openJournal: () => { if (journal.open) return; element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal(); },   // the rack: the loadout sheet, on Gear & pack
-    rackRows: () => pitLoot().owned.map(rackRow),
+    rackRows: (ids) => (ids ?? pitLoot().owned).map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
       const name = pieceName(id);

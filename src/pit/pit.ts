@@ -3,7 +3,7 @@
 // visit and hidden between visits, so repeated visits allocate nothing on the GPU; leave() hands back the arena, the camera's lens and the
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
-import { FOCUS, POSES, buildRoom, type Pick, type Room } from './room.ts';
+import { FOCUS, POSES, buildRoom, ladderOrder, type Pick, type Room } from './room.ts';
 import { GATE_OPEN_S } from './gate.ts';
 import { GLOW } from './glow.ts';
 import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
@@ -46,7 +46,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   let built: Room;
   try {
     built = (room ??= buildRoom(stage));
-    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); }, !!stage.glow);
+    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); }, !!stage.glow, ladderOrder(stage.legendKeys()));
   } catch (error) {
     if (room) room.group.visible = false;   // built, then the sheet threw: the room must not stay drawn over the arena
     stage.setArenaVisible(true);

@@ -4,7 +4,7 @@ import type { GameStage } from './stage.ts';
 import type { Loot } from '../loot.ts';
 import { recordLines } from './board.ts';
 import type { Kill } from './skulls.ts';
-import { trophyIds, type Pick } from './room.ts';
+import { RACK_SLOTS, rackIds, trophyIds, type Pick } from './room.ts';
 
 const EMPTY_HINT = 'Kills hang here, newest first. Beat an opponent to hang the first skull.';
 export const dateLine = (at: string | null): string => (at ? at.slice(0, 10) : 'long ago');
@@ -17,7 +17,7 @@ export function killLines(k: Kill, pieceName?: (id: string) => string): string[]
 export type Sheet = { show(zone: Pick | null): void; hide(): void; dispose(): void };
 
 // `quiet` (pit-glow, Dom 10-04: "remove this black helper thing"): no sheet in open floor, only at the rack, the trophies and the gate.
-export function createSheet(game: GameStage, loot: () => Loot, worn: () => void, quiet = false): Sheet {
+export function createSheet(game: GameStage, loot: () => Loot, worn: () => void, quiet = false, order: readonly string[] = []): Sheet {
   const root = document.createElement('section'), title = document.createElement('h2'), body = document.createElement('div');
   root.id = 'pit-ui'; root.hidden = true; root.setAttribute('aria-live', 'polite');
   root.append(title, body);
@@ -29,7 +29,8 @@ export function createSheet(game: GameStage, loot: () => Loot, worn: () => void,
       title.textContent = 'The rack';
       const list = document.createElement('ul');
       list.className = 'pit-rack';
-      list.append(...game.rackRows());
+      const l = loot();
+      list.append(...game.rackRows(rackIds(l, trophyIds(l), RACK_SLOTS, order)));
       nodes.push(list);
       if (!list.childElementCount) nodes.push(line('Nothing taken yet. Win, and take a piece off the fallen.'));
       if (game.openJournal) {   // the full loadout sheet: worn, stored, weapons and armour on and off (Dom 2026-10-01)
