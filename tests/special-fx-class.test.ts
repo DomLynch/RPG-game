@@ -137,3 +137,23 @@ test('Ground Drag marks taper organically instead of repeating clipped rectangul
   const gaps = rut.slice(1).map((m, i) => m.position.distanceTo(rut[i].position));
   assert.ok(Math.max(...gaps) - Math.min(...gaps) > 0.03, 'irregular spacing on the same maul path');
 });
+
+test('only night Ground Drag strengthens local decal contrast while retaining the exact day footprint', () => {
+  const at = (exposure: number) => {
+    const scene = new THREE.Scene(), fx = createClassSpecial(scene, 'knight', 'drag', exposure);
+    for (let tick = 1; tick < LAND_AT; tick++) fx.render(1 / 60, tick === 1 ? [started] : [], fighters, tick, feet, false);
+    return scene.getObjectByName('special fx')!.getObjectsByProperty('name', 'class decal') as THREE.Mesh[];
+  };
+  const day = at(1.3), boundary = at(1.5), night = at(1.85);
+  assert.ok(day.some((m) => m.visible), 'visible scrape, not an empty comparison');
+  for (let i = 0; i < day.length; i++) {
+    const d = day[i], n = night[i], dm = d.material as THREE.MeshBasicMaterial, nm = n.material as THREE.MeshBasicMaterial;
+    assert.deepEqual([n.position.toArray(), n.scale.toArray(), n.rotation.toArray(), n.visible], [d.position.toArray(), d.scale.toArray(), d.rotation.toArray(), d.visible], 'night has the same low irregular footprint');
+    assert.deepEqual(nm.map!.image.data, dm.map!.image.data, 'alpha silhouette unchanged');
+    assert.equal((boundary[i].material as THREE.MeshBasicMaterial).opacity, dm.opacity, 'day branch includes exposure1.5');
+    assert.ok(dm.opacity <= 0.62 && nm.opacity <= 0.9, 'day stays translucent and night does not become solid');
+    if (d.visible) assert.ok(nm.opacity > dm.opacity, 'local marks get stronger alpha only at night');
+  }
+  const core = night.slice(0, 10).map((m) => (m.material as THREE.MeshBasicMaterial).opacity);
+  assert.ok(Math.max(...core) > 0.8, 'night rut opacity exceeds the rejected faint setting');
+});
