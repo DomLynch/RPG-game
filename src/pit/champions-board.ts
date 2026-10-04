@@ -39,7 +39,7 @@ export function paintChampions(ctx: CanvasRenderingContext2D, champions: readonl
     const measure = () => { ctx.font = `bold ${px}px Georgia, 'Times New Roman', serif`; const w = [...s].map((c) => ctx.measureText(c).width + space); return { w, total: w.reduce((a, b) => a + b, 0) - space }; };
     let m = measure();
     while (m.total > fit && px > 14) { px -= 2; m = measure(); }
-    let at = align === 'center' ? x - m.total / 2 : align === 'right' ? x - m.total : x;
+    const at = align === 'center' ? x - m.total / 2 : align === 'right' ? x - m.total : x;
     for (const [dx, dy, fill] of [[1.2, 1.4, 'rgba(210,150,90,0.16)'], [0, 0, '#140b05']] as const) {
       ctx.fillStyle = fill; ctx.shadowColor = dy === 0 ? 'rgba(0,0,0,0.55)' : 'transparent'; ctx.shadowBlur = dy === 0 ? 3 : 0;
       let cx = at; [...s].forEach((c, i) => { ctx.fillText(c, cx + dx, y + dy); cx += m.w[i]!; });

@@ -131,7 +131,7 @@ export type Champion = { key: ChampionKey; label: string; name: string; value: s
 export const NAME_MAX = 16, TICKS_PER_SECOND = 60;
 // A fighter's name on the board: control and bidi-override characters out, whitespace collapsed, at most NAME_MAX characters; 'Fighter' when nothing is left.
 export const boardName = (v: unknown): string => {
-  const s = typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  const s = typeof v === 'string' ? v.replace(/[\p{Cc}\u200b-\u200f\u202a-\u202e\u2066-\u2069]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
   return s ? [...s].slice(0, NAME_MAX).join('').trim() : 'Fighter';
 };
 const seconds = (ticks: number): string => `${(ticks / TICKS_PER_SECOND).toFixed(1)} s`;
