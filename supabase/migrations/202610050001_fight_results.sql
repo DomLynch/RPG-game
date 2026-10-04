@@ -1,5 +1,5 @@
 begin;
--- ROLLBACK (nothing else depends on these objects): select cron.unschedule('frankendom_settle_forfeits') where pg_cron exists; drop function public.report_duel(text, text, text), public.report_duel_start(text, text, integer, jsonb), public.settle_forfeits(), public.write_duel_pair(text, uuid, text, uuid, text), public.pit_duel_beaten(), public.pit_ai_standing(), public.fight_results_rate();
+-- ROLLBACK (nothing else depends on these objects): select cron.unschedule('frankendom_settle_forfeits') where pg_cron exists; drop function public.report_duel(text, text, text), public.report_duel_start(text, text, integer, jsonb), public.settle_forfeits(), public.write_duel_pair(text, uuid, text, uuid, text), public.pit_duel_beaten(), public.pit_ai_standing(), public.pit_recent_kills(), public.pit_record(), public.fight_results_rate();
 --   drop table public.duel_reports, public.duel_starts, public.fight_results;  Rows are cosmetic wall data, so dropping loses no award, rank or loot.
 -- Fight results for the Pit's skull walls (Lead brief docs/briefs/skull-wall/BRIEF.md part A; Dom 2026-10-04).
 -- One row per finished fight for a signed-in fighter: kind 'ai' (a legend, key `<opponent>-<rank>`) or 'duel' (key = an opaque per-viewer id of the other player; see report_duel).
@@ -79,8 +79,23 @@ language sql stable security invoker set search_path = '' as $$
     where r.kind = 'duel' and r.opponent_key = h.opponent_key order by r.created_at desc limit 1) l on true
   where h.wins > 0 order by h.last_win_at desc limit 30
 $$;
-revoke all on function public.pit_ai_standing(), public.pit_duel_beaten() from public, anon;
-grant execute on function public.pit_ai_standing(), public.pit_duel_beaten() to authenticated;
+-- The wall: the caller's latest 30 kills (wins, computer or player), newest first. One skull per kill.
+create function public.pit_recent_kills() returns table (kind text, opponent_key text, opponent_name text, opponent_level smallint, opponent_gear jsonb, created_at timestamptz)
+language sql stable security invoker set search_path = '' as $$
+  select r.kind, r.opponent_key, r.opponent_name, r.opponent_level, r.opponent_gear, r.created_at
+  from public.fight_results r where r.result = 'win' order by r.created_at desc, r.id desc limit 30
+$$;
+-- The record board: the caller's totals across computer and player fights, the current win streak (wins since the latest non-win), and the
+-- highest rank (1..10) of a computer legend beaten, null before the first.
+create function public.pit_record() returns table (wins integer, losses integer, draws integer, streak integer, highest_rank smallint)
+language sql stable security invoker set search_path = '' as $$
+  select (count(*) filter (where r.result = 'win'))::integer, (count(*) filter (where r.result = 'loss'))::integer, (count(*) filter (where r.result = 'draw'))::integer,
+    (count(*) filter (where r.result = 'win' and not exists (select 1 from public.fight_results n where n.result <> 'win' and (n.created_at, n.id) > (r.created_at, r.id))))::integer,
+    max(substring(r.opponent_key from '[0-9]+$')::smallint) filter (where r.kind = 'ai' and r.result = 'win')
+  from public.fight_results r
+$$;
+revoke all on function public.pit_ai_standing(), public.pit_duel_beaten(), public.pit_recent_kills(), public.pit_record() from public, anon;
+grant execute on function public.pit_ai_standing(), public.pit_duel_beaten(), public.pit_recent_kills(), public.pit_record() to authenticated;
 
 -- Who was in a room, registered by each signed-in page when its duel starts. Nobody reads or writes this table directly.
 create table public.duel_starts (
@@ -142,8 +157,10 @@ begin
       and not exists (select 1 from public.fight_results d where d.room = f.room)
       and (select count(*) from public.duel_starts s where s.room = f.room) = 2
   loop
-    perform public.write_duel_pair(r.room, r.stayer, 'win', r.leaver, 'loss');
-    n := n + 1;
+    if pg_try_advisory_xact_lock(hashtextextended(r.room, 0)) then   -- a room another call is working on waits for the next pass
+      perform public.write_duel_pair(r.room, r.stayer, 'win', r.leaver, 'loss');
+      n := n + 1;
+    end if;
   end loop;
   return n;
 end$$;
@@ -197,10 +214,11 @@ begin
   end if;
   insert into public.duel_reports (room, user_id, result, hash) values (p_room, me, p_result, p_hash) on conflict (room, user_id) do nothing;
   select * into peer from public.duel_reports where room = p_room and user_id <> me;
-  if found and peer.result = 'forfeit-win' and p_result <> 'forfeit-win' and peer.created_at > now() - interval '10 minutes' then
-    -- the other player says the fight went on: the forfeit claim, settled or not, is withdrawn (rows and report) and the room pairs normally
+  if found and peer.result = 'forfeit-win' and peer.created_at > now() - interval '10 minutes' then
+    -- the other player answers a recent forfeit claim: its rows, settled or not, are withdrawn. A real result also withdraws the claim itself, so
+    -- the room pairs normally; a second forfeit claim leaves both claims on record, and a room with two claims is never settled.
     delete from public.fight_results where room = p_room;
-    delete from public.duel_reports where room = p_room and user_id = peer.user_id;
+    if p_result <> 'forfeit-win' then delete from public.duel_reports where room = p_room and user_id = peer.user_id; end if;
   end if;
   select * into mine from public.duel_reports where room = p_room and user_id = me;
   select * into peer from public.duel_reports where room = p_room and user_id <> me;

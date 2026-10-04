@@ -509,6 +509,8 @@ try {
       if not public.report_duel('room0002','win','aaaaaaaaaaaaaaaa') then raise exception 'Agreeing pair not written'; end if;
       if (select count(*) from public.fight_results where kind = 'duel') <> 1 then raise exception 'Duel row count wrong'; end if;
       if exists (select 1 from public.pit_duel_beaten() where opponent_key = '22222222-2222-4222-8222-222222222222' or opponent_name <> 'Bo' or wins <> 1) then raise exception 'pit_duel_beaten leaks the auth id or is wrong'; end if;
+      if (select string_agg(kind || ':' || opponent_key, ',' order by created_at desc, kind) from public.pit_recent_kills()) is null then raise exception 'pit_recent_kills returned nothing'; end if;
+      if exists (select 1 from public.pit_recent_kills() where kind = 'duel' and opponent_key = '22222222-2222-4222-8222-222222222222') then raise exception 'pit_recent_kills leaks the auth id'; end if;
       perform public.report_duel_start('room0003','Aldren',5,'{}');
       if public.report_duel('room0003','forfeit-win',null) then raise exception 'Forfeit paired with only one player registered'; end if;
     end$$;
@@ -561,6 +563,19 @@ try {
     do $$begin
       if (select result from public.fight_results where room = 'room0006' and user_id = '22222222-2222-4222-8222-222222222222') <> 'win' then raise exception 'B2: B does not hold the win'; end if;
     end$$;
+    -- the Auditor's B2b: A claims early, it settles, THEN B (staying) also reports a forfeit-win: both claims stay, the rows go, the room never settles
+    insert into public.duel_starts(room,user_id,name,level) values ('room0010','11111111-1111-4111-8111-111111111111','Ay',5),('room0010','22222222-2222-4222-8222-222222222222','Bee',6);
+    insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0010','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '2 minutes');
+    do $$begin if public.settle_forfeits() <> 1 then raise exception 'Setup: the early forfeit did not settle'; end if; end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin if public.report_duel('room0010','forfeit-win',null) then raise exception 'B2b: two forfeit claims paired'; end if; end$$;
+    reset role;
+    do $$begin
+      if exists (select 1 from public.fight_results where room = 'room0010') then raise exception 'B2b: the settled claim survived the second claim'; end if;
+      if (select count(*) from public.duel_reports where room = 'room0010' and result = 'forfeit-win') <> 2 then raise exception 'B2b: the two claims are not both on record'; end if;
+      if public.settle_forfeits() <> 0 or exists (select 1 from public.fight_results where room = 'room0010') then raise exception 'B2b: a room with two claims settled'; end if;
+    end$$;
     -- a forfeit older than 10 minutes is final
     insert into public.duel_starts(room,user_id,name,level) values ('room0007','11111111-1111-4111-8111-111111111111','Ay',5),('room0007','22222222-2222-4222-8222-222222222222','Bee',6);
     insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0007','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '11 minutes');
@@ -570,6 +585,22 @@ try {
     do $$begin perform public.report_duel('room0007','win','dddddddddddddddd'); end$$;
     reset role;
     do $$begin if (select count(*) from public.fight_results where room = 'room0007') <> 2 then raise exception 'A forfeit older than 10 minutes was revoked'; end if; end$$;
+    -- the wall: wins only (computer and player), newest first, at most 30
+    delete from public.fight_results;
+    insert into public.fight_results(user_id,kind,opponent_key,opponent_name,opponent_level,result,created_at)
+      select '11111111-1111-4111-8111-111111111111','ai','goblin-' || (1 + i % 10),'Goblin',1,case when i % 7 = 0 then 'loss' else 'win' end, now() - (i || ' minutes')::interval from generate_series(1, 40) i;
+    insert into public.fight_results(user_id,kind,opponent_key,opponent_name,opponent_level,result,room,created_at) values ('11111111-1111-4111-8111-111111111111','duel',md5('x'),'Bo',6,'win','room0011',now() + interval '1 minute');
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    do $$begin
+      if (select (wins, losses, draws, streak, highest_rank) from public.pit_record()) is distinct from row(36, 5, 0, 7, 10::smallint) then raise exception 'pit_record is wrong: %', (select row(wins, losses, draws, streak, highest_rank) from public.pit_record()); end if;
+      if (select count(*) from public.pit_recent_kills()) <> 30 then raise exception 'pit_recent_kills is not capped at 30'; end if;
+      if (select kind from public.pit_recent_kills() limit 1) <> 'duel' then raise exception 'pit_recent_kills is not newest first'; end if;
+      if exists (select 1 from public.pit_recent_kills() k join public.fight_results r on r.opponent_key = k.opponent_key and r.created_at = k.created_at where r.result = 'loss') then raise exception 'pit_recent_kills returned a loss'; end if;
+    end$$;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin if exists (select 1 from public.pit_recent_kills()) or (select wins + losses from public.pit_record()) <> 0 then raise exception 'the wall or the record shows another fighter'; end if; end$$;
+    reset role;
     -- retention: rows older than a day are deleted
     insert into public.duel_starts(room,user_id,name,level,created_at) values ('room0008','11111111-1111-4111-8111-111111111111','Ay',5,now() - interval '2 days');
     do $$begin perform public.settle_forfeits(); if exists (select 1 from public.duel_starts where room = 'room0008') then raise exception 'Old registration kept'; end if; end$$;
