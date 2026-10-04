@@ -1,0 +1,55 @@
+import { isOpponentId, type OpponentId } from './roster.ts';
+import { cleanLoot, keepsLoot, recoverPack, type Loot } from './loot.ts';
+export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; pass?: OpponentId[]; dial?: { level: number; losses: number; wins: number }; career?: { victoryMarks: number }; loot?: Loot }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
+export type StoragePort = Pick<Storage, 'getItem' | 'setItem'>;
+const KEY = 'frankendom.fighter.v1';
+export const cleanName = (name: string) => Array.from(name).filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim().slice(0, 24) || 'Wanderer';
+
+export function loadProfile(storage: StoragePort, createId: () => string): { profile: Profile; returning: boolean } {
+  try {
+    const value = JSON.parse(storage.getItem(KEY) || 'null');
+    if (value?.version === 1 && typeof value.id === 'string' && value.id.length <= 64 && /^[a-zA-Z0-9-]{8,64}$/.test(value.id) && typeof value.name === 'string') {
+      // Migrate the old opponent rung without inventing career wins or changing guest identity.
+      const candidate = value.encounter ?? value.ladder;
+      const encounter = isOpponentId(candidate) ? candidate : undefined;
+      const marks = value.career?.victoryMarks;
+      const career = Number.isSafeInteger(marks) && marks >= 0 ? { victoryMarks: marks } : undefined;
+      // The ladder pass so far (ladder.ts nextOpponent): this device's, not cloud-synced; anything unreadable is a fresh pass.
+      const pass: OpponentId[] = Array.isArray(value.pass) ? [...new Set((value.pass as unknown[]).filter((id): id is OpponentId => isOpponentId(id)))] : [];
+      // The difficulty dial (career.ts turnDial): this device's; anything unreadable is no dial (the rank's level).
+      const d = value.dial, dial = d && [d.level, d.losses, d.wins].every((n) => Number.isSafeInteger(n) && n >= 0) ? { level: d.level, losses: d.losses, wins: d.wins } : undefined;
+      const loot = recoverPack(cleanLoot(value.loot));   // owned pieces, the worn set and refused offers (src/loot.ts), kept only when there is something to keep
+      // A guest who has only ever said Leave it has something to keep: `declined` alone must survive a refresh (loot-smoke-check (3)).
+      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(pass.length ? { pass } : {}), ...(dial ? { dial } : {}), ...(career ? { career } : {}), ...(keepsLoot(loot) ? { loot } : {}) }, returning: true };
+    }
+  } catch { /* Corrupt/unavailable storage must never prevent entering the arena. */ }
+  return { profile: { version: 1, id: createId(), name: 'Wanderer' }, returning: false };
+}
+
+// Dual-write the old key for safe release rollback; encounter remains canonical on read.
+export function saveProfile(storage: StoragePort, profile: Profile): boolean {
+  try { storage.setItem(KEY, JSON.stringify({ ...profile, ladder: profile.encounter })); return true; } catch { return false; }
+}
+
+// A take is provisional while its Undo line is up (main.ts): the device already holds the piece, but what may go up to the account is
+// the ledger the take found. The hold is a stored copy of that ledger, so the one reader that writes to the cloud (account.ts local())
+// sees the fighter WITHOUT the provisional take — including a save-queue pass that was queued before the take and reads the device
+// profile only when it runs (GPT recheck 2026-09-26, 1). '' = no hold. A boot clears a hold a closed page left: the take stands then,
+// as before (the device has it, the next beat sends it).
+const HOLD_KEY = 'frankendom.fighter.hold.v1';
+export function holdLoot(storage: StoragePort, loot: Loot | undefined): boolean {
+  try { storage.setItem(HOLD_KEY, JSON.stringify({ loot: loot ?? null })); return true; } catch { return false; }
+}
+export function releaseHold(storage: StoragePort): void { try { storage.setItem(HOLD_KEY, ''); } catch { /* nothing held, nothing to release */ } }
+export function heldLoot(storage: StoragePort): { loot: Loot | undefined } | null {
+  try {
+    const value = JSON.parse(storage.getItem(HOLD_KEY) || 'null') as { loot?: Loot | null } | null;
+    return value && typeof value === 'object' && 'loot' in value ? { loot: value.loot ?? undefined } : null;
+  } catch { return null; }
+}
+export function withoutHeld(storage: StoragePort, profile: Profile): Profile {
+  const hold = heldLoot(storage);
+  if (!hold) return profile;
+  const rest: Profile = { ...profile }; delete rest.loot;   // the provisional take goes; the hold is the ledger
+  return hold.loot ? { ...rest, loot: hold.loot } : rest;
+}

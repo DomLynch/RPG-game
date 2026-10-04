@@ -1,0 +1,21 @@
+{
+ "weapon": "knife",
+ "source": "src/assets/source/weapons/knife.glb",
+ "part": "src/assets/source/weapons/knife.part.glb",
+ "source_tris": 99211,
+ "part_tris": 3194,
+ "scale": 0.71521,
+ "extent_y": [
+  -0.11,
+  0.5197
+ ],
+ "width_x": 0.2441,
+ "thickness_z": 0.0476,
+ "head_from": 0.104,
+ "contact": [
+  0.12,
+  0.52
+ ],
+ "texture": 512,
+ "bytes": 207020
+}

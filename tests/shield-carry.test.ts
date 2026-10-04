@@ -1,0 +1,144 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { Box3, Quaternion, SkinnedMesh, Vector3, type Matrix4, type Object3D } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { armWarriors, buildWarriors, lootPiecesOf, lootWorn, SHIELD_CARRIERS, withShieldCarry } from '../src/characters.ts';
+import type { WeaponId } from '../src/moves.ts';
+
+// Parse a shipped GLB in Node, as tests/loot-wear.test.ts does (images dropped: decoding is the browser's).
+async function parse(file: string) {
+  const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
+  return new GLTFLoader().parseAsync(JSON.stringify(json), '');
+}
+const BOARD_RADIUS = .28;   // build-warrior.mjs's RADIUS for #478's round
+
+// A fighter with this weapon, optionally wearing #478's shield, plus probes for where the board is and whether the blade passes through it.
+// `carry`: the rig opts in to the carry as the grafted Centurion does (characters.ts withShieldCarry); `rig` and `piece`: whose body and shield.
+async function fighter(weapon: WeaponId, shield: boolean, { carry = true, rig = 'warrior.glb', piece = 'veteran.Shield' } = {}) {
+  const asset = await parse(rig), pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(carry ? withShieldCarry(asset) : asset, undefined, [weapon, weapon]);
+  if (shield) player.wear(pieces.filter(p => lootWorn(p, [piece])));
+  const node = (name: string) => { let found: Object3D | undefined; player.anchor.traverse(o => { if (o.name === name) found ??= o; }); return found; };
+  const hand = node('hand_l')!, swordHand = node('hand_r')!, blade = (node('WeaponDrawn') ?? node('SwordDrawn'))!;
+  let inverse: Matrix4 | undefined;
+  player.anchor.traverse(o => { if (!inverse && o instanceof SkinnedMesh) { const i = o.skeleton.bones.findIndex(b => b.name === 'hand_l'); if (i >= 0) inverse = o.skeleton.boneInverses[i]; } });
+  const faceLocal = new Vector3(0, 0, 1).transformDirection(inverse!);   // the board's face, +Z in bind space, in hand_l's frame
+  const board = () => {
+    player.anchor.updateMatrixWorld(true);
+    const box = new Box3();
+    for (const m of player.worn()) { m.skeleton.update(); const pos = m.geometry.getAttribute('position'); for (let i = 0; i < pos.count; i += 5) box.expandByPoint(m.applyBoneTransform(i, new Vector3().fromBufferAttribute(pos, i))); }
+    return { centre: box.getCenter(new Vector3()), face: faceLocal.clone().applyQuaternion(hand.getWorldQuaternion(new Quaternion())).normalize() };
+  };
+  // How far inside the board's rim the sword (the hand, then the weapon's first metre) crosses its plane; 0 = clear.
+  const pierce = () => {
+    const { centre, face } = board();
+    const points = [swordHand.getWorldPosition(new Vector3()), ...Array.from({ length: 11 }, (_, i) => blade.localToWorld(new Vector3(0, i * .09, 0)))];
+    let depth = 0;
+    for (let i = 1; i < points.length; i++) {
+      const d0 = points[i - 1].clone().sub(centre).dot(face), d1 = points[i].clone().sub(centre).dot(face);
+      if (Math.sign(d0) !== Math.sign(d1)) depth = Math.max(depth, BOARD_RADIUS - points[i - 1].clone().lerp(points[i], d0 / (d0 - d1)).distanceTo(centre));
+    }
+    return depth;
+  };
+  const arm = () => ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => node(n)!.quaternion.clone());
+  // The lowest posed vertex of the worn board, in world metres (the floor is y = 0).
+  const floor = () => { player.anchor.updateMatrixWorld(true); let low = Infinity; for (const m of player.worn()) { m.skeleton.update(); const pos = m.geometry.getAttribute('position'); for (let i = 0; i < pos.count; i++) low = Math.min(low, m.applyBoneTransform(i, new Vector3().fromBufferAttribute(pos, i)).y); } return low; };
+  return { player, board, pierce, arm, floor };
+}
+type Fighter = Awaited<ReturnType<typeof fighter>>;
+type Update = Fighter['player']['update'];
+const settle = (f: Fighter, pose: Parameters<Update>[2], frames = 30) => { for (let i = 0; i < frames; i++) f.player.update(0, 1 / 30, pose, 0); };
+// Every armed pose swept the way a fight plays it (progress 0→1 at 30 fps, one after another): the depth of each frame where the blade crosses the board.
+function sweep(f: Fighter) {
+  const hits: number[] = [];
+  const run = (pose: Parameters<Update>[2], attack?: Parameters<Update>[4]) => { for (let p = 0; p <= 1.0001; p += .05) { f.player.update(0, 1 / 30, pose, p, attack); const d = f.pierce(); if (d > 0) hits.push(d); } };
+  settle(f, 'ready');
+  for (const a of ['light', 'heavy', 'thrust', 'riposte', 'return'] as const) run('attack', a);
+  for (const p of ['guard', 'block', 'parry', 'deflected', 'hit', 'kick', 'roll'] as const) run(p, p === 'kick' ? 'light' : undefined);
+  return hits;
+}
+
+test('shield carry: a one-hand fighter holds #478\'s board off his blade, where the sword clips alone put it across the hilt', async () => {
+  const baseline = sweep(await fighter('longsword', true));   // a two-hander keeps the clip's hold: off hand on the hilt, the board with it
+  assert.ok(baseline.length > 40 && Math.max(...baseline) > .2, `the problem: the clips hold the board across the blade (${baseline.length} frames, ${Math.max(...baseline).toFixed(3)} m deep)`);
+  for (const weapon of ['cleaver', 'knife', 'estoc'] as const) {
+    const hits = sweep(await fighter(weapon, true));
+    // Measured 2026-09-23: 3 frames of ~250 — the opening frame of a heavy (1 cm, at the rim) twice and of a return (8 cm) once.
+    assert.ok(hits.length <= 3 && Math.max(0, ...hits) < .09, `${weapon}: the blade crosses the board on ${hits.length} frames, deepest ${Math.max(0, ...hits).toFixed(3)} m`);
+  }
+});
+
+test('shield carry: the board faces the opponent at rest, rises and comes forward on guard, and lets go of the arm when the shield comes off', async () => {
+  const f = await fighter('cleaver', true);
+  settle(f, 'ready');
+  const rest = f.board();
+  assert.ok(rest.face.z > .7, `at rest the board faces front (+Z), not his side: face ${rest.face.toArray().map(v => v.toFixed(2))}`);
+  settle(f, 'guard');
+  const guard = f.board();
+  assert.ok(guard.centre.y > rest.centre.y + .15 && guard.centre.z > rest.centre.z + .05, 'on guard the board rises over the chest and comes forward');
+  assert.ok(guard.face.z > .8, 'and faces the opponent');
+  // Without the shield the arm is the clip's own again: the carry eases out and the mixer's pose comes back. The bare fighter lives the
+  // same frames, so both idle loops are at the same phase.
+  const bare = await fighter('cleaver', false);
+  settle(bare, 'ready'); settle(bare, 'guard');
+  f.player.wear([]);
+  settle(f, 'ready', 90); settle(bare, 'ready', 90);
+  const clip = bare.arm();
+  f.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < .01, `bone ${i}: back on the clip after the shield comes off (${q.angleTo(clip[i]).toFixed(4)} rad)`));
+});
+
+test('shield carry: a two-hander\'s arm is untouched (its shield stows, #478), and the pose is finite at every frame', async () => {
+  const shielded = await fighter('longsword', true), bare = await fighter('longsword', false);
+  settle(shielded, 'guard'); settle(bare, 'guard');
+  const clip = bare.arm();
+  // 1e-3 rad, not 0: angleTo is 2·acos|dot|, so the float noise of two separately parsed rigs alone reads ~4e-4 rad.
+  shielded.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < 1e-3, `two-hand: bone ${i} is the clip's (${q.angleTo(clip[i]).toFixed(5)} rad)`));
+  const f = await fighter('knife', true);
+  for (const pose of ['ready', 'attack', 'guard', 'death', 'sheathed'] as const) for (let p = 0; p <= 1; p += .1) {
+    f.player.update(0, 1 / 30, pose, p, 'heavy');
+    f.arm().forEach(q => assert.ok([q.x, q.y, q.z, q.w].every(Number.isFinite), `${pose}@${p.toFixed(1)}: finite`));
+  }
+});
+
+test('an UNFLAGGED rig keeps the clips\' arm, as on trunk (a hero with a taken shield; the Shieldmaiden\'s asset until loadWarriors opts her in); the opted-in rig carries', async () => {
+  // Trunk has no shield-dependent arm: a shielded one-hander's left arm is his bare arm, at every pose. Pinned for both unflagged cases.
+  const cases = [['the Shieldmaiden (gladius + her own shield)', 'shieldmaiden.glb', 'gladius', 'shieldmaiden.Shield'], ['a hero with a taken shield (cleaver)', 'warrior.glb', 'cleaver', 'veteran.Shield']] as const;
+  for (const [who, rig, weapon, piece] of cases) {
+    const shielded = await fighter(weapon, true, { carry: false, rig, piece }), bare = await fighter(weapon, false, { carry: false, rig, piece });
+    assert.ok(shielded.player.worn().length > 0, `${who}: the shield is worn`);
+    for (const pose of ['ready', 'guard', 'attack'] as const) {
+      settle(shielded, pose); settle(bare, pose);
+      const clip = bare.arm();
+      shielded.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < 1e-3, `${who} @${pose}: bone ${i} is the clip's (${q.angleTo(clip[i]).toFixed(5)} rad)`));
+    }
+  }
+  // The same body opted in (the grafted Centurion) does carry: his arm leaves the clip's pose.
+  const carried = await fighter('gladius', true), clipArm = await fighter('gladius', false);
+  settle(carried, 'ready'); settle(clipArm, 'ready');
+  const bareArm = clipArm.arm();
+  assert.ok(carried.arm().some((q, i) => q.angleTo(bareArm[i]) > .1), 'the Centurion\'s carry moves the arm off the clip');
+});
+
+test('the Shieldmaiden carries (Strategy 2026-09-30): loadWarriors opts her in, so her 0.74 m board faces front at ready and stays off the floor in the roll', async () => {
+  assert.ok(SHIELD_CARRIERS.has('shieldmaiden'), 'scene.ts passes SHIELD_CARRIERS.has(opponentId) to loadWarriors');
+  assert.ok(SHIELD_CARRIERS.has('veteran'), 'the Centurion\'s painted set replaces his scutum (Strategy 2026-10-01): he opts in here too, beside his grafted kit (armOpponent)');
+  const rig = { rig: 'shieldmaiden.glb', piece: 'shieldmaiden.Shield' };
+  // The wiring: armWarriors(…, carry) flags the opponent's asset, and only then.
+  const flag = async (carry: boolean) => { const enemy = await parse('shieldmaiden.glb'); armWarriors(await parse('warrior.glb'), enemy, ['longsword', 'gladius'], undefined, () => {}, carry); return enemy.scene.userData.shieldCarry === true; };
+  assert.equal(await flag(true), true, 'carry: the opponent asset opts in');
+  assert.equal(await flag(false), false, 'no carry: it stays on the clips\' arm');
+  // The behaviour, on her rig and her own board: the clips' arm (the defect) against the carry.
+  const clips = await fighter('gladius', true, { carry: false, ...rig }), carried = await fighter('gladius', true, { carry: true, ...rig });
+  settle(clips, 'ready'); settle(carried, 'ready');
+  assert.ok(clips.board().face.z < .7, `the defect: on the clips' arm her board faces ${clips.board().face.toArray().map(v => v.toFixed(2))}, not the front`);
+  assert.ok(carried.board().face.z > .7, `carried: at ready her board faces front (${carried.board().face.toArray().map(v => v.toFixed(2))})`);
+  let lowClips = Infinity, lowCarried = Infinity;
+  for (const f of [clips, carried]) for (const pose of ['ready', 'guard', 'block', 'parry', 'deflected', 'hit', 'roll'] as const) for (let p = 0; p <= 1.0001; p += .1) {
+    f.player.update(0, 1 / 30, pose, p); const y = f.floor(); if (f === clips) lowClips = Math.min(lowClips, y); else lowCarried = Math.min(lowCarried, y);
+  }
+  assert.ok(lowClips < -.05, `the defect: on the clips' arm her board dips ${(-lowClips * 100).toFixed(1)} cm under the floor`);
+  assert.ok(lowCarried > 0, `carried: the board stays above the floor in every pose (lowest ${lowCarried.toFixed(3)} m)`);
+});

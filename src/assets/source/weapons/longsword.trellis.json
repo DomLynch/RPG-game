@@ -1,0 +1,31 @@
+{
+ "space": "microsoft/TRELLIS.2",
+ "seed": 7,
+ "resolution": "1024",
+ "faces": 100000,
+ "texture": 1024,
+ "image": "docs/weapon-references/longsword-concept-v1.png",
+ "image_sha256": "b86237d933b383c62478d370f4a0926246233259f32c38c041656811452d8803",
+ "concept": {
+  "space": "black-forest-labs/FLUX.1-dev",
+  "seed": 7,
+  "steps": 28,
+  "guidance": 3.5,
+  "note": "FLUX.1-dev arming-sword prompt at seed 7, 768\u00d71152"
+ },
+ "image_to_3d_s": 56.6,
+ "glb": "src/assets/source/weapons/longsword.glb",
+ "bytes": 3539948,
+ "sha256": "34b61a072c46d04ffda0d0c5484abe8d78e96092f7053c571917a110f81056e0",
+ "fit": {
+  "script": "scripts/weapon-fit.py",
+  "part": "src/assets/source/weapons/longsword.part.glb",
+  "tris": 2991,
+  "scale": 1.14409,
+  "contact": [
+   0.18,
+   0.86
+  ],
+  "date": "2026-09-20"
+ }
+}
