@@ -221,7 +221,7 @@ header>* {
    had this from #853 (549ae159); the phone never did, and SKILL / FIGHT covered the name field (Dom, 2026-09-30). */
 .welcome:not([hidden]) ~ .combat-hud,
 .welcome:not([hidden]) ~ footer #actions,
-.welcome:not([hidden]) ~ footer #joystick {
+.welcome:not([hidden]) ~ #joystick {   /* a body child after </footer>, not inside it (Auditer, #1178) */
   visibility: hidden;
 }
 footer {
