@@ -163,11 +163,11 @@ export class PvpDuel {
     return this.latched = this.finishTick !== null && s.acked >= this.finishTick && s.agreed >= this.finishTick;
   }
   // What this page reports about a settled duel (public.report_duel): whether it won, as this page sees the fight, and the fingerprint of the
-  // first checkpoint at or after the finish, which both pages hold once settled. Null until settled, on a draw, or without that checkpoint.
+  // first checkpoint at or after the first confirmed tick that holds the finish (RollbackSession.finishedAt: the same tick on both pages), which both pages hold once settled. Null until settled, on a draw, or without that checkpoint.
   get verdict(): { won: boolean; hash: string } | null {
     const s = this.session, finish = this.practice.finish;
-    if (!this.settled || !s || !finish || finish.draw || this.finishTick === null) return null;
-    const hash = s.hashes.get(Math.max(1, Math.ceil(this.finishTick / NET.hashEvery)) * NET.hashEvery);
+    if (!this.settled || !s || !finish || finish.draw || s.finishedAt === null) return null;
+    const hash = s.hashes.get(Math.max(1, Math.ceil(s.finishedAt / NET.hashEvery)) * NET.hashEvery);
     return hash ? { won: finish.victim === 1, hash } : null;
   }
   // The duel has ended without a settled finish (or was refused): no more steps; disagreement notices may be repeated.

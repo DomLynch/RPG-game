@@ -333,6 +333,21 @@ test('duel report: both settled pages build agreeing reports (opposite results, 
   assert.equal(reportBody(a, 'x'), null);
 });
 
+test('duel report over a jittered link: both pages report the same checkpoint hash for the same finish (Auditor #1368 B1)', () => {
+  let checked = 0;
+  for (const [link, seed] of [[{ latencyMs: 15, jitterMs: 10, loss: 0.02 }, 3], [{ latencyMs: 125, jitterMs: 30, loss: 0.1 }, 5], [{ latencyMs: 60, jitterMs: 90, loss: 0.05 }, 7], [{ latencyMs: 15, jitterMs: 10, loss: 0.02 }, 11]] as const) {
+    const [a, b] = duelOver(link, 7200, seed);
+    if (!a.settled || !b.settled || !a.session!.duel.finish) continue;
+    const ra = reportBody(a, 'room0000'), rb = reportBody(b, 'room0000');
+    if (!ra || !rb) continue;
+    checked++;
+    assert.equal(ra.p_hash, rb.p_hash, `seed ${seed}: the two pages hash the same checkpoint`);
+    assert.deepEqual([ra.p_result, rb.p_result].sort(), ['loss', 'win']);
+    assert.equal(a.session!.finishedAt, b.session!.finishedAt, 'the first confirmed finish tick is the same on both pages');
+  }
+  assert.ok(checked >= 1, 'at least one seed played to a settled finish');
+});
+
 test('duel start and forfeit: a page registers its own name, level and gear; a page whose peer left reports a forfeit-win with no hash', () => {
   const { pages: [a], step } = finishingPair();
   const start = startBody(a, 'room0000', { name: ' Aldren\u0007 ', level: 5 })!;

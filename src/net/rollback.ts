@@ -92,6 +92,7 @@ export class RollbackSession {
   private readonly states = new Map<number, Duel>();    // snapshots by tick, from `confirmed` on
   private readonly peerHashes = new Map<number, string>();
   agreed = 0;   // newest confirmed checkpoint whose fingerprint matches the peer's
+  finishedAt: number | null = null;   // the first confirmed tick whose state holds the finish: the same tick on both pages, however late each one notices (confirmed jumps)
   private localNext: number;   // the tick the next local intent is scheduled for
   private peerKnown: number;   // the peer's intents are known for every tick up to here
   private peerAcked: number;   // the peer has every one of ours up to here
@@ -245,6 +246,7 @@ export class RollbackSession {
     for (let t = this.confirmed + 1; t <= upTo; t++) {
       this.log[0].push(this.inputs[0].get(t)!); this.log[1].push(this.inputs[1].get(t)!);
       this.fresh.push(...this.states.get(t)!.events);
+      if (this.finishedAt === null && this.states.get(t)!.finish) this.finishedAt = t;
       if (t % NET.hashEvery === 0) { this.hashes.set(t, hashDuel(this.states.get(t)!)); this.checkHash(t); }
       this.states.delete(t - 1); this.used.delete(t); this.inputs[0].delete(t - 1); this.inputs[1].delete(t - 1);
     }
