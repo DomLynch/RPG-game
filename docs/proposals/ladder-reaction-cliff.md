@@ -4,7 +4,7 @@ Status: **PROPOSAL, nothing in `src/` changes in this PR.** For the Combat lane,
 
 ## 1. What was found
 
-**Several wardens go from easy to a wall in a single ladder level.** Below the cliff a simple strategy wins 60–95 % of fights; one level later the same strategy wins 5–15 %, and the blend then barely moves until L18. Measured, 6 of the 10 live rungs: the cliff is at **L12** for the Veteran, Executioner, Dwarf and Knight, and at **L14** for the Pitborn and Shieldmaiden (the held Skeleton also falls at L12). Each is the level at which that warden's `reaction` first drops under 20.
+**Several wardens go from easy to a wall in a single ladder level.** Below the cliff a simple strategy wins 60–95 % of fights; one level later the same strategy wins 5–15 %, and the blend then barely moves until L18. Measured, 6 of the 10 live rungs: the cliff is at **L12** for the Veteran, Executioner, Dwarf and Knight, and at **L14** for the Pitborn and Shieldmaiden. Each is the level at which that warden's `reaction` first drops under 20.
 
 **Cause, isolated.** A warden notices the player's swing `reaction` ticks after it starts (`ai.ts`, `noticed = threat && elapsed >= reaction`). The player's longsword cut has a 20-tick windup. While `reaction >= 20` the warden can never answer a cut; at `reaction <= 19` he answers nearly every one (block, parry, roll). `profileAt` blends `reaction` down by about a tick a level, so one level crosses the line. Receipt (Veteran, 150 fights per cell, `masher` / `blocker` win %):
 
@@ -46,25 +46,14 @@ level       masher   blocker   skilled
 
 ## 1b. What else the survey turned up
 
-The live ladder is ten rungs (`ladder.ts`: Veteran, Pitborn, Goblin, Nightborn, Executioner, Dwarf, Plague Doctor, Knight, Witch, Shieldmaiden). The Minotaur, Werewolf, Wraith and Skeleton are `hold: true` recipes, so players do not meet them yet.
+The live ladder is ten rungs (`ladder.ts`: Veteran, Pitborn, Goblin, Nightborn, Executioner, Dwarf, Plague Doctor, Knight, Witch, Shieldmaiden). Everything below is about those ten; recipes marked `hold: true` are not in the game and are left out.
 
 - **The cliff is on 6 of the 10 rungs** (above). The Nightborn and Plague Doctor, whose `reaction` is already under 20 at L6, decline smoothly instead (`blocker` Nightborn: 72 % at L6, 30 % at L18, 7 % at L46).
 - **The Goblin and the Witch are easy at every level.** Goblin: a guard-only bot wins 98–100 % from L6 to Origin (§1). Witch: the same bot wins 100 % at L6, 77 % at L18, 67 % at Origin (table below); at Origin the guard-only bot wins 100 % against the Goblin and 67 % against the Witch, the two highest of the ten rungs, and no test gates either.
-- **Latent, not live: the Minotaur and Werewolf are walls from L6.** Both carry the Pitborn's 190-health body and its full poise 16, but `POISE_FULL_AT` (`moves.ts`) lists only the Pitborn and Shieldmaiden, so they are at poise 16 from L6, and a light cut (14) never staggers them. The code comment on that table gives exactly this as the reason for the ramp. Receipt (60 fights per cell; `masher` / `blocker` / `skilled`): Minotaur at L6 shipped 0 / 0 / 2 %, with the Pitborn's poise ramp 67 / 73 / 82 %; at L10 shipped 2 / 0 / 2 %, with the ramp 52 / 67 / 75 %. The Werewolf matches. If they are ever released as rungs, add them to `POISE_FULL_AT` (and to the test at `tests/ladder-levels.test.ts` that pins the Pitborn and Shieldmaiden); like the lapse ramp, that is a sim change and needs the `RECORD_VERSION` decision.
 
-Per-level sweeps of the six opponents first inferred from their reaction curves (40 fights per cell):
+Per-level sweeps of the Dwarf, Knight and Shieldmaiden, first inferred from their reaction curves (40 fights per cell):
 
 ```
-skeleton: win% by ladder level (40 fights per cell)
-level       masher   blocker   skilled
-10             33%      100%       83%
-11             33%      100%       68%
-12              3%       50%       33%
-13              3%       55%       40%
-14              0%       38%       33%
-15              0%       40%       30%
-18              0%       55%       43%
-
 dwarf: win% by ladder level (40 fights per cell)
 level       masher   blocker   skilled
 10             28%      100%       80%
@@ -84,26 +73,6 @@ level       masher   blocker   skilled
 14              8%       13%        5%
 15              0%       10%        3%
 18              0%        3%        5%
-
-minotaur: win% by ladder level (40 fights per cell)
-level       masher   blocker   skilled
-10              3%        0%        0%
-11              0%        3%        0%
-12              0%        0%        0%
-13              0%        0%        3%
-14              0%        0%        0%
-15              0%        0%        0%
-18              0%        0%        0%
-
-werewolf: win% by ladder level (40 fights per cell)
-level       masher   blocker   skilled
-10              3%        0%        3%
-11              0%        3%        8%
-12              0%        3%        0%
-13              0%        0%        3%
-14              0%        3%        0%
-15              0%        0%        3%
-18              0%        0%        3%
 
 shieldmaiden: win% by ladder level (40 fights per cell)
 level       masher   blocker   skilled
@@ -126,10 +95,6 @@ pitborn              70% 32s       83% 35s       77% 39s
 goblin               27% 33s      100% 20s      100% 34s
 nightborn             0% 21s       57% 31s       30% 31s
 executioner          77% 23s      100% 26s      100% 24s
-minotaur              0% 14s        7% 31s        3% 27s
-wraith               10% 31s       97% 32s       97% 38s
-werewolf              3% 15s        7% 32s       10% 28s
-skeleton             47% 29s      100% 22s       87% 29s
 dwarf                33% 33s      100% 29s       83% 31s
 plaguedoctor          0% 22s       57% 31s       30% 31s
 knight               70% 30s       87% 27s       87% 31s
@@ -143,10 +108,6 @@ pitborn               0% 14s        0% 25s        0% 25s
 goblin               17% 52s      100% 42s       90% 50s
 nightborn             0% 16s       23% 25s       10% 26s
 executioner           0% 18s       10% 26s       13% 27s
-minotaur              0% 14s        0% 24s        0% 25s
-wraith                0% 22s       77% 36s       70% 35s
-werewolf              0% 14s        0% 25s        0% 25s
-skeleton              0% 18s       43% 38s       43% 35s
 dwarf                 0% 21s       60% 38s       40% 41s
 plaguedoctor          0% 15s       20% 25s        7% 25s
 knight                3% 15s        3% 23s        3% 21s
@@ -160,10 +121,6 @@ pitborn               0% 13s        0% 28s        3% 26s
 goblin               17% 64s      100% 51s       93% 62s
 nightborn             0% 12s        7% 24s        3% 23s
 executioner           0% 16s       20% 26s       10% 24s
-minotaur              0% 13s        0% 25s        0% 25s
-wraith                0% 19s       30% 29s       23% 25s
-werewolf              0% 13s        0% 28s        3% 26s
-skeleton              0% 16s       57% 34s       43% 37s
 dwarf                 0% 21s       50% 40s       43% 43s
 plaguedoctor          0% 12s        7% 24s        3% 23s
 knight                0% 15s        3% 24s        0% 22s
@@ -305,7 +262,7 @@ Also: the windup is the **longsword's** (20). Other player weapons have other wi
 
 - The bots read the simulation state directly (exact ticks, exact sides), so they are tighter than a thumb; `masher` is cruder than any person. A win rate says what a strategy *can* do. Whether L12 feels like a wall to a human is a playtest question, and these runs say nothing about feel, animation or readability (the headless sim has no renderer).
 - 60 fights per cell: single cells move by about ±6 points between seed sets; the cliffs are 40–90 points.
-- Level-by-level sweeps cover the Veteran, Pitborn, Executioner, Goblin, Nightborn (60 fights per cell) and the Skeleton, Dwarf, Knight, Minotaur, Werewolf, Shieldmaiden (40 fights per cell, L10–L15 and L18). The Plague Doctor, Witch and Wraith appear only in the matrix (L6, L18, L46). An earlier draft of this page assumed the Minotaur and Werewolf share the Pitborn's curve; the sweep showed they do not (§1b).
+- Level-by-level sweeps cover the Veteran, Pitborn, Executioner, Goblin, Nightborn (60 fights per cell) and the Dwarf, Knight, Shieldmaiden (40 fights per cell, L10–L15 and L18). The Plague Doctor and Witch appear only in the matrix (L6, L18, L46).
 
 ## 5. Reproduce
 

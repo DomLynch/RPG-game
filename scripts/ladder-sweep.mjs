@@ -3,6 +3,7 @@
 // It exists to answer "how does the difficulty actually move up the 46-level ladder, and is any opponent a wall or a pushover?" in minutes.
 //
 //   node scripts/ladder-sweep.mjs matrix [--n=40] [--levels=1,18]                       every opponent x every bot at the given levels
+//   (recipes marked `hold: true` in roster.ts are not in the game and are skipped; pass --include-held to add them, or name one in --opponents)
 //   node scripts/ladder-sweep.mjs curve  [--n=60] [--opponents=veteran,pitborn] [--bots=masher,blocker,skilled] [--levels=...]
 //
 // Fights are built the way the game builds them (combat.ts initialPractice over moves.ts opponentAt, stepped under moves.ts profileAt), against the
@@ -15,6 +16,7 @@
 import { OPPONENTS, MOVES, canStrike, initialPractice, stepPractice } from '../src/combat.ts';
 import { RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { mirror, movesOf, timing } from '../src/duel.ts';
+import { isHeld } from '../src/roster.ts';
 
 const mk = (z = 0, action = null, guard = false) => ({ move: { x: 0, z, yaw: 0, run: false }, action, guard, lock: true });
 const dist = (s) => Math.hypot(s.fighter.x - s.enemy.x, s.fighter.z - s.enemy.z);
@@ -65,6 +67,7 @@ const winRate = (bot, id, level, n) => { let w = 0; for (let k = 1; k <= n; k++)
 const arg = (name, fallback) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;
 const list = (name, fallback) => arg(name, fallback).split(',').filter(Boolean);
 const mode = process.argv[2];
+const roster = Object.keys(OPPONENTS).filter((id) => process.argv.includes('--include-held') || !isHeld(id));
 const n = Number(arg('n', mode === 'curve' ? 60 : 40));
 const bots = list('bots', mode === 'curve' ? 'masher,blocker,skilled' : Object.keys(BOTS).join(','));
 for (const b of bots) if (!BOTS[b]) { console.error(`unknown bot "${b}" (have ${Object.keys(BOTS).join(', ')})`); process.exit(2); }
@@ -73,7 +76,7 @@ if (mode === 'matrix') {
   for (const level of list('levels', '1,18').map(Number)) {
     console.log(`\n=== ladder level ${level} (1 Recruit, 6 easy, 18 normal, 46 Origin) · ${n} fights per cell · win% / mean seconds ===`);
     console.log('opponent'.padEnd(14) + bots.map((b) => b.padStart(14)).join(''));
-    for (const id of Object.keys(OPPONENTS)) {
+    for (const id of roster) {
       let row = id.padEnd(14);
       for (const b of bots) { let w = 0, ticks = 0; for (let k = 1; k <= n; k++) { const r = fight(BOTS[b], id, level, k * 7919); if (r.won) w++; ticks += r.ticks; } row += `${Math.round((100 * w) / n)}% ${(ticks / n / 60).toFixed(0)}s`.padStart(14); }
       console.log(row);
@@ -88,6 +91,6 @@ if (mode === 'matrix') {
     for (const level of levels) console.log(String(level).padEnd(8) + bots.map((b) => `${Math.round(100 * winRate(BOTS[b], id, level, n))}%`.padStart(10)).join(''));
   }
 } else {
-  console.error('usage: node scripts/ladder-sweep.mjs matrix|curve [--n=N] [--levels=1,18,46] [--opponents=veteran,...] [--bots=masher,blocker,skilled]');
+  console.error('usage: node scripts/ladder-sweep.mjs matrix|curve [--n=N] [--levels=1,18,46] [--opponents=veteran,...] [--bots=masher,blocker,skilled] [--include-held]');
   process.exit(2);
 }
