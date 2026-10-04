@@ -4,6 +4,13 @@ import { decide, initialAi } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, opponentAt, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
+import { struck } from '../src/events.ts';
+import type { CombatEvent } from '../src/duel.ts';
+
+// Counts damaging opponent contacts, not HP. Keep zero-damage kicks/blocks and wall lashes out.
+export function batteryContacts(events: CombatEvent[], side: 0 | 1): number {
+  return events.filter(e => (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Blocked') && struck(e) === side).length;
+}
 
 export const idle = (): Intent => ({ ...idleIntent(), lock: true });
 export const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
@@ -62,7 +69,7 @@ export function battery(level: keyof typeof PROFILES | number, seeds = 24, ticks
         const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
         if (!broke && d.events.some(e => e.type === 'GuardBroken' && e.target === 0)) { broke = true; row.firstBreak.push(d.tick); }   // the tick the player's guard first broke this fight
         // Damage taken: a hit, a broken guard, or chip through a block — a turtle that dies to chip was touched.
-        for (const e of d.events) { const hurt = e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0); if (hurt && e.target === 0) taken++; if (hurt && e.target === 1) landed++; }
+        taken += batteryContacts(d.events, 0); landed += batteryContacts(d.events, 1);
       }
       if (!d.finish) row.stalls++; else if (d.finish.draw) row.losses++; else if (d.finish.victim === 1) row.wins++; else row.losses++;
       if (taken === 0) row.untouched++; row.taken += taken; row.landed += landed;
