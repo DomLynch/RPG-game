@@ -52,7 +52,7 @@ export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
 export type Entry = 'win' | 'defeat';
 // Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
-export type Pose = 'rack' | 'trophies' | 'gate' | 'wall' | 'vault';   // wall: the skull wall's left panel with the gate's edge; vault: Web's stone look test only
+export type Pose = 'rack' | 'trophies' | 'gate' | 'wall' | 'duels' | 'vault';   // wall: the skull wall's left panel with the gate's edge; duels: its right panel; vault: Web's stone look test only
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
 export type Pit = { frame(dt: number): void; fitting(el: HTMLElement | null, view?: { width(): number; height(): number }): void; leave(): void; dispose(): void; readonly ready: Promise<void>; readonly extras: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)

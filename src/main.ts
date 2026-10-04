@@ -1402,7 +1402,7 @@ function walkPitGlow() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search) };   // Web's stone look test
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search), ...(skullsDemoFrom(window.location.search) ? pitSkulls() : {}) };   // Web's stone look test
   const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
   pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
