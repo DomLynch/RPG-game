@@ -1,13 +1,16 @@
 begin;
--- ROLLBACK (nothing else depends on these objects): drop function public.report_duel(text, text, text, text, integer, jsonb), public.pit_duel_beaten(), public.pit_ai_standing(), public.fight_results_rate();
---   drop table public.duel_reports, public.fight_results;  Rows are cosmetic wall data, so dropping loses no award, rank or loot.
+-- ROLLBACK (nothing else depends on these objects): select cron.unschedule('frankendom_settle_forfeits') where pg_cron exists; drop function public.report_duel(text, text, text), public.report_duel_start(text, text, integer, jsonb), public.settle_forfeits(), public.write_duel_pair(text, uuid, text, uuid, text), public.pit_duel_beaten(), public.pit_ai_standing(), public.fight_results_rate();
+--   drop table public.duel_reports, public.duel_starts, public.fight_results;  Rows are cosmetic wall data, so dropping loses no award, rank or loot.
 -- Fight results for the Pit's skull walls (Lead brief docs/briefs/skull-wall/BRIEF.md part A; Dom 2026-10-04).
 -- One row per finished fight for a signed-in fighter: kind 'ai' (a legend, key `<opponent>-<rank>`) or 'duel' (key = an opaque per-viewer id of the other player; see report_duel).
 -- The opponent's name, level and gear are a snapshot taken at the fight; gear is a small jsonb object of paperdoll ids.
 -- Who writes: AI rows are written by the fighter's own client (own user_id, kind 'ai' only, per-user rate cap). They are cosmetic:
 -- they feed the wall and nothing else, never awards (awards stay server-checked: server_awards / the verifier). Duel rows are written
--- ONLY by report_duel() below, never by a client insert: each page reports its settled result with the final checkpoint hash, and the
--- two rows are written when both players' reports of one room AGREE (one win and one loss, same hash). A lone client cannot write itself
+-- ONLY by report_duel()/settle_forfeits() below, never by a client insert. Each signed-in page registers at duel start (report_duel_start: who
+-- was in the room, with their name, level and gear), then reports its settled result with the final checkpoint hash; the two rows are written when both
+-- players' reports of one room AGREE (one win, one loss, same hash). A player who stays when the other leaves reports a lone forfeit-win: it is held
+-- 3 minutes, voided by ANY report from the other player, and otherwise settled by settle_forfeits() (the stayer's win and the leaver's loss, the
+-- leaver known from their start row). Both claiming a forfeit, or both silent: nothing is written. A lone client cannot write itself
 -- a win. Two accounts colluding in one room could, which only decorates their own wall: these rows are cosmetic and NEVER feed awards,
 -- rewards, rank or loot. `room` pairs the two rows and makes the write idempotent. A fighter reads only their own rows.
 create table public.fight_results (
@@ -78,48 +81,120 @@ $$;
 revoke all on function public.pit_ai_standing(), public.pit_duel_beaten() from public, anon;
 grant execute on function public.pit_ai_standing(), public.pit_duel_beaten() to authenticated;
 
--- Duel reports: what each page says about a settled duel. Nobody reads or writes this table directly; report_duel() is the only way in.
-create table public.duel_reports (
+-- Who was in a room, registered by each signed-in page when its duel starts. Nobody reads or writes this table directly.
+create table public.duel_starts (
   room text not null check (room ~ '^[a-z0-9]{8,32}$'),
   user_id uuid not null references auth.users (id) on delete cascade,
-  result text not null check (result in ('win', 'loss')),
-  hash text not null check (hash ~ '^[0-9a-f]{16}$'),
   name text not null check (char_length(name) between 1 and 40 and name !~ '[[:cntrl:]]'),
   level smallint not null check (level between 0 and 1000),
   gear jsonb not null default '{}' check (jsonb_typeof(gear) = 'object' and octet_length(gear::text) <= 1024),
   created_at timestamptz not null default now(),
   primary key (room, user_id)
 );
+-- What each page says about how its duel ended: 'win' or 'loss' for a settled finish (with the final checkpoint's fingerprint), 'forfeit-win'
+-- for a page whose peer left (no fingerprint). Nobody reads or writes this table directly; report_duel() is the only way in.
+create table public.duel_reports (
+  room text not null check (room ~ '^[a-z0-9]{8,32}$'),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  result text not null check (result in ('win', 'loss', 'forfeit-win')),
+  hash text check (hash ~ '^[0-9a-f]{16}$'),
+  created_at timestamptz not null default now(),
+  primary key (room, user_id),
+  check ((result = 'forfeit-win') = (hash is null))
+);
+alter table public.duel_starts enable row level security;
 alter table public.duel_reports enable row level security;
-revoke all on public.duel_reports from public, anon, authenticated;
+revoke all on public.duel_starts, public.duel_reports from public, anon, authenticated;
+create index duel_starts_created on public.duel_starts (created_at);
 create index duel_reports_created on public.duel_reports (created_at);
 
--- A signed-in page reports its settled duel: its result, the fingerprint of the final checkpoint (both pages compute the same one) and its
--- own name, level and gear as the opponent will see them. When the room's other report arrives and agrees (opposite results, same hash),
--- both fighters get a fight_results row with the OTHER account's name, level and gear and an opaque per-viewer key (md5 of viewer id + opponent id: stable for head-to-head, never the opponent's auth id). A third account naming
--- the same room is refused; a repeat of the same report changes nothing. Returns true when the pair is on record (so a retry is safe).
-create function public.report_duel(p_room text, p_result text, p_hash text, p_name text, p_level integer, p_gear jsonb) returns boolean
+-- Internal: both fighters get a fight_results row with the OTHER account's name, level and gear (from their start rows) and an opaque
+-- per-viewer key (md5 of viewer id + opponent id: stable for head-to-head, never the opponent's auth id). Idempotent on (user_id, room).
+create function public.write_duel_pair(p_room text, p_a uuid, p_a_result text, p_b uuid, p_b_result text) returns void
+language sql security definer set search_path = '' as $$
+  insert into public.fight_results (user_id, kind, opponent_key, opponent_name, opponent_level, opponent_gear, result, room)
+  select a.user_id, 'duel', md5(a.user_id::text || b.user_id::text), b.name, b.level, b.gear, p_a_result, p_room
+  from public.duel_starts a, public.duel_starts b where a.room = p_room and b.room = p_room and a.user_id = p_a and b.user_id = p_b
+  union all
+  select b.user_id, 'duel', md5(b.user_id::text || a.user_id::text), a.name, a.level, a.gear, p_b_result, p_room
+  from public.duel_starts a, public.duel_starts b where a.room = p_room and b.room = p_room and a.user_id = p_a and b.user_id = p_b
+  on conflict (user_id, room) where room is not null do nothing
+$$;
+revoke all on function public.write_duel_pair(text, uuid, text, uuid, text) from public, anon, authenticated;
+
+-- A forfeit held 3 minutes with no other report from the room settles: the lone reporter's win and the other player's loss. A room with
+-- two reports (a contradiction, or both claiming a forfeit) is never settled. Called by pg_cron each minute where it exists, and at the
+-- start of every report_duel.
+create function public.settle_forfeits() returns integer language plpgsql security definer set search_path = '' as $$
+declare r record; n integer := 0;
+begin
+  for r in
+    select f.room, f.user_id stayer, (select s.user_id from public.duel_starts s where s.room = f.room and s.user_id <> f.user_id) leaver
+    from public.duel_reports f
+    where f.result = 'forfeit-win' and f.created_at < now() - interval '3 minutes'
+      and (select count(*) from public.duel_reports x where x.room = f.room) = 1
+      and not exists (select 1 from public.fight_results d where d.room = f.room)
+      and (select count(*) from public.duel_starts s where s.room = f.room) = 2
+  loop
+    perform public.write_duel_pair(r.room, r.stayer, 'win', r.leaver, 'loss');
+    n := n + 1;
+  end loop;
+  return n;
+end$$;
+revoke all on function public.settle_forfeits() from public, anon, authenticated;
+do $$begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule('frankendom_settle_forfeits', '* * * * *', 'select public.settle_forfeits()');
+  end if;
+end$$;
+
+-- A signed-in page registers at duel start: who it is as the opponent will see it. A third account naming the same room is refused; a
+-- repeat changes nothing.
+create function public.report_duel_start(p_room text, p_name text, p_level integer, p_gear jsonb) returns void
 language plpgsql security definer set search_path = '' as $$
-declare me uuid := auth.uid(); peer public.duel_reports%rowtype; mine public.duel_reports%rowtype;
+declare me uuid := auth.uid();
+begin
+  if me is null then raise exception 'sign in to register a duel' using errcode = 'insufficient_privilege'; end if;
+  if (select count(*) from public.duel_starts where user_id = me and created_at > now() - interval '1 hour') >= 60 then
+    raise exception 'duel start cap reached' using errcode = 'insufficient_privilege';
+  end if;
+  if (select count(*) from public.duel_starts where room = p_room) >= 2 and not exists (select 1 from public.duel_starts where room = p_room and user_id = me) then
+    raise exception 'room already registered' using errcode = 'insufficient_privilege';
+  end if;
+  insert into public.duel_starts (room, user_id, name, level, gear) values (p_room, me, p_name, p_level, coalesce(p_gear, '{}'))
+    on conflict (room, user_id) do nothing;
+end$$;
+revoke all on function public.report_duel_start(text, text, integer, jsonb) from public, anon;
+grant execute on function public.report_duel_start(text, text, integer, jsonb) to authenticated;
+
+-- A registered page reports how its duel ended. 'win'/'loss' carry the fingerprint of the final checkpoint (both pages compute the same one);
+-- when the room's other report arrives and agrees (opposite results, same hash) both fighters get their row. 'forfeit-win' (the peer left)
+-- needs both players registered and is held for settle_forfeits(); a report from the peer voids it. Anything else writes nothing. A repeat
+-- of the same report changes nothing. Returns true when a fight_results pair is on record (so a retry is safe).
+create function public.report_duel(p_room text, p_result text, p_hash text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare me uuid := auth.uid(); mine public.duel_reports%rowtype; peer public.duel_reports%rowtype;
 begin
   if me is null then raise exception 'sign in to report a duel' using errcode = 'insufficient_privilege'; end if;
+  perform public.settle_forfeits();
+  if not exists (select 1 from public.duel_starts where room = p_room and user_id = me) then
+    raise exception 'register the duel first' using errcode = 'insufficient_privilege';
+  end if;
+  if p_result = 'forfeit-win' and (select count(*) from public.duel_starts where room = p_room) <> 2 then
+    return false;
+  end if;
   if (select count(*) from public.duel_reports where user_id = me and created_at > now() - interval '1 hour') >= 60 then
     raise exception 'duel report cap reached' using errcode = 'insufficient_privilege';
   end if;
-  if (select count(*) from public.duel_reports where room = p_room) >= 2 and not exists (select 1 from public.duel_reports where room = p_room and user_id = me) then
-    raise exception 'room already reported' using errcode = 'insufficient_privilege';
-  end if;
-  insert into public.duel_reports (room, user_id, result, hash, name, level, gear) values (p_room, me, p_result, p_hash, p_name, p_level, coalesce(p_gear, '{}'))
-    on conflict (room, user_id) do nothing;
+  insert into public.duel_reports (room, user_id, result, hash) values (p_room, me, p_result, p_hash) on conflict (room, user_id) do nothing;
   select * into mine from public.duel_reports where room = p_room and user_id = me;
   select * into peer from public.duel_reports where room = p_room and user_id <> me;
-  if not found or peer.hash <> mine.hash or peer.result = mine.result then return false; end if;
-  insert into public.fight_results (user_id, kind, opponent_key, opponent_name, opponent_level, opponent_gear, result, room) values
-    (me, 'duel', md5(me::text || peer.user_id::text), peer.name, peer.level, peer.gear, mine.result, p_room),
-    (peer.user_id, 'duel', md5(peer.user_id::text || me::text), mine.name, mine.level, mine.gear, peer.result, p_room)
-    on conflict (user_id, room) where room is not null do nothing;
+  if not found or mine.result = 'forfeit-win' or peer.result = 'forfeit-win' or peer.hash <> mine.hash or peer.result = mine.result then
+    return exists (select 1 from public.fight_results where user_id = me and room = p_room);
+  end if;
+  perform public.write_duel_pair(p_room, me, mine.result, peer.user_id, peer.result);
   return true;
 end$$;
-revoke all on function public.report_duel(text, text, text, text, integer, jsonb) from public, anon;
-grant execute on function public.report_duel(text, text, text, text, integer, jsonb) to authenticated;
+revoke all on function public.report_duel(text, text, text) from public, anon;
+grant execute on function public.report_duel(text, text, text) to authenticated;
 commit;

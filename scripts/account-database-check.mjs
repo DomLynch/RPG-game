@@ -477,7 +477,8 @@ try {
       end if;
     end$$;
     delete from public.duel_metrics;`;
-  // fight_results (Pit skull walls): AI rows from the owner's own client only; duel rows only through report_duel when two reports agree.
+  // fight_results (Pit skull walls): AI rows from the owner's own client only; duel rows only through report_duel (two agreeing reports) or
+  // settle_forfeits (a lone forfeit-win held 3 minutes), the identities coming from the start rows.
   const fightResults = `
     reset role;
     set role authenticated;
@@ -487,29 +488,59 @@ try {
       begin insert into public.fight_results(kind,opponent_key,opponent_name,opponent_level,result,room) values ('duel','x','x',1,'win','abcd0001'); raise exception 'Client duel row allowed'; exception when insufficient_privilege then null; end;
       begin insert into public.fight_results(user_id,kind,opponent_key,opponent_name,opponent_level,result) values ('22222222-2222-4222-8222-222222222222','ai','goblin-1','G',1,'win'); raise exception 'Cross-owner result allowed'; exception when insufficient_privilege then null; end;
       begin perform * from public.duel_reports; raise exception 'Duel reports readable'; exception when insufficient_privilege then null; end;
+      begin perform * from public.duel_starts; raise exception 'Duel starts readable'; exception when insufficient_privilege then null; end;
+      begin perform public.settle_forfeits(); raise exception 'settle_forfeits callable by a client'; exception when insufficient_privilege then null; end;
+      begin perform public.report_duel('abcd1234','win','0123456789abcdef'); raise exception 'Report without start allowed'; exception when insufficient_privilege then null; end;
       if (select ranks_beaten from public.pit_ai_standing() where opponent = 'goblin') <> '{1}' then raise exception 'pit_ai_standing ranks wrong'; end if;
-      if public.report_duel('abcd1234','win','0123456789abcdef','Aldren',5,'{"Helmet":"a"}') then raise exception 'Lone report paired'; end if;
+      perform public.report_duel_start('abcd1234','Aldren',5,'{"Helmet":"a"}');
+      if public.report_duel('abcd1234','win','0123456789abcdef') then raise exception 'Lone report paired'; end if;
     end$$;
     select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
     do $$begin
-      if public.report_duel('abcd1234','win','0123456789abcdef','Bo',6,'{}') then raise exception 'Two wins paired'; end if;
-      if public.report_duel('abcd1234','loss','0123456789abcdef','Bo',6,'{}') then raise exception 'First report was replaced'; end if;
-      if public.report_duel('room0002','loss','aaaaaaaaaaaaaaaa','Bo',6,'{}') then raise exception 'Lone report paired'; end if;
+      perform public.report_duel_start('abcd1234','Bo',6,'{}');
+      if public.report_duel('abcd1234','win','0123456789abcdef') then raise exception 'Two wins paired'; end if;
+      if public.report_duel('abcd1234','loss','0123456789abcdef') then raise exception 'First report was replaced'; end if;
+      perform public.report_duel_start('room0002','Bo',6,'{}');
+      if public.report_duel('room0002','loss','aaaaaaaaaaaaaaaa') then raise exception 'Lone report paired'; end if;
     end$$;
     select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
     do $$begin
-      if not public.report_duel('room0002','win','aaaaaaaaaaaaaaaa','Aldren',5,'{"Helmet":"a"}') then raise exception 'Agreeing pair not written'; end if;
+      perform public.report_duel_start('room0002','Aldren',5,'{"Helmet":"a"}');
+      if not public.report_duel('room0002','win','aaaaaaaaaaaaaaaa') then raise exception 'Agreeing pair not written'; end if;
       if (select count(*) from public.fight_results where kind = 'duel') <> 1 then raise exception 'Duel row count wrong'; end if;
       if exists (select 1 from public.pit_duel_beaten() where opponent_key = '22222222-2222-4222-8222-222222222222' or opponent_name <> 'Bo' or wins <> 1) then raise exception 'pit_duel_beaten leaks the auth id or is wrong'; end if;
-    end$$;
-    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
-    do $$begin
-      if (select count(*) from public.fight_results) <> 1 or (select result from public.fight_results) <> 'loss' then raise exception 'Second fighter sees the wrong rows'; end if;
+      perform public.report_duel_start('room0003','Aldren',5,'{}');
+      if public.report_duel('room0003','forfeit-win',null) then raise exception 'Forfeit paired with only one player registered'; end if;
     end$$;
     reset role;
-    delete from public.fight_results; delete from public.duel_reports;`;
+    do $$begin if exists (select 1 from public.duel_reports where room = 'room0003') then raise exception 'Forfeit stored with only one player registered'; end if; end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    select public.report_duel_start('room0003','Bo',6,'{}');
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    do $$begin
+      if public.report_duel('room0003','forfeit-win',null) then raise exception 'Forfeit written at once'; end if;
+    end$$;
+    reset role;
+    update public.duel_reports set created_at = now() - interval '4 minutes' where room = 'room0003';
+    do $$begin
+      if public.settle_forfeits() <> 1 then raise exception 'Held forfeit did not settle'; end if;
+      if (select count(*) from public.fight_results where room = 'room0003' and user_id = '11111111-1111-4111-8111-111111111111' and result = 'win') <> 1
+        or (select count(*) from public.fight_results where room = 'room0003' and user_id = '22222222-2222-4222-8222-222222222222' and result = 'loss') <> 1 then raise exception 'Forfeit pair wrong'; end if;
+    end$$;
+    -- a forfeit the other player contradicts is never settled
+    insert into public.duel_starts(room,user_id,name,level) values ('room0004','11111111-1111-4111-8111-111111111111','Aldren',5),('room0004','22222222-2222-4222-8222-222222222222','Bo',6);
+    insert into public.duel_reports(room,user_id,result,hash,created_at) values ('room0004','11111111-1111-4111-8111-111111111111','forfeit-win',null,now() - interval '4 minutes'),('room0004','22222222-2222-4222-8222-222222222222','loss','bbbbbbbbbbbbbbbb',now());
+    do $$begin if public.settle_forfeits() <> 0 or exists (select 1 from public.fight_results where room = 'room0004') then raise exception 'Contradicted forfeit settled'; end if; end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin
+      if (select count(*) from public.fight_results where kind = 'duel') <> 2 then raise exception 'Second fighter sees the wrong rows'; end if;
+    end$$;
+    reset role;
+    delete from public.fight_results; delete from public.duel_reports; delete from public.duel_starts;`;
   run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene + perfBeacons + duelMetrics + fightResults);
-  console.log('Account database PASS: fight_results (own AI rows, duel rows only from two agreeing reports); owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
+  console.log('Account database PASS: fight_results (own AI rows; duel rows only from two agreeing reports or a held, uncontradicted forfeit); owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
