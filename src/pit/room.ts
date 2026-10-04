@@ -140,11 +140,11 @@ export function buildRoom(stage: Stage): Room {
   const G = !!stage.glow;
   // `?look=pit-cage` (Dom 10-04: "keep it open, more like a cage, a metal fence round it so you can see the arena's backdrop"): no vault and no
   // side or back walls; the far wall stands as the arena's outer wall (taller), iron fences close the other three sides, sand runs out past them.
-  const C = G && !!stage.cage, HW = C ? 7 : H;
+  const C = G && !!stage.cage, HW = C ? 5 : H;
   if (G) { stone.color.set(GLOW.stone); if (L && L.vault !== L.wall) L.vault.color.set(GLOW.stone); floor.color.set(GLOW.sand); flames.size = 0.5; arenaBeyond(daylight, textures); }
   const materials = [stone, floor, iron, wood, daylight, flames, ...(L && L.vault !== L.wall ? [L.vault] : []), ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
-  const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces;
+  const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = C ? [[-1.9, 1.9, -hd], [1.9, 1.9, -hd]] : S.sconces;   // cage: no side walls, so the torches flank the gate on the arena wall
   const ironParts: THREE.BufferGeometry[] = [];   // the ring's iron: the chests' bands, the sword, the spear's head, the helm (the gate's bars are GPT's model, below)
   const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its end post
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
@@ -270,6 +270,8 @@ export function buildRoom(stage: Stage): Room {
     // each side wall at the far end, the flame point at its top, out from the wall by the bracket's reach.
     sconces.forEach(([x, y, z], i) => {
       const inward = x < 0 ? 1 : -1;
+      // the sconce faces its own +z: on a side wall it turns a quarter inward, on the cage's far wall it faces straight into the yard
+      if (C) { mount('sconce', (holder) => { holder.position.set(x, y - 0.04, z + 0.08); }); flameSpots[i] = [x, y, z + 0.1]; return; }
       mount('sconce', (holder) => { holder.position.set(x - inward * 0.08, y - 0.04, z); holder.rotation.y = inward * Math.PI / 2; });
       flameSpots[i] = [x + inward * 0.1, y, z];
     });
