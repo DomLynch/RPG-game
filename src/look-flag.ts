@@ -23,3 +23,6 @@ export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-pr
   if (tokens.includes('pit-plain')) return undefined;
   return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : 'stone-full';
 }
+// `pit-glow` (Dom 2026-10-04, the painted gladiator cell): the same room relit gold, light through the gate bars, Arena 1 beyond them.
+// `?look=pit-glow` alone plays as normal and the Pit after a win is the glow room (walk, look, tap); `?look=pit,pit-glow` is the still.
+export const pitGlowFrom = (search: string) => (new URLSearchParams(search).get('look') ?? '').split(',').includes('pit-glow');

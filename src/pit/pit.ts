@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Pick, type Room } from './room.ts';
 import { GATE_OPEN_S } from './gate.ts';
+import { GLOW } from './glow.ts';
 import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
@@ -55,6 +56,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   if (again) void built.restock();   // what he owns may have changed since the last visit (a take)
   const lights = scene.children.filter((c): c is THREE.Light => c instanceof THREE.Light).map((light) => [light, light.intensity] as const);
   for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
+  const fog = scene.fog;   // `pit-glow` (glow.ts): a warm haze instead of the arena's fog while the room is up; restored on leave
+  if (stage.glow) scene.fog = new THREE.FogExp2(GLOW.fog, GLOW.fogDensity);
   const fov = camera.fov;
   if (camera.aspect < 1) { camera.fov = PORTRAIT_FOV; camera.updateProjectionMatrix(); }
   let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry], speed: arrival };
@@ -111,6 +114,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     built.group.visible = false;
     sheet?.hide();
     for (const [light, intensity] of lights) light.intensity = intensity;
+    scene.fog = fog;
     camera.fov = fov; camera.updateProjectionMatrix();
     stage.setArenaVisible(true);
   };
