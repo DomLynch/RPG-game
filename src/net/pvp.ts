@@ -189,7 +189,9 @@ export class PvpDuel {
       if (m.sync !== SYNC_VERSION) { this.refuse('Your opponent uses a different duel protocol: both players must reload'); return; }
       this.peerKit ??= cleanKit(m.kit);
       this.peerReady = m.rdy !== false;
-    } else if (m.k === 'desync') { if (this.session) this.disagree(); }
+    // The peer's bare notice carries no evidence: once this page has settled the finish it cannot void it (Auditor F2); this page's own
+    // fingerprint mismatch still can (the `packet` branch below).
+    } else if (m.k === 'desync') { if (this.session && !this.settled) this.disagree(); }
     else if (m.k === 'ping') this.send({ k: 'pong', n: m.n });
     else if (m.k === 'pong') { const at = this.sentAt.get(m.n); if (at !== undefined) { this.sentAt.delete(m.n); this.rttMs.push(this.now() - at); } }
     else if (m.k === 'go') {
