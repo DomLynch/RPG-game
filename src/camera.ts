@@ -5,12 +5,20 @@ import * as THREE from 'three';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
+import { cameraVariantFrom } from './look-flag.ts';
 
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
+const CAMERA = cameraVariantFrom(typeof location === 'undefined' ? '' : location.search);   // `&camera=a|b|c` look test; b (today's) when absent
 
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
   SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
   SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
+// The lock camera's distance behind the player and height, per variant (look-flag.ts cameraVariantFrom): b is today's; a the original lock; c halfway.
+export const lockBack = (distance: number, v = CAMERA) => (v === 'a' ? Math.max(4.2, distance * 0.62 + 2.8) : v === 'c' ? Math.max(4.4, distance * 0.685 + 2.9) : Math.max(4.6, distance * 0.75 + 3.0));
+export const lockHeight = (distance: number, v = CAMERA) => {
+  const a = Math.max(3.2, distance * 1.3), b = Math.max(3.1, distance * 1.05, distance * 1.3 - 3);
+  return v === 'a' ? a : v === 'c' ? (a + b) / 2 : b;
+};
 export function cameraPose(
   state: State,
   yaw: number,
@@ -21,10 +29,10 @@ export function cameraPose(
 ) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
-  const back = locked ? Math.max(4.6, distance * 0.75 + 3.0) : 7.5 * Math.cos(pitch);   // look test 2026-10-03: flatter lock, between the old lock and free view
+  const back = locked ? lockBack(distance) : 7.5 * Math.cos(pitch);   // look test 2026-10-03: flatter lock, between the old lock and free view (b)
   let x = state.x + Math.sin(yaw) * back,
     z = state.z + Math.cos(yaw) * back,
-    y = locked ? Math.max(3.1, distance * 1.05, distance * 1.3 - 3) : 1 + 7.5 * Math.sin(pitch);
+    y = locked ? lockHeight(distance) : 1 + 7.5 * Math.sin(pitch);
   // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's back at close range. Where a man at this gap would be
   // hidden below the player's shoulders, step the lock camera over the player's left shoulder so the line to him passes
   // SIDE_CLEAR per unit of missing height beside the player's spine; nothing for a man or a bigger one, nothing once in the clear.

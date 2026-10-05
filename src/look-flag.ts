@@ -34,3 +34,6 @@ export const pitOpenLook = (search: string): { glow?: true; cage?: true } => {
   const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
   return tokens.includes('pit-old') ? {} : tokens.includes('pit-cell') ? { glow: true } : { glow: true, cage: true };
 };
+// `&camera=a|b|c` (Dom 2026-10-05, look test): the duel lock camera's framing. a = the original lock (before look test 2), b = today's trunk (the default, also
+// for any other value), c = halfway between them. Preview only: no flag, no change.
+export const cameraVariantFrom = (search: string): 'a' | 'b' | 'c' => { const v = new URLSearchParams(search).get('camera'); return v === 'a' || v === 'c' ? v : 'b'; };
