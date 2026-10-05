@@ -19,8 +19,8 @@
 // the ladder, the level table and RECORD_VERSION are untouched). It writes no record and awards nothing. The foe's attacks are scripted,
 // one episode per lesson, in the order the lessons are taught; each episode ends on the player's own cue (a parry, a block, a roll, a
 // wound) or, failing that, on a timeout, so every beat fires on every seed whatever the player does. Until the last beat the player is
-// kept above half health and the foe above half too: the lessons are not punishment. Then a finishing blow ends the player, forced if it
-// has to be, and the fight is a loss. The prompts are the Web lane's: this file only says WHICH lesson, once, on the tick its cue happens.
+// kept above half health, and the foe is always kept above half: the lessons are not punishment. Then a finishing blow ends the player,
+// forced if it has to be, and the fight is a loss. The prompts are the Web lane's: this file only says WHICH lesson, once, on the tick its cue happens.
 import { decide } from './ai.ts';
 import { project, type Practice } from './combat.ts';
 import { distance, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './duel.ts';
@@ -54,8 +54,8 @@ export function createFirstLoss(onLesson: (id: LessonId) => void = () => {}) {
       const before = current.duel, tick = before.tick, [p0, f0] = before.fighters;
       const live = !before.finish && p0.health > 0 && f0.health > 0;
       // The lessons are not punishment: the player stays above half health and the foe above half until the finishing blow.
-      const keep = (f: typeof p0): typeof p0 => finaleAt >= 0 ? f : f.health < f.maxHealth * FLOOR ? { ...f, health: Math.ceil(f.maxHealth * FLOOR) } : f;
-      const duel: Duel = live ? { ...before, fighters: [keep(p0), keep(f0)] } : before;
+      const keep = (f: typeof p0): typeof p0 => f.health < f.maxHealth * FLOOR ? { ...f, health: Math.ceil(f.maxHealth * FLOOR) } : f;
+      const duel: Duel = live ? { ...before, fighters: [finaleAt >= 0 ? p0 : keep(p0), keep(f0)] } : before;   // the foe never falls; the player is spared until the finishing blow
       const dec = decide(duel, 1, current.ai, SPARRING_DUMMY), foe = duel.fighters[1], player = duel.fighters[0];
       if (live && started < 0 && player.phase === 'ready') { started = tick; bar = player.maxStamina; }   // the lesson starts when the sword is out
       let action: Action | null = null;
