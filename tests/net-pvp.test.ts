@@ -7,7 +7,7 @@ import { project } from '../src/combat.ts';
 import { idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../src/duel.ts';
 import { Match, type PvpDriver } from '../src/match.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
-import { MESSAGE_CAP, PvpDuel, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
+import { MESSAGE_CAP, PvpDuel, SILENCE, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent } from '../src/net/rollback.ts';
 import { metricsRow, reportBody, startBody, closeLater, RETIRE_MS } from '../src/net/lobby.ts';
 import { readFileSync } from 'node:fs';
@@ -539,7 +539,7 @@ test('a settled duel retires its transport: closeLater closes it once after the 
   let closed = 0, wait = -1, run: (() => void) | null = null;
   closeLater({ close: () => { closed++; } }, RETIRE_MS, (fn, ms) => { run = fn; wait = ms; });
   assert.equal(closed, 0, 'not closed until the timer fires: the peer may still need this side\'s last acks');
-  assert.equal(wait, RETIRE_MS); assert.ok(RETIRE_MS >= 3000 && RETIRE_MS < 60_000, 'a grace, well inside the relay\'s 60 s idle close');
+  assert.equal(wait, RETIRE_MS); assert.ok(RETIRE_MS > SILENCE.abandonMs && RETIRE_MS < 60_000, 'a grace past the peer\'s silence window, inside the relay\'s 60 s idle close');
   run!();
   assert.equal(closed, 1);
 });

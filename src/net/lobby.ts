@@ -3,7 +3,7 @@
 // the handshake and the fight (pvp.ts), and one duel_metrics row per side when the duel ends or the page hides.
 // main.ts reaches this file only through a dynamic import behind `?duel=`: a page without it never loads any of src/net.
 import { idleIntent } from '../duel.ts';
-import { PvpDuel, type DuelResult } from './pvp.ts';
+import { PvpDuel, SILENCE, type DuelResult } from './pvp.ts';
 import type { Kit, NetMetrics } from './rollback.ts';
 import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
 
@@ -60,8 +60,9 @@ export type LobbyPage = {
 };
 
 // A finished duel leaves no reason to hold the relay socket: left open, it is closed by the relay's 60 s idle timeout and then retried with
-// backoff. The close waits a few seconds so a peer that has not settled yet still gets this side's last acks.
-export const RETIRE_MS = 5000;
+// backoff. The close waits past the peer's whole silence window (SILENCE.abandonMs, which is over rejoinMs) plus 5 s, so a peer whose link
+// comes back late still hears this side's last acks and settles the same finish instead of ending as left/forfeit. Still inside the relay's 60 s idle close.
+export const RETIRE_MS = SILENCE.abandonMs + 5000;
 export function closeLater(transport: { close(): void }, ms: number = RETIRE_MS, later: (fn: () => void, ms: number) => unknown = setTimeout): void { later(() => transport.close(), ms); }
 
 export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promise<void> {
