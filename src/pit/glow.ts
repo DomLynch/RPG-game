@@ -252,7 +252,7 @@ export function addOpenSky(group: THREE.Group) {
   const textures: THREE.Texture[] = [], materials: THREE.Material[] = [], geometries: THREE.BufferGeometry[] = [];
   const skyMap = painted(4, 256, (g) => {
     const v = g.createLinearGradient(0, 0, 0, 256);
-    v.addColorStop(0, '#5f6f8c'); v.addColorStop(0.55, '#b59a86'); v.addColorStop(0.8, '#e9b47c'); v.addColorStop(1, '#c9a47a');
+    v.addColorStop(0, '#5f6f8c'); v.addColorStop(0.35, '#66606a'); v.addColorStop(0.55, '#5a4b4a'); v.addColorStop(0.72, '#b59a86'); v.addColorStop(0.88, '#e9b47c'); v.addColorStop(1, '#c9a47a');   // the dome's mid band matches the painted ring's cloud tone at its top edge, so the ring does not end on a hard pale cap
     g.fillStyle = v; g.fillRect(0, 0, 4, 256);
   });
   const sky = new THREE.MeshBasicMaterial({ map: skyMap, side: THREE.BackSide, fog: false, depthWrite: false });
@@ -268,7 +268,8 @@ export function addOpenSky(group: THREE.Group) {
   ringMesh.scale.set(NEAR, NEAR * 0.9, NEAR); ringMesh.position.y = (17 - 7) * NEAR; ringMesh.rotation.y = 0.6;
   const sun = new THREE.DirectionalLight('#ffb46a', 4.2);
   sun.position.set(-24, 12, -15); sun.target.position.set(0, 0, 0);
-  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+  sun.castShadow = true; sun.shadow.intensity = 0.4; sun.shadow.mapSize.set(1024, 1024);   // the fence's bars cast the yard's stripes: softened (Auditor 10-05: strong regular bands)
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
   Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 60 }); sun.shadow.camera.updateProjectionMatrix();
   const fill = new THREE.HemisphereLight('#9fb2d4', '#4a3426', 1.1);
   group.add(domeMesh, ringMesh, sun, sun.target, fill);
