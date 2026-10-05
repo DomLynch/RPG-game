@@ -1201,6 +1201,10 @@ if (sparKit) {
   }) });
   banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
+// A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
+// it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
+else if (invalidSparringPreview) banner('That special move test link is invalid. Choose valid Sparring picks and press Start sparring.', true);   // paused until a corrected link starts; never silently becomes a career fight
+else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // legacy ordinary Sparring link behavior
 // The scripted first loss (src/first-loss.ts, Match 'lesson'): `?lesson=1` boots it on the loaded warden. It records and awards nothing and the
 // page skips the AFK mark and the loot offer. Each beat lands on <html data-lesson> (the Web lane's prompts read it or take match.startLesson's
 // callback) and on __lesson for the stills harness; the callback is the one hook, so the prompts never need to know the script.
@@ -1212,10 +1216,6 @@ if (lessonAsked) {
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
   banner('The first loss, no rewards'); began();
 }
-// A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
-// it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
-else if (invalidSparringPreview) banner('That special move test link is invalid. Choose valid Sparring picks and press Start sparring.', true);   // paused until a corrected link starts; never silently becomes a career fight
-else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // legacy ordinary Sparring link behavior
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
