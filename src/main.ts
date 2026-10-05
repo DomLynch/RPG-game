@@ -1820,6 +1820,7 @@ function frame(now: number) {
         }
         else {
           if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
+          if (ended.rewarded && session.db && session.userId) void import('./fight-results.ts').then(({ fightResultRow, postFightResult }) => postFightResult(session.db!, fightResultRow(opponent.id, match.level, ended.won ? 'win' : practice.finish?.draw ? 'draw' : 'loss')));   // the Pit wall's mirror (cosmetic)
           if (ended.record) {
             element('debug').dataset.record = `${ended.record.ticks}/${ended.record.outcome}/${ended.record.seed}`;
             say(null);
