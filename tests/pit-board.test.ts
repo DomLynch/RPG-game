@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { contrast, luminance } from '../src/pit/contrast.ts';
 import { BOARD, SLAB, buildBoard, paintRecord, recordLines, recordTexture, tallyGroups } from '../src/pit/board.ts';
-import { blankRecord, demoKills, demoRecord, fetchKills, fetchRecord, killsFromLoot, localRecord, lootKills, recordFromRows, splitOf, type SkullDb } from '../src/pit/skulls.ts';
+import { createFeed, blankRecord, demoKills, demoRecord, fetchKills, fetchRecord, killsFromLoot, localRecord, lootKills, recordFromRows, splitOf, type SkullDb } from '../src/pit/skulls.ts';
 import type { Loot } from '../src/loot.ts';
 
 const loot = (extra: object): Loot => ({ owned: [], equipped: {}, ...extra }) as Loot;
@@ -116,4 +116,22 @@ test('fetchRecord: Kills = server wins + loot kills no server row covers (29+1 =
   assert.deepEqual(await run(l, 1, ['new-1']), { skulls: 30, kills: 30 });
   assert.deepEqual(await run(l, 1, ['o3-1']), { skulls: 29, kills: 29 });
   assert.deepEqual(await run(one, 3, ['witch-2', 'witch-2', 'witch-2']), { skulls: 3, kills: 3 }, 'a rematch: three server wins over one loot legend');
+});
+
+test('createFeed: pit_record answering before pit_recent_kills still waits for the kills (10 wins over 10 loot legends is Kills 10, not 20)', async () => {
+  const taken = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`k${i}`, { opponent: `o${i}`, attempt: 1, healthLeft: 1, recordId: null, day: '2026-09-01', tier: 1 }]));
+  let release: () => void = () => undefined;
+  const slow = new Promise<void>((r) => { release = r; });
+  const rows = Array.from({ length: 10 }, (_, i) => ({ kind: 'ai', opponent_key: `o${i}-1`, opponent_name: 'X', opponent_level: 1, opponent_gear: {}, created_at: '2026-10-05T00:00:00Z' }));
+  let user: string | null = 'u1';
+  const feed = createFeed({
+    db: () => ({ rpc: async (name: string) => (name === 'pit_record' ? { data: [{ wins: 10, losses: 0, streak: 1, highest_rank: 1 }], error: null } : (await slow, { data: rows, error: null })) }),
+    userId: () => user, loot: () => loot({ taken }), marks: () => 10,
+  });
+  const kills = feed.kills(), record = feed.record();   // the room fires both; the record's RPC would answer first
+  release();
+  assert.equal((await record).kills, 10); assert.equal((await kills).length, 10);
+  user = null;
+  assert.equal(feed.recordNow().wins, 10, 'sign-out: the fallback record, not the last fighter\'s');
+  assert.equal(feed.recordNow().losses, null);
 });

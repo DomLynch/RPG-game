@@ -194,3 +194,29 @@ export const demoChampions = (): Champion[] => championsFromSummary({
   fastest_death: { display_name: 'Dunmore', ticks: 410, verified: false },
   where: { gate: 3, pit: 1 }, pending: 2,
 });
+
+// The wall's and the board's fetched data, held together so the record always waits for the kills fetch it is fired beside (the record's Kills needs the
+// server's kill keys, whichever RPC answers first), and a different signed-in fighter or a sign-out drops what the last one's fetches left.
+export type FeedSource = { db: () => SkullDb | null | undefined; userId: () => string | null | undefined; loot: () => Loot | null | undefined; marks: () => number | null; nameOf?: NameOf };
+export function createFeed(src: FeedSource) {
+  let killCache: Kills | null = null, recordCache: PitRecord | null = null, inFlight: Promise<Kills> | null = null, owner: string | null = null;
+  const keys = new Set<string>();
+  const own = () => { const id = src.userId() ?? null; if (id !== owner) { owner = id; killCache = recordCache = inFlight = null; keys.clear(); } };
+  const local = () => killsFromLoot(src.loot(), src.nameOf), localRec = () => localRecord(src.loot(), src.marks(), src.nameOf);
+  return {
+    killsNow: (): Kills => (own(), killCache ?? local()),
+    recordNow: (): PitRecord => (own(), recordCache ?? { ...localRec(), ...splitOf(killCache ?? local()) }),
+    async kills(): Promise<Kills> {
+      own(); keys.clear();
+      const fetching = inFlight = fetchKills(src.db(), local(), keys), kills = await fetching;
+      if (inFlight === fetching) { killCache = kills; inFlight = null; }
+      return kills;
+    },
+    async record(): Promise<PitRecord> {
+      own();
+      const kills = await (inFlight ?? Promise.resolve(killCache ?? local()));
+      recordCache = await fetchRecord(src.db(), localRec(), kills, lootKills(src.loot(), src.nameOf), keys);
+      return recordCache;
+    },
+  };
+}

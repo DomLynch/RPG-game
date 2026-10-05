@@ -1323,28 +1323,23 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 const pitLoot = () => profile.loot ?? emptyLoot();
 // The skull wall's kills and the record board (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each
 // Pit visit; the `&skulls=demo` look never touches the network. skullsNow / recordNow are undefined until the module is in.
-let skullMod: SkullsModule | null = null, killCache: Kills | null = null, recordCache: PitRecord | null = null, championCache: Champion[] | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
-const serverKeys = new Set<string>();   // the legend keys the server's kill rows hold, filled by fetchKills
+let skullMod: SkullsModule | null = null, feed: ReturnType<SkullsModule['createFeed']> | null = null, championCache: Champion[] | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
 function pitSkulls() {
   const demo = skullsDemoFrom(window.location?.search ?? '');
   void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
   // The legend's own name for a kill (legends.ts), else the opponent's class name; this file may read legends.ts, src/pit/ may not.
   const nameOf = (id: string, rank: number | null): string => { try { return isLegendOpponent(id) ? (rank ? legendAt(id, rank).name : ROSTER[id].name) : (isOpponentId(id) ? ROSTER[id].name : id); } catch { return id; } };
-  const localKills = () => skullMod!.killsFromLoot(pitLoot(), nameOf), localRecord = () => skullMod!.localRecord(pitLoot(), careerMarks(), nameOf);
+  const theFeed = (m: SkullsModule) => feed ??= m.createFeed({ db: () => session.db, userId: () => session.userId, loot: pitLoot, marks: careerMarks, nameOf });
   return {
-    skullsNow: (): Kills | undefined => (!skullMod ? undefined : demo ? skullMod.demoKills(nameOf) : (killCache ?? localKills())),
+    skullsNow: (): Kills | undefined => (!skullMod ? undefined : demo ? skullMod.demoKills(nameOf) : theFeed(skullMod).killsNow()),
     skulls: async (): Promise<Kills> => {
       const m = skullMod ??= await loadSkulls();
-      if (demo) return m.demoKills(nameOf);
-      killCache = await m.fetchKills(session.db, localKills(), serverKeys);
-      return killCache;
+      return demo ? m.demoKills(nameOf) : theFeed(m).kills();
     },
-    recordNow: (): PitRecord | undefined => (!skullMod ? undefined : demo ? skullMod.demoRecord() : (recordCache ?? { ...localRecord(), ...skullMod.splitOf(killCache ?? localKills()) })),
+    recordNow: (): PitRecord | undefined => (!skullMod ? undefined : demo ? skullMod.demoRecord() : theFeed(skullMod).recordNow()),
     record: async (): Promise<PitRecord> => {
       const m = skullMod ??= await loadSkulls();
-      if (demo) return m.demoRecord();
-      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills(), m.lootKills(pitLoot(), nameOf), serverKeys);
-      return recordCache;
+      return demo ? m.demoRecord() : theFeed(m).record();
     },
     championsNow: (): Champion[] | undefined => (!skullMod ? undefined : demo ? skullMod.demoChampions() : (championCache ?? [])),
     champions: async (): Promise<Champion[]> => {
