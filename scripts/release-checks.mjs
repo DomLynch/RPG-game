@@ -153,6 +153,7 @@ if (extended) { console.log(`Extended checks passed for ${revision}`); process.e
 mkdirSync(dirname(receipt), { recursive: true });
 writeFileSync(receipt, JSON.stringify({ revision, passed: true, checks: commands.length, wall_seconds: Number(wallSeconds.toFixed(1)), checks_detail: detail }) + '\n');
 // A run with no out-of-scope row and no ruling-trusted row is a full run (rows CI or the T4 proved for this tree count as run):
-// deploy.sh scopes later releases to a few rows for 24 h after it (Auditor S3 on #1381).
-if (!outOfScope.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), JSON.stringify({ revision, at: new Date().toISOString() }) + '\n');
+// deploy.sh scopes later releases to a few rows for 24 h after it (Auditor S3 on #1381). A run behind the fast unit gate
+// (DEPLOY_FAST_GATE, slow tests skipped) never counts as full (Auditor S1 on #1385).
+if (!outOfScope.size && !process.env.DEPLOY_TRUST_ROWS && !process.env.DEPLOY_FAST_GATE) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), JSON.stringify({ revision, at: new Date().toISOString() }) + '\n');
 console.log(`Release checks passed for ${revision}`);
