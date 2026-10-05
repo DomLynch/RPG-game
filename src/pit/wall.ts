@@ -10,7 +10,7 @@ import type { Kills } from './skulls.ts';
 
 export type Slot = { id: string; x: number; y: number };
 const ROWS = 5, COLUMNS = 6, SLOTS = COLUMNS * ROWS;
-export const PANEL = { inner: 2.3, outer: 4.7, top: 3.05, rowPitch: 0.5, colPitch: 0.24 };   // x from the gate's side (the arch is 2.8 m wide and the counterweight falls just outside it) out to the wall's corner (the room is 10 m across); rows down from the top
+export const PANEL = { inner: 2.3, outer: 4.7, top: 2.85, rowPitch: 0.5, colPitch: 0.24, bottom: 2.85 - 4 * 0.5 };   // x from the gate's side (the arch is 2.8 m wide and the counterweight falls just outside it) out to the wall's corner (the room is 10 m across); rows down from the top
 export const NICHE = { w: 0.2, h: 0.3, d: 0.06, lip: 0.015 };   // a carved cell proud of the wall: its lit arris, its inner sides, its dark back; the lip stays inside colPitch so cells never join into a grid
 // Vertex colours, so one material draws the whole cell (Lead 2026-09-30: an EMPTY niche must read as carved stone, not a black square,
 // since most players see mostly empty niches for a while). Linear values against the WALL's own tone (the ashlar map reads ~0.12 linear

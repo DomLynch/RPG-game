@@ -220,7 +220,8 @@ export function addGrime(group: THREE.Group, room: { width: number; depth: numbe
 
 // The cage's fence (pit-cage): iron bars on the left, right and back sides, 3.2 m tall at 0.16 m, three rails and a spike on every bar.
 // One merged geometry in the room's iron, so it is one draw; the caller owns and frees it.
-export function addFence(group: THREE.Group, width: number, depth: number, iron: THREE.Material): THREE.BufferGeometry {
+// The far side is fence too, with the gate's arch standing in it: no bars within `gateHalf` of the axis.
+export function addFence(group: THREE.Group, width: number, depth: number, iron: THREE.Material, gateHalf = 0): THREE.BufferGeometry {
   const hw = width / 2, hd = depth / 2, HIGH = 3.2, GAP = 0.16, bars: THREE.BufferGeometry[] = [];
   const run = (from: THREE.Vector2, to: THREE.Vector2) => {
     const len = from.distanceTo(to), n = Math.round(len / GAP), dir = to.clone().sub(from).normalize(), turn = Math.atan2(dir.x, dir.y);
@@ -234,6 +235,7 @@ export function addFence(group: THREE.Group, width: number, depth: number, iron:
   run(new THREE.Vector2(-hw, -hd), new THREE.Vector2(-hw, hd));
   run(new THREE.Vector2(hw, -hd), new THREE.Vector2(hw, hd));
   run(new THREE.Vector2(-hw, hd), new THREE.Vector2(hw, hd));
+  if (gateHalf > 0) { run(new THREE.Vector2(-hw, -hd), new THREE.Vector2(-gateHalf, -hd)); run(new THREE.Vector2(gateHalf, -hd), new THREE.Vector2(hw, -hd)); }
   const geometry = mergeGeometries(bars.map((g) => g.toNonIndexed()));
   for (const g of bars) g.dispose();
   const mesh = new THREE.Mesh(geometry, iron);
