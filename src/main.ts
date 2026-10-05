@@ -35,9 +35,9 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
-import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
+import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Champion, type Kills, type PitRecord, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom } from './look-flag.ts';
+import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom, skullsDemoFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
@@ -1321,19 +1321,55 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // defeat). `pit` is the one switch frame() reads: while it is set the Pit draws the frame and nothing of the fight runs. `?look=pit` is the
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
+// The skull wall's kills and the record board (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each
+// Pit visit; the `&skulls=demo` look never touches the network. skullsNow / recordNow are undefined until the module is in.
+let skullMod: SkullsModule | null = null, killCache: Kills | null = null, recordCache: PitRecord | null = null, championCache: Champion[] | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
+const serverKeys = new Set<string>();   // the legend keys the server's kill rows hold, filled by fetchKills
+function pitSkulls() {
+  const demo = skullsDemoFrom(window.location?.search ?? '');
+  void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
+  // The legend's own name for a kill (legends.ts), else the opponent's class name; this file may read legends.ts, src/pit/ may not.
+  const nameOf = (id: string, rank: number | null): string => { try { return isLegendOpponent(id) ? (rank ? legendAt(id, rank).name : ROSTER[id].name) : (isOpponentId(id) ? ROSTER[id].name : id); } catch { return id; } };
+  const localKills = () => skullMod!.killsFromLoot(pitLoot(), nameOf), localRecord = () => skullMod!.localRecord(pitLoot(), careerMarks(), nameOf);
+  return {
+    skullsNow: (): Kills | undefined => (!skullMod ? undefined : demo ? skullMod.demoKills(nameOf) : (killCache ?? localKills())),
+    skulls: async (): Promise<Kills> => {
+      const m = skullMod ??= await loadSkulls();
+      if (demo) return m.demoKills(nameOf);
+      killCache = await m.fetchKills(session.db, localKills(), serverKeys);
+      return killCache;
+    },
+    recordNow: (): PitRecord | undefined => (!skullMod ? undefined : demo ? skullMod.demoRecord() : (recordCache ?? { ...localRecord(), ...skullMod.splitOf(killCache ?? localKills()) })),
+    record: async (): Promise<PitRecord> => {
+      const m = skullMod ??= await loadSkulls();
+      if (demo) return m.demoRecord();
+      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills(), m.lootKills(pitLoot(), nameOf), serverKeys);
+      return recordCache;
+    },
+    championsNow: (): Champion[] | undefined => (!skullMod ? undefined : demo ? skullMod.demoChampions() : (championCache ?? [])),
+    champions: async (): Promise<Champion[]> => {
+      const m = skullMod ??= await loadSkulls();
+      if (demo) return m.demoChampions();
+      championCache = await m.fetchChampions(session.db);
+      return championCache;
+    },
+  };
+}
 function pitStage(): Stage {
   const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
   return {
     ...view.pitStage(pitLoot),
     ...(look ? { look } : {}),
     ...pitOpenLook(window.location?.search ?? ''),   // the cage by default (look-flag.ts)
+    ...pitSkulls(),
+    pieceName: (id) => { try { return pieceName(id as LootId); } catch { return id; } },
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
     gateSound: () => feedback.gate(),
     crowdSound: (cue) => feedback.crowd(cue),
     openJournal: () => { if (journal.open) return; element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal(); },   // the rack: the loadout sheet, on Gear & pack
-    rackRows: () => pitLoot().owned.map(rackRow),
+    rackRows: (ids) => (ids ?? pitLoot().owned).map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
       const name = pieceName(id);
@@ -1383,7 +1419,7 @@ function walkPitGlow() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search) };   // Web's stone look test
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search), ...(skullsDemoFrom(window.location.search) ? pitSkulls() : {}) };   // Web's stone look test
   const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
   pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
@@ -1440,6 +1476,9 @@ if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, valu
   close: closePit,
   // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
   ready: async () => { await pitLooking; await pit?.ready; await pit?.extras; },
+  // The browser tap test: the same function a landed tap runs for that pick id (pit.ts choose), false with no Pit open; sheet() is the bottom sheet's visible text.
+  tap: (id: string) => pit?.pick(id) ?? false,
+  sheet: () => { const el = document.getElementById('pit-ui'); return el && !el.hidden ? el.innerText : ''; },
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise

@@ -3,7 +3,7 @@
 // visit and hidden between visits, so repeated visits allocate nothing on the GPU; leave() hands back the arena, the camera's lens and the
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
-import { FOCUS, POSES, buildRoom, type Pick, type Room } from './room.ts';
+import { FOCUS, POSES, buildRoom, ladderOrder, type Pick, type Room } from './room.ts';
 import { GATE_OPEN_S } from './gate.ts';
 import { GLOW } from './glow.ts';
 import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
@@ -33,7 +33,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal, legend: s.legend } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal, legend: s.legend, skulls: s.skulls, skullsNow: s.skullsNow, record: s.record, recordNow: s.recordNow, champions: s.champions, championsNow: s.championsNow, pieceName: s.pieceName } : undefined;
 
 // `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
 // `gateAt` (0..1): the `?look=pit&lift=` still: the gate's bars held that far up, no animation and no tap to open it.
@@ -46,7 +46,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   let built: Room;
   try {
     built = (room ??= buildRoom(stage));
-    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); }, !!stage.glow);
+    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); }, !!stage.glow, ladderOrder(stage.legendKeys()));
   } catch (error) {
     if (room) room.group.visible = false;   // built, then the sheet threw: the room must not stay drawn over the arena
     stage.setArenaVisible(true);
@@ -95,6 +95,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     if (!built.gate.open()) return finish();   // no bars to lift (the model did not load): straight on
     winch = game.gateSound?.();
   };
+  // What a landed tap does with its pick (the frame's, and ?debug's pick(id) through the same function).
+  const choose = (next: Pick | null) => { picked = next; if (picked === 'gate') tapGate(); else if (picked === 'rack') game?.openJournal?.(); };
   // The loadout sheet over the room (Strategy: the hero standing here IS the mannequin): the camera comes round to his front and frames his whole
   // body in the sheet's stage window, the way gear-room.ts does over the arena; a drag across the window turns the camera round him, kept inside the room.
   let fitting: { el: HTMLElement; view: { width(): number; height(): number }; turn: number; face: number; was: number; light: THREE.PointLight; drag: number | null; off(): void } | null = null;
@@ -143,7 +145,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
         const tap = game.readTap?.();
-        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); else if (picked === 'rack') game.openJournal?.(); }   // a tap on the floor or a wall clears a pick (null), as walking does
+        if (tap) choose(pick(tap));   // a tap on the floor or a wall clears a pick (null), as walking does
         else if (walker.speed > 0) picked = null;
         sheet?.show(picked ?? zone);
       }
@@ -163,6 +165,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       scene.add(f.light); fitting = f;
     },
     leave,
+    pick(id) { if (!shown || !game) return false; choose(id as Pick); sheet?.show(picked); return true; },
     dispose() { leave(); disposeRoom(); },
     get ready() { return built.ready; },
     get extras() { return built.extras; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
