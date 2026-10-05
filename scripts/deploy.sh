@@ -54,6 +54,16 @@ deploy_step "quality gate"
 if [[ -n "$ci_green" ]]; then
   echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
+elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
+  # Change-scoped release (Dom 2026-10-05: a release in about 5 minutes): the fast unit suite instead of test:all; the slow
+  # tests run with the daily full release, the same 24 h rule as the browser rows.
+  echo "No green CI quality run for $revision; scoped release (last full run ${age}s ago): fast unit suite, test:all with the daily full run"
+  # Separate lines: set -e does not stop on a failed non-final command of an && list (Auditor B1 on #1385).
+  npm run typecheck:tests
+  npm test
+  npm run quality:deploy
+  # The slow tests did not run, so this release must not write the full-run stamp (Auditor S1 on #1385).
+  export DEPLOY_FAST_GATE=1
 else
   echo "No green CI quality run found for $revision; running the full quality gate"
   npm run quality
