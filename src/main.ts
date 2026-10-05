@@ -47,6 +47,7 @@ import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import type { LessonId } from './lessons.ts';
 import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -780,9 +781,13 @@ function winFace(src: string | null) {
   img.onload = () => { if (faceWanted !== src) return; hudStatus.style.setProperty('--face', `url("${img.src}")`); hudStatus.dataset.face = 'true'; };
   img.src = src;
 }
+// The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
+const LESSON_MS = 4000;
+let lessonNow: LessonId | undefined, lessonTimer = 0;
+export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 function updateHud() {
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -1476,6 +1481,7 @@ canvas.addEventListener('pointerup', (event) => {
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });
 // ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
 // memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
+if (debug) Object.defineProperty(globalThis, '__lesson', { configurable: true, value: onLesson });   // the lesson stills and the browser tap test fire a beat by hand
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
   // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
