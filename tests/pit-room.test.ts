@@ -256,3 +256,27 @@ test('the glow Pit asks for Arena 1\'s sand whatever the arena; the earlier look
   const scene = (await import('node:fs')).readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
   assert.match(scene, /options\?\.sand === 'arena-1' && !hasArena1Sand\(theme\.textures\)/, 'the scene swaps in Arena 1\'s maps only for an arena whose own sand differs');
 });
+
+// The cage (Dom 10-04/05: the open-air Pit, iron on all four sides, the skull board on the far fence, the painted sky): the default Pit look, so its draws count too.
+function fakeDom() {
+  const noop = () => undefined, ctx: Record<string, unknown> = new Proxy({}, { get: (_t, k) => (k === 'createLinearGradient' || k === 'createRadialGradient' ? () => ({ addColorStop: noop }) : k === 'measureText' ? () => ({ width: 1 }) : k === 'getImageData' || k === 'createImageData' ? (w: number, h: number) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h }) : noop), set: () => true });
+  const element = (): Record<string, unknown> => ({ width: 0, height: 0, style: {}, getContext: () => ctx, addEventListener: noop, removeEventListener: noop, setAttribute: noop, appendChild: noop });
+  return { createElement: element, createElementNS: element, body: element() };
+}
+
+test('the cage room: iron on all four sides, the skull board and its timber map, within the draw cap, and dispose frees what it built', async () => {
+  const g = globalThis as { document?: unknown };
+  const had = g.document;
+  g.document = fakeDom();
+  try {
+    const s = Object.assign(stage(), { glow: true, cage: true }), room = buildRoom(s);
+    await room.ready;
+    let draws = 0;
+    const names: string[] = [];
+    room.group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) { draws++; names.push(o.name); } });
+    assert.ok(names.includes('skull-board'), 'the timber the skulls hang on');
+    assert.ok(draws <= 30, `cage room draws ${draws} (29 before the timber board, 30 with it: the iron, the open sky, the glow and blood layers, the board)`);
+    room.update(1.25);
+    room.dispose();
+  } finally { g.document = had; }
+});
