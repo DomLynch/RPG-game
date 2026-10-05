@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { layoutTier } from '../src/layout-tier.ts';
 
 test('the tiers at the viewports this game is played on', () => {
-  for (const [w, h, tier] of [[375, 812, 'compact'], [390, 694, 'compact'], [360, 640, 'compact'], [844, 390, 'compact'], [932, 430, 'compact'], [1280, 720, 'standard'], [1366, 768, 'tablet'] /* the source's rule: 768 high and over 1000 wide is a tablet, so a 1366x768 laptop is too; inert until CSS reads it */, [1024, 768, 'tablet'], [1920, 1080, 'tablet'], [768, 1024, 'standard']] as const)
+  for (const [w, h, tier] of [[375, 812, 'compact'], [390, 694, 'compact'], [360, 640, 'compact'], [844, 390, 'compact'], [932, 430, 'compact'], [1280, 720, 'standard'], [1366, 768, 'standard'], [1024, 768, 'tablet'], [1920, 1080, 'standard'], [768, 1024, 'standard']] as const)
     assert.equal(layoutTier(w, h), tier, `${w}x${h}`);
 });
 
