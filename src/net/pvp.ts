@@ -214,9 +214,9 @@ export class PvpDuel {
     this.frames++;
     // A hidden tab keeps receiving (the socket is event-driven) while it frames and sends nothing, so its peer forfeits it. A page that was
     // away past the rejoin window has LEFT, on its first frame back and not after a further silence: a peer that returns at the same moment
-    // would otherwise hear it and clear the doubt on both sides (Auditer F1). With no link information (null) the old abandon rule stands.
+    // would otherwise hear it and clear the doubt on both sides (Auditer F1). With no link information (null) the old abandon rule stands. A finish already latched as settled is never undone by being away (`latched`, not the `settled` getter, which would latch early from here).
     const at = this.now();
-    if (this.stage === 'fighting' && this.link !== null && this.lastFrameAt && at - this.lastFrameAt > SILENCE.rejoinMs) { this.stage = 'left'; return this.quiet(); }
+    if (this.stage === 'fighting' && !this.latched && this.link !== null && this.lastFrameAt && at - this.lastFrameAt > SILENCE.rejoinMs) { this.stage = 'left'; return this.quiet(); }
     this.lastFrameAt = at;
     if (this.over) return this.quiet();
     if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, sync: SYNC_VERSION, kit: this.kit, rdy: this.ready });
