@@ -42,6 +42,7 @@ import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { clonesOf } from './arena-materials.ts';
 import { createCameraRig } from './camera.ts';
+import { bodyHides } from './see-through.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
@@ -469,6 +470,7 @@ export function createScene(
   let heading = Math.PI;
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
+  const seeThroughPoint = new THREE.Vector3();   // the foe's weapon point for the see-through test, reused each frame
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
@@ -1035,6 +1037,12 @@ export function createScene(
         CHARGE_LEAN[opponentId] ?? null,
         holdingCharge(practice.duel.fighters[1]),
       );
+      // See-through hero: while the foe winds up and his weapon sits behind the hero's body from the camera, fade the hero so the tell reads
+      // (see-through.ts; presentation only, the sim and its timing are untouched).
+      if (warriors) {
+        const winding = !finisher && !walking && theirs.pose === 'attack' && theirs.progress < theirs.contact;
+        warriors.player.seeThrough(winding && bodyHides(camera.position, warriors.opponent.weaponPoint(seeThroughPoint), state) ? 1 : 0, animationDt);
+      }
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
       }
