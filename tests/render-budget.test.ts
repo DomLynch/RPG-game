@@ -38,10 +38,7 @@ test('it recovers one step at a time only after a stable stretch, and a slow fra
   assert.equal(b.scale, 1);
 });
 
-test('budgetOn: forced by the flag, else the phone tier without a dpr override', () => {
-  assert.equal(budgetOn('?budget=on', false, undefined), true);
-  assert.equal(budgetOn('?budget=off', true, undefined), false);
-  assert.equal(budgetOn('', true, undefined), true);
-  assert.equal(budgetOn('', false, undefined), false);
-  assert.equal(budgetOn('', true, 2), false);
+test('budgetOn: only ?budget=on turns it on; the default stays the old one-shot drop', () => {
+  assert.equal(budgetOn('?budget=on'), true);
+  for (const search of ['', '?budget=off', '?budget=', '?budget=1', '?gfx=phone']) assert.equal(budgetOn(search), false, search);
 });

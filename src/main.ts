@@ -236,7 +236,7 @@ if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try
 // ?dpr= (quality.ts DPR_OVERRIDE, read before this line runs) is the same: this page load only, gone from the address at once. dprOverride is
 // the same value read here, before the strip: the readout tags it, and it turns off the frame-time auto-drop below for this load.
 const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(location.search);
-const renderBudget = typeof location !== 'undefined' && budgetOn(location.search, phoneTier(), dprOverride) ? createRenderBudget() : null;   // ?budget=on|off; else the phone tier
+const renderBudget = typeof location !== 'undefined' && budgetOn(location.search) ? createRenderBudget() : null;   // ?budget=on only
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }

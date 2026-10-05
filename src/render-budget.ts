@@ -62,8 +62,5 @@ export function createRenderBudget(cfg: BudgetConfig = BUDGET): RenderBudget {
   };
 }
 
-// `?budget=on|off` forces it; unset, it runs on the phone tier only and never under an explicit ?dpr= (that load is an A/B instrument).
-export function budgetOn(search: string, phone: boolean, dprOverride: number | undefined): boolean {
-  const v = new URLSearchParams(search).get('budget');
-  return v === 'on' ? true : v === 'off' ? false : phone && dprOverride === undefined;
-}
+// Opt-in: `?budget=on` only (Lead 10-06: no real-phone A/B yet, and at the floor the picture softens on every phone). Unset or `off`, the old one-way drop in main.ts stays.
+export const budgetOn = (search: string): boolean => new URLSearchParams(search).get('budget') === 'on';
