@@ -397,7 +397,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     for (const node of [weaponNode, sheathed, drawn]) node?.traverse(object => { if (object instanceof Mesh && object.material instanceof MeshStandardMaterial) weaponDraws.push([object, object.material]); });
     // `reshape` swaps a shape over the own draws: every mesh the weapon carries goes off, the graded ones come back as they were.
     const ownMeshes: Mesh[] = []; let shaped: Mesh[] = [];
-    let seenThrough = 0; const faded = new Map<Mesh, Material | Material[]>();   // seeThrough: his draws' own materials while their clones are on
+    let seenThrough = 0, ghosted = false; const ghosts = new Map<Mesh, { own: Material; ghost: Material }>();   // seeThrough: each body draw's own material and its one transparent clone
     for (const node of [weaponNode, sheathed, drawn]) node?.traverse(object => { if (object instanceof Mesh) ownMeshes.push(object); });
     const blade = (weaponNode?.userData.contactNode ? root.getObjectByName(weaponNode.userData.contactNode) : weaponNode) ?? drawn!, contactSegment = blade?.userData.contact as { from: number; to: number } | undefined, segment = contactSegment ? [contactSegment.from, contactSegment.to] : [.24, .85];
     for (const role of ONE_SHOT) { const action = actions[role]; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
@@ -602,20 +602,36 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // Where his weapon is in the world (the striking part's origin): the see-through test's point (see-through.ts).
       weaponPoint(out: Vector3) { return blade.getWorldPosition(out); },
-      // Fade his body toward SEE_THROUGH.opacity (target 1) or back (0), eased over SEE_THROUGH.seconds; dt 0 holds. Each body draw gets a transparent
-      // clone of its material while faded and its own material back, exactly, at 0: the weapon stays solid, and the shadow (a depth pass) stays opaque.
+      // Fade his body toward SEE_THROUGH.opacity (target 1) or back (0), eased over SEE_THROUGH.seconds; dt 0 holds. Each body draw gets ONE transparent
+      // clone of its material, built when first needed and kept (the shader hooks carried over, as bothSides does, so the grade holds and no new shader
+      // compiles mid wind-up); the draw swaps to it while faded and has its own material back, the same object, at 0. The weapon stays solid and the
+      // shadow (a depth pass) stays opaque.
       seeThrough(target: number, dt: number) {
         const step = Math.min(Math.abs(target - seenThrough), Math.min(dt, .1) / SEE_THROUGH.seconds);
         seenThrough += Math.sign(target - seenThrough) * step;
-        if (seenThrough <= 0) { for (const [mesh, own] of faded) { for (const m of [mesh.material].flat()) m.dispose(); mesh.material = own; } faded.clear(); return; }
-        if (!faded.size) root.traverse(object => {
-          if (!(object instanceof Mesh) || !object.visible || ownMeshes.includes(object) || shaped.includes(object)) return;
-          faded.set(object, object.material);
-          const own = [object.material].flat().map(m => { const c = m.clone(); c.transparent = true; c.depthWrite = false; return c; });
-          object.material = Array.isArray(object.material) ? own : own[0]!;
-        });
+        if (seenThrough <= 0) { if (ghosted) for (const [mesh, { own }] of ghosts) mesh.material = own; ghosted = false; return; }
+        if (!ghosted) {
+          ghosted = true;
+          root.traverse(object => {
+            if (!(object instanceof Mesh) || Array.isArray(object.material) || !object.visible || ownMeshes.includes(object) || shaped.includes(object)) return;
+            let entry = ghosts.get(object);
+            if (entry && entry.own !== object.material) { entry.ghost.dispose(); entry = undefined; }   // his material changed since (wear): clone the new one
+            if (!entry) {
+              const own = object.material, ghost = own.clone();
+              ghost.onBeforeCompile = own.onBeforeCompile; ghost.customProgramCacheKey = own.customProgramCacheKey;
+              ghost.transparent = true; ghost.depthWrite = false;
+              entry = { own, ghost }; ghosts.set(object, entry);
+            }
+            object.material = entry.ghost;
+          });
+        }
         const opacity = 1 - (1 - SEE_THROUGH.opacity) * seenThrough;
-        for (const mesh of faded.keys()) for (const m of [mesh.material].flat()) m.opacity = opacity;
+        for (const { ghost } of ghosts.values()) ghost.opacity = opacity;
+      },
+      // Everything back as it was and the clones freed (a new rig, a re-dress, teardown): only the saved clones are disposed, never his own materials.
+      restore() {
+        for (const [mesh, { own, ghost }] of ghosts) { if (mesh.material === ghost) mesh.material = own; ghost.dispose(); }
+        ghosts.clear(); seenThrough = 0; ghosted = false;
       },
       slam(weight: number) { slam = weight; },
       worn: (): readonly SkinnedMesh[] => worn,

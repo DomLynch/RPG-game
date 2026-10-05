@@ -276,6 +276,7 @@ export function createScene(
       if (worn.length) void loadLootPieces();
       return;
     }
+    warriors.player.restore();   // he is re-dressed: no faded clone of a draw that is about to change
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
   // Rank look (rank-look.ts): the dev flag's file, else his shipping look at the rung he is met at (`tier`, set before the fight is playable;
@@ -331,6 +332,7 @@ export function createScene(
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])
     .then(([loaded]) => {
+      warriors?.player.restore();   // a rig being replaced gives its see-through clones back
       warriors = loaded;
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
