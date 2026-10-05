@@ -21,7 +21,7 @@ export type BudgetConfig = {
 };
 // The source's low-tier budget (min scale 0.55 mobile) with this game's floor a touch higher: the fight is read at 375 wide, and below 0.6 the blade edge crawls.
 export const BUDGET: BudgetConfig = { minScale: 0.6, maxScale: 1, dropMs: 22, urgentMs: 34, recoverMs: 17.5, dropStep: 0.08, urgentStep: 0.12, recoverStep: 0.06, stableS: 6, cooldownS: 1.1, graceS: 3 };
-const EMA = 0.08;
+const EMA = 0.08, SLOW_RUN = 3;   // a degrade needs this many long frames in a row as well as the EMA: one stalled frame (a GC, a tab switch) moves the EMA a long way alone
 
 export type RenderBudget = {
   /** One drawn frame: seconds since the last, the frame's cost in ms. Returns the new resolution scale when it moved, else undefined. */
@@ -31,7 +31,7 @@ export type RenderBudget = {
 };
 
 export function createRenderBudget(cfg: BudgetConfig = BUDGET): RenderBudget {
-  let scale = cfg.maxScale, ema = 16.7, cooldown = 0, stable = 0, age = 0;
+  let scale = cfg.maxScale, ema = 16.7, cooldown = 0, stable = 0, age = 0, slow = 0;
   const round = (v: number) => Math.round(v * 100) / 100;
   return {
     get scale() { return scale; },
@@ -42,7 +42,8 @@ export function createRenderBudget(cfg: BudgetConfig = BUDGET): RenderBudget {
       if (age < cfg.graceS) return undefined;   // startup: shader compiles and uploads are not the frame cost
       ema += (Math.min(250, Math.max(0, frameMs)) - ema) * EMA;
       cooldown = Math.max(0, cooldown - dtS);
-      if (ema >= cfg.dropMs) {
+      slow = frameMs >= cfg.dropMs ? slow + 1 : 0;
+      if (ema >= cfg.dropMs && slow >= SLOW_RUN) {
         stable = 0;
         if (cooldown > 0 || scale <= cfg.minScale) return undefined;
         const step = frameMs >= cfg.urgentMs ? cfg.urgentStep : cfg.dropStep;
@@ -55,7 +56,7 @@ export function createRenderBudget(cfg: BudgetConfig = BUDGET): RenderBudget {
           scale = round(Math.min(cfg.maxScale, scale + cfg.recoverStep)); cooldown = cfg.cooldownS * 1.5; stable = 0;
           return scale;
         }
-      } else stable = 0;
+      } else if (ema > cfg.recoverMs) stable = 0;
       return undefined;
     },
   };

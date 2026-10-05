@@ -9,7 +9,7 @@ import { rafCadence } from './quality.ts';
 export type PerfFigures = {
   fightFrames: readonly number[];      // this fight's playable frame times, ms
   firstFightAt: number;                // ms from navigation to the page's first playable frame; NaN when none yet
-  renderRatio: number; loweredFrom?: number; dprOverride?: number;
+  renderRatio: number; renderScale?: number | null; loweredFrom?: number; dprOverride?: number;
   tris: number; draws: number;
   phone: boolean; lookOn: boolean;
   revision: string | null;

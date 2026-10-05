@@ -9,7 +9,8 @@ test('healthy frames never move it, the startup grace ignores slow frames, a lon
   const b = createRenderBudget();
   assert.deepEqual(run(b, BUDGET.graceS, 80), [], 'the grace');
   assert.deepEqual(run(b, 30, 16.7), []);
-  for (let i = 0; i < 3; i++) assert.equal(b.update(0.25, 250), undefined);
+  assert.equal(b.update(0.25, 250), undefined, 'one stalled frame');
+  assert.deepEqual(run(b, 20, 16.7), [], 'and the frames after it');
   assert.equal(b.scale, 1);
 });
 
@@ -31,8 +32,8 @@ test('it recovers one step at a time only after a stable stretch, and a slow fra
   const low = b.scale;
   assert.ok(low < 1);
   assert.deepEqual(run(b, BUDGET.stableS - 2, 12), [], 'not yet stable');
-  assert.deepEqual(run(b, 1, 60), [], 'a long frame resets the stretch (EMA still under the drop line)');
-  const up = run(b, 40, 12);
+  assert.equal(b.update(0.06, 60), undefined, 'one long frame resets the stretch (EMA still under the drop line)');
+  const up = run(b, 90, 12);
   assert.ok(up.length >= 1 && up[0] === Math.round((low + BUDGET.recoverStep) * 100) / 100, `recover steps ${up}`);
   assert.equal(b.scale, 1);
 });
