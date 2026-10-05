@@ -13,7 +13,7 @@ import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
-import { buildWall, type Wall } from './wall.ts';
+import { PANEL, buildWall, type Wall } from './wall.ts';
 import { killsFromLoot } from './skulls.ts';
 import { buildBoard, type Board } from './board.ts';
 import { buildChampions, type Champions } from './champions-board.ts';
@@ -171,8 +171,8 @@ export function buildRoom(stage: Stage): Room {
   const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its end post
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
-      plane(side, HW, T, { x: -hw + side / 2, y: HW / 2, z: -hd }), plane(side, HW, T, { x: hw - side / 2, y: HW / 2, z: -hd }),
-      plane(gate.width, HW - gate.height, T, { y: (HW + gate.height) / 2, z: -hd }),
+      // pit-cage (Dom 10-05: "all 4 walls black gate"): no stone on the far wall either, the iron fence closes it and the arch stands in it.
+      ...(C ? [] : [plane(side, HW, T, { x: -hw + side / 2, y: HW / 2, z: -hd }), plane(side, HW, T, { x: hw - side / 2, y: HW / 2, z: -hd }), plane(gate.width, HW - gate.height, T, { y: (HW + gate.height) / 2, z: -hd })]),
       ...(C ? [] : [plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }), plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd })]),
       ...(C || (L && L.vault !== L.wall) ? [] : vaultStrips(W, D, H, 0.9, 10, T)), ...(C || (L && L.vault !== L.wall) ? [] : vaultEnds(W, D, H, 0.9, 10, T)),   // the barrel vault and its lunettes
       ...(L && !C ? stoneTrim({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, 0.9, T) : []),   // the stone look's plinth, cornice and ribs
@@ -249,7 +249,9 @@ export function buildRoom(stage: Stage): Room {
     // The skull wall (wall.ts): the far wall's right panel, in bone; stocked from the kills with the rest. The record board (board.ts) is the left one.
     const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
     materials.push(bone);
-    wall = buildWall(stage, group, -hd, bone);
+    // In the cage the skulls hang on a timber board against the far fence, right of the arch (Dom 10-05); in the walled room they keep their niches in the stone.
+    if (C) woodParts.push(box(6 * PANEL.colPitch + 0.3, PANEL.top - PANEL.bottom + 0.3, 0.04, 2, { x: PANEL.inner + 3 * PANEL.colPitch, y: (PANEL.top + PANEL.bottom) / 2, z: -hd + 0.06 }));
+    wall = buildWall(stage, group, C ? -hd + 0.08 : -hd, bone);
     champions = buildChampions(group, hd);   // today's champions, burned into a timber board on the back fence, facing the gate
     board = buildBoard(group, -hd);   // the record, carved left of the arch where the niches were
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
@@ -339,8 +341,8 @@ export function buildRoom(stage: Stage): Room {
     mesh.castShadow = material === stone || material === iron || material === wood;   // the key's contact shadows
     group.add(mesh);
   }
-  if (C) { const fence = addFence(group, W, D, iron); geometries.push(fence); const open = addOpenSky(group); textures.push(...open.textures); materials.push(...(open.materials as typeof materials)); geometries.push(...open.geometries); }
-  if (G) for (const glow of [addGlow(group, gate, -hd), ...(stage.noise ? [addBloodStains(group, W, D, stage.noise)] : []), addGroundBlood(group), ...(stage.noise ? [addGrime(group, { width: W, depth: D, height: H, gateWidth: gate.width }, sconces[0]?.[2] ?? -3.15, stage.noise, C)] : [])]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
+  if (C) { const fence = addFence(group, W, D, iron, gate.width / 2 + 0.05); geometries.push(fence); const open = addOpenSky(group); textures.push(...open.textures); materials.push(...(open.materials as typeof materials)); geometries.push(...open.geometries); }
+  if (G) for (const glow of [addGlow(group, gate, -hd), ...(stage.noise ? [addBloodStains(group, W, D, stage.noise)] : []), addGroundBlood(group), ...(stage.noise && !C ? [addGrime(group, { width: W, depth: D, height: H, gateWidth: gate.width }, sconces[0]?.[2] ?? -3.15, stage.noise, C)] : [])]) { textures.push(...glow.textures); materials.push(...glow.materials); geometries.push(...glow.geometries); }
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(flameSpots.flat(), 3));
   geometries.push(flamePoints);
   group.add(new THREE.Points(flamePoints, flames));
