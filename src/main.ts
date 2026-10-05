@@ -1214,7 +1214,7 @@ if (lessonAsked) {
   const heard: string[] = [];
   match.startLesson((id) => { heard.push(id); document.documentElement.dataset.lesson = id; });
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
-  banner('The first loss, no rewards'); began();
+  began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
 }
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
