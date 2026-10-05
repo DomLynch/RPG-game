@@ -44,5 +44,6 @@ test('deploy.sh checks the reason right after its EXIT trap and applies the rows
   const s = readFileSync(join(process.cwd(), 'scripts', 'deploy.sh'), 'utf8');
   const trap = s.indexOf("trap 'rm -f \"$DEPLOY_LOCK\""), check = s.indexOf('\ndeploy_trust_check');
   assert.ok(trap > 0 && check > trap, 'the fail-fast check runs after the lock-releasing trap');
-  assert.match(s, /deploy_trust_apply[^\n]*\nRELEASE_CHECKS_SKIP="\$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="\$trust_source"/);
+  // #1381 (change-scoped rows) puts deploy_scope_apply between them; it only fills out_of_scope, never the trusted list.
+  assert.match(s, /deploy_trust_apply[^\n]*\n(?:[^\n]*\n)*?deploy_scope_apply\nRELEASE_CHECKS_SKIP="\$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="\$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="\$out_of_scope"/);
 });
