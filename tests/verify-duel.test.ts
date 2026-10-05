@@ -9,7 +9,7 @@ import { packIntents, unpackIntents, type PvpRecord } from '../src/net/pvp.ts';
 import { verifyDuel, type DuelClaim } from '../src/net/verify-duel.ts';
 import { hashDuel, NET, pvpDuel, type Kit } from '../src/net/rollback.ts';
 import { quantizeIntent, RECORD_VERSION } from '../src/record.ts';
-import { verifyRooms } from '../scripts/verify-duels.mjs';
+import { UNVERIFIED_AFTER_MS, verifyRooms } from '../scripts/verify-duels.mjs';
 
 const KITS: [Kit, Kit] = [{ weapon: 'longsword', skill: 'pommel', gear: ['veteran.helmet'] }, { weapon: 'estoc', skill: null, gear: [] }];
 
@@ -105,4 +105,29 @@ test('verify rooms: the sweep verifies honest rooms, flags a forged one with its
   writes.length = 0;
   const dry = await verifyRooms(db, { dry: true });
   assert.equal(dry.verified, 1); assert.equal(dry.flagged.length, 1); assert.deepEqual(writes, [], 'a dry run replays without writing');
+});
+
+test('verify duel: garbage in an uploaded record (null kits, an unknown weapon, junk intents, no intents) is a flag, never a throw', () => {
+  const fight = honest(), base = fight.record;
+  const garbage: PvpRecord[] = [
+    { ...base, kits: null as never }, { ...base, kits: [KITS[0]] as never }, { ...base, kits: [{ weapon: 'reaper', skill: null }, KITS[1]] as never },
+    { ...base, kits: [KITS[0], { weapon: 'estoc', skill: 'fireball', gear: [] }] as never }, { ...base, intents: null as never }, { ...base, intents: [7, {}] as never },
+  ];
+  for (const record of garbage) {
+    const verdict = verifyDuel(claims(fight, [record, base]));
+    assert.equal(verdict.ok, false); assert.equal((verdict as { unverified: boolean }).unverified, false);
+  }
+});
+
+test('verify rooms: one room that throws is flagged and the sweep goes on; a one-record room past the age-out is marked unverified, a young one is not', async () => {
+  const fight = honest(), now = 10_000_000_000, throws = { room: 'throws01', createdAt: now - 1000, claims: [null, null] };
+  const rooms = [throws, { room: 'honest01', createdAt: now - 2000, claims: claims(fight) },
+    { room: 'old0001', createdAt: now - UNVERIFIED_AFTER_MS - 1, claims: claims(fight, [fight.record, null]) }, { room: 'young01', createdAt: now - 1000, claims: claims(fight, [fight.record, null]) }];
+  const writes: string[] = [];
+  const db = { pending: async () => rooms, verify: async (room: string) => { writes.push(`verify ${room}`); }, flag: async (room: string, reason: string) => { writes.push(`flag ${room}: ${reason}`); }, unverify: async (room: string) => { writes.push(`unverify ${room}`); } };
+  const receipt = await verifyRooms(db, { now });
+  assert.equal(receipt.verified, 1); assert.deepEqual(receipt.flagged.map((f: { room: string }) => f.room), ['throws01']); assert.match(receipt.flagged[0].reason, /could not read the room/);
+  assert.equal(receipt.agedOut, 1); assert.deepEqual(writes, ['flag throws01: ' + receipt.flagged[0].reason, 'verify honest01', 'unverify old0001']);
+  writes.length = 0;
+  assert.equal((await verifyRooms(db, { now, dry: true })).agedOut, 1); assert.deepEqual(writes, [], 'a dry run marks nothing');
 });
