@@ -160,3 +160,21 @@ test('createFeed races: a slow kills refetch does not empty the live key set (N3
   assert.equal((await late).losses, null, 'u1\'s record lands after the switch to u2: the fallback, not theirs');
   assert.equal(feed.recordNow().losses, null, 'and it is not cached');
 });
+
+test('createFeed: a refetch that answers with zero rows clears the old keys (a failed one keeps them)', async () => {
+  const taken = { k0: { opponent: 'o0', attempt: 1, healthLeft: 1, recordId: null, day: '2026-09-01', tier: 1 } };
+  const row = { kind: 'ai', opponent_key: 'o0-1', opponent_name: 'X', opponent_level: 1, opponent_gear: {}, created_at: '2026-10-05T00:00:00Z' };
+  let kills: { data: unknown; error: unknown } = { data: [row, row], error: null };
+  const feed = createFeed({
+    db: () => ({ rpc: async (name: string) => (name === 'pit_record' ? { data: [{ wins: 2, losses: 0, streak: 1, highest_rank: 1 }], error: null } : kills) }),
+    userId: () => 'u1', loot: () => loot({ taken }), marks: () => 2,
+  });
+  await feed.kills();
+  assert.equal((await feed.record()).kills, 2, 'two server wins over the one loot legend');
+  kills = { data: [], error: { message: 'offline' } };
+  await feed.kills();
+  assert.equal((await feed.record()).kills, 2, 'a failed refetch keeps the keys');
+  kills = { data: [], error: null };
+  await feed.kills();
+  assert.equal((await feed.record()).kills, 3, 'an answered empty refetch clears them: 2 wins + the loot legend no server row covers');
+});

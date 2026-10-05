@@ -73,13 +73,14 @@ const mergeKills = (server: Kills, local: Kills): Kills => {
   return [...server, ...local.filter((k) => !seen.has(k.key))].slice(0, MAX_KILLS);
 };
 // Never throws: no client, an RPC error or throw all leave the local fallback; rows are merged with it.
-export async function fetchKills(db: SkullDb | null | undefined, local: Kills, serverKeys?: Set<string>): Promise<Kills> {
+export async function fetchKills(db: SkullDb | null | undefined, local: Kills, serverKeys?: Set<string>, answered?: { ok: boolean }): Promise<Kills> {
   if (!db) return local;
   try {
     const r = await db.rpc('pit_recent_kills');
     if (r.error) return local;
     const server = killsFromRows(r.data);
     server.forEach((k) => serverKeys?.add(k.key));
+    if (answered) answered.ok = true;   // the RPC answered without error (even with no rows)
     return server.length ? mergeKills(server, local) : local;
   } catch { return local; }
 }
@@ -209,9 +210,9 @@ export function createFeed(src: FeedSource) {
     recordNow: (): PitRecord => (own(), recordCache ?? { ...localRec(), ...splitOf(killCache ?? local()) }),
     async kills(): Promise<Kills> {
       own();
-      const mine = owner, fresh = new Set<string>();   // the live key set is replaced only by a fetch that answered, never emptied before it does
-      const fetching = inFlight = fetchKills(src.db(), local(), fresh), kills = await fetching;
-      if (inFlight === fetching && owner === mine) { killCache = kills; inFlight = null; if (fresh.size) keys = fresh; }
+      const mine = owner, fresh = new Set<string>(), answered = { ok: false };   // the live key set is replaced only by a fetch that answered, never emptied before it does
+      const fetching = inFlight = fetchKills(src.db(), local(), fresh, answered), kills = await fetching;
+      if (inFlight === fetching && owner === mine) { killCache = kills; inFlight = null; if (answered.ok) keys = fresh; }
       return kills;
     },
     async record(): Promise<PitRecord> {
