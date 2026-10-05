@@ -1,0 +1,11 @@
+{
+  "release": "{\"revision\":\"baaf19d75a884fc1ca8cfccdcb0bd06832684e64\",\"phase\":\"0B-swordplay\"}\n",
+  "stills": [
+    "out/pit-wall-390x694.png",
+    "out/pit-board-390x694.png",
+    "out/pit-trophies-390x694.png",
+    "out/pit-champions-390x694.png",
+    "out/fight-390x694.png"
+  ],
+  "errors": []
+}
