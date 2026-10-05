@@ -47,12 +47,17 @@ import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { TouchOwnerLedger, getTouchOwner, type TouchTarget } from './touch-router.ts';
+import { layoutTier } from './layout-tier.ts';
 import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
 const canvas = element<HTMLCanvasElement>('world');
+// The HUD layout tier (layout-tier.ts) on <html data-tier>: compact / standard / tablet, set now and on every resize or rotation. Nothing in the CSS keys off it yet.
+const setTier = () => { document.documentElement.dataset.tier = layoutTier(window.innerWidth, window.innerHeight); };
+setTier(); window.addEventListener('resize', setTier); window.addEventListener('orientationchange', setTier);
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
 // tests/input.test.ts). iOS Safari ignores the viewport meta in the browser, so the pinch gesture itself is blocked here.
 for (const type of ['gesturestart', 'gesturechange', 'gestureend'])
@@ -1622,8 +1627,12 @@ element('recenter-button').addEventListener('click', () => view.recenter());
 // Gated on the tour actually running: stopTour() only sets a flag, so a tap in the death animation or the settle window (mashing
 // after the kill, tapping Share) must not cancel a tour that has not started yet. A canvas drag below stays an explicit takeover.
 document.addEventListener('pointerdown', () => { if (match.practice.finish && view.finishPhase().touring) view.stopTour(); });
+// Who owns each finger (touch-router.ts): decided at pointerdown and kept until it lifts, so only a touch that began on the arena orbits the camera.
+const touches = new TouchOwnerLedger();
 canvas.addEventListener('pointerdown', (event) => {
-  if (paused() || orbitId !== null || event.button !== 0) return;
+  const owner = getTouchOwner(event.target as unknown as TouchTarget | null, { menuOpen: paused(), isMovementZone: (t) => !!t?.closest('#joystick'), isCameraSurface: (t) => (t as unknown) === canvas });
+  touches.set(event.pointerId, owner);
+  if (owner !== 'camera' || orbitId !== null || event.button !== 0) return;
   canvas.focus();
   view.stopTour();   // after the kill the arena cam drifts on its own; a touch on the arena hands the camera back
   orbitId = event.pointerId;
@@ -1653,8 +1662,10 @@ canvas.addEventListener('pointerup', (event) => {
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
   canvas.addEventListener(name, (event) => {
+    touches.release((event as PointerEvent).pointerId);
     if ((event as PointerEvent).pointerId === orbitId) orbitId = null;
   });
+window.addEventListener('blur', () => touches.releaseAll());
 let last = performance.now(),
   reportAt = last,
   frames: number[] = [],
