@@ -147,4 +147,6 @@ console.log(`${kind} checks wall time ${wallSeconds.toFixed(0)}s (serial sum ${d
 if (extended) { console.log(`Extended checks passed for ${revision}`); process.exit(0); }
 mkdirSync(dirname(receipt), { recursive: true });
 writeFileSync(receipt, JSON.stringify({ revision, passed: true, checks: commands.length, wall_seconds: Number(wallSeconds.toFixed(1)), checks_detail: detail }) + '\n');
+// A run with no trusted or out-of-scope row is a full run: deploy.sh scopes later releases to a few rows for 24 h after it.
+if (!trustedIndices.size) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), JSON.stringify({ revision, at: new Date().toISOString() }) + '\n');
 console.log(`Release checks passed for ${revision}`);

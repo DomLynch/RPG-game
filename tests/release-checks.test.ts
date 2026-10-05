@@ -340,3 +340,27 @@ esac
   assert.equal(r.stdout, '6', 'deploying `other` itself: its own tree matches run 12 by tree: ' + r.stderr);
   assert.doesNotMatch(r.stderr, /runs\/11|runs\/13/);
 });
+
+test('deploy scope: a release runs about 5 rows for what it changed, none for docs, and a changed check script runs its own rows', () => {
+  // Dom 2026-10-05: "get the 50 checks down to 5"; the full 50 still run once every 24 h (deploy.sh --full-age).
+  const pick = (...files: string[]) => execFileSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return 50 - skip.size; };
+  assert.equal(kept('src/main.ts'), 5, 'any code change: the five core rows');
+  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 6, 'the Pit adds pit-exit-check');
+  assert.equal(kept('src/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
+  assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
+  assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
+});
+
+test('deploy scope: the last full run is read from the stamp, else from a receipt with every row run, else unknown (-1)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'full-age-'));
+  const age = () => Number(execFileSync('node', [join(process.cwd(), 'scripts/release-rows-for.mjs'), '--full-age', root], { encoding: 'utf8' }));
+  assert.equal(age(), -1);
+  mkdirSync(join(root, 'artifacts'));
+  writeFileSync(join(root, 'artifacts/release-checks.json'), JSON.stringify({ passed: true, checks: 2, checks_detail: [{ index: 1 }, { index: 2, trusted: 'scope' }] }));
+  assert.equal(age(), -1, 'a scoped receipt is not a full run');
+  writeFileSync(join(root, 'artifacts/release-checks.json'), JSON.stringify({ passed: true, checks: 2, checks_detail: [{ index: 1 }, { index: 2 }] }));
+  assert.ok(age() >= 0 && age() < 60, 'a full receipt counts by its mtime');
+  writeFileSync(join(root, 'artifacts/last-full-release.json'), JSON.stringify({ at: new Date(Date.now() - 90_000_000).toISOString() }));
+  assert.ok(age() > 86_400, 'the stamp wins: over 24 h means the next release runs all 50');
+});
