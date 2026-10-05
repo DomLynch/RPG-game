@@ -9,6 +9,23 @@ import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
 
 // The guest's link: this page's address with nothing but the guest's token (a sparring or opponent pick never rides along).
 export const challengeLink = (token: string, href: string): string => { const u = new URL(href); u.search = ''; u.hash = ''; u.searchParams.set('duel', token); return u.href; };
+// The bodies for the duel's database calls (migration 202610050001), all cosmetic: they feed the Pit's skull walls and never awards or rewards.
+// `report_duel_start` registers who is in the room (this fighter's name, level and gear as the opponent will see them) once the fight begins;
+// `report_duel` gives this page's result: a settled finish with the final checkpoint's fingerprint, or a forfeit-win when the peer left. The
+// database writes rows only when the other page agrees (or, for a forfeit, stays silent for 3 minutes). Null while there is nothing to say.
+const cleanName = (name: string): string => [...name].filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127).join('').trim().slice(0, 40);
+const validRoom = (room: string): boolean => /^[a-z0-9]{8,32}$/.test(room);
+export function startBody(driver: PvpDuel, room: string, me: { name: string; level: number } | null | undefined): Record<string, unknown> | null {
+  const name = me ? cleanName(me.name) : '';
+  if (!driver.session || !name || !validRoom(room)) return null;
+  return { p_room: room, p_name: name, p_level: clamp(Math.trunc(me!.level) || 0, 1000), p_gear: { weapon: driver.kit.weapon, skill: driver.kit.skill, gear: driver.kit.gear ?? [] } };
+}
+export function reportBody(driver: PvpDuel, room: string): Record<string, unknown> | null {
+  if (!validRoom(room)) return null;
+  if (driver.result === 'forfeit-win') return { p_room: room, p_result: 'forfeit-win', p_hash: null };
+  const v = driver.verdict;
+  return v ? { p_room: room, p_result: v.won ? 'win' : 'loss', p_hash: v.hash } : null;
+}
 export const roomOf = (token: string): string => token.split('.')[0];
 
 // One side's row for public.duel_metrics (migration 202609300001), in its column names; null when the duel never played a frame.
@@ -37,6 +54,7 @@ export type LobbyPage = {
   ready(): boolean;                                   // the page's rigs are in (the loading card has lifted)
   ended?(result: DuelResult): void;                   // once, when the duel's result is known (the page's end-of-duel cue)
   peerKit(kit: Kit | null): void;                     // the peer's agreed kit once the handshake has it (null: the duel ended first); the page draws him on the hero rig
+  me?(): { name: string; level: number } | null;     // this fighter as the opponent will see them (the duel report's name and level)
   api: { url: string; key: string } | null; revision: string | null;
   session(): Promise<string | null>;                  // the signed-in account's access token (minting is admins-only), null for a guest
 };
@@ -57,9 +75,15 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     transport.onPeer = (up) => { peerDown = !up; };
     page.say('Measuring the connection');
     page.start(driver);
-    let sent = false, heardEnd: DuelResult | null = null;
+    // A signed-in page's calls to the database, fire and forget: a guest (no access token), an offline page or an unapplied migration changes nothing.
+    const call = (fn: string, body: Record<string, unknown>): void => {
+      const api = page.api;
+      if (api) void page.session().then((access) => (access ? fetch(`${api.url}/rest/v1/rpc/${fn}`, { method: 'POST', keepalive: true, headers: { apikey: api.key, Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) : null)).catch(() => undefined);
+    };
+    let sent = false, posted = false, registered = false, heardEnd: DuelResult | null = null;
     const report = () => {
       if (driver.result && driver.result !== heardEnd) { heardEnd = driver.result; page.ended?.(driver.result); }
+      if (!posted && (driver.result === 'finished' || driver.result === 'forfeit-win')) { const body = reportBody(driver, roomOf(token)); if (body) { posted = true; call('report_duel', body); } }
       if (sent) return;
       const row = metricsRow(driver.metrics(), { revision: page.revision, room: roomOf(token), side, path: transport.path, candidate: transport.candidate, ua: navigator.userAgent, result: driver.result, reconnects: transport.reconnects });
       if (!row || !page.api) return;
@@ -96,6 +120,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     let gave = false;   // the peer's kit goes to the page once: the rigs wait for it (main.ts peerKit)
     const watch = setInterval(() => {
       probe?.();
+      if (!registered && driver.session) { registered = true; const body = startBody(driver, roomOf(token), page.me?.()); if (body) call('report_duel_start', body); }
       if (!gave && (driver.peer || driver.over)) { gave = true; page.peerKit(driver.peer); }
       if (page.ready()) driver.setReady(true);
       driver.setLink(transport.link());
