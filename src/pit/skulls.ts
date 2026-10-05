@@ -200,23 +200,26 @@ export const demoChampions = (): Champion[] => championsFromSummary({
 export type FeedSource = { db: () => SkullDb | null | undefined; userId: () => string | null | undefined; loot: () => Loot | null | undefined; marks: () => number | null; nameOf?: NameOf };
 export function createFeed(src: FeedSource) {
   let killCache: Kills | null = null, recordCache: PitRecord | null = null, inFlight: Promise<Kills> | null = null, owner: string | null = null;
-  const keys = new Set<string>();
-  const own = () => { const id = src.userId() ?? null; if (id !== owner) { owner = id; killCache = recordCache = inFlight = null; keys.clear(); } };
+  let keys = new Set<string>();
+  const now = () => src.userId() ?? null;
+  const own = () => { const id = now(); if (id !== owner) { owner = id; killCache = recordCache = inFlight = null; keys = new Set(); } };
   const local = () => killsFromLoot(src.loot(), src.nameOf), localRec = () => localRecord(src.loot(), src.marks(), src.nameOf);
   return {
     killsNow: (): Kills => (own(), killCache ?? local()),
     recordNow: (): PitRecord => (own(), recordCache ?? { ...localRec(), ...splitOf(killCache ?? local()) }),
     async kills(): Promise<Kills> {
-      own(); keys.clear();
-      const fetching = inFlight = fetchKills(src.db(), local(), keys), kills = await fetching;
-      if (inFlight === fetching) { killCache = kills; inFlight = null; }
+      own();
+      const mine = owner, fresh = new Set<string>();   // the live key set is replaced only by a fetch that answered, never emptied before it does
+      const fetching = inFlight = fetchKills(src.db(), local(), fresh), kills = await fetching;
+      if (inFlight === fetching && owner === mine) { killCache = kills; inFlight = null; if (fresh.size) keys = fresh; }
       return kills;
     },
     async record(): Promise<PitRecord> {
       own();
-      const kills = await (inFlight ?? Promise.resolve(killCache ?? local()));
-      recordCache = await fetchRecord(src.db(), localRec(), kills, lootKills(src.loot(), src.nameOf), keys);
-      return recordCache;
+      const mine = owner, kills = await (inFlight ?? Promise.resolve(killCache ?? local()));
+      const rec = await fetchRecord(src.db(), localRec(), kills, lootKills(src.loot(), src.nameOf), keys);
+      if (now() !== mine) return localRec();   // the fighter changed while it was in flight: not theirs to cache or show
+      return recordCache = rec;
     },
   };
 }

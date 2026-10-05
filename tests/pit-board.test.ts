@@ -135,3 +135,25 @@ test('createFeed: pit_record answering before pit_recent_kills still waits for t
   assert.equal(feed.recordNow().wins, 10, 'sign-out: the fallback record, not the last fighter\'s');
   assert.equal(feed.recordNow().losses, null);
 });
+
+test('createFeed races: a slow kills refetch does not empty the live key set (N3); a record that lands after a user change is dropped (N4)', async () => {
+  const taken = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`k${i}`, { opponent: `o${i}`, attempt: 1, healthLeft: 1, recordId: null, day: '2026-09-01', tier: 1 }]));
+  const rows = Array.from({ length: 3 }, (_, i) => ({ kind: 'ai', opponent_key: `o${i}-1`, opponent_name: 'X', opponent_level: 1, opponent_gear: {}, created_at: '2026-10-05T00:00:00Z' }));
+  let hold: Promise<void> | null = null, recordHold: Promise<void> | null = null, user: string | null = 'u1';
+  const feed = createFeed({
+    db: () => ({ rpc: async (name: string) => (name === 'pit_record' ? (await recordHold, { data: [{ wins: 3, losses: 0, streak: 1, highest_rank: 1 }], error: null }) : (await hold, { data: rows, error: null })) }),
+    userId: () => user, loot: () => loot({ taken }), marks: () => 3,
+  });
+  await feed.kills();
+  let release: () => void = () => undefined;
+  hold = new Promise<void>((r) => { release = r; });
+  const refetch = feed.kills();                       // slow: the keys from the first fetch must stay until it answers
+  assert.equal((await feed.record()).kills, 3, 'wins 3 over 3 loot legends with the keys still held: 3, not 6');
+  release(); await refetch;
+  let go: () => void = () => undefined;
+  recordHold = new Promise<void>((r) => { go = r; });
+  const late = feed.record();
+  user = 'u2'; go();
+  assert.equal((await late).losses, null, 'u1\'s record lands after the switch to u2: the fallback, not theirs');
+  assert.equal(feed.recordNow().losses, null, 'and it is not cached');
+});
