@@ -82,7 +82,7 @@ test('fetchKills: no db, rpc error, throw, rejection, empty rows with local kill
   assert.deepEqual(await fetchKills(db(async () => ({ data: [], error: null })), []), []);
   asked.length = 0;
   const ok = await fetchKills(db(async () => ({ error: null, data: [{ kind: 'duel', opponent_key: 'u1', opponent_name: 'Marcus', opponent_level: 9, opponent_gear: {}, created_at: '2026-10-01T00:00:00Z' }] })), local);
-  assert.deepEqual(asked, ['pit_recent_kills']); assert.equal(ok[0]!.name, 'Marcus'); assert.equal(ok.length, 1);
+  assert.deepEqual(asked, ['pit_recent_kills']); assert.equal(ok[0]!.name, 'Marcus'); assert.equal(ok.length, 2, 'server row first, then the loot kill it does not cover');
 });
 
 test('demoKills is deterministic and plausible: 12 kills, eight computer (one rank unknown) and four players, newest first', () => {

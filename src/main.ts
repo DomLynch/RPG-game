@@ -1342,7 +1342,7 @@ function pitSkulls() {
     record: async (): Promise<PitRecord> => {
       const m = skullMod ??= await loadSkulls();
       if (demo) return m.demoRecord();
-      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills());
+      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills(), m.lootKills(pitLoot(), nameOf));
       return recordCache;
     },
     championsNow: (): Champion[] | undefined => (!skullMod ? undefined : demo ? skullMod.demoChampions() : (championCache ?? [])),
