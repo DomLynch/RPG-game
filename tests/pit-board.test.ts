@@ -147,10 +147,13 @@ test('createFeed races: a slow kills refetch does not empty the live key set (N3
   await feed.kills();
   let release: () => void = () => undefined;
   hold = new Promise<void>((r) => { release = r; });
-  const refetch = feed.kills();                       // slow: the keys from the first fetch must stay until it answers
-  assert.equal((await feed.record()).kills, 3, 'wins 3 over 3 loot legends with the keys still held: 3, not 6');
-  release(); await refetch;
   let go: () => void = () => undefined;
+  recordHold = new Promise<void>((r) => { go = r; });
+  const inFlightRecord = feed.record();               // fired, its pit_record RPC pending
+  const refetch = feed.kills();                       // a slow refetch starts: it must not empty the key set the pending record is about to read
+  go();
+  assert.equal((await inFlightRecord).kills, 3, 'wins 3 over 3 loot legends, the old keys intact: 3, not 6');
+  release(); await refetch; recordHold = null;
   recordHold = new Promise<void>((r) => { go = r; });
   const late = feed.record();
   user = 'u2'; go();
