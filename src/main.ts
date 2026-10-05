@@ -1324,6 +1324,7 @@ const pitLoot = () => profile.loot ?? emptyLoot();
 // The skull wall's kills and the record board (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each
 // Pit visit; the `&skulls=demo` look never touches the network. skullsNow / recordNow are undefined until the module is in.
 let skullMod: SkullsModule | null = null, killCache: Kills | null = null, recordCache: PitRecord | null = null, championCache: Champion[] | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
+const serverKeys = new Set<string>();   // the legend keys the server's kill rows hold, filled by fetchKills
 function pitSkulls() {
   const demo = skullsDemoFrom(window.location?.search ?? '');
   void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
@@ -1335,14 +1336,14 @@ function pitSkulls() {
     skulls: async (): Promise<Kills> => {
       const m = skullMod ??= await loadSkulls();
       if (demo) return m.demoKills(nameOf);
-      killCache = await m.fetchKills(session.db, localKills());
+      killCache = await m.fetchKills(session.db, localKills(), serverKeys);
       return killCache;
     },
     recordNow: (): PitRecord | undefined => (!skullMod ? undefined : demo ? skullMod.demoRecord() : (recordCache ?? { ...localRecord(), ...skullMod.splitOf(killCache ?? localKills()) })),
     record: async (): Promise<PitRecord> => {
       const m = skullMod ??= await loadSkulls();
       if (demo) return m.demoRecord();
-      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills(), m.lootKills(pitLoot(), nameOf));
+      recordCache = await m.fetchRecord(session.db, localRecord(), killCache ?? localKills(), m.lootKills(pitLoot(), nameOf), serverKeys);
       return recordCache;
     },
     championsNow: (): Champion[] | undefined => (!skullMod ? undefined : demo ? skullMod.demoChampions() : (championCache ?? [])),

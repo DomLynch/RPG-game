@@ -52,7 +52,7 @@ test('fetchRecord never throws: no db, error, throw, rejection, bad row, an empt
   assert.equal(await fetchRecord(db(async () => ({ data: [{ wins: 'x' }], error: null })), local), local);
   assert.equal(await fetchRecord(db(async () => ({ data: [{ wins: 0, losses: 0, draws: 0, streak: 0, highest_rank: null }], error: null })), local), local);
   const row = [{ wins: 9, losses: 2, draws: 0, streak: 3, highest_rank: 5 }];
-  assert.deepEqual(await fetchRecord(db(async () => ({ data: row, error: null })), local, demoKills()), { kills: 10, wins: 9, losses: 2, streak: 3, highestRank: 5, computerKills: 8, duelKills: 4 });   // 1 loot kill the server does not have + 9 server wins
+  assert.deepEqual(await fetchRecord(db(async () => ({ data: row, error: null })), local, demoKills()), { kills: 9, wins: 9, losses: 2, streak: 3, highestRank: 5, computerKills: 8, duelKills: 4 });
   assert.equal((await fetchRecord(db(async () => ({ data: [{ wins: 0, losses: 0, streak: 0, highest_rank: null }], error: null })), blankRecord())).wins, 0, 'a new fighter with no fallback: the real zeros');
 });
 
@@ -104,16 +104,16 @@ test('the slab reads at phone size: value text 4.5:1 and labels 3:1 against the 
   assert.ok(luminance(SLAB.face) > 0.2, 'a lit limestone, not the old dark slab');
 });
 
-test('fetchRecord: 29 old loot kills plus one server win is Kills 30, and a win both counts once is not doubled', async () => {
+test('fetchRecord: Kills = server wins + loot kills no server row covers (29+1 = 30, same legend = 29, rematch x3 = 3)', async () => {
   const taken = Object.fromEntries(Array.from({ length: 29 }, (_, i) => [`k${i}`, { opponent: `o${i}`, attempt: 1, healthLeft: 1, recordId: null, day: '2026-09-01', tier: 1 }]));
-  const l = loot({ taken });
+  const l = loot({ taken }), one = loot({ declined: [prov('witch', 2)] });
   const row = (n: number) => db(async () => ({ data: [{ wins: n, losses: 0, streak: n, highest_rank: 1 }], error: null }));
-  const server = (key: string) => [{ kind: 'ai', opponent_key: key, opponent_name: 'X', opponent_level: 1, opponent_gear: {}, created_at: '2026-10-05T00:00:00Z' }];
-  const kills = await fetchKills({ rpc: async () => ({ data: server('new-1'), error: null }) }, killsFromLoot(l));
-  assert.equal(kills.length, 30); assert.equal(kills[0]!.key, 'new-1');
-  const rec = await fetchRecord(row(1), localRecord(l, 29), kills, lootKills(l));
-  assert.equal(rec.kills, 30); assert.equal(rec.wins, 1);
-  const same = await fetchKills({ rpc: async () => ({ data: server('o3-1'), error: null }) }, killsFromLoot(l));
-  assert.equal(same.length, 29, 'the same legend on both sides is one skull');
-  assert.equal((await fetchRecord(row(1), localRecord(l, 29), same, lootKills(l))).kills, 29, 'and one kill');
+  const rows = (...keys: string[]) => keys.map((k) => ({ kind: 'ai', opponent_key: k, opponent_name: 'X', opponent_level: 1, opponent_gear: {}, created_at: '2026-10-05T00:00:00Z' }));
+  const run = async (loo: Loot, wins: number, keys: string[]) => {
+    const seen = new Set<string>(), merged = await fetchKills({ rpc: async () => ({ data: rows(...keys), error: null }) }, killsFromLoot(loo), seen);
+    return { skulls: merged.length, kills: (await fetchRecord(row(wins), localRecord(loo, 29), merged, lootKills(loo), seen)).kills };
+  };
+  assert.deepEqual(await run(l, 1, ['new-1']), { skulls: 30, kills: 30 });
+  assert.deepEqual(await run(l, 1, ['o3-1']), { skulls: 29, kills: 29 });
+  assert.deepEqual(await run(one, 3, ['witch-2', 'witch-2', 'witch-2']), { skulls: 3, kills: 3 }, 'a rematch: three server wins over one loot legend');
 });

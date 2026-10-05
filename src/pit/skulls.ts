@@ -37,18 +37,16 @@ export function lootKills(loot: Loot | null | undefined, nameOf: NameOf = (oppon
   if (Array.isArray(l.declined)) for (const p of l.declined) see(p);
   rows.sort((a, b) => (b.kill.at ?? '').localeCompare(a.kill.at ?? '') || b.seq - a.seq);
   const kills = rows.map((r) => r.kill);
-  rows.forEach((r) => fromLoot.add(r.kill));
   if (Array.isArray(l.defeats)) for (const key of l.defeats) {
     if (typeof key !== 'string') continue;
     const { opponent, rank } = splitKey(key);
     if (!opponent || rank === null || covered.has(`${opponent}-${rank}`)) continue;
     covered.add(`${opponent}-${rank}`);
     const kill: Kill = { kind: 'ai', key: `${opponent}-${rank}`, name: nameOf(opponent, rank).slice(0, TEXT_MAX), level: rank, gear: {}, at: null, opponent, rank };
-    fromLoot.add(kill); kills.push(kill);
+    kills.push(kill);
   }
   return kills;
 }
-const fromLoot = new WeakSet<Kill>();
 export const killsFromLoot = (loot: Loot | null | undefined, nameOf?: NameOf): Kills => lootKills(loot, nameOf).slice(0, MAX_KILLS);
 
 // pit_recent_kills() rows; a row that is not the shape is skipped, never thrown on. The server's order (newest first) is kept.
@@ -69,18 +67,19 @@ export function killsFromRows(rows: unknown): Kills {
 }
 
 // Server kills first, then the loot kills the server rows do not cover (a loot kill whose legend key a server row already has is the same win), cut at 30.
-// A fighter with old loot kills who wins once on the server keeps the old ones on the wall.
+// A fighter with old loot kills who wins once on the server keeps the old ones on the wall. `serverKeys`, when given, is filled with the server rows' keys.
 const mergeKills = (server: Kills, local: Kills): Kills => {
   const seen = new Set(server.map((k) => k.key));
   return [...server, ...local.filter((k) => !seen.has(k.key))].slice(0, MAX_KILLS);
 };
 // Never throws: no client, an RPC error or throw all leave the local fallback; rows are merged with it.
-export async function fetchKills(db: SkullDb | null | undefined, local: Kills): Promise<Kills> {
+export async function fetchKills(db: SkullDb | null | undefined, local: Kills, serverKeys?: Set<string>): Promise<Kills> {
   if (!db) return local;
   try {
     const r = await db.rpc('pit_recent_kills');
     if (r.error) return local;
     const server = killsFromRows(r.data);
+    server.forEach((k) => serverKeys?.add(k.key));
     return server.length ? mergeKills(server, local) : local;
   } catch { return local; }
 }
@@ -105,15 +104,15 @@ export function recordFromRows(rows: unknown, kills: Kills = []): PitRecord | nu
 }
 // Never throws; an rpc that has nothing yet (no wins) while the fallback knows kills leaves the fallback. Otherwise kills = the loot total plus the
 // server's wins that the loot does not already count (`kills` is the merged wall list, `lootAll` every loot kill, uncapped); wins, losses, streak are the server's.
-export async function fetchRecord(db: SkullDb | null | undefined, local: PitRecord, kills: Kills = [], lootAll: Kills = []): Promise<PitRecord> {
+// Kills = server wins + the loot kills no server row covers (same rule as the wall). The count drifts past 30 server wins until the record RPC returns totals.
+export async function fetchRecord(db: SkullDb | null | undefined, local: PitRecord, kills: Kills = [], lootAll: Kills = [], serverKeys: Set<string> = new Set()): Promise<PitRecord> {
   if (!db) return local;
   try {
     const r = await db.rpc('pit_record');
     if (r.error) return local;
     const rec = recordFromRows(r.data, kills);
     if (!rec || (!rec.wins && !rec.losses && (local.kills ?? 0) > 0)) return local;
-    const loot = new Set(lootAll.map((k) => k.key)), covered = kills.filter((k) => !fromLoot.has(k) && loot.has(k.key)).length;
-    return { ...rec, kills: (local.kills ?? 0) + Math.max(0, (rec.wins ?? 0) - covered) };
+    return { ...rec, kills: (rec.wins ?? 0) + lootAll.filter((k) => !serverKeys.has(k.key)).length };
   } catch { return local; }
 }
 
