@@ -379,3 +379,12 @@ test('rig: the walk to the gate leaves the tour in one continuous move no faster
   rig.update(1 / 60, state, enemy, true, null);
   assert.ok(!rig.gating, 'no finish, no walk');
 });
+
+test('the lock camera is the original framing (Dom 2026-10-05): back max(4.2, d*0.62+2.8), height max(3.2, d*1.3)', () => {
+  for (const d of [0.8, 1.5, 2.4, 4, 6.5, 9]) {
+    const target = { x: 0, z: 0 }, state = { ...initialState(), x: 0, z: d }, yaw = 0;   // player d metres in front of the target, camera straight behind
+    const pose = cameraPose(state, yaw, 0.45, true, target);
+    assert.ok(Math.abs(pose.z - (d + Math.max(4.2, d * 0.62 + 2.8))) < 1e-9 || Math.hypot(pose.x, pose.z) > 11.49, `back at ${d}`);
+    assert.ok(Math.abs(pose.y - Math.max(3.2, d * 1.3)) < 1e-9 || Math.hypot(pose.x, pose.z) > 11.49, `height at ${d}`);
+  }
+});
