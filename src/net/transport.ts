@@ -4,7 +4,7 @@
 // `directMs` do the packets ride the relay itself (scripts/duel-relay.mjs, in Germany: a Dubai↔Dubai duel relayed pays Dubai→Germany→Dubai,
 // so it is the fallback, not the plan). The path taken and the ICE candidate type of the selected pair go into duel_metrics.
 // Browser-only; imported by nothing in single-player.
-import type { DuelMessage } from './pvp.ts';
+import { SILENCE, type DuelMessage } from './pvp.ts';
 import { computeBackoffDelay } from './backoff.ts';
 import { isFinalClose } from './reconnect-policy.ts';
 
@@ -40,10 +40,10 @@ export const sideOf = (token: string): 0 | 1 => (token.split('.')[1] === '1' ? 1
 
 // Resolves once the peer is present and the path is decided: `direct` as soon as the data channel opens, `relay` if it has not within
 // `directMs` of the peer arriving. Rejects if the relay itself cannot be reached. After that the relay socket is kept alive: a drop (a
-// phone switching networks) is retried with jittered exponential backoff from `retryMs` (capped at `maxRetryMs`) for up to `reconnectMs`, unless the relay closed it for good (reconnect-policy.ts), with the same token (the relay lets its holder take the
+// phone switching networks) is retried with jittered exponential backoff from `retryMs` for up to `reconnectMs`: capped at `fastMaxMs` until SILENCE.rejoinMs has passed since the loss (the page forfeits then, so a link that is back at 8 s must be heard by 10 s), at `maxRetryMs` after, unless the relay closed it for good (reconnect-policy.ts), with the same token (the relay lets its holder take the
 // side back), and the challenger re-offers WebRTC when the peer reappears. `direct: false` never builds a peer connection (a test, or a
 // browser with no WebRTC): everything rides the relay.
-export const RECONNECT = { retryMs: 500, maxRetryMs: 4000, reconnectMs: 30_000, beatStaleMs: 5000, directQuietMs: 1500 };
+export const RECONNECT = { retryMs: 500, fastMaxMs: 1000, maxRetryMs: 4000, reconnectMs: 30_000, beatStaleMs: 5000, directQuietMs: 1500 };
 export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_SERVERS, directMs = 5000, direct = true } = {}): Promise<Transport> {
   const side = sideOf(token);
   return new Promise((resolve, reject) => {
@@ -154,13 +154,16 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
       socket.onmessage = (e) => { if (!closing && ws === socket) void onMessage(e); };
       socket.onopen = () => { if (lostAt) transport.reconnects++; lostAt = 0; attempt = 0; };   // beatAt is kept: after a reconnect link() stays false until the first fresh beat, never a hopeful null
       // Lost before the first decision: the relay is unreachable. Lost after: keep trying until reconnectMs, then leave it to the page's silence rules.
+      let counted = false;   // a failed connect fires error then close: one backoff step per socket, not two
       const lost = (e?: Event) => {
         if (ws !== socket || closing) return;
         if (!decided) { transport.close(); reject(new Error('duel relay unreachable')); return; }
         lostAt ||= Date.now();
-        clearTimeout(retry);   // onerror and onclose both land here: one retry, not two
-        if (isFinalClose((e as CloseEvent | undefined)?.code)) return;
-        if (Date.now() - lostAt < RECONNECT.reconnectMs) retry = setTimeout(join, computeBackoffDelay(++attempt, RECONNECT.retryMs, RECONNECT.maxRetryMs, Math.random));
+        if (isFinalClose((e as CloseEvent | undefined)?.code)) { counted = true; clearTimeout(retry); return; }   // an error's retry is withdrawn by the close that follows it
+        if (counted) return;
+        counted = true;
+        const since = Date.now() - lostAt;
+        if (since < RECONNECT.reconnectMs) retry = setTimeout(join, computeBackoffDelay(++attempt, RECONNECT.retryMs, since < SILENCE.rejoinMs ? RECONNECT.fastMaxMs : RECONNECT.maxRetryMs, Math.random));
       };
       socket.onerror = lost; socket.onclose = lost;
     };
