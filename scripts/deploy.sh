@@ -71,19 +71,20 @@ deploy_trust_apply  # scripts/lib/deploy-trust.sh
 deploy_scope_apply() {
   [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
   local age live skip
-  age=$(node scripts/release-rows-for.mjs --full-age . || echo -1)
+  age=$(node scripts/release-rows-for.mjs --full-age . || true)
+  [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
   if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
   live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
   if [[ -z "$live" ]] || ! git merge-base --is-ancestor "$live" "$revision" 2>/dev/null; then
     echo "release scope: full (live revision ${live:-unknown} is not an ancestor of $revision)"; return 0
   fi
   skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip) || { echo "release scope: full (row selection failed)"; return 0; }
-  [[ -n "$skip" ]] || return 0
-  trusted_checks=$(printf '%s' "${trusted_checks:+$trusted_checks,}$skip" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)
-  trust_source="$trust_source + out of scope for $live..$revision (last full run ${age}s ago)"
+  out_of_scope="$skip"
+  echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
 }
+out_of_scope=""
 deploy_scope_apply
-RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" node scripts/release-checks.mjs
+RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).

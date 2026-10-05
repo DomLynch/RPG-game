@@ -350,6 +350,10 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   assert.equal(kept('src/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
   assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
+  for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])
+    assert.equal(kept('src/main.ts', file), 50, `${file} changes the build or the gate: every row (Auditor B1 on #1381)`);
+  assert.equal(kept('src/audio/mix.ts'), 7, 'audio adds its two rows');
+  assert.equal(kept('src/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
 });
 
 test('deploy scope: the last full run is read from the stamp, else from a receipt with every row run, else unknown (-1)', () => {
@@ -359,8 +363,12 @@ test('deploy scope: the last full run is read from the stamp, else from a receip
   mkdirSync(join(root, 'artifacts'));
   writeFileSync(join(root, 'artifacts/release-checks.json'), JSON.stringify({ passed: true, checks: 2, checks_detail: [{ index: 1 }, { index: 2, trusted: 'scope' }] }));
   assert.equal(age(), -1, 'a scoped receipt is not a full run');
+  writeFileSync(join(root, 'artifacts/release-checks.json'), JSON.stringify({ passed: true, checks: 2, checks_detail: [{ index: 1 }, { index: 2, out_of_scope: true }] }));
+  assert.equal(age(), -1, 'nor is one with an out-of-scope row');
   writeFileSync(join(root, 'artifacts/release-checks.json'), JSON.stringify({ passed: true, checks: 2, checks_detail: [{ index: 1 }, { index: 2 }] }));
   assert.ok(age() >= 0 && age() < 60, 'a full receipt counts by its mtime');
   writeFileSync(join(root, 'artifacts/last-full-release.json'), JSON.stringify({ at: new Date(Date.now() - 90_000_000).toISOString() }));
   assert.ok(age() > 86_400, 'the stamp wins: over 24 h means the next release runs all 50');
+  writeFileSync(join(root, 'artifacts/last-full-release.json'), JSON.stringify({ at: 'not a date' }));
+  assert.equal(age(), -1, 'a bad stamp date is unknown, so the release runs all 50 (Auditor S2)');
 });

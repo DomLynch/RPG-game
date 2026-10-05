@@ -40,12 +40,21 @@ const AREAS = [
   { paths: ['src/ai.ts', 'src/moves.ts', 'src/sim.ts', 'src/record.ts', 'src/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
   { paths: ['src/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
   { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
+  { paths: ['src/arena*.ts', 'src/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts'], rows: ['arena-preview'] },
+  { paths: ['src/audio/**', 'src/assets/audio/**'], rows: ['audio-preview', 'arena-audio-check'] },
+  { paths: ['src/blade*.ts', 'src/characters.ts', 'src/shields.ts', 'src/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
+  { paths: ['src/finishers.ts', 'src/gore.ts', 'src/finisher-blood.ts', 'src/opened.ts', 'src/severed-head.ts', 'src/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
+  { paths: ['src/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
 ];
+// The build and the gate's own row list: a change here can break any row, so it runs all of them (Auditor B1 on #1381).
+// deploy.sh and the two release scripts are not here: they build no part of the game and their unit tests cover them.
+const FULL = ['package.json', 'package-lock.json', 'vite.config.*', 'tsconfig*.json', '.quality-gate.json', 'scripts/lib/**', 'public/**'];
 const named = spec => { const [name, mode] = spec.split(':'); const hits = rows.filter(r => r.name === name);
   if (!hits.length) throw new Error(`deploy scope names row "${name}", which is not in release_commands`);
-  return mode === 'first' ? hits.slice(0, 1) : hits; };
+  return mode === 'first' ? hits.slice(0, 1) : mode === 'last' ? hits.slice(-1) : hits; };
 const isDoc = file => matchesGlob(file, 'docs/**') || file.endsWith('.md');
 export function deployRowsFor(files) {
+  if (files.some(file => FULL.some(glob => matchesGlob(file, glob)))) return rows;
   const wanted = new Set();
   const add = spec => named(spec).forEach(r => wanted.add(r.index));
   if (files.some(file => !isDoc(file))) CORE.forEach(add);
@@ -60,9 +69,9 @@ export function deployRowsFor(files) {
 export function fullAge(root) {
   const read = name => { try { return { json: JSON.parse(readFileSync(join(root, 'artifacts', name), 'utf8')), mtime: statSync(join(root, 'artifacts', name)).mtimeMs }; } catch { return null; } };
   const stamp = read('last-full-release.json');
-  if (stamp?.json.at) return Math.floor((Date.now() - Date.parse(stamp.json.at)) / 1000);
+  if (stamp) { const at = Date.parse(stamp.json.at); return Number.isFinite(at) ? Math.floor((Date.now() - at) / 1000) : -1; }
   const receipt = read('release-checks.json');
-  if (receipt?.json.passed && receipt.json.checks_detail?.length === receipt.json.checks && !receipt.json.checks_detail.some(c => c.trusted))
+  if (receipt?.json.passed && receipt.json.checks_detail?.length === receipt.json.checks && !receipt.json.checks_detail.some(c => c.trusted || c.out_of_scope))
     return Math.floor((Date.now() - receipt.mtime) / 1000);
   return -1;
 }
