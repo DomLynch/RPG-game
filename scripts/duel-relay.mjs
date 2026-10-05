@@ -77,7 +77,7 @@ export const supabaseUser = (url, anonKey, fetchFn = fetch) => async (authorizat
 // `admit`: the mint check (supabaseAdmin), or null for an open relay. `players`: supabaseUser, or null (the default) for admins only.
 export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787), host = '127.0.0.1', secret = process.env.DUEL_RELAY_SECRET, log = console.log, logEveryMs = 60_000, admit = /** @type {((authorization: string | undefined) => Promise<boolean>) | null} */ (null), players = /** @type {((authorization: string | undefined) => Promise<string | null>) | null} */ (null) } = {}) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('DUEL_RELAY_SECRET (32+ chars) is required');
-  const rooms = new Map();   // room -> { pair: [socket | null, socket | null], windowStart, bytes }
+  const rooms = new Map();   // room -> { pair: [socket | null, socket | null], windowStart, bytes: [side 0, side 1] }
   const perIp = new Map();   // ip -> { windowStart, mints, joins, sockets }
   const perUser = new Map();   // account id -> mint times in the last hour
   const ipOfSocket = new WeakMap();   // socket -> the IP whose socket count it holds
@@ -134,7 +134,7 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
     if (!grant) return refuse(403, 'token');
     const { room, side } = grant;
     if (!rooms.has(room) && rooms.size >= RELAY.maxRooms) return refuse(503, 'rooms-full');
-    const entry = rooms.get(room) ?? { pair: [null, null], windowStart: Date.now(), bytes: 0 };
+    const entry = rooms.get(room) ?? { pair: [null, null], windowStart: Date.now(), bytes: [0, 0] };
     // A side's token is that player's secret, so its holder coming back (a phone that switched networks leaves a half-open socket the relay
     // cannot tell is dead for up to idleMs) takes the side over: the old socket is dropped without a peer-down notice, and the peer hears
     // the new arrival below as a fresh `up` (the challenger re-offers WebRTC on it).
@@ -175,9 +175,9 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
         if (opcode !== 1 && opcode !== 2) { close(1003, 'malformed'); return; }
         const now = Date.now();
         if (now - windowStart >= 1000) { windowStart = now; count = 0; }
-        if (now - entry.windowStart >= 1000) { entry.windowStart = now; entry.bytes = 0; }
+        if (now - entry.windowStart >= 1000) { entry.windowStart = now; entry.bytes = [0, 0]; }
         if (++count > RELAY.perSecond) { close(4008, 'message-rate'); return; }
-        if ((entry.bytes += payload.length) > RELAY.roomBytesPerSecond) { close(4008, 'room-bytes'); return; }
+        if ((entry.bytes[side] += payload.length) > RELAY.roomBytesPerSecond / 2) { close(4008, 'room-bytes'); return; }   // each side spends its own half of the room's budget: the side that floods is the one closed, never its quiet peer
         counts.messages++; counts.bytes += payload.length;
         send(other(), opcode, payload);
       }

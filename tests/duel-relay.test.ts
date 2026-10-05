@@ -239,3 +239,22 @@ test('duel relay: every connected socket hears a beat, so a page can tell its ow
     a.ws.close();
   } finally { await relay.close(); }
 });
+
+test('duel relay: the room byte budget is charged per side: the side that floods is closed, its quiet peer is not (Auditor N1 on #1376)', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined });
+  try {
+    const { tokens } = (await mint(relay.port)).body!;
+    const a = connect(relay.port, tokens[0]), b = connect(relay.port, tokens[1]);
+    assert.ok(await a.opened && await b.opened);
+    const chunk = 'x'.repeat(8 * 1024), share = RELAY.roomBytesPerSecond / 2;
+    assert.ok(5 * chunk.length > share && 3 * chunk.length + 100 < share, 'the flood is over one side\'s half, the quiet side\'s traffic under it');
+    for (let i = 0; i < 5; i++) a.ws.send(chunk);   // 40 KB inside one second: over A's half of the room's 64 KB, under the room's whole budget
+    assert.equal(await Promise.race([a.closed, new Promise((r) => setTimeout(() => r('still open'), 1500))]), 4008, 'the flooding side is closed 4008');
+    for (let i = 0; i < 3; i++) b.ws.send(chunk);
+    b.ws.send('tail');   // the quiet side takes the room past its whole budget in the same second: it is still inside its own half
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(b.ws.readyState, WebSocket.OPEN, 'the quiet side was not closed for its peer\'s flood');
+    assert.equal(relay.stats().sockets, 1);
+    b.ws.close();
+  } finally { await relay.close(); }
+});
