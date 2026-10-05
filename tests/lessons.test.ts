@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LESSON_ORDER, lessonText, nextLesson, type LessonId } from '../src/lessons.ts';
+import { LESSON_FELL, LESSON_NEXT, LESSON_ORDER, firstLossDue, lessonText, nextLesson, type LessonId } from '../src/lessons.ts';
+import { LESSONS } from '../src/first-loss.ts';
 
 test('five lessons in the briefed order, one line each, short enough for the status line', () => {
   assert.deepEqual([...LESSON_ORDER], ['stayAfterParry', 'blockEarnsNothing', 'rollSideways', 'woundedStamina', 'tapStepHoldRoll']);
@@ -18,4 +19,15 @@ test('the file header keeps the MIT notice and the @f46f30f provenance', async (
   const { readFileSync } = await import('node:fs');
   const head = readFileSync(new URL('../src/lessons.ts', import.meta.url), 'utf8').slice(0, 1400);
   assert.match(head, /MIT/); assert.match(head, /f46f30f/); assert.match(head, /Levy Street/);
+});
+
+test('the order is first-loss.ts LESSONS, and the after-loss words say what happened and what is next', () => {
+  assert.deepEqual([...LESSON_ORDER], [...LESSONS]);
+  assert.match(LESSON_FELL, /fell/); assert.ok(LESSON_NEXT.length <= 14, 'fits the reset button');
+});
+
+test('the lesson is due once: a plain page, nothing stored, no fight yet', () => {
+  const base = { stored: false, fights: 0, search: '', pathname: '/' };
+  assert.equal(firstLossDue(base), true);
+  for (const off of [{ stored: true }, { fights: 1 }, { search: '?opponent=goblin' }, { search: '?duel=new' }, { pathname: '/s/abc' }]) assert.equal(firstLossDue({ ...base, ...off }), false, JSON.stringify(off));
 });

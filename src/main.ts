@@ -47,7 +47,7 @@ import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
-import type { LessonId } from './lessons.ts';
+import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
 import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -787,7 +787,7 @@ let lessonNow: LessonId | undefined, lessonTimer = 0;
 export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 function updateHud() {
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -974,6 +974,7 @@ function sparEnd(shown: boolean) {
 // The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
 // press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
 function nextFight(): void {
+  if (match.mode === 'lesson') { location.assign(location.pathname); return; }   // the first loss is over: the same page without the lesson is the real first fight (LESSON_DONE_KEY is set)
   if (invalidSparringPreview) { element<HTMLInputElement>('journal-tab-arena').checked = true; journal.showModal(); return; }
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -1213,11 +1214,13 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
 // The scripted first loss (src/first-loss.ts, Match 'lesson'): `?lesson=1` boots it on the loaded warden. It records and awards nothing and the
 // page skips the AFK mark and the loot offer. Each beat lands on <html data-lesson> (the Web lane's prompts read it or take match.startLesson's
 // callback) and on __lesson for the stills harness; the callback is the one hook, so the prompts never need to know the script.
-const lessonAsked = !sparKit && !replayText && !sharedId && !invalidSparringPreview && new URLSearchParams(window.location?.search ?? '').get('lesson') === '1';
+const lessonOnce = !sparKit && !replayText && !sharedId && !invalidSparringPreview && firstLossDue({ stored: !!storage.getItem(LESSON_DONE_KEY), fights: totals(scorecard).fights, search: window.location?.search ?? '', pathname: window.location?.pathname ?? '/' });   // a new player's first fight, once (lessons.ts)
+const lessonAsked = !sparKit && !replayText && !sharedId && !invalidSparringPreview && (lessonOnce || new URLSearchParams(window.location?.search ?? '').get('lesson') === '1');
 if (lessonAsked) {
   welcome.hidden = true; watching = false;
   const heard: string[] = [];
-  match.startLesson((id) => { heard.push(id); document.documentElement.dataset.lesson = id; });
+  if (lessonOnce) { try { storage.setItem(LESSON_DONE_KEY, '1'); } catch { /* unsaved: a private page lessons again, which is harmless */ } }
+  match.startLesson((id) => { heard.push(id); document.documentElement.dataset.lesson = id; onLesson(id); });
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
   began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
 }
@@ -1481,7 +1484,7 @@ canvas.addEventListener('pointerup', (event) => {
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });
 // ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
 // memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
-if (debug) Object.defineProperty(globalThis, '__lesson', { configurable: true, value: onLesson });   // the lesson stills and the browser tap test fire a beat by hand
+if (debug) Object.defineProperty(globalThis, '__lessonShow', { configurable: true, value: onLesson });   // the lesson stills fire a beat by hand (first-loss.ts owns __lesson)
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
   // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
