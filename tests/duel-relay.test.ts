@@ -246,12 +246,12 @@ test('duel relay: the room byte budget is charged per side: the side that floods
     const { tokens } = (await mint(relay.port)).body!;
     const a = connect(relay.port, tokens[0]), b = connect(relay.port, tokens[1]);
     assert.ok(await a.opened && await b.opened);
-    const chunk = 'x'.repeat(8 * 1024), share = RELAY.roomBytesPerSecond / 2;
-    assert.ok(5 * chunk.length > share && 3 * chunk.length + 100 < share, 'the flood is over one side\'s half, the quiet side\'s traffic under it');
-    for (let i = 0; i < 5; i++) a.ws.send(chunk);   // 40 KB inside one second: over A's half of the room's 64 KB, under the room's whole budget
+    const chunk = 'x'.repeat(8 * 1024), share = RELAY.roomBytesPerSecond * 0.75;
+    assert.ok(7 * chunk.length > share && 2 * chunk.length + 100 < share && 7 * chunk.length + 2 * chunk.length + 100 > RELAY.roomBytesPerSecond, 'the flood is over one side\'s share, the quiet side\'s traffic under it, and together they pass the whole room budget');
+    for (let i = 0; i < 7; i++) a.ws.send(chunk);   // 56 KB inside one second: over A's 48 KB share of the room's 64 KB, under the room's whole budget
     assert.equal(await Promise.race([a.closed, new Promise((r) => setTimeout(() => r('still open'), 1500))]), 4008, 'the flooding side is closed 4008');
-    for (let i = 0; i < 3; i++) b.ws.send(chunk);
-    b.ws.send('tail');   // the quiet side takes the room past its whole budget in the same second: it is still inside its own half
+    for (let i = 0; i < 2; i++) b.ws.send(chunk);
+    b.ws.send('tail');   // the quiet side takes the room past its whole budget in the same second: it is still inside its own share
     await new Promise((r) => setTimeout(r, 300));
     assert.equal(b.ws.readyState, WebSocket.OPEN, 'the quiet side was not closed for its peer\'s flood');
     assert.equal(relay.stats().sockets, 1);

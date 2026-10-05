@@ -177,7 +177,7 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
         if (now - windowStart >= 1000) { windowStart = now; count = 0; }
         if (now - entry.windowStart >= 1000) { entry.windowStart = now; entry.bytes = [0, 0]; }
         if (++count > RELAY.perSecond) { close(4008, 'message-rate'); return; }
-        if ((entry.bytes[side] += payload.length) > RELAY.roomBytesPerSecond / 2) { close(4008, 'room-bytes'); return; }   // each side spends its own half of the room's budget: the side that floods is the one closed, never its quiet peer
+        if ((entry.bytes[side] += payload.length) > RELAY.roomBytesPerSecond * 0.75) { close(4008, 'room-bytes'); return; }   // each side spends its own 3/4 of the room's budget (48 KB/s; a legit side peaks near 26 KB/s on a 50%-loss link): the side that floods is the one closed, never its quiet peer
         counts.messages++; counts.bytes += payload.length;
         send(other(), opcode, payload);
       }
