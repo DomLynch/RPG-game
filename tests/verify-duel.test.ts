@@ -157,3 +157,25 @@ test('verify rooms: a long reason is capped, a failing write is recorded per roo
   assert.ok(receipt.flagged[0].reason.length <= REASON_MAX); assert.equal(receipt.verified, 1); assert.equal(receipt.agedOut, 2);
   assert.equal(receipt.writeErrors.length, 1); assert.equal(receipt.writeErrors[0].room, 'bad0001'); assert.ok(receipt.writeErrors[0].error.length <= REASON_MAX);
 });
+
+test('verify rooms: a verified room is counted by the anti-farm layer once, before it is marked; a repeat opponent is skipped; a failing count leaves the room pending', async () => {
+  const fight = honest(), now = 10_000_000_000, players = ['aaaa', 'bbbb'] as const;
+  const winnerSide = claims(fight).find((c) => c.won)!.side, winner = players[winnerSide], loser = players[1 - winnerSide];
+  const calls: string[] = [];
+  const antifarm = (wins: { opponent: string; at: number }[], fail = false) => ({
+    state: async () => ({ winner_rating: null, loser_rating: null, wins }),
+    count: async (room: string, w: string, l: string, gain: number, pay: number) => { if (fail) throw new Error('db down'); calls.push(`count ${room} ${w}>${l} gain ${gain} pay ${pay}`); return true; },
+  });
+  const run = (af: ReturnType<typeof antifarm>, dry = false) => verifyRooms({ pending: async () => [{ room: 'room0001', createdAt: now, claims: claims(fight), players }],
+    verify: async (room: string) => { calls.push(`verify ${room}`); }, flag: async () => undefined, unverify: async () => undefined, antifarm: af }, { now, dry });
+  const first = await run(antifarm([]));
+  assert.deepEqual(calls, [`count room0001 ${winner}>${loser} gain 16 pay 0`, 'verify room0001'], 'counted before marked; pays 0 while PVP_REWARDS is off');
+  assert.equal(first.counted.length, 1); assert.equal(first.verified, 1);
+  calls.length = 0;
+  const repeat = await run(antifarm([{ opponent: loser, at: now - 1000 }]));
+  assert.deepEqual(calls, ['verify room0001']); assert.deepEqual(repeat.skipped, [{ room: 'room0001', reason: 'repeat-opponent' }]);
+  calls.length = 0;
+  const failed = await run(antifarm([], true));
+  assert.deepEqual(calls, [], 'a failing count must not mark the room, so the next sweep counts it'); assert.equal(failed.verified, 0); assert.equal(failed.writeErrors.length, 1);
+  assert.equal((await run(antifarm([]), true)).counted.length, 1); assert.deepEqual(calls, [], 'a dry run counts and marks nothing');
+});
