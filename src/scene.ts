@@ -42,6 +42,7 @@ import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { clonesOf } from './arena-materials.ts';
 import { createCameraRig } from './camera.ts';
+import { bodyHides } from './see-through.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
@@ -275,6 +276,7 @@ export function createScene(
       if (worn.length) void loadLootPieces();
       return;
     }
+    warriors.player.restore();   // he is re-dressed: no faded clone of a draw that is about to change
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
   // Rank look (rank-look.ts): the dev flag's file, else his shipping look at the rung he is met at (`tier`, set before the fight is playable;
@@ -330,6 +332,7 @@ export function createScene(
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])
     .then(([loaded]) => {
+      warriors?.player.restore();   // a rig being replaced gives its see-through clones back
       warriors = loaded;
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
@@ -469,6 +472,7 @@ export function createScene(
   let heading = Math.PI;
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
+  const seeThroughPoint = new THREE.Vector3();   // the foe's weapon point for the see-through test, reused each frame
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
@@ -1035,6 +1039,12 @@ export function createScene(
         CHARGE_LEAN[opponentId] ?? null,
         holdingCharge(practice.duel.fighters[1]),
       );
+      // See-through hero: while the foe winds up and his weapon sits behind the hero's body from the camera, fade the hero so the tell reads
+      // (see-through.ts; presentation only, the sim and its timing are untouched).
+      if (warriors) {
+        const winding = !finisher && !walking && theirs.pose === 'attack' && theirs.progress < theirs.contact;
+        warriors.player.seeThrough(winding && bodyHides(camera.position, warriors.opponent.weaponPoint(seeThroughPoint), state) ? 1 : 0, animationDt);
+      }
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
       }

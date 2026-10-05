@@ -997,3 +997,23 @@ test('the Centurion\'s armed run: the veteran rig carries ArmedRun, a one-hand f
   for (let i = 0; i < 90; i++) mirror.update(4, 1 / 60, 'ready');
   assert.ok(!/ArmedRun/.test(mirror.playing()), 'a rig without the clip never plays it');
 });
+
+test('see-through fades the body and gives each draw its own material back, the same object, with the shader hooks carried', async () => {
+  const hero = await readWarrior('warrior.glb'), { player } = buildWarriors(hero, undefined, ['longsword', 'longsword']);
+  const body: Mesh[] = []; player.anchor.traverse(o => { if (o instanceof Mesh && !/^(Sword|Weapon)/.test(o.name)) body.push(o); });
+  const hook = () => {}, key = () => 'graded';
+  for (const m of body) { const mat = m.material as MeshStandardMaterial; mat.onBeforeCompile = hook; mat.customProgramCacheKey = key; }
+  const own = body.map(m => m.material);
+  for (let i = 0; i < 12; i++) player.seeThrough(1, 1 / 60);   // fade in over ~6 frames, then hold
+  const faded = body.filter((m, i) => m.material !== own[i]);
+  assert.ok(faded.length > 0);
+  for (const m of faded) { const g = m.material as MeshStandardMaterial; assert.equal(g.transparent, true); assert.equal(g.depthWrite, false); assert.ok(Math.abs(g.opacity - .35) < 1e-9); assert.equal(g.onBeforeCompile, hook); assert.equal(g.customProgramCacheKey, key); }
+  const ghosts = faded.map(m => m.material);
+  player.seeThrough(1, 0);   // dt 0 (hit-stop) holds
+  for (let i = 0; i < 12; i++) player.seeThrough(0, 1 / 60);
+  body.forEach((m, i) => assert.equal(m.material, own[i]));   // exactly his own again
+  for (let i = 0; i < 12; i++) player.seeThrough(1, 1 / 60);
+  faded.forEach((m, i) => assert.equal(m.material, ghosts[i]));   // the same clone reused, not rebuilt
+  player.restore();
+  body.forEach((m, i) => assert.equal(m.material, own[i]));
+});
