@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { FOCUS } from '../src/pit/room.ts';
+import { FOCUS, RACK_SLOTS, ladderOrder, pieceLevel, rackIds } from '../src/pit/room.ts';
+import type { Loot, LootId, Provenance } from '../src/loot.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
 import { PORTRAIT_KEYS } from '../src/legends.ts';
 import type { Stage } from '../src/pit/stage.ts';
@@ -57,4 +58,37 @@ test('main.ts hands the Pit the journal\'s opener on its Gear & pack tab, and th
   const main = (await import('node:fs')).readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /openJournal: \(\) => \{ if \(journal\.open\) return; element<HTMLInputElement>\('journal-tab-profile'\)\.checked = true; openJournal\(\); \}/);
   assert.match(main, /element\('journal-button'\)\.addEventListener\('click', openJournal\);/);
+});
+
+// The trophy rack (Dom 2026-10-04): the best four pieces, by tier, then the opponent's place in the ladder, starters last.
+const prov = (opponent: string, tier?: number): Provenance => ({ opponent, attempt: 1, healthLeft: 1, recordId: null, day: '2026-10-01', ...(tier ? { tier } : {}) }) as Provenance;
+const lootOf = (owned: string[], taken: Record<string, Provenance>, equipped: Record<string, string> = {}): Loot => ({ owned, equipped, taken }) as unknown as Loot;
+const ORDER = ladderOrder(PORTRAIT_KEYS);
+
+test('ladderOrder: the opponents in the legend keys\' order, once each', () => {
+  assert.deepEqual(ORDER.slice(0, 4), ['veteran', 'pitborn', 'goblin', 'nightborn']);
+  assert.equal(ORDER.length, 10);
+  assert.deepEqual(ladderOrder(['a-1', 'a-2', 'b-1', 'a-3']), ['a', 'b']);
+});
+test('pieceLevel: the tier, else the ladder place as a fraction below tier 1, else a starter ranks last', () => {
+  const loot = lootOf(['a.Helmet', 'b.Body', 'goblin.Boots', 'witch.Arms', 'x.Gloves'], { 'a.Helmet': prov('goblin', 8), 'goblin.Boots': prov('goblin'), 'witch.Arms': prov('witch') });
+  assert.equal(pieceLevel(loot, 'a.Helmet' as LootId, ORDER), 8);
+  assert.equal(pieceLevel(loot, 'goblin.Boots' as LootId, ORDER), 0.03);
+  assert.equal(pieceLevel(loot, 'witch.Arms' as LootId, ORDER), 0.09);
+  assert.equal(pieceLevel(loot, 'b.Body' as LootId, ORDER), -1);
+  assert.equal(pieceLevel(loot, 'goblin.Boots' as LootId, []), 0, 'an opponent not in the order sits below the ladder');
+  assert.ok(pieceLevel(loot, 'witch.Arms' as LootId, ORDER) < 1);
+});
+test('rackIds: best level first, capped at four, ties by id, skipping worn and trophy pieces', () => {
+  assert.equal(RACK_SLOTS, 4);
+  const owned = ['starter.Z', 'nightborn.Helmet', 'goblin.Dagger', 'knight.Body', 'goblin.Arms', 'veteran.Boots', 'witch.Hat', 'witch.Cape', 'tie.B', 'tie.A'];
+  const taken = {
+    'nightborn.Helmet': prov('nightborn', 8), 'goblin.Dagger': prov('goblin', 3), 'knight.Body': prov('knight'), 'goblin.Arms': prov('goblin'),
+    'veteran.Boots': prov('veteran'), 'witch.Hat': prov('witch', 8), 'witch.Cape': prov('witch', 8), 'tie.B': prov('veteran', 5), 'tie.A': prov('veteran', 5),
+  };
+  const loot = lootOf(owned, taken, { head: 'witch.Hat' });
+  assert.deepEqual(rackIds(loot, [], undefined, ORDER), ['nightborn.Helmet', 'witch.Cape', 'tie.A', 'tie.B'], 'the worn tier-8 hat is out; tier 8 ties by id; then tier 5 ties by id');
+  assert.deepEqual(rackIds(loot, ['nightborn.Helmet' as LootId], 6, ORDER), ['witch.Cape', 'tie.A', 'tie.B', 'goblin.Dagger', 'knight.Body', 'goblin.Arms'], 'a trophy leaves the rack; no-tier takes rank by ladder place (knight over goblin), real tiers before any of them');
+  assert.deepEqual(rackIds(loot, [], 10, ORDER).slice(-2), ['veteran.Boots', 'starter.Z'], 'the first ladder place, then the starter, last');
+  assert.deepEqual(rackIds(lootOf([], {}), []), []);
 });

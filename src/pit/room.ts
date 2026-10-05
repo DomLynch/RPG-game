@@ -14,6 +14,9 @@ import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
 import { buildWall, type Wall } from './wall.ts';
+import { killsFromLoot } from './skulls.ts';
+import { buildBoard, type Board } from './board.ts';
+import { buildChampions, type Champions } from './champions-board.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
@@ -21,10 +24,10 @@ import { GLOW, addBloodStains, addFence, addGlow, addGrime, addGroundBlood, addO
 
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
-export type Pick = Zone | `skull:${string}`;   // what a tap can pick: a zone's furniture, or one slot of the skull wall
+export type Pick = Zone | 'board' | 'champions' | `skull:${string}`;   // what a tap can pick: a zone's furniture, the record board, the wall of champions, or one slot of the skull wall
 
 export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
-export const RACK_SLOTS = 6, TROPHIES = 3;
+export const RACK_SLOTS = 4, TROPHIES = 3;
 const RACK_POST = 1.81;   // GPT's rack: its two posts are centred 1.81 m either side of its centre (1.66..1.97), 0.15 m deep, and top out at 2.5 m (measured from rack.glb)
 export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.17, 2.5, RACK_POST];   // the iron helm's base: on the end post's top, its back clear of the wall
 const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
@@ -36,7 +39,9 @@ export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number
   trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
   vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
-  wall: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the skull wall's left panel, the gate's edge at the right (re-posed for the 10 x 7.5 room: check the stills)
+  wall: { hero: { x: 0.6, z: -0.4, heading: 0.4 }, camera: [1.3, 2.0, 2.0], target: [3.5, 2.1, -3.6] },   // the skull wall, right of the arch, the gate's edge at the left
+  board: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the record board, left of the arch, the gate's edge at the right
+  champions: { hero: { x: -2.3, z: 0.6, heading: 0.6 }, camera: [0.3, 1.75, -1.2], target: [0, 1.75, 3.75] },   // the wall of champions on the back fence, seen from the arrival side; he stands clear of it, left
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
 export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
@@ -50,10 +55,27 @@ export function trophyIds(loot: Loot, count = TROPHIES): LootId[] {
     .sort(([, a], [, b]) => (b.tier ?? 0) - (a.tier ?? 0) || b.day.localeCompare(a.day))
     .slice(0, count).map(([id]) => id);
 }
-// The rack's pieces: owned, not worn, not on the trophy wall, in the order they were won (the full hoard with paging is the room PR's).
-export function rackIds(loot: Loot, trophies: readonly LootId[], count = RACK_SLOTS): LootId[] {
-  const worn = new Set(Object.values(loot.equipped));
-  return loot.owned.filter((id) => !worn.has(id) && !trophies.includes(id)).slice(0, count);
+// The ladder's order of the opponents, from the Stage's legend keys (`<opponent>-<rank>`, the opponents in ladder order): first appearance wins.
+export function ladderOrder(keys: readonly string[]): string[] {
+  const order: string[] = [];
+  for (const key of keys) { const at = key.lastIndexOf('-'), id = at < 1 ? key : key.slice(0, at); if (!order.includes(id)) order.push(id); }
+  return order;
+}
+// A piece's level (the trophy rack, Dom 2026-10-04): the provenance tier (the rung the kill was at, 1..10) first; an old take with no tier ranks by its
+// opponent's place in the ladder, as a fraction below every real tier; a piece with no provenance (a starter) ranks last.
+export function pieceLevel(loot: Loot, id: LootId, order: readonly string[] = []): number {
+  const p = loot.taken?.[id];
+  if (!p) return -1;
+  if (typeof p.tier === 'number' && Number.isFinite(p.tier) && p.tier >= 1) return p.tier;
+  const at = order.indexOf(typeof p.opponent === 'string' ? p.opponent : id.split('.')[0]!);
+  return at < 0 ? 0 : (at + 1) / 100;
+}
+// The rack's pieces: the highest-level owned pieces (pieceLevel), best first, ties by id; not worn and not on the trophy wall.
+export function rackIds(loot: Loot, trophies: readonly LootId[], count = RACK_SLOTS, order: readonly string[] = []): LootId[] {
+  const worn = new Set(Object.values(loot.equipped)), level = new Map<LootId, number>();
+  const hangable = loot.owned.filter((id, i) => !worn.has(id) && !trophies.includes(id) && loot.owned.indexOf(id) === i);
+  for (const id of hangable) level.set(id, pieceLevel(loot, id, order));
+  return hangable.sort((a, b) => level.get(b)! - level.get(a)! || (a < b ? -1 : a > b ? 1 : 0)).slice(0, count);
 }
 
 const hash = (x: number, y: number, s: number) => {
@@ -128,7 +150,7 @@ export function buildRoom(stage: Stage): Room {
   // iron), tiled as the ring tiles them (2 m), so the grain is the arena's. A stage without them (tests) gets the generated stone.
   // `?look=pit-stone` (Web's look test, stone.ts): its own wall, vault and floor instead; nothing else in the room changes.
   const L = stage.look ? pitStone({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, stage.look === 'stone-proc' ? 'proc' : stage.look === 'stone-full' ? 'gpt-full' : 'gpt') : undefined;
-  const A = stage.arenaMaterials?.(), T = L ? L.tile.wall : A ? 2 : 1.6, flags = L && stage.look !== 'stone-sand' && !stage.glow, TF = flags ? L.tile.floor : A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
+  const A = stage.arenaMaterials?.(stage.glow ? { sand: 'arena-1' } : undefined), T = L ? L.tile.wall : A ? 2 : 1.6, flags = L && stage.look !== 'stone-sand' && !stage.glow, TF = flags ? L.tile.floor : A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
   const stone = L?.wall ?? A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
   const floor = (flags ? L.floor : undefined) ?? (A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 }));   // sand, as the ring's
   const iron = A?.iron ?? new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
@@ -168,7 +190,7 @@ export function buildRoom(stage: Stage): Room {
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
-  let wall: Wall;
+  let wall: Wall, board: Board, champions: Champions;
   // A prop from the Stage (public/pit/props/<name>.glb): a still copy in a holder named for it, placed by the caller in the model's own
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
@@ -224,10 +246,12 @@ export function buildRoom(stage: Stage): Room {
     const rugMap = clothTexture([0.48, 0.1, 0.09], 4), rug = new THREE.MeshStandardMaterial({ map: rugMap, roughness: 0.98, transparent: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
     const banner = new THREE.MeshStandardMaterial({ map: clothTexture([0.45, 0.08, 0.08], 9), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
     textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, clay, rug, banner);
-    // The skull wall (wall.ts): the far wall's two panels either side of the gate, in bone; stocked from loot.defeats with the rest.
+    // The skull wall (wall.ts): the far wall's right panel, in bone; stocked from the kills with the rest. The record board (board.ts) is the left one.
     const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
     materials.push(bone);
-    wall = buildWall(stage, group, stage.legendKeys(), -hd, bone);
+    wall = buildWall(stage, group, -hd, bone);
+    champions = buildChampions(group, hd);   // today's champions, burned into a timber board on the back fence, facing the gate
+    board = buildBoard(group, -hd);   // the record, carved left of the arch where the niches were
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
     // their spots; Lead 2026-09-30): the round red shield with its gold laurel at the far end, the sword and the spear standing by the near
     // post, the helm on its end post, the torn banner behind the near end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
@@ -343,9 +367,16 @@ export function buildRoom(stage: Stage): Room {
   // Hang what the player owns now: called on build and after every wear, so the rack never shows the piece he just put on. The
   // holders are plain groups over shared loot geometry; clearing them frees nothing on the GPU.
   let stocking = 0;
+  const order = ladderOrder(stage.legendKeys());
   const stock = (loot: Loot): Promise<void> => {
-    const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
-    wall.restock((loot as Loot & { defeats?: string[] }).defeats);   // Backend's per-legend defeat field (#1156); absent = no skulls
+    const trophies = trophyIds(loot), rack = rackIds(loot, trophies, RACK_SLOTS, order), mine = ++stocking;
+    // The skulls and the record: what is known now (the cached data, else the loot's kills), then the data from Supabase when it lands; a later stock or a dispose wins over it.
+    wall.restock(stage.skullsNow?.() ?? killsFromLoot(loot));
+    board.restock(stage.recordNow?.());
+    champions.restock(stage.championsNow?.());
+    if (stage.skulls) void stage.skulls().then((data) => { if (mine === stocking && !disposed) wall.restock(data); }, () => undefined);
+    if (stage.record) void stage.record().then((data) => { if (mine === stocking && !disposed) board.restock(data); }, () => undefined);
+    if (stage.champions) void stage.champions().then((data) => { if (mine === stocking && !disposed) champions.restock(data); }, () => undefined);
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
@@ -381,6 +412,8 @@ export function buildRoom(stage: Stage): Room {
     { id: 'trophies', box: new THREE.Box3(new THREE.Vector3(hw - 1.0, 0, -1.6), new THREE.Vector3(hw, 3.15, 1.6)) },
     { id: 'gate', box: new THREE.Box3(new THREE.Vector3(-gate.width / 2, 0, -hd - 0.3), new THREE.Vector3(gate.width / 2, gate.height, -hd + 0.1)) },
     ...wall.targets,
+    ...board.targets,
+    ...champions.targets,
   ];
 
   return {
@@ -408,6 +441,8 @@ export function buildRoom(stage: Stage): Room {
       L?.dispose();
       for (const l of lights) l.dispose();   // the key's shadow map
       wall.dispose();
+      board.dispose();
+      champions.dispose();
       pieces.clear();
     },
   };

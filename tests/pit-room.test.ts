@@ -37,7 +37,7 @@ test('the room: one group in the scene, a handful of draws, the dressing\'s four
   assert.deepEqual(s.scene.children, [room.group]);
   let draws = 0, lights = 0;
   room.group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) draws++; if (o instanceof THREE.Light) lights++; });
-  assert.ok(draws <= 20, `room draws ${draws} (one per material: the props of the mood-board dressing, plus the skull wall's niches and skulls, two instanced draws; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
+  assert.ok(draws <= 21, `room draws ${draws} (one per material: the props of the mood-board dressing, plus the skull wall's niches and skulls, two instanced draws, the record board and the wall of champions, one box each; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
   assert.equal(lights, 4, 'the torch glow, the gate light, the key (shadows) and the fill (styles.ts, direction a)');
   assert.deepEqual(s.graded.sort(), ['sand', 'stone']);
   room.update(1.25);
@@ -240,4 +240,19 @@ test('extras that are absent, fail, or land after dispose leave nothing: the roo
   land(extraTree('water-bucket') as THREE.Group);
   await room.extras;
   assert.equal(room.group.getObjectByName('water-bucket'), undefined, 'a piece that lands after dispose is not attached');
+});
+
+// Dom 10-04 follow-up: after a clay arena (the Night Pit) the glow Pit's yard must still be the sand. The room asks the Stage for Arena 1's sand maps
+// in glow mode (the cage is glow plus a flag; scene.ts then hands the clone those maps whichever arena the fight was in); the older looks keep the
+// ring's own surface. The glow room cannot be built in node (glow.ts reads Vite's BASE_URL), so the glow call is read from the source.
+test('the glow Pit asks for Arena 1\'s sand whatever the arena; the earlier looks do not', async () => {
+  const asked: unknown[] = [];
+  const mat = () => new THREE.MeshStandardMaterial();
+  const s = Object.assign(stage(), { arenaMaterials: (options?: unknown) => { asked.push(options); return { sand: mat(), stone: mat(), iron: mat(), cloth: mat(), coal: mat() }; } }) as Stage;
+  const room = buildRoom(s); await room.ready; room.dispose();
+  assert.deepEqual(asked, [undefined], 'the plain room keeps the ring\'s own sand');
+  const source = (await import('node:fs')).readFileSync(new URL('../src/pit/room.ts', import.meta.url), 'utf8');
+  assert.match(source, /stage\.arenaMaterials\?\.\(stage\.glow \? \{ sand: 'arena-1' \} : undefined\)/, 'glow (and so the cage) asks for Arena 1\'s sand');
+  const scene = (await import('node:fs')).readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  assert.match(scene, /options\?\.sand === 'arena-1' && !hasArena1Sand\(theme\.textures\)/, 'the scene swaps in Arena 1\'s maps only for an arena whose own sand differs');
 });

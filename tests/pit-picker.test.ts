@@ -40,7 +40,7 @@ function stage(): Stage {
 test('the room\'s volumes: each pose camera taps its own zone at its focus, and the open floor picks nothing', () => {
   const s = stage(), room = buildRoom(s);
   try {
-    assert.deepEqual(room.targets.map((t) => t.id).filter((id) => !id.startsWith('skull:')), ['rack', 'trophies', 'gate']);   // plus the skull wall's slots (tests/pit-wall.test.ts)
+    assert.deepEqual(room.targets.map((t) => t.id).filter((id) => !id.startsWith('skull:')), ['rack', 'trophies', 'gate', 'board', 'champions']);   // plus the skull wall's slots (tests/pit-wall.test.ts)
     for (const zone of ['rack', 'trophies', 'gate'] as const) {
       const c = camera(POSES[zone].camera, POSES[zone].target), pick = createPicker(c, () => room.targets);
       assert.equal(pick(tapAt(c, FOCUS[zone])), zone, `${zone}: a tap on what the camera leans toward`);
@@ -63,7 +63,7 @@ test('a tap on the rack from the door opens the rack sheet where he stands; walk
     const s = stage();
     Object.assign(s, { readMove: () => move, readTap: () => { const t = tap; tap = null; return t; }, rackRows: () => [], trophyLine: () => '', gate: () => ({ label: 'Rematch', go() {} }) });
     const pit = enter(s, 'win');
-    const title = made[1]!;   // createSheet makes section, h2, div
+    const title = made.at(-2)!;   // createSheet makes section, h2, div (after the board's canvas)
     const frame = () => pit.frame(1 / 60);
     frame();
     assert.equal(title.textContent, 'The Pit', 'arrived at the ramp: the open floor');

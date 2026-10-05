@@ -103,8 +103,12 @@ const fallback = median([...knownSeconds.values()]);
 // Never applies to --extended. Anything not listed runs here.
 const trustedSource = process.env.RELEASE_CHECKS_SKIP_SOURCE || 'CI';
 const trustedIndices = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_SKIP || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length));
+// RELEASE_CHECKS_OUT_OF_SCOPE="4,5" (from deploy.sh's change scope): rows NOT run because this release did not touch their area.
+// Kept apart from trusted rows in the receipt: nothing proved them for this revision (Auditor S1 on #1381).
+const outOfScope = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_OUT_OF_SCOPE || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length && !trustedIndices.has(n)));
 const all = commands.map((command, index) => ({ command, index, fixedPort: bindsFixedPort(command), expected: knownSeconds.get(command.join(' ')) ?? fallback }))
-  .filter(item => !trustedIndices.has(item.index + 1));
+  .filter(item => !trustedIndices.has(item.index + 1) && !outOfScope.has(item.index + 1));
+if (outOfScope.size) console.log(`${kind} checks: ${outOfScope.size} out of scope for this change (not run): ${[...outOfScope].sort((a, b) => a - b).join(',')}`);
 for (const index of [...trustedIndices].sort((a, b) => a - b)) console.log(`${kind} check ${index}/${commands.length} trusted from ${trustedSource} — ${commands[index - 1].join(' ')}`);
 const ordered = [...all].sort((a, b) => b.expected - a.expected);  // longest known first; unknown checks sit at the median
 const fixed = all.filter(item => item.fixedPort).length;
@@ -142,9 +146,13 @@ const wallSeconds = (Date.now() - wall) / 1000;
 const detail = [
   ...results.map(r => ({ index: r.index + 1, command: r.command.join(' '), seconds: Number(r.seconds.toFixed(1)), retried: retried.has(r.index) })),
   ...[...trustedIndices].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, trusted: trustedSource })),
+  ...[...outOfScope].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, out_of_scope: true })),
 ].sort((a, b) => a.index - b.index);
 console.log(`${kind} checks wall time ${wallSeconds.toFixed(0)}s (serial sum ${detail.reduce((sum, r) => sum + r.seconds, 0).toFixed(0)}s)`);
 if (extended) { console.log(`Extended checks passed for ${revision}`); process.exit(0); }
 mkdirSync(dirname(receipt), { recursive: true });
 writeFileSync(receipt, JSON.stringify({ revision, passed: true, checks: commands.length, wall_seconds: Number(wallSeconds.toFixed(1)), checks_detail: detail }) + '\n');
+// A run with no out-of-scope row and no ruling-trusted row is a full run (rows CI or the T4 proved for this tree count as run):
+// deploy.sh scopes later releases to a few rows for 24 h after it (Auditor S3 on #1381).
+if (!outOfScope.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), JSON.stringify({ revision, at: new Date().toISOString() }) + '\n');
 console.log(`Release checks passed for ${revision}`);

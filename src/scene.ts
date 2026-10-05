@@ -24,8 +24,8 @@ import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
-import { fbm, patchPixels } from './assets/arena/textures.ts';
-import { arenaFor } from './arena-themes.ts';
+import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
+import { arenaFor, hasArena1Sand } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
@@ -200,6 +200,7 @@ export function createScene(
   let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   const pitProps: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props (pitStage prop), loaded once per page
   const pitExtras: Record<string, Promise<THREE.Group | null>> = {};   // the Pit's extras (pitStage extra), once per page, asked for only after the room is ready
+  let pitSand: { map: THREE.DataTexture; normalMap: THREE.DataTexture } | undefined;   // Arena 1's sand maps for a Pit under another arena, once per page (pitStage arenaMaterials)
   let pitGate: ReturnType<typeof loadPitGate> | undefined;   // the gate's two nodes, once per page (pitStage gateModel)
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
@@ -562,7 +563,21 @@ export function createScene(
         // The arena's own background grade (colour-grade.ts) on a Pit material, so the room reads as the same game.
         grade(material, kind) { gradeMaterial(material, BACKGROUND_GRADE[kind], kind); },
         // The ring's surfaces for a look mock (`?look=pit&style=`), as clones: what the Pit tweaks never touches the arena's own render (Lead).
-        arenaMaterials() { return clonesOf(arena.materials); },
+        // The glow Pit's yard is always Arena 1's sand (`sand: 'arena-1'`): a clay or flagged arena's own maps (cracks, tint) are swapped for Arena 1's, generated
+        // once per page at the Pit's size (256 on a phone, 512 else) and shared by every clone; an arena that already has them keeps its own.
+        arenaMaterials(options) {
+          const set = clonesOf(arena.materials);
+          if (options?.sand === 'arena-1' && !hasArena1Sand(theme.textures)) {
+            const size = PHONE ? 256 : 512, texture = (p: Pixels, srgb: boolean) => {
+              const t = new THREE.DataTexture(p.data, p.width, p.height); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+              t.wrapS = t.wrapT = THREE.RepeatWrapping; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 8; t.needsUpdate = true;
+              return t;
+            };
+            pitSand ??= { map: texture(sandAlbedo(size, 7), true), normalMap: texture(sandNormal(size, 7), false) };
+            set.sand.map = pitSand.map; set.sand.normalMap = pitSand.normalMap;
+          }
+          return set;
+        },
         // Still copies of owned pieces for the rack and trophies: each loot.glb piece holding one of `ids`, in its bind pose, unskinned.
         // Geometry and material stay the loot file's, shared with the worn set: the caller never disposes them.
         async pieces(ids) {
