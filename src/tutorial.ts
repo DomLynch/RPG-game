@@ -19,7 +19,7 @@ const STEPS: Record<TutorialStep, { swing: Action | null; guard: boolean; cue: (
   guard: { swing: 'thrust', guard: false, cue: (e) => (e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0 },   // a THRUST, because the straight guard (held Q / the button, no side) covers only a thrust (duel.ts guardSide), so a plain hold finishes the step; a guard raised on time is a Parry (duel.ts checks it first), later a Block: both count
   parry: { swing: 'heavy', guard: false, cue: (e) => e.type === 'Parried' && e.actor === 0 },
   kick: { swing: null, guard: true, cue: (e) => e.actor === 0 && e.move === 'kick' && (e.type === 'Hit' || e.type === 'GuardBroken') },
-  roll: { swing: 'thrust', guard: false, cue: (e) => e.type === 'Dodged' && e.actor === 0 },   // (plus a roll that takes him out of reach so the swing whiffs: rolledOut below)
+  roll: { swing: 'heavy', guard: false, cue: (e) => e.type === 'Dodged' && e.actor === 0 },   // a HEAVY (32-tick tell): a roll whose intent is issued by foe swing age 27 completes the step (measured, 8 seeds; 28 fails), so a held E (HOLD_MS = 9 ticks) must be pressed by age 18 (300 ms after the swing starts) and E + a direction by age 27 (450 ms); the thrust's 16-tick tell left a held E about 2 ticks (plus a roll out of reach whiffing the swing: rolledOut below)
 };
 const GAP = 150;      // ticks between the foe's swings: one at a time, the window to answer is clear
 const ROLL_SPAN = 60;  // ticks after a roll starts in which the foe's swing ending with no hit counts as rolling out of it
