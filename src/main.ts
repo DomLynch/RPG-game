@@ -9,7 +9,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -30,6 +30,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -1004,7 +1005,7 @@ function nextFight(): void {
   if (next) {
     profile.encounter = next.id; profile.pass = next.pass; profile.arena = next.arena; profile.arenaPass = next.arenaPass;
     persist();
-    void settled.then(() => location.reload());
+    void reloadAfter(settled, () => location.reload());   // the profile is already advanced: reload even if the settle threw (loot-claims.ts)
     return;
   } // the next fighter is another rig: a fresh page loads it
   // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file
@@ -1847,6 +1848,7 @@ function frame(now: number) {
           const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
+          if (!quiet && e.actor === 1) announcePowerWord(opponent, e.tick);   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, an event only; once per accepted cast, like the cue
         } else if (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
@@ -1856,9 +1858,11 @@ function frame(now: number) {
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
         holding: foeHolding(practice.duel.fighters[1]),
+        fatigue: practice.fatigue,
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
+      if (!quiet) hud.refused(practice.clarity);
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;
