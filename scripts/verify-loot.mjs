@@ -152,7 +152,7 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     return result.ok ? null : result.practice && record.v <= heldMax ? `HELD v${record.v}: ${result.reason}` : result.reason;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error), reach = REACH.exec(message);
-    return reach && Number(reach[1]) <= heldMax ? `HELD v${reach[1]}: reach: ${message}` : `unreadable record: ${message}`;
+    return reach ? `HELD v${reach[1]}: reach: ${message}` : `unreadable record: ${message}`;   // RV29 (2026-10-07): a reach refusal is HELD at ANY version (bump 29 reaches every opponent): a claim still pending when a bump publishes is kept for the runbook, never lost
   }
 }
 
@@ -173,7 +173,7 @@ export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = 
   if (header && header.opponent !== row.opponent) throw Error(`claim ${id} fails a check other than the replay: record is against ${header.opponent}, claim says ${row.opponent}`);
   if (header && header.outcome !== 'killed') throw Error(`claim ${id} fails a check other than the replay: record outcome is ${header.outcome}, not a win`);
   const version = record ? record.v : header.v;
-  if (!(version <= heldMax)) throw Error(`claim ${id} is a v${version} record: its replay is engine-independent, so its refusal stands`);
+  if (!reachHeld && !(version <= heldMax)) throw Error(`claim ${id} is a v${version} record: its replay is engine-independent, so its refusal stands`);
   const standing = await db.standing(row.user_id, row.id);
   const reason = (await duplicate(db, row)) ?? (record ? await refusal(row, standing, { replay: false }) : null);
   if (reason) throw Error(`claim ${id} fails a check other than the replay: ${reason}`);

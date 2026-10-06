@@ -209,11 +209,9 @@ test('a reach refusal up to v19 is HELD (never lost to a publish); a plain unsup
   const record = await withVersion('veteran', 6, 18);
   const held = String(await refusal({ opponent: 'veteran', record }, FRESH));
   assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 6/);
-  assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^unreadable record: .*not supported for the veteran/, 'past heldMax a reach refusal is plain');
+  assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^HELD v18: reach: .*not supported for the veteran/, 'a reach hold does not depend on heldMax (RV29: it covers every version a bump reaches)');
   assert.match(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 3) }, FRESH)), /^unreadable record: Fight record: version 3 is not supported \(/, 'an unreadable version is not a reach hold');
   const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 1 ? { id: 1, user_id: U, opponent: 'veteran', piece: null, record, verified: false, note: held.slice(0, 200) } : null) };
-  await assert.rejects(acceptHeld(db, 1, 'chromium @10 on fc2254aa', { heldMax: 17 }), /v18 record: its replay is engine-independent/);
-  assert.equal(db.settled.size, 0);
   const outcome = await acceptHeld(db, 1, 'chromium+webkit @10 on fc2254aa', { now: new Date('2026-09-29T11:00:00Z') });
   assert.deepEqual([outcome.verified, outcome.award], [true, null]);
   assert.match(outcome.note!, /^HELD v18: reach: .* \| ACCEPTED 2026-09-29T11:00:00.000Z by runbook: chromium\+webkit @10 on fc2254aa$/);
@@ -315,4 +313,19 @@ test('F2: a claim whose hash will not write holds only itself; a share whose has
   const shared = fakeDb([rows[1]!], undefined, [{ id: 'k1', user_id: U, record: other }]);
   const held = await verifyClaims({ ...shared, hash: async (kind: string, id: string, fight: string) => { if (kind === 'share') throw Error('psql: connection reset'); await shared.hash(kind, id, fight); } });
   assert.deepEqual([held.waiting, shared.settled.size], [1, 0], 'an unhashed share could hide a theft: nothing settles');
+});
+
+// RV29 (2026-10-07; Lead's condition a): REACH[29] lists every opponent, so a claim recorded at v<=28 and still pending when RV29 ships can no longer be read.
+// It is HELD, not lost: settled unverified with no award (the standing does not count it, nothing else about the player changes), kept for the runbook, which
+// replays the record on the last build that reads it (the revision before RV29) and clears it with --accept. A v29 record verifies as ever.
+test('RV29: a pending v28 claim is HELD by the reach (kept, no award), --accept clears it, and a v29 claim is unaffected', async () => {
+  const record = await withVersion('goblin', 6, 28);
+  const held = String(await refusal({ opponent: 'goblin', record }, FRESH));
+  assert.match(held, /^HELD v28: reach: Fight record: version 28 is not supported for the goblin from level 1 \(bump 29 changed that fight/);
+  const row = { id: 7, user_id: U, opponent: 'goblin', piece: null, record, verified: false, note: held.slice(0, 200) };
+  const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 7 ? row : null) };
+  const outcome = await acceptHeld(db, 7, 'chromium+webkit @10 on 0d2d9996', { now: new Date('2026-10-08T09:00:00Z') });
+  assert.equal(outcome.verified, true);
+  assert.match(outcome.note!, /^HELD v28: reach: .* \| ACCEPTED 2026-10-08T09:00:00.000Z by runbook: chromium\+webkit @10 on 0d2d9996$/);
+  assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');
 });
