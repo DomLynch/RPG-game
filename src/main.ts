@@ -51,6 +51,7 @@ import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
+import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
@@ -799,7 +800,9 @@ function winFace(src: string | null) {
 const LESSON_MS = 4000;
 let lessonNow: LessonId | undefined, lessonTimer = 0;
 export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.practice);
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
   hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
@@ -1246,6 +1249,8 @@ if (lessonAsked) {
 if (!sparKit && !replayText && !sharedId && !invalidSparringPreview && !lessonAsked && new URLSearchParams(window.location?.search ?? '').get('tutorial') === '1') {
   welcome.hidden = true; watching = false;
   const done: string[] = [];
+  // After the last step the prompt turns into "YOU'RE READY" with a Fight! button: it marks the lesson done and drops into a normal first fight (?fight=1, as the first loss does).
+  tutorialUi = createTutorialUi(element, () => { try { storage.setItem(LESSON_DONE_KEY, '1'); } catch { /* unsaved: harmless */ } location.assign(`${location.pathname}?fight=1`); });
   match.startTutorial((id) => { done.push(id); document.documentElement.dataset.tutorialDone = id; });
   Object.assign(globalThis, { __tutorial: () => ({ tick: match.practice.duel.tick, done: [...done], current: match.tutorial?.current ?? null, recorder: !!match.recorder, finish: match.practice.finish }) });
   began();
