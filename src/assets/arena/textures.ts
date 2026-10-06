@@ -173,19 +173,21 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
 // (the ledges, their lips catching light), tall hairline cracks, diagonal pale veins, grain; the colour runs from sand at the lip into
 // dark stone, so the drop reads as the floor's own edge breaking off.
 export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
-  const strata = fbm(10, 2, seed, 0.4), chunk = fbm(9, 4, seed + 2), crack = fbm(120, 1, seed + 5), crackMask = fbm(6, 2, seed + 6), vein = fbm(8, 3, seed + 7), veinMask = fbm(5, 3, seed + 8), grain = fbm(64, 3, seed + 9), patch = fbm(7, 3, seed + 11);
+  const wave = fbm(14, 2, seed), chunk = fbm(24, 4, seed + 2), crack = fbm(100, 1, seed + 5), crackMask = fbm(6, 2, seed + 6), vein = fbm(8, 3, seed + 7), veinMask = fbm(5, 3, seed + 8), grain = fbm(96, 3, seed + 9), patch = fbm(7, 3, seed + 11);
   return pixels(width, height, (u, v) => {
-    const d = 1 - v, t = strata(u, v * 0.75) * 7, band = Math.floor(t), fr = t - band;   // ledges: the contour bands of a long, flat noise
-    const lit = 1 - smoothstep(0.0, 0.16, fr), under = smoothstep(0.84, 1.0, fr), bandTone = hash(band, 3, seed) - 0.5;   // each band its own tone, a lit lip on top, a shadow under
-    const c = chunk(u, v * 0.8), facet = Math.floor(c * 5) / 5, g = grain(u, v) - 0.5, p = patch(u, v * 0.9);
-    const cr = Math.abs(crack(u, v * 0.012) - 0.5), crackLine = (1 - smoothstep(0.006, 0.026, cr)) * smoothstep(0.5, 0.62, crackMask(u, v)), ve = Math.abs(vein(u + v * 0.2, v * 0.55) - 0.5), veinLine = (1 - smoothstep(0.004, 0.016, ve)) * smoothstep(0.52, 0.68, veinMask(u, v * 0.8));
-    const tone = (0.78 + 0.5 * bandTone + 0.55 * (facet - 0.5) + 0.35 * (c - 0.5) + 0.3 * g + 0.5 * lit - 0.45 * under) * (1 - 0.6 * smoothstep(0.0, 1.0, d));
+    const d = 1 - v, t = v * 9 + 2.2 * (wave(u, v * 0.5) - 0.5), band = Math.floor(t), fr = t - band;   // ledges: undulating courses, each with its own thickness of shadow and lit lip
+    const lit = 1 - smoothstep(0.0, 0.2, fr), under = smoothstep(0.78, 1.0, fr);
+    const bu = u * 30 + band * 0.37 + 0.5 * (wave(u * 3, band * 0.13) - 0.5), block = Math.floor(bu), bf = bu - block, joint = Math.max(1 - smoothstep(0.0, 0.07, bf), smoothstep(0.93, 1.0, bf));   // blocks of rock between vertical joints, staggered course to course
+    const bandTone = hash(band, 3, seed) - 0.5, blockTone = hash(block, band, seed + 1) - 0.5;
+    const c = chunk(u, v * 0.9), g = grain(u, v) - 0.5, p = patch(u, v * 0.9);
+    const cr = Math.abs(crack(u, v * 0.012) - 0.5), crackLine = (1 - smoothstep(0.006, 0.03, cr)) * smoothstep(0.45, 0.6, crackMask(u, v)), ve = Math.abs(vein(u + v * 0.2, v * 0.55) - 0.5), veinLine = (1 - smoothstep(0.005, 0.02, ve)) * smoothstep(0.5, 0.66, veinMask(u, v * 0.8));
+    const tone = (0.62 + 0.35 * bandTone + 0.5 * blockTone + 0.55 * (c - 0.5) + 0.3 * g + 0.45 * lit - 0.4 * under - 0.4 * joint) * (1 - 0.65 * smoothstep(0.0, 1.0, d));
     const k = 128 * tone;   // grey-green stone, one patch of hue drifting over the face
-    let r = k * (0.78 + 0.35 * (p - 0.5)), gg = k * (0.9 + 0.3 * (p - 0.5)), b = k * (0.86 + 0.3 * (p - 0.5));
-    const pale = Math.min(0.85, veinLine * 0.8 * smoothstep(0.15, 0.5, d) + lit * 0.12);   // pale veins, a pale edge on the ledge lip
+    let r = k * (0.74 + 0.4 * (p - 0.5)), gg = k * (0.9 + 0.3 * (p - 0.5)), b = k * (0.84 + 0.3 * (p - 0.5));
+    const pale = Math.min(0.85, veinLine * 0.8 * smoothstep(0.1, 0.4, d) + lit * 0.1);   // pale veins, a pale edge on the ledge lip
     r += (190 - r) * pale; gg += (204 - gg) * pale; b += (194 - b) * pale;
-    const dark = crackLine * 0.8; r *= 1 - dark; gg *= 1 - dark; b *= 1 - dark;
-    const sand = 1 - smoothstep(0.0, 0.2 + 0.12 * (strata(u, 0.3) - 0.5), d + 0.05 * g);   // the lip is sand, ragged, breaking into stone
+    const dark = Math.min(0.9, crackLine * 0.8 + joint * 0.3); r *= 1 - dark; gg *= 1 - dark; b *= 1 - dark;
+    const sand = 1 - smoothstep(0.0, 0.1 + 0.08 * (wave(u, 0.3) - 0.5), d + 0.04 * g);   // the lip is sand, ragged, breaking into stone
     return [r + (140 * (0.9 + 0.2 * g) - r) * sand, gg + (112 * (0.9 + 0.2 * g) - gg) * sand, b + (84 * (0.9 + 0.2 * g) - b) * sand];
   });
 }
