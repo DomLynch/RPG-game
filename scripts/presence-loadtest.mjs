@@ -27,9 +27,9 @@ await new Promise((resolve, reject) => { server.stdout.on('data', d => String(d)
 // Server CPU and memory from the OS: /proc on Linux, ps elsewhere.
 const cpuSeconds = () => {
   try { const f = readFileSync(`/proc/${server.pid}/stat`, 'utf8').split(') ')[1].split(' '); return (Number(f[11]) + Number(f[12])) / 100; }
-  catch { const t = execFileSync('ps', ['-o', 'time=', '-p', String(server.pid)]).toString().trim().split(':').map(Number); return t.reduce((a, x) => a * 60 + x, 0); }
+  catch { const t = execFileSync('ps', ['-o', 'time=', '-p', String(server.pid)], { timeout: 5000 }).toString().trim().split(':').map(Number); return t.reduce((a, x) => a * 60 + x, 0); }
 };
-const rssMb = () => { try { return Number(readFileSync(`/proc/${server.pid}/statm`, 'utf8').split(' ')[1]) * 4096 / 1048576; } catch { return Number(execFileSync('ps', ['-o', 'rss=', '-p', String(server.pid)]).toString()) / 1024; } };
+const rssMb = () => { try { return Number(readFileSync(`/proc/${server.pid}/statm`, 'utf8').split(' ')[1]) * 4096 / 1048576; } catch { return Number(execFileSync('ps', ['-o', 'rss=', '-p', String(server.pid)], { timeout: 5000 }).toString()) / 1024; } };
 
 const bots = [];
 let measuring = false;
