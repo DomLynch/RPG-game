@@ -974,7 +974,7 @@ function sparEnd(shown: boolean) {
 // The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
 // press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
 function nextFight(): void {
-  if (match.mode === 'lesson') { location.assign(location.pathname); return; }   // the first loss is over: the same page without the lesson is the real first fight (LESSON_DONE_KEY is set)
+  if (match.mode === 'lesson') { location.assign(`${location.pathname}?fight=1`); return; }   // the first loss is over: a non-empty search fails firstLossDue, so even where storage cannot write (blocked site data, a full quota) this never reloads into the lesson again; nothing reads the key, and LESSON_DONE_KEY keeps the next plain visit out of it
   if (invalidSparringPreview) { element<HTMLInputElement>('journal-tab-arena').checked = true; journal.showModal(); return; }
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight

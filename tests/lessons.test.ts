@@ -35,7 +35,18 @@ test('the lesson is due once: a plain page, nothing stored, no fight yet', () =>
 test('"Fight for real" is a full page load, so the lesson kit, weapon and level never carry into the real fight; the notice lists every port', async () => {
   const { readFileSync } = await import('node:fs');
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), notice = readFileSync(new URL('../public/licenses/world-of-claudecraft.txt', import.meta.url), 'utf8');
-  assert.match(main, /if \(match\.mode === 'lesson'\) \{ location\.assign\(location\.pathname\); return; \}/, 'a reload, not a Match restore: startLesson sets weapon/skill/level and nothing restores them');
+  assert.match(main, /if \(match\.mode === 'lesson'\) \{ location\.assign\(`\$\{location\.pathname\}\?fight=1`\); return; \}/, 'a reload, not a Match restore (startLesson sets weapon/skill/level and nothing restores them), and to a non-empty search so a page that cannot store the flag never reloads into the lesson');
   for (const file of ['src/net/backoff.ts', 'src/net/reconnect-policy.ts', 'src/first-loss.ts', 'src/lessons.ts', 'src/render-budget.ts', 'src/touch-router.ts', 'src/layout-tier.ts']) assert.ok(notice.includes(file), `${file} is listed`);
   assert.match(notice, /MIT License/); assert.match(notice, /f46f30f/);
+});
+
+test('the exit URL fails the trigger even when the flag cannot be stored', () => {
+  assert.equal(firstLossDue({ stored: false, fights: 0, search: '?fight=1', pathname: '/' }), false, 'blocked storage: stored is false and fights 0, the search alone keeps the real fight');
+  assert.equal(firstLossDue({ stored: false, fights: 0, search: '', pathname: '/' }), true);
+});
+
+test('lessons.ts cites Lead\'s ruling, not Dom\'s 10-05 words, for the override', async () => {
+  const { readFileSync } = await import('node:fs');
+  const head = readFileSync(new URL('../src/lessons.ts', import.meta.url), 'utf8').slice(0, 2200);
+  assert.match(head, /Lead ruled 2026-10-06/); assert.doesNotMatch(head, /Dom 2026-10-05/);
 });
