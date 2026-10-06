@@ -29,4 +29,13 @@ Ultima Online gives us the way items are held: one number per copy and one owner
 4. **Drop tables on the server**, only when the world needs drops beyond "take one piece from the man you beat". The server rolls them after it has checked the fight, never the phone.
 5. **Trading and gifting after that.** Crafting comes last.
 
-One decision for you before step 5: may a piece won in the Pit be traded at all, or does it stay with whoever took it?
+## Dom's decisions (2026-10-06)
+
+1. **Pit-won pieces can be traded.** You win one piece per kill (beat Thor, take the helmet), and later you can trade Hades' legs for Thor's arms. The guardrails keep the win meaningful:
+   - every piece permanently carries where it came from (won by whom, from which legend, at which rank, on which date), shown when you inspect it and kept through every trade;
+   - one of each piece per player still holds, bank included;
+   - trades happen only at the Concord Exchange, and Ultima Online's 12 trade tests are the pass/fail bar;
+   - wearing a piece still needs its rank.
+2. **Crafting upgrades pieces you already own**, within the existing gear caps, using materials from the world. Making new items is only for cosmetics and consumables.
+
+Moving today's items to this model touches live claims, so it stays a proposal until the arena Lead and Backend sign off, and nothing changes before the beta.
