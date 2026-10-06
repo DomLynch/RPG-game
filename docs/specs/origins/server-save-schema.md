@@ -8,28 +8,23 @@ until Dom says yes at that sha. This doc is the design the migration would imple
 #1443 (inventory, `origins/inventory/inventory.ts`), #1446 (quest journal), #1447 (talk), #1428 (levelling, `CareerState`). Where a PR is still moving, the
 column is marked (PR).
 
-## 0. Decisions and blockers up front
+## 0. Rulings (Strategy 2026-10-06, relayed by Expansion) and what is still open
 
-1. **Who writes.** The DB has no content definitions (item stack size, binding, tier gates, quest graphs), and re-implementing the pure TS modules in plpgsql
-   would give two authorities that drift. So: **one server-side writer runs the pure modules and commits their results through one SQL function; the
-   database enforces every invariant it can state without content** (unique location, unique mint key, conservation, account-wide one-of-each, slot ranges,
-   optimistic versions, append-only history/journal, idempotent events). Same split as today's `loot_claims`/`awards` (client claims, role
-   `frankendom_verifier` writes, RLS + revoke on everything). **Open: where the writer runs** (a Supabase Edge Function importing the TS, or a small VPS HTTP
-   service next to the verifier). The DB side is identical either way; I recommend the VPS service (the verifier already runs the TS sim there, and a
-   second runtime would double the module-loading problem).
-2. **BLOCKER for world-boss and mob awards: there is no authoritative source for them yet.** "Contribution of at least 10%" and "a boss was defeated" must come
-   from a server that saw the fight. Pit wins have one (replay + fight_hash). Origins combat in the preview is client-side, so today the server could only
-   record a client's word. Options: (a) solo encounters are replay-verified like Pit (the verifier re-runs the input record; needs an Origins record format),
-   (b) party/public bosses need an authoritative encounter room (the duel relay's pattern), (c) until either exists, boss/mob CP is not awarded server-side
-   and the preview runs without it. Quest rewards and talk effects do not have this problem (section 3).
-3. **Career is per account, not per character** (world.ts: "there is one career per account; a second character shares it"). The brief says per character;
-   I follow the contract unless Strategy says otherwise: `origins_career` is keyed by account.
-4. **Career credit must not have two writers.** Pit marks already live in `fight_results`/`awards` (server-verified). Proposal: `origins_career.credit` holds only
-   *world* CP; the account's career CP is `creditFromMarks(pit marks) + world credit`, computed in the writer from `my_standing` + this table. Then Pit wins
-   keep working exactly as today and nothing double counts. Needs the #1428 owner to confirm `CareerState.credit` can be that sum.
-5. **Destroying items.** The brief's conservation rule (sum of quantities per mint root = minted) has no way to express a consumed or sold stack. I add an
-   append-only quantity ledger (mints +n, burns -n); conservation is "live quantity = ledger sum". #1443's `checkConservation` takes a `minted` map; the writer
-   builds it from the ledger. Needs the #1443 owner to confirm burns exist in their model.
+1. **Who writes: decided.** One server-side writer (a VPS HTTP service next to the verifier) runs the pure `origins/*` modules and commits their results through
+   `origins_commit`; the database enforces every invariant it can state without content. Same split as `loot_claims`/`awards`.
+2. **Career is per account (decided).** Total CP is DERIVED, never stored: `seed_credit` (a FROZEN snapshot of `creditFromMarks(marks)` taken once at the first open,
+   an idempotent `career-snapshot` event, never recomputed from live marks) + the CP of every verified Pit win AFTER the snapshot, priced by the #1428 weights
+   (`award()`, first win per opponent x level only; each priced win is a `pit:<claim>` event carrying its `cp`) + `world_credit`. `origins_total_credit()` is the one
+   place the sum is made. "After the snapshot" means `loot_claims.checked_at` later than the snapshot event, so a win the snapshot's marks already counted is in
+   the seed and never paid twice. The check script drives a Pit-only account through the whole server pipeline and asserts it stalls at level 11.
+3. **World bosses and mobs: preview-only, not written, until the encounter token + replay record exists** (built next, on the Pit verifier pattern). The migration
+   already carries the token table and its issue/consume functions (`origins_encounters`, single use, expiry); nothing awards from them yet. Party and public
+   bosses wait for an authoritative room (phase 2). Quests, talk, inventory, trades and Pit wins are server-authoritative now.
+4. **Burns: yes.** The append-only mint/burn ledger stays; the `burn` op is the DB side of the `consume` op Expansion adds to #1443 as a follow-up (the ore handed to
+   Orla, blacksmith materials). Conservation = live quantity equals the ledger sum, checked at commit.
+5. **Still open:** (a) account erasure: a row in `origins_items`/the ledger/events blocks deleting an `auth.users` row (items and the ledger are never deleted), so a
+   purge function is needed before Origins leaves the hidden route; (b) the writer service itself (runtime, auth, rate limits) is a separate PR after the migration is
+   applied; (c) faction standing is not in this migration.
 
 ## 1. Tables (all in `public`, RLS on every one, `revoke all ... from public, anon, authenticated` then explicit column grants)
 
@@ -41,7 +36,7 @@ Naming: `origins_*`. Reads by the owner through RLS; **no client INSERT/UPDATE/D
 | `origins_access` | `account uuid` pk | the server flag: an allowlist of accounts. Every RPC and read policy requires `exists(select 1 from origins_access where account = auth.uid())` AND the global switch below. Public stays OFF. |
 | `origins_config` | `key text` pk | `origins_enabled` (bool). One row; writer-readable, owner-readable. |
 | `origins_characters` | `id text` pk (`pc:...`) | CharacterInstance: `account uuid` fk auth.users, `name` (<=32, unique per account), `created_at`, `schema_version`, `pack_slots int` (<= 64) and `bank_slots int` (<= 1000), because #1443 lets a character open a smaller grid. A cap per account (proposal: 5) enforced in the create RPC. |
-| `origins_career` | `account uuid` pk | `credit bigint` (world CP only, see 0.4, never decreases: trigger), `rested bigint`, `rested_at bigint`, `heat jsonb`, `boss_at jsonb`, `story text[]`, `beaten text[]` (first-win-only bosses and legends, cleared at the cap), `version int`. Matches `CareerState` (PR #1428). |
+| `origins_career` | `account uuid` pk | `seed_credit` (frozen), `world_credit` (never decreases: trigger), `rested`, `rested_at`, `heat jsonb`, `story text[]`, `beaten text[]` (first-win-only bosses and legends, cleared at the cap), `version`. Total CP is `origins_total_credit()`, derived (0.2). Matches `CareerState` (#1428) with the credit split. |
 | `origins_events` | `event_id text` pk | the idempotency ledger: `kind` (boss, mob, quest-stage, story-step, talk, mint), `account`, `character`, `payload jsonb`, `at`. A retried event violates the pk and pays nothing. Event ids are derived server-side: `boss:<character>:<boss>`, `quest:<character>:<quest>:<stage>`, `story:<character>:<step>`, never taken from the client. |
 | `origins_items` | `id text` pk | ItemInstance. `item`, `version int`, `quantity int check (> 0)`, `tier`, `upgrade_level int`, **location columns** `loc_kind`, `loc_owner` (pc), `loc_account`, `loc_container`, `loc_index`, `loc_slot`, `bound_to`, `mint_key text not null unique` (all rows, live or retired), `provenance jsonb` (written once, trigger refuses UPDATE of it), `history jsonb` (trigger: new value must start with the old, append-only), `holder_account uuid` and `single_copy bool` (set by trigger/at mint), `retired_at`, `retire_reason`. |
 | `origins_item_ledger` | `id bigserial` pk | append-only: `mint_root text`, `delta int`, `reason` (mint, burn), `item_id`, `at`. Never updated or deleted (trigger). |
@@ -74,10 +69,10 @@ The client never calls a write RPC. It calls the writer service (section 0.1) wi
 `origins_access`, runs the pure modules against rows it read under a lock, and commits.
 
 1. `origins_create_character(p_account uuid, p_name text) -> text`: the cap, the unique name, default grid sizes.
-2. `origins_open(p_account uuid) -> jsonb`: one snapshot for the writer (characters, career, items, quest state, journal, talk) with `for update` option, so the modules run on a consistent read.
+2. `origins_open(p_account) -> jsonb`: one snapshot for the writer (marks, characters, career with total, items, quests, journal, talk), career row locked. `origins_snapshot(p_account, p_marks, p_credit)`: the once-only seed, refused unless the marks it was computed from are still the account's.
 3. `origins_commit(p_account uuid, p_batch jsonb) -> jsonb`: **the one write path.** `p_batch` is an ordered list of ops, each with the expected `version`: `mint`, `move`, `split`, `merge`, `burn`, `equip`, `unequip`, `quest_advance`, `talk_pick`, `career_apply`, `event`. All or nothing in one transaction, every deferred constraint above checked at commit. Returns the new versions. This is where "every item move and trade atomic" lives.
 4. `origins_settle_trade(p_container text, p_expected jsonb) -> jsonb`: moves both escrows, appends one `trade` history entry per item, applies `settleTrade(packSizeOf)` results that the writer computed (fills only up to the receiver's real free slots; the overflow goes back to the sender), all in one transaction. Same constraints hold.
-5. `origins_import_arena(p_account uuid) -> int`: mints `arena-award` / `legacy-unlock` instances from the existing `awards` rows (mint key = claim id, or `legacyUnlockMintKey`), idempotent on the mint key. This is how Pit wins stay "exactly as today": the Pit pipeline is unchanged and Origins reads its output.
+5. `origins_pit_pending(p_account)`: verified Pit claims after the snapshot with no `pit:<claim>` event yet (and their award, if any); the writer prices each with `award()` and commits the event (+ the `arena-award` mint). Pit wins stay "exactly as today": the Pit pipeline is unchanged and Origins reads its output. Also `origins_total_credit`, `origins_issue_encounter`, `origins_consume_encounter`, `origins_open_trade`, `origins_settle_trade`, `origins_cancel_trade`.
 6. Reads for the client without the writer: owner `select` policies (`account = auth.uid()` or via the character) on characters, career, items, quest state, journal, talk, with column grants (no `history`/`provenance` hidden, they are shown on inspect).
 
 ## 3. What the writer verifies before it writes
@@ -89,7 +84,7 @@ The client never calls a write RPC. It calls the writer service (section 0.1) wi
 | talk line | `talk.pick` on the stored `told`/`flags`; its quest advance goes through the same quest path. |
 | item move / equip / split / merge / burn | the #1443 functions on the locked rows; DB constraints are the second check. |
 | trade | `settle` as above. |
-| world boss / mob CP | **blocked, see 0.2**: needs a replay record or an authoritative encounter. When it exists: >= 10% contribution (`MIN_CONTRIBUTION_PERMILLE`), one award per character per boss (`boss:` event id), through the levelling rule, `beaten` set for first-win-only. |
+| world boss / mob CP | **not written until the encounter token + replay record exists (0.3)**: needs a replay record or an authoritative encounter. When it exists: >= 10% contribution (`MIN_CONTRIBUTION_PERMILLE`), one award per character per boss (`boss:` event id), through the levelling rule, `beaten` set for first-win-only. |
 
 ## 4. Order, rollout, proof
 
