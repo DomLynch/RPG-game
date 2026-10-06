@@ -21,7 +21,7 @@ const FPS = 30;
 export const clipStartTick = (ticks: number) => Math.max(0, ticks - Math.round(CLIP_LEAD / STEP));
 
 // The first type this browser records: MP4 (iOS Safari, recent Chrome) shares everywhere; WebM is the fallback (Dom: WebM is fine).
-export const CLIP_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+const CLIP_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
 export const clipType = (supported: (type: string) => boolean) => CLIP_TYPES.find((type) => { try { return supported(type); } catch { return false; } }) ?? null;
 export const clipFileName = (type: string, opponent: string) => `frankendom-${opponent}.${type.startsWith('video/mp4') ? 'mp4' : 'webm'}`;
 

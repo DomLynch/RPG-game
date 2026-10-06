@@ -15,6 +15,7 @@ import { charge, CUE_AT, isCharge, RACE, RACE_FROM, slideAt } from './charge-tim
 // Loaded lazily by the scene only on `?special=centurion`.
 const HOOF = 18, BURST = 20, GRAIN = 20, STREAK = 24;   // STREAK: sprites in the continuous dark trail behind his feet
 const LEAD = 2.0;   // metres the line begins behind the caster, and how far back his body is drawn at the start of the race: near enough that it is on the phone's screen (3.2 ran off the top)
+const WORLD = new THREE.Vector3();   // scratch for the caster's slid anchor, set and consumed within the frame
 const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
@@ -75,7 +76,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
       // call is a frame without the slide) and stands there for the blow. A fizzle or the end of the cast puts him back at once.
       const anchor = anchors?.[cast.actor], slide = anchor && cast.landed === null && cast.fizzled === null ? slideAt(clock - cast.start, LEAD) : 0;
       if (anchor && slide > 0) {
-        const world = anchor.getWorldPosition(new THREE.Vector3()).addScaledVector(dir, -slide);
+        const world = anchor.getWorldPosition(WORLD).addScaledVector(dir, -slide);
         anchor.position.copy(anchor.parent ? anchor.parent.worldToLocal(world) : world);
       }
       if (!state) return;
