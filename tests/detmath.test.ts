@@ -9,7 +9,7 @@ import { FIRST_DETMATH_VERSION, LEGACY_TABLE_IS_NATIVE, M, atan2, cos, hypot, ma
 import { RECORD_VERSION, READABLE_VERSIONS } from '../src/record.ts';
 
 // Every file the sim steps through. SIM_FILES in tests/record-version-guard.test.ts plus combat.ts (stepPractice) and detmath.ts itself.
-const SIM = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/combat.ts', 'src/detmath.ts'];
+const SIM = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/combat.ts', 'src/detmath.ts', 'src/play-radius.ts'];
 const BANNED = /\bMath\.(sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot)\b|[\w)\]]\s*\*\*\s*[\w(]/;
 const code = (line: string) => line.replace(/\/\/.*$/, '');   // line comments may name them
 
