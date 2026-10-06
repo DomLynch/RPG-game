@@ -2,9 +2,9 @@
 
 - Status: **design spec, PROVISIONAL.** Every number is data, and Dom has not ruled on any of them. Docs only: no `src/`, no code,
   no JSON files.
-- Binding: Dom's direction of 2026-10-07 (one shard, NPC-driven war goals, NPCs remember, permanent fixtures, the town history book,
+- Binding: Dom's direction of 2026-10-06 (one shard, NPC-driven war goals, NPCs remember, permanent fixtures, the town history book,
   world rifts, a living economy, light seasons, player rulers who defend while offline, no AI chat NPCs). Strategy's rulings of
-  2026-10-07 are quoted in §2 and win over anything else here.
+  2026-10-06 are quoted in §2 and win over anything else here.
 - Built on: `feuds.md` (grudges, notoriety, town defence, succession, guards, NPC hunters, the deferred PvP bounty: read it first),
   `region1-ash-frontier.md` (zones, Bounties, bosses, loot), `trading.md` §3 (metals: one bound balance in bronze, never
   tradeable), `origins/world` (zones as data; world group #16 `town` comes from `feuds.md` §11), `origins/progression`
@@ -29,7 +29,7 @@ fight as duels while the ruler is offline.
 
 ## 2. Rulings and hard lines
 
-### Ruled (Strategy, 2026-10-07)
+### Ruled (Strategy, 2026-10-06)
 
 1. **History book and bans.** The history book is permanent and public. A **shop ban** in a town never decays, but a **new ruler**
    (NPC or player) may pardon it, and the pardon is written into the book. Notoriety (guards hunting) still decays as in
@@ -448,7 +448,7 @@ over. A season brings a new page in every book ("Season 3 begins"), the donors' 
 
 ## 10. Allegiance: patrons and clans
 
-### Ruled (Strategy, 2026-10-07)
+### Ruled (Strategy, 2026-10-06)
 
 > **Any lore, but living faiths' gods and holy figures aren't for players to worship or fight.**
 
@@ -458,14 +458,19 @@ over. A season brings a new page in every book ("Season 3 begins"), the donors' 
    Arthurian (King Arthur), Gothic novels (Dracula, Frankenstein) and werewolf folklore.
 3. **Asia and Latin America** come in through folklore and literature (Sun Wukong of *Journey to the West*, jiangshi, oni, yokai,
    ronin, La Llorona, the Chupacabra) as **monsters or clans, never as gods**.
-4. **Excluded:** Hindu gods, Satan worship, the archangel Gabriel, the Book of Enoch, **any Abrahamic figure as a patron**, and
+4. **Excluded:** Hindu gods, Satan worship, the archangel Gabriel, **any Abrahamic figure as a patron** (the 1 Enoch Watchers are
+   the one exception, as legend, below), and
    **Aztec and Maya gods** as patrons, with their monsters also out for now.
 5. **The literary dark side**, allowed as inspiration with **original names**: a **Fallen** clan of rebel angels in Milton's spirit
    (never named Satan or Lucifer, never presented as worship of a real faith's devil); a Faustian **Pact** clan (the Faust legend,
    Marlowe and Goethe; Mephistopheles is fine as a literary character); **Dante's circles as a place**, never a patron.
 6. **No angel-based "holy" clan.** The light side is the Arthurian knights and the Grail.
+7. **Owner override (Dom, 2026-10-06; Strategy accepted):** the named **Watchers of 1 Enoch** (Shemihaza, Armaros, Baraqel,
+   Kokabiel, Penemue and others) are **allowed** as the Fallen clan's figures, as legend, not worship. Cite 1 Enoch in R. H.
+   Charles's translation, 1917. **Azazel stays out** (Leviticus) unless Dom names him. The Fallen clan uses these names instead of
+   original ones; the Pact clan keeps original names. This overrides ruling 5's "original names" for the Fallen only.
 
-### Dom's overrides (Dom, 2026-10-07; supersede Strategy's ruling 1 and the earlier phasing; Strategy re-sequencing pending)
+### Dom's overrides (Dom, 2026-10-06; supersede Strategy's ruling 1 and the earlier phasing; Strategy re-sequencing pending)
 
 1. **Perks apply everywhere**, including the Pit, the arena and duels. They stay **small**: matched sidegrades inside a **±3%**
    budget, mostly cosmetic, built only from a fixed set of **perk templates** (§10.2), so every patron is equal power by
@@ -486,7 +491,7 @@ On passing the outer gate (Gladiator) and entering the Concord Exchange for the 
 folklore). Clans earn **prestige**. Player-made groups are a separate later spec; this spec calls them **companies** so the two are
 not confused.
 
-### 10.1 Patrons (Strategy, 2026-10-07, PROVISIONAL list)
+### 10.1 Patrons (Strategy, 2026-10-06, PROVISIONAL list)
 
 A patron gives four things and **no raw stat power**:
 
@@ -571,7 +576,7 @@ Sample clans (the canonical list is `expansion/legends-500`):
 | Ronin | Japanese history (a class, no named person) | `opener` | the lone road |
 | The Weeping | La Llorona, Mexican folklore (a clan, never a god) | `night-half` | the river |
 | Goat-sucker Pack | the Chupacabra, Latin American folklore, 1995 on (a clan, never a god) | `finisher` | — |
-| The Fallen (original name) | inspired by Milton, *Paradise Lost*, 1667; never Satan or Lucifer, never worship | `underdog` | broken wings |
+| The Fallen | the Watchers of 1 Enoch (R. H. Charles translation, 1917): Shemihaza, Armaros, Baraqel, Kokabiel, Penemue; in Milton's spirit (*Paradise Lost*, 1667). Legend, not worship; never Satan, Lucifer or Azazel | `underdog` | broken wings |
 | The Pact (original name) | the Faust legend: Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust*; Mephistopheles as a literary character | `glass` | the signed page |
 
 Clan heads that are not patrons (legends and folklore) are **not worshipped**: they give no town strike and no defender roster of
@@ -849,7 +854,8 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
 | Name | Source | Allowed because | Pronoun |
 |---|---|---|---|
 | The Lambton Worm (rift boss, PROPOSED) | County Durham folklore; recorded in Robert Surtees, *The History and Antiquities of the County Palatine of Durham*, vol. 2, 1820 | English folklore, PD source, no living-religion scripture, not a living people's folk hero; not on the ladder. Text is original prose | it |
-| Patrons and clan heads | as cited in §10.1 and §10.2 | Strategy's rulings (2026-10-07): dead pantheons and literature as patrons; Asian and Latin American folklore as clans or monsters, never gods | Zeus, Poseidon, Hades, Thor, Set, Mars, Sun Wukong, Dracula, Arthur he; Hel, Sekhmet, Tiamat, Ereshkigal, the Morrígan, La Llorona she |
+| Patrons and clan heads | as cited in §10.1 and §10.2 | Strategy's rulings (2026-10-06): dead pantheons and literature as patrons; Asian and Latin American folklore as clans or monsters, never gods | Zeus, Poseidon, Hades, Thor, Set, Mars, Sun Wukong, Dracula, Arthur he; Hel, Sekhmet, Tiamat, Ereshkigal, the Morrígan, La Llorona she |
+| Shemihaza, Armaros, Baraqel, Kokabiel, Penemue (the Fallen) | 1 Enoch (the Book of the Watchers), R. H. Charles translation, 1917 | owner override (Dom, 2026-10-06; Strategy accepted): legend, not worship; Azazel excluded (Leviticus) | he |
 | Mephistopheles (literary, the Pact) | Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust* | literature by authors dead 70+ years; a character, not a faith's devil (Strategy) | he |
 | Count Dracula | Bram Stoker, *Dracula*, 1897; Stoker died 1912 | pre-1929 literature. Stoker's character only, never Vlad III and never "the Impaler"; never a film depiction | he |
 | The Stitched | Mary Shelley, *Frankenstein*, 1818 | pre-1929 literature. The clan is named for the creature's kind, not for Victor; no film depiction (no bolts, no flat head) | — |
@@ -863,7 +869,7 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
    2,000 switch, terms of 28 days, 3 hold points and the shields.
 2. **Clan perks** (§10.2): Strategy to re-sequence after Dom's override; Combat to own the duel-sim hook; confirm the ±3% templates,
    the ±1 point win-rate drift rule, and the `RECORD_VERSION` bump. Patron and Pit-legend name overlap: confirm the wording "the Pit fights the
-   legend; a clan serves the patron". The original names for the Fallen and the Pact clans.
+   legend; a clan serves the patron". The original names for the Pact clan.
 3. **Lambton Worm** as the first rift boss: Strategy to pass the name.
 4. **Rift contribution threshold**: the crowd-scaled `min(100, 500 / participants)` permille, or a fixed 10%? It interacts with
    `region1-ash-frontier.md` open question 7 (two contribution measures).
