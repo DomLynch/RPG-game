@@ -30,11 +30,11 @@ Parked for after Origin: **weapon procs** (EverQuest), meaning a small chance fo
 
 Rejected: tab-target, global cooldown, action bars, mana, Skyrim-style floaty hits with no stagger, and Morrowind dice-roll misses (a swing that visibly connects must never "miss").
 
-## Order
+## Order (Dom 2026-10-07 00:2x: "all great, get them in our game". All seven are approved to BUILD, not just look-test)
 
-1. **Now, in parallel, docs only:** the Combat analyst writes the two clean-room reads, `gothic-combo-window.md` (OpenGothic) and `openmw-weapon-timing.md` (OpenMW; for what *not* to copy, plus any wind-up/charge timing worth knowing). World/Web build the #4 palette and the #2 telegraph as `?flag` look-tests.
-2. **After the clarity stack (#1481–#1484, #1502):** #1 interruptible wind-ups, then #3 voices (muted), then #7 marks.
-3. **After Dom has seen #5 and #6 on his phone:** sim PRs with goldens, then test:all on the VPS.
+1. **Now, in parallel (renderer and HUD, no sim change):** #2 boss telegraph (World, `world/boss-telegraph`), #4 spell-school palette (Web/World), #7 status marks (Web), #3 power words (Audio: words written now, voices muted until Dom picks them). Each is a real PR behind a flag, with stills, then on by default once the Auditor passes it.
+2. **Sim items, each with a fresh implementer (clean-room split, Strategy ruling 10-07):** #1 interruptible wind-ups, then #6 parry-into-strike (on `Practice.opening`), then #5 combo rhythm (window: end of active to 60% through recovery). Each needs replay goldens, a RECORD_VERSION bump + fingerprint re-pin, and test:all on the VPS. They ship one at a time so a tuning problem is easy to isolate. They queue behind the clarity stack (#1481–#1484, #1502) on the same files.
+3. **Dom's phone check** happens on each preview before it is on by default. He can say "again" on tuning, not on whether the item exists.
 
 ## Receipts per item
 
