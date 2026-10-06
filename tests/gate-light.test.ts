@@ -9,10 +9,10 @@ import { GATE_LIGHT_KEY, armGateLight, clearGateLight, nextRungFiles, prefetchFi
 const classes = () => { const set = new Set<string>(); return { set, classList: { toggle: (n: string, on: boolean) => { if (on) set.add(n); else set.delete(n); }, contains: (n: string) => set.has(n) } }; };
 const store = (initial: Record<string, string> = {}) => { const data = { ...initial }; return { data, getItem: (k: string) => data[k] ?? null, setItem: (k: string, v: string) => { data[k] = v; }, removeItem: (k: string) => { delete data[k]; } }; };
 const throwing = () => { throw new Error('SecurityError: storage is blocked'); };
-// The new document's first script, run as the browser runs it: a classic file with `document`, `sessionStorage` and `setTimeout` in scope.
-function boot(sessionStorage: unknown) {
+// The new document's first script, run as the browser runs it: a classic file with `document`, `location`, `sessionStorage` and `setTimeout` in scope.
+function boot(sessionStorage: unknown, search = '') {
   const root = classes(), timers: [() => void, number][] = [];
-  const context: Record<string, unknown> = { document: { documentElement: root }, setTimeout: (run: () => void, ms: number) => { timers.push([run, ms]); } };
+  const context: Record<string, unknown> = { document: { documentElement: root }, location: { search }, setTimeout: (run: () => void, ms: number) => { timers.push([run, ms]); } };
   if (sessionStorage === 'blocked') Object.defineProperty(context, 'sessionStorage', { get: throwing });
   else context.sessionStorage = sessionStorage;
   vm.runInNewContext(fs.readFileSync(new URL('../src/gate-light-boot.js', import.meta.url), 'utf8'), context);
@@ -89,4 +89,10 @@ test('the next rung\'s files: the rig, and the rank look off the phone tier; fet
   await prefetchFiles(['/a.glb', '/gone.glb'], async (url, init) => { asked.push([url, (init as { priority?: string }).priority]); if (url === '/gone.glb') throw new TypeError('Load failed'); return { arrayBuffer: async () => { read++; } }; });
   assert.deepEqual(asked, [['/a.glb', 'low'], ['/gone.glb', 'low']]);
   assert.equal(read, 1, 'the body is read to the end so the cache keeps it');
+});
+
+test('?look=loot2 puts look-loot2 on the root, any other look or none leaves it off', () => {
+  for (const [search, on] of [['?look=loot2', true], ['?x=1&look=pit,loot2&y=2', true], ['?look=loot2x', false], ['?look=pit', false], ['', false]] as const) {
+    assert.equal(boot(store(), search).root.classList.contains('look-loot2'), on, search);
+  }
 });

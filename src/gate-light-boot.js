@@ -6,7 +6,7 @@
 /* global document, location, sessionStorage, setTimeout */
 (function () {
   // `?look=loot2` (style.css, Lead 2026-10-06): the Take-one screen's restack, a look test. Same head script, so it needs no build wiring.
-  if (/[?&]look=(?:[^&]*,)?loot2(?:,|&|$)/.test(location.search)) document.documentElement.classList.add('look-loot2');
+  if (/[?&]look=(?:[^&]*,)?loot2(?:,|&|$)/.test(location.search)) document.documentElement.classList.toggle('look-loot2', true);
   var KEY = 'frankendom.gate-light', MAX_MS = 8000, OUT_MS = 1200, root = document.documentElement, lit;
   try {
     lit = sessionStorage.getItem(KEY) === '1';
