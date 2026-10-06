@@ -1841,7 +1841,6 @@ function frame(now: number) {
           else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
         }
       }
-      if (!quiet && match.specials && match.mode !== 'pvp') for (const e of practice.events) if (e.type === 'SpecialStarted' && e.actor === 1) announcePowerWord(match.specialIdentity.opponent, e.tick);   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, an event only; outside the audio loop below
       if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) for (const e of practice.events) {
         if (e.type === 'SpecialStarted' && e.tick > specialAudioCasts[e.actor]) {
           specialAudioCasts[e.actor] = e.tick;   // accepted once per actor/cast tick, even if silent
@@ -1849,6 +1848,7 @@ function frame(now: number) {
           const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
+          if (!quiet && e.actor === 1) announcePowerWord(opponent, e.tick);   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, an event only; once per accepted cast, like the cue
         } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
