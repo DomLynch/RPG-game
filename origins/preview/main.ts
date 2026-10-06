@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import warriorUrl from '../../src/assets/warrior.glb?url';
 import { buildArena } from '../../src/arena.ts';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
-import { phoneTier, pixelCap } from '../../src/quality.ts';
+import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../src/quality.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
@@ -41,12 +44,23 @@ environment(); void arena.ready.then(() => environment(arena.sky));
 const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
 
-// The walker: a capsule in the hero's place (no rig in a greybox), bronze cap so it reads from behind.
+// The walker: the game's own hero (src/assets/warrior.glb, Dom 2026-10-06 "use our real char"), Idle and Walk from his rig. The capsule
+// holds his place until the file lands, and stays if it never does.
 const hero = new THREE.Group();
 const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.15, 4, 12), new THREE.MeshStandardMaterial({ color: '#4a3b2e', roughness: 0.9 }));
 body.position.y = 0.88; body.castShadow = true;
 const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.45 }));
 cap.position.y = 1.62; hero.add(body, cap); scene.add(hero);
+let mixer: THREE.AnimationMixer | undefined, idle: THREE.AnimationAction | undefined, walk: THREE.AnimationAction | undefined;
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(warriorUrl).then((gltf) => {
+  gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  if (PHONE) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);   // the game's iPhone black-fighters guard (characters.ts loadFighter)
+  mixer = new THREE.AnimationMixer(gltf.scene);
+  const clip = (name: string) => { const c = THREE.AnimationClip.findByName(gltf.animations, name); return c ? mixer!.clipAction(c) : undefined; };
+  idle = clip('Idle'); walk = clip('Walk');
+  idle?.play(); walk?.play(); walk?.setEffectiveWeight(0);
+  hero.remove(body, cap); hero.add(gltf.scene);
+}).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
 const TOUR: [number, number][] = [[0, 3], [0, -6], [0, -24], [0, -36], [-5.5, -44], [-2, -54], [-6.2, -59.5], [-3, -62.5], [0, -63.5], [0, BANK_STEP_Z + 1.2]];
 let heading = Math.PI, leg = 1, touring = true, stick: { x0: number; y0: number; x: number; y: number } | null = null;
@@ -77,6 +91,7 @@ function step(dt: number) {
   if (state.z < -5) arena.raiseGate(true);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
+  if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = forward < 0 ? -1 : 1; mixer.update(dt); }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
   const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5, back = inPassage ? 3.4 : 5.2, up = inPassage ? 2.1 : 2.7;
   eye.set(state.x - Math.sin(heading) * back, up, state.z - Math.cos(heading) * back);
