@@ -2,7 +2,6 @@
 // (L6, L18, L46). The tick-0 `blocker` of ladder-sweep.mjs is superhuman and hid a flat Goblin; this is the yardstick that cannot.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-// @ts-expect-error plain .mjs script, no types
 import { ladderHuman } from '../scripts/ladder-human.mjs';
 
 // Opponents allowed to be flat today. The gate also fails when one of them is NOT flat any more, so the entry is deleted the day the rung is fixed.
@@ -12,7 +11,7 @@ const N = 40;                       // one cell is ±8 pts at n=40, so the bars 
 const NOISE = 10;
 
 test(`ladder, human-like bots: every opponent gets harder from L6 to L18 to L46 and none goes flat [slow]`, () => {
-  const table: Record<string, Record<string, number[]>> = ladderHuman({ n: N });
+  const table: Record<string, Record<string, number[]>> = ladderHuman({ n: N }) as Record<string, Record<string, number[]>>;
   assert.equal(Object.keys(table).length, 10, 'ten beta opponents');
   const text = Object.entries(table).map(([id, b]) => `${id.padEnd(13)} blocker ${b.blocker.join('/')}  skilled ${b.skilled.join('/')}`).join('\n  ');
   const flat: string[] = [];
