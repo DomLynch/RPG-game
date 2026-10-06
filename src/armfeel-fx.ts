@@ -1,7 +1,7 @@
-// ?look=armfeel's two visible effects (armfeel.ts has the numbers): the struck body's 100 ms near-white flash and the pooled impact burst. Presentation only,
+// ?look=armfeel's visible effect (armfeel.ts has the numbers): the pooled impact burst (the white body flash was removed: Dom 2026-10-06, it read as a glitch). Presentation only,
 // built once when the flag is on and not at all otherwise; nothing here allocates per hit (the pool, the colour and the transform helpers are made up front).
 import * as THREE from 'three';
-import { BURST, FLASH, burstCount, newParticle, spawn, tickParticle, type Feel, type Particle } from './armfeel.ts';
+import { BURST, burstCount, newParticle, spawn, tickParticle, type Feel, type Particle } from './armfeel.ts';
 
 // One shared 48-slot InstancedMesh, no shadows, one draw call. `burst` fills the next slots of the ring; `update` moves, shrinks and dims them.
 export function createBurstPool(scene: THREE.Scene) {
@@ -38,50 +38,4 @@ export function createBurstPool(scene: THREE.Scene) {
     clear(): void { for (const p of slots) p.life = 0; live = 0; mesh.visible = false; },
     dispose(): void { scene.remove(mesh); mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); mesh.dispose(); },
   };
-}
-
-// The struck body's flash: its materials' emissive goes near-white for 100 ms (Low: 0.4 of it), then comes back exactly. No light is added.
-type Lit = THREE.MeshStandardMaterial;
-const lit = (m: THREE.Material): m is Lit => (m as Lit).isMeshStandardMaterial === true;
-const materialsOf = (root: THREE.Object3D): Lit[] => {
-  const out = new Set<Lit>();
-  root.traverse((o) => { if (o instanceof THREE.Mesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (lit(m)) out.add(m); });
-  return [...out];
-};
-// A rig that shares a material with the other (two clones of one asset) gets its own copy, so the one that is struck is the one that flashes.
-export function separateMaterials(keep: THREE.Object3D, other: THREE.Object3D): void {
-  const owned = new Set(materialsOf(keep));
-  other.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
-    o.material = Array.isArray(o.material) ? o.material.map((m: THREE.Material) => (owned.has(m as Lit) ? m.clone() : m)) : owned.has(o.material as Lit) ? o.material.clone() : o.material;
-  });
-}
-export class BodyFlash {
-  // The meshes are cached, the material is read off the mesh each time the flash starts: a rank look or a loot dress that swaps a rig's materials between hits is flashed, not the old ones.
-  private meshes: THREE.Mesh[] = []; private held: (Lit | null)[]; private color: THREE.Color[]; private intensity: number[]; private left = 0; private gain = 1;
-  private readonly flash = new THREE.Color(FLASH.color);
-  constructor(root: THREE.Object3D) {
-    root.traverse((o) => { if (o instanceof THREE.Mesh) this.meshes.push(o); });
-    this.held = this.meshes.map(() => null); this.color = this.meshes.map(() => new THREE.Color()); this.intensity = this.meshes.map(() => 0);
-  }
-  start(feel: Feel): void {
-    if (feel === 'off') return;
-    this.clear(); this.left = FLASH.seconds; this.gain = feel === 'low' ? FLASH.low : 1;
-    for (let i = 0; i < this.meshes.length; i++) {
-      const m = this.meshes[i].material;
-      if (Array.isArray(m) || !lit(m)) { this.held[i] = null; continue; }
-      this.held[i] = m; this.color[i].copy(m.emissive); this.intensity[i] = m.emissiveIntensity;
-      m.emissive.copy(this.flash); m.emissiveIntensity = this.gain;
-    }
-  }
-  update(dt: number): void {
-    if (this.left <= 0) return;
-    this.left -= dt;
-    if (this.left <= 0) this.clear();
-  }
-  clear(): void {
-    if (this.left <= 0 && !this.held.some((m) => m !== null)) return;
-    this.left = 0;
-    for (let i = 0; i < this.meshes.length; i++) { const m = this.held[i]; if (m) { m.emissive.copy(this.color[i]); m.emissiveIntensity = this.intensity[i]; this.held[i] = null; } }
-  }
 }

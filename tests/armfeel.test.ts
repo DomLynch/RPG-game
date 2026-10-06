@@ -4,8 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { ARMFEEL, BURST, FLASH, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, spawn, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
-import { BodyFlash, createBurstPool, separateMaterials } from '../src/armfeel-fx.ts';
+import { ARMFEEL, BURST, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, spawn, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
+import { createBurstPool } from '../src/armfeel-fx.ts';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, packRecord } from '../src/record.ts';
 import { opponentAt, profileAt } from '../src/moves.ts';
@@ -93,20 +93,9 @@ test('only a landed blow on the body bleeds: not a block, a parry or a guard bre
   for (const type of ['Blocked', 'Parried', 'GuardBroken'] as const) assert.equal(isFleshHit({ ...hit('light_right'), type } as CombatEvent), false, type);
 });
 
-test('the flash: 100 ms near-white emissive on the struck body, put back exactly; two rigs sharing a material flash apart', () => {
-  const shared = new THREE.MeshStandardMaterial({ color: '#808080', emissive: '#102030', emissiveIntensity: 0.3 });
-  const a = new THREE.Group(), b = new THREE.Group();
-  a.add(new THREE.Mesh(new THREE.BoxGeometry(), shared)); b.add(new THREE.Mesh(new THREE.BoxGeometry(), shared));
-  separateMaterials(a, b);
-  const fa = new BodyFlash(a), fb = new BodyFlash(b), ma = (a.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial, mb = (b.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
-  assert.notEqual(ma, mb, 'the second rig got its own copy');
-  fb.start('high');
-  assert.equal(mb.emissive.getHexString(), new THREE.Color(FLASH.color).getHexString()); assert.equal(mb.emissiveIntensity, 1);
-  assert.equal(ma.emissive.getHexString(), '102030', 'the other body does not flash');
-  fb.update(0.05); assert.equal(mb.emissiveIntensity, 1, 'still lit at 50 ms');
-  fb.update(0.06); assert.equal(mb.emissive.getHexString(), '102030'); assert.equal(mb.emissiveIntensity, 0.3, 'back exactly after 100 ms');
-  fa.start('low'); assert.equal(ma.emissiveIntensity, FLASH.low); fa.clear(); assert.equal(ma.emissiveIntensity, 0.3);
-  fa.start('off'); assert.equal(ma.emissiveIntensity, 0.3, 'Off flashes nothing');
+test('no body flash: a struck body is never tinted white (Dom 2026-10-06: the flash read as a glitch)', async () => {
+  const fx = await import('../src/armfeel-fx.ts'), feel = await import('../src/armfeel.ts');
+  assert.equal('BodyFlash' in fx, false); assert.equal('FLASH' in feel, false);
 });
 
 // A seeded fight, recorded the way main.ts records it, packed to bytes: with the armfeel objects driven the whole time or never touched, the bytes are the same.
