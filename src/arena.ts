@@ -464,7 +464,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   if (theme.backdrop) {   // the painted far world (Dom 2026-10-03, arena-wow): one painting, mirrored eight times round a ring inside the dome; its
     // faded foot meets the haze over the wall, its faded head the sky. Unfogged like the dome, and no ridges in front of it.
     // No DOM (the node tests): a blank map the strip's size, so the cost test still counts it.
-    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(theme.backdrop);
+    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(`${import.meta.env?.BASE_URL ?? '/'}${theme.backdrop.replace(/^\//, '')}`);   // against the page base: a preview lives under /preview/<name>/
     map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = theme.backdropRepeat ?? 8;
     map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;   // 0.9 MB without mips: the arena's texture budget is 12 MB
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
