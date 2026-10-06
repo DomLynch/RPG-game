@@ -5,6 +5,25 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-06 (+04) — COMBAT-001 (ladder difficulty cliff) PARKED as "leave the cliff": three rounds, tables
+Lead ruling 2026-10-06: after round 3 the cliff stays; (2) retuning the Normal table is out (Normal stays as it is). Bar: no adjacent-level win drop > 25 pts at the windup 22/20/18/16/14 crossings (bots blocker + skilled, n=40 per cell, levels 1-46), L1-5 and L40+ within ±5 of trunk, the L6/L18/L46 anchors unchanged, the frozen benchmark 29/30 Easy not worse. Cause: only `reaction` is non-smooth; a swing is answerable the first level `reaction < windup` (ai.ts hard gate), so each integer windup is a cliff. Worst adjacent drop per row, trunk / A / B (round 1) and B2 / A2 (round 2) / B3 (round 3):
+| row | trunk | A | B | B2 | A2 | B3 |
+|---|---|---|---|---|---|---|
+| veteran blocker | 57 | 25 | 20 | 12 | 28 | 70 |
+| veteran skilled | 85 | 40 | 25 | 18 | 27 | 67 |
+| executioner blocker | 52 | 25 | 20 | 27 | 43 | 78 |
+| executioner skilled | 57 | 25 | 18 | 20 | 45 | 60 |
+| dwarf blocker | 47 | 20 | 12 | 15 | 15 (+10 at the ends) | 28 |
+| dwarf skilled | 48 | 23 | 13 | 13 | 23 | 13 |
+| knight blocker | 62 | 23 | 22 | 15 | 18 | 37 |
+| knight skilled | 47 | 25 | 20 | 23 | 25 | 30 |
+| pitborn blocker | 52 | 47 | 35 | 35 | 20* | 35 |
+| pitborn skilled | 42 | 27 | 30 | 21 | 20* | 21 |
+| shieldmaiden blocker | 60 | 30 | 44 | 45 | 25* | 45 |
+| shieldmaiden skilled | 65 | 35 | 33 | 35 | 25* | 35 |
+(*A2's pitborn/shieldmaiden rows cover only 16-18 levels: the 1500 s job limit cut them.) A = a soft notice in ai.ts (lapse' = 1 - spare*(1-lapse), spare = clamp((windup-reaction)/4)); B = a lapse ramp at every windup crossing (profileAt, start .9 over 7 levels); B2 = start .95 over 10 levels; A2 = a quadratic soft notice over 6 ticks; B3 = B2 with L6/L18/L46 returned as the exact anchor tables. Verdicts: A fails 5 of 12 rows, B fails 4, B2 fails 4 (executioner blocker 27, pitborn blocker 35, shieldmaiden 45 / 35), A2 fails 5 (veteran, executioner, dwarf blocker at the ends), B3 fails 10 of 12 (3 worse than trunk: veteran blocker 70, executioner 78 / 60).
+**Why B2 could not ship as is, and B3 cannot work:** B2 starts its ramp at lapse .95 on the first crossing level, which for most wardens IS the Normal anchor (L18: veteran, skeleton, dwarf, knight .30 -> .885; executioner .20 -> .875; pitborn, minotaur, werewolf, shieldmaiden .10 -> .865; Easy L6 for goblin, nightborn, wraith, plaguedoctor .40 -> .95, witch .35 -> .95), so it moves the anchors and breaks the invariant that levels 6 / 18 / 46 ARE the easy / normal / hard tables (25 failures in test:all). B3 pins the anchors back, so the ramp's easiest step lands at L17 and L17 -> L18 becomes a bigger cliff than trunk's. **"Ease into the crossing" (Lead's option 1) is not implementable in profileAt:** before a crossing the warden cannot answer that swing whatever his lapse is, so lapse can only act after it; the only way to act before it is a probabilistic notice in ai.ts, which is round 1's A and round 2's A2, and ai.ts cannot spare the three anchor levels (it has no level). Both were measured and fail. Nothing from COMBAT-001 shipped; trunk is unchanged. Sweeps, logs, patches and `cmp.py` are in the lane's memory folder (`artifacts-2026-10-06/combat001`); `scripts/ladder-sweep.mjs` (from the closed #1373) is the sweep tool.
+
 ## 2026-10-06 (+04) — handoff: duel PR stack waiting on Dom's confirm, COMBAT-001 round 2 did not pass
 **Now (pick up here):** nothing assigned. If the Auditor sends findings on #1391 or #1392, fix those. Do NOT stack anything further on #1377 → #1390 → #1391 → #1392 until they merge (Deploy holds them for Dom's confirm). No `duel_reports.record` column work: that is its own migration and needs Dom's yes.
 **PR stack (all VPS-verified, hosted runners were down; receipts are in each body):**
