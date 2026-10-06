@@ -7,8 +7,8 @@
 // Frankendom's words and names only. The fight (src/first-loss.ts, Characters & Art) decides WHEN a beat happens and calls onLesson(id), which
 // main.ts turns into `view.lesson`; the ids and their order are theirs (LESSONS there), this file owns the wording, the one-time trigger and the
 // after-loss line, and hud.ts shows them in the existing #combat-status and reset button. No new element, no new button.
-// Lead ruled 2026-10-06 under Dom's delegation: these lines DO tell the player what to do, which the 2026-09-24 "reports what happened" rule (combat.ts
-// practiceHint) otherwise forbids; they exist only for the scripted first loss and the rule stays in force everywhere else. They never replace a guard-break line (the beat is not fired then).
+// Lead ruling 2026-10-06 under Dom's delegation, scoped to the scripted first loss: these lines DO tell the player what to do, which the 2026-09-24
+// "reports what happened" rule (combat.ts practiceHint) otherwise forbids; the rule stays in force everywhere else. They never replace a guard-break line (the beat is not fired then).
 import { LESSONS, type LessonId } from './first-loss.ts';
 export type { LessonId };
 export const LESSON_ORDER: readonly LessonId[] = LESSONS;

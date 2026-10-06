@@ -48,5 +48,5 @@ test('the exit URL fails the trigger even when the flag cannot be stored', () =>
 test('lessons.ts cites Lead\'s ruling, not Dom\'s 10-05 words, for the override', async () => {
   const { readFileSync } = await import('node:fs');
   const head = readFileSync(new URL('../src/lessons.ts', import.meta.url), 'utf8').slice(0, 2200);
-  assert.match(head, /Lead ruled 2026-10-06/); assert.doesNotMatch(head, /Dom 2026-10-05/);
+  assert.match(head, /Lead ruling 2026-10-06 under Dom's delegation, scoped to the scripted first loss/); assert.doesNotMatch(head, /Dom 2026-10-05/);
 });
