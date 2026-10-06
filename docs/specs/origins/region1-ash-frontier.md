@@ -131,7 +131,7 @@ unique across the region, so they double as the contracts' waypoint ids (`LOCAL_
 |---|---|---|---|
 | `east-road` | 40 × 100 | 11–12 | the road out of the Exchange; the Charnel Road watchtower |
 | `ferry-landing` | 60 × 60 | 11–15 | the Grey Ferry: Hesk, the dock, the night boat. No creatures, but not `safe`, because a Feud fight is held on the dock |
-| `cinder-fields` | 120 × 120 | 11–13 | open creature ground: scavengers, the displaced shrine (Old Cinder) |
+| `cinder-fields` | 120 × 120 | 11–13 | open creature ground: scavengers, the displaced shrine (Hrungnir's Bounty) |
 | `black-mere` | 100 × 140 | 12–15 | the mere and its brood; the matriarch's hollow (public event); the causeway |
 | `blood-ruin` | 60 × 80 | 13–14 | the Blood Court ruin: the jetty, the ruin gate, the crypt |
 
@@ -147,9 +147,9 @@ a place. Spawns:
 | `feud-dock` | dock | `encounter:feud-dock` | `character:ferrymaster-hesk` |
 | `feud-jetty` | ruin-jetty | `encounter:feud-jetty` | — |
 | `feud-crypt` | crypt | `encounter:feud-crypt` | `character:scribe-ansel` |
-| `bounty-shrine` | shrine | `encounter:bounty-old-cinder` | — |
+| `bounty-shrine` | shrine | `encounter:bounty-hrungnir` | — |
 | `bounty-toll` | milestone | `encounter:bounty-toll` | — |
-| `bounty-reeds` | reed-bank | `encounter:bounty-reed-stalker` | — |
+| `bounty-reeds` | reed-bank | `encounter:bounty-peg-powler` | — |
 | `matriarch` | mere-hollow | `encounter:mere-matriarch` | — |
 | `scavengers` | ash-pits | null | `character:cinder-scavenger` |
 | `brood` | reed-bank | null | `character:mere-brood` |
@@ -199,8 +199,9 @@ Taunts on a loss live in the twist table (section 3). They play as the retry pro
 
 ## 3. Chapter one: *The Stolen Name* (a Feud)
 
-> **PROVISIONAL, pending Dom.** Strategy's ruling: "Feud" and "Bounty" are working names that Dom may rename. Classic quests (fetch,
-> collect N, kill N, errands, walk-there-and-back) are **out**. Whether this model replaces quests entirely is open question 1.
+> **PROVISIONAL, pending Dom.** "Feud" and "Bounty" are working names that Dom may rename. Strategy ruled on 2026-10-07 that Feuds and
+> Bounties **replace** classic quests, and the quest journal stays as the Feud log. No fetch, collect-N, kill-N or errand appears
+> anywhere in this region.
 
 **The model.**
 
@@ -241,7 +242,7 @@ from it.
 | Contract board → west gate → Frontier exchange-gate (step 1) | 16 + 12 = 28 m |
 | exchange-gate → watchtower (step 2) | 56 m |
 | watchtower → crossroads → road-end → dock (step 3) | 47 + 54 = 101 m |
-| dock → night boat (portal) → ruin-jetty (step 4) | 0 m walk (boat ride length is open question 9) |
+| dock → night boat → ruin-jetty (step 4) | 0: an instant portal with a short fade (ruled) |
 | ruin-jetty → crypt (step 5) | 60 m |
 | **Total** | **245 m ≈ 53 s** |
 
@@ -300,17 +301,33 @@ and Varney is `world-boss`, paid on the first win only. No new constant is intro
 
 ### Bounties (examples)
 
-A Bounty is a single fight with a twist that can be repeated. It pays **metal**, an account balance that is bound by nature, never
-an item, up to a **daily cap**. A Bounty pays no story credit; the kill pays its own row.
+A Bounty is a single fight with a twist that can be repeated. It pays **metal**, up to a **daily cap**. Metal is the one bound NPC
+currency: the same account balance as `LootTable.currency`, never an item (ruled). A Bounty pays no story credit; the kill pays its
+own row.
 
 | id | Where | Foe | Twist | Metal | Cap |
 |---|---|---|---|---|---|
-| `bounty:old-cinder` | the shrine | **Old Cinder** (named, L13, dwarf body) | **Embers:** the shrine floor burns whoever stands still for 2 s | 40 | 3 / day |
+| `bounty:hrungnir` | the shrine | **Hrungnir** (named, L13, `knight` body) | **Embers:** the shrine floor burns whoever stands still for 2 s | 40 | 3 / day |
 | `bounty:toll` | milestone | two court thralls (elite, L12) | **Two in a row, one health bar** | 30 | 3 / day |
-| `bounty:reed-stalker` | reed bank | the **Reed Stalker** (named, L14) | **Flees at 30%.** Catch it within 15 s or the bounty is forfeit, though it can be retried at once | 50 | 2 / day |
+| `bounty:peg-powler` | reed bank | **Peg Powler** (named, L14, `witch` body) | **Flees at 30%** into the reeds. Catch her within 15 s or the Bounty is forfeit for that attempt; it can be retried at once | 50 | 2 / day |
 
-There is no bounty contract today. A `quest-definition` pays each stage once ever (`grantStageRewards`), so repeats fit it badly.
-The shape is open question 5.
+**`bounty-definition`** is a new content kind, as Strategy ruled: not a repeat hack on quests. Proposed shape, version 1:
+
+```json
+{ "kind": "bounty-definition", "schemaVersion": 1, "id": "bounty:hrungnir", "name": "The Stone at the Shrine",
+  "region": "region:ash-frontier", "gate": "outer",
+  "encounter": "encounter:bounty-hrungnir",
+  "twist": { "kind": "hazard", "hazard": "embers" },
+  "metal": 40, "dailyCap": 3 }
+```
+
+- `metal` is a positive integer, paid to the one currency balance on a win.
+- `dailyCap` is wins paid per character per server day, UTC. Wins past the cap pay no metal; the kill still pays its CP row.
+- `twist` uses the same shape as the encounter twist flag (section 7). The encounter's own flag is the one the fight reads. The
+  bounty copy is display only and must match, a rule checked at load.
+- A loss pays nothing and costs nothing. Retry at once.
+- This needs a new id namespace, `bounty` (`origins/contracts/ids.ts`), a parser, and a `CONTENT_KINDS` entry in the registry. It
+  belongs to the contracts PR.
 
 ## 4. Bosses and creatures
 
@@ -323,8 +340,8 @@ names in the `Kill` event (`target` = character id, `targetLevel` = the form's l
 | `character:legend.nightborn-3` | Varney | `nightborn` | 13 | `world-boss` | Feud step 5 |
 | `character:tithe-sergeant` | The Tithe Sergeant | `veteran` | 12 | `named` | Feud steps 2 and 5 |
 | `character:steward-gall` | Mistress Gall | `shieldmaiden` | 13 | `named` | Feud step 4 |
-| `character:old-cinder` | Old Cinder | `dwarf` | 13 | `named` | Bounty |
-| `character:reed-stalker` | The Reed Stalker | `pitborn` | 14 | `named` | Bounty |
+| `character:hrungnir` | Hrungnir | `knight` | 13 | `named` | Bounty |
+| `character:peg-powler` | Peg Powler | `witch` | 14 | `named` | Bounty |
 | `character:court-thrall` | Court thrall | `pitborn` | 12–13 | `elite` | Feud steps 1 and 2; Bounty |
 | `character:cinder-scavenger` | Cinder scavenger | `goblin` | 11 | `mob` | open world |
 | `character:mere-brood` | Mere brood | `goblin` | 12 | `mob` | open world; matriarch stage |
@@ -334,7 +351,7 @@ No held roster body is used. The court thrall has two forms, `l12` and `l13`, ea
 
 **Encounters** (`encounter-definition`). All Feud and Bounty encounters are `scope: solo`, `decay: null`, `restartSeconds: 0`.
 The parser needs at least one stage before the boss. A two-foe step uses that stage as the first foe. A single-foe step needs either
-`stages` allowed to be empty or a dummy stage (open question 3).
+`stages` allowed to be empty, or a dummy stage (contracts PR, section 7).
 
 | id | stages → boss | Twist (proposed field, section 7) |
 |---|---|---|
@@ -343,8 +360,8 @@ The parser needs at least one stage before the boss. A two-foe step uses that st
 | `encounter:feud-dock` | — → Grendel's Mother | `hazard: breaking-planks`, `flee-at: 30` |
 | `encounter:feud-jetty` | — → Mistress Gall | `damage-only-on-parry` |
 | `encounter:feud-crypt` | variant by step 2 → Varney | `candlelight` / `heal-on-hit` / `one-health-bar` |
-| `encounter:bounty-old-cinder` / `-toll` / `-reed-stalker` | as section 3 | `hazard: embers` / `one-health-bar` / `flee-at: 30, catch: 15` |
-| `encounter:mere-matriarch` | `brood`: 3 kills, pop 3, mere-brood → Grendel's Mother | none: `scope: public`, `decay` 900 s / keep 50%, `restartSeconds` 3600, `minContributionPercent` 10 |
+| `encounter:bounty-hrungnir` / `-toll` / `-peg-powler` | as section 3 | `hazard: embers` / `one-health-bar` / `flee-at: 30, catch: 15` |
+| `encounter:mere-matriarch` | `guard`: one brood guardian (1 kill, pop 1) → Grendel's Mother | none: `scope: public`, `decay` 900 s / keep 50%, `restartSeconds` 3600, `minContributionPercent` 10 |
 
 **Boss rules (first win only).** The `world-boss` row is `once: true`, `party: 'each'`. The first kill of
 `world-boss:<character id>` pays and adds that key to `beaten`. Every later kill returns `already-beaten` and 0 CP. A grey kill, or
@@ -352,7 +369,7 @@ a share under `MIN_CONTRIBUTION_PERMILLE` (100), does not use the boss up. The c
 Mother fleeing in the Feud is not a kill, so her once-only award is paid at the public event.
 
 **Lockout.** The model has no per-character lockout (progression proposal §3: "The 7-day lockout is gone"). `restartSeconds` is
-only the world respawn. See open question 2.
+only the world respawn. Ruled: follow the #1428 model.
 
 **CP per kill.** `basePay = floor(killValue(min(target, you)) × falloff(target − you) × weight / 1e6)`, solo:
 
@@ -396,7 +413,7 @@ metal only.
 | `item:stolen-name-record` | The Roll page | — | relic | bone | Feud ending only. `quest`, `story-critical`, `on-acquire` |
 | `item:grave-iron` | Grave iron | — | fine | iron | open-world drop. `material`, `stack: 50`, blacksmith cost lines only |
 
-No weapons drop (open question 10).
+No weapons drop in region 1 (ruled).
 
 **Tables** (`loot-table`, `distribution: personal`, `fallback: null`; gear entries are `levelMin: 11, levelMax: null`):
 
@@ -412,7 +429,9 @@ No weapons drop (open question 10).
 | `loottable:feud-stolen-name-debt` | collect | indep. p100: blood-marker 100, stolen-name-record 100 | null |
 
 The two `collect` Feud tables are not progress gates. They are the shape the contracts already use to pay a stage. One of each per
-account (`checkOneOfEach`) stops duplicates. Boss loot rolls on every kill, while boss CP pays once (open question 6).
+account (`checkOneOfEach`) stops duplicates. **Boss loot is first win only** (ruled; revisit after beta). The boss table rolls
+only on the kill that pays the once-row. A repeat kill rolls no boss table and pays what the model pays for its row (`world-boss`
+→ `already-beaten`, 0 CP).
 
 **Trading.** Frontier gear and the Feud mail trade only at the Exchange (`Trade.region` = `region:concord-exchange`; the Frontier
 has `rules.tradeAllowed: false`). There is **no hard limit**. Each piece has its own cooldown: `FIRST_TRADE_DELAY_S` (72 h from
@@ -431,13 +450,13 @@ cross-references after parsing everything, so the order only keeps diffs readabl
 | `factions.json` | `faction-definition` | 2: `faction:ferry-court`, `faction:blood-court`. `faction:concord` comes from the Exchange bundle |
 | `items.json` | `item-definition` | 10 |
 | `loot-tables.json` | `loot-table` | 8 |
-| `characters.json` | `character-definition` | 14: Marrow, Vell, Hesk, Ansel, Sergeant, Gall, Grendel's Mother, Varney, Old Cinder, Reed Stalker, court thrall, scavenger, brood, ghoul |
+| `characters.json` | `character-definition` | 14: Marrow, Vell, Hesk, Ansel, Sergeant, Gall, Grendel's Mother, Varney, Hrungnir, Peg Powler, court thrall, scavenger, brood, ghoul |
 | `regions.json` | `region-definition` | 1 (`region:ash-frontier`), plus the Exchange amendment (waypoint `contract-board`, spawn `marrow`) |
 | `encounters.json` | `encounter-definition` | 9: 5 Feud, 3 Bounty, 1 public |
 | `quests.json` | `quest-definition` | 1: `quest:stolen-name` |
 | `talk.json` | `npc-talk` | 6: Marrow, Sergeant, Vell, Hesk, Ansel, Varney |
 | `world.json` | **not in the bundle** | the section 1 `WorldData`, read by `origins/world` `loadWorld` |
-| *(bounties)* | *none yet* | waits on open question 5 |
+| `bounties.json` | `bounty-definition` (new) | 3. Loads only once the contracts PR adds the kind |
 
 A duplicate id anywhere in the combined bundle is refused. Example record:
 
@@ -461,50 +480,64 @@ A duplicate id anywhere in the combined bundle is refused. Example record:
 - Each walk pays 5 story steps and 1 chapter, and nothing pays twice on replay.
 - No Feud stage reads `has-item`.
 
-## 7. Open questions for Strategy and Dom
+## 7. Rulings and open questions
 
-1. **Quests vs contracts vs scrapped.** Do Feuds and Bounties replace quests entirely, do they sit beside a quest journal, or is the
-   whole layer scrapped in favour of plain world fights? The names are Strategy's provisional ones, and Dom may rename them.
-2. **Boss lockout.** The brief said 7 days. The #1428 model has none: first win only, reopened at the cap. This spec follows the
-   model.
-3. **Contract fields a twist needs**, all on `EncounterDefinition` unless noted:
-   - **(a)** `twist`: `no-block`, `one-health-bar`, `damage-only-on-parry`, `heal-on-hit`, `candlelight`, `hazard: <id>`,
-     `flee-at: <percent>`, `catch: <seconds>`.
-   - **(b)** `stages` allowed to be empty, for a single-foe fight.
-   - **(c)** `variants` chosen by a talk flag (step 5).
-   - **(d)** an outcome of `won`, `lost` or `fled`, so a flee can count as cleared.
-   - **(e)** on `Condition`, a new kind, `encounter-lost`.
-   - **(f)** the retry taunt text.
+### Ruled (Strategy, 2026-10-07)
 
-   Each is a contracts change, followed by a duel-sim change for the twists. The sim lane must rule on which twists are cheap.
-4. **Quest flags.** The step 2 choice lives in **talk** flags, which work today. Step 5 must read those flags to pick its variant,
-   but no server path connects them yet.
-5. **Bounty shape.** Repeats, metal and a daily cap don't fit `QuestDefinition`, because stage rewards pay once ever. This needs a
-   new `bounty-definition` (encounter, twist, metal, `dailyCap`) or a `repeat` field.
-6. **Boss loot on repeat kills.** Loot on every kill and CP once (as specified), or loot once too?
-7. **Stage rewards blocked.** The writer refuses stages that carry loot or standing (501, `expansion/o3-writer-story`). The Feud's
+1. **Names.** Bosses and named climax targets are legends: Grendel's Mother, Varney, and the Bounty targets Hrungnir and Peg Powler.
+   Mooks and side NPCs may be original (`lore.source: "original"`).
+2. **Quests vs contracts.** Feuds and Bounties **replace** classic quests. The journal stays as the Feud log. No fetch, collect-N or
+   kill-N anywhere: the doc was re-checked, and the matriarch's public-event stage went from "3 brood kills" to one brood guardian.
+3. **Lockout.** Follow the #1428 model: first win only, no 7-day lockout. `restartSeconds` is the world respawn only.
+4. **Metal** is the one bound NPC currency, the same balance as `LootTable.currency`. Metals replace "tribute". One balance.
+5. **Night boat.** An instant portal with a short fade. It counts as 0 travel.
+6. **No weapon drops** in region 1.
+7. **Region id.** `region:concord-exchange` wins: it is the id contracts and `Trade` use (`origins/contracts/economy.ts`
+   `CONCORD_EXCHANGE`). World data renames `CONCORD_REGION` in `origins/world/concord.ts` from `region:concord` to match, in a
+   World-lane PR. The applied migrations (`supabase/migrations/202610060001_origins_save.sql`, `202610060002_origins_spend.sql`)
+   contain **neither** id and have no region column, so the DB needs no change.
+8. **Bounty** is a new `bounty-definition` (encounter, twist, metal, dailyCap). Shape in section 3.
+9. **Boss loot on the first win only.** Repeat kills pay the normal row. Revisit after beta.
+10. **Twists are Origins encounter flags only.** They must not move the live ladder: the RNG fingerprint and RV stay unchanged, and
+    the #1402 test must still pass. Combat owns the sim side. Cheap first:
+    1. `flee-at`
+    2. `one-health-bar`
+    3. `no-block`
+    4. `damage-only-on-parry` and `heal-on-hit`
+    5. `hazard` and `candlelight` last (render work).
+
+    Section 3 stays **PROVISIONAL** until Dom has seen the Feud and Bounty names.
+
+### Open, for the coordinator and Backend in the contracts PR
+
+1. **Contract fields a twist needs**, all on `EncounterDefinition` unless noted:
+   - **(a)** `twist` (the ten flags in section 4);
+   - **(b)** `stages` allowed to be empty;
+   - **(c)** `variants` chosen by a talk flag (step 5);
+   - **(d)** an outcome of `won`, `lost` or `fled`, so a flee counts as cleared;
+   - **(e)** on `Condition`, a new kind, `encounter-lost`;
+   - **(f)** retry taunt text;
+   - **(g)** the `bounty-definition` kind and the `bounty` namespace.
+2. **Talk flags into the server.** Step 5 reads the step 2 talk flags, but no server path connects them yet.
+3. **Stage rewards blocked.** The writer refuses stages carrying loot or standing (501, `expansion/o3-writer-story`). The Feud's
    endings and the `jetty` stage carry them.
-8. **Metal vs coin.** `LootTable.currency` is "the one currency", while the trade-cooldown branch treats metal as an account
-   balance. Are they the same balance?
-9. **Night boat.** Is the boat ride an instant portal or a short ride? It counts toward the one-minute travel budget.
-10. **No weapon drops** in region 1 (a weapon changes the moveset). Confirm.
-11. **Region id split.** World data says `region:concord`; contracts and `Trade` say `region:concord-exchange`. Which id wins?
-12. **World params outside `ORIGINS_CONTENT`.** A second file, or a new content kind?
-13. **World-loot tier.** The zone's `lootTier` (Gladiator), or the killer's own title?
-14. **Bodies.** The matriarch on `witch` (she keeps "she", per the pronoun rule), Gall on `shieldmaiden`, and roster bodies for every
-    other figure. Does Art want new bodies first? Also confirm `terrain.ground: "ash"`, which needs an art preset (or keep `sand`).
-15. **Two contribution measures** for the public event: `minContributionPercent` and `MIN_CONTRIBUTION_PERMILLE`. Which one governs
-    CP, and which governs loot?
+4. **World params outside `ORIGINS_CONTENT`.** A second file, or a new content kind?
+5. **World-loot tier.** The zone's `lootTier` (Gladiator), or the killer's own title?
+6. **Bodies and ground.** The matriarch and Peg Powler on `witch`, Gall on `shieldmaiden`, Hrungnir on `knight`, roster bodies for
+   the rest. Also `terrain.ground: "ash"` needs an art preset, or keep `sand`.
+7. **Two contribution measures** for the public event: `minContributionPercent` and `MIN_CONTRIBUTION_PERMILLE`. Which one governs
+   CP, and which governs loot?
 
 ## 8. Names and sources (legends rule)
 
 | Name | Source | Allowed because | Pronoun |
 |---|---|---|---|
 | Grendel's Mother | *Beowulf*, an anonymous Old English poem, c. 8th–11th century. Sole manuscript British Library Cotton Vitellius A.xv (the mere episode) | medieval literature by an author dead far beyond 70 years. She is known from the poem, not from scripture, and is no living people's folk hero. The backstory is original prose with no quotation. Her son Grendel is already the pitborn rung-5 legend; no relationship row is written, so the bundle needs no Grendel record | she |
+| Hrungnir | Snorri Sturluson, *Prose Edda*, Skáldskaparmál (c. 1220): the stone-hearted giant who raced Odin's horse and fought Thor with a whetstone | Norse myth, a dead pantheon whose figures are already on the ladder (Thor, Odin, Loki). Not yet a Pit legend. The Bounty text is original | he |
+| Peg Powler | English river folklore of the Tees: a green-haired water hag who drags the careless under. Recorded in William Henderson, *Notes on the Folk-Lore of the Northern Counties of England and the Borders* (1866) | English folklore, PD source, no living-religion tie, no living people's folk hero | she |
 | Varney | *Varney the Vampire; or, The Feast of Blood*, penny serial 1845–47, attributed to James Malcolm Rymer and Thomas Peckett Prest | pre-1929 literature, both authors dead 70+ years. Already `src/legends.ts` nightborn rung 3 and the contracts fixture (`Varney the Vampire, 1847`) | he |
-| Marrow, Vell, Hesk, Ansel, the Tithe Sergeant, Mistress Gall, Old Cinder, the Reed Stalker, all mobs | original (`lore.source: "original"`) | — | Marrow she, Vell he, Hesk he, Ansel he, Gall she |
+| Marrow, Vell, Hesk, Ansel, the Tithe Sergeant, Mistress Gall, all mobs | original (`lore.source: "original"`) | — | Marrow she, Vell he, Hesk he, Ansel he, Gall she |
 
 Considered and dropped: **Black Shuck** (East Anglian folklore). Its best-known early account, Abraham Fleming's 1577 pamphlet,
-presents the dog as the Devil, which comes too close to the ruling 4 barred list. No name here hits `BARRED_NAMES`. The brief asks
-for named targets to be Origins legends: the two story bosses are legends, and the rest are original per the coordinator's note
-("Grendel's Mother, Varney and your original characters").
+presents the dog as the Devil, which comes too close to the ruling 4 barred list. No name here hits `BARRED_NAMES`. Per the ruling, the Feud's climax
+targets (Grendel's Mother, Varney) and both named Bounty targets are legends. Mid-chain foes and side NPCs are original.
