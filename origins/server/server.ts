@@ -3,6 +3,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { Verify } from './auth.ts';
 import { DbError, type Db } from './db.ts';
+import { Refused } from './errors.ts';
 import { BadRequest, Conflict, NotImplemented, handlers as defaults, type Handler } from './handlers.ts';
 
 const MAX_BODY = 64 * 1024;
@@ -34,6 +35,7 @@ export function createWriter({ db, verify, handlers = defaults }: { db: Db; veri
       if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
       if (e instanceof Conflict) return send(409, { ok: false, error: e.message, code: 'op-conflict' });
       if (e instanceof NotImplemented) return send(501, { ok: false, error: e.message, code: 'not-implemented' });
+      if (e instanceof Refused) return send(e.status, { ok: false, error: e.message });
       if (e instanceof DbError && STATUS[e.code]) return send(STATUS[e.code], { ok: false, error: e.code === '23505' ? 'already exists' : e.message, code: e.code });
       console.error('origins-writer:', e instanceof Error ? e.message : e);
       send(500, { ok: false, error: 'server error' });
