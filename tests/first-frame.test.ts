@@ -11,12 +11,17 @@ test('the first-frame warm-up uploads each map once, a frame\'s slice at a time,
   assert.equal(frames, 3, 'a 5 ms slice fits two 3 ms uploads: a frame for a+b, a frame for c, a frame before the draw');
 });
 
-test('a device that never delivers frames does not hold the card: the warm-up times out and stops touching the renderer', async () => {
-  const { log, w } = base(); let release: (() => void) | undefined;
-  const stalled = { ...w, budgetMs: 20, frame: () => new Promise<void>((done) => { release = done; }) };
-  assert.equal(await warmFirstFrame(stalled), 'timeout');
-  release?.(); await new Promise((r) => setTimeout(r, 5));
-  assert.deepEqual(log, [], 'a frame arriving after the timeout uploads and draws nothing');
+test('a slow device does not hold the card: past the budget the warm-up stops touching the renderer', async () => {
+  const { log, w } = base(); let clock = 0;
+  const slow = { ...w, budgetMs: 20, now: () => clock, upload: (t: unknown) => { log.push('up:' + String(t)); clock += 25; } };
+  assert.equal(await warmFirstFrame(slow), 'timeout');
+  assert.deepEqual(log, ['up:a'], 'the first map alone spent the budget: nothing more is uploaded and nothing is drawn');
+});
+
+test('the warm-up finishes with the clock frozen and no timers: a paused page still boots', async () => {
+  const { log, w } = base();
+  assert.equal(await warmFirstFrame({ ...w, now: () => 0, budgetMs: 1 }), 'done');
+  assert.deepEqual(log, ['up:a', 'up:b', 'up:c', 'draw']);
 });
 
 test('a lost context or a throwing renderer skips the warm-up instead of failing the load', async () => {
