@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-06 ~11:00 (+04) — HANDOFF #8 before /clear. READ FIRST
+
+### Now (pick up in this order)
+- **#1408 Arena 1 shrink** (`world/arena1-shrink` @ 8f176602, base trunk 013adbc6 era): Arena 1 only. Circle 0.36, sim circle to the wall (`RADIUS = 11.7*0.36 - 0.425 = 3.787`), painted ring hidden, rim replaced by a sheer drop (`cliff: true` in arena-themes.ts; arena.ts: floor 12.45, vertical rock face, no far ground, no gate light, banner poles 12.25). Record v23 with v22 readable; v22 records replay in 8.55 m (`play-radius.ts`, `underRecord`); `createRecorder` stamps the version at birth. Auditor: code PASS at bb0d9d0a, full re-check of ea865698+ owed (Auditer restarts); Deploy refreshes /preview/arena1-shrink/ at each head. **Not yet run at 8f176602 on the VPS: full non-slow suite, kill-link-check, browser-replay row** (no sim/record change in the last commits, but run them before GO). Stills in ~/Desktop/Business/frankendom-arena-scale/v6/ (after-wall-left/slide predate the face fix, retake if asked). Torches: braziers already outside fighter reach; clip-look is depth only.
+- **#1413 Special FX built once per fight** (`world/special-reuse` @ fbc33360): a repeat cast no longer re-runs `select()`; measured second-cast build 236 ms (antaeus) .. 0; tests incl. an all-specials reuse-equals-fresh check. In the Auditor queue after #1408.
+- **Next asks from Lead (in order):** (1) first build at fight start (200-700 ms at 4x CPU throttle) behind the welcome/intro card: measure first (where it runs vs the first input-able frame, is the card long enough), one small PR off trunk; (2) overdraw review of Surtr, Typhon, Tithe, Reaper (parked); (3) WebKit pass on the Mac only when load < ~8 and no deploy.
+
+### Done today (10-06)
+- #1404 render-budget revert (Lead has sha). arenaScale look branch dropped. Camera A/B/C clips sent to Strategy. perf_beacons read (Dom 04:27Z: ~30 fps p50, p5 10-13, whole fight, not a spike). Chromium LoAF control on 14 specials: no JS stall; cast adds render cost (Surtr +24 ms, Typhon +12, Tithe +11, Reaper +12 at 4x SwiftShader); data ~/Desktop/Business/frankendom-arena-scale/special-lcp-chromium.json. Root cause found for repeat-cast hitch (#1413).
+
+### Open
+- Variant run (`lcp-run2.sh`: effect off / sub-parts off, draw calls + render ms per special) may still be running or done on the VPS: `/opt/frankendom-shadow/work/world-blood/lcp2.json` + `lcp2.log` (LCP2_DONE). Read it for the overdraw review, then delete the folder.
+- N4 (Lead): `OLD_CIRCLE_VERSION` in record.ts is a constant (22); at the next record bump (24, COMBAT-001 cliff, Duels & Backend owns) it must follow the bump. Coordinate.
+- Preview recordings made before ea865698 carry a v23 stamp from a smaller circle and will not replay; no production record has v23.
+
+### Gotchas
+- **Heavy jobs on the VPS** (`capture world <script>`, work copies `/opt/frankendom-shadow/work/world-scale|world-wall|world-lcp2`; fetch the branch, never rsync src). Scripts I left there: suite2/suite3/suite4.sh (fixture write + suite + kill-link), wall-still.sh/.mjs (ready + fighter at the wall via KeyS/KeyA/KeyW), scale-still, toggle-still (hide meshes by name), lcp*.mjs, measure-reuse.mjs. Browser-keyword commands (browser-replay-check) are blocked by the hook on the Mac while a deploy runs: use the VPS.
+- `__special().fighters[i]` has x/z directly (no `.body`). `__scene` is not exposed in the repo: scripts patch scene.ts in the VPS worktree.
+- Arena 1's theme already had `wallTop 0, gate false, flatStands, spectators false`; the visible "rim" was the `plain` far-ground band and the floor disc to 17. An open-ended inward-tapering cylinder is invisible from the fight camera (undercut).
+- Headless fights stay at circle 1; only `Match.begin/startReplay/startClip` and `underRecord` set the circle; PvP (`pvpDuel`) pins 1. Scripts that record must create the recorder inside `underPlayScale(...)` (browser-replay-check does).
+- zsh: `sed -i ''` on macOS; never bare `git stash`; the Stop hook gate defers while a deploy holds the Mac.
+
 ## 2026-10-04 ~22:xx (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
 
 ### Now
