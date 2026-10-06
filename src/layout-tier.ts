@@ -3,11 +3,11 @@
 // src/ui/mobile_hud_layout.ts @f46f30f, MIT (Copyright (c) 2026 Levy Street; same notice as touch-router.ts, full text at
 // https://github.com/levy-street/world-of-claudecraft/blob/f46f30f/LICENSE). Thresholds are named, not magic; the numbers are that file's, checked against
 // this game's viewports (390x694 Dom's phone, 375x812, 844x390 landscape, 1280x720 laptop, 1024x768 iPad).
-export const COMPACT_MAX_HEIGHT_PX = 480;
-export const COMPACT_MAX_WIDTH_PX = 700;
-export const TABLET_MIN_DIMENSION_PX = 768;
-export const TABLET_MIN_WIDTH_PX = 1000;
-export const TABLET_MAX_WIDTH_PX = 1024;   // Lead 2026-10-06: a tablet is at most 1024 wide, so a 1366x768 laptop and a desktop stay standard
+const COMPACT_MAX_HEIGHT_PX = 480;
+const COMPACT_MAX_WIDTH_PX = 700;
+const TABLET_MIN_DIMENSION_PX = 768;
+const TABLET_MIN_WIDTH_PX = 1000;
+const TABLET_MAX_WIDTH_PX = 1024;   // Lead 2026-10-06: a tablet is at most 1024 wide, so a 1366x768 laptop and a desktop stay standard
 
 export type LayoutTier = 'compact' | 'standard' | 'tablet';
 

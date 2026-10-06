@@ -1371,7 +1371,19 @@ dialog>p {
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=straight] .side-straight,
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .95; stroke-width: 2; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight,
+  .actions[data-gestures=cluster] #attack-button[data-cut=left]:not([data-held]) .side-left,   /* directional cuts: the stick is held to a side, so LIGHT will cut that side */
+  .actions[data-gestures=cluster] #attack-button[data-cut=right]:not([data-held]) .side-right,
+  .actions[data-gestures=cluster] #attack-button[data-cut=left][data-held] .side-left,
+  .actions[data-gestures=cluster] #attack-button[data-cut=right][data-held] .side-right{ opacity: .95; stroke-width: 2; }
+  /* directional cuts, v2 (Lead 2026-10-07: the lit tick was too faint): a solid arc on the chosen edge of the button at full opacity, kept while the stick is held and pulsed on the press */
+  .actions[data-gestures=cluster] #attack-button[data-cut]::after{
+    content: ''; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; border: 5px solid transparent;
+    border-left-color: var(--cut-arc); border-right-color: var(--cut-arc); clip-path: inset(0 50% 0 0);
+  }
+  .actions[data-gestures=cluster] #attack-button[data-cut=right]::after{ clip-path: inset(0 0 0 50%); }
+  .actions[data-gestures=cluster] #attack-button[data-cut][data-held]::after{ border-width: 7px; inset: -7px; }
+  .actions[data-gestures=cluster] #attack-button{ --cut-arc: #f2c14e; }
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
@@ -2465,6 +2477,11 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #tutorial-prompt[data-now='1'] #tutorial-word { color: #ffd45a; }
 #tutorial-go { pointer-events: auto; margin-top: 8px; padding: 12px 28px; font: 800 22px/1 Arial, sans-serif; color: #1a1208; background: #e8c46a; border: 0; border-radius: 10px; }
 html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is the one message; the row keeps its height so the HUD below never jumps */
+
+/* Refused press (clarity cue 3): the button the sim dropped dims and shakes for a moment. No text, no layout change (transform only). */
+#actions button.refused { animation: refused .26s ease-out; }
+@keyframes refused { 0%, 100% { transform: translateX(0); opacity: 1; } 20% { transform: translateX(-4px); opacity: .45; } 40% { transform: translateX(4px); opacity: .45; } 60% { transform: translateX(-3px); opacity: .6; } 80% { transform: translateX(2px); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { #actions button.refused { animation: none; opacity: .45; } }
 
 /* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
 #fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
