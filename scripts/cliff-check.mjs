@@ -2,9 +2,10 @@
 // Cliff check (COMBAT-001): every level 1–46 for the six wardens whose reaction crosses the cut windups, two bots, n fights per cell.
 // Prints the worst adjacent-level win drop per row and the win% at the anchors (6 / 18 / 46). Bar: worst drop <= 25 pts.
 //   node scripts/cliff-check.mjs [--n=40] [--opponents=veteran,...] [--bots=blocker,skilled] [--json=out.json]
+import console from 'node:console';
 import { writeFileSync } from 'node:fs';
+import process from 'node:process';
 import { BOTS, fight } from './ladder-sweep.mjs';
-for (const [k, v] of Object.entries(process.env)) if (k.startsWith('EXP_')) globalThis[`__${k.slice(4)}`] = Number(v);   // experiment knobs: EXP_PARRY_LEAD=4 → globalThis.__PARRY_LEAD
 
 const arg = (name, fallback) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;
 const n = Number(arg('n', 40));
