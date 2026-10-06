@@ -12,21 +12,27 @@ import { verifyDuel } from '../src/net/verify-duel.ts';
 
 const LIMIT = 200;
 export const UNVERIFIED_AFTER_MS = 6 * 60 * 60 * 1000;
+export const REASON_MAX = 300;   // a flag reason is stored text: a hostile record cannot make it long
+const clip = (reason) => (reason.length > REASON_MAX ? `${reason.slice(0, REASON_MAX - 1)}…` : reason);
 
 export async function verifyRooms(db, { dry = false, now = Date.now() } = {}) {
   const rooms = await db.pending(LIMIT);
-  /** @type {{ checked: number, verified: number, flagged: { room: string, reason: string }[], unverified: { room: string, reason: string }[], agedOut: number, dry: boolean }} */
-  const receipt = { checked: rooms.length, verified: 0, flagged: [], unverified: [], agedOut: 0, dry };
+  /** @type {{ checked: number, verified: number, flagged: { room: string, reason: string }[], unverified: { room: string, reason: string }[], agedOut: number, writeErrors: { room: string, error: string }[], dry: boolean }} */
+  const receipt = { checked: rooms.length, verified: 0, flagged: [], unverified: [], agedOut: 0, writeErrors: [], dry };
   for (const { room, claims, createdAt } of rooms) {
     // One room's garbage must never stop the sweep: anything that throws is that room's flag.
     let verdict;
     try { verdict = claims.length === 2 ? verifyDuel(claims) : { ok: false, unverified: true, reason: `${claims.length} claim(s) for the room` }; }
     catch (error) { verdict = { ok: false, unverified: false, reason: `the verifier could not read the room: ${error instanceof Error ? error.message : String(error)}` }; }
-    if (verdict.ok) { if (!dry) await db.verify(room); receipt.verified++; }
-    else if (verdict.unverified) {
-      receipt.unverified.push({ room, reason: verdict.reason });
-      if (Number.isFinite(createdAt) && now - createdAt > UNVERIFIED_AFTER_MS) { receipt.agedOut++; if (!dry) await db.unverify(room, verdict.reason); }
-    } else { receipt.flagged.push({ room, reason: verdict.reason }); if (!dry) await db.flag(room, verdict.reason); }
+    const reason = clip(verdict.reason ?? '');
+    try {
+      if (verdict.ok) { if (!dry) await db.verify(room); receipt.verified++; }
+      else if (verdict.unverified) {
+        receipt.unverified.push({ room, reason });
+        // A room with no finite createdAt can never be told apart from a young one, so it counts as aged: it must not sit in the queue forever.
+        if (!Number.isFinite(createdAt) || now - createdAt > UNVERIFIED_AFTER_MS) { receipt.agedOut++; if (!dry) await db.unverify(room, reason); }
+      } else { receipt.flagged.push({ room, reason }); if (!dry) await db.flag(room, reason); }
+    } catch (error) { receipt.writeErrors.push({ room, error: clip(error instanceof Error ? error.message : String(error)) }); }   // one room's failed write must not stall the oldest-first queue behind it
   }
   return receipt;
 }

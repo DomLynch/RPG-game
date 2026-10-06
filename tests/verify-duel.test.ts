@@ -9,7 +9,7 @@ import { packIntents, unpackIntents, type PvpRecord } from '../src/net/pvp.ts';
 import { verifyDuel, type DuelClaim } from '../src/net/verify-duel.ts';
 import { hashDuel, NET, pvpDuel, type Kit } from '../src/net/rollback.ts';
 import { quantizeIntent, RECORD_VERSION } from '../src/record.ts';
-import { UNVERIFIED_AFTER_MS, verifyRooms } from '../scripts/verify-duels.mjs';
+import { REASON_MAX, UNVERIFIED_AFTER_MS, verifyRooms } from '../scripts/verify-duels.mjs';
 
 const KITS: [Kit, Kit] = [{ weapon: 'longsword', skill: 'pommel', gear: ['veteran.helmet'] }, { weapon: 'estoc', skill: null, gear: [] }];
 
@@ -130,4 +130,30 @@ test('verify rooms: one room that throws is flagged and the sweep goes on; a one
   assert.equal(receipt.agedOut, 1); assert.deepEqual(writes, ['flag throws01: ' + receipt.flagged[0].reason, 'verify honest01', 'unverify old0001']);
   writes.length = 0;
   assert.equal((await verifyRooms(db, { now, dry: true })).agedOut, 1); assert.deepEqual(writes, [], 'a dry run marks nothing');
+});
+
+test('verify duel: a kit whose keys came back from jsonb in another order is still clean and equal', () => {
+  const fight = honest(), reorder = (k: { weapon: string; skill: unknown; gear?: readonly string[] }) => ({ gear: [...(k.gear ?? [])], skill: k.skill, weapon: k.weapon }) as never;
+  const record = { ...fight.record, kits: [reorder(fight.record.kits[0]), reorder(fight.record.kits[1])] as never };
+  assert.equal(verifyDuel(claims(fight, [record, fight.record])).ok, true, 'an honest record is not flagged for key order');
+  const dirty = { ...fight.record, kits: [{ ...fight.record.kits[0], gear: ['x'.repeat(65)] }, fight.record.kits[1]] as never };
+  assert.equal(verifyDuel(claims(fight, [dirty, dirty])).ok, false, 'a kit cleanKit would change is still refused');
+});
+
+test('verify rooms: a long reason is capped, a failing write is recorded per room and the queue goes on, a missing createdAt counts as aged', async () => {
+  const fight = honest(), now = 10_000_000_000, forged = claims(fight).map((c) => ({ ...c, won: !c.won }));
+  const rooms = [{ room: 'bad0001', createdAt: now - 3000, claims: forged }, { room: 'honest01', createdAt: now - 2000, claims: claims(fight) },
+    { room: 'nodate1', claims: claims(fight, [fight.record, null]) }, { room: 'nan0001', createdAt: Number.NaN, claims: claims(fight, [fight.record, null]) }];
+  const hostile = { get side(): never { throw new Error('y'.repeat(1000)); } };
+  const writes: string[] = [];
+  const db = { pending: async () => rooms, verify: async (room: string) => { writes.push(`verify ${room}`); },
+    flag: async (room: string, reason: string) => { writes.push(`flag ${room} ${reason.length}`); throw new Error('x'.repeat(1000)); },
+    unverify: async (room: string) => { writes.push(`unverify ${room}`); } };
+  const long = await verifyRooms({ ...db, pending: async () => [{ room: 'long001', createdAt: now, claims: [hostile, hostile] as never }] }, { now });
+  assert.ok(long.flagged[0].reason.length <= REASON_MAX && long.flagged[0].reason.length > 100, 'a hostile 1000-char error message is clipped');
+  writes.length = 0;
+  const receipt = await verifyRooms(db, { now });
+  assert.deepEqual(writes, ['flag bad0001 ' + String(receipt.flagged[0].reason.length), 'verify honest01', 'unverify nodate1', 'unverify nan0001']);
+  assert.ok(receipt.flagged[0].reason.length <= REASON_MAX); assert.equal(receipt.verified, 1); assert.equal(receipt.agedOut, 2);
+  assert.equal(receipt.writeErrors.length, 1); assert.equal(receipt.writeErrors[0].room, 'bad0001'); assert.ok(receipt.writeErrors[0].error.length <= REASON_MAX);
 });

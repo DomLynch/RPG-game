@@ -9,7 +9,7 @@
 import { stepDuel, type Intent, type Side } from '../duel.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../record.ts';
 import { cleanKit, unpackIntents, type PvpRecord } from './pvp.ts';
-import { hashDuel, NET, pvpDuel, sameIntent } from './rollback.ts';
+import { hashDuel, NET, pvpDuel, sameIntent, type Kit } from './rollback.ts';
 
 export type DuelClaim = { side: Side; won: boolean; hash: string; record: PvpRecord | null };
 export type DuelVerdict = { ok: true; winner: Side } | { ok: false; unverified: boolean; reason: string };
@@ -28,7 +28,7 @@ function replayUnguarded(record: PvpRecord): Replay {
   try { streams = [unpackIntents(record.intents[0]), unpackIntents(record.intents[1])]; } catch { return 'undecodable intents'; }
   if (streams[0].length < record.ticks || streams[1].length < record.ticks) return 'fewer intents than ticks';
   // Both pages put every kit through cleanKit before the duel starts, so an honest record's kits are already clean; anything else is refused.
-  if (!Array.isArray(record.kits) || record.kits.length !== 2 || record.kits.some((kit) => JSON.stringify(cleanKit(kit)) !== JSON.stringify(kit))) return 'the kits are not clean kits';
+  if (!Array.isArray(record.kits) || record.kits.length !== 2 || record.kits.some((kit) => !sameKit(cleanKit(kit), kit))) return 'the kits are not clean kits';
   let duel = pvpDuel(record.kits[0], record.kits[1]), finishedAt: number | null = null, hash: string | null = null;
   for (let t = 1; t <= record.ticks; t++) {
     duel = stepDuel(duel, [streams[0][t - 1], streams[1][t - 1]]);
@@ -41,6 +41,9 @@ function replayUnguarded(record: PvpRecord): Replay {
   return { winner: duel.finish!.victim === 1 ? 0 : 1, hash, streams };
 }
 
+// Field by field, never by JSON text: a record that went through jsonb comes back with its keys in another order.
+const sameKit = (a: Kit, b: Kit): boolean => !!a && !!b && a.weapon === b.weapon && a.skill === b.skill && Array.isArray(a.gear) && Array.isArray(b.gear) && a.gear.length === b.gear.length && a.gear.every((id, k) => id === b.gear?.[k]);
+
 export function verifyDuel(claims: readonly [DuelClaim, DuelClaim]): DuelVerdict {
   const flag = (reason: string): DuelVerdict => ({ ok: false, unverified: false, reason });
   const [a, b] = claims;
@@ -51,7 +54,7 @@ export function verifyDuel(claims: readonly [DuelClaim, DuelClaim]): DuelVerdict
   const runs = [replay(a.record), replay(b.record)];
   for (const [i, run] of runs.entries()) if (typeof run === 'string') return flag(`side ${claims[i].side} record: ${run}`);
   const [x, y] = runs as Extract<Replay, object>[];
-  if (JSON.stringify(a.record.kits) !== JSON.stringify(b.record.kits)) return flag('the records name different kits');
+  if (!sameKit(a.record.kits[0], b.record.kits[0]) || !sameKit(a.record.kits[1], b.record.kits[1])) return flag('the records name different kits');
   for (const column of [0, 1] as const) {
     const n = Math.min(x.streams[column].length, y.streams[column].length, a.record.ticks, b.record.ticks);
     for (let t = 0; t < n; t++) if (!sameIntent(x.streams[column][t], y.streams[column][t])) return flag(`the records disagree on side ${column}'s intent at tick ${t + 1}`);
