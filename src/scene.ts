@@ -353,11 +353,11 @@ export function createScene(
       // Not measurable on the Mac (2026-09-25, phone tier, ×4 CPU throttle, paired runs within noise): a one-off compile outside the sampled
       // window, and headless software GL cannot show a phone GPU's first-draw stall. The case is that stall, on the first blow of a fight.
       renderer.compile(scene, camera);
-      // Then the first frame itself, behind the card (first-frame.ts): maps a slice per frame, one draw, at most 4 s; a hidden tab (no animation frames) skips it.
+      // Then the first frame itself, behind the card (first-frame.ts): maps a slice per frame, one draw, at most 4 s, on macrotask yields and the clock only (never rAF or a timer: a paused page clock must still boot); a hidden tab skips it.
       if (typeof document === 'undefined' || !document.hidden) {
         const maps = new Set<THREE.Texture>(); scene.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points || o instanceof THREE.Line) for (const material of [o.material].flat()) for (const v of Object.values(material as object)) if (v instanceof THREE.Texture) maps.add(v); });
         performance.mark('first-frame-begin');
-        const how = await warmFirstFrame({ textures: [...maps], upload: (t) => renderer.initTexture(t as THREE.Texture), draw: () => renderer.render(scene, camera), frame: () => new Promise<void>((done) => requestAnimationFrame(() => done())), budgetMs: 4000, sliceMs: 10, now: () => performance.now(), lost: () => renderer.getContext().isContextLost() });
+        const how = await warmFirstFrame({ textures: [...maps], upload: (t) => renderer.initTexture(t as THREE.Texture), draw: () => renderer.render(scene, camera), frame: () => new Promise<void>((done) => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); done(); }; c.port2.postMessage(0); }), budgetMs: 4000, sliceMs: 10, now: () => performance.now(), lost: () => renderer.getContext().isContextLost() });
         performance.mark('first-frame-' + how);
       }
       assetStatus('', 'ready');
