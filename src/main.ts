@@ -798,6 +798,7 @@ function winFace(src: string | null) {
 }
 // The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
 const LESSON_MS = 4000;
+const PACE_STILL = /[?&]pacestill=1(&|$)/.test(window.location?.search ?? '');   // stills only (PR #1484): shows the pace line at tick 120 without fatiguing a real fight; inert without the query
 let lessonNow: LessonLine | undefined, lessonTimer = 0;
 export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
@@ -1861,7 +1862,7 @@ function frame(now: number) {
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
-      if (!quiet && match.mode !== 'lesson' && practice.clarity.some((c) => c.type === 'FatigueBand' && c.actor === 0 && (c.band ?? 0) >= 2)) {   // once ever: the first time the player is tired
+      if (!quiet && match.mode !== 'lesson' && (PACE_STILL ? practice.duel.tick === 120 : practice.clarity.some((c) => c.type === 'FatigueBand' && c.actor === 0 && (c.band ?? 0) >= 2))) {   // once ever: the first time the player is tired
         let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
         if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
       }
