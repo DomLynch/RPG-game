@@ -172,10 +172,10 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
 // the face unrolled: u around (seamless: every noise tiles), v = 1 at the sand's lip down to 0. Horizontal strata thin in v and long in u
 // (the ledges, their lips catching light), tall hairline cracks, diagonal pale veins, grain; the colour runs from sand at the lip into
 // dark stone, so the drop reads as the floor's own edge breaking off.
-export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
+export function cliffPixels(width = 1024, height = 192, courses = 5.5, seed = 43): Pixels {
   const wave = fbm(12, 3, seed), chunk = fbm(10, 4, seed + 2), crack = fbm(100, 1, seed + 5), crackMask = fbm(6, 2, seed + 6), vein = fbm(8, 3, seed + 7), veinMask = fbm(5, 3, seed + 8), grain = fbm(96, 3, seed + 9), patch = fbm(7, 3, seed + 11);
   return pixels(width, height, (u, v) => {
-    const d = 1 - v, t = v * 5.5 + 2.8 * (wave(u, v * 0.45) - 0.5), band = Math.floor(t), fr = t - band;   // ledges: undulating courses, each with its own thickness of shadow and lit lip
+    const d = 1 - v, t = v * courses + 2.8 * (wave(u, v * 0.45) - 0.5), band = Math.floor(t), fr = t - band;   // ledges: undulating courses, each with its own thickness of shadow and lit lip
     const lit = 1 - smoothstep(0.0, 0.2, fr), under = smoothstep(0.78, 1.0, fr);
     const bu = u * 17 + band * 0.37 + 0.5 * (wave(u * 3, band * 0.13) - 0.5), block = Math.floor(bu), bf = bu - block, joint = Math.max(1 - smoothstep(0.0, 0.07, bf), smoothstep(0.93, 1.0, bf));   // blocks of rock between vertical joints, staggered course to course
     const bandTone = hash(band, 3, seed) - 0.5, blockTone = hash(block, band, seed + 1) - 0.5;
@@ -189,17 +189,6 @@ export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
     const dark = Math.min(0.9, crackLine * 0.8 + joint * 0.3); r *= 1 - dark; gg *= 1 - dark; b *= 1 - dark;
     const sand = 1 - smoothstep(0.0, 0.07 + 0.06 * (wave(u, 0.3) - 0.5), d + 0.04 * g);   // the lip is sand, ragged, breaking into stone
     return [r + (140 * (0.9 + 0.2 * g) - r) * sand, gg + (112 * (0.9 + 0.2 * g) - gg) * sand, b + (84 * (0.9 + 0.2 * g) - b) * sand];
-  });
-}
-// Below the drop: a cloud sea running down into a dusk abyss, so the arena floats and no flat clear colour ever shows. Equirectangular, v = 1 at
-// the horizon (the painted world's cloud bank, cream and rose) down to 0 at the nadir (deep blue-grey).
-export function abyssPixels(width = 512, height = 128, seed = 61): Pixels {
-  const cloud = fbm(5, 4, seed), wisp = fbm(14, 3, seed + 3);
-  return pixels(width, height, (u, v) => {
-    const down = 1 - v, n = cloud(u, v * 0.9), puff = smoothstep(0.3, 0.7, n), w = wisp(u, v * 0.8) - 0.5, deep = smoothstep(0.0, 1.0, down);
-    const light: [number, number, number] = [236, 214, 196], shade: [number, number, number] = [138, 126, 140], gloom: [number, number, number] = [74, 70, 94];   // sunlit cream tops, rose-grey bellies, a violet gloom far down
-    const m = (i: number) => { const base = shade[i] + (light[i] - shade[i]) * Math.min(1, puff + 0.3 * w), dim = 1 - 0.55 * deep; return gloom[i] * deep * 0.9 + base * dim * (1 - 0.4 * deep); };
-    return [m(0), m(1), m(2)];
   });
 }
 // A torn banner: a cut mask. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.

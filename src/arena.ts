@@ -7,7 +7,7 @@ import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
 import { riseMetres, riseStep } from './gate-rise.ts';
-import { abyssPixels, bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
 
@@ -28,6 +28,7 @@ export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE
 export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
 export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
+const ABYSS_HAZE = [176, 194, 214];   // the haze the abyss disc's rim and the horizon bowl meet in: equal to HAZE in scripts/arena-abyss.py
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const RAIN_PHONE_COUNT = 500;
 const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-fov (scene.ts): a point sprite's size in world terms at any depth
@@ -480,20 +481,33 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
   const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
-  if (cliff) {   // the sand ends here: a sheer rock face a few metres deep under its edge (vertical, flaring a little: an undercut would hide under the lip from the fight camera), darkening, and nothing but the painted far world beyond (no far ground)
-    const depth = 3.2, face = new THREE.CylinderGeometry(edgeR, edgeR * 1.04, depth, 144, 5, true), pos = face.attributes.position;
-    for (let i = 0; i < pos.count; i++) {   // the ragged bite and the flare; the colour, ledges and cracks are the texture's (cliffPixels: one map, no tiling round the 75 m of rim)
-      const y = pos.getY(i), k = Math.min(1, Math.max(0, (depth / 2 - y) / depth)), a = Math.atan2(pos.getX(i), pos.getZ(i)), bite = k * (0.35 * (mottle(a * 1.3 + 3, k * 3 + 1) - 0.5) + 0.12 * Math.sin(a * 9 + y)), r = Math.hypot(pos.getX(i), pos.getZ(i)), rr = r + bite;
-      pos.setXYZ(i, pos.getX(i) * rr / r, y, pos.getZ(i) * rr / r);
+  let abyssGround: THREE.Mesh | null = null;
+  if (cliff) {   // the sand ends here: a floating island (Dom 2026-10-06, "ice-cream cone"). A short sheer lip, then the rock tapers in and down to a point, irregular, with nothing but the painted far world round it and an aerial view far below.
+    const lip = 0.5, depth = 14, tipR = 0.35, rows = 28, ring: THREE.Vector2[] = [];   // lathe points tip -> lip: v runs 0 at the point to 1 at the sand (the rock map's gradient runs down the cone)
+    for (let j = 0; j <= rows; j++) { const w = 1 - j / rows; ring.push(new THREE.Vector2(tipR + (edgeR - tipR) * (1 - w), -lip - w * (depth - lip))); }
+    ring.push(new THREE.Vector2(edgeR, 0));
+    const face = new THREE.LatheGeometry(ring, 120), pos = face.attributes.position;
+    for (let i = 0; i < pos.count; i++) {   // ragged bite round the rim, ledges and bulges down the flank, the spike wandering off true; the colour, ledges and cracks are the texture's (cliffPixels: one map, no tiling round the rim)
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), r = Math.hypot(x, z), w = Math.min(1, Math.max(0, (-y - lip) / (depth - lip))), a = Math.atan2(x, z);
+      if (r < 1e-3) { pos.setXYZ(i, Math.sin(w * 3.1) * 0.6, y, Math.cos(w * 2.3) * 0.6); continue; }
+      const k = Math.sqrt(w), grow = 1 + k * (0.34 * (mottle(a * 0.95 + 3, w * 2.2 + 1) - 0.5) + 0.07 * Math.sin(a * 7 + w * 9) + 0.05 * Math.sin(w * 22 + a * 3)), rr = r * grow;
+      pos.setXYZ(i, x * rr / r + Math.sin(w * 3.1) * 0.6 * w, y, z * rr / r + Math.cos(w * 2.3) * 0.6 * w);
     }
-    face.translate(0, -depth / 2, 0); face.computeVertexNormals();
-    const unmipped = (t: THREE.DataTexture) => { t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; return t; };   // no mips: the arena's texture budget is 12 MB and these two are what is left of it
-    const rockMap = unmipped(dataTexture(cliffPixels(640, 96), true));
-    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, color: '#9db0c6', roughness: 1 }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
-    // Under the drop, where the painted world ends: a cloud sea down to a dusk abyss on a bowl inside the sky dome, unfogged, so the clear colour never shows.
-    const abyssMap = unmipped(dataTexture(abyssPixels(128, 32), true));
-    const abyssMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', map: abyssMap, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(abyssMaterial); abyssMaterial.addEventListener('dispose', () => abyssMap.dispose());
-    mesh(new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), abyssMaterial, 'abyss', false).receiveShadow = false;
+    face.computeVertexNormals();
+    const unmipped = (t: THREE.DataTexture) => { t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; return t; };   // no mips: the arena's texture budget (tests/arena.test.ts) leaves this map little room
+    const rockMap = unmipped(dataTexture(cliffPixels(640, 96, 13), true));
+    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, color: '#9db0c6', roughness: 1, side: THREE.DoubleSide }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
+    // Far below: an aerial photograph of ranges, snow, a lake and drifting clouds (scripts/arena-abyss.py, ~9 KB webp; the arena's one extra texture, ruled by Lead
+    // for Dom 2026-10-06) on a disc, its rim faded into the haze; round it a bowl inside the sky dome that runs from the painted clouds' cream into the same haze. Unfogged; the clear colour never shows.
+    const size = 420, groundMap = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(size * size * 4), size, size) : new THREE.TextureLoader().load('/arena/abyss.webp');
+    groundMap.colorSpace = THREE.SRGBColorSpace; groundMap.wrapS = groundMap.wrapT = THREE.ClampToEdgeWrapping; groundMap.generateMipmaps = true; groundMap.minFilter = THREE.LinearMipmapLinearFilter; groundMap.anisotropy = 4;
+    const groundMaterial = new THREE.MeshBasicMaterial({ name: 'abyss ground', map: groundMap, fog: false, toneMapped: false }); materials.push(groundMaterial); groundMaterial.addEventListener('dispose', () => groundMap.dispose());
+    abyssGround = mesh(new THREE.CircleGeometry(80, 48).rotateX(-Math.PI / 2).translate(0, -36, 0), groundMaterial, 'abyss ground', false); abyssGround.receiveShadow = false;
+    const bowl = new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), cream = new THREE.Color().setRGB(0.89, 0.8, 0.74, THREE.SRGBColorSpace), haze = new THREE.Color().setRGB(ABYSS_HAZE[0] / 255, ABYSS_HAZE[1] / 255, ABYSS_HAZE[2] / 255, THREE.SRGBColorSpace), bowlColors = new Float32Array(bowl.attributes.position.count * 3), tint = new THREE.Color();
+    for (let i = 0; i < bowl.attributes.position.count; i++) { const below = Math.asin(Math.min(1, -bowl.attributes.position.getY(i) / 148)); tint.copy(cream).lerp(haze, smooth(0, 0.42, below)); tint.toArray(bowlColors, i * 3); }
+    bowl.setAttribute('color', new THREE.BufferAttribute(bowlColors, 3));
+    const bowlMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', vertexColors: true, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(bowlMaterial);
+    mesh(bowl, bowlMaterial, 'abyss', false).receiveShadow = false;
     mesh(face, rock, 'cliff', false);
   } else mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
@@ -523,7 +537,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const was = rise; rise = riseStep(rise, riseOpen, dt);
     if (rise !== was) { gateBars.position.y = riseMetres(rise); props.liftGate(riseMetres(rise)); }   // the portcullis (procedural or authored) rises with the gate's open; props is built after update(0) and a still gate never reads it
-    time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
+    time += dt; since += dt; if (abyssGround) abyssGround.rotation.y = time * 0.004;   // the land far below turns, slowly: the island drifts over it flare = Math.max(0, flare - dt * 2.5);
     for (const e of events) {
       if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; }
       if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Killed') flare = 1;

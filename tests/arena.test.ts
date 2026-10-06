@@ -108,13 +108,14 @@ test('spectators have solid, readable bodies and distinct roster proportions', (
   assert.ok(heights.get('crowd executioner')! > heights.get('crowd pitborn')!);
 });
 
-test('arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 12 MB of texture memory with mips', () => {
+test('arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 13 MB of texture memory with mips', () => {
   const { meshes } = shared, textures = new Set<THREE.Texture>();
   const triangles = meshes.reduce((n, m) => n + (m instanceof THREE.InstancedMesh ? m.count : 1) * (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
   for (const m of meshes) for (const material of [m.material].flat() as THREE.MeshStandardMaterial[]) for (const t of [material.map, material.normalMap, material.alphaMap, material.emissiveMap, material.aoMap, material.roughnessMap]) if (t) textures.add(t);
   const bytes = [...textures].reduce((n, t) => { const image = t.image as { width: number; height: number }; return n + image.width * image.height * 4 * (t.generateMipmaps ? 4 / 3 : 1); }, 0);
+  // 12 -> 13 MB (Lead for Dom 2026-10-06, Arena 1 floating island): the abyss aerial map, 420 x 420 with mips = 0.94 MB, loaded from public/arena/abyss.webp (~9 KB on the wire); nothing else grew.
   console.log(`arena cost: ${meshes.length} meshes (draw calls before shadows), ${Math.round(triangles)} triangles, ${textures.size} textures ${(bytes / 1e6).toFixed(1)} MB`);
-  assert.ok(meshes.length <= 40, `${meshes.length} meshes`); assert.ok(triangles <= 120_000, `${triangles} triangles`); assert.ok(bytes <= 12e6, `${bytes} bytes of textures`);
+  assert.ok(meshes.length <= 40, `${meshes.length} meshes`); assert.ok(triangles <= 120_000, `${triangles} triangles`); assert.ok(bytes <= 13e6, `${bytes} bytes of textures`);
 });
 
 test('front tiers are occupied and crowd instances vary in build, height and garment dye', () => {
