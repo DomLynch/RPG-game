@@ -2,6 +2,7 @@
 // first win only); a loss, a draw, a re-fight or a repeated settlement pays nothing; the HUD line reads the career.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { MAX_LEVEL } from '../../src/career.ts';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { basePay, cumulative, legendKey, levelOfCredit, requirement, TYPE_WEIGHTS } from '../progression/model.ts';
 import { careerLine, fightSeed, newSession, nextFight, outcomeOf, settle, started } from './pit.ts';
@@ -108,5 +109,5 @@ test('careerLine reads the level, the CP into it and the level requirement', () 
   assert.equal(line.into, s.career.credit - cumulative(16));
   assert.equal(line.need, requirement(16));
   assert.ok(line.fillPermille > 0 && line.fillPermille < 1000);
-  assert.equal(careerLine(newSession(46).career).top, true);
+  assert.equal(careerLine(newSession(MAX_LEVEL).career).top, true);
 });
