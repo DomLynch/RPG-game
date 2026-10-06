@@ -139,7 +139,7 @@ Postgres checks per row, not at commit, so whichever helm moves first gives its 
 neutral parking location (a live row must have a `loc_kind`, `0001:125`). Recommendation (D10): accept the refusal for phase 1 and pre-check
 it at `change_offer` with a clear message. A deferrable form needs a unique constraint, which cannot be partial, so it is a redesign.
 **Update (Backend, 2026-10-07):** 0003 replaces the index with a deferred check at commit (§6.3, M17), after which the swap settles; D10 is
-then superseded, pending Strategy's confirmation.
+then superseded (Strategy confirmed 2026-10-07; conditions in decision 10).
 
 ### 2.8 Exchange only, and no same-device trade
 
@@ -332,7 +332,7 @@ packs filled mid-trade, pieces passed A → B → C → A). After every step:
 | D5 | Two trades offering the same piece | Second escrow `put` stale (O0002); with 0003 also refused as already in an open trade. |
 | D6 | Receiver full | Writer refuses first; a forced batch into a taken slot fails the place index (`0001:126`). Trade stays open. |
 | D7 | Receiver already holds the piece | `origins_items_one_of_each` refuses, nothing moves (exists: `:156-157`). |
-| D8 | Same-definition swap | Before 0003: refused (§2.7). After M17: settles, and each account still holds one copy at commit; pinned so any change is deliberate. |
+| D8 | Same-definition swap | Before 0003: refused (§2.7). After M17: a +0↔+3 helm swap settles; a trade that would leave any account holding two copies still fails at commit; both items' hand-change counts go up and the 2-hand-change limit applies to each (Strategy 2026-10-07). |
 | D9 | Cancel batch that leaves a piece in escrow | Refused by 0003; trade stays open. |
 | D10 | Settle without both accepts, or at a stale version | Refused by 0003 (today the DB allows it). |
 | D11 | Two characters of one account | Refused by 0003. |
@@ -582,7 +582,7 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-07): history.**
 8. **NPC costs:** bound tribute, ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-07): ledger tables when built; materials-only at beta.**
 9. **Tribute per Pit win:** 20 x payer tier, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-07): 20 x payer tier as the placeholder; Stats sets the number.**
-10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-07): refuse.** (Superseded once 0003's M17 lands: the swap then settles. Awaiting Strategy's confirmation.)
+10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-07): refuse until 0003 lands; after that the swap settles through the deferred one-of-each trigger (M17).** Conditions: 0003 includes a test proving a +0↔+3 helm swap settles AND a test proving a trade that would leave anyone holding two copies still fails at commit; the 2-hand-change limit applies to both items.
 11. **Same-IP trades:** allow and flag / refuse. **RULED (Strategy 2026-10-07): allow and flag; refuse same session or device.**
 12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **RULED (Strategy 2026-10-07): class 1 while the flag is OFF and the tables are empty; same path, joint GO.**
 13. **Trade gates:** Gladiator only / plus verified email, 7-day account, 48 h Origins age (phone dropped for beta). **CHANGED (Strategy 2026-10-07): Gladiator rank + verified email + 7-day-old account + 48 h in Origins. Phone verification is an optional later gate (SMS costs money per message; Dom's purchase call).**
