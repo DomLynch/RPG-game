@@ -17,6 +17,14 @@ const between = (rnd: () => number, lo: number, hi: number) => lo + (hi - lo) * 
 // Fills slot `p`; (x, y, z) the contact, (dx, dz) the blow's unit direction. Size is the DIAMETER of the unit sphere the pool scales: width = size, length = size x stretch.
 // `grow` scales the size (1 = as drawn): the burst on the far fighter is made as big on screen as the near one's (Dom: blood appeared when he was hit, rarely when he hit).
 export const bloodGrow = (far: number, near: number): number => Math.min(3, Math.max(1, far / (near || 1)));
+// Where the foe's burst starts, relative to the contact, along the camera's right axis (`open`, metres, in the direction of `side`) and up. Far away the foe is clear of the
+// hero on screen and the first offset (0.35 x scale) is enough; up close the hero's body covers the contact, so the spawn is pushed past the hero's silhouette at the foe's
+// depth (`lat`: the contact's offset from the hero along the camera's right; `ratio`: camera distance to the foe over camera distance to the hero), capped, and lifted a little more.
+export function foeBurstSpot(lat: number, side: number, ratio: number, scale: number): { side: number; open: number; up: number } {
+  const r = Math.min(3, Math.max(1, ratio)), lean = Math.abs(lat) > 0.05 ? Math.sign(lat) : side;
+  const open = Math.min(1.4 * scale, Math.max(0.35 * scale, 0.45 * r + 0.2 * scale - lean * lat));
+  return { side: lean, open, up: 0.1 * scale + 0.25 * scale * Math.min(1, Math.max(0, 2 - r)) };
+}
 export function spawnBlood(p: Particle, i: number, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, feel: Feel, rnd: () => number, grow = 1): void {
   p.x = x; p.y = y; p.z = z;
   const low = feel === 'low' ? 0.7 : 1, a = rnd() * Math.PI * 2;   // no ring: a random bearing each, never evenly spaced

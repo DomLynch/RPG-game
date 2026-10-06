@@ -39,7 +39,7 @@ import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
-import { bloodGrow } from './blood-style.ts';
+import { bloodGrow, foeBurstSpot } from './blood-style.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -909,9 +909,10 @@ export function createScene(
           let sx = target.x - bx * 0.3, sz = target.z - bz * 0.3, sy = y, grow = 1;
           if (victim === 1) {
             right.setFromMatrixColumn(rig.camera.matrixWorld, 0);
-            const side = along === 'left' ? -1 : 1, open = 0.35 * scale;
-            sx += right.x * side * open; sz += right.z * side * open; sy += 0.1 * scale;
-            grow = bloodGrow(reach(target.x, target.z, y), reach(state.x, state.z, 1.15));
+            const far = reach(target.x, target.z, y), near = reach(state.x, state.z, 1.15), lat = (target.x - state.x) * right.x + (target.z - state.z) * right.z;
+            const spot = foeBurstSpot(lat, along === 'left' ? -1 : 1, far / (near || 1), scale);   // close up the hero covers the contact: push the spawn clear of his silhouette
+            sx += right.x * spot.side * spot.open; sz += right.z * spot.side * spot.open; sy += spot.up;
+            grow = bloodGrow(far, near);
           }
           burstPool.burst(feel, sx, sy, sz, bx, bz, dead, grow);
         }

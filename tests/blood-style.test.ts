@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { newParticle, type Feel } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
-import { BLOOD, bloodCount, bloodGrow, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { BLOOD, bloodCount, bloodGrow, foeBurstSpot, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 // The one blood: Dom's b4 (thin spray + a few drops, stretched into strands, darker red). These pin its numbers.
 const batch = (kill: boolean, feel: Feel, seed = 2) => { const rnd = makeRng(seed); return Array.from({ length: bloodCount(feel, kill) }, (_, i) => { const p = newParticle(); spawnBlood(p, i, 0, 1, 0, 0, 1, kill, feel, rnd); return p; }); };
@@ -41,4 +41,13 @@ test('the far fighter\'s blood grows to the near one\'s screen size (1x to 3x), 
   const a = newParticle(), b = newParticle(); spawnBlood(a, 0, 0, 1, 0, 0, 1, false, 'high', makeRng(4)); spawnBlood(b, 0, 0, 1, 0, 0, 1, false, 'high', makeRng(4), 2.5);
   assert.ok(Math.abs(b.size - a.size * 2.5) < 1e-9); assert.deepEqual([b.vx, b.vy, b.vz, b.life, b.stretch], [a.vx, a.vy, a.vz, a.life, a.stretch]);
   assert.equal(bloodCount('high', false), 15, 'counts are the same on both bodies');
+});
+
+test('the foe burst: at range the first offset stands; up close it is pushed past the hero and lifted, capped', () => {
+  const far = foeBurstSpot(1.2, 1, 2.5, 1), close = foeBurstSpot(0, -1, 1, 1);
+  assert.deepEqual([far.side, far.open.toFixed(2), far.up.toFixed(2)], [1, '0.35', '0.10']);   // already clear of the hero: unchanged from the first fix
+  assert.equal(close.side, -1);
+  assert.ok(close.open > 0.35 && close.open <= 1.4 && close.up > 0.1 && close.up <= 0.35);   // behind the hero: out to his edge, and up
+  assert.equal(foeBurstSpot(-0.6, 1, 1, 1).side, -1);   // the contact leans to the left of the hero: go left whatever side the blow named
+  assert.equal(foeBurstSpot(0, 1, 1, 50).open, 70);   // capped at 1.4 x scale
 });
