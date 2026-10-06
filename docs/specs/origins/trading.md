@@ -1,4 +1,4 @@
-# Origins trading spec: barter trade, trade-limited items, bound tribute, anti-dupe, RMT limits (DESIGN ONLY)
+# Origins trading spec: barter trade, trade-limited items, bound metals, anti-dupe, RMT limits (DESIGN ONLY)
 
 Expansion lane, 2026-10-06, written against trunk `256114d9`. For Strategy, Lead and the Auditor. **Nothing here is built and no
 migration exists for it.** Every claim about current code cites `file:line` at that sha. Numbers marked **PROPOSED** are starting values
@@ -8,7 +8,7 @@ in this folder (`modernuo-secure-trade.md`, `modernuo-bank.md`), never from dono
 **The recommended design in one paragraph.** Players trade by **barter only**: items for items, through the existing escrow and
 double-accept flow. There is **no player-tradeable currency**. Only **trade-limited items** change hands: earned gear (rare and up, plus
 Pit pieces) may change hands **at most 2 times**, then binds to its third owner. Materials, stackables and consumables are bound, so no
-item can work as money. NPC services may later cost **tribute**, an account-bound balance earned by play that can never be traded. Dom is
+item can work as money. NPC services may later cost **metals** (bronze, silver, gold), an account-bound balance earned by play that can never be traded. Dom is
 the only seller for real money: cosmetics and membership convenience, always bound, never random, never stats. Discovery after beta is a
 **barter board** (want/offer listings, no prices), not a priced market. This is Dom's direction with Strategy's view (2026-10-06).
 
@@ -20,11 +20,11 @@ Standing rulings this spec follows (Dom/Strategy/Lead, 2026-10-05/06):
 | R2 | Re-winnable once sold is a **PROPOSAL**, not a ruling. | §2.11, §7 |
 | R3 | No same-device trade. Bot trade is a preview test harness only. | §2.8, §5 |
 | R4 | Crafting is out. The smith upgrades with materials only for now; the coin cost stays as data set to 0 (#1461). | §3 |
-| R5 | Income per Pit win is TODO(Stats/Strategy), placeholder 20 x tier. Under this design it pays tribute, not coin. | §3.3 |
+| R5 | Income per Pit win is TODO(Stats/Strategy), placeholder 20 x tier. Under this design it pays bound metals, not coin. | §3.3 |
 | R6 | The marketplace is after beta. Phase 1 is direct player-to-player trade. | §1 |
 | R7 | Additive Origins-only migration = class 1 (Strategy+Lead GO, down-script, branch-DB test, Auditor probes). ALTER/DROP/backfill of a live table = class 2 (Dom's yes at the sha). | §6 |
 | R8 | Server-authoritative: the client never names an account, an amount it is owed, or a reward. | §2.9 |
-| R9 | Barter only, no tradeable currency; trade-limited items (2 hand changes, then bound); stackables bound; NPC costs in bound tribute; cash sales bound, cosmetic or convenience, never random (Dom + Strategy, 2026-10-06). | whole doc |
+| R9 | Barter only, no tradeable currency; trade-limited items (2 hand changes, then bound); stackables bound; NPC costs in bound metals; cash sales bound, cosmetic or convenience, never random (Dom + Strategy, 2026-10-06). | whole doc |
 
 ---
 
@@ -231,7 +231,7 @@ Upgrades keep working on a bound piece (`performUpgrade` checks the owner, not t
 
 ---
 
-## 3. Currency: no tradeable coin; bound tribute for NPC services
+## 3. Currency: no tradeable coin; bound metals for NPC services
 
 ### 3.1 Considered and rejected: a player-tradeable coin
 
@@ -247,33 +247,62 @@ The first draft of this spec designed a tradeable coin. **Rejected** (Dom + Stra
    a stack is capped at 9,999 (`items.ts:49`, `0001:93`), and coin would fill pack slots.
 
 What stays from that work: the contract already caps a balance (`MAX_COIN`, `economy.ts:210`) and the smith already takes and returns a
-balance (`economy.ts:340`, `:381`, `:413`). Those hooks serve tribute below.
+balance (`economy.ts:340`, `:381`, `:413`). Those hooks serve bound metals below.
 
-### 3.2 Tribute: an account-bound balance for NPC services (later)
+### 3.2 Metals: the bound NPC currency (later)
 
-Tribute (working name; "favour" is the other candidate) is earned by play, spent at NPCs, and **can never be traded, gifted, listed or
-sold for cash.** No trade op takes it (§2.9) and the trade contract has no currency field (`economy.ts:38`). It is not needed at beta: the
-smith stays materials-only (R4).
+**Strategy's view (2026-10-07), replacing the working name "tribute":** the bound NPC currency is **metals**, in three denominations:
+**100 bronze = 1 silver, 100 silver = 1 gold.** The balance is one integer in **bronze** (the smallest unit); silver and gold are display
+only, so there is no conversion step and no rounding. `MAX_COIN` (`economy.ts:210`, 1,000,000,000) caps it at 100,000 gold.
+
+Metals are earned by play, spent at NPCs, and **can never be traded, gifted, listed or sold for cash.** No trade op takes them (§2.9) and the
+trade contract has no currency field (`economy.ts:38`). They are not needed at beta: the smith stays materials-only (R4).
 
 **Where it would live (option for 0003, not needed for phase 1):**
 
 | Option | How | For | Against |
 |---|---|---|---|
-| **A. Column on `origins_career`** | `tribute bigint` on the one-per-account row (`0001:52-62`), written by `career_set` | Smallest change. Per account like career, under its version lock (`0001:197`). | ALTER of an Origins table. `career_set` rewrites the whole row (`0001:443-444`), so every spend races every career change. No per-change record: earn and spend cannot be audited or reversed line by line. |
-| **B. Balance table + append-only ledger** | `origins_tribute (account pk, balance, version)` + `origins_tribute_ledger (account, delta, reason, event_id, at)`, a deferred trigger checking balance = sum of ledger (the item-ledger shape, `0001:136-144`, `:256-269`) | Every change has a reason and an event: faucets and sinks are one query (blueprint `:203`), reversal is auditable, conservation holds in the DB. Purely additive. | Two tables and one `origins_apply` op. |
+| **A. Column on `origins_career`** | `metal_bronze bigint` on the one-per-account row (`0001:52-62`), written by `career_set` | Smallest change. Per account like career, under its version lock (`0001:197`). | ALTER of an Origins table. `career_set` rewrites the whole row (`0001:443-444`), so every spend races every career change. No per-change record: earn and spend cannot be audited or reversed line by line. |
+| **B. Balance table + append-only ledger** | `origins_metal (account pk, bronze, version)` + `origins_metal_ledger (account, delta_bronze, reason, event_id, at)`, a deferred trigger checking balance = sum of ledger (the item-ledger shape, `0001:136-144`, `:256-269`) | Every change has a reason and an event: faucets and sinks are one query (blueprint `:203`), reversal is auditable, conservation holds in the DB. Purely additive. | Two tables and one `origins_apply` op. |
 
-**Recommendation: B**, when tribute is built. No transfer reason exists in its ledger, so the DB itself cannot move tribute between accounts.
+**Recommendation: B**, when metals are built. No transfer reason exists in its ledger, so the DB itself cannot move metal between accounts.
 
-### 3.3 Tribute sources and sinks (when built)
+### 3.3 Metal sources and sinks (when built)
+
+Amounts in bronze.
 
 | | Rule | Status |
 |---|---|---|
-| Pit win | **20 x tier level** (Recruit 20 ... Origin 200; tier levels `src/grades.ts:18`, titles `src/career.ts:8`), paid in the same batch as the `pit:<claim>` event (`origins/server/career.ts:14-26`), so a replay pays nothing (`0001:435-438`). | Placeholder (R5, `blacksmith-costs-proposal.md:17`). **OPEN:** payer's tier or the legend's; whether a grey or already-beaten legend (cp 0, `career.ts:12-13`) pays. |
-| Daily cap | At most **20** paid wins a day (PROPOSED; the "heavy" player, `progression-proposal.md:132`). Bound tribute cannot be sold, so this is about pacing, not RMT. | PROPOSED |
-| Quest stages | A tribute line in a quest reward, paid once via the `quest-stage` event (`0001:64-65`); unpaid lines wait on `origins_unpaid` (`0002:17-26`). | Content decides |
-| Smith | The cost table's `coin` column (`economy.ts:211`) becomes the tribute price. #1461 (open, not merged at `256114d9`) lets it be 0; today the parser demands `coin >= 1` (`economy.ts:227`) and so does the receipt (`:318`). **The switch:** ship 0 (materials only); turning it on is a new table `revision`, a data change. Renaming `currency: 'coin'` (`economy.ts:212`) to `'tribute'` is a contract change (D8). | Off at beta (R4) |
-| Repair, NPC shop | No durability exists on `ItemInstance` (`items.ts:157-170`); no shop service kind (`economy.ts:177`). | Not phase 1 |
-| Selling items to NPCs | Would burn items for tribute. | Not phase 1 |
+| Pit win | **20 x tier level** bronze (Recruit 20 ... Origin 200; tier levels `src/grades.ts:18`, titles `src/career.ts:8`), paid in the same batch as the `pit:<claim>` event (`origins/server/career.ts:14-26`), so a replay pays nothing (`0001:435-438`). | Placeholder (R5, `blacksmith-costs-proposal.md:17`). **OPEN:** payer's tier or the legend's; whether a grey or already-beaten legend (cp 0, `career.ts:12-13`) pays. |
+| Daily cap | At most **20** paid wins a day (PROPOSED; the "heavy" player, `progression-proposal.md:132`). Bound metal cannot be sold, so this is about pacing, not RMT. | PROPOSED |
+| Quest stages | A metal line in a quest reward, paid once via the `quest-stage` event (`0001:64-65`); unpaid lines wait on `origins_unpaid` (`0002:17-26`). | Content decides |
+| **Sink: smith** | The cost table's `coin` column (`economy.ts:211`) becomes the metal price. #1461 (open, not merged at `256114d9`) lets it be 0; today the parser demands `coin >= 1` (`economy.ts:227`) and so does the receipt (`:318`). **The switch:** ship 0 (materials only); turning it on is a new table `revision`, a data change. Renaming `currency: 'coin'` (`economy.ts:212`) to `'metal'` is a contract change (D8). | Off at beta (R4) |
+| **Sink: repair** | No durability exists on `ItemInstance` (`items.ts:157-170`); it needs a durability field first. | Later |
+| **Sink: travel** | Paid passage between regions. Needs the world's travel system. | Later |
+| **Sink: housing** | Rent or upkeep. Not in the blueprint's first chapter. | Later |
+| NPC shop | No shop service kind exists (`economy.ts:177`). | Not phase 1 |
+| Selling items to NPCs | Would burn items for metal: a faucet, so only with measured sinks. | Not phase 1 |
+
+A bound currency with no sinks only piles up. Metals ship with at least one live sink (the smith's metal price), and Stats watches the
+faucet/sink totals from the ledger before more faucets are added.
+
+### 3.4 Gems are not money
+
+A stackable, tradeable gem is gold by another name. **Strategy's view:** gems are one of two things, never a currency:
+
+| Kind | Rules |
+|---|---|
+| **Bound crafting material** | Stackable, bound, untradeable like every material (§2.10); spent at the smith or for socketing (when either exists). |
+| **Unique named jewel** | Single-copy (stack 1), a trade-limited item under the 2-hand rule (§2.10), one of each per account. |
+
+No gem definition may be both stackable and tradeable. The content check: `stack > 1` implies untradeable (§2.10 already says so).
+
+### 3.5 Tradeable metal: no for beta (awaiting Dom)
+
+**No tradeable metal at beta.** If Dom later wants it, Strategy's fallback is a **capped sweetener inside a barter**, never metal for
+nothing: at most **1 gold** (10,000 bronze) per trade, at most **3** such trades per account per day, behind the same gates (§5.3), and only
+in a trade where both sides also offer at least one item. It would need a transfer reason in the metal ledger, a per-side amount in the
+`Trade` contract (`economy.ts:38`) and in the accepted set (§6.1), and the RMT case against coin (§3.1) applies in full. **Awaiting Dom.**
 
 ---
 
@@ -296,7 +325,7 @@ smith stays materials-only (R4).
 | I11 | **Trade limit:** a piece has at most 2 `trade` history entries, and one with 2 is bound to its holder. Survives split (history copied, `0001:418`), escrow and cancel (no entry written). | Nothing yet. | 0003 trigger (M9); pure check in `settleTrade`. |
 | I12 | **Only tradeable pieces enter escrow:** never a stackable (`single_copy = false`), never a bound row. | Pure: `economy.ts:155`. DB: nothing. | 0003 guard (M8) refuses `single_copy = false` or `bound_to is not null` into escrow. Rarity and provenance rules stay in the writer (the DB does not store rarity). |
 | I13 | **Bound and story-critical never move between accounts.** | `economy.ts:155`, `inventory.ts:260`, `items.ts:402-410`; story-critical binds on acquire (`items.ts:102`). | Covered by I12 for the bound column. |
-| I14 | **Tribute is never transferred** (when built): its ledger has no transfer reason, balance = sum of ledger, 0..`MAX_COIN`. | Nothing yet. | Option B (§3.2). |
+| I14 | **Metal is never transferred** (when built): its ledger has no transfer reason, balance = sum of ledger, 0..`MAX_COIN`. | Nothing yet. | Option B (§3.2). |
 
 ### 4.2 Pure property tests (new, in the style of `origins/inventory/property.test.ts:1-6`)
 
@@ -428,7 +457,7 @@ already passed on. Recommendation: reverse only what the receiver still holds an
 |---|---|
 | Seller | Dom only. Players never sell to players for money through the game. |
 | Catalogue | **Cosmetics** (including transmog: wearing the look of a piece you earned, never its stats) and **membership convenience**: bank slots (`bank_slots`, `0001:30`), character slots (cap 5 today, `0001:309`), pack slots (`pack_slots`, `0001:29`), region access (membership, blueprint `:9`). |
-| Never | Stats, gear power, upgrade levels, materials, tribute, rank, or anything tradeable. |
+| Never | Stats, gear power, upgrade levels, materials, metals, gems used as currency, rank, or anything tradeable. |
 | Always | **Account-bound and untradeable.** Never in a random box. |
 
 Reasons:
@@ -456,8 +485,39 @@ Account selling is where gold sellers go when there is no gold. **It cannot be r
 - Bot trade exists only as a preview test harness (R3).
 - Pit and world rewards that feed tradeable pieces come only from verified records (`origins_pit_pending` reads verified claims,
   `0001:355-363`; world encounters need a token and replay, `0001:76-87`).
-- The 20-a-day tribute cap and the trade caps limit what a bot farm can move per account; the verified-contact gate limits accounts.
+- The 20-a-day metal cap and the trade caps limit what a bot farm can move per account; the verified-contact gate limits accounts.
 - ToS bans automation; the farm-chain flag (§5.6) is the detection.
+
+### 5.11 Anti-bot (Strategy's view, 2026-10-07)
+
+**Auto-hold (Dom's idea).** When an account's wealth or velocity is anomalous (pieces arriving or leaving far faster than its play could
+explain, or a farm-chain pattern), the writer puts a **hold** on it:
+
+- A hold freezes **trading only**: open, offer and accept refuse. It **never** stops play: fights, quests, the Pit and the bank keep working.
+- A hold **expires after 72 hours** unless a reviewer confirms it.
+- **Strategy or Lead** review holds against **stated, written rules**. **Dom** decides bans and trade reversals (§5.7).
+- A hold is a config row with a reason, a start and an expiry, plus an event, so every hold is auditable. (M13's config rows; the event
+  kind is `trade-hold`, added to M11.)
+
+**Order of defences for beta:**
+
+| # | Layer | Status |
+|---|---|---|
+| 1 | Server-authoritative rewards and custody | Have it (`0001:7-11`; verified Pit claims, `0001:355-363`) |
+| 2 | Trade gates (§5.3) | 0003 + writer |
+| 3 | Rate limits and caps (§5.5) | 0003 config + writer |
+| 4 | **Cloudflare Turnstile** (free) at signup and at an account's first trade | Writer verifies the token server-side. **OPEN:** whether signup can carry it, since sign-in is Supabase/Google. |
+| 5 | Wealth/velocity auto-holds | Writer, on the audit trail (§5.7) |
+
+**After beta:** score input timing in fight replays (the Pit already re-simulates every record, so the data exists); mule detection over the
+trade graph built from provenance and history (§5.7); honeypot items or listings only a bot would touch; and **delayed ban waves**, so a
+farm cannot learn which action tripped it.
+
+**Rules:**
+
+- **Never publish thresholds.** The numbers in §5.5 and §5.6 are the starting config; the live values stay internal and move without notice.
+- **Gmail and IP are signals, not gates.** Aged Gmail accounts and residential proxies are cheap to buy. They feed flags and holds; they
+  never decide alone.
 
 ---
 
@@ -556,12 +616,12 @@ spec follows that: changing an **Origins** table that holds no player rows (the 
 | M3 | Replace `origins_open_trade`: two different accounts; neither already trading; set `region`, `expires_at` | function replace | 1 |
 | M9 | Trade-limit trigger on `origins_items`: when an update appends a `trade` history entry, count them; refuse above **2**; at 2 require `bound_to` = the new holder | trigger | 1 |
 | M10 | New `origins_expire_trades()` for the writer's sweep | function | 1 |
-| M11 | `origins_events` kind check gains `trade`, `trade-cancel`, `trade-reversal` (same form as `0002:8-10`; `tribute` too if M15 ships) | constraint replace | 1* |
+| M11 | `origins_events` kind check gains `trade`, `trade-cancel`, `trade-reversal`, `trade-hold` (same form as `0002:8-10`; `metal` too if M15 ships) | constraint replace | 1* |
 | M12 | New `origins_trade_audit (container, account, character, session_id, device_hash, ip_hash, ua_family, at)`; replace `origins_purge_account` to delete its rows | table + function replace | 1 |
 | M13 | `origins_config` rows for every §5 limit and gate | rows, Origins table | 1 |
 | M14 | New `origins_reverse_trade(container, reviewer, reason, batch)` (writer-only) and `origins_trade_counts(account, since)` for the caps | functions | 1 |
-| M15 | **Option, not needed for phase 1:** tribute, as `origins_tribute` + `origins_tribute_ledger` + a deferred conservation trigger + a `tribute` op in a replaced `origins_apply` (recommended, §3.2 B), or a `tribute bigint` column on `origins_career` (§3.2 A, ALTER, 1*) | tables + trigger + function replace | 1 (B) / 1* (A) |
-| M16 | RLS on every new table, `revoke all from public, anon, authenticated`; no client policy on trades, audit or ledgers; if M15 B ships, an account reads its own `origins_tribute` row (`0001:295` pattern). Every new function granted to `frankendom_origins` only (`0001:531-538` pattern). | RLS / grants | 1 |
+| M15 | **Option, not needed for phase 1:** bound metals, as `origins_metal` + `origins_metal_ledger` + a deferred conservation trigger + a `metal` op in a replaced `origins_apply` (recommended, §3.2 B), or a `metal_bronze bigint` column on `origins_career` (§3.2 A, ALTER, 1*) | tables + trigger + function replace | 1 (B) / 1* (A) |
+| M16 | RLS on every new table, `revoke all from public, anon, authenticated`; no client policy on trades, audit or ledgers; if M15 B ships, an account reads its own `origins_metal` row (`0001:295` pattern). Every new function granted to `frankendom_origins` only (`0001:531-538` pattern). | RLS / grants | 1 |
 
 Not in 0003: any change to `loot_claims`, `awards`, `fighter_profiles` or another Pit table (re-winnable pieces, R2, would touch the live
 award path and is class 2 if adopted); cash-shop tables; barter-board tables (phase 2).
@@ -580,8 +640,8 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-07): rare-and-up plus Pit pieces, so R1 holds.**
 6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-07): the character for beta; revisit account-bind after beta. No contract change.**
 7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-07): history.**
-8. **NPC costs:** bound tribute, ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-07): ledger tables when built; materials-only at beta.**
-9. **Tribute per Pit win:** 20 x payer tier, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-07): 20 x payer tier as the placeholder; Stats sets the number.**
+8. **NPC costs:** bound metals (bronze/silver/gold, 100:1, stored in bronze), ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-07): bound metals in ledger tables when built (replaces "tribute"); materials-only at beta.**
+9. **Metal per Pit win:** 20 x payer tier bronze, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-07): 20 x payer tier as the placeholder; Stats sets the number.**
 10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-07): refuse until 0003 lands; after that the swap settles through the deferred one-of-each trigger (M17).** Conditions: 0003 includes a test proving a +0↔+3 helm swap settles AND a test proving a trade that would leave anyone holding two copies still fails at commit; the 2-hand-change limit applies to both items.
 11. **Same-IP trades:** allow and flag / refuse. **RULED (Strategy 2026-10-07): allow and flag; refuse same session or device.**
 12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **RULED (Strategy 2026-10-07): class 1 while the flag is OFF and the tables are empty; same path, joint GO.**
@@ -592,6 +652,9 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 17. **Re-winnable once sold (R2):** adopt with a give cap / reject / defer. **RULED (Strategy 2026-10-07): defer until after beta (live award path).**
 18. **Who may reverse a trade:** Dom / Dom or Strategy on Dom's say / any admin. **RULED (Strategy 2026-10-07): Dom or Strategy on Dom's say; admins freeze only.**
 19. **Player trade before the hub runtime exists:** heartbeat only / wait for the hub to prove the Exchange position. **RULED (Strategy 2026-10-07): wait; heartbeat in the preview.**
+20. **Tradeable metal:** none at beta / a capped sweetener inside a barter (at most 1 gold per trade, 3 such trades a day, same gates). **Awaiting Dom. Recommend none at beta; the sweetener only if Dom insists later.**
+21. **Gems:** bound crafting materials or unique named jewels under the 2-hand rule / a stackable tradeable gem. **Strategy's view: never a stackable tradeable gem (it would be gold by another name).**
+22. **Auto-holds:** wealth/velocity anomalies freeze trading only, expire after 72 h unless confirmed; Strategy/Lead review on written rules; Dom decides bans and reversals / no auto-holds. **Awaiting Dom (his idea). Recommend adopt, as the last beta layer after gates, rate limits and Turnstile.**
 
 ---
 
@@ -602,7 +665,7 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 3. What the Pit does today when a player who once owned a piece beats its legend again (§2.11). Read the award path with its owner.
 4. Where cancelled pieces go when both the offerer's pack and bank are full (§2.5).
 5. The rarity of each legacy Pit piece in live content (§2.10, D5).
-6. Which tier Pit tribute uses, and whether grey or already-beaten legends pay it (§3.3).
+6. Which tier Pit metal uses, and whether grey or already-beaten legends pay it (§3.3).
 7. A value measure for the lopsided-trade flag with no prices (§5.6).
 8. How the writer learns of a password or email change (§5.4); and, if Dom buys SMS later, whether phone verification can be turned on in Supabase Auth (§5.3).
 9. Whether a reversal follows a piece already passed on (§5.7).
