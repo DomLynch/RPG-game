@@ -1,14 +1,14 @@
 begin;
 -- DRAFT, NOT FOR APPLY. No PRE, no apply until Strategy + Lead's joint GO (Dom too for any class 2 statement).
 -- ROLLBACK: supabase/down/202610070005_origins_trade_limits_down.sql (drops the new objects; restores 0001's purge).
--- CLASS 1 ONLY. The events-kind constraint (an ALTER of a live table = class 2) and the reversal that needs it are in 202610070006_origins_trade_reversal.sql, separable: this file applies without it.
+-- CLASS 1 ONLY. The events-kind constraint (an ALTER of a live table = class 2) and the reversal that needs it are in 202610070008_origins_trade_reversal.sql, separable: this file applies without it.
 -- Origins trade limits, slice 1 of 0005 (docs/specs/origins/trading.md §6 M9, M10, M11, M13). Origins-only; the flag is OFF and the tables hold no rows.
 --   M9  the per-item trade cooldown (economy.ts tradeCooldown, no hard limit: Dom 2026-10-07): the DB writes the 'trade' history entry itself (0003's guard forbids
 --       a client-sent history_append) and refuses a piece entering escrow before its cooldown ends.
 --   M10 origins_expire_trades(): the open trades the writer must now cancel (past expires_at, or idle too long).
 --   M13 config rows for the cooldown and the idle expiry.
 -- Slice 2 (this file too): M12 audit table + record/prune + purge replace, M13 gates/caps config + origins_trade_limits(), M14 origins_trade_counts.
--- Not here: M11 + M14 reversal (0006, class 2), M15 bound metals (slice 3).
+-- Not here: M11 + M14 reversal (0008, class 2), M15 bound metals (slice 3).
 
 -- ---- M13 (part): config the functions below read, tunable without a migration --------------------------------------------------------
 insert into public.origins_config (key, value) values

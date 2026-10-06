@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const UP = '202610070005_origins_trade_limits.sql', UP6 = '202610070006_origins_trade_reversal.sql';
+const UP = '202610070005_origins_trade_limits.sql', UP6 = '202610070008_origins_trade_reversal.sql';
 import { TIERS } from '../src/grades.ts';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
@@ -101,7 +101,7 @@ try {
   }
   eq(psql(`select has_function_privilege('frankendom_origins', 'public.origins_expire_trades()', 'execute')::int::text || has_function_privilege('anon', 'public.origins_expire_trades()', 'execute')::int::text || has_function_privilege('authenticated', 'public.origins_expire_trades()', 'execute')::int::text`), '100', 'only the writer sweeps trades');
   eq(kindCheck(), before.kinds, '0005 alone (class 1) leaves the event kinds as 0003 has them');
-  eq(psql(`select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'origins_reverse_trade'`), '0', '0005 alone has no reversal function (it is 0006)');
+  eq(psql(`select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'origins_reverse_trade'`), '0', '0005 alone has no reversal function (it is 0008)');
   down(); same('down #1');
 
   // ---- round 2: the cooldown, the DB-written history, the sweep -----------------------------------------------------------------------
@@ -249,7 +249,7 @@ try {
   for (const kind of ['trade-reversal', 'trade-hold', 'metal']) psql(`insert into public.origins_events (event_id, kind, account) values ('k:${kind}', '${kind}', '${A}')`);
   refused('an unknown kind is still refused', 'origins_events_kind_check', () => psql(`insert into public.origins_events (event_id, kind, account) values ('k:x', 'bogus', '${A}')`));
   // down: refused while a new-kind event exists (append-only), clean after the purge
-  refused('0006 down is refused while a new-kind event exists', 'origins_events_kind_check', () => down(UP6));
+  refused('0008 down is refused while a new-kind event exists', 'origins_events_kind_check', () => down(UP6));
   eq(psql(`select count(*) from public.origins_trade_audit where account = '${A}'`), '1', 'A has an audit row before the purge');
   for (const a of [A, B, C]) W(`select public.origins_purge_account('${a}');`);
   eq(psql(`select count(*) from public.origins_trade_audit where account = '${A}'`), '0', 'the purge took the audit rows too');

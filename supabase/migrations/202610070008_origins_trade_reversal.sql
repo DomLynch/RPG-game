@@ -1,7 +1,7 @@
 begin;
 -- DRAFT, NOT FOR APPLY. CLASS 2: the events-kind constraint is an ALTER of a live table (origins_events), so Strategy's standing rule makes this a joint GO WITH DOM
 -- (plus Strategy + Lead), on top of the Auditor's PRE. Everything else in 0005 applies without this file.
--- ROLLBACK: supabase/down/202610070006_origins_trade_reversal_down.sql (valid only while no 'trade-reversal'/'trade-hold'/'metal' event exists).
+-- ROLLBACK: supabase/down/202610070008_origins_trade_reversal_down.sql (valid only while no 'trade-reversal'/'trade-hold'/'metal' event exists).
 -- docs/specs/origins/trading.md §6 M11 (three more event kinds) and the M14 reversal that writes one of them.
 
 -- ---- M11: the event kinds (an Origins table constraint replace) --------------------------------------------------------------------------

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const UP = '202610070007_origins_metal.sql';
+const UP = '202610070007_origins_metal.sql', UP8 = '202610070008_origins_trade_reversal.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -82,7 +82,7 @@ try {
     grant usage on schema public,auth to anon,authenticated;
     insert into auth.users (id) values ('${A}'), ('${B}'), ('${C}'), ('${N}');`);
   const files = readdirSync(dir).filter(n => n.endsWith('.sql')).sort();
-  if (!files.includes(UP)) fail(`${UP} is missing from ${dir}`);
+  for (const f of [UP, UP8]) if (!files.includes(f)) fail(`${f} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   const down = (up = UP) => psql(readFileSync(join(dir, '..', 'down', up.replace('.sql', '_down.sql')), 'utf8'));
   apply(files.filter(n => n < UP));
@@ -115,11 +115,16 @@ try {
     eq(removed.length, 1, 'exactly one old line differs (the declare line)');
     eq(removed[0].startsWith('declare op jsonb;') && added[0].startsWith('declare op jsonb;') && added[0].endsWith('delta bigint;'), true, 'and it only gained `delta bigint;`');
     const branch = added.slice(1);
-    eq(branch[0].includes("elsif kind = 'metal' then") && branch.length === 13 && branch.every(l => /metal|delta|acct|cnt|else|end if|if |insert|update|get diagnostics|raise|\(op/.test(l)), true, `the rest is one contiguous 13-line metal branch (${branch.length} lines)`);
+    eq(branch[0].includes("elsif kind = 'metal' then") && branch.length === 16 && branch.every(l => /metal|delta|acct|cnt|else|end if|if |insert|update|get diagnostics|raise|\(op|begin|exception|end;/.test(l)), true, `the rest is one contiguous 16-line metal branch (${branch.length} lines)`);
     eq(b.indexOf(branch[0]) > 0 && b[b.indexOf(branch[0]) + branch.length].includes("elsif kind = 'career_set' then"), true, 'placed right before career_set');
   }
   down(); same('down #1');
   eq(fnText('origins_apply'), oldApply, 'down #1: origins_apply is 0001 byte for byte'); eq(fnText('origins_purge_account'), oldPurge, 'down #1: purge is 0005 byte for byte');
+
+  // the order guard: without 0005's audit table 0007 refuses to apply (loudly), and applies once it is back
+  psql(`alter table public.origins_trade_audit rename to origins_trade_audit_x`);
+  refused('0007 refuses to apply before 0005', '0007 needs 0005 applied first', () => apply([UP]));
+  psql(`alter table public.origins_trade_audit_x rename to origins_trade_audit`);
 
   // ---- round 2: the op, attacked as the writer role ----------------------------------------------------------------------------------
   apply([UP]);
@@ -132,6 +137,7 @@ try {
   eq(bal(A), '150/2|2', 'a refund adds at the expected version');
   commit(A, [metal(A, -30, 'spend', { expected_version: 2 })]);
   eq(bal(A), '120/3|3', 'a spend subtracts');
+  refused('a first op (no expected_version) on an existing row is O0002, not a raw unique violation', 'send its expected_version', () => commit(A, [metal(A, 5, 'award')]));
   refused('a stale version', 'stale', () => commit(A, [metal(A, -1, 'spend', { expected_version: 2 })]));
   refused('overdraw', 'origins_metal_bronze_check', () => commit(A, [metal(A, -121, 'spend', { expected_version: 3 })]));
   refused('the 1e9 cap', 'origins_metal_bronze_check', () => commit(A, [metal(A, 1000000000, 'award', { expected_version: 3 })]));
@@ -174,6 +180,21 @@ try {
   W(`select public.origins_purge_account('${B}');`);
   down(); same('down #2');
   eq(fnText('origins_apply'), oldApply, 'down #2: origins_apply is 0001 byte for byte'); eq(fnText('origins_purge_account'), oldPurge, 'down #2: purge is 0005 byte for byte');
+  // ---- round 3: the class-2 file last. 0005 -> 0007 was proven above with 0008 never applied; now 0008 goes on top, then the downs in reverse ------------------
+  apply([UP, UP8]);
+  eq(psql(`select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'origins_reverse_trade'`), '1', '0008 on top of 0007: the reversal function exists');
+  eq(/trade-reversal/.test(kindCheck()), true, 'and the event kinds include trade-reversal');
+  const pcC = W(`select public.origins_create_character('${C}', 'Cass');`).split('\n').pop();
+  commit(C, [metal(C, 7, 'award')]);
+  eq(bal(C), '7/1|1', 'the metal op works with all three on');
+  down(UP8);
+  eq(kindCheck(), before.kinds, 'down of 0008 alone: the event kinds are 0003\'s again');
+  eq(psql(`select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'origins_reverse_trade'`), '0', 'and the reversal function is gone');
+  eq(bal(C), '7/1|1', 'while the metal row and ledger are untouched');
+  void pcC;
+  W(`select public.origins_purge_account('${C}');`);
+  down(UP); same('down #3');
+  eq(fnText('origins_apply'), oldApply, 'down #3: origins_apply is 0001 byte for byte'); eq(fnText('origins_purge_account'), oldPurge, 'down #3: purge is 0005 byte for byte');
   console.log(`origins-metal-check: ${checks} checks passed`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }

@@ -1,4 +1,7 @@
 begin;
+-- ORDER: 0007 replaces origins_purge_account with 0005's body plus the metal deletes, and 0005's body deletes from origins_trade_audit, which 0005 creates. Apply 0005 first
+-- (0008, class 2, is independent of this file and may follow whenever Dom rules it). The guard makes a wrong order fail loudly instead of leaving a purge that errors.
+do $g$ begin if to_regclass('public.origins_trade_audit') is null then raise exception '0007 needs 0005 applied first (its purge deletes the trade audit rows)'; end if; end $g$;
 -- DRAFT, NOT FOR APPLY. No PRE and no apply until Strategy + Lead's joint GO. Class per statement is in the PR body (0007 is class 1: new Origins tables + replaces of two Origins functions).
 -- ROLLBACK: supabase/down/202610070007_origins_metal_down.sql (valid only while no metal row or ledger line exists; restores 0001's origins_apply and 0005's purge).
 -- docs/specs/origins/trading.md §6 M15, decision 8 option B: bound metals are an ACCOUNT balance, never an item, and never move between accounts (no transfer reason exists).
@@ -107,7 +110,10 @@ begin
       if coalesce(op ->> 'reason', '') not in ('award', 'spend', 'refund') or delta is null or delta = 0 or (op ->> 'reason' = 'spend') <> (delta < 0) then
         raise exception 'metal % with delta % is not valid (award and refund add, spend subtracts)', op ->> 'reason', delta using errcode = 'O0012'; end if;
       if (op ->> 'expected_version') is null then
-        insert into public.origins_metal (account, bronze) values (acct, delta);
+        begin
+          insert into public.origins_metal (account, bronze) values (acct, delta);
+        exception when unique_violation then raise exception 'metal row exists: send its expected_version' using errcode = 'O0002';
+        end;
       else
         update public.origins_metal set version = version + 1, bronze = bronze + delta where account = acct and version = (op ->> 'expected_version')::int;
         get diagnostics cnt = row_count;

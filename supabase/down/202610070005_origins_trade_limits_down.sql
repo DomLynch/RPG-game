@@ -1,5 +1,5 @@
 begin;
--- Drops exactly what 202610070005_origins_trade_limits.sql creates and restores 0001's purge. (The event-kind check is 0006's.)
+-- Drops exactly what 202610070005_origins_trade_limits.sql creates and restores 0001's purge. (The event-kind check is 0008's.)
 drop function public.origins_trade_limits(uuid), public.origins_trade_counts(uuid, timestamptz),
   public.origins_trade_audit_prune(int), public.origins_trade_audit_record(text, uuid, text, text, text, text, text);
 -- 0001's purge body again (the audit delete goes with the table).
