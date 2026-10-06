@@ -163,11 +163,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
         : r < parryChance + profile.dodge && self.stamina >= RULES.rollCost ? 'dodge'
         : unblockable ? (self.stamina >= RULES.rollCost && !(profile.step && clears && roll() < profile.step) ? 'dodge' : !self.parryCooldown && guardShare > 0 ? 'parry' : 'evade')
         : affordable && (guardShare >= 1 || roll() < guardShare) ? 'block' : 'evade';
-      // Late notice (COMBAT-001), cuts only (the thrust and the heavy keep their honest answer): `spare` is the ticks between noticing the blow and its contact. A swing noticed on the contact tick or later is never answered
+      // Late notice (COMBAT-001), every blow but a tell (the thrust and the pommel strike keep their honest answer: a ranged thrust is the opener a warden must meet): `spare` is the ticks between noticing the blow and its contact. A swing noticed on the contact tick or later is never answered
       // in time; one noticed with a tick to spare is answered only (spare - 1) / (lateNotice - 1) of the time, so the step from "never in time" to "always in
       // time" spreads over lateNotice - 1 levels of reaction instead of one. No draw is made at spare <= 0, so a warden slower than the cut keeps its stream.
       const spare = timing(opponent).windup - reaction;
-      if (next.plan !== 'ignore' && (opponent.move === 'light_left' || opponent.move === 'light_right') && spare > 0 && spare < READ.lateNotice && roll() >= (spare - 1) / (READ.lateNotice - 1)) next.plan = 'ignore';
+      if (next.plan !== 'ignore' && !TELLS.has(opponent.move ?? '') && spare > 0 && spare < READ.lateNotice && roll() >= (spare - 1) / (READ.lateNotice - 1)) next.plan = 'ignore';
       next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
     }
   } else if (noticed && next.plan === 'block' && charging(opponent) && !next.brace) {   // a heavy seen to be charging will break the guard: change the answer
