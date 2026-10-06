@@ -5,7 +5,7 @@ Data: [legends-500.csv](legends-500.csv), 532 rows, one per figure. This is the 
 data for clans, patrons, town patrons, Bounty targets and bosses. Nothing in `src/` reads it yet, and no row is shipped until a
 lane builds it under the usual legends rule (`.claude/skills/legends-rule`).
 
-Status: draft, 2026-10-07 (rulings below applied). Values in `perk_template` are provisional, like living-world §10.2.
+Status: draft, 2026-10-06 (rulings below applied). Values in `perk_template` are provisional, like living-world §10.2.
 
 ## Columns
 
@@ -38,7 +38,7 @@ Status: draft, 2026-10-07 (rulings below applied). Values in `perk_template` are
    **Azazel is in** by a second Dom override (2026-10-06): he also appears in Leviticus 16, so he is the one deliberate
    exception to the Bible/Quran/Apocrypha line; his row cites 1 Enoch 8.1, where he teaches the making of swords, shields and
    breastplates, which suits a war and smithing figure. Ramiel, Sariel, Danel, Ezeqeel and Asael are in by a third Dom override
-   (2026-10-07), each cited to 1 Enoch only as a fallen Watcher, never as an archangel or prophet; Asael is a separate Watcher,
+   (2026-10-06), each cited to 1 Enoch only as a fallen Watcher, never as an archangel or prophet; Asael is a separate Watcher,
    kept distinct from Azazel. Original rebel-angel names (three, marked "original") are allowed.
    There is no angel clan and no holy angel anywhere in the list.
 6. **Goetia:** spirits from the *Ars Goetia* (Mathers ed., 1904) are in, minus every name that also appears in the Bible, the
@@ -49,7 +49,7 @@ Status: draft, 2026-10-07 (rulings below applied). Values in `perk_template` are
    `neutral` and its theme is a deed, never a horror. No historical person appears in a dark group. Imhotep is the one
    historical figure listed as a patron (deified in Egyptian religion, a dead pantheon), in the `egyptian` group. William Wallace
    and Skanderbeg are `historical` patrons by Dom's override (rule 13).
-13. **National and folk heroes (Dom override, 2026-10-07):** the earlier "no living peoples' folk heroes" rule is lifted.
+13. **National and folk heroes (Dom override, 2026-10-06):** the earlier "no living peoples' folk heroes" rule is lifted.
     National heroes are allowed as **honourable figures only**: never villains or monsters, a heroic backstory, and a respectful
     win line ("You stood against X", never "You beat X"). Each such row says so in `notes`. Patron is preferred where it fits.
 9. **Organisations:** a dead order is a legend (the Bavarian Illuminati 1776-85, with no New World Order tropes and no named
@@ -63,9 +63,20 @@ Status: draft, 2026-10-07 (rulings below applied). Values in `perk_template` are
     holly for oni. Dracula's flavour uses the novel's own garlic, wild rose and running water.
 12. **No copyrighted text.** Every theme is a one-line summary in our own words; no source is quoted.
 
-## Rulings, 2026-10-07
+## Rulings, 2026-10-06
 
-Strategy ruled on the names #1498 held as unsure; Dom then overrode two points. All are applied in the CSV.
+Strategy ruled on the names the first draft of #1498 held as unsure, and Dom overrode some of those rulings. All are applied in
+the CSV. Where each ruling comes from:
+
+- **Strategy's ledger, 2026-10-06:** national and folk heroes IN as honourable figures only (Dom's override of the 2026-09-27
+  legends rule); William Tell, Skanderbeg and William Wallace IN; The Beetle OUT. The `legends-rule` skill has not been updated
+  yet (it waits on Dom's OK); until it is, this ledger line governs.
+- **Dom's own ruling, relayed by the Expansion lane:** Azazel IN. Strategy noted it and confirmed it in its OK on the evening's
+  five rulings.
+- **Dom's own override of Strategy's OUT, relayed by the Expansion lane:** the five Watchers (Ramiel, Sariel, Danel, Ezeqeel,
+  Asael) IN. Strategy has been told but has not confirmed logging it, so it is not attributed to Strategy's ledger.
+- **Strategy, via the Expansion lane:** the remaining rows in the table (Robin Hood, Mulciber, Cthulhu, Nyarlathotep, Tomoe
+  Gozen, Imhotep as patron, Richard the Lionheart, the Templars, and the held LatAm and Korean names).
 
 | Ruling | Effect |
 |---|---|
@@ -116,7 +127,7 @@ last-stand 45, waxing 17, day-half 13. Every template is equal power by construc
 balance; Stats' win-rate-by-patron check is the balance gate.
 
 `european-folklore` is a group the brief's examples did not name; it holds Slavic, German, English and Scandinavian folk tales
-that are not Norse myth. `world-folklore` (added 2026-10-07) holds heroes from traditions with no group of their own
+that are not Norse myth. `world-folklore` (added 2026-10-06) holds heroes from traditions with no group of their own
 (Anansi, Rostam).
 
 ## Excluded, with the reason
@@ -147,8 +158,8 @@ that are not Norse myth. `world-folklore` (added 2026-10-07) holds heroes from t
 | Wendigo | Algonquian living belief. |
 | Maui | A demigod of Polynesian religion, still practised: the living-faith rule, not the folk-hero rule. |
 | Hiawatha | Co-founder of the Haudenosaunee Confederacy: the founders rule. |
-| The Beetle (Marsh, 1897) | OUT (Strategy, 2026-10-07); the novel's villain carries an ethnic caricature. |
-| El Silbon, La Sayona, the Gumiho | Held, awaiting a pre-1929 source (Strategy (d), 2026-10-07): none found in this pass. They return as monsters once a citation is found. |
+| The Beetle (Marsh, 1897) | OUT (Strategy, 2026-10-06); the novel's villain carries an ethnic caricature. |
+| El Silbon, La Sayona, the Gumiho | Held, awaiting a pre-1929 source (Strategy (d), 2026-10-06): none found in this pass. They return as monsters once a citation is found. |
 | Vlad III, "the Impaler" | Ruled out for this list; Dracula is the novel's character. (The ladder's `Vlad` is Dom's separate exception.) |
 | Elizabeth Bathory, Gilles de Rais, Peter Stumpp, Gilles Garnier, Arnold Paole | Historical people whose legend monsterises them. |
 | Joan of Arc, Albertus Magnus, Theophilus of Adana | Saints. |
@@ -181,7 +192,7 @@ that are not Norse myth. `world-folklore` (added 2026-10-07) holds heroes from t
 
 ## Reserve (rule-clean, cut for length)
 
-These passed every rule and were cut only to keep the list near 500 (88 left after the 2026-10-07 swaps). They can replace any row that a later ruling removes.
+These passed every rule and were cut only to keep the list near 500 (88 left after the 2026-10-06 swaps). They can replace any row that a later ruling removes.
 
 - greek: Aello, Aeolus, Argus Panoptes, Brontes, Eos, Erebus, Euryale, Hestia, Hyperion, Icarus, Megaera, Menelaus, Morpheus,
   Orthrus, Paris, Rhea, Sinis, Stheno, the Erymanthian Boar, the Stymphalian Birds, Themis, Tisiphone, Triton, Tyche
