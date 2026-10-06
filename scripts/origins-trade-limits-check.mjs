@@ -1,6 +1,6 @@
 // Up/down rehearsal and checks for the Origins trade-limits migration (202610070005 slice 1: cooldown guard, DB-written trade history, expiry sweep, event kinds, config) on a
 // disposable PostgreSQL cluster on top of every earlier migration: apply, attack as the writer role, down-script, probes identical to before.
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -25,7 +25,6 @@ const as = (role, user, sql) => {
 const W = sql => as('frankendom_origins', null, sql);
 const client = (user, sql) => as('authenticated', user, sql);
 
-const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', F = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', N = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const fail = message => { throw Error(message); };
 let checks = 0;
@@ -34,7 +33,6 @@ const refused = (what, needle, fn) => { checks++; try { fn(); } catch (e) { cons
 const J = value => `$j$${JSON.stringify(value)}$j$::jsonb`;
 const commit = (account, ops) => W(`select public.origins_commit('${account}', ${J(ops)})::text;`);
 const items = where => psql(`select id || '|' || quantity || '|' || version || '|' || coalesce(loc_kind || ':' || coalesce(loc_owner, '') || ':' || coalesce(loc_index::text, loc_slot, ''), 'retired') from public.origins_items ${where} order by id;`).split('\n').filter(Boolean).sort();
-const iq = (where, want, what) => eq(items(where), [...want].sort(), what);
 const loc = (kind, owner, index) => ({ kind, owner, index });
 const mintOp = (id, item, quantity, location, key, extra = {}) => ({ op: 'mint', item: { id, item, quantity, mint_key: key, loc: location, provenance: { kind: 'loot', mintKey: key, at: '2026-10-06T00:00:00Z' }, ...extra } });
 
@@ -58,18 +56,12 @@ const cancel = (container, why, ops) => W(`select public.origins_cancel_trade('$
 const esc = (container, from) => ({ kind: 'trade-escrow', container, from });
 const put = (id, version, to) => ({ op: 'put', id, expected_version: version, loc: to });
 const ev = (kind, account, id) => ({ op: 'event', event_id: id, kind, account, payload: {} });
-const tradeRow = c => psql(`select offer_version || '|' || state || '|' || coalesce(accepted_version_a::text, '-') || '|' || coalesce(accepted_version_b::text, '-') || '|' || coalesce(cancel_reason, '-') from public.origins_trades where container = '${c}'`);
 const escrowIds = c => psql(`select id from public.origins_items where retired_at is null and loc_kind = 'trade-escrow' and loc_container = '${c}' order by id`).split('\n').filter(Boolean);
 const ver = id => Number(psql(`select version from public.origins_items where id = '${id}'`));
 const fnDefs = () => psql(`select p.oid::regprocedure::text || ' ' || md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('origins_open_trade', 'origins_settle_trade', 'origins_cancel_trade') order by 1`);
 const oneIdx = () => psql(`select coalesce(string_agg(indexdef, ' ; '), 'none') from pg_indexes where indexname = 'origins_items_one_of_each'`);
 const kindCheck = () => psql(`select pg_get_constraintdef(oid) from pg_constraint where conname = 'origins_events_kind_check'`);
 const tradeCols = () => psql(`select string_agg(column_name, ',' order by ordinal_position) from information_schema.columns where table_schema = 'public' and table_name = 'origins_trades'`);
-const psqlAsync = sql => new Promise(resolve => {
-  const child = spawn(pg('psql'), ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'], { env });
-  let err = ''; child.stderr.on('data', d => { err += d; }); child.on('close', code => resolve({ code, err }));
-  child.stdin.end(sql);
-});
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
