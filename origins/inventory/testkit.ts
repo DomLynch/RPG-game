@@ -2,6 +2,7 @@
 // fixture can never be a shape the contracts would refuse. Example content only; none of it ships.
 import assert from 'node:assert/strict';
 import type { Result } from '../contracts/core.ts';
+import { parseTrade, type Trade } from '../contracts/economy.ts';
 import * as F from '../contracts/fixtures.ts';
 import type { AccountId, CharacterInstanceId, ItemId } from '../contracts/ids.ts';
 import { parseItemDefinition, parseItemInstance, type ItemDefinition, type ItemInstance } from '../contracts/items.ts';
@@ -10,6 +11,8 @@ import { BANK_PLACE, openInventory, type Inventory, type Lookup } from './invent
 
 export const PC = F.PC as CharacterInstanceId;
 export const ACCOUNT = F.ACCOUNT as AccountId;
+export const RIVAL = F.OTHER_PC as CharacterInstanceId;
+export const RIVAL_ACCOUNT = F.OTHER_ACCOUNT as AccountId;
 export const EXCHANGE = BANK_PLACE;
 export const FRONTIER = 'region:ash-frontier';
 
@@ -49,8 +52,16 @@ export const helmCopy = (): ItemInstance => pitPiece('inst:helm-0002', 'veteran.
 export const body = (): ItemInstance => pitPiece('inst:body-0001', 'veteran.Body', 1003, 1, 'Recruit');
 export const hood = (): ItemInstance => pitPiece('inst:hood-0001', 'witch.Helmet', 1004, 10, 'Origin');
 
-export function empty(packSize = 4, bankSize = 4): Inventory {
-  const r = openInventory({ owner: PC, account: ACCOUNT, items: [], packSize, bankSize }, lookup);
+// The rival gives PC the `offered` pieces at the Exchange (both accepted), from escrow `container:trade.7`, where `escrowed` puts them.
+export const gift = (offered: string[]): Trade => value(parseTrade({
+  kind: 'trade', schemaVersion: 1, id: 'container:trade.7', region: EXCHANGE, version: 1,
+  sides: [{ character: RIVAL, account: RIVAL_ACCOUNT, offered, accepted: true }, { character: PC, account: ACCOUNT, offered: [], accepted: true }],
+}));
+export const escrowed = (inst: ItemInstance): ItemInstance => ({ ...inst, location: { kind: 'trade-escrow', container: 'container:trade.7' as never, from: RIVAL } });
+export const LATER = '2026-10-07T09:30:00Z';
+
+export function empty(packSize = 4, bankSize = 4, owner = PC, account = ACCOUNT): Inventory {
+  const r = openInventory({ owner, account, items: [], packSize, bankSize }, lookup);
   assert.ok(r.ok, JSON.stringify(!r.ok && r.issues));
   return r.value;
 }

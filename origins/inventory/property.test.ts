@@ -1,16 +1,21 @@
-// O2 property run: 1,000 seeded random op sequences over a small pack and bank. After every step:
+// O2 property run: 1,000 seeded random op sequences over a small pack and bank, including trades in from a rival. After every step:
 //   - a refused op left the state byte-identical (atomicity);
 //   - an accepted op's result passes checkInventory (custody, one of each, every instance rule);
 //   - no instance id is ever in two places: not twice inside the inventory, and never both inside and in the outside pool;
-//   - quantities per mint key are conserved (a split or merge never creates or destroys units; only receive/remove cross the border);
+//   - checkConservation: per root mint key, the units across the inventory and the outside pool equal the minted units (split, merge,
+//     bank moves and trades never create or destroy units; receive/remove/trade only move them across the border);
 //   - every instance that survives a step keeps its provenance unchanged and its history as a prefix (checkHistoryKept).
 // The RNG is a seeded mulberry32 in the test, so every run is the same run; the module itself draws no randomness.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { checkHistoryKept, type ItemInstance } from '../contracts/items.ts';
 import type { Result } from '../contracts/core.ts';
-import { checkInventory, deposit, equip, merge, move, receive, remove, split, unequip, withdraw, type Inventory } from './inventory.ts';
-import { EXCHANGE, FRONTIER, body, empty, helm, helmCopy, hood, ironStack, lookup, record, server } from './testkit.ts';
+import {
+  checkConservation, checkInventory, deposit, equip, merge, mintRoot, mintTotals, move, receive, remove, settle, split, unequip, withdraw, type Inventory,
+} from './inventory.ts';
+import {
+  EXCHANGE, FRONTIER, LATER, RIVAL, RIVAL_ACCOUNT, body, empty, escrowed, gift, helm, helmCopy, hood, ironStack, lookup, record, server,
+} from './testkit.ts';
 
 const SEQUENCES = 1000, STEPS = 24;
 
@@ -30,21 +35,16 @@ const HOSTILE_IDS = ['constructor', '__proto__', 'toString', 'inst:nothing'];
 const PLACES: unknown[] = [EXCHANGE, EXCHANGE, EXCHANGE, FRONTIER, '__proto__', undefined];
 const STANDINGS = [server(1), server(11), server(46), { source: 'device' as const, careerLevel: 46 }];
 
-const totals = (lists: readonly (readonly ItemInstance[])[]): Map<string, number> => {
-  const out = new Map<string, number>();
-  for (const list of lists) for (const inst of list) out.set(inst.provenance.mintKey, (out.get(inst.provenance.mintKey) ?? 0) + inst.quantity);
-  return out;
-};
-
 test('[property] 1,000 random op sequences: atomic, no duplication, conserved, provenance kept', () => {
   let accepted = 0, refusedCount = 0;
-  const hits = Array.from({ length: 10 }, () => 0); // accepted ops per kind
+  const hits = Array.from({ length: 11 }, () => 0); // accepted ops per kind
   for (let seq = 0; seq < SEQUENCES; seq++) {
     const rand = mulberry32(0x5eed + seq);
     const pick = <T>(list: readonly T[]): T => list[Math.floor(rand() * list.length)]!;
     let inv = empty(4, 3);
     let outside = POOL(); // pieces not held by this inventory (a mint, an escrow): each id is in exactly one of the two
-    const expected = totals([outside]);
+    const minted = mintTotals(outside);
+    const rival = empty(4, 1, RIVAL, RIVAL_ACCOUNT);
     let fresh = 0;
     for (let step = 0; step < STEPS; step++) {
       const ids = [...inv.items.map((i) => i.id), ...HOSTILE_IDS];
@@ -53,7 +53,7 @@ test('[property] 1,000 random op sequences: atomic, no duplication, conserved, p
       const grid = (): 'pack' | 'bank' => (rand() < 0.5 ? 'pack' : 'bank');
       const place = pick(PLACES);
       const before = JSON.stringify(inv);
-      const kind = Math.floor(rand() * 11) % 10; // receive twice as often, so the grids fill
+      const kind = Math.floor(rand() * 12) % 11; // receive twice as often, so the grids fill
       let r: Result<Inventory>;
       let leaving: ItemInstance | null = null, arriving: ItemInstance | null = null;
       switch (kind) {
@@ -80,11 +80,19 @@ test('[property] 1,000 random op sequences: atomic, no duplication, conserved, p
         case 6: {
           // Mostly a split family (the only stacks that may merge), sometimes any pair.
           const from = id(), source = inv.items.find((i) => i.id === from);
-          const kin = source ? inv.items.filter((i) => i.id !== from && i.provenance.mintKey === source.provenance.mintKey) : [];
+          const kin = source ? inv.items.filter((i) => i.id !== from && mintRoot(i.provenance.mintKey) === mintRoot(source.provenance.mintKey)) : [];
           r = merge(inv, from, kin.length && rand() < 0.8 ? pick(kin).id : id(), lookup, place);
           break;
         }
         case 7: r = equip(inv, id(), lookup, pick(STANDINGS)); break;
+        case 10: {
+          // The rival gives one outside piece through settleTrade, which reads this pack's real free slots.
+          if (!outside.length) continue;
+          arriving = pick(outside);
+          const out = settle(gift([arriving.id]), [rival, inv], [escrowed(arriving)], lookup, LATER);
+          r = out.ok ? { ok: true, value: out.value[1] } : out;
+          break;
+        }
         default: r = unequip(inv, id(), lookup, rand() < 0.5 ? undefined : (index() as number)); break;
       }
 
@@ -103,8 +111,8 @@ test('[property] 1,000 random op sequences: atomic, no duplication, conserved, p
       const inside = next.items.map((i) => i.id);
       assert.equal(new Set(inside).size, inside.length, `seq ${seq} step ${step}: an id appears twice`);
       for (const o of outside) assert.ok(!inside.includes(o.id), `seq ${seq} step ${step}: ${o.id} is both held and outside`);
-      // Units are conserved per mint key (only the outside pool and the inventory exist in this world).
-      assert.deepEqual(totals([next.items, outside]), expected, `seq ${seq} step ${step}: quantities drifted`);
+      // Units are conserved per root mint key (only the outside pool and the inventory exist in this world).
+      assert.deepEqual(checkConservation([...next.items, ...outside], minted), [], `seq ${seq} step ${step}: quantities drifted`);
       // Provenance is never rewritten and history only grows, for every instance on both sides of the step.
       const prior = new Map<string, ItemInstance>((JSON.parse(before) as Inventory).items.map((i) => [i.id, i]));
       for (const inst of next.items) {

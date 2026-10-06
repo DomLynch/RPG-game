@@ -2,12 +2,13 @@
 // wearing needs rank, and hostile ids.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkHistoryKept, sameData, type ItemInstance } from '../contracts/items.ts';
+import { PACK_SLOTS, checkHistoryKept, sameData, type ItemInstance } from '../contracts/items.ts';
 import {
-  canWear, checkInventory, deposit, equip, find, gridView, merge, move, openInventory, receive, remove, split, unequip, withdraw, type Inventory,
+  canWear, checkConservation, checkInventory, deposit, equip, find, gridView, merge, mintRoot, mintTotals, move, openInventory, receive, remove, settle, split, unequip,
+  withdraw, type Inventory,
 } from './inventory.ts';
 import {
-  ACCOUNT, EXCHANGE, FRONTIER, PC, body, deepFreeze, empty, helm, helmCopy, hood, ironStack, lookup, record, refused, server, value,
+  ACCOUNT, EXCHANGE, FRONTIER, LATER, PC, RIVAL, RIVAL_ACCOUNT, body, deepFreeze, empty, escrowed, gift, helm, helmCopy, hood, ironStack, lookup, record, refused, server, value,
 } from './testkit.ts';
 
 const snap = (inv: Inventory): string => JSON.stringify(inv);
@@ -117,7 +118,10 @@ test('armour never stacks; stackables split and merge to their max, all or nothi
   const parts = value(split(inv, 'inst:iron-a', 12, 'inst:iron-a2', lookup));
   assert.equal(find(parts, 'inst:iron-a')!.quantity, 18);
   assert.equal(find(parts, 'inst:iron-a2')!.quantity, 12);
-  assert.ok(sameData(find(parts, 'inst:iron-a2')!.provenance, find(parts, 'inst:iron-a')!.provenance), 'the split half keeps its parent provenance');
+  // The half keeps its parent's provenance except for a derived child mint key (checkCustody: one key, one row).
+  const half = find(parts, 'inst:iron-a2')!.provenance, whole0 = find(parts, 'inst:iron-a')!.provenance;
+  assert.equal(half.mintKey, `${whole0.mintKey}::s1`);
+  assert.ok(sameData({ ...half, mintKey: mintRoot(half.mintKey) }, whole0));
   unchanged(parts, (s) => split(s, 'inst:iron-a', 1, 'inst:iron-a2', lookup), 'duplicate-id', 'newId');
   // Merge back: the same provenance, the sum fits one stack.
   const whole = value(merge(parts, 'inst:iron-a2', 'inst:iron-a', lookup));
@@ -146,7 +150,8 @@ test('provenance and history ride every move unchanged', () => {
   assert.equal(after.version, original.version + 5);
   const iron = find(start, 'inst:iron-a')!;
   const parts = value(split(inv, 'inst:iron-a', 10, 'inst:iron-a2', lookup, { grid: 'bank' }, EXCHANGE));
-  assert.deepEqual(checkHistoryKept(iron, find(parts, 'inst:iron-a2')!), []);
+  const half = find(parts, 'inst:iron-a2')!;
+  assert.deepEqual([{ ...half.provenance, mintKey: mintRoot(half.provenance.mintKey) }, half.history], [iron.provenance, iron.history]);
   assert.deepEqual(checkHistoryKept(iron, find(value(merge(parts, 'inst:iron-a2', 'inst:iron-a', lookup, EXCHANGE)), 'inst:iron-a')!), []);
 });
 
@@ -213,4 +218,36 @@ test('hostile ids are plain keys or refusals: never a crash, never a prototype m
   refused(receive(inv, ghost, objectLookup), 'unknown-id', 'incoming.item');
   refused(receive(inv, ghost, lookup), 'unknown-id', 'incoming.item');
   refused(receive(inv, null as never, lookup), 'wrong-type', 'incoming');
+});
+
+test('conservation: across every row of one mint the units equal the minted quantity; split -> double merge is refused', () => {
+  const inv = withItems(ironStack('inst:iron-a', 30, 'a'));
+  const minted = mintTotals(inv.items);
+  const parts = value(split(inv, 'inst:iron-a', 12, 'inst:iron-a2', lookup));
+  const merged = value(merge(parts, 'inst:iron-a2', 'inst:iron-a', lookup));
+  for (const s of [parts, merged]) assert.deepEqual(checkConservation(s.items, minted), []);
+  // Merging the same half a second time would mint 12 units from nothing: refused, nothing changes.
+  unchanged(merged, (s) => merge(s, 'inst:iron-a2', 'inst:iron-a', lookup), 'unknown-id', 'fromId');
+  // A replayed stale half (the row the merge consumed) breaks the ledger, and the server's check names the mint.
+  const replay = value(receive(merged, find(parts, 'inst:iron-a2')!, lookup));
+  assert.deepEqual(checkConservation(replay.items, minted).map((i) => i.message), [`mint ${find(merged, 'inst:iron-a')!.provenance.mintKey} holds 42 units across its rows; 30 were minted`]);
+  // A forged row sharing a child key is two rows for one key: custody refuses it.
+  const forged = { ...find(parts, 'inst:iron-a2')!, id: 'inst:iron-a9' as never, location: { kind: 'pack' as const, owner: PC, index: 3 } };
+  refused(openInventory({ owner: PC, account: ACCOUNT, items: [...parts.items, forged], packSize: 4 }, lookup), 'duplicate-id', 'items[2].provenance.mintKey');
+});
+
+test('trade reads the receiver\'s real free slots: a nearly-full pack refuses with both states unchanged; an exact fit settles', () => {
+  const offer = gift(['inst:helm-0001', 'inst:body-0001']), pieces = [escrowed(helm()), escrowed(body())];
+  const rival = empty(PACK_SLOTS, 4, RIVAL, RIVAL_ACCOUNT);
+  // PC's 4-slot pack has 3 used: one free slot, two pieces offered.
+  const mine = withItems(ironStack('inst:iron-a', 1, 'a'), ironStack('inst:iron-b', 1, 'b'), hood());
+  const frozen = deepFreeze([rival, mine] as const), before = JSON.stringify(frozen);
+  refused(settle(offer, frozen, pieces, lookup, LATER), 'rule-violation', 'sides[0].offered[1]');
+  assert.equal(JSON.stringify(frozen), before);
+  // Two free slots: both pieces land, the rows conserve, and both inventories still pass the invariant.
+  const roomy = value(remove(mine, 'inst:iron-b', lookup)).inventory;
+  const [r2, m2] = value(settle(offer, [rival, roomy], pieces, lookup, LATER));
+  assert.deepEqual(m2.items.map((i) => i.location.kind === 'pack' && i.location.index).sort(), [0, 1, 2, 3]);
+  assert.deepEqual(checkConservation([...r2.items, ...m2.items], mintTotals([...roomy.items, ...pieces])), []);
+  for (const s of [r2, m2]) assert.deepEqual(checkInventory(s, lookup), []);
 });

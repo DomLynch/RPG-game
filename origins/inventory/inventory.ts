@@ -28,8 +28,8 @@
 // '__proto__' or 'toString' are just strings that name nothing.
 import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
 import { paperdollOf, type Paperdoll } from '../../src/loot.ts';
-import { fail, ok, type Issue, type Result } from '../contracts/core.ts';
-import { CONCORD_EXCHANGE } from '../contracts/economy.ts';
+import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
+import { CONCORD_EXCHANGE, settleTrade, type Trade } from '../contracts/economy.ts';
 import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';
 import {
   BANK_SLOTS, PACK_SLOTS, checkCustody, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
@@ -41,10 +41,8 @@ export const GRIDS = ['pack', 'bank'] as const;
 export type Grid = (typeof GRIDS)[number];
 // The one place the bank opens. Taken from the contracts (the same constant a trade settles at), not redefined.
 export const BANK_PLACE: RegionId = CONCORD_EXCHANGE;
-// Grid sizes. The contracts fix the largest index a location may carry (PACK_SLOTS 64, BANK_SLOTS 1000), and economy.ts settleTrade
-// fills a pack up to PACK_SLOTS, so the defaults are those caps; a caller may open a smaller grid (a starter pack) within them.
-export const DEFAULT_PACK_SIZE = PACK_SLOTS;
-export const DEFAULT_BANK_SIZE = BANK_SLOTS;
+// Grid sizes: the contracts' PACK_SLOTS (64) and BANK_SLOTS (1000) are the one source of the caps and the defaults; a caller may open a
+// smaller grid (a starter pack) within them, and settleTrade reads the real size (`settle` below).
 
 export type Inventory = {
   readonly owner: CharacterInstanceId;
@@ -90,8 +88,7 @@ function defOf(lookup: Lookup, id: ItemId): ItemDefinition | undefined {
 //   - every instance is this character's, in its pack, bank or paperdoll, inside the grid, and valid against its definition;
 //   - custody (items.ts checkCustody): one id is one copy, one slot holds one instance;
 //   - one of each across pack + bank + worn (items.ts checkOneOfEach).
-// One deliberate exception to checkCustody: a split stack's halves share their parent's provenance, so they share its mint key. A
-// shared mint key is accepted only for a "split family": the same stackable item with byte-equal provenance. See README, "Contract gaps".
+// A split half gets a derived child mint key (see `split`), so checkCustody's "one mint key = one instance" holds with no exception.
 export function checkInventory(inv: Inventory, lookup: Lookup): Issue[] {
   const issues: Issue[] = [];
   const add = (code: Issue['code'], path: string, message: string): void => void issues.push({ code, path, message });
@@ -114,31 +111,36 @@ export function checkInventory(inv: Inventory, lookup: Lookup): Issue[] {
     if (!def) add('unknown-id', `${path}.item`, `${inst.item} is not defined in this content`);
     else for (const issue of checkInstance(inst, def, path)) issues.push(issue);
   });
-  const families = splitFamilies(inv.items, lookup);
-  for (const issue of checkCustody(inv.items)) {
-    const m = /^\[(\d+)\]\.provenance\.mintKey$/.exec(issue.path);
-    if (m && issue.code === 'duplicate-id' && families.has(inv.items[Number(m[1])]!.provenance.mintKey)) continue;
-    issues.push({ ...issue, path: `items${issue.path}` });
-  }
+  for (const issue of checkCustody(inv.items)) issues.push({ ...issue, path: `items${issue.path}` });
   for (const issue of checkOneOfEach(inv.items, (id) => defOf(lookup, id), () => inv.account)) issues.push({ ...issue, path: `items${issue.path}` });
   return issues;
 }
 
-// Mint keys shared ONLY by the halves of split stacks: every instance under the key is the same stackable item with equal provenance.
-function splitFamilies(items: readonly ItemInstance[], lookup: Lookup): Set<string> {
-  const byKey = new Map<string, ItemInstance[]>();
-  for (const inst of items) {
-    const list = byKey.get(inst.provenance.mintKey);
-    if (list) list.push(inst);
-    else byKey.set(inst.provenance.mintKey, [inst]);
-  }
-  const out = new Set<string>();
-  for (const [key, list] of byKey) {
-    if (list.length < 2) continue;
-    const first = list[0]!, def = defOf(lookup, first.item);
-    if (def && def.stack > 1 && list.every((i) => i.item === first.item && sameData(i.provenance, first.provenance))) out.add(key);
+// ---- mint-key conservation (Strategy, 2026-10-06) ---------------------------------------------------------------------------------
+
+// A split half's mint key is its parent's key + SPLIT_MARK + the parent's version at the split. The contracts keep mint keys unique
+// (checkCustody; the server's unique index), and a key's one row bumps its version on every split, so a derived key is never reused.
+// Every key in one split family shares its ROOT, the key the server minted. Server-minted keys must not contain SPLIT_MARK.
+export const SPLIT_MARK = '::s';
+export const mintRoot = (key: string): string => key.split(SPLIT_MARK, 1)[0]!;
+// Quantity per root mint key over some rows (an inventory, an escrow, a whole table).
+export function mintTotals(rows: readonly ItemInstance[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    const root = mintRoot(r.provenance.mintKey);
+    out.set(root, (out.get(root) ?? 0) + r.quantity);
   }
   return out;
+}
+// Conservation: across ALL rows of a mint, the quantities sum to exactly what was minted. `minted` is the server's ledger (root key →
+// quantity minted). Split, merge, bank moves and trades must keep this; only a mint or a burn changes `minted`.
+export function checkConservation(rows: readonly ItemInstance[], minted: ReadonlyMap<string, number>): Issue[] {
+  const held = mintTotals(rows), issues: Issue[] = [];
+  for (const key of new Set([...held.keys(), ...minted.keys()])) {
+    const have = held.get(key) ?? 0, want = minted.get(key) ?? 0;
+    if (have !== want) issues.push({ code: 'rule-violation', path: key, message: `mint ${key} holds ${have} units across its rows; ${want} were minted` });
+  }
+  return issues;
 }
 
 // Open an Inventory from stored instances. Refused, with every issue, unless the invariant holds.
@@ -146,14 +148,15 @@ export function openInventory(
   input: { owner: CharacterInstanceId; account: AccountId; items: readonly ItemInstance[]; packSize?: number; bankSize?: number },
   lookup: Lookup,
 ): Result<Inventory> {
-  const inv: Inventory = { owner: input.owner, account: input.account, packSize: input.packSize ?? DEFAULT_PACK_SIZE, bankSize: input.bankSize ?? DEFAULT_BANK_SIZE, items: [...input.items] };
+  const inv: Inventory = { owner: input.owner, account: input.account, packSize: input.packSize ?? PACK_SLOTS, bankSize: input.bankSize ?? BANK_SLOTS, items: [...input.items] };
   const issues = checkInventory(inv, lookup);
   return issues.length ? { ok: false, issues } : ok(inv);
 }
 
 // The plan/apply step: build the next item list from replacements (null = leaves this inventory) and additions, check the whole result,
-// and only then hand it out. The input is never written to.
-function commit(inv: Inventory, lookup: Lookup, changes: ReadonlyMap<string, ItemInstance | null>, added: readonly ItemInstance[] = []): Result<Inventory> {
+// and only then hand it out. The input is never written to. Every operation except a crossing of the border (receive, remove, settle)
+// must also conserve each mint's units inside this inventory.
+function commit(inv: Inventory, lookup: Lookup, changes: ReadonlyMap<string, ItemInstance | null>, added: readonly ItemInstance[] = [], conserve = true): Result<Inventory> {
   const items: ItemInstance[] = [];
   for (const inst of inv.items) {
     if (!changes.has(inst.id)) items.push(inst);
@@ -164,7 +167,7 @@ function commit(inv: Inventory, lookup: Lookup, changes: ReadonlyMap<string, Ite
   }
   items.push(...added);
   const next: Inventory = { ...inv, items };
-  const issues = checkInventory(next, lookup);
+  const issues = [...checkInventory(next, lookup), ...(conserve ? checkConservation(items, mintTotals(inv.items)) : [])];
   return issues.length ? { ok: false, issues } : ok(next);
 }
 
@@ -238,7 +241,7 @@ export function receive(inv: Inventory, incoming: ItemInstance, lookup: Lookup, 
   if (!slot.ok) return slot;
   const boundTo = incoming.boundTo ?? (def.value.binding === 'on-acquire' ? inv.owner : null);
   const placed: ItemInstance = { ...incoming, location: at(inv, 'pack', slot.value.index), boundTo, version: incoming.version + 1 };
-  return commit(inv, lookup, new Map(), [placed]);
+  return commit(inv, lookup, new Map(), [placed], false);
 }
 
 // A piece leaves this character (to a trade escrow, to the smith, used up). Only from the pack, or from the bank at the Exchange. A
@@ -255,7 +258,7 @@ export function remove(inv: Inventory, id: unknown, lookup: Lookup, place?: unkn
     if (!gate.ok) return gate;
   }
   if (inst.value.boundTo !== null || def.value.story === 'story-critical') return fail('rule-violation', 'id', `${inst.value.id} is bound to ${inst.value.boundTo ?? inv.owner} and never leaves them`);
-  const next = commit(inv, lookup, new Map([[inst.value.id, null]]));
+  const next = commit(inv, lookup, new Map([[inst.value.id, null]]), [], false);
   return next.ok ? ok({ inventory: next.value, removed: inst.value }) : next;
 }
 
@@ -318,7 +321,8 @@ const BANK_TOUCH = (a: ItemInstance, b?: Slot | ItemInstance): boolean =>
 
 // Split `count` off a stack into a new instance in an empty slot (default: the first free slot of the same grid). Armour and every
 // other single-copy piece never stacks, so never splits. `newId` is minted by the server (this module draws no randomness) and must
-// be a fresh `inst:` id. The new half carries the parent's provenance and history unchanged; the quantities add back to the original.
+// be a fresh `inst:` id. The new half carries the parent's provenance and history unchanged except for its derived child mint key
+// (SPLIT_MARK above); the quantities add back to the original.
 export function split(inv: Inventory, id: unknown, count: unknown, newId: unknown, lookup: Lookup, to?: { grid: Grid; index?: number }, place?: unknown): Result<Inventory> {
   const inst = held(inv, id);
   if (!inst.ok) return inst;
@@ -341,14 +345,18 @@ export function split(inv: Inventory, id: unknown, count: unknown, newId: unknow
     const gate = bankGate(place);
     if (!gate.ok) return gate;
   }
+  const mintKey = `${inst.value.provenance.mintKey}${SPLIT_MARK}${inst.value.version}`;
+  if (!MINT_KEY_PATTERN.test(mintKey)) return fail('out-of-range', 'id', `${inst.value.id} has been split too many times; merge it first`);
   const parent: ItemInstance = { ...inst.value, quantity: inst.value.quantity - count, version: inst.value.version + 1 };
-  const child: ItemInstance = { ...inst.value, id: fresh.value as ItemInstanceId, quantity: count, version: 0, location: at(inv, slot.value.grid, slot.value.index) };
+  const child: ItemInstance = {
+    ...inst.value, id: fresh.value as ItemInstanceId, quantity: count, version: 0, location: at(inv, slot.value.grid, slot.value.index), provenance: { ...inst.value.provenance, mintKey },
+  };
   return commit(inv, lookup, new Map([[parent.id, parent]]), [child]);
 }
 
 // Merge one stack into another, whole or not at all (ClaudeCraft's fit-before-move): the two must be the same stackable item with the
-// same provenance, history, binding, tier and upgrade level, so nothing about either is lost; and the total must fit one stack. The
-// `from` instance leaves; `into` keeps its id and slot and takes the sum.
+// same provenance (the same root mint key: one split family), history, binding, tier and upgrade level, so nothing about either is lost;
+// and the total must fit one stack. The `from` instance leaves; `into` keeps its id, slot and mint key and takes the sum.
 export function merge(inv: Inventory, fromId: unknown, intoId: unknown, lookup: Lookup, place?: unknown): Result<Inventory> {
   const from = held(inv, fromId, 'fromId');
   if (!from.ok) return from;
@@ -365,7 +373,8 @@ export function merge(inv: Inventory, fromId: unknown, intoId: unknown, lookup: 
   if (def.value.stack === 1) return fail('rule-violation', 'fromId', `${from.value.item} never stacks`);
   const a = from.value, b = into.value;
   if (a.item !== b.item) return fail('rule-violation', 'intoId', `${a.item} does not stack with ${b.item}`);
-  if (!sameData(a.provenance, b.provenance) || !sameData(a.history, b.history)) {
+  const origin = (i: ItemInstance): unknown => ({ ...i.provenance, mintKey: mintRoot(i.provenance.mintKey) });
+  if (!sameData(origin(a), origin(b)) || !sameData(a.history, b.history)) {
     return fail('rule-violation', 'intoId', 'these stacks came from different places; merging them would rewrite one of their provenances');
   }
   if (a.boundTo !== b.boundTo || a.tier !== b.tier || (a.upgradeLevel ?? 0) !== (b.upgradeLevel ?? 0)) return fail('rule-violation', 'intoId', 'these stacks differ in binding, tier or upgrade level');
@@ -420,4 +429,19 @@ export function unequip(inv: Inventory, id: unknown, lookup: Lookup, index?: num
   const moved = moveItem(inst.value, def.value, inst.value.version, at(inv, 'pack', slot.value.index), () => inv.account);
   if (!moved.ok) return moved;
   return commit(inv, lookup, new Map([[inst.value.id, moved.value]]));
+}
+
+// ---- trade ------------------------------------------------------------------------------------------------------------------------
+
+// Settle a trade between two characters' inventories (economy.ts settleTrade, the one trade rule set). `escrow` holds the offered
+// pieces, already `remove`d into this trade's escrow. Each receiver's pack size and free slots come from its real Inventory, never an
+// assumed 64. Returns both inventories with the moved pieces placed, or a refusal with both untouched.
+export function settle(trade: Trade, sides: readonly [Inventory, Inventory], escrow: readonly ItemInstance[], lookup: Lookup, now: string): Result<[Inventory, Inventory]> {
+  const byOwner = new Map<string, Inventory>(sides.map((inv) => [inv.owner, inv]));
+  const moved = settleTrade(trade, [...sides[0].items, ...sides[1].items, ...escrow], (id) => defOf(lookup, id), (pc) => byOwner.get(pc)?.account, now, (pc) => byOwner.get(pc)?.packSize ?? 0);
+  if (!moved.ok) return moved;
+  const [a, b] = sides.map((inv) => commit(inv, lookup, new Map(), moved.value.filter((m) => m.location.kind === 'pack' && m.location.owner === inv.owner), false));
+  if (!a!.ok) return a!;
+  if (!b!.ok) return b!;
+  return ok([a!.value, b!.value]);
 }
