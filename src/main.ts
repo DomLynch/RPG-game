@@ -767,6 +767,7 @@ let hitStop = 0;
 // the queue plays out CATCHUP (pvp-hold.ts) ticks a frame until the screen is live again. Never read by the sim, the driver or a record.
 const pvpHold = newHold<{ state: typeof state; practice: typeof match.practice }>();
 function clearPvpHold() { clearHold(pvpHold); }
+const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
@@ -1932,6 +1933,11 @@ function frame(now: number) {
   const alpha = accumulator / step();
   const drawn = match.mode === 'pvp' ? onFrame(pvpHold, elapsed * 1000, match.frameEvents, (v) => stopFor(v.practice.events), (v) => v.practice.events) : { shown: null, events: match.frameEvents, held: false };
   const pvpShown = drawn.shown, shownEvents = drawn.events, held = drawn.held;   // behind the sim: the snapshot is drawn, not the live tick
+  if (match.mode === 'pvp' && debugTools) {   // ?debug only: what the two-page check reads to show the hold on BOTH ends (scripts/duel-two-page-check.mjs)
+    holdProbe.frames++; if (held) holdProbe.held++; if (held && !wasHeld) holdProbe.holds++; if (pvpShown && !held) holdProbe.catchup++;
+    holdProbe.maxQueue = Math.max(holdProbe.maxQueue, pvpHold.queue.length); wasHeld = held;
+    document.documentElement.dataset.pvpHold = JSON.stringify(holdProbe);
+  }
   try {
     view.render(
       pvpShown ? pvpShown.state : walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
