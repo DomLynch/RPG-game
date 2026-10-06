@@ -57,20 +57,31 @@ export function separateMaterials(keep: THREE.Object3D, other: THREE.Object3D): 
   });
 }
 export class BodyFlash {
-  private mats: Lit[]; private saved: { color: THREE.Color; intensity: number }[]; private left = 0; private gain = 1;
+  // The meshes are cached, the material is read off the mesh each time the flash starts: a rank look or a loot dress that swaps a rig's materials between hits is flashed, not the old ones.
+  private meshes: THREE.Mesh[] = []; private held: (Lit | null)[]; private color: THREE.Color[]; private intensity: number[]; private left = 0; private gain = 1;
   private readonly flash = new THREE.Color(FLASH.color);
-  constructor(root: THREE.Object3D) { this.mats = materialsOf(root); this.saved = this.mats.map((m) => ({ color: m.emissive.clone(), intensity: m.emissiveIntensity })); }
-  start(feel: Feel): void { if (feel === 'off') return; this.left = FLASH.seconds; this.gain = feel === 'low' ? FLASH.low : 1; this.apply(true); }
+  constructor(root: THREE.Object3D) {
+    root.traverse((o) => { if (o instanceof THREE.Mesh) this.meshes.push(o); });
+    this.held = this.meshes.map(() => null); this.color = this.meshes.map(() => new THREE.Color()); this.intensity = this.meshes.map(() => 0);
+  }
+  start(feel: Feel): void {
+    if (feel === 'off') return;
+    this.clear(); this.left = FLASH.seconds; this.gain = feel === 'low' ? FLASH.low : 1;
+    for (let i = 0; i < this.meshes.length; i++) {
+      const m = this.meshes[i].material;
+      if (Array.isArray(m) || !lit(m)) { this.held[i] = null; continue; }
+      this.held[i] = m; this.color[i].copy(m.emissive); this.intensity[i] = m.emissiveIntensity;
+      m.emissive.copy(this.flash); m.emissiveIntensity = this.gain;
+    }
+  }
   update(dt: number): void {
     if (this.left <= 0) return;
     this.left -= dt;
-    if (this.left <= 0) { this.left = 0; this.apply(false); }
+    if (this.left <= 0) this.clear();
   }
-  clear(): void { if (this.left > 0) { this.left = 0; this.apply(false); } }
-  private apply(on: boolean): void {
-    for (let i = 0; i < this.mats.length; i++) {
-      const m = this.mats[i], s = this.saved[i];
-      if (on) { m.emissive.copy(this.flash); m.emissiveIntensity = this.gain; } else { m.emissive.copy(s.color); m.emissiveIntensity = s.intensity; }
-    }
+  clear(): void {
+    if (this.left <= 0 && !this.held.some((m) => m !== null)) return;
+    this.left = 0;
+    for (let i = 0; i < this.meshes.length; i++) { const m = this.held[i]; if (m) { m.emissive.copy(this.color[i]); m.emissiveIntensity = this.intensity[i]; this.held[i] = null; } }
   }
 }
