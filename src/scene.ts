@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
 import { resolveSparringPreview } from './sparring-specials.ts';
 import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
+import { SCHOOL_OF, schoolTinter, schoolsFlag } from './spell-school.ts';
 import { createTitheLighting } from './special-lighting.ts';
 import { warmFirstFrame } from './first-frame.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
@@ -1146,7 +1147,7 @@ export function createScene(
       if (specialId && !previewBlocked && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true; const token = previewGeneration, group = new THREE.Scene();
         group.name = 'special preview'; group.background = previewBackground?.clone() ?? null; previewGroup = group; scene.add(group);
-        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
+        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } const school = schoolsFlag(globalThis.location?.search ?? '') && specialId ? SCHOOL_OF[specialId] : undefined; if (school) { const tint = schoolTinter(group, school), draw = (fx as ModeFx).render.bind(fx); (fx as ModeFx).render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; } specialFx = fx; })   // ?look=schools on the ?special= preview too (spell-school.ts).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
       }
       if (specialFx) {
         previewLighting.beginFrame();   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud
