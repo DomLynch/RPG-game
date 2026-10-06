@@ -32,7 +32,7 @@ test('update binds meters, values, labels and the combat buttons from the practi
   assert.equal(get('stamina').style.props.get('--fill'), `${practice.stamina}%`);
   assert.equal(get('stamina').style.props.get('--max'), `${practice.maxStamina}%`);
   assert.equal(get('stamina').dataset.capped, 'false', 'a full ceiling draws no cap');
-  hud.update({ ...practice, maxStamina: 70 }, view()); assert.equal(get('stamina').dataset.capped, 'true'); assert.equal(get('stamina').style.props.get('--max'), '70%');
+  hud.invalidate(); hud.update({ ...practice, maxStamina: 70 }, view()); assert.equal(get('stamina').dataset.capped, 'true'); assert.equal(get('stamina').style.props.get('--max'), '70%');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.equal((css.match(/#stamina\[data-capped=true\]/g) ?? []).length, 2, 'the cap is drawn on the desktop and the phone bar');
   assert.equal(get('stamina-value').textContent, `${Math.floor(practice.stamina)} / 100`);
