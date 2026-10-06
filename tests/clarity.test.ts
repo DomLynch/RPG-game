@@ -30,7 +30,9 @@ test('a whiff is its own cue (a swish, no impact); an interruption adds a voice 
   const names = (events: CombatEvent[], clarity = [] as ReturnType<typeof clarityOf>) => cuesFor(events, undefined, undefined, clarity).map(c => c.name);
   assert.deepEqual(names([{ tick: 1, type: 'AttackMissed', actor: 0, move: 'light_right' }]), ['whoosh_light']);
   const before = swing(base(), 0, 2), cut = clarityOf(after(before, [hit(1)]), before);
-  assert.deepEqual(names([hit(1)], cut), ['hit_flesh', 'death_voice']);
+  assert.deepEqual(names([hit(1)], cut), ['hit_flesh', 'effort_voice']);
+  const foe = cuesFor([hit(0)], undefined, undefined, [{ tick: 1, type: 'AttackInterrupted', actor: 1, move: 'light_right' }]).find(c => c.name === 'effort_voice');
+  assert.ok(foe && foe.rate! < 1, "the foe's grunt is the same cue, lower");
   assert.deepEqual(names([hit(1)]), ['hit_flesh'], 'no clarity event, no voice');
 });
 
