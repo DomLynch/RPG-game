@@ -176,7 +176,7 @@ export function createScene(
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene);
-  arena.group.scale.setScalar(PLAY_SCALE);   // from the first frame; render() follows a new fight's circle
+  arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
@@ -761,7 +761,7 @@ export function createScene(
       specialEpoch = 0,
       specialFight?: SpecialFightIdentity,
     ) {
-      if (arena.group.scale.x !== PLAY_SCALE) arena.group.scale.setScalar(PLAY_SCALE);   // the floor, ring, backdrop and props come inward with the play circle of the fight on screen (play-radius.ts; Match sets it)
+      if (arena.group.scale.x !== PLAY_SCALE) { arena.group.scale.setScalar(PLAY_SCALE); const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // the painted boundary ring is the full arena's circle: in a smaller one the wall is the edge   // the floor, ring, backdrop and props come inward with the play circle of the fight on screen (play-radius.ts; Match sets it)
       if (specialId && (previewEpoch !== specialEpoch || practice.duel.tick < previewTick)) {
         previewGeneration++; specialFx?.clear(); previewBlocked = false; if (!specialFx) { specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }

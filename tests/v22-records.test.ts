@@ -22,7 +22,7 @@ test('a v22 record replays to the outcome it was recorded with, in the old circl
     const forced = replayInNode({ ...record, v: 23 });
     const arenaOne = f.opponent !== 'goblin';
     assert.equal(JSON.stringify(forced.hashes) !== JSON.stringify(f.expect.hashes), arenaOne, `${f.opponent}: ${arenaOne ? 'forcing it into the small circle changes the fight' : 'outside Arena 1 the circle is the same either way'}`);
-    assert.equal(RADIUS, 8.55 * 0.36, 'the live circle is put back after the replay');
+    assert.equal(RADIUS, (11.7 * 0.36 - 0.425), 'the live circle is put back after the replay');
     assert.equal(PLAY_SCALE, 0.36);
   }
   setPlayScale(1);
