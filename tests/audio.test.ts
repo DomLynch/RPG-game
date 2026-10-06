@@ -8,6 +8,7 @@ import { MANIFEST, SPRITE_SECONDS } from '../src/audio/manifest.ts';
 import { RULES } from '../src/moves.ts';
 import { spriteFormats } from '../src/audio/sprite.ts';
 import { createFeedback, VOICES } from '../src/feedback.ts';
+import { armfeelLayers } from '../src/audio/armfeel-sound.ts';
 import type { CombatEvent } from '../src/combat.ts';
 
 // The scripted exchange is the fixed ruler every audio iteration is measured with: same beats, same order, same ticks.
@@ -354,4 +355,16 @@ test('feedback.want/special plays a Centurion cue through the arena output once 
     assert.equal(feedback.special('charge'), null, 'quiet blocks it');
     voice!.stop();   // already cut by quiet(); a second stop is safe
   } finally { globalThis.fetch = realFetch; }
+});
+
+test('?look=armfeel layers a body tone and a noise transient on a landed blow, a chime on a kill, and nothing when off or guarded', () => {
+  const kinds = (feel: 'high' | 'low' | 'off' | undefined, events: CombatEvent[]) => armfeelLayers(feel, events).map(l => l.kind === 'tone' ? `tone${l.wave === 'sine' ? ':chime' : ''}` : 'noise');
+  assert.deepEqual(kinds('high', [ev('Hit')]), ['tone', 'noise']);
+  assert.deepEqual(kinds('low', [ev('Hit')]), ['tone', 'noise'], 'Low keeps the enhanced audio');
+  assert.deepEqual(kinds('high', [ev('Hit'), ev('Killed')]), ['tone', 'noise', 'tone:chime'], 'a kill beats a hit and adds the chime');
+  assert.deepEqual(kinds('off', [ev('Hit'), ev('Killed')]), []); assert.deepEqual(kinds(undefined, [ev('Hit')]), []);
+  assert.deepEqual(kinds('high', [ev('Hit', { guarded: true }), ev('Blocked')]), [], 'a guarded blow keeps the block sound');
+  const { context, feedback, at } = hosted(); feedback.unlock(); feedback.armfeel('high'); at(1); feedback.update([ev('Hit')]);
+  const off = hosted(); off.feedback.unlock(); off.at(1); off.feedback.update([ev('Hit')]);
+  assert.equal(context.starts.length - off.context.starts.length, 2, 'High adds exactly the two layers over today\'s sound');
 });

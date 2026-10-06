@@ -50,7 +50,8 @@ import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
-import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
+import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
+import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
@@ -486,7 +487,7 @@ const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY)
 const arenaSelect = element<HTMLSelectElement>('arena-select');
 const rawArena = sparParams.get('arena');
 const requestedArena = sparPreview.kit && rawArena !== null
-  ? ['1', '2', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  ? ['1', '2', '3', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
 arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
@@ -755,6 +756,8 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/network cadence never inherits the solo preference
 let hitStop = 0;
+const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
+feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. NOT in a live duel: there the hit-stop would
 // hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
@@ -1294,7 +1297,7 @@ if (duelAsked) {
     if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
       banner('Choose a valid Sparring kit before Start sparring.', true); return;
     }
-    link.searchParams.set('arena', ['1', '2', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    link.searchParams.set('arena', ['1', '2', '3', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
   });
@@ -1875,7 +1878,11 @@ function frame(now: number) {
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
-      const stop = quiet ? 0 : stopFor(practice.events);
+      let stop = quiet ? 0 : stopFor(practice.events);
+      if (armfeel && stop) {   // ?look=armfeel: the blade holds a beat longer at contact, never past the heaviest stop a hit has today (armfeel.ts)
+        const landed = practice.events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'), tier = landed ? impactTier(landed) : null;
+        stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'full' || tier === 'half' ? tier : null);
+      }
       if (stop) {
         hitStop = stop;
         accumulator = 0;

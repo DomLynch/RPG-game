@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { ladderHuman } from '../scripts/ladder-human.mjs';
 
 // Opponents allowed to be flat today. The gate also fails when one of them is NOT flat any more, so the entry is deleted the day the rung is fixed.
-// goblin: his offence does not scale with level (combat-001 brief, 2026-10-06; Lead's goblin PR).
-const KNOWN_FLAT = new Set(['goblin']);
+// (empty since the Goblin's stab, COMBAT-001 3/3: his L6 -> L46 win rate now falls ~40 pts.)
+const KNOWN_FLAT = new Set<string>();
 const N = 40;                       // one cell is ±8 pts at n=40, so the bars below are drawn wide
 const NOISE = 10;
 
