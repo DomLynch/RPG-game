@@ -1,4 +1,4 @@
-// The anti-farm storage (migration 202610060001) on real PostgreSQL, in the same disposable socket-only cluster as account-database-check.mjs:
+// The anti-farm storage (migration 202610070001) on real PostgreSQL, in the same disposable socket-only cluster as account-database-check.mjs:
 // no DATABASE_URL, no SUPABASE_* and no service-role key is read, so it cannot reach a hosted project. Every migration is applied in order, then:
 // a client reads only its own rating and writes nothing; only the verifier role counts a win; the day rule and the per-room rule hold in the
 // database itself; ratings move by the gain, never below the floor; a win between accounts that never shared a room is refused.
