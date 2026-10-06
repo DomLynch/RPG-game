@@ -24,7 +24,6 @@ export const DAY_S = 86_400;
 export const GRUDGE_HELD_MAX = 1;
 export const GRUDGE_EXPIRY_S = 259_200;
 export const GRUDGE_REOFFER_S = 86_400;
-export const GRUDGE_REWARD_BRONZE = 300;
 export const GRUDGE_MIN_LEVEL = TITLES.indexOf('Gladiator') * RANK_STEPS + 1;
 export const GIVER_STANDING_DELTA = 50;
 export const RIVAL_TOWN_STANDING_DELTA = -100;
