@@ -14,6 +14,8 @@ Author: impl-o1-contracts, 2026-10-06. Ruling: Dom, 2026-10-06 (NPC services ins
 
 ## Income assumption (needs a decision)
 
+> TODO(Stats/Strategy): the coin-per-win figure below is a placeholder (Strategy, 2026-10-06). It is set from real beta data, not now.
+
 There is **no currency in the shipping game yet**. This proposal assumes one Pit win pays
 
 > **coin per win = 20 × tier level** (Recruit 20, Gladiator 60, Champion 100, Origin 200)

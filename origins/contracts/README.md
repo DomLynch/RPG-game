@@ -186,7 +186,7 @@ This is a proposal only. Nothing in `src/`, `supabase/` or `scripts/` changes, a
 - If trades have already happened, roll back by freezing trade settlement, not by deleting rows, so that history stays true.
 
 **Questions for sign-off:**
-- When a migrated piece is traded away, does the seller keep the Pit's cosmetic unlock in `owned` (and its skull)? The recommendation is yes: `owned` is a collection record, and the instance is the tradeable copy. But today `dropFor` will not re-offer an owned piece, so the seller can never win that piece back. The arena Lead decides.
+- When a Pit piece is traded away, the seller can win it again: Strategy's proposal (2026-10-06) is that the Pit re-offers a piece once the player no longer owns a copy, because the one-of-each rule checks current ownership only. That keeps tradeable pieces flowing into the Exchange, and each new copy gets its own provenance. So `dropFor` must check owned *instances*, not the `owned` collection record. Arena Lead and Backend confirm this together with the migration.
 - Should `taken[...].tier` (client-reported) seed `atRank` for history, or should unknown stay `null`?
 - How does the verifier map an account to its `pc` once multiple characters per account exist?
 
