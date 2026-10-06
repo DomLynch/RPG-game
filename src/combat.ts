@@ -37,8 +37,27 @@ type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep
 type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'kicked' | 'postureBroken'
   | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked' | 'enemyPostureBroken' | 'traded';
 // Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
+// Clarity cues (Lead's brief, Bot report 2026-10-06): presentation-only events DERIVED here from the step's events and the state before it. They are
+// not sim events (duel.ts is untouched, so no RECORD_VERSION, digest or RNG change) and no rule reads them; sound and the HUD do.
+//   AttackInterrupted: this fighter's own swing was cut (hit or guard-broken) before it could land, in wind-up or active frames: the opposite of a whiff.
+//   PressRefused: the player pressed an action the sim would drop (not legal now, outside the buffer tail); reason names why, for the button's dim or shake.
+export type ClarityEvent = { tick: number; type: 'AttackInterrupted' | 'PressRefused'; actor: Side; move?: MoveId; action?: Action; reason?: 'hurt' | 'exhausted' | 'recovering' };
+export function clarityOf(duel: Duel, before: Duel, intent?: Intent): ClarityEvent[] {
+  const out: ClarityEvent[] = [], { tick, events } = duel;
+  for (const e of events) {
+    if ((e.type !== 'Hit' && e.type !== 'GuardBroken') || e.target === undefined) continue;
+    const f = before.fighters[e.target];
+    if (f.phase !== 'attack' || f.move === null || f.landed || f.age >= timing(f).windup + timing(f).active) continue;   // recovery after a swing is a punish, not a cut-off
+    if (events.some(o => o.type === 'Hit' && o.actor === e.target)) continue;   // a trade: his blow landed too
+    out.push({ tick, type: 'AttackInterrupted', actor: e.target, move: f.move });
+  }
+  const me = before.fighters[0];
+  if (intent?.action && me.health && !legal(me, intent.action) && !inBufferWindow(me))
+    out.push({ tick, type: 'PressRefused', actor: 0, action: intent.action, reason: me.phase === 'hurt' || me.phase === 'dead' ? 'hurt' : me.phase === 'ready' || me.phase === 'guard' ? 'exhausted' : 'recovering' });   // standing and still refused: no stamina (or a spent skill)
+  return out;
+}
 export type Practice = {
-  duel: Duel; ai: AiState; events: CombatEvent[];
+  duel: Duel; ai: AiState; events: CombatEvent[]; clarity: ClarityEvent[];
   result: Result; resultAge: number; resultDamage: number; resultStamina: number; resultDealt: number;   // resultDealt: a trade's own blow
   resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
   resultBreak: 'charged' | 'kick' | null;   // what broke a guard, for the event line's words (presentation only; the sim is untouched)
@@ -69,7 +88,7 @@ const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = {
   PostureBroken: ['enemyPostureBroken', 'postureBroken'], Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'],
   Parried: ['parried', 'enemyParried'], GuardBroken: ['enemyBroken', 'broken'], Dodged: ['dodged', 'enemyDodged'],
 };
-export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
+export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: Intent): Practice {
   const [p, w] = duel.fighters;
   let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0;
   let resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false;
@@ -97,7 +116,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   if (dealt && taken) { result = 'traded'; resultAge = 0; resultDealt = dealt.damage ?? 0; resultDamage = taken.damage ?? 0; }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultDealt, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
+    duel, ai, events: duel.events, clarity: previous ? clarityOf(duel, previous.duel, intent) : [], result, resultAge, resultDamage, resultDealt, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
     maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth,
     fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
@@ -113,7 +132,7 @@ export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veter
   project(specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill), initialAi(seed));
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
-  return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);
+  return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current, intent);
 }
 export const canStrike = (s: Practice): boolean => legal(s.duel.fighters[0], 'light');
 export const canDefend = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'ready' || s.phase === 'guard');
