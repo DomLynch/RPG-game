@@ -3,6 +3,12 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+## 2026-10-06 00:06 (+04, `date`) — HANDOFF before /clear. READ FIRST: memory frankendom_strategy_handoff_2026-10-06_0006 + project_combat_bot_plan_2026-10-05.
+**Now.** Strategy = Dom's advisor (Lead runs operations). LIVE 366c0c81 (curl 00:06). Dom's 10-05 rulings, all tracks in parallel: 50 levels (top rank Origin I–V); teach blocks, don't reward them; combat plan from the test bot (L11→12 difficulty cliff, RNG fingerprint, then 50 levels; hero fade for hidden weapons; scripted first loss carries the teaching pack); ClaudeCraft takes (reconnect, duel rewards with Elo + first win/day + taper behind a PvP verifier, touch router, mobile perf kit); deeds and marketplace after beta; Spark splats skipped. Camera A/B/C clips from World pending; Dom picks.
+**Done today.** #1361 specials rule (10-03), #1367, #1372 Pit skull wall, #1379, #1366 fight_results + #1368 duel report merged 10-05 (gh). The #1366 production apply is Backend's, not verified by Strategy. VPS work/ emptied 10-04 (155 GB). Heavy jobs run on the VPS, parallel, 1 of 3 slots each.
+**Open.** #1376 reconnect, #1377 PvP verifier (draft), #1378 relay budget, #1369 Pit AI results (draft), #1380. Lead-check scheduled task `frankendom-lead-check` (:04/:24/:44) is stuck on its first run until Dom approves tools in the sidebar.
+**Gotchas.** Verify lane claims with gh/curl/merge-base before stating them; two Lead Dev rows in ListAgents (use the local ref); zsh `"${T}:path"` in git show.
+
 ## 2026-10-02 08:0x (+04) — FINAL HANDOFF: Dom is moving all work to GPT. READ FIRST: docs/HANDOVER-GPT-2026-10-02.md + docs/HANDOVER-GPT-lanes.md
 **Now.** LIVE c107068c (Brynhildr dark-bronze night armour). Duels for players: migration applied (Strategy), relay ON with DUEL_RELAY_PLAYERS=1 (Deploy, health 200); #1300 READY, #1314 waits on Web's stills; signed-in mint untested (needs a real account). Specials (30 boss, R8–10) and R4–7 NOT live: on finishers/hades-shadow-claw-fx, 483 behind trunk.
 **Open for the next owner:** night verdicts Mist/Breath (#1283) + Storm (#1303); Stats #1325 three calls; Dom's yeses (#1305, #1313, #1282, R4–7 plan, base→trunk, #1280 timing, two Strategy PR comments keep/delete).
