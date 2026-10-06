@@ -106,7 +106,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   const base = process.argv[process.argv.indexOf('--base') + 1];
   let previous;
   if (process.argv.includes('--base') && base) {
-    try { previous = JSON.parse(execFileSync('git', ['show', `${base}:${GATE}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).release_commands; } catch { previous = undefined; }
+    try { previous = JSON.parse(execFileSync('git', ['show', `${base}:${GATE}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 10_000 })).release_commands; } catch { previous = undefined; }
   }
   const picked = deployRowsFor(files, previous), keep = new Set(picked.map(r => r.index));
   console.error(`release scope: ${picked.length} of ${rows.length} rows for ${files.length} changed file(s): ${picked.map(r => `${r.index} ${r.name}`).join(', ') || 'none'}`);
