@@ -1,8 +1,10 @@
 # Origins server save and verify: schema + RPC draft (DRAFT, nothing here is applied)
 
-Backend/Accounts lane, 2026-10-06. For review by Strategy, Lead and the Auditor. **No migration file exists yet.** Per Lead's standing rule a migration
-for this stays a draft PR, unmerged and unapplied, until Dom says yes at that exact sha and the Auditor has a prod probe plan on the PR; this doc is the
-design that migration would implement. Shapes are read from `origins/contracts` (trunk: items.ts, story.ts, world.ts, economy.ts) and the open PRs
+Backend/Accounts lane, 2026-10-06. For review by Strategy, Lead and the Auditor. **No migration file exists yet.** Rule (Lead + Strategy, 2026-10-06): this migration is
+ADDITIVE and Origins-only (new tables, functions and one new role; no ALTER, DROP or backfill of any existing live table), so it is applied on a Strategy + Lead GO
+after review, a down-script in the same PR that DROPs exactly what it creates (tested on a branch DB first), and an Auditor prod probe before (live schema diff
+shows no existing table touched) and after (RLS on every new table, anon can neither read nor write). Anything that touches an existing live table stays a draft
+until Dom says yes at that sha. This doc is the design the migration would implement. Shapes are read from `origins/contracts` (trunk: items.ts, story.ts, world.ts, economy.ts) and the open PRs
 #1443 (inventory, `origins/inventory/inventory.ts`), #1446 (quest journal), #1447 (talk), #1428 (levelling, `CareerState`). Where a PR is still moving, the
 column is marked (PR).
 
@@ -92,9 +94,10 @@ The client never calls a write RPC. It calls the writer service (section 0.1) wi
 ## 4. Order, rollout, proof
 
 1. Review this doc (Strategy, Lead, Auditor). Answer 0.1 (writer runtime), 0.2 (boss source), 0.3, 0.4, 0.5.
-2. Draft PR with the migration (`supabase/migrations/2026...origins_save.sql`) and a pg test script; **stays draft and unapplied.** I run it on a VPS PG16 and
-   against a branch database, never `db push`, never hosted, until Dom says yes at that sha and the Auditor's prod probe plan is on the PR.
-3. Probe plan (for the Auditor): with the writer role, mint a stack, split it, try to commit a split that does not sum (must abort); try a second copy of a
+2. Draft PR with the migration (`supabase/migrations/2026...origins_save.sql`) plus `..._origins_save_down.sql` (drops exactly what it creates, in reverse order) and a pg
+   test script. I run both on a VPS PG16 and a branch database first, never `db push`, never hosted. It reads `awards` / `my_standing` only (select), so it is class 1.
+   Apply only on the Strategy + Lead GO with the Auditor's before/after probes.
+3. Probe plan (for the Auditor; add the before/after schema diff and the anon read/write refusal on every new table): with the writer role, mint a stack, split it, try to commit a split that does not sum (must abort); try a second copy of a
    stack-1 item from a second character on one account (must abort); replay a quest-stage reward (must pay once); two concurrent moves of one item (one
    must lose); a client token trying every write (must fail); the flag OFF (every read and RPC refuses).
 4. Writer service + route (`/origins`, unlinked, flag OFF) after the migration is applied, not before.
