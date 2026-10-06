@@ -365,6 +365,16 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   assert.equal(kept('src/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
 });
 
+test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the two rows that boot to a fight', () => {
+  // a2cf3529 (2026-10-06): #1420 fixed row 51 in src/first-frame.ts + src/scene.ts, yet the picker left 50 and 51 out of scope.
+  const picked = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' }).stderr;
+  for (const file of ['src/first-frame.ts', 'src/scene.ts']) {
+    assert.match(picked(file), /\b50 pit-exit-check\b/, `${file} runs row 50 pit-exit-check`);
+    assert.match(picked(file), /\b51 first-loss-browser-check\b/, `${file} runs row 51 first-loss-browser-check`);
+  }
+  assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+});
+
 test('deploy scope: the last full run is read from the stamp, else from a receipt with every row run, else unknown (-1)', () => {
   const root = mkdtempSync(join(tmpdir(), 'full-age-'));
   const age = () => Number(execFileSync('node', [join(process.cwd(), 'scripts/release-rows-for.mjs'), '--full-age', root], { encoding: 'utf8' }));
