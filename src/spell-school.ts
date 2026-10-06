@@ -15,9 +15,9 @@ export const SCHOOL_OF: Readonly<Record<string, School>> = {
 };
 const looks = (search: string) => (new URLSearchParams(search).get('look') ?? '').split(',');
 export const schoolsFlag = (search: string) => looks(search).some((l) => l === 'schools' || l === 'schools2');
-// ?look=schools2: the same hues, half the saturation and a third darker (Lead 2026-10-07: Dom's rulings want specials grey/dark/unsaturated, the plain flag is the loud one), so Dom picks in one look.
+// ?look=schools2: the same hues, half the saturation and half the lightness (Lead 2026-10-07: Dom's rulings want specials grey/dark/unsaturated, the plain flag is the loud one), so Dom picks in one look.
 export const schoolsSoft = (search: string) => looks(search).includes('schools2');
-const SOFT = { saturation: 0.5, lightness: 0.7 } as const;
+const SOFT = { saturation: 0.5, lightness: 0.5 } as const;
 
 // The effects paint dark ink into DataTexture maps, and a material colour only multiplies its map (black x any hue is black), so a mapped material's pixels are recoloured in
 // place: the school hue at the pixel's own shading (relative to the map's brightest), alpha untouched, so the shape, tear and fade stay the effect's own. An unmapped material
