@@ -20,5 +20,15 @@ export const createCharacter = (db: Db, account: string, name: string): Promise<
   db.run(`select public.origins_create_character(:'a'::uuid, :'n');`, { a: acct(account), n: name });
 export const pitPending = async (db: Db, account: string): Promise<PitClaim[]> =>
   JSON.parse(await db.run(`select coalesce(json_agg(p), '[]')::text from public.origins_pit_pending(:'a'::uuid) p;`, { a: acct(account) }));
+// One spawn answers both halves of a step (statements run in order, ON_ERROR_STOP, so a refusal in the first throws before the second runs).
+// The pending list is cut in SQL at `limit`, and built as jsonb: json_agg puts newlines between rows, which would split the two answers.
+const pendingSql = `select coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb)::text from (select * from public.origins_pit_pending(:'a'::uuid) limit :'n'::int) p;`;
+const lines = (out: string): [string, string] => { const [a, b, ...rest] = out.split('\n'); if (b === undefined || rest.length) throw Error('expected two answers from one statement pair'); return [a, b]; };
+export const openWithPending = async (db: Db, account: string, limit: number): Promise<{ snap: Snapshot; pending: PitClaim[] }> => {
+  const [snap, pending] = lines(await db.run(`select public.origins_open(:'a'::uuid)::text; ${pendingSql}`, { a: acct(account), n: String(limit) }));
+  return { snap: JSON.parse(snap), pending: JSON.parse(pending) };
+};
+export const commitThenOpen = async (db: Db, account: string, batch: readonly Json[]): Promise<Snapshot> =>
+  JSON.parse(lines(await db.run(`select public.origins_commit(:'a'::uuid, :'b'::jsonb)::text; select public.origins_open(:'a'::uuid)::text;`, { a: acct(account), b: JSON.stringify(batch) }))[1]);
 export const commit = async (db: Db, account: string, batch: readonly Json[]): Promise<Json[]> =>
   JSON.parse(await db.run(`select public.origins_commit(:'a'::uuid, :'b'::jsonb)::text;`, { a: acct(account), b: JSON.stringify(batch) }));
