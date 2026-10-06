@@ -173,17 +173,17 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
 // (the ledges, their lips catching light), tall hairline cracks, diagonal pale veins, grain; the colour runs from sand at the lip into
 // dark stone, so the drop reads as the floor's own edge breaking off.
 export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
-  const wave = fbm(14, 2, seed), chunk = fbm(24, 4, seed + 2), crack = fbm(100, 1, seed + 5), crackMask = fbm(6, 2, seed + 6), vein = fbm(8, 3, seed + 7), veinMask = fbm(5, 3, seed + 8), grain = fbm(96, 3, seed + 9), patch = fbm(7, 3, seed + 11);
+  const wave = fbm(12, 3, seed), chunk = fbm(10, 4, seed + 2), crack = fbm(100, 1, seed + 5), crackMask = fbm(6, 2, seed + 6), vein = fbm(8, 3, seed + 7), veinMask = fbm(5, 3, seed + 8), grain = fbm(96, 3, seed + 9), patch = fbm(7, 3, seed + 11);
   return pixels(width, height, (u, v) => {
-    const d = 1 - v, t = v * 9 + 2.2 * (wave(u, v * 0.5) - 0.5), band = Math.floor(t), fr = t - band;   // ledges: undulating courses, each with its own thickness of shadow and lit lip
+    const d = 1 - v, t = v * 5.5 + 2.8 * (wave(u, v * 0.45) - 0.5), band = Math.floor(t), fr = t - band;   // ledges: undulating courses, each with its own thickness of shadow and lit lip
     const lit = 1 - smoothstep(0.0, 0.2, fr), under = smoothstep(0.78, 1.0, fr);
-    const bu = u * 30 + band * 0.37 + 0.5 * (wave(u * 3, band * 0.13) - 0.5), block = Math.floor(bu), bf = bu - block, joint = Math.max(1 - smoothstep(0.0, 0.07, bf), smoothstep(0.93, 1.0, bf));   // blocks of rock between vertical joints, staggered course to course
+    const bu = u * 17 + band * 0.37 + 0.5 * (wave(u * 3, band * 0.13) - 0.5), block = Math.floor(bu), bf = bu - block, joint = Math.max(1 - smoothstep(0.0, 0.07, bf), smoothstep(0.93, 1.0, bf));   // blocks of rock between vertical joints, staggered course to course
     const bandTone = hash(band, 3, seed) - 0.5, blockTone = hash(block, band, seed + 1) - 0.5;
-    const c = chunk(u, v * 0.9), g = grain(u, v) - 0.5, p = patch(u, v * 0.9);
+    const cc = chunk(u, v * 0.9), c = 0.5 * cc + 0.5 * smoothstep(0.38, 0.62, cc), g = grain(u, v) - 0.5, p = patch(u, v * 0.9);
     const cr = Math.abs(crack(u, v * 0.012) - 0.5), crackLine = (1 - smoothstep(0.006, 0.03, cr)) * smoothstep(0.45, 0.6, crackMask(u, v)), ve = Math.abs(vein(u + v * 0.2, v * 0.55) - 0.5), veinLine = (1 - smoothstep(0.005, 0.02, ve)) * smoothstep(0.5, 0.66, veinMask(u, v * 0.8));
-    const tone = (0.62 + 0.35 * bandTone + 0.5 * blockTone + 0.55 * (c - 0.5) + 0.3 * g + 0.45 * lit - 0.4 * under - 0.4 * joint) * (1 - 0.65 * smoothstep(0.0, 1.0, d));
+    const tone = (0.55 + 0.4 * bandTone + 0.5 * blockTone + 0.95 * (c - 0.5) + 0.3 * g + 0.5 * lit - 0.45 * under - 0.4 * joint) * (1 - 0.65 * smoothstep(0.0, 1.0, d));
     const k = 128 * tone;   // grey-green stone, one patch of hue drifting over the face
-    let r = k * (0.74 + 0.4 * (p - 0.5)), gg = k * (0.9 + 0.3 * (p - 0.5)), b = k * (0.84 + 0.3 * (p - 0.5));
+    let r = k * (0.62 + 0.4 * (p - 0.5)), gg = k * (0.82 + 0.3 * (p - 0.5)), b = k * (0.88 + 0.3 * (p - 0.5));   // cool: the sun is warm
     const pale = Math.min(0.85, veinLine * 0.8 * smoothstep(0.1, 0.4, d) + lit * 0.1);   // pale veins, a pale edge on the ledge lip
     r += (190 - r) * pale; gg += (204 - gg) * pale; b += (194 - b) * pale;
     const dark = Math.min(0.9, crackLine * 0.8 + joint * 0.3); r *= 1 - dark; gg *= 1 - dark; b *= 1 - dark;
@@ -194,12 +194,11 @@ export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
 // Below the drop: a cloud sea running down into a dusk abyss, so the arena floats and no flat clear colour ever shows. Equirectangular, v = 1 at
 // the horizon (the painted world's cloud bank, cream and rose) down to 0 at the nadir (deep blue-grey).
 export function abyssPixels(width = 512, height = 128, seed = 61): Pixels {
-  const cloud = fbm(8, 5, seed), wisp = fbm(20, 3, seed + 3);
+  const cloud = fbm(5, 4, seed), wisp = fbm(14, 3, seed + 3);
   return pixels(width, height, (u, v) => {
-    const down = 1 - v, n = cloud(u, v * 0.9), puff = smoothstep(0.36, 0.68, n), w = wisp(u, v * 0.8) - 0.5, deep = smoothstep(0.0, 0.75, down);
-    const light: [number, number, number] = [226, 202, 184], shade: [number, number, number] = [150, 140, 150], dusk: [number, number, number] = [60, 66, 92], night: [number, number, number] = [30, 34, 54];
-    const cl = (i: number) => shade[i] + (light[i] - shade[i]) * (puff * (1 - 0.6 * deep) + 0.25 * w), sky = (i: number) => dusk[i] + (night[i] - dusk[i]) * smoothstep(0.4, 1.0, down);
-    const k = smoothstep(0.35, 0.85, down) , m = (i: number) => cl(i) * (1 - k) + sky(i) * k;
+    const down = 1 - v, n = cloud(u, v * 0.9), puff = smoothstep(0.3, 0.7, n), w = wisp(u, v * 0.8) - 0.5, deep = smoothstep(0.0, 1.0, down);
+    const light: [number, number, number] = [236, 214, 196], shade: [number, number, number] = [138, 126, 140], gloom: [number, number, number] = [74, 70, 94];   // sunlit cream tops, rose-grey bellies, a violet gloom far down
+    const m = (i: number) => { const base = shade[i] + (light[i] - shade[i]) * Math.min(1, puff + 0.3 * w), dim = 1 - 0.55 * deep; return gloom[i] * deep * 0.9 + base * dim * (1 - 0.4 * deep); };
     return [m(0), m(1), m(2)];
   });
 }
