@@ -1002,9 +1002,13 @@ test('kill links: a finished fight offers Share; the link replays the same fight
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // A headless record is stamped with an older era (play-radius.ts: no circle, no late notice, no stab), and every pre-29 version is refused (REACH[29]): stamp this one as a live fight is.
+  const pr = await import('../src/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
+  const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('goblin', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);
   const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
+  pr.setPlayScale(was); pr.setLateNotice(false); setStab(false);
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(wrong.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line, never a raw error over the HUD (owner 2026-09-22)
   assert.equal(wrong.element('reset-button').hidden, false, 'a refused link still offers PLAY NOW'); assert.equal(wrong.element('reset-button').textContent, 'PLAY NOW');
@@ -1029,8 +1033,8 @@ test('kill links: a record that runs out before its finish freezes on the last f
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const v = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
   await settle(() => v.element('replay-banner').textContent !== 'Loading the fight…');
-  for (let i = 0; i < 400 && v.element('replay-banner').textContent !== 'Recorded on an older build'; i++) v.tick();
-  assert.equal(v.element('replay-banner').textContent, 'Recorded on an older build');
+  for (let i = 0; i < 400 && v.element('replay-banner').textContent !== 'Recorded on an older version of the game'; i++) v.tick();
+  assert.equal(v.element('replay-banner').textContent, 'Recorded on an older version of the game');
   assert.equal(v.element('replay-banner').dataset.stale, '1', 'a record that ran out is the page\'s own message, not a fight status');
   assert.equal(v.element('reset-button').hidden, false, 'the frozen viewer page offers the way on');
   assert.equal(v.element('reset-button').textContent, 'PLAY NOW');
@@ -1302,7 +1306,7 @@ test('kill links: a retired record version converts — the warden\'s still, who
   await settle(() => /Your turn/.test(s.element('replay-banner').textContent));
   assert.equal(s.element('replay-still').hidden, false, `the warden's still shows; banner=${s.element('replay-banner').textContent}`);
   assert.equal((s.element('replay-still') as unknown as HTMLImageElement).src, '/game/img/nightborn.webp'); assert.equal((s.element('replay-still') as unknown as HTMLImageElement).alt, 'The Nightborn');
-  assert.equal(s.element('replay-banner').textContent, 'The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
+  assert.equal(s.element('replay-banner').textContent, 'Recorded on an older version of the game. The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
   assert.equal(s.element('welcome').hidden, true, 'no name form: a viewer needs no name');
   assert.equal(s.element('reset-button').hidden, false); assert.equal(s.element('reset-button').dataset.play, '1', 'PLAY NOW under it');
   s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
@@ -1314,12 +1318,12 @@ test('kill links: a retired record version converts — the warden\'s still, who
   assert.equal(v.replaced.length, 1); assert.match(v.replaced[0], /opponent=nightborn/);
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
   await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
-  assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
+  assert.equal(d.element('replay-banner').textContent, 'Recorded on an older version of the game. The Nightborn won, against a knife. Your turn.');
   const odd = legacy(record.packRecord({ ...fight, weapon: 'banana' as never })); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
-  await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
-  assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
+  await settle(() => u.element('replay-banner').textContent === 'Recorded on an older version of the game');
+  assert.equal(u.element('replay-banner').textContent, 'Recorded on an older version of the game'); assert.equal(u.element('welcome').hidden, true);
 });
 // A ?tier= pinned tab (grades.ts tierPin, Strategy 2026-09-28) says so on the fight rank row; the account panel keeps his real rank.
 test('?tier= pin: the fight rank row reads "<Rank> · test look" while the tab is pinned, and the career row otherwise', () => {
