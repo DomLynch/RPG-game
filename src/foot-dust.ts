@@ -18,6 +18,7 @@ export function createFootDust(scene: THREE.Scene, tone: DustTone = 'sand') {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('dustFade', new THREE.BufferAttribute(fades, 1)); geometry.setAttribute('dustSize', new THREE.BufferAttribute(sizes, 1));
+  const attributes = Object.values(geometry.attributes);   // fixed once; the update marks them dirty without a new array per frame
   const material = new THREE.PointsMaterial({ map, color: TONES[tone].color, size: 0.52, opacity: TONES[tone].opacity, transparent: true, depthWrite: false });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float dustFade; attribute float dustSize; varying float dustAlpha;')
@@ -43,7 +44,8 @@ export function createFootDust(scene: THREE.Scene, tone: DustTone = 'sand') {
     update(dt: number, feet: readonly (THREE.Vector3 | null)[], moving: readonly boolean[]) {
       if (dt <= 0) return; // hit-stop and pause hold both contacts and particles
       dt = Math.min(dt, 0.1);
-      feet.forEach((foot, i) => {
+      for (let i = 0; i < feet.length; i++) {   // a loop, not a closure per frame
+        const foot = feet[i];
         cooldown[i] = Math.max(0, (cooldown[i] || 0) - dt);
         const old = previous[i];
         if (foot && old && moving[i] && cooldown[i] === 0 && foot.y < 0.18 && foot.y < old.y - 0.0005 && foot.distanceTo(old) < 0.3) {
@@ -51,7 +53,7 @@ export function createFootDust(scene: THREE.Scene, tone: DustTone = 'sand') {
           spawn(foot, 5, 0.075, 0.32, 0.14, 0.65);
         }
         previous[i] = foot ? (old ?? new THREE.Vector3()).copy(foot) : null;
-      });
+      }
       let active = false;
       for (let p = 0; p < count; p++) {
         life[p] = Math.max(0, life[p] - dt); const age = lifetime - life[p];
@@ -64,7 +66,7 @@ export function createFootDust(scene: THREE.Scene, tone: DustTone = 'sand') {
         }
       }
       points.visible = active;
-      for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;
+      for (const attribute of attributes) attribute.needsUpdate = true;
     },
     dispose() { scene.remove(points); geometry.dispose(); material.dispose(); map.dispose(); }
   };

@@ -163,8 +163,9 @@ rarely in the same roll. *Orla against Mimir, over the stolen pattern* is the re
 - `grudge-open` is a new **condition**. It holds when every eligibility rule above holds.
 - `grudge` is a new **effect**. The server writes `grudge-state` (`held`) on it.
 - A decline is just a farewell line. The giver can be asked again after `GRUDGE_REOFFER_S`.
-- There is no walk back. The reward is paid **on the verified kill** wherever it happens: **300 bronze** (`GRUDGE_REWARD_BRONZE`,
-  per definition), plus standing **+50** with the giver's faction and **−100** with the rival's town faction.
+- There is no walk back. The reward is paid **on the verified kill** wherever it happens: the bronze priced at roll time
+  (§3.1 step 5: `rewardBronzePerLevel × rival level × motive.rewardPermille / 1000`, floored; e.g. 300 for a level-12 rival on a
+  full-weight (1000‰) motive; a story feud pays its own fixed `rewardBronze`), plus standing **+50** with the giver's faction and **−100** with the rival's town faction.
 
 **The kill.** The rival fights as a duel at his `encounterForms` level, in his own town, and may carry a twist (an encounter flag,
 for example a forge-floor hazard). A loss costs nothing: the grudge stays held until it expires, and the player may retry. The kill
