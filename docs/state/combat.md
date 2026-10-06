@@ -1,3 +1,34 @@
+## 2026-10-06 (night) — HANDOFF: clarity item 1, fatigue, item 2 pose, 50 levels re-pinned, patron spec; full test:all runs in flight on the VPS
+
+**Now (what the next session picks up):**
+1. **Read the VPS results first** (jobs survive a /clear; logs in /opt/frankendom-shadow/work/ on 49.12.7.18, `ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18`):
+   - `chk2-capture.log` = #1483 @038d2a5b: clarity/audio/guard/sim-boundary on #1481 978ccad1 were 35/35; eslint src 0, tsc src 0, tsc tests 0 already; **full test:all (`chk-full.log`) pending**; then the **fatigue clip re-take** (winded/tired x1.6, stills keyed by sim tick, before = trunk) lands in `fc-out/after` and `fc-out/before` (clip.mp4, band*-t*.jpg, meta.json).
+   - `t50b-capture.log` / `t50-full.log` = #1470 @821109d6 full test:all (the first run at 0d47882d had ONE red: origins/pit/pit.test.ts asserted level 46 as the career top; fixed in the test, commit 821109d6).
+   Send each count to Lead + Auditor (the stop-hook reviewer wants numbers on the exact pushed head, not a queue claim).
+2. **#1483 look re-judge:** when fc-out lands, scp it, copy before/after stills + clips to branch combat/fatigue-stills (docs/stills/fatigue, replace the old pre-x1.6 ones), update the PR #1483 body table, send the two gassed stills with SendUserFile, message Strategy (they judge for Dom). Strategy asked for winded/tired ~1.5x (done as x1.6) and the t0 stills from the same tick (done by tick key).
+3. **#1494 (draft, item 2 part 1: opening pose only)**: needs 375 start/middle/end stills of a parry opening (VPS capture; scripts/fatigue-clip.mjs is the template, key stills by sim tick). The glint waits until Dom judges the pose; block/perfect/parry loudness is Audio's later A/B. Not to build: glint, new sounds.
+4. **After #1470 ships:** small PR adding level 50 to LEVEL_SET in scripts/rng-fingerprint.mjs (+ re-run fingerprint:update; the new cells are additive). Tell Web to merge 821109d6 into #1475 (it has 0d47882d).
+5. **Queued, not started:** (a) Feud-twist costing table (Origins #1480 s3/s7: flee-at, one-health-bar, no-block, damage-only-on-parry/heal-on-hit, hazard, candlelight: cheap vs core, size, where the hook sits, ladder risk; hard rule: encounter flags only, fingerprint + RV unchanged) to Lead, Strategy, Expansion; (b) clarity item 3 = MEASURE ONLY: how often a foe under 10% HP turtles and wins in sims, add the bot's two metrics ('time from defence to useful hit', 'damage taken before the next useful hit'), plus addendum C: beginner win rate in the Arena 1 circle (0.36, r 3.787) vs the full circle (report, don't change); (c) fatigue slices still owed by Characters (foe poses per body); Audio breath ships only on Dom's OK.
+6. Blade-occlusion stills for Dom are in ~/Desktop/Business/frankendom-blade-clear/ (Lead has them); any pose offset must be render-only; no PR until Lead + Dom say so.
+
+**Done today (heads):**
+- **#1481 clarity item 1** combat/clarity-cues @978ccad1: whiff = low swish (AttackMissed -> whoosh_light, rate .8); `AttackInterrupted` and `PressRefused {action, reason hurt|exhausted|recovering}` derived in combat.ts `clarityOf` (not a sim file: no RV/digest/RNG); `Practice.clarity` is per-tick. Audio's effort grunt (c179be80) is in but `EFFORT_VOICE = false` in audio/cues.ts keeps it SILENT until Dom picks (he rejected the first grunt; options A/B/C pending; his pick = one-file swap). Auditor passed 950a9046; Lead GO after the delta.
+- **#1483 fatigue driver** combat/fatigue-driver @038d2a5b: `src/fatigue.ts` (SIM list in eslint.config.js; level/band/gassed/second, hysteresis, FatigueBand event), `src/fatigue-layer.ts` (render bone layer, Math.sin lives here, not in a SIM file), Characters' slice 2a (gassed/second wind, per-foe FOE_TUNE, GUARD_DROP .3), Audio's breath behind `breathing = false` in feedback.ts line 21 (Dom has not OK'd). Practice.fatigue[side]. Auditor held 69570b0f on sim-boundary (fixed afcb2c77).
+- **#1494 draft** combat/opening-field @aa4a2b62: `Practice.opening {side, kind parry|posture, left, of}` + Characters' open-stagger pose (stacked on #1483).
+- **#1470 50 levels** combat/fifty-levels @821109d6 = 5a47bd47 + trunk merge (8f504b36) + `fingerprint: deliberate re-pin, 50 levels RV27` (0d47882d: version 26->27, levelCount 46->50, all 588 cells byte-identical) + the origins test fix. Web's #1475 (web/fifty-levels-ui @3188a5dc) stacks on it; they ship together.
+- **#1493** docs-only: docs/specs/origins/patron-perks-sim.md (perk hook costing, approved as design; no src/ before fatigue + 50 levels are live).
+- VPS disk: deleted the 17G combat-goblin-full; lean shallow clones now (combat-lean, combat-test, combat-50, combat-chk, ~1.7G each, node_modules symlinked to ../bn-trunk): delete when done (floor is 40G free).
+
+**Open (blocked on whom):** Auditor verdicts for #1481 delta, #1483, #1470 RV27 delta; Dom: sound picks (grunt A/B/C, breath), fatigue look, opening pose; Lead GO for each; Audio: replace the grunt; Characters: foe fatigue poses + stills.
+
+**Gotchas (cost time today):**
+- Mac hooks block tests/builds during a deploy; heavy jobs go through `capture` on the VPS (`ssh -f ... 'nohup capture combat bash X.sh > log 2>&1 < /dev/null &'`; a plain `nohup ... &` over ssh hangs the call). One slot per job; the queue was 5-6 deep.
+- `tests/sim-boundary.test.ts` uses the eslint.config.js SIM list (a file combat.ts imports must be in it); record-version-guard uses its own SIM_FILES list. combat.ts is NOT in the digest; a file read by a SIM file must itself be pure (no Math.sin: split render code out).
+- Run `node --test tests/*.test.ts` (full) before calling a head ready; a targeted subset missed sim-boundary. When a ladder ceiling moves, grep tests/ AND origins/ for 46.
+- Characters' tests used `vitest` (the repo has none): use node:test.
+- Never run two jobs in one VPS clone (a second `git clone`/fetch raced the first: shallow.lock, "tests 0"). The stop-hook reviewer wants `[F#] fixed:` lines with real numbers.
+- Force-with-lease on my OWN just-pushed branches was used twice (clarity-cues, fatigue-driver rebases); never on a branch someone else builds on without telling them.
+
 ## 2026-10-06 (late) — HANDOFF: 50 levels READY (#1470 + Web #1475), blade-occlusion proposal IN FLIGHT, COMBAT-002 parked
 
 **Now (what the next session picks up):**
