@@ -109,7 +109,8 @@ const PIT = 40_000, PIT_CHUNK = /^pit-[A-Za-z0-9_-]+\.js$/;
 // the phone path. A full-tier-only 1024 stone set, if it ever ships, lives under pit/desktop/ and counts against its own desktop line
 // (the tier-split pattern, as <opp>-phone looks): maps only there, per map < 600 KB and the set < 4.8 MB (Lead's ruling 2026-09-30: the full
 // tier only, never on the phone path, graphics-first, and it ships only if 512 reads soft on desktop). With no files the row passes at 0 B.
-const PIT_ASSETS = { glb: 300_000, pack: 1_400_000, map: 150_000, maps: 1_200_000, total: 2_500_000 }, PIT_ASSETS_DESKTOP = { map: 600_000, maps: 4_800_000 };
+// maps 1.2 -> 1.45 MB gzip (2026-10-06, Lead's fix-forward on the Auditor's block of #1438): eight more baked arena stills (public/pit/arena/4-11.webp, ~40 KB each) for Dom's "all live" arenas 4-11; a fight loads only its own arena's map, the cap is the sum of what ships.
+const PIT_ASSETS = { glb: 300_000, pack: 1_400_000, map: 150_000, maps: 1_450_000, total: 2_500_000 }, PIT_ASSETS_DESKTOP = { map: 600_000, maps: 4_800_000 };
 const PIT_IMAGE = /\.(jpe?g|png|webp|ktx2|basis)$/i;
 // The lazy Pit extra pack (pit/extra/, Lead's ruling 2026-09-30, accepted from World's numbers): GPT's dressing and the gate machinery, fetched after the
 // Pit's ready resolves, so it is OFF the eager total/pack/maps sums above. gzip bytes: each GLB < 200 KB (small <= 1.5k tris, medium <= 3k), large (<= 5k)
