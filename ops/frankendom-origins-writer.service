@@ -4,7 +4,7 @@ Description=Frankendom Origins writer
 After=network-online.target
 
 [Service]
-WorkingDirectory=/opt/frankendom-verifier/current
+WorkingDirectory=/opt/frankendom-origins/current
 EnvironmentFile=/etc/frankendom/origins-writer.env
 ExecStart=/usr/bin/env node scripts/origins-writer.mjs
 Restart=on-failure
