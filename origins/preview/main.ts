@@ -150,7 +150,7 @@ renderer.setAnimationLoop(walkLoop);
 // session's token); nothing here writes the game's storage, account or fight results, and no duel result is ever sent anywhere.
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
 let source: Source = CHECKING;
-let duel: typeof import('./pit-duel.ts') | null = null;
+let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('journal')!;
 const saveNote = document.getElementById('save')!;
 function showCareer() {
@@ -170,14 +170,20 @@ void fetchOpen(storedToken(storage, Date.now()), { base: writerBase(location.sea
   showCareer();
 });
 async function startFight(pick?: string): Promise<PitFight | null> {
+  if (duelFailed) { location.reload(); return null; }   // a browser keeps a failed import's error for the page's life, so the retry is a fresh page
   const next = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins, pick);
   if (!next) return null;
+  const before = session;
   session = started(session); fight = next; last = null; showCareer();
   openPanel(null); keys.clear(); stick = null; ring.style.display = 'none'; prompt.hidden = true; hint.hidden = true;
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
   duelLayer.querySelector('[data-ctl="art-status"]')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
-  duel ??= await import('./pit-duel.ts');
+  try { duel ??= await import('./pit-duel.ts'); } catch {
+    // the chunk did not load (offline, a stale deploy): back to the walk, the fight not counted, the prompt retries; a stale failure does nothing
+    if (fighting && fight === next) { duelFailed = true; session = before; fight = null; leaveFight(); showCareer(); hint.textContent = 'Could not load the duel. Tap “Fight in the Pit” to retry.'; hint.hidden = false; }
+    return null;
+  }
   if (!fighting || fight !== next) return next;   // left (or restarted) while the chunk loaded
   duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() });
   return next;
