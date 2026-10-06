@@ -840,8 +840,15 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         opened.group.visible = false;
       },
       // Give this actor a clip for an additive role its rig does not carry (the killer's Fin_Hamstrung): the clip gets its own one-shot action, like a rig's own.
-      adoptClip(role: (typeof ADDITIVE_ROLES)[number], clip: AnimationClip) {
+      // `sourcePelvis`: the rest length of the pelvis bone the clip was authored on (warrior.glb's); a body reproportioned from the hero rig with a shorter or
+      // longer pelvis (the Dwarf) gets the clip's pelvis path scaled by the ratio, so it sits on the floor instead of hovering or sinking. Omitted for the hero's own clip.
+      adoptClip(role: (typeof ADDITIVE_ROLES)[number], clip: AnimationClip, sourcePelvis?: number) {
         if (clips[role]) return;
+        const rest = asset.scene.getObjectByName('pelvis')?.position.length();
+        if (sourcePelvis && rest && Math.abs(rest / sourcePelvis - 1) > 1e-4) {
+          clip = clip.clone();
+          for (const track of clip.tracks) if (track.name === 'pelvis.position') track.values = track.values.map(v => v * rest / sourcePelvis);
+        }
         clips[role] = clip; roles.push(role);
         const action = actions[role] = mixer.clipAction(clip).play(); action.setEffectiveWeight(0); action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true;
       },
