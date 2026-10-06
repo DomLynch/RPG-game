@@ -2443,3 +2443,17 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #journal:has(#journal-tab-fighter:checked) #journal-name::after { margin-left: 2px; width: 20px; background-size: 18px; }
 #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 140px; }
 #journal:has(#journal-tab-fighter:checked):has(#sparring-tab:not([hidden])) .fighter { padding-right: 212px; }
+
+/* ?look=loot2 (Lead 2026-10-06, Dom's kill-screen screenshots; look test only, nothing live changes until Dom says yes). One column on a
+   portrait phone under the Take-one panel: Take alone as the primary, then Leave / LINK / CLIP as one small row, then the Pit entry as one
+   clean button. Positions are the panel's own (it fills y 190..497 at 375x812, rule above), so nothing sits on the panel or the body. */
+@media (orientation: portrait) and (max-width: 900px), (orientation: portrait) and (pointer: coarse) {
+  :root.look-loot2 .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; display: contents; }
+  :root.look-loot2 #actions .loot-panel-actions #loot-take { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 506px); width: min(300px, calc(100vw - 32px)); margin-left: calc(min(300px, calc(100vw - 32px)) / -2); height: 52px; min-height: 52px !important; font-size: 17px; }
+  :root.look-loot2 #actions .loot-panel-actions #loot-decline { position: fixed; left: calc(50% - 150px); top: calc(env(safe-area-inset-top, 0px) + 568px); width: 90px; height: 36px; min-height: 36px !important; font-size: 13px; }
+  :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] .clip-pick { top: calc(env(safe-area-inset-top, 0px) + 568px); }
+  :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #duel-button { display: none !important; }
+  :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #share-link { left: calc(50% - 40px); }
+  :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #clip-button { left: calc(50% + 30px); }
+  :root.look-loot2 .actions[data-gestures=cluster] #pit-button { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 620px); width: min(300px, calc(100vw - 32px)); margin-left: calc(min(300px, calc(100vw - 32px)) / -2); height: 44px; font-size: 15px; }
+}

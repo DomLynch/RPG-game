@@ -3,8 +3,10 @@
 // runs, puts the same light up before anything paints (style.css :root.gate-light), so no black frame shows between the two. main.ts
 // fades it out on the arena's first frame. Without the flag (a first visit, a kill link, a plain reload) nothing here does anything. A
 // classic file, not inline: the site's CSP allows no inline script.
-/* global document, sessionStorage, setTimeout */
+/* global document, location, sessionStorage, setTimeout */
 (function () {
+  // `?look=loot2` (style.css, Lead 2026-10-06): the Take-one screen's restack, a look test. Same head script, so it needs no build wiring.
+  if (/[?&]look=(?:[^&]*,)?loot2(?:,|&|$)/.test(location.search)) document.documentElement.classList.add('look-loot2');
   var KEY = 'frankendom.gate-light', MAX_MS = 8000, OUT_MS = 1200, root = document.documentElement, lit;
   try {
     lit = sessionStorage.getItem(KEY) === '1';
