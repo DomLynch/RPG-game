@@ -1,0 +1,159 @@
+// The tutorial start scene's slow foe (src/tutorial.ts, Match mode 'tutorial'): every step fires once, in order, when the player does it;
+// the foe waits with no timeout, never ends the fight, records and awards nothing, and no normal fight is affected.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { TUTORIAL_STEPS, type TutorialStep } from '../src/tutorial.ts';
+import { Match } from '../src/match.ts';
+import { OPPONENTS } from '../src/moves.ts';
+import { loadProfile } from '../src/profile.ts';
+import { loadScorecard } from '../src/scorecard.ts';
+import { loadTrial } from '../src/trial.ts';
+import { STRATEGIES, W, P, act, idle, ready, gap, swingStart, guard } from './strategies.ts';
+import { timing, type Duel, type Intent } from '../src/duel.ts';
+
+const counting = () => { const m = new Map<string, string>(); let writes = 0; return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { writes++; m.set(k, v); }, removeItem: (k: string) => { m.delete(k); }, writes: () => writes }; };
+// A player who does exactly the step the foe is waiting on (and nothing else); null = a player who never does anything.
+const doer = (step: () => TutorialStep | null) => (d: Duel): Intent => {
+  const s = step();
+  if (s === 'slash') return ready(d) && gap(d) <= 1.7 ? act('light') : idle();
+  if (s === 'stab') return ready(d) && gap(d) <= 1.95 ? act('thrust') : idle();
+  if (s === 'heavy') return ready(d) && gap(d) <= 1.8 ? act('heavy') : idle();
+  if (s === 'guard') return guard(d);
+  if (s === 'parry') return STRATEGIES['perfect parry']!(d);
+  if (s === 'kick') return ready(d) && gap(d) <= 1.5 ? act('kick') : idle();
+  if (s === 'roll') return swingStart(d) && ready(d) ? act('dodge') : idle();
+  return idle();
+};
+function boot(seed: number) {
+  const storage = counting(), trial = loadTrial(storage), scorecard = loadScorecard(storage), profile = loadProfile(storage, () => 'device').profile;
+  const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, seed), writes = storage.writes();
+  const beats: { id: TutorialStep; tick: number }[] = [];
+  match.startTutorial((id) => beats.push({ id, tick: match.practice.duel.tick }));
+  return { match, beats, writes: () => storage.writes() - writes };
+}
+const tick = (match: Match, who: (d: Duel) => Intent) => match.step(() => (P(match.practice.duel).phase === 'sheathed' ? act('light') : who(match.practice.duel)));
+
+test('a player who does each step in turn completes all seven, once, in order, on every seed, and the fight never ends', () => {
+  for (let seed = 1; seed <= 12; seed++) {
+    const { match, beats, writes } = boot(seed * 2654435761 >>> 0);
+    assert.equal(match.mode, 'tutorial'); assert.equal(match.recorder, null);
+    const who = doer(() => match.tutorial!.current);
+    let result = 'stepped', ticks = 0;
+    for (; ticks < 20000 && result === 'stepped' && beats.length < TUTORIAL_STEPS.length; ticks++) result = tick(match, who);
+    for (let i = 0; i < 600; i++) result = tick(match, who);   // after the last step the foe only stands
+    assert.deepEqual(beats.map((b) => b.id), [...TUTORIAL_STEPS], `seed ${seed}: the seven steps, once each, in order (${ticks} ticks)`);
+    assert.equal(result, 'stepped', `seed ${seed}: the fight does not end`);
+    assert.ok(!match.practice.finish, `seed ${seed}`); assert.equal(match.tutorial!.current, null);
+    assert.equal(writes(), 0, `seed ${seed}: nothing written`);
+  }
+});
+
+test('the foe waits with no timeout: a player who does nothing sees no step done and is never beaten', () => {
+  for (const seed of [1, 2, 3]) {
+    const { match, beats } = boot(seed);
+    let result = 'stepped';
+    for (let i = 0; i < 12000 && result === 'stepped'; i++) result = tick(match, () => idle());
+    assert.equal(beats.length, 0); assert.equal(result, 'stepped'); assert.equal(match.tutorial!.current, 'slash');
+  }
+});
+
+test('the foe never kills the player nor falls, whatever the player does', () => {
+  for (const name of ['light spam', 'heavy only', 'perfect parry', 'turtle and punish', 'roll and punish']) {
+    const { match } = boot(5);
+    let result = 'stepped';
+    for (let i = 0; i < 6000 && result === 'stepped'; i++) { result = tick(match, STRATEGIES[name]!); assert.ok(P(match.practice.duel).health > 0 && W(match.practice.duel).health > 0, `${name}: both stand`); }
+    assert.equal(result, 'stepped', name);
+  }
+});
+
+test('parryWindow is true only on the parry step, in the ticks before a heavy lands, and pressing guard on it parries', () => {
+  for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = boot(seed);
+    const base = doer(() => match.tutorial!.current);
+    let sawWindow = false, other = false;
+    const who = (d: Duel): Intent => {
+      const w = match.tutorial!.parryWindow;
+      if (w && match.tutorial!.current === 'parry') { sawWindow = true; return guard(d, { action: 'parry' }); }
+      if (w) other = true;
+      return match.tutorial!.current === 'parry' ? idle() : base(d);
+    };
+    for (let i = 0; i < 20000 && !beats.some((b) => b.id === 'parry'); i++) tick(match, who);
+    assert.ok(sawWindow && !other, `seed ${seed}`);
+    assert.ok(beats.some((b) => b.id === 'parry'), `seed ${seed}: pressing on the window parries`);
+    assert.equal(match.tutorial!.parryWindow, false);
+  }
+});
+
+// Drive the fight to a given step with the step-doing bot, then hand over.
+function toStep(seed: number, step: TutorialStep) {
+  const b = boot(seed), base = doer(() => b.match.tutorial!.current);
+  for (let i = 0; i < 20000 && b.match.tutorial!.current !== step; i++) tick(b.match, base);
+  assert.equal(b.match.tutorial!.current, step);
+  for (let i = 0; i < 90; i++) tick(b.match, idle);   // the settle pause
+  return b;
+}
+
+test('the guard step accepts a guard raised on time (a Parry), which the sim reports instead of a Block', () => {
+  for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = toStep(seed, 'guard');
+    let parried = false;
+    for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'guard'); i++) { tick(match, STRATEGIES['perfect parry']!); parried ||= match.practice.events.some((e) => e.type === 'Parried' && e.actor === 0); }
+    assert.ok(parried, `seed ${seed}: the guard was a parry`);
+    assert.ok(beats.some((b) => b.id === 'guard'), `seed ${seed}: the guard step completes`);
+  }
+});
+
+test('the roll step completes however early the player rolls back from the thrust (Dodged contact, or the swing ending on nothing)', () => {
+  let missed = 0, dodged = 0;
+  for (const early of [0, 2, 4, 6, 8]) for (let seed = 1; seed <= 4; seed++) {
+    const { match, beats } = toStep(seed, 'roll');
+    for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'roll'); i++) {
+      tick(match, (d) => (W(d).phase === 'attack' && W(d).age === early && ready(d) ? act('dodge', { move: { x: 0, z: -1, yaw: 0, run: false } }) : idle()));
+      for (const e of match.practice.events) { if (beats.length >= 6) { if (e.type === 'Dodged') dodged++; if (e.type === 'AttackMissed' && e.actor === 1) missed++; } }
+    }
+    assert.ok(beats.some((b) => b.id === 'roll'), `seed ${seed}, roll at swing age ${early}: the step completes`);
+  }
+  // Receipt (VPS, 2026-10-06): in all 20 rolls the contact fell in the safe frames (Dodged); no whiff by distance occurs at these timings, so the missed-thrust path is a safety net.
+  assert.ok(dodged + missed > 0);
+});
+
+test('parryWindow is not early and not late: a press on its first and on its last tick both parry', () => {
+  for (const pressOn of ['first', 'last'] as const) for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = toStep(seed, 'parry');
+    let was = false;
+    for (let i = 0; i < 6000 && !beats.some((b) => b.id === 'parry'); i++) {
+      const w = match.tutorial!.parryWindow, f = W(match.practice.duel), edge = pressOn === 'first' ? w && !was : w && !!f.move && f.age === timing(f).windup - 1;
+      tick(match, (d) => (edge ? guard(d, { action: 'parry' }) : idle()));
+      was = w;
+    }
+    assert.ok(beats.some((b) => b.id === 'parry'), `seed ${seed}: a press on the ${pressOn} tick parries`);
+  }
+});
+
+test('tooFar is true while the player stands outside the foe\'s reach and false once he is in it', () => {
+  const { match } = boot(3);
+  for (let i = 0; i < 200; i++) tick(match, () => idle());
+  const far = match.practice.duel;
+  assert.equal(match.tutorial!.tooFar, gap(far) > 2.1);
+  for (let i = 0; i < 400 && match.tutorial!.tooFar; i++) tick(match, () => ({ ...idle(), move: { x: 0, z: 1, yaw: 0, run: false }, lock: true }));
+  assert.equal(match.tutorial!.tooFar, false);
+});
+
+test('a PLAIN guard (no side, the held button or Q) finishes the guard step; the parry step needs the overhead side', () => {
+  const plain = (): Intent => ({ ...idle(), guard: true });
+  for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = toStep(seed, 'guard');
+    for (let i = 0; i < 3000 && !beats.some((b) => b.id === 'guard'); i++) tick(match, plain);
+    assert.ok(beats.some((b) => b.id === 'guard'), `seed ${seed}: a plain held guard blocks the thrust`);
+    assert.equal(match.tutorial!.guardWith, 'overhead', 'the next step (parry) needs the overhead side');
+  }
+  for (let seed = 1; seed <= 4; seed++) {   // the parry step: a plain guard pulsed at the window does NOT parry the heavy; the overhead side does
+    const run = (side: Intent['guardDirection']) => {
+      const { match, beats } = toStep(seed, 'parry');
+      for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'parry'); i++) tick(match, (d) => (match.tutorial!.parryWindow ? { ...guard(d, { action: 'parry' }), guardDirection: side } : idle()));
+      return beats.some((b) => b.id === 'parry');
+    };
+    assert.equal(run(undefined), false, `seed ${seed}: a straight parry does not cover the overhead heavy`);
+    assert.equal(run('overhead'), true, `seed ${seed}: the overhead side parries it`);
+  }
+});

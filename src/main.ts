@@ -1241,6 +1241,15 @@ if (lessonAsked) {
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
   began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
 }
+// The tutorial start scene (src/tutorial.ts, Match 'tutorial'): `?tutorial=1` only, until Dom approves the preview. The slow warden waits on each step;
+// the step ids land on <html data-tutorial-done> and __tutorial for the Web lane's instructions and the stills harness.
+if (!sparKit && !replayText && !sharedId && !invalidSparringPreview && !lessonAsked && new URLSearchParams(window.location?.search ?? '').get('tutorial') === '1') {
+  welcome.hidden = true; watching = false;
+  const done: string[] = [];
+  match.startTutorial((id) => { done.push(id); document.documentElement.dataset.tutorialDone = id; });
+  Object.assign(globalThis, { __tutorial: () => ({ tick: match.practice.duel.tick, done: [...done], current: match.tutorial?.current ?? null, recorder: !!match.recorder, finish: match.practice.finish }) });
+  began();
+}
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
@@ -1776,7 +1785,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson' && match.mode !== 'tutorial') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {
