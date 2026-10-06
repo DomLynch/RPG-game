@@ -30,12 +30,41 @@ export const energyOf = (feel: Feel): number => (feel === 'high' ? 1 : feel === 
 
 // The heaviest stop a hit gets today (main.ts HEAVY_HIT 90 ms + hit-impact.ts full tier 5 frames): no armfeel hold may take a frame past it.
 export const FULL_TIER_STOP_MS = 90 + (5 * 1000) / 60;
-// Extra milliseconds the blade holds at contact, on top of the stop the frame already has (`stopMs`): the hold, but never past the full-tier
-// stop. A frame that already stops that long (a heavy, a kill) gets none. High only (Low and Off have no holds).
+// The blade's hit hold (40–80 ms) is a FLOOR on the freeze a contact has, not an addition to it: every contact in this game already stops the picture
+// at least 100 ms (main.ts HIT_STOP 50 ms + the half tier's 3 frames), so the extra milliseconds this returns are 0 on every real hit, and a light hit
+// is not made to stutter by a second freeze stacked on the first (Dom 2026-10-06: "a bit more nauseous"; measured, the old top-up made a light hit
+// freeze 140 ms against 100). Never past the full-tier stop either. High only.
 export function weaponHoldMs(feel: Feel, stopMs: number, events: readonly CombatEvent[], tier: 'half' | 'full' | null): number {
   if (feel !== 'high' || stopMs <= 0 || !tier) return 0;
-  const want = events.some((e) => e.type === 'Killed') ? ARMFEEL.weaponHoldMs.kill : ARMFEEL.weaponHoldMs[tier];
-  return Math.max(0, Math.min(want, FULL_TIER_STOP_MS - stopMs));
+  const floor = events.some((e) => e.type === 'Killed') ? ARMFEEL.weaponHoldMs.kill : ARMFEEL.weaponHoldMs[tier];
+  return Math.max(0, Math.min(floor, FULL_TIER_STOP_MS) - stopMs);
+}
+
+// How much of the flinch each fighter shows. The hero stands 4.5 m from the camera and every hit on him moves the biggest thing on the screen: at the
+// handoff's full size his head swept 50 px of a 375 px screen (his feet 35 px), the sway Dom felt as nausea. He keeps a quarter of it (9 px). The
+// opponent is 7 m away and moves along the view axis, so his flinch is turned to the side the blow arrives from (scene.ts) to be seen at all.
+export const FLINCH_GAIN = { hero: 0.25, opponent: 1 } as const;
+
+// The burst (handoff main.js burst/tickParticles, exact): 8 on a hit, 12 on a kill, 3 on Low, in one fixed 48-slot ring; each flies out on a circle at
+// 1.8 m/s plus the blow's direction, up at 1.3 + 0.7·(i mod 3) m/s, falls at 8 m/s², shrinks and dims over its life (0.3 s a hit, 0.42 s a kill).
+export const BURST = { slots: 48, hit: 8, kill: 12, low: 3, spread: 1.8, lift: 1.3, liftStep: 0.7, gravity: 8, size: { hit: 0.12, kill: 0.16, low: 0.055 }, life: { hit: 0.3, kill: 0.42 }, color: '#ffca85' } as const;
+export const FLASH = { seconds: 0.1, color: '#fff3dd', low: 0.4 } as const;   // the struck body's near-white flash, 100 ms
+export type Particle = { life: number; total: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; size: number };
+export const newParticle = (): Particle => ({ life: 0, total: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 0 });
+// Fills slot `p` for particle `i` of `count`; no allocation. (x, y, z): the contact point; (dx, dz): the blow's unit direction.
+export function spawn(p: Particle, i: number, count: number, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, feel: Feel): void {
+  const a = (i / count) * Math.PI * 2;
+  p.life = p.total = kill ? BURST.life.kill : BURST.life.hit; p.x = x; p.y = y; p.z = z;
+  p.vx = Math.cos(a) * BURST.spread + dx; p.vz = Math.sin(a) * BURST.spread + dz; p.vy = BURST.lift + (i % 3) * BURST.liftStep;
+  p.size = feel === 'low' ? BURST.size.low : kill ? BURST.size.kill : BURST.size.hit;
+}
+export const burstCount = (feel: Feel, kill: boolean): number => (feel === 'off' ? 0 : feel === 'low' ? BURST.low : kill ? BURST.kill : BURST.hit);
+// One tick of a live particle; returns its scale (size × remaining life) and brightness (0.6 + 0.4 × remaining life).
+export function tickParticle(p: Particle, dt: number): boolean {
+  p.life = Math.max(0, p.life - dt);
+  if (p.life <= 0) return false;
+  p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= dt * BURST.gravity;
+  return true;
 }
 
 // One victim's flinch: a lean about the pivot and a nudge along the blow, both scaled by an energy that starts at 1 per landed blow and decays
@@ -45,10 +74,10 @@ export class Flinch {
   private energy = 0; private hold = 0; private kill = false; private dirX = 0; private dirZ = 0;
   feel: Feel;
   constructor(feel: Feel) { this.feel = feel; }
-  // `heading`: the blow's heading (the attacker's facing, radians); the victim leans and is nudged the way it travels.
-  hit(heading: number, kill: boolean): void {
+  // (dx, dz): the push direction (unit); `gain` scales this victim's whole flinch (FLINCH_GAIN).
+  hit(dx: number, dz: number, kill: boolean, gain = 1): void {
     if (this.feel === 'off') return;
-    this.energy = 1; this.kill = kill; this.dirX = Math.sin(heading); this.dirZ = Math.cos(heading);
+    this.energy = gain; this.kill = kill; this.dirX = dx; this.dirZ = dz;
     this.hold = this.feel === 'high' ? (kill ? ARMFEEL.holdKill : ARMFEEL.hold) : 0;   // Low has no holds
   }
   // dt seconds of the frame; the hold is spent first, and only what is left decays the energy (`visualDt = max(0, dt - hold)`).
