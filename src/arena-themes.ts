@@ -46,6 +46,7 @@ export type ArenaTheme = {
   backdropTall?: number;   // the ring's height factor: <1 shrinks the painting vertically
   spectators?: boolean;   // false: no crowd
   abyss?: { map: string; haze: RGB; cream: RGB };   // the aerial map far below a cliff arena (public/<map>, scripts/arena-abyss.py), the haze its rim fades into, and the colour the horizon bowl starts from; unset = Arena 1's sky-blue abyss
+  backdropLift?: number;   // multiplies the painting's colour (1 = as painted): lifts a dark painting into the arena's light
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | '2' | 'a' | 'b' | 'c' | 'd';
@@ -63,14 +64,11 @@ const ARENA_1: ArenaTheme = {
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
 };
-// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1's template exactly (the island, its sand and floor, cliff, cone, torches, banners, camera)
-// with only the far world swapped, and the light, fog and haze retuned to the red-lava painting. Reached by ?arena=2; not on the ladder yet.
+// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1's template exactly (the island, its sand and floor, cliff, cone, torches, banners, camera, and its
+// daylight: sun, sky, fog, haze, exposure, weather) with only the far world swapped: the red-lava painting (lifted into daylight) and its lava abyss. Reached by ?arena=2; not on the ladder yet.
 const ARENA_2: ArenaTheme = {
   ...ARENA_1, id: '2', name: 'The Skull Gate',
-  textures: { ...ARENA_1.textures, sky: { base: [58, 34, 32], sun: [70, 24, 10], ground: [60, 30, 24], sunV: 0.62 } },   // sand, stone and floor stay Arena 1's; only the sky goes ember
-  fog: '#3a1c16', fogDensity: 0.02, hemisphere: ['#c88068', '#4a2420', 1.15], sun: ['#ff8a44', 4.8], exposure: 1.25,
-  weather: { kind: 'dust', color: '#ff9a5a', count: 320, size: 0.06, opacity: 0.6 }, motes: '#ff9a5a',
-  backdrop: '/arena/backdrop-2.webp', abyss: { map: 'arena/abyss-2.webp', haze: [62, 30, 26], cream: [84, 36, 26] },
+  backdrop: '/arena/backdrop-2.webp', backdropLift: 1.5, abyss: { map: 'arena/abyss-2.webp', haze: [62, 30, 26], cream: [84, 36, 26] },
 };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
