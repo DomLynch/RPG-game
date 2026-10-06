@@ -55,7 +55,7 @@ export type QuestDefinition = {
 const QUEST_KEYS = ['kind', 'schemaVersion', 'id', 'title', 'storyVersion', 'scope', 'gate', 'start', 'stages', 'migrations'] as const;
 const MAX_DELTA = 200;
 
-function readCondition(issues: Issues, raw: unknown, path: string): Condition | undefined {
+export function readCondition(issues: Issues, raw: unknown, path: string): Condition | undefined {
   if (!isPlainObject(raw)) {
     issues.add('not-object', path, 'expected a condition object');
     return undefined;
