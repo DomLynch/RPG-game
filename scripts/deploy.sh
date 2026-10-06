@@ -62,7 +62,8 @@ elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows
   npm run typecheck:tests
   npm test
   npm run quality:deploy
-  # The slow tests did not run, so this release must not write the full-run stamp (Auditor S1 on #1385).
+  # Recorded in the full-run stamp (release-checks.mjs): the stamp is about the rows, and a run of every row counts as full
+  # even behind the fast unit gate (Lead 2026-10-06; test:all runs on every PR in CI). This replaces Auditor S1 on #1385.
   export DEPLOY_FAST_GATE=1
 else
   echo "No green CI quality run found for $revision; running the full quality gate"
@@ -88,7 +89,7 @@ deploy_scope_apply() {
   if [[ -z "$live" ]] || ! git merge-base --is-ancestor "$live" "$revision" 2>/dev/null; then
     echo "release scope: full (live revision ${live:-unknown} is not an ancestor of $revision)"; return 0
   fi
-  skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip) || { echo "release scope: full (row selection failed)"; return 0; }
+  skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip --base "$live") || { echo "release scope: full (row selection failed)"; return 0; }
   out_of_scope="$skip"
   echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
 }
