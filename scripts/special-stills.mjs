@@ -39,7 +39,7 @@ try {
   await fs.mkdir(OUT, { recursive: true });
   const t0 = Date.now(), context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: CLIP ? 2 : 3, ...(CLIP ? { recordVideo: { dir: `${OUT}/video`, size: { width: 750, height: 1624 } } } : {}) });
   const page = await context.newPage();
-  await page.goto(`${server.origin}/?special=${SPECIAL}&debug${ARENA ? `&arena=${ARENA}` : ''}`);
+  await page.goto(`${server.origin}/?special=${SPECIAL}&debug${ARENA ? `&arena=${ARENA}` : ''}${process.env.LOOK ? `&look=${process.env.LOOK}` : ''}`);
   await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   await page.locator('#attack-button').tap().catch(() => {});   // draw, then stand: the opponent closes and casts
