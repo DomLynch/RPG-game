@@ -12,13 +12,15 @@ const PROMPT: Record<TutorialStep, { word: string; how: string }> = {
   guard: { word: 'GUARD', how: 'hold Guard as his swing comes' },
   parry: { word: 'PARRY', how: 'tap Guard just as his swing lands' },
   kick: { word: 'KICK', how: 'he is guarding: tap Kick' },
-  roll: { word: 'ROLL', how: 'tap Roll as he thrusts' },
+  roll: { word: 'ROLL', how: 'roll as his thrust comes' },
 };
+export const TUTORIAL_CLOSER: TutorialPrompt = { word: 'STEP CLOSER', how: 'move toward him' };
 export const TUTORIAL_READY: TutorialPrompt = { word: "YOU'RE READY", how: 'tap Fight!', ready: true };
 
 /** The prompt for the step the foe waits on; the ready card once every step is done; null when there is nothing to show. `parryWindow` is the fight's own (tutorial.ts): true from the first tick a guard press would catch the heavy until contact. */
-export function tutorialPrompt(current: TutorialStep | null, done: number, parryWindow: boolean, drawn = true): TutorialPrompt | null {
+export function tutorialPrompt(current: TutorialStep | null, done: number, parryWindow: boolean, drawn = true, tooFar = false): TutorialPrompt | null {
   if (current === null) return done === TUTORIAL_STEPS.length ? TUTORIAL_READY : null;
+  if (tooFar) return TUTORIAL_CLOSER;   // beyond his swing range and nothing is happening: the step cannot land from here
   const base = current === 'slash' && !drawn ? { word: PROMPT.slash.word, how: 'tap Fight to draw' } : PROMPT[current];   // the button reads FIGHT until the sword is out, then SLASH
   return current === 'parry' && parryWindow ? { word: 'NOW!', how: base.how, now: true } : base;
 }
@@ -29,8 +31,8 @@ export function createTutorialUi(element: Lookup, onGo: () => void) {
   go.addEventListener('click', onGo);
   let last = '';
   return {
-    update(current: TutorialStep | null, done: number, parryWindow: boolean, drawn: boolean, show: boolean) {
-      const p = show ? tutorialPrompt(current, done, parryWindow, drawn) : null, key = p ? `${p.word}|${p.how}` : '';
+    update(current: TutorialStep | null, done: number, parryWindow: boolean, drawn: boolean, tooFar: boolean, show: boolean) {
+      const p = show ? tutorialPrompt(current, done, parryWindow, drawn, tooFar) : null, key = p ? `${p.word}|${p.how}` : '';
       if (key === last) return;
       last = key;
       box.hidden = !p;

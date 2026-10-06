@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TUTORIAL_READY, tutorialPrompt } from '../src/tutorial-ui.ts';
+import { TUTORIAL_CLOSER, TUTORIAL_READY, tutorialPrompt } from '../src/tutorial-ui.ts';
 import { TUTORIAL_STEPS } from '../src/tutorial.ts';
 
 
@@ -26,4 +26,11 @@ test('the slash how line follows the button shown: Fight to draw, then Slash; no
   assert.equal(tutorialPrompt('slash', 0, false, false)!.how, 'tap Fight to draw');
   assert.equal(tutorialPrompt('slash', 0, false, true)!.how, 'tap Slash');
   assert.equal(tutorialPrompt('stab', 1, false, false)!.how, 'tap Stab', 'only the slash step depends on drawing');
+});
+
+test('STEP CLOSER replaces the step prompt while he is out of range, never the ready card; the roll line names his thrust', () => {
+  assert.equal(tutorialPrompt('heavy', 2, false, true, true), TUTORIAL_CLOSER);
+  assert.equal(tutorialPrompt('heavy', 2, false, true, false)!.word, 'HEAVY');
+  assert.equal(tutorialPrompt(null, TUTORIAL_STEPS.length, false, true, true), TUTORIAL_READY, 'the ready card stays');
+  assert.equal(tutorialPrompt('roll', 6, false, true, false)!.how, 'roll as his thrust comes');
 });
