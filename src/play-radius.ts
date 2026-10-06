@@ -15,6 +15,12 @@ export let RADIUS = BASE_RADIUS;
 export function setPlayScale(k: number): void { PLAY_SCALE = k; RADIUS = k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS; }
 // A record's fight: its circle for the run, the live one put back after (detmath.ts underRecord).
 export function underPlayScale<T>(opponent: string, version: number, run: () => T): T {
-  const outer = PLAY_SCALE; setPlayScale(playScaleFor(opponent, version));
-  try { return run(); } finally { setPlayScale(outer); }
+  const outer = PLAY_SCALE, outerNotice = LATE_NOTICE; setPlayScale(playScaleFor(opponent, version)); LATE_NOTICE = version >= FIRST_LATE_NOTICE_VERSION;
+  try { return run(); } finally { setPlayScale(outer); LATE_NOTICE = outerNotice; }
 }
+// Late notice (COMBAT-001, ai.ts READ.lateNotice, moves.ts softNotice) is part of the same era as the circle: a record's version says whether the fight it recorded had
+// the ramp (version >= FIRST_LATE_NOTICE_VERSION), so an older link replays without it. Off until a live fight (or a replay at a new version) turns it on, exactly like
+// the circle's default of the old size, so a headless run that never set it is a pre-ramp fight and stamps the pre-ramp version (record.ts stampedVersion).
+export const FIRST_LATE_NOTICE_VERSION = 24;
+export let LATE_NOTICE = false;
+export function setLateNotice(on: boolean): void { LATE_NOTICE = on; }

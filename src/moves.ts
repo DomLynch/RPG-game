@@ -223,6 +223,7 @@ export type GuardProfile = { costScale: number; arc: number; window: number; rec
 
 export type AiProfile = {
   reaction: number;    // ticks before a fresh opponent action is noticed
+  softNotice?: 1;   // COMBAT-001 late notice (ai.ts READ.lateNotice): set by profileAt on the levels between the rungs from L12 up; absent on the three tables and on L1–11, so no early rung changes
   accuracy: number;    // 0..1 timing precision when predicting contact
   parry: number;       // 0..1 chance to attempt a parry on a noticed attack
   dodge: number;       // 0..1 chance to roll instead of guarding
@@ -748,6 +749,8 @@ const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
   return out as AiProfile;
 };
 const levelCache = new Map<string, AiProfile>();
+/** The first ladder level whose in-between profile uses late notice (ai.ts): the L11→L12 step is the first cliff, and L1–11 stay byte for byte (Lead, 2026-10-06). */
+const LATE_NOTICE_FROM = 12;
 export function profileAt(o: Opponent, level: number): AiProfile {
   const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
   if (l === LEVEL_ANCHORS.easy) return o.profiles.easy;
@@ -758,7 +761,7 @@ export function profileAt(o: Opponent, level: number): AiProfile {
   const [from, to, a, b] = l < LEVEL_ANCHORS.easy ? [LEVEL_ANCHORS.novice, LEVEL_ANCHORS.easy, novice(o.profiles.easy), o.profiles.easy]
     : l < LEVEL_ANCHORS.normal ? [LEVEL_ANCHORS.easy, LEVEL_ANCHORS.normal, o.profiles.easy, o.profiles.normal]
     : [LEVEL_ANCHORS.normal, LEVEL_ANCHORS.hard, o.profiles.normal, o.profiles.hard];
-  const profile = blend(a, b, (l - from) / (to - from));
+  const profile = l >= LATE_NOTICE_FROM ? { ...blend(a, b, (l - from) / (to - from)), softNotice: 1 as const } : blend(a, b, (l - from) / (to - from));
   levelCache.set(key, profile);
   return profile;
 }
