@@ -224,4 +224,7 @@ test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to 
   assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(lateral\(\)\)\)/, 'the LIGHT press reads the held side');
   assert.match(src, /const arrowKey = \(code: string\) => !keys\.has\('KeyQ'\)/, 'Q + an arrow is the guard side, never a cut');
   assert.match(src, /attackButton\.dataset\.cut = cutSide/, 'the button shows the chosen side');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(css, /#attack-button\[data-cut\]::after\{[^}]*border-left-color: var\(--cut-arc\)/, 'v2: a solid arc marks the chosen edge');
+  assert.match(css, /#attack-button\[data-cut=right\]::after\{ clip-path: inset\(0 0 0 50%\)/, 'right cut keeps the right half');
 });
