@@ -46,8 +46,9 @@ export type ClarityEvent = { tick: number; type: 'AttackInterrupted' | 'PressRef
 // The OPENING (item 2, defence -> punish): a fighter is open while he is staggered and his foe holds the punish window (a parry's `parryStun`, a broken
 // posture's `posture.stun`). `left` ticks of `of` remain, so the pose and any glint last exactly as long as the sim's opening does. Derived, never fed back.
 export type Opening = { side: Side; kind: 'parry' | 'posture'; left: number; of: number };
+const SIDES = [0, 1] as const;   // the two fighters, for the per-tick loops below: one shared tuple, not a new array every tick
 export function openingOf(duel: Duel, previous?: Opening | null): Opening | null {
-  for (const side of [0, 1] as const) {
+  for (const side of SIDES) {
     const f = duel.fighters[side], o = duel.fighters[1 - side as Side];
     if (f.phase !== 'hurt' || o.punish <= 0 || f.stun <= 0) continue;
     const start = duel.events.find(e => e.target === side && (e.type === 'Parried' || e.type === 'PostureBroken'));
@@ -65,7 +66,7 @@ export function clarityOf(duel: Duel, before: Duel, intent?: Intent, fatigue?: r
     if (events.some(o => o.type === 'Hit' && o.actor === e.target)) continue;   // a trade: his blow landed too
     out.push({ tick, type: 'AttackInterrupted', actor: e.target, move: f.move });
   }
-  for (const side of [0, 1] as const) if (fatigue && was && fatigue[side].band > was[side].band) out.push({ tick, type: 'FatigueBand', actor: side, band: fatigue[side].band });
+  for (const side of SIDES) if (fatigue && was && fatigue[side].band > was[side].band) out.push({ tick, type: 'FatigueBand', actor: side, band: fatigue[side].band });
   const me = before.fighters[0];
   if (intent?.action && me.health && !legal(me, intent.action) && !inBufferWindow(me))
     out.push({ tick, type: 'PressRefused', actor: 0, action: intent.action, reason: me.phase === 'hurt' || me.phase === 'dead' ? 'hurt' : me.phase === 'ready' || me.phase === 'guard' ? 'exhausted' : 'recovering' });   // standing and still refused: no stamina (or a spent skill)

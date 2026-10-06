@@ -58,6 +58,9 @@ import * as legends from '../src/legends.ts';
 import * as postWalk from '../src/post-walk.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
+// Every `./x.ts` main.ts requires that no test registered in `modules` (boot below): a stub of `{}`, so an import that main.ts reads at
+// boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
+const unstubbed = new Set<string>();
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
@@ -110,7 +113,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const makeScene = sceneModule.createScene;
   sceneModule.createScene = (...args: unknown[]) => { sceneArena = args[3]; return makeScene(...args); };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
-  const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
+  const context = { require: (id: string) => { if (!(id in modules)) unstubbed.add(id); return modules[id] || {}; }, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, hostname, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
@@ -2171,4 +2174,16 @@ test('actual main new-form legacy Miasma remains SKILL and explicit preset off; 
       assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch); assert.deepEqual(invalid.storage.snapshot(), before);
     }
   } finally { matchModule.Match = Original; }
+});
+
+// The harness stubs every import main.ts makes through `modules` (boot). An import left out resolves to `{}`, so whatever main.ts takes from it is
+// `undefined` at boot and the 'actual main' tests run against a main that never calls it: #1535, #1536 and #1542 each shipped a new src module that
+// way and CI only caught it later. The five below are the known gaps whose values main.ts only reads in paths no test here reaches (gate light, arena
+// layout, the stylesheet side effect, monitoring); anything else that appears must be registered, e.g. `modules['./x.ts'] = x;` beside the others.
+test('every src module main.ts imports is registered in the harness (a new import names itself here)', () => {
+  unstubbed.clear(); boot();
+  const known = ['./arena.ts', './gate-light.ts', './gate-rise.ts', './monitoring.ts', './style.css'];
+  const fresh = [...unstubbed].filter((id) => id.startsWith('.') && !known.includes(id)).sort();
+  assert.deepEqual(fresh, [], `main.ts imports ${fresh.join(', ')} but tests/graphics.test.ts does not register ${fresh.length === 1 ? 'it' : 'them'} in \`modules\` (boot), so the actual-main tests boot with ${fresh.length === 1 ? 'it' : 'them'} stubbed to {}: add \`modules['<path>'] = <import>;\` beside the others`);
+  assert.deepEqual([...unstubbed].filter((id) => id.startsWith('.')).sort(), known, 'a known gap was closed: remove it from `known` so the list stays exact');
 });
