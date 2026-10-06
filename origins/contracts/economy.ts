@@ -52,10 +52,36 @@ export const COOLDOWN_STEPS_S: readonly number[] = Object.freeze([7 * DAY_S, 14 
 export type TradeBlock = 'bound' | 'story-critical' | 'stackable' | 'cash-shop' | 'shop-not-gear' | 'wrong-definition' | 'bad-clock';
 export type TradeCooldown = {
   tradeable: boolean;
-  until: number | null; // epoch milliseconds the cooldown ends (may be in the past); null when the piece can never be offered
+  until: number | null; // epoch milliseconds the cooldown ends (may be in the past); null when the piece can never be offered, or carries no cooldown (out of scope)
   hops: number; // changes of hands so far
   reason: 'ok' | 'cooling' | TradeBlock;
 };
+
+// ---- Cooldown scope (Strategy, 2026-10-08; trading.md D5, launch gate G3) ------------------------------------------------------------
+//
+// The cooldown covers rare-and-up GEAR and every Pit piece; any other tradeable piece is never cooled. The scope is DATA, the same shape
+// as the database's `trade_cooldown_scope` config row (migration 202610070005, read by origins_trade_cooldown_guard), so the contract,
+// the DB and the UI give one answer:
+//   - items: the item ids the cooldown covers, generated from content by cooldownScopeFor (gear of a COOLDOWN_SCOPE_RARITIES rarity);
+//   - provenance: the provenance kinds that make a piece a Pit piece (COOLDOWN_SCOPE_PROVENANCE), whatever its rarity.
+// A piece is in scope if its item id is in `items` OR its provenance kind is in `provenance`. No scope (null or undefined), or a scope
+// missing either list, cools EVERY piece: fail closed, exactly as the DB does with no row (or a row without the key).
+export const COOLDOWN_SCOPE_RARITIES: readonly Rarity[] = Object.freeze(['rare', 'relic'] as Rarity[]);
+export const COOLDOWN_SCOPE_PROVENANCE: readonly ItemInstance['provenance']['kind'][] = Object.freeze(['arena-award', 'legacy-unlock'] as ItemInstance['provenance']['kind'][]);
+export type TradeCooldownScope = { items: readonly string[]; provenance: readonly string[] };
+
+// The scope for a content set: the ids of its rare and relic gear (sorted) and the Pit provenance kinds. The value the DB row must hold.
+export function cooldownScopeFor(defs: Iterable<ItemDefinition>): TradeCooldownScope {
+  const items: string[] = [];
+  for (const d of defs) if (d.category === 'gear' && COOLDOWN_SCOPE_RARITIES.includes(d.rarity)) items.push(d.id);
+  return { items: items.sort(), provenance: [...COOLDOWN_SCOPE_PROVENANCE] };
+}
+
+// Whether the cooldown applies to this piece under `scope` (see above). Pure; fails closed.
+export function inCooldownScope(inst: Pick<ItemInstance, 'item' | 'provenance'>, scope: TradeCooldownScope | null | undefined): boolean {
+  if (scope == null || !Array.isArray(scope.items) || !Array.isArray(scope.provenance)) return true;
+  return scope.items.includes(inst.item) || scope.provenance.includes(inst.provenance.kind);
+}
 
 // How many times a piece has changed hands: its history's 'trade' entries. History only grows, so this never falls.
 export const tradeHops = (inst: Pick<ItemInstance, 'history'>): number => inst.history.reduce((n, entry) => (entry.kind === 'trade' ? n + 1 : n), 0);
@@ -78,12 +104,15 @@ function tradeBlock(inst: ItemInstance, def: ItemDefinition): TradeBlock | null 
   return null;
 }
 
-// Pure, and the one answer the trade contract, the server and the UI all read. `now` is epoch milliseconds. Fails closed: an
-// unreadable clock or timestamp is never tradeable.
-export function tradeCooldown(inst: ItemInstance, def: ItemDefinition, now: number): TradeCooldown {
+// Pure, and the one answer the trade contract, the server and the UI all read. `now` is epoch milliseconds. `scope` is the cooldown
+// scope (above); without one every piece is cooled. Fails closed: an unreadable clock or timestamp is never tradeable. A never-tradeable
+// piece is refused whatever the scope; an out-of-scope piece is tradeable at once, with no `until`.
+export function tradeCooldown(inst: ItemInstance, def: ItemDefinition, now: number, scope: TradeCooldownScope | null = null): TradeCooldown {
   const hops = tradeHops(inst);
   const block = tradeBlock(inst, def);
   if (block !== null) return { tradeable: false, until: null, hops, reason: block };
+  if (!Number.isFinite(now)) return { tradeable: false, until: null, hops, reason: 'bad-clock' };
+  if (!inCooldownScope(inst, scope)) return { tradeable: true, until: null, hops, reason: 'ok' };
   let lastTrade: string | undefined;
   for (const entry of inst.history) if (entry.kind === 'trade') lastTrade = entry.at;
   const since = Date.parse(lastTrade ?? inst.provenance.at);
@@ -165,10 +194,11 @@ const firstRepeat = <T>(ids: readonly T[]): T | undefined => {
 
 // Any offer change clears BOTH accepts and bumps the version (the secure-trade rule), so an accept can only ever mean the offer on screen.
 // Every piece on the new offer must be tradeable now (tradeCooldown): `items` are the offerer's instances (at least the offered ones),
-// `lookup` their definitions, `now` an ISO time. An id not among `items` is refused, never assumed tradeable.
+// `lookup` their definitions, `now` an ISO time, `scope` the cooldown scope (none cools every piece). An id not among `items` is
+// refused, never assumed tradeable.
 export function changeOffer(
   trade: Trade, character: CharacterInstanceId, offered: ItemInstanceId[], expectedVersion: number,
-  items: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined, now: string,
+  items: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined, now: string, scope: TradeCooldownScope | null = null,
 ): Result<Trade> {
   if (trade.version !== expectedVersion) return fail('version-conflict', 'version', `the trade is at version ${trade.version}`);
   const i = sideOf(trade, character);
@@ -187,7 +217,7 @@ export function changeOffer(
     if (!inst) return issues.add('unknown-id', path, `${id} is not among the offerer's items`);
     const def = lookup(inst.item);
     if (!def) return issues.add('unknown-id', path, `${inst.item} is not defined in this content`);
-    const issue = cooldownIssue(id, tradeCooldown(inst, def, nowMs), path);
+    const issue = cooldownIssue(id, tradeCooldown(inst, def, nowMs, scope), path);
     if (issue) issues.list.push(issue);
   });
   if (!issues.empty) return issues.finish(undefined as never);
@@ -208,10 +238,10 @@ export function acceptTrade(trade: Trade, character: CharacterInstanceId, expect
 // one-of-each rule and the free pack slots are checked against the whole picture. `packSizeOf` is each character's real pack size
 // (1..PACK_SLOTS; a starter pack is smaller), never assumed. Returns the moved instances: each lands in the first free slot of its new
 // owner's pack, at version + 1, with a trade entry appended to its history and its provenance and upgrade level untouched. Refused
-// outright, with nothing moved, if any rule fails (no partial trade, no spill onto the floor).
+// outright, with nothing moved, if any rule fails (no partial trade, no spill onto the floor). `scope` is the cooldown scope, as changeOffer.
 export function settleTrade(
   trade: Trade, holdings: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined, accountOf: AccountOf, now: string,
-  packSizeOf: (pc: CharacterInstanceId) => number,
+  packSizeOf: (pc: CharacterInstanceId) => number, scope: TradeCooldownScope | null = null,
 ): Result<ItemInstance[]> {
   const issues = new Issues();
   if (trade.region !== CONCORD_EXCHANGE) issues.add('rule-violation', 'region', `trades settle only at the Concord Exchange, not ${trade.region}`);
@@ -249,7 +279,7 @@ export function settleTrade(
         return issues.add('rule-violation', path, `${id} is not in this trade's escrow from ${side.character}`);
       }
       // Re-checked at settle (Dom, 2026-10-07): an escrowed piece cannot change hands mid-trade, but the offer may be older than a rule.
-      const blocked = cooldownIssue(id, tradeCooldown(inst, def, Date.parse(now)), path);
+      const blocked = cooldownIssue(id, tradeCooldown(inst, def, Date.parse(now), scope), path);
       if (blocked) {
         issues.list.push(blocked);
         return;

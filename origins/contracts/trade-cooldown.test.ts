@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Result } from './core.ts';
 import {
-  COOLDOWN_STEPS_S, FIRST_TRADE_DELAY_S, changeOffer, cooldownSecondsFor, parseTrade, settleTrade, tradeCooldown, tradeHops, type Trade,
+  COOLDOWN_SCOPE_PROVENANCE, COOLDOWN_SCOPE_RARITIES, COOLDOWN_STEPS_S, FIRST_TRADE_DELAY_S, changeOffer, cooldownScopeFor, cooldownSecondsFor,
+  inCooldownScope, parseTrade, settleTrade, tradeCooldown, tradeHops, type Trade, type TradeCooldownScope,
 } from './economy.ts';
 import * as F from './fixtures.ts';
 import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
@@ -238,4 +239,99 @@ test('[property] 500 random hop sequences: the until-time only grows, each wait 
       assert.deepEqual(checkHistoryKept(before, inst), []);
     }
   }
+});
+
+// ---- Cooldown scope (Strategy, 2026-10-08; trading.md D5, launch gate G3): rare-and-up gear or a Pit piece, as 0005's trade_cooldown_scope.
+const rareDef = { ...F.helmetDef(), id: 'item:loot.rare.Helmet', name: 'Rare helm', rarity: 'rare' };
+const relicDef = { ...F.helmetDef(), id: 'item:loot.relic.Helmet', name: 'Relic helm', rarity: 'relic' };
+const fineDef = { ...F.helmetDef(), id: 'item:loot.fine.Helmet', name: 'Fine helm', rarity: 'fine' };
+const SCOPE_DEFS = new Map<ItemId, ItemDefinition>([...DEFS, ...[rareDef, relicDef, fineDef].map((raw) => {
+  const d = must(parseItemDefinition(raw));
+  return [d.id, d] as const;
+})]);
+const LOOT_PROV = { ...F.ironInstance().provenance };
+const LEGACY_PROV = { kind: 'legacy-unlock', mintKey: 'legacy:dom-1:veteran.Helmet', at: F.AT, account: F.ACCOUNT, lootId: 'veteran.Helmet', wonBy: F.PC, fromLegend: null, atRank: null };
+// A fresh (hop 0, minted at T0) single-copy gear piece of `item` with `provenance`; built directly, the cooldown reads only item, provenance and history.
+const piece = (item: string, provenance: Raw, id = 'inst:p'): ItemInstance =>
+  ({ ...helmet(), id: id as ItemInstanceId, item: item as ItemId, provenance: provenance as never, location: { kind: 'pack', owner: PC, index: 2 } });
+// The value the DB row must hold for this content: 0005 ships `items` generated from content (gate G6) and these two provenance kinds.
+const SCOPE: TradeCooldownScope = cooldownScopeFor(SCOPE_DEFS.values());
+const fresh = T0 + 1 * H; // well inside the 72 h first-trade delay
+
+test('cooldown scope: the constants are data and the generated scope is rare and relic GEAR ids plus the two Pit provenance kinds', () => {
+  assert.deepEqual([...COOLDOWN_SCOPE_RARITIES], ['rare', 'relic']);
+  assert.deepEqual([...COOLDOWN_SCOPE_PROVENANCE], ['arena-award', 'legacy-unlock']);
+  assert.ok(Object.isFrozen(COOLDOWN_SCOPE_RARITIES) && Object.isFrozen(COOLDOWN_SCOPE_PROVENANCE));
+  // The rare cosmetic token and the relic quest record are not gear, so they are not listed; common and fine gear is not listed.
+  assert.deepEqual(SCOPE, { items: ['item:loot.rare.Helmet', 'item:loot.relic.Helmet'], provenance: ['arena-award', 'legacy-unlock'] });
+});
+
+test('cooldown scope: a common or fine non-Pit piece is out of scope and trades at once; rare and relic gear is cooled', () => {
+  for (const [item, prov] of [[F.helmetDef().id, LOOT_PROV], [fineDef.id, LOOT_PROV], [shopCapDef.id, SHOP_PROV]] as const) {
+    const p = piece(item, prov);
+    assert.equal(inCooldownScope(p, SCOPE), false, item);
+    assert.deepEqual(tradeCooldown(p, SCOPE_DEFS.get(p.item)!, fresh, SCOPE), { tradeable: true, until: null, hops: 0, reason: 'ok' }, item);
+    // Out of scope means no cooldown after a trade either: the hop count still grows, the wait does not.
+    const after = { ...p, history: [tradeEntry(0, fresh)] };
+    assert.deepEqual(tradeCooldown(after, SCOPE_DEFS.get(p.item)!, fresh, SCOPE), { tradeable: true, until: null, hops: 1, reason: 'ok' }, item);
+  }
+  for (const item of [rareDef.id, relicDef.id]) {
+    const p = piece(item, LOOT_PROV), def = SCOPE_DEFS.get(p.item)!;
+    assert.equal(inCooldownScope(p, SCOPE), true, item);
+    assert.deepEqual(tradeCooldown(p, def, fresh, SCOPE), { tradeable: false, until: T0 + 72 * H, hops: 0, reason: 'cooling' }, item);
+    assert.equal(tradeCooldown(p, def, T0 + 72 * H, SCOPE).tradeable, true, item);
+    // The cooldown numbers are unchanged in scope: 7 days after the first trade.
+    assert.deepEqual(tradeCooldown({ ...p, history: [tradeEntry(0, fresh)] }, def, fresh, SCOPE), { tradeable: false, until: fresh + 7 * D, hops: 1, reason: 'cooling' }, item);
+  }
+});
+
+test('cooldown scope: an arena-award or legacy-unlock piece is in scope at any rarity', () => {
+  for (const item of [F.helmetDef().id, fineDef.id, rareDef.id, relicDef.id]) {
+    for (const prov of [F.helmetInstance().provenance, LEGACY_PROV]) {
+      const p = piece(item, prov);
+      assert.equal(inCooldownScope(p, SCOPE), true, `${item} ${prov.kind}`);
+      assert.equal(tradeCooldown(p, SCOPE_DEFS.get(p.item)!, fresh, SCOPE).reason, 'cooling', `${item} ${prov.kind}`);
+    }
+  }
+});
+
+test('cooldown scope: no scope, or a scope missing either list, cools every piece (fail closed, as 0005 with no row)', () => {
+  const common = piece(F.helmetDef().id, LOOT_PROV), def = SCOPE_DEFS.get(common.item)!;
+  for (const scope of [null, undefined, { provenance: ['arena-award'] }, { items: [] }, {}] as unknown as (TradeCooldownScope | null)[]) {
+    assert.equal(inCooldownScope(common, scope), true, JSON.stringify(scope));
+    assert.deepEqual(tradeCooldown(common, def, fresh, scope), { tradeable: false, until: T0 + 72 * H, hops: 0, reason: 'cooling' }, JSON.stringify(scope));
+  }
+  assert.equal(tradeCooldown(common, def, fresh).reason, 'cooling', 'the default is no scope');
+  // An empty scope (both lists present, both empty) cools nothing, exactly as the DB.
+  assert.equal(inCooldownScope(common, { items: [], provenance: [] }), false);
+});
+
+test('cooldown scope: never-tradeable pieces stay refused out of scope, and a bad clock still fails closed', () => {
+  const iron = must(parseItemInstance({ ...F.ironInstance(), id: 'inst:iron' }));
+  assert.equal(tradeCooldown(iron, SCOPE_DEFS.get(iron.item)!, fresh, SCOPE).reason, 'stackable');
+  const cash = ware(crestDef.id, CASH_PROV);
+  assert.equal(tradeCooldown(cash, SCOPE_DEFS.get(cash.item)!, fresh, SCOPE).reason, 'cash-shop');
+  const bound = { ...piece(F.helmetDef().id, LOOT_PROV), boundTo: PC };
+  assert.equal(tradeCooldown(bound, SCOPE_DEFS.get(bound.item)!, fresh, SCOPE).reason, 'bound');
+  const common = piece(F.helmetDef().id, LOOT_PROV);
+  assert.equal(tradeCooldown(common, SCOPE_DEFS.get(common.item)!, Number.NaN, SCOPE).reason, 'bad-clock');
+});
+
+test('cooldown scope: changeOffer and settleTrade honour it', () => {
+  const scopeLookup = (id: ItemId): ItemDefinition | undefined => SCOPE_DEFS.get(id);
+  const g = gift(['inst:c']), open: Trade = { ...g, sides: [{ ...g.sides[0], offered: [], accepted: false }, { ...g.sides[1], accepted: false }] };
+  const common = piece(F.helmetDef().id, LOOT_PROV, 'inst:c'), rare = piece(rareDef.id, LOOT_PROV, 'inst:r'), pit = piece(fineDef.id, F.helmetInstance().provenance, 'inst:pit');
+  const now = iso(fresh);
+  // changeOffer: the fresh common piece is offered at once; the fresh rare and Pit pieces are cooling; with no scope the common one cools too.
+  assert.deepEqual(must(changeOffer(open, PC, ids('inst:c'), 4, [common], scopeLookup, now, SCOPE)).sides[0].offered, ['inst:c']);
+  refused(changeOffer(open, PC, ids('inst:c', 'inst:r'), 4, [common, rare], scopeLookup, now, SCOPE), 'rule-violation', 'offered[1].cooldown', `tradeable again at ${iso(T0 + 72 * H)}`);
+  refused(changeOffer(open, PC, ids('inst:pit'), 4, [pit], scopeLookup, now, SCOPE), 'rule-violation', 'offered[0].cooldown');
+  refused(changeOffer(open, PC, ids('inst:c'), 4, [common], scopeLookup, now), 'rule-violation', 'offered[0].cooldown');
+  // settleTrade: the same answers at settle.
+  const [out] = must(settleTrade(gift(['inst:c']), [escrowed(common)], scopeLookup, accountOf, now, packs, SCOPE));
+  assert.equal(tradeHops(out!), 1);
+  assert.equal(tradeCooldown(out!, SCOPE_DEFS.get(out!.item)!, fresh, SCOPE).tradeable, true, 'out of scope: the new owner may offer it at once');
+  refused(settleTrade(gift(['inst:r']), [escrowed(rare)], scopeLookup, accountOf, now, packs, SCOPE), 'rule-violation', 'sides[0].offered[0].cooldown');
+  refused(settleTrade(gift(['inst:pit']), [escrowed(pit)], scopeLookup, accountOf, now, packs, SCOPE), 'rule-violation', 'sides[0].offered[0].cooldown');
+  refused(settleTrade(gift(['inst:c']), [escrowed(common)], scopeLookup, accountOf, now, packs), 'rule-violation', 'sides[0].offered[0].cooldown');
 });
