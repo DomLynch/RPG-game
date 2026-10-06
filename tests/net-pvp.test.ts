@@ -534,6 +534,7 @@ test('a winner whose tab was hidden after the finish settled is not marked left 
   skip(11000);
   step(1);
   for (const page of pages) { assert.equal(page.stage, 'fighting'); assert.equal(page.result, 'finished'); }
+});
 
 test('a settled duel retires its transport: closeLater closes it once after the grace, never at once', () => {
   let closed = 0, wait = -1, run: (() => void) | null = null;
