@@ -293,7 +293,7 @@ Only deeds the server verified. Routine wins are not recorded; the book is for n
 | Tier change | "{town} grew to a {tier} on {date}." / "{town} fell to a {tier} on {date}." |
 | Ruin / resettlement | "{town} was abandoned on {date}." / "{town} was resettled on {date}. Its founders: {p1}, {p2}, {p3}." |
 | Fixture raised | "{player} raised a statue for {deed} on {date}." (plaques are not separate entries; they sit on the fixture) |
-| Allegiance switch | "{player} forsook {old} for {new} on {date}." (in the Exchange's book, §10.5) |
+| Allegiance switch | "{player} forsook {old} for {new} on {date}." (in the Exchange's book, §10.6) |
 | Offline raid (player lords) | "{player} broke {stage} of {town}'s defences on {date}." / "{lord}'s defenders held against {player}." |
 
 ### 6.2 Permanence, privacy and moderation
@@ -434,7 +434,7 @@ reasons, never a player's balance.
 | Rent | sink | §7.1 |
 | Statue, plaque | sink | §7.3, §7.4 |
 | Pardon petition | sink | 500 (§6.3) |
-| Allegiance switch | sink | §10.5 |
+| Allegiance switch | sink | §10.6 |
 | Resettlement pledge | sink | pooled 20,000 (§3.5) |
 | Raid, tribute | treasury to treasury | never to a player |
 | Treasury spend | town only | garrison repairs (+garrison), public works (§11.2) |
@@ -753,7 +753,7 @@ until the World lane adds two settlements. PROPOSED:
 | Town | Zone | Tier at start | Ruler | Temperament | Patron |
 |---|---|---|---|---|---|
 | the Grey Ferry | `ferry-landing` | village (420) | Reeve Tamsin (original, she) | mercantile | Zeus (ruled in `feuds.md`) |
-| Cinder Hold | a new hamlet zone beside `cinder-fields` | village (260) | Warden Brannoc (original, he) | ambitious | Hel (pending §10.2) |
+| Cinder Hold | a new hamlet zone beside `cinder-fields` | village (260) | Warden Brannoc (original, he) | ambitious | Hel |
 | Mere End | a new hamlet zone at the `black-mere` causeway | hamlet (180) | Reeve Osk (original, she) | cautious | Poseidon |
 
 Rifts need no towns and can ship first, with the five sites in §8.4.
