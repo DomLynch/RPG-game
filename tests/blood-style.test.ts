@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { newParticle, type Feel } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
-import { BLOOD, bloodCount, bloodGrow, foeBurstSpot, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { BLOOD, bloodCount, bloodGrow, foeBurstPull, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 // The one blood: Dom's b4 (thin spray + a few drops, stretched into strands, darker red). These pin its numbers.
 const batch = (kill: boolean, feel: Feel, seed = 2) => { const rnd = makeRng(seed); return Array.from({ length: bloodCount(feel, kill) }, (_, i) => { const p = newParticle(); spawnBlood(p, i, 0, 1, 0, 0, 1, kill, feel, rnd); return p; }); };
@@ -43,12 +43,10 @@ test('the far fighter\'s blood grows to the near one\'s screen size (1x to 3x), 
   assert.equal(bloodCount('high', false), 15, 'counts are the same on both bodies');
 });
 
-test('the foe burst: at range the first offset stands; up close it is pushed toward the hero edge and lifted, capped at the foe shoulder', () => {
-  const far = foeBurstSpot(1.2, 1, 2.5, 1), close = foeBurstSpot(0, -1, 1, 1);
-  assert.deepEqual([far.side, far.open.toFixed(2), far.up.toFixed(2)], [1, '0.35', '0.10']);   // already clear of the hero: unchanged from the first fix
-  assert.equal(close.side, -1);
-  assert.ok(close.open > 0.35 && close.open <= 0.5 && close.up > 0.1 && close.up <= 0.35);   // behind the hero: out toward his edge, never past the foe's own shoulder, and up
-  assert.equal(foeBurstSpot(-0.6, 1, 1, 1).side, -1);   // the contact leans to the left of the hero: go left whatever side the blow named
-  assert.equal(foeBurstSpot(0, 1, 3, 1).open, 0.5);   // capped at a body's reach (0.5 x scale), so the spray starts on the foe
-  assert.equal(foeBurstSpot(0, 1, 3, 2).open, 1);
+test('the foe burst is pulled toward the camera: in front of the hero, never at the lens, a small step when already in front', () => {
+  assert.equal(foeBurstPull(5, 5), 0.35);   // as near as the hero: just in front of his centre depth
+  assert.ok(Math.abs(foeBurstPull(8, 5) - 3.35) < 1e-9);   // a foe 3 m behind him: pulled to 0.35 m in front of his depth
+  assert.equal(foeBurstPull(4, 5), 0.35);   // a foe nearer than the hero: the same small step, never a push away from the camera
+  assert.ok(Math.abs(foeBurstPull(1.6, 1.5) - 0.1) < 1e-9);   // never within 1.5 m of the lens
+  assert.equal(foeBurstPull(1.2, 5), 0);
 });
