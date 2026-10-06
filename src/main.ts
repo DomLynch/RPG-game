@@ -3,7 +3,8 @@ import { walk, walkerFrom, type Walker } from './post-walk.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
-import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
+import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './record.ts';
+import { arenaFor } from './arena-themes.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
@@ -490,6 +491,11 @@ const requestedArena = sparPreview.kit && rawArena !== null
   ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
+// The career's own arena (Lead + Dom 2026-10-06, rotation): the first fight is Arena 1, then ladder.ts nextArena. A kill link is NOT a career fight: it replays in its
+// record's arena (version 26, re-opened below) or, for an older record, in the ladder band it always had.
+const careerArena = !replayText && !sharedId ? profile.arena ?? '1' : undefined;
+const arenaPick = requestedArena ?? (storedArena || careerArena);   // what the scene is built with (createScene); 'ladder' and unknown keys fall to the band
+const builtArena = arenaFor(opponent.id, arenaPick).id as RecordArena;   // the key the scene really builds: a live fight's record names it
 arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
 if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
 // Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
@@ -527,7 +533,7 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -994,7 +1000,7 @@ function nextFight(): void {
   const settled = settleClaim(match.lastDrop);   // leaving the kill screen is the last word: a take still in its Undo line stands
   const next = match.nextRung();
   if (next) {
-    profile.encounter = next.id; profile.pass = next.pass;
+    profile.encounter = next.id; profile.pass = next.pass; profile.arena = next.arena; profile.arenaPass = next.arenaPass;
     persist();
     void settled.then(() => location.reload());
     return;
@@ -1165,6 +1171,9 @@ if (replayText || sharedId) {
     if (record.opponent !== opponent.id) {
       if (urlOpponent) throw Error('the link names another opponent');
       const target = new URL(location.href); target.searchParams.set('opponent', record.opponent); location.replace(target.href); return;   // once: the re-opened page boots that rig
+    }
+    if (record.arena && record.arena !== builtArena && !requestedArena && !storedArena) {   // a v26 link names its arena; the scene is built at boot, so re-open once with ?arena= (as ?opponent= above). A v<=25 link names none: the band it always had
+      const target = new URL(location.href); target.searchParams.set('arena', record.arena); location.replace(target.href); return;
     }
     startReplay(record, Math.max(0, record.ticks - Math.round(REPLAY_TAIL / STEP)), epoch);
   }).catch((error: unknown) => {
@@ -1523,7 +1532,7 @@ try {
       if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
-    requestedArena ?? (storedArena || undefined),   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
+    arenaPick,   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
     weaponSettled.then(() => match.weapon, () => match.weapon),
     (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
       const replay = !!match.replay, asked = match.weapon;

@@ -1,6 +1,7 @@
 import { isOpponentId, type OpponentId } from './roster.ts';
+import { isRotationArena, type ArenaKey } from './arena-themes.ts';
 import { cleanLoot, keepsLoot, recoverPack, type Loot } from './loot.ts';
-export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; pass?: OpponentId[]; dial?: { level: number; losses: number; wins: number }; career?: { victoryMarks: number }; loot?: Loot }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
+export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; pass?: OpponentId[]; arena?: ArenaKey; arenaPass?: ArenaKey[]; dial?: { level: number; losses: number; wins: number }; career?: { victoryMarks: number }; loot?: Loot }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
 export type StoragePort = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'frankendom.fighter.v1';
 export const cleanName = (name: string) => Array.from(name).filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim().slice(0, 24) || 'Wanderer';
@@ -16,11 +17,14 @@ export function loadProfile(storage: StoragePort, createId: () => string): { pro
       const career = Number.isSafeInteger(marks) && marks >= 0 ? { victoryMarks: marks } : undefined;
       // The ladder pass so far (ladder.ts nextOpponent): this device's, not cloud-synced; anything unreadable is a fresh pass.
       const pass: OpponentId[] = Array.isArray(value.pass) ? [...new Set((value.pass as unknown[]).filter((id): id is OpponentId => isOpponentId(id)))] : [];
+      // The arena of this rung's fight and the rotation cycle so far (ladder.ts nextArena): this device's; none stored = Arena 1, a fresh cycle.
+      const arena = isRotationArena(value.arena) ? value.arena : undefined;
+      const arenaPass: ArenaKey[] = Array.isArray(value.arenaPass) ? [...new Set((value.arenaPass as unknown[]).filter(isRotationArena))] : [];
       // The difficulty dial (career.ts turnDial): this device's; anything unreadable is no dial (the rank's level).
       const d = value.dial, dial = d && [d.level, d.losses, d.wins].every((n) => Number.isSafeInteger(n) && n >= 0) ? { level: d.level, losses: d.losses, wins: d.wins } : undefined;
       const loot = recoverPack(cleanLoot(value.loot));   // owned pieces, the worn set and refused offers (src/loot.ts), kept only when there is something to keep
       // A guest who has only ever said Leave it has something to keep: `declined` alone must survive a refresh (loot-smoke-check (3)).
-      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(pass.length ? { pass } : {}), ...(dial ? { dial } : {}), ...(career ? { career } : {}), ...(keepsLoot(loot) ? { loot } : {}) }, returning: true };
+      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(pass.length ? { pass } : {}), ...(arena ? { arena } : {}), ...(arenaPass.length ? { arenaPass } : {}), ...(dial ? { dial } : {}), ...(career ? { career } : {}), ...(keepsLoot(loot) ? { loot } : {}) }, returning: true };
     }
   } catch { /* Corrupt/unavailable storage must never prevent entering the arena. */ }
   return { profile: { version: 1, id: createId(), name: 'Wanderer' }, returning: false };
