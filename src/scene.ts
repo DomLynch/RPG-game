@@ -59,6 +59,7 @@ import './signature-nightborn.ts';   // Nightborn A: Blood Recall
 import './signature-goblin.ts';   // Goblin A: Hooked Wound
 import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
+const SIDES = [0, 1] as const;   // the two fighters, for the per-frame loops: one shared tuple, not a new array every frame (armfeel is on for everyone now)
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 // The player weapons this build can draw: the longsword is warrior.glb's own, every other needs its equip file (scripts/build-player-weapon.mjs),
@@ -1116,7 +1117,7 @@ export function createScene(
       // The victims' flinch (armfeel.ts): frozen frames hold the pose, a finisher's own body takes over from the first frame it plays. The root group
       // and the collider never move; the pose is the rig's pivot, a lean about the hip and a nudge along the blow, in the root's own frame.
       if (flashes && burstPool) { flashes[0].update(dt); flashes[1].update(dt); burstPool.update(dt); }
-      if (flinches) for (const side of [0, 1] as const) {
+      if (flinches) for (const side of SIDES) {
         const root = side ? opponent : player, pivot = pivots[side], flinch = flinches[side];
         if (practice.finish && finisher !== null && finisher !== 'plainDeath') flinch.clear();
         const pose = flinch.update(frozen ? 0 : dt);
@@ -1160,7 +1161,7 @@ export function createScene(
       if (runtimeSpecial) {
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
         runtimeSpecial.render(dt, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], warriors, !!practice.finish);
-        for (const side of [0, 1] as const) if (runtimeSpecial.mode(side)?.hideTrail && specialStage(practice.duel.fighters[side])) {
+        for (const side of SIDES) if (runtimeSpecial.mode(side)?.hideTrail && specialStage(practice.duel.fighters[side])) {
           const trail = (side === 0 ? warriors?.player : warriors?.opponent)?.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false;
         }
       }
