@@ -13,7 +13,9 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 - Blood clips v2 (now/a/b) + b preview live; VPS world-cage deleted for disk (Lead's ask).
 
 ### Open
-- #1438, #1444 stay frozen until the Auditor's verdict (unchanged from #12). Dom's pick on b2. Lead's ok for the timing re-run.
+- **#1454 (cleanup) is merge-ready, waiting on Lead's GO then Deploy:** trunk merged into world/pit-arena-cleanup (modify/delete conflict on tests/pit-arena-stills.test.ts, kept deleted), head 567be808, CI green, mergeable CLEAN, Auditor PASS @567be808 (diff vs merge base = exactly the 9 deletions, Pit assets 2,202,221 of 2,500,000 gzip). Branch is behind trunk by #1440/#1471 only; rebase only if Lead asks. Worktree: /private/tmp/claude-501/pit-cleanup.
+- #1438, #1444 stay frozen until the Auditor's verdict (unchanged from #12). Dom's pick on b2. Lead's ok in chat for the timing re-run.
+- b2 worktree (branch world/blood-b2, pushed to world/blood-options @c63cf765): /private/tmp/claude-501/blood-b2 (scratch, may vanish; the branch is on origin).
 
 ### Gotchas
 - **Every browser job goes through `capture world <script>`** (Lead + Strategy 10-06, no exceptions; capture v4 = 2 slots). I broke it twice (raw perf-run2.sh at load 16, then started perf-run3 before Lead saw my notice). Tell Lead AND wait for the ok when he asks "tell me before".
