@@ -84,6 +84,7 @@ try {
     if (both.every((s) => s?.settled && s.finish) || both.some((s) => s && s.stage !== 'fighting')) break;
   }
   await host.keyboard.up('KeyW');
+  receipt.hold = await Promise.all([host, guest].map((page) => page.evaluate(() => JSON.parse(document.documentElement.dataset.pvpHold ?? 'null'))));   // the drawn hit-stop on each end (main.ts holdProbe)
   receipt.pages = both.map((s) => s && { ...s, hashes: s.hashes.length });
   const [a, b] = both, theirs = new Map(b?.hashes ?? []), shared = (a?.hashes ?? []).filter(([t]) => theirs.has(t));
   receipt.shared = shared.length;
@@ -97,6 +98,7 @@ try {
     : !kicked || receipt.kick?.backUp !== true ? `the guest's relay socket was ${kicked ? 'cut but its link never came back' : 'never cut'}: ${JSON.stringify(receipt.kick)}`
     : receipt.glbsWhileWaiting.length ? `the challenger loaded rigs before the guest came: ${JSON.stringify(receipt.glbsWhileWaiting)}`
     : ['challenger', 'guest'].some((who) => count(glbs[who], /\/veteran\.glb.*\(fetch\)/) > 0 || count(glbs[who], /\/warrior\.glb.*\(fetch\)/) < 2) ? `the peer is not on the hero rig: rig loads (fetch) veteran ${count(glbs.challenger, /\/veteran\.glb.*\(fetch\)/)}/${count(glbs.guest, /\/veteran\.glb.*\(fetch\)/)}, warrior ${count(glbs.challenger, /\/warrior\.glb.*\(fetch\)/)}/${count(glbs.guest, /\/warrior\.glb.*\(fetch\)/)} (the hero and the peer are two warrior loads and no veteran load)`   // Option A
+    : receipt.hold.some((h) => !h || h.holds < 1 || h.held < 3) ? `the drawn hit-stop did not show on both ends: ${JSON.stringify(receipt.hold)}`
     : !receipt.link ? `the challenge link carried more than the guest's token: ${link}`
     : receipt.errors.length ? `page errors: ${receipt.errors[0]}` : '';
   receipt.passed = !receipt.why;
