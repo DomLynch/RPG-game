@@ -7,7 +7,7 @@ import { createBurstPool } from '../src/armfeel-fx.ts';
 import { BLOOD, bloodCount, bloodFrom, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 test('the flag: only a and b select a style; anything else is today\'s burst', () => {
-  assert.deepEqual(['?blood=a', '?blood=b', '?blood=b2', '?blood=b3', '?blood=c', '', '?blood='].map(bloodFrom), ['a', 'b', 'b2', 'b3', undefined, undefined, undefined]);
+  assert.deepEqual(['?blood=a', '?blood=b', '?blood=b2', '?blood=b3', '?blood=b4', '?blood=c', '', '?blood='].map(bloodFrom), ['a', 'b', 'b2', 'b3', 'b4', undefined, undefined, undefined]);
 });
 
 test('no style: the default burst is untouched (same slots, same spawn numbers, stretch 1.8)', () => {
@@ -58,10 +58,20 @@ test('b3: b2 35% thinner, strands 20% longer, 15% darker red; counts, timing and
   }
 });
 
+test('b4: b3 with the strands 30% longer; width, colour, counts, timing and speeds unchanged', () => {
+  assert.deepEqual(BLOOD.b4, BLOOD.b3);
+  const r3 = makeRng(6), r4 = makeRng(6);
+  for (let i = 0; i < 30; i++) {
+    const a = newParticle(), b = newParticle(); spawnBlood('b3', a, i, 0, 1, 0, 0, 1, i % 4 === 0, 'high', r3); spawnBlood('b4', b, i, 0, 1, 0, 0, 1, i % 4 === 0, 'high', r4);
+    assert.equal(b.size, a.size, 'width as b3'); assert.ok(Math.abs(b.size * b.stretch - a.size * a.stretch * 1.3) < 1e-9, 'length x1.3');
+    assert.deepEqual([b.vx, b.vy, b.vz, b.life], [a.vx, a.vy, a.vz, a.life]);
+  }
+});
+
 test('the same seed draws the same blood; the pool is one mesh and a thousand hits never grow it; Off draws nothing', () => {
   const run = () => { const rnd = makeRng(7), p = newParticle(); spawnBlood('b', p, 5, 0, 1, 0, 0, 1, true, 'high', rnd); return [p.vx, p.vy, p.vz, p.size, p.life]; };
   assert.deepEqual(run(), run());
-  for (const style of ['a', 'b', 'b2', 'b3'] as const) {
+  for (const style of ['a', 'b', 'b2', 'b3', 'b4'] as const) {
     const scene = new THREE.Scene(), pool = createBurstPool(scene, style);
     assert.equal(pool.capacity, BLOOD[style].slots); assert.equal(scene.children.filter((c) => c.name === 'armfeel burst').length, 1);
     const before = scene.children.length;
