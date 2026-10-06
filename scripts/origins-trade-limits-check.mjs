@@ -77,10 +77,10 @@ try {
     alter default privileges in schema public grant all on tables to anon, authenticated;
     alter default privileges in schema public grant all on functions to anon, authenticated;
     alter default privileges in schema public grant all on sequences to anon, authenticated;
-    create schema auth; create table auth.users(id uuid primary key);
+    create schema auth; create table auth.users(id uuid primary key, created_at timestamptz not null default now() - interval '10 days');
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
-    insert into auth.users values ('${A}'), ('${B}'), ('${C}');`);
+    insert into auth.users (id) values ('${A}'), ('${B}'), ('${C}'), ('${N}');`);
   const files = readdirSync(dir).filter(n => n.endsWith('.sql')).sort();
   if (!files.includes(UP)) fail(`${UP} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
@@ -113,6 +113,7 @@ try {
   commit(B, [mintOp('it:b1', 'cup', 1, loc('pack', pcB, 0), 'mk:b1', { ...one, ...at(old) }), mintOp('it:old2', 'ring', 1, loc('pack', pcB, 6), 'mk:old2', { ...one, ...at(old) })]);
   // test fixtures only: the item guard keeps history append-only and provenance fixed, so rewriting a clock switches it off for the one statement
   const rewrite = sql => psql(`alter table public.origins_items disable trigger origins_item_guard; ${sql}; alter table public.origins_items enable trigger origins_item_guard;`);
+  const sorted = o => Object.fromEntries(Object.entries(o).sort());   // jsonb reorders object keys
   const hist = id => psql(`select history::text from public.origins_items where id = '${id}'`);
   const settleSwap = (c, give, take, n) => {
     open(c, pcA, pcB);
@@ -188,12 +189,60 @@ try {
   eq(psql(`select count(*) from public.origins_expire_trades()`), '0', 'a cancelled trade is not swept again');
   refused('the sweep is not the client\'s', 'permission denied', () => client(A, `select * from public.origins_expire_trades();`));
 
+  // M12: the audit trail
+  W(`select public.origins_trade_audit_record('tr:1', '${A}', '${pcA}', 'sess-1', 'dev-1', 'iphash-1', 'safari');`);
+  eq(psql(`select container || '|' || account || '|' || device_hash || '|' || ua_family from public.origins_trade_audit`), `tr:1|${A}|dev-1|safari`, 'the writer records an audit row');
+  refused('a client cannot record an audit row', 'permission denied', () => client(A, `select public.origins_trade_audit_record('tr:1', '${A}', null, null, null, null, null);`));
+  refused('a client cannot read the audit table', 'permission denied', () => client(A, `select * from public.origins_trade_audit;`));
+  refused('an over-long device hash is refused', 'origins_trade_audit_device_hash_check', () => W(`select public.origins_trade_audit_record('tr:1', '${A}', null, null, '${'x'.repeat(121)}', null, null);`));
+  psql(`insert into public.origins_trade_audit (container, account, at) values ('tr:old', '${A}', now() - interval '100 days')`);
+  refused('prune keeps at least one day', 'at least one day', () => W(`select public.origins_trade_audit_prune(0);`));
+  eq(W(`select public.origins_trade_audit_prune(90);`), '1', 'prune deletes the 100 day old row only');
+  eq(psql(`select count(*) from public.origins_trade_audit`), '1', 'and keeps the fresh one');
+
+  // M13 + M14: the limits reader and the counts
+  rewrite(`update public.origins_items set tier = 'origin' where id = 'it:b1'`);
+  const lim = JSON.parse(W(`select public.origins_trade_limits('${B}')::text;`));
+  eq([lim.gates.min_career_level, lim.gates.account_age_s, lim.caps.open, lim.caps.pieces, lim.caps.origin_tier], [11, 604800, 1, 20, 2], 'the limits carry the configured gates and caps');
+  eq(lim.account_age_s >= 864000 && lim.account_age_s < 864100, true, 'account age comes from auth.users.created_at');
+  eq(sorted(lim.counts), sorted({ open: 0, settled: 1, counterparties: 1, pieces: 1, origin_tier: 1 }), 'B settled one trade, gave one piece, and it was an origin-tier one');
+  eq(sorted(JSON.parse(W(`select public.origins_trade_counts('${C}', now() - interval '24 hours')::text;`))), sorted({ open: 0, settled: 0, counterparties: 0, pieces: 0, origin_tier: 0 }), 'an account that never traded counts zero');
+  eq(JSON.parse(W(`select public.origins_trade_counts('${A}', now() + interval '1 hour')::text;`)).settled, 0, 'a window in the future counts nothing');
+  // a second settled trade with the SAME counterparty: settled and pieces grow, counterparties stays 1 (distinct)
+  commit(A, [mintOp('it:x1', 'bracer', 1, loc('pack', pcA, 7), 'mk:x1', { ...one, ...at(old) })]);
+  commit(B, [mintOp('it:y1', 'amulet', 1, loc('pack', pcB, 8), 'mk:y1', { ...one, ...at(old) })]);
+  settleSwap('tr:8', 'it:x1', 'it:y1', 9);
+  eq(sorted(JSON.parse(W(`select public.origins_trade_counts('${B}', now() - interval '24 hours')::text;`))), sorted({ open: 0, settled: 2, counterparties: 1, pieces: 2, origin_tier: 1 }), 'two settled trades with one counterparty: counterparties stays 1');
+  refused('the limits are not the client\'s', 'permission denied', () => client(A, `select public.origins_trade_limits('${A}');`));
+
+  // M14: the reversal of tr:1 (it:old went A to B, it:b1 went B to A)
+  psql(`insert into auth.users (id) values ('eeeeeeee-0000-4000-8000-000000000001'); insert into public.admins (user_id) values ('eeeeeeee-0000-4000-8000-000000000001');`);
+  const ADMIN = 'eeeeeeee-0000-4000-8000-000000000001';
+  const rev = (reviewer, reason, ops, container = 'tr:1') => W(`select public.origins_reverse_trade('${container}', '${reviewer}', '${reason}', ${J(ops)})::text;`);
+  const back = [put('it:old', ver('it:old'), loc('pack', pcA, 3)), put('it:b1', ver('it:b1'), loc('pack', pcB, 3))];
+  refused('a non-admin cannot reverse', 'is not an admin', () => rev(A, 'because', back));
+  refused('a reversal needs a reason', 'needs a reason', () => rev(ADMIN, 'x', back));
+  refused('an unsettled (cancelled) trade cannot be reversed', 'is not settled', () => rev(ADMIN, 'because', [], 'tr:6'));
+  refused('a piece the trade never moved', 'was not moved by trade', () => rev(ADMIN, 'because', [put('it:new', ver('it:new'), loc('pack', pcA, 3))]));
+  refused('a piece back to the wrong owner', "goes back to the sender", () => rev(ADMIN, 'because', [put('it:old', ver('it:old'), loc('pack', pcC, 3))]));
+  refused('a reversal put with history_append', 'moves a piece only', () => rev(ADMIN, 'because', [{ ...back[0], history_append: [{ kind: 'forged' }] }]));
+  refused('only puts', 'not allowed in a reversal', () => rev(ADMIN, 'because', [mintOp('it:x', 'x', 1, loc('pack', pcA, 9), 'mk:x')]));
+  eq(items(`where id in ('it:old','it:b1')`), [`it:b1|1|${ver('it:b1')}|pack:${pcA}:5`, `it:old|1|${ver('it:old')}|pack:${pcB}:5`], 'refused reversals moved nothing');
+  rev(ADMIN, 'duel-farm proof', back);
+  eq(items(`where id in ('it:old','it:b1')`), [`it:b1|1|${ver('it:b1')}|pack:${pcB}:3`, `it:old|1|${ver('it:old')}|pack:${pcA}:3`], 'the pieces are back with their senders');
+  eq(JSON.parse(hist('it:old')).map(e => [e.kind, e.trade, e.from, e.to]).at(-1), ['reversal', 'tr:1', pcB, pcA], 'the DB wrote the reversal history entry itself');
+  eq(psql(`select count(*) || '|' || min(payload ->> 'reviewer') || '|' || min(payload ->> 'reason') from public.origins_events where kind = 'trade-reversal'`), `2|${ADMIN}|duel-farm proof`, 'a trade-reversal event per side carries reviewer and reason');
+  refused('a trade can be reversed once (the event ids are the lock)', 'already settled', () => rev(ADMIN, 'again', []));
+  eq(JSON.parse(W(`select public.origins_trade_counts('${B}', now() - interval '24 hours')::text;`)).settled, 2, 'a reversal does not erase the settled trade from the counts');
+
   // M11: the kinds
   for (const kind of ['trade-reversal', 'trade-hold', 'metal']) psql(`insert into public.origins_events (event_id, kind, account) values ('k:${kind}', '${kind}', '${A}')`);
   refused('an unknown kind is still refused', 'origins_events_kind_check', () => psql(`insert into public.origins_events (event_id, kind, account) values ('k:x', 'bogus', '${A}')`));
   // down: refused while a new-kind event exists (append-only), clean after the purge
   refused('down is refused while a new-kind event exists', 'origins_events_kind_check', () => down());
+  eq(psql(`select count(*) from public.origins_trade_audit where account = '${A}'`), '1', 'A has an audit row before the purge');
   for (const a of [A, B, C]) W(`select public.origins_purge_account('${a}');`);
+  eq(psql(`select count(*) from public.origins_trade_audit where account = '${A}'`), '0', 'the purge took the audit rows too');
   down(); same('down #2');
   console.log(`origins-trade-limits-check: ${checks} checks passed`);
 } finally {
