@@ -1,5 +1,5 @@
 // The Pit's arena stills (Lead 2026-09-30, Dom's phone test item 1): behind the gate the player sees the arena of his next fight. One 496 x 608
-// WebP per arena theme (scripts/pit-arena-stills.mjs), so a new arena without its still, or a still with no arena, fails here.
+// WebP per arena theme (scripts/pit-arena-stills.mjs), so a still with no arena fails here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -7,9 +7,10 @@ import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 const dir = new URL('../public/pit/arena/', import.meta.url);
 
-test('every arena theme has exactly one 496 x 608 lossy WebP still under 60 KB, and nothing else is in the folder', () => {
+test('every arena still is a 496 x 608 lossy WebP still under 60 KB, and nothing else is in the folder', () => {
   const files = readdirSync(dir).sort();
-  assert.deepEqual(files, Object.keys(ARENA_THEMES).map((k) => `${k}.webp`).sort(), 'one still per arena key');
+  // Nothing in src loads these any more (the Pit is a live stage, scene.ts pitStage); arenas 4-11 ship without one (Lead 2026-10-06: no unused assets), so the rule is only: no still without an arena.
+  assert.deepEqual(files.filter((f) => !(f.slice(0, -5) in ARENA_THEMES)), [], 'a still with no arena');
   for (const file of files) {
     const b = readFileSync(new URL(file, dir));
     assert.equal(b.toString('latin1', 0, 4), 'RIFF', `${file}: RIFF`); assert.equal(b.toString('latin1', 8, 12), 'WEBP', `${file}: WEBP`);
