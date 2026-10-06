@@ -24,5 +24,5 @@ drop function public.origins_trade_history();
 drop trigger origins_trade_cooldown_guard on public.origins_items;
 drop function public.origins_trade_cooldown_guard();
 drop function public.origins_trade_cooldown_s(int);
-delete from public.origins_config where key in ('trade_cooldown', 'trade_idle_expiry_s', 'trade_gates', 'trade_caps', 'trade_cooldown_scope');
+delete from public.origins_config where key in ('trade_cooldown', 'trade_idle_expiry_s', 'trade_gates', 'trade_caps');
 commit;

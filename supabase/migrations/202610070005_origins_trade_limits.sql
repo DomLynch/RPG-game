@@ -13,10 +13,7 @@ begin;
 -- ---- M13 (part): config the functions below read, tunable without a migration --------------------------------------------------------
 insert into public.origins_config (key, value) values
   ('trade_cooldown', '{"first": 259200, "steps": [604800, 1209600, 2592000]}'::jsonb),   -- seconds: first offer after mint, then by hop count (last step repeats)
-  ('trade_idle_expiry_s', '300'::jsonb),
-  -- Which pieces the cooldown covers (Strategy 2026-10-08: rare and up, or a Pit piece). `items` = the rare/relic GEAR item ids, generated from content and drift-guarded
-  -- by scripts/origins-trade-limits-check.mjs; `provenance` = the Pit-piece provenance kinds. A piece outside both is never cooled. A missing row cools every piece.
-  ('trade_cooldown_scope', '{"items": [], "provenance": ["arena-award", "legacy-unlock"]}'::jsonb);
+  ('trade_idle_expiry_s', '300'::jsonb);
 
 -- ---- M9: the cooldown --------------------------------------------------------------------------------------------------------------
 -- Seconds a piece with `hops` completed trades must wait after its last trade (or its mint) before it may be offered again.
@@ -28,11 +25,9 @@ $$;
 
 -- Entering escrow: refuse while cooling. Same enter test as origins_escrow_guard; the clock is the last 'trade' history entry's `at`, else provenance.at.
 create function public.origins_trade_cooldown_guard() returns trigger language plpgsql security definer set search_path = '' as $$
-declare hops int; since timestamptz; wait_s bigint; scope jsonb;
+declare hops int; since timestamptz; wait_s bigint;
 begin
   if not (new.loc_kind is not distinct from 'trade-escrow' and (tg_op = 'INSERT' or old.loc_kind is distinct from 'trade-escrow' or old.loc_container is distinct from new.loc_container)) then return new; end if;   -- null-safe: a retirement nulls loc_kind
-  select value into scope from public.origins_config where key = 'trade_cooldown_scope';
-  if scope is not null and not (jsonb_exists(scope -> 'items', new.item) or jsonb_exists(scope -> 'provenance', new.provenance ->> 'kind')) then return new; end if;   -- not rare-and-up gear, not a Pit piece: no cooldown
   select count(*), max((e ->> 'at')::timestamptz) into hops, since from jsonb_array_elements(new.history) e where e ->> 'kind' = 'trade';
   since := coalesce(since, (new.provenance ->> 'at')::timestamptz);
   wait_s := public.origins_trade_cooldown_s(hops);

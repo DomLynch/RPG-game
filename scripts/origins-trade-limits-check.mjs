@@ -9,7 +9,6 @@ import console from 'node:console';
 
 const UP = '202610070005_origins_trade_limits.sql', UP6 = '202610070008_origins_trade_reversal.sql';
 import { TIERS } from '../src/grades.ts';
-import { helmetDef, recordDef, graveIronDef, exchangeOreDef, tokenDef } from '../origins/contracts/fixtures.ts';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -105,10 +104,6 @@ try {
   const one = { single_copy: true };
   const at = iso => ({ provenance: { kind: 'loot', mintKey: 'x', at: iso } });
   const old = '2026-01-01T00:00:00Z', fresh = new Date().toISOString();
-  // the fixtures below mint 'loot' pieces under made-up item ids: put 'loot' in the cooldown scope for the M9 rounds, the scope round at the end sets the shipped value back
-  const scopeSql = value => `update public.origins_config set value = '${JSON.stringify(value)}'::jsonb where key = 'trade_cooldown_scope'`;
-  const shippedScope = JSON.parse(psql(`select value::text from public.origins_config where key = 'trade_cooldown_scope'`));
-  psql(scopeSql({ ...shippedScope, provenance: [...shippedScope.provenance, 'loot'] }));
   commit(A, [mintOp('it:old', 'helm', 1, loc('pack', pcA, 0), 'mk:old', { ...one, ...at(old) }), mintOp('it:new', 'sword', 1, loc('pack', pcA, 1), 'mk:new', { ...one, ...at(fresh) })]);
   commit(B, [mintOp('it:b1', 'cup', 1, loc('pack', pcB, 0), 'mk:b1', { ...one, ...at(old) }), mintOp('it:old2', 'ring', 1, loc('pack', pcB, 6), 'mk:old2', { ...one, ...at(old) })]);
   // test fixtures only: the item guard keeps history append-only and provenance fixed, so rewriting a clock switches it off for the one statement
@@ -199,25 +194,6 @@ try {
   refused('prune keeps at least one day', 'at least one day', () => W(`select public.origins_trade_audit_prune(0);`));
   eq(W(`select public.origins_trade_audit_prune(90);`), '1', 'prune deletes the 100 day old row only');
   eq(psql(`select count(*) from public.origins_trade_audit`), '1', 'and keeps the fresh one');
-
-  // M9 scope (Strategy 2026-10-08): the cooldown covers rare-and-up GEAR and Pit pieces only; the shipped config is drift-guarded against content
-  const contentGear = [helmetDef(), recordDef(), graveIronDef(), exchangeOreDef(), tokenDef()].filter(d => d.category === 'gear' && ['rare', 'relic'].includes(d.rarity)).map(d => d.id).sort();
-  eq([...shippedScope.items].sort(), contentGear, 'the cooldown scope items are the content\'s rare and relic gear ids (drift guard)');
-  eq(shippedScope.provenance, ['arena-award', 'legacy-unlock'], 'the scope names the two Pit provenance kinds');
-  psql(scopeSql({ ...shippedScope, items: ['rare-helm'] }));
-  const pit = kind => ({ provenance: { kind, mintKey: 'x', at: fresh } });
-  commit(A, [mintOp('it:common', 'plain-cup', 1, loc('pack', pcA, 12), 'mk:common', { ...one, ...at(fresh) }), mintOp('it:rare', 'rare-helm', 1, loc('pack', pcA, 13), 'mk:rare', { ...one, ...at(fresh) }),
-    mintOp('it:pit', 'pit-sword', 1, loc('pack', pcA, 14), 'mk:pit', { ...one, ...pit('arena-award') }), mintOp('it:legacy', 'legacy-sword', 1, loc('pack', pcA, 15), 'mk:legacy', { ...one, ...pit('legacy-unlock') })]);
-  open('tr:9', pcA, pcB);
-  refused('a fresh rare gear piece is cooled', 'is cooling down', () => change('tr:9', pcA, 0, [put('it:rare', ver('it:rare'), esc('tr:9', pcA))]));
-  refused('a fresh arena-award Pit piece is cooled', 'is cooling down', () => change('tr:9', pcA, 0, [put('it:pit', ver('it:pit'), esc('tr:9', pcA))]));
-  refused('a fresh legacy-unlock Pit piece is cooled', 'is cooling down', () => change('tr:9', pcA, 0, [put('it:legacy', ver('it:legacy'), esc('tr:9', pcA))]));
-  change('tr:9', pcA, 0, [put('it:common', ver('it:common'), esc('tr:9', pcA))]);
-  eq(escrowIds('tr:9'), ['it:common'], 'a fresh common non-Pit piece enters escrow with no cooldown');
-  psql(`delete from public.origins_config where key = 'trade_cooldown_scope'`);
-  refused('with no scope row every piece is cooled (fail closed)', 'is cooling down', () => change('tr:9', pcA, 1, [put('it:rare', ver('it:rare'), esc('tr:9', pcA))]));
-  psql(`insert into public.origins_config (key, value) values ('trade_cooldown_scope', '${JSON.stringify(shippedScope)}'::jsonb)`);
-  cancel('tr:9', 'cancelled', [put('it:common', ver('it:common'), loc('pack', pcA, 12))]);
 
   // M13 + M14: the limits reader and the counts
   rewrite(`update public.origins_items set tier = '${TIERS[9]}' where id = 'it:b1'`);
