@@ -36,6 +36,6 @@ Ultima Online gives us the way items are held: one number per copy and one owner
    - one of each piece per player still holds, bank included;
    - trades happen only at the Concord Exchange, and Ultima Online's 12 trade tests are the pass/fail bar;
    - wearing a piece still needs its rank.
-2. **Crafting upgrades pieces you already own**, within the existing gear caps, using materials from the world. Making new items is only for cosmetics and consumables.
+2. **Crafting is out for now.** Nothing is designed or built for it, and chapter one needs no world materials. The item records leave room for an upgrade level to be added later without moving anyone's items.
 
 Moving today's items to this model touches live claims, so it stays a proposal until the arena Lead and Backend sign off, and nothing changes before the beta.
