@@ -150,7 +150,8 @@ test('specials: 25 % of max health at ranks 8-10 (levels 36-50), 20 % at ranks 1
 });
 test('specials: a hit in the windup, even a lethal one on the caster\'s foe-side, never stops it; the release can be the kill shot', () => {
   const d = ready(); d.fighters[1].health = Math.round(S.damage * d.fighters[1].maxHealth);   // one special from death
-  let x = stepDuel(d, [act('skill'), idle()]); const cast0 = x.tick;
+  d.fighters[0].maxHealth = d.fighters[0].health = 9999;   // a caster the foe's blow cannot bring to interruptAt (tests/interruptible-casts.test.ts: at the threshold it cuts the cast)
+  const x = stepDuel(d, [act('skill'), idle()]); const cast0 = x.tick;
   const out = run(x, S.windup + 2, y => [idle(), y.fighters[0].phase === 'ready' && !y.fighters[1].special ? act('heavy') : idle()]);
   assert.ok(out.events.some(e => e.type === 'Hit' && e.actor === 1 && e.target === 0 && e.tick < cast0 + S.windup), "the foe's blow connected on the caster inside the windup (else this test proves nothing)");
   assert.ok(out.events.some(e => e.type === 'SpecialLanded' && e.actor === 0), 'the special landed through whatever the target threw');

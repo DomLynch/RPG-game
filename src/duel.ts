@@ -1,5 +1,5 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, type Timing, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, isInterruptible, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, initialTarget, RADIUS, wrapAngle, type Input, type State } from './sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
@@ -42,11 +42,12 @@ export type Fighter = {
   specialShare?: number;   // the share of the target's max health this fighter's special takes
   specialName?: SpecialName;   // which named special this fighter casts (moves.ts specialOf); absent = named by `skill`
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
+  castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
   specialRecover?: number;   // ticks left after a release in which the caster starts no attack (RULES.special.recovery); guard, roll and steps stay legal
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
+type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName };   // name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
@@ -178,7 +179,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (action === 'skill' && me.specialShare !== undefined) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       if (distance(me.body, foe.body) <= R.special.reach) {
-        next.special = R.special.windup; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
+        next.special = R.special.windup; delete next.castHurt; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}) });
       }
     } else if (action === 'kick') {
@@ -401,7 +402,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const i of [0, 1] as const) {
     const j = (1 - i) as Side, A = fighters[i], D = fighters[j];
     if (!releasing[i]) continue;
-    A.special = 0; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
+    A.special = 0; delete A.castHurt; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
     const move: MoveId = SKILL_MOVE[A.skill ?? 'pommel'], damage = Math.round(A.specialShare! * D.maxHealth);
     D.health = Math.max(0, D.health - damage);
@@ -414,8 +415,20 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const i of [0, 1] as const) {
     const A = fighters[i];
     if (!A.special) continue;
-    if (A.health) A.special--;
-    else { A.special = 0; events.push({ tick, type: 'SpecialFizzled', actor: i }); }
+    if (!A.health) { A.special = 0; delete A.castHurt; events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }
+    // Interruptible casts: damage taken while the windup counts down (any source, this tick's blows included) accumulates; at interruptAt of his
+    // max health the cast is cut on this tick: no strike, no recovery, a partial cooldown. A cast that released this tick was cleared above.
+    const hurt = Math.max(0, before[i].health - A.health);
+    if (hurt && isInterruptible(A.specialName)) {
+      const taken = (A.castHurt ?? 0) + hurt;
+      if (taken >= R.special.interruptAt * A.maxHealth) {
+        A.special = 0; delete A.castHurt; A.skillCooldown = R.special.interruptCooldown;
+        events.push({ tick, type: 'SpecialInterrupted', actor: i, damage: taken });
+        continue;
+      }
+      A.castHurt = taken;
+    }
+    A.special--;
   }
   return { tick, fighters, finish, events };
 }

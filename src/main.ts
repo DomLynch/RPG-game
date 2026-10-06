@@ -1837,7 +1837,7 @@ function frame(now: number) {
       if (!quiet) {
         if (specialCue && !match.specialIdentity.presets) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
           if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
-          else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+          else if ((e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') && e.actor === 1) feedback.cutSpecial();
         }
       }
       if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) for (const e of practice.events) {
@@ -1847,7 +1847,7 @@ function frame(now: number) {
           const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
-        } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
+        } else if (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
       feedback.update(quiet ? [] : practice.events, deathAudio, {

@@ -1,7 +1,7 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, withSpecials, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
-import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
+import { MOVES, OPPONENTS, SKILL_MOVE, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 import { specialStage } from './special-look.ts';
@@ -38,7 +38,7 @@ type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged
   | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked' | 'enemyPostureBroken' | 'traded';
 // Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
 // Clarity cues (Lead's brief, Bot report 2026-10-06): presentation-only events DERIVED here from the step's events and the state before it. They are
-// not sim events (duel.ts is untouched, so no RECORD_VERSION, digest or RNG change) and no rule reads them; sound and the HUD do.
+// not sim events (except where noted they add no sim event, so no RECORD_VERSION, digest or RNG change) and no rule reads them; sound and the HUD do.
 //   AttackInterrupted: this fighter's own swing was cut (hit or guard-broken) before it could land, in wind-up or active frames: the opposite of a whiff.
 //   PressRefused: the player pressed an action the sim would drop (not legal now, outside the buffer tail); reason names why, for the button's dim or shake.
 export type ClarityEvent = { tick: number; type: 'AttackInterrupted' | 'PressRefused'; actor: Side; move?: MoveId; action?: Action; reason?: 'hurt' | 'exhausted' | 'recovering' };
@@ -51,6 +51,7 @@ export function clarityOf(duel: Duel, before: Duel, intent?: Intent): ClarityEve
     if (events.some(o => o.type === 'Hit' && o.actor === e.target)) continue;   // a trade: his blow landed too
     out.push({ tick, type: 'AttackInterrupted', actor: e.target, move: f.move });
   }
+  for (const e of events) if (e.type === 'SpecialInterrupted') out.push({ tick, type: 'AttackInterrupted', actor: e.actor, ...(before.fighters[e.actor].skill ? { move: SKILL_MOVE[before.fighters[e.actor].skill!] } : {}) });   // a cast cut by damage (duel.ts SpecialInterrupted)
   const me = before.fighters[0];
   if (intent?.action && me.health && !legal(me, intent.action) && !inBufferWindow(me))
     out.push({ tick, type: 'PressRefused', actor: 0, action: intent.action, reason: me.phase === 'hurt' || me.phase === 'dead' ? 'hurt' : me.phase === 'ready' || me.phase === 'guard' ? 'exhausted' : 'recovering' });   // standing and still refused: no stamina (or a spent skill)
