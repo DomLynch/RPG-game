@@ -67,7 +67,7 @@ export class Match {
   private sparSelection?: SparringSpecialSelection;
   private sparLegacySkill: SkillId | null = null;
   specials = LIVE_SPECIALS;   // PvE default; begin excludes PvP and preserves a replay's own flag
-  level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–46 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
+  level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–50 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
   recorder: Recorder | null = null;
   recorded = false;
