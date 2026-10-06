@@ -1,0 +1,28 @@
+# Expansion lane (Frankendom: Origins) — state
+
+## 2026-10-06 15:45 (+04) — HANDOFF before /clear. READ FIRST, then memory
+
+Lane: "Frankendom - Lead Dev (Expansion)". Reports to "Frankendom - Strategy (advisor)". Shared code goes to "Frankendom - Lead Dev". Previews go to "Frankendom - Deploy" (cc Lead). Review of #1428, #1430 and #1432 is owned by "Frankendom - Auditor" (send it heads, cc Lead).
+Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (all rulings 1–8 and today's decisions are there). Read it first.
+Session folder: the app bound this session to the worktree `~/Desktop/Business/frankendom/.claude/worktrees/elastic-gates-c6edc0`, not `~/Developer/frankendom-expansion`. Dom: reopen on `~/Developer/frankendom-expansion` with the worktree switch off.
+
+**1. LIVE:** `03cd0d61` (curl 15:43). Nothing from this lane ships before the beta. The preview only is at https://frankendom.com/preview/origins/ (Deploy swapped in build 55e2fe2 at about 15:40; backdrop-1.webp now 200 per Deploy's curl). **NOT yet re-checked by me at 375x812, and the link has NOT been sent to Dom.** Next step: open it in the browser pane at 375x812, check network for 404s, then send the link to Strategy (Strategy relays to Dom).
+
+**2. Done today**
+- #1426 MERGED: 20 clean-room specs (OpenMW, Gothic, ModernUO, EQEmu) + Frankendom baseline + server pick + item/loot/storage summary, in `docs/specs/origins/` and `docs/briefs/origins/server-pick.md`.
+- `DomLynch/frankendom-research` @644ec59 (public until the beta by Dom's call; no secrets): README with the clean-room rule, donor pins/fetch, donor manifest, analyst notes, audit log, scorecard, gate (`scripts/check.sh`). Clone: `~/Developer/frankendom-research`. Implementers must never be given it.
+- Donor trees: VPS `/opt/frankendom-shadow/work/expansion-donors` (3.6 GB, PINS.txt).
+
+**3. Open PRs (none merged)**
+- #1432 `expansion/o0-baseline-fix` (docs): baseline re-pin to 03cd0d61 (RV25, 12 sim files) + STAB_ON doors + rank-scale note. This entry also rides on it.
+- #1430 `expansion/o1-contracts` @28a39de9: O1 contracts + blacksmith UpgradeService. Auditor HIGH (duplicate material double spend) and MED/LOW items fixed. 80/80 node:test on VPS per the implementer; **I have not re-run it myself yet.** TODO: add `tests/origins-contracts.test.ts` (imports origins/contracts/*.test.ts; Lead's option A, conditions below), time it on the VPS, re-run, then ping the Auditor + Lead.
+- #1428 `expansion/o1-progression` @8b8e3bd7: one-progression proposal + model. **A fix agent was mid-work at clear** in worktree `.../scratchpad/wt-progression` (uncommitted edits to model.ts, model.test.ts, scenarios.ts, plus a stray `.probe.ts`; VPS folder `/opt/frankendom-shadow/work/expansion/fix-progression`). If it's gone, restart it with the brief below. Owed: (a) Auditor HIGH: prototype-key NaN at model.ts heat/MOB_BASE_CP lookups (use Object.hasOwn/Map, plus a hostile-key test); (b) "first three kills pay full": round heat up so doc and formula agree; (c) Dom's REVISION (via Strategy 15:2x): decisions 1–3 YES (story credit 100/step + 500/chapter once; allowance 1,500/day, cap 3,000; boss lockout 7 days); the Pit is its own resumable cursor (next unbeaten legend at your Pit rung; career level drives title and gates); each legend beaten once (~5 per rank) as a POST-BETA proposal for the arena Lead (it changes the live arena); a rising requirement curve (gentle, steeper after level 11, cap-parametric 46/50); Pit-win and boss awards scaled to the rung's requirement; exact migration (legacy credit = cumulative requirement to levelOf(marks)); a levels 1–50 table and days-to-title for a 30-min/day and a 3-h/day player. Then add `tests/origins-progression.test.ts` (option A).
+- Lead's option A conditions: pure (no DOM, network, open timers, or stateful src/ imports; `src/career.ts` is fine, type-only import), whole file under 2 s on the VPS with the timing in the PR body, nothing tagged [slow]. Option B (eslint/tsconfig/glob) is its own PR, sent to Lead first.
+
+**4. Sessions down:** none needed from Dom.
+
+**5. Rulings today (all in memory):** 1–7 in the blueprint; 8 clean room plus audit loop; research repo public until beta; Pit pieces tradeable (provenance, one-of-each, Exchange-only, rank to equip; re-winnable once sold, as a proposal); crafting OUT; blacksmith NPC upgrades capped at 1.15/0.80; coin per win = TODO(Stats/Strategy) placeholder 20 × tier; 50 levels (Dom 10-05); the Pit's own ladder plus beaten-once legends plus a rising curve (above); island arenas have no gate on purpose (Lead's World lane does the gate tease).
+
+**6. QUEUE:** (1) re-check the preview at 375x812, send the link to Strategy; (2) finish #1428 revision + fixes + CI entry; (3) #1430 CI entry + my own re-run; ping the Auditor + Lead with heads; (4) Strategy's formula audit replies; (5) next O2 proofs: inventory transfer (ClaudeCraft MIT unit ~735 lines vs native, same contract), quest journal (5 stages, branching), staged boss event; (6) the greybox iterates on Dom's notes.
+
+**7. Worktrees and VPS:** temp worktrees under the session scratchpad: `wt-progression` (o1-progression, dirty, agent), `wt-contracts` (o1-contracts, clean), `wt-greybox` (origins-greybox, clean). Greybox rebuild: `ssh … 'cd /opt/frankendom-shadow/work/expansion && bash greybox-build.sh'` (stills need 2 cores, DPR 1; never `pkill -f "http.server 4790"` from an ssh one-liner, because it matches itself). VPS disk is about 42 GB free (floor 40): delete `fix-progression` when that agent is done. No crons.
