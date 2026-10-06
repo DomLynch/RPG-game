@@ -1,12 +1,12 @@
 // The game's blood: a thin spray with a few heavier drops, stretched along their flight into strands. Dom 2026-10-06 chose it over the old square burst
-// through preview options (a streaks, b spray + drops, b2 30% thinner, b3 35% thinner again / 20% longer / 15% darker, b4 30% longer): "good thickness and width now".
+// through preview options (a streaks, b spray + drops, b2 30% thinner, b3 35% thinner again / 20% longer / 15% darker, b4 = b3 with 10% less spray, 10% narrower, 20% longer, 10% darker).
 // Presentation only (nothing here is read by the simulation) and allocation-free per hit: it fills the pooled slots armfeel-fx.ts owns, with a seeded
 // generator, so the same fight draws the same blood on every run.
 import type { Feel, Particle } from './armfeel.ts';
 
 // slots: the pool's size; hit/kill: particles a hit/kill takes (Low takes a third, at least 2); drops: how many of those are the heavy ones; start/end: the colour over a life.
-export const BLOOD = { slots: 112, hit: 17, kill: 28, drops: { hit: 2, kill: 3 }, start: '#75110e', end: '#240605' } as const;
-const THIN = 0.7 * 0.65, LONG = 1.3 * 1.2 / 0.65;   // width x the original spray's; strand length (stretch) x the original's, so the strands read as strands, not ovals
+export const BLOOD = { slots: 112, hit: 15, kill: 25, drops: { hit: 2, kill: 3 }, start: '#690f0d', end: '#200504' } as const;
+const THIN = 0.7 * 0.65 * 0.9, LONG = 1.2 * 1.2 / (0.65 * 0.9);   // width x the first spray's; stretch x the first spray's (strand length = width x stretch), so the strands read as strands, not ovals
 export const bloodCount = (feel: Feel, kill: boolean): number =>
   feel === 'off' ? 0 : Math.max(feel === 'low' ? 2 : 0, Math.round(BLOOD[kill ? 'kill' : 'hit'] * (feel === 'low' ? 0.35 : 1)));
 

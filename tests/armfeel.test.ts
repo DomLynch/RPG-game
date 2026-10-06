@@ -65,7 +65,7 @@ test('the hero keeps a quarter of the flinch; the opponent all of it', () => {
   assert.ok(Math.abs(hero.update(0).lean - ARMFEEL.lean * 0.25) < 1e-9);
 });
 
-test('the burst: one fixed 112-slot pool of thin blood, nothing allocated per hit, 17 on a hit and 28 on a kill', () => {
+test('the burst: one fixed 112-slot pool of thin blood, nothing allocated per hit, 15 on a hit and 25 on a kill', () => {
   const p = newParticle();
   spawnBlood(p, 0, 1, 1.25, 2, 0, 1, false, 'high', makeRng(1));
   assert.ok(p.life >= 0.5 && p.life <= 0.72 && p.stretch > 1, 'the first particle of a hit is a heavy drop');
@@ -73,8 +73,8 @@ test('the burst: one fixed 112-slot pool of thin blood, nothing allocated per hi
   const pool = createBurstPool(new THREE.Scene());
   assert.equal(pool.capacity, BLOOD.slots);
   const matrices = pool.mesh.instanceMatrix.array, colors = pool.mesh.instanceColor!.array;
-  pool.burst('high', 0, 1, 0, 0, 1, false); pool.update(0.016); assert.equal(pool.alive, 17);
-  pool.burst('high', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 45);
+  pool.burst('high', 0, 1, 0, 0, 1, false); pool.update(0.016); assert.equal(pool.alive, 15);
+  pool.burst('high', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 40);
   pool.update(0.8); assert.equal(pool.alive, 0); assert.equal(pool.mesh.visible, false);
   for (let i = 0; i < 1000; i++) { pool.burst('high', 0, 1, 0, 0, 1, i % 5 === 0); pool.update(0.016); }
   assert.ok(pool.alive <= BLOOD.slots, 'the ring never holds more than its slots');
