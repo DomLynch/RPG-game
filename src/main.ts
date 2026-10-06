@@ -14,7 +14,7 @@ import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
-import { STEP, wrapAngle } from './sim.ts';
+import { PLAY_SCALE, STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
@@ -1470,7 +1470,7 @@ let tapX = 0, tapY = 0;
 canvas.addEventListener('pointerdown', (event) => { tapX = event.clientX; tapY = event.clientY; });
 canvas.addEventListener('pointerup', (event) => {
   if (!walker || pit || Math.hypot(event.clientX - tapX, event.clientY - tapY) > 8) return;
-  const at = view.project([Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, 1.3, Math.cos(LAYOUT.gate) * LAYOUT.wall.inner]);
+  const at = view.project([Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, 1.3, Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE]);   // the gate comes inward with the arena (play-radius.ts)
   if (at && Math.hypot(at[0] - event.clientX, at[1] - event.clientY) < 70) openGate(true);
 });
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });

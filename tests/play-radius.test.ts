@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENA_ONE_SCALE, BASE_RADIUS, FIRST_SCALED_VERSION, OTHER_ARENAS, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/play-radius.ts';
+import { ARENA_ONE_SCALE, BASE_RADIUS, FIRST_SCALED_VERSION, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/play-radius.ts';
 import { underRecord } from '../src/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
 import { RECORD_VERSION } from '../src/record.ts';
 
 test('the scaled opponents are exactly the ladder rungs that fight in Arena 1', () => {
-  const arenaOne = LADDER.filter((o, i) => ARENA_PICK[arenaBand(i + 1)] === '1').map(o => o.id);
+  const arenaOne = LADDER.filter((_, i) => ARENA_PICK[arenaBand(i + 1)] === '1').map(o => o.id);
   assert.deepEqual(arenaOne, ['veteran', 'pitborn']);
-  for (const o of LADDER) assert.equal(OTHER_ARENAS.includes(o.id), !arenaOne.includes(o.id), o.id);
+  assert.deepEqual([...ARENA_ONE], arenaOne, 'an inclusion list: Arena 1 only');
   for (const o of LADDER) assert.equal(arenaFor(o.id) === ARENA_THEMES['1'], playScaleFor(o.id, RECORD_VERSION) !== 1, `${o.id}: the circle comes inward exactly where the arena is Arena 1`);
 });
 
@@ -19,6 +19,7 @@ test('only a version-23 fight in Arena 1 is fought in the smaller circle (0.36);
   assert.equal(playScaleFor('pitborn', 23), ARENA_ONE_SCALE);
   assert.equal(playScaleFor('veteran', 22), 1);
   assert.equal(playScaleFor('goblin', 23), 1);
+  assert.equal(playScaleFor('somebody-new', 23), 1, 'an unknown or new opponent keeps the old circle (fails closed)');
   assert.equal(playScaleFor('shieldmaiden', 23), 1);
 });
 

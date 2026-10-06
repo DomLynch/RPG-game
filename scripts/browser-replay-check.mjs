@@ -41,6 +41,7 @@ import console from 'node:console';
 import { initialPractice, stepPractice, PROFILES } from '../src/combat.ts';
 import { recordSpecials } from '../src/replay.ts';
 import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
+import { underPlayScale } from '../src/play-radius.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { decide, initialAi } from '../src/ai.ts';
@@ -85,12 +86,15 @@ export function replayInNode(record, sampleEvery = 60) {
 /** One standard-battery fight, recorded as rank-look-check records (Combat's method): L18, the AI drives the hero, tick 0 forced 'light'. */
 export async function recordFight(opponent, seed) {
   const level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'replay-row', opponent, weapon: 'longsword', level, seed });
-  let p = initialPractice(seed, opponentAt(OPPONENTS[opponent], level)), hero = initialAi(seed ^ 0x5bd1e995), killed = -1;
-  while (!p.finish && p.duel.tick < MAX_TICKS) {
-    const w = decide(p.duel, 0, hero, PROFILES.normal); hero = w.ai;
-    p = stepPractice(p, recorder.push(p.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[opponent], level));
-    if (killed < 0 && p.events.some((e) => e.type === 'Killed')) killed = p.duel.tick;
-  }
+  const { p, killed } = underPlayScale(opponent, RECORD_VERSION, () => {   // fought in the circle this build records it in (play-radius.ts)
+    let p = initialPractice(seed, opponentAt(OPPONENTS[opponent], level)), hero = initialAi(seed ^ 0x5bd1e995), killed = -1;
+    while (!p.finish && p.duel.tick < MAX_TICKS) {
+      const w = decide(p.duel, 0, hero, PROFILES.normal); hero = w.ai;
+      p = stepPractice(p, recorder.push(p.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[opponent], level));
+      if (killed < 0 && p.events.some((e) => e.type === 'Killed')) killed = p.duel.tick;
+    }
+    return { p, killed };
+  });
   if (!p.finish) return null;
   const won = !p.finish.draw && p.finish.victim === 1, encoded = await encodeRecord(recorder.finish(won ? 'killed' : 'died'));
   const back = replayInNode(await decodeRecord(encoded));   // the page path must agree with the live fight before anything is pinned or compared

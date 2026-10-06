@@ -108,6 +108,7 @@ export class Match {
   // The one reset. Everything a fight owns starts here; `seed`, `weapon` and `level` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
+    if (mode !== 'replay') setPlayScale(mode === 'pvp' ? 1 : playScaleFor(this.opponent.id, Infinity));   // a live fight is fought in this build's circle for its warden (PvP is not Arena 1: the original); a replay's is set by startReplay, before begin (play-radius.ts)
     if (mode !== 'sparring') { this.dummy = false; if (this.sparSelection && mode !== 'replay') this.skill = this.sparLegacySkill; this.sparSelection = undefined; }
     if (mode !== 'pvp') this.pvp = null;
     this.lesson = mode === 'lesson' ? createFirstLoss(this.onLesson) : null;

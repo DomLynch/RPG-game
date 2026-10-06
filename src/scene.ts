@@ -500,7 +500,7 @@ export function createScene(
     // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
     walkToGate(on: boolean) {
       walking = on;
-      rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
+      rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE } : null);   // the gate comes inward with the arena (play-radius.ts)
     },
     raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
     // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
