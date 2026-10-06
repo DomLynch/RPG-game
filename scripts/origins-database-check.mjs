@@ -49,6 +49,9 @@ const acls = () => psql(`select 'rel ' || c.relname || ' ' || coalesce(c.relacl:
   union all select 'fn ' || p.oid::regprocedure || ' ' || coalesce(p.proacl::text, '-') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname not like 'origins\\_%'
   union all select 'pol ' || tablename || ' ' || policyname || ' ' || coalesce(qual, '') from pg_policies where tablename not like 'origins\\_%'
   union all select 'trg ' || tgrelid::regclass || ' ' || tgname from pg_trigger where not tgisinternal and tgrelid::regclass::text not like '%origins\\_%' order by 1;`);
+// Internal (referential-integrity) triggers on every NON-origins table, with counts: a foreign key from an origins_ table to auth.users adds two of them
+// to auth.users (one per ON DELETE / ON UPDATE action). They are the migration's ONLY expected delta on an existing table, and the down-script must remove them.
+const riTriggers = () => psql(`select k || ' x' || count(*) from (select n.nspname || '.' || r.relname || ' <- ' || cr.relname || ' ' || t.tgfoid::regproc::text as k from pg_trigger t join pg_constraint c on c.oid = t.tgconstraint join pg_class r on r.oid = t.tgrelid join pg_namespace n on n.oid = r.relnamespace join pg_class cr on cr.oid = c.conrelid where t.tgisinternal and r.relname not like 'origins\\_%') q group by k order by k;`).split('\n').filter(Boolean);
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -66,7 +69,7 @@ try {
   if (!files.includes(UP)) fail(`${UP} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   apply(files.filter(n => n !== UP && n < UP));
-  const before = objects(), aclsBefore = acls();
+  const before = objects(), aclsBefore = acls(), riBefore = riTriggers();
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${C}','Cass',0,'{"owned":[],"equipped":{}}');`);
   apply([UP]);
   apply(files.filter(n => n > UP));
@@ -211,6 +214,15 @@ try {
   eq(early !== undefined, true, 'the early claim existed');
 
   eq(acls(), aclsBefore, 'no grant, policy, trigger or RLS setting on any existing object changed (column-level ACLs and function ACLs included)');
+  // The RI-trigger delta: exactly two per foreign key that references an existing table, and every such table is auth.users (never a public live table).
+  const refs = psql(`select confrelid::regclass || ' ' || count(*) from pg_constraint where contype = 'f' and conrelid::regclass::text like 'origins\\_%' and confrelid::regclass::text not like 'origins\\_%' group by confrelid::regclass;`);
+  eq(refs.split('\n').map(l => l.split(' ')[0]), ['auth.users'], 'the only existing table an origins_ foreign key references is auth.users (no public live table)');
+  const fkCount = Number(refs.split(' ')[1]);
+  const riAfter = riTriggers();
+  const riDelta = riAfter.filter(l => !riBefore.includes(l));
+  eq(riDelta.length >= 1 && riDelta.every(l => l.startsWith('auth.users <- origins_')), true, 'every new internal trigger on an existing table sits on auth.users and belongs to an origins_ foreign key');
+  eq(psql(`select count(*) from pg_trigger t join pg_class r on r.oid = t.tgrelid where t.tgisinternal and r.relname = 'users' and r.relnamespace = 'auth'::regnamespace and t.tgconstraint in (select oid from pg_constraint where conrelid::regclass::text like 'origins\\_%')`), String(fkCount * 2), 'two internal triggers on auth.users per origins_ foreign key, no more');
+  eq(riBefore.every(l => riAfter.includes(l)), true, 'no pre-existing internal trigger changed');
   eq(aclsBefore.includes('fighter_profiles') && aclsBefore.includes('loot_claims'), true, 'the ACL snapshot does cover the live tables the functions read');
 
   // ---- function hygiene: every origins definer function pins its search_path and answers only to the writer -------------------------------
@@ -264,22 +276,45 @@ try {
   iq(`where id = 'it:b9'`, ['it:b9|2|3|pack:' + pcB + ':31'], 'the survivor\'s escrow is released by cancel');
   commit(B, [{ op: 'burn', id: 'it:e2:s', expected_version: 2, count: 1 }]);   // conservation still holds for the root E minted and the purge burned
   eq(psql(`select sum(delta) from public.origins_item_ledger where mint_root = 'mk:e2'`), '0', 'mk:e2 balances to zero after the purge and B\'s burn');
-  // Deleting the account itself (auth.users) cascades through everything with no help.
+  // Deleting the account itself (auth.users) cascades through everything with no help. F holds a pack item, a bank item and a split stack, minted a stack it
+  // traded half of to B, left a trade open with B holding escrow, and B holds an item bound to F.
   const pcF = W(`select public.origins_create_character('${F}', 'Fenn');`);
   W(`select public.origins_snapshot('${F}', 0, 0);`);
-  commit(F, [mintOp('it:f1', 'ore5', 3, loc('pack', pcF, 0), 'mk:f1'), { op: 'event', event_id: `quest:${pcF}:q9:s1`, kind: 'quest-stage', account: F, character: pcF, payload: {} },
+  commit(F, [mintOp('it:f1', 'ore5', 6, loc('pack', pcF, 0), 'mk:f1'), mintOp('it:f2', 'ore6', 9, loc('bank', pcF, 3), 'mk:f2'), mintOp('it:f3', 'ore7', 4, loc('pack', pcF, 1), 'mk:f3'),
+    { op: 'event', event_id: `quest:${pcF}:q9:s1`, kind: 'quest-stage', account: F, character: pcF, payload: {} },
     { op: 'quest_set', character: pcF, quest: 'q9', story_version: 1, stage: 's1', status: 'active', flags: {}, rewarded: [], journal_append: [{ stage: 's1', text: 'x', at: '2026-10-06T06:00:00Z' }] }]);
+  commit(F, [{ op: 'split', id: 'it:f1', expected_version: 1, count: 2, new_id: 'it:f1:s', loc: loc('pack', pcF, 2) }]);   // a split stack: two rows, one root
+  W(`select public.origins_open_trade('tr:f0', '${pcF}', '${pcB}');`);
+  W(`select public.origins_settle_trade('tr:f0', ${J([{ op: 'split', id: 'it:f3', expected_version: 1, count: 1, new_id: 'it:f3:s', loc: { kind: 'trade-escrow', container: 'tr:f0', from: pcF } }, { op: 'put', id: 'it:f3:s', expected_version: 1, loc: loc('pack', pcB, 40) }])});`);
+  commit(B, [mintOp('it:bf', 'ore8', 1, loc('pack', pcB, 41), 'mk:bf', { bound_to: pcF }), mintOp('it:bf2', 'ore9', 2, loc('pack', pcB, 42), 'mk:bf2')]);
+  W(`select public.origins_open_trade('tr:f', '${pcF}', '${pcB}');`);
+  W(`select public.origins_commit('${B}', ${J([{ op: 'put', id: 'it:bf2', expected_version: 1, loc: { kind: 'trade-escrow', container: 'tr:f', from: pcB } }])});`);
   W(`select public.origins_issue_encounter('${F}', '${pcF}', 'tok0000000000000009', 5, 'rat', 1, 600);`);
-  psql(`delete from auth.users where id = '${F}';`);
-  for (const t of ['origins_characters', 'origins_career', 'origins_access', 'origins_events', 'origins_encounters']) eq(psql(`select count(*) from public.${t} where account = '${F}'`), '0', `deleting the account cleared ${t}`);
-  eq(psql(`select count(*) from public.origins_items where id = 'it:f1'`), '0', 'deleting the account cleared its items');
-  eq(psql(`select coalesce(sum(delta), 0) from public.origins_item_ledger where mint_root = 'mk:f1'`), '0', 'and booked them out of the ledger');
+  const burnsBefore = Number(psql(`select count(*) from public.origins_item_ledger where reason = 'burn'`));
+  const fLive = Number(psql(`select count(*) from public.origins_items where holder_account = '${F}' and retired_at is null`));
+  eq(fLive, 4, 'F holds 4 live rows: pack stack, its split child, a bank stack, and the stack it kept after the trade');
+  const bProvenance = psql(`select provenance::text from public.origins_items where id = 'it:f3:s'`);
+  psql(`delete from auth.users where id = '${F}';`);   // ERASURE-1: must succeed (the deferred conservation trigger must not abort it at commit)
+  for (const t of ['origins_characters', 'origins_career', 'origins_access', 'origins_events', 'origins_encounters']) eq(psql(`select count(*) from public.${t} where account = '${F}'`), '0', `ERASURE-1: deleting the account cleared ${t}`);
+  eq(psql(`select count(*) from public.origins_items where id in ('it:f1', 'it:f1:s', 'it:f2', 'it:f3')`), '0', 'ERASURE-1: the account\'s pack, split, bank and kept-stack rows are all gone');
+  eq(Number(psql(`select count(*) from public.origins_item_ledger where reason = 'burn'`)) - burnsBefore, fLive, 'ERASURE-1: one burn recorded per erased live row');
+  eq(psql(`select coalesce(sum(delta), 0) from public.origins_item_ledger where mint_root in ('mk:f1', 'mk:f2')`), '0', 'ERASURE-1: roots only F held balance to zero');
+  eq(psql(`select coalesce(sum(delta), 0) from public.origins_item_ledger where mint_root = 'mk:f3'`), '1', 'ERASURE-1: the root F traded half of still books the one unit B holds');
+  // ERASURE-2: the other party's rows survive, the erased side is nulled, never cascaded away.
+  iq(`where id in ('it:f3:s', 'it:bf', 'it:bf2')`, ['it:bf2|2|2|trade-escrow::', 'it:bf|1|1|pack:' + pcB + ':41', 'it:f3:s|1|2|pack:' + pcB + ':40'], 'ERASURE-2: B keeps its gift from F, its item bound to F, and its escrow');
+  eq(psql(`select provenance::text from public.origins_items where id = 'it:f3:s'`), bProvenance, 'ERASURE-2: provenance on the surviving item is untouched');
+  eq(psql(`select container || ':' || state || ':' || coalesce(side_a, 'null') || ':' || coalesce(side_b, 'null') from public.origins_trades where container in ('tr:f', 'tr:f0') order by container`), `tr:f:open:null:${pcB}\ntr:f0:settled:null:${pcB}`, 'ERASURE-2: both trades survive with the erased side nulled and the other side kept');
+  W(`select public.origins_cancel_trade('tr:f', ${J([{ op: 'put', id: 'it:bf2', expected_version: 2, loc: loc('pack', pcB, 42) }])});`);
+  iq(`where id = 'it:bf2'`, ['it:bf2|2|3|pack:' + pcB + ':42'], 'ERASURE-2: the survivor cancels the open trade and gets its escrow back');
+  commit(B, [{ op: 'burn', id: 'it:f3:s', expected_version: 2, count: 1 }]);
+  eq(psql(`select coalesce(sum(delta), 0) from public.origins_item_ledger where mint_root = 'mk:f3'`), '0', 'ERASURE-2: B can still spend what it was given, conservation holds');
 
   // ---- the down-script drops exactly what the migration created ------------------------------------------------------------------
   const after = objects();
   eq(after.split('\n').filter(l => !before.split('\n').includes(l)).every(l => /origins/.test(l)), true, 'the migration only adds origins_* objects and its role');
   eq(before.split('\n').every(l => after.split('\n').includes(l)), true, 'the migration removed nothing that existed');
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
+  eq(riTriggers(), riBefore, 'after the down-script the internal triggers on auth.users are exactly as before the migration');
   eq(objects(), before, 'after the down-script the public schema and roles are exactly as before the migration');
   console.log(`origins-database-check: ${checks} checks passed`);
 } finally {

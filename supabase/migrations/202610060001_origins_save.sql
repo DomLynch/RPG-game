@@ -100,7 +100,7 @@ create table public.origins_items (
   loc_index int check (loc_index between 0 and 999),
   loc_slot text,
   loc_from text references public.origins_characters (id) on delete cascade,
-  bound_to text references public.origins_characters (id) on delete cascade,
+  bound_to text,   -- a plain id, deliberately NOT a foreign key: erasing the bound character must never delete (or touch) an item another account holds
   mint_key text not null unique,
   mint_root text generated always as (split_part(mint_key, '::s', 1)) stored,
   provenance jsonb not null,
