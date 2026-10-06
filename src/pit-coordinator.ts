@@ -1,6 +1,7 @@
 // The one door into the Pit (docs/pit-design.md §3-4, Lead 2026-09-29): the only file that loads src/pit/, by dynamic import, so the
 // Pit is its own chunk and the fight's download never carries it (tests/pit-boundary.test.ts, check-budget.mjs PIT).
 import { inGate, LAYOUT } from './arena.ts';
+import { PLAY_SCALE } from './sim.ts';
 import type { Entry, Pit, Pose, Stage } from './pit/stage.ts';
 export type { GameStage, Pit, Pose, SceneStage, Stage } from './pit/stage.ts';
 
@@ -37,7 +38,7 @@ export const loadPit = (): Promise<void> => load().then(() => undefined);
 // D2 (docs/pit-design.md §9): the gate line he crosses on foot, 1.5 m inside the wall inside the gate's arc; and the door's rule while
 // he walks (Strategy): hidden as soon as the stick moves him, back once he has stood still for DOOR_STILL ms.
 export const GATE_LINE = LAYOUT.wall.inner - 1.5;
-export const atGateLine = (x: number, z: number): boolean => { const r = Math.hypot(x, z); return r >= GATE_LINE && inGate(Math.atan2(x, z), r); };
+export const atGateLine = (x: number, z: number): boolean => { const r = Math.hypot(x, z) / PLAY_SCALE; return r >= GATE_LINE && inGate(Math.atan2(x, z), r); };   // arena metres: the arena comes inward with the play circle
 export const DOOR_STILL = 3000;
 export const doorHidden = (lastMoveAt: number | null, now: number): boolean => lastMoveAt !== null && now - lastMoveAt < DOOR_STILL;
 

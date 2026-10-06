@@ -7,7 +7,7 @@ import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
 import { riseMetres, riseStep } from './gate-rise.ts';
-import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
 
@@ -28,6 +28,7 @@ export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE
 export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
 export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
+const ABYSS_HAZE = [176, 194, 214];   // the haze the abyss disc's rim and the horizon bowl meet in: equal to HAZE in scripts/arena-abyss.py
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const RAIN_PHONE_COUNT = 500;
 const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-fov (scene.ts): a point sprite's size in world terms at any depth
@@ -158,7 +159,8 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;
   }
   // The sand: flat to the wall's foot (and under it, so the gateway floor is sand), darkening toward the wall and mottled at large scale.
-  const floor = mesh(disc(theme.flatStands ? 17 : wall.outer + 0.1, 36, (x, _y, z) => { const r = Math.hypot(x, z), k = (0.92 + 0.28 * (mottle(x / 26 + 0.5, z / 26 + 0.5) - 0.5)) * (1 - 0.42 * smooth(10.2, wall.inner, r)); return [k, k * 0.99, k * 0.97]; }), sand, 'sand', false);
+  const cliff = !!theme.cliff, edgeR = wall.inner + 0.75;   // the cliff's floor ends just past the play circle's edge (11.7 + 0.75): the braziers and banner poles stand on that last metre
+  const floor = mesh(disc(cliff ? edgeR : theme.flatStands ? 17 : wall.outer + 0.1, 36, (x, _y, z) => { const r = Math.hypot(x, z), k = (0.92 + 0.28 * (mottle(x / 26 + 0.5, z / 26 + 0.5) - 0.5)) * (1 - 0.42 * smooth(10.2, wall.inner, r)); return [k, k * 0.99, k * 0.97]; }), sand, 'sand', false);
   floor.userData.tile = SAND_TILE;
   // The boundary ring at the play radius: a dark inlay trodden flush with the sand (the simulation's wall, visible).
   const ring = mesh(new THREE.RingGeometry(PLAY_RADIUS - 0.05, PLAY_RADIUS + 0.05, 128), boundary, 'boundary', false); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.012;
@@ -179,7 +181,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     for (let i = 0; i < puv.count; i++) puv.setY(i, puv.getY(i) * 0.5);         // the pool: bottom half of the atlas
     pool.translate(1.55, 0.009, -10.1);
     gateLight.push(pool); }
-  mesh(mergeGeometries(gateLight), gateLightMaterial, 'gate-light', false);
+  if (!cliff) mesh(mergeGeometries(gateLight), gateLightMaterial, 'gate-light', false);
   // Light shafts (the cistern): daylight falling through grates in the vault, along the key light's direction, each landing in a
   // pool on the floor. The gate light's atlas and blend: crossed additive quads, no depth write, no shadow — light, not a solid,
   // so the play-circle and camera-clamp rules (tests) do not apply to it; a fighter walking through one is lit, never hidden.
@@ -315,7 +317,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, wall.top - 0.3, z), new THREE.Vector3(x - out.x * 0.09, 1.55, z - out.z * 0.09), new THREE.Vector3(x - out.x * 0.04, 0.85, z - out.z * 0.04)]);
     irons.push(prop(new THREE.TubeGeometry(curve, 10, 0.035, 5, false), 0, 0, 0, 0, 1, 1, IRON, -5), prop(new THREE.TorusGeometry(0.13, 0.03, 5, 12), x - out.x * 0.04, 0.72, z - out.z * 0.04, new THREE.Euler(0, a, 0), 1, 1, IRON, -5));
   }
-  const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = wall.outer - 0.15, bannerTop = wall.top + 3.4;
+  const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = cliff ? wall.inner + 0.55 : wall.outer - 0.15, bannerTop = wall.top + 3.4;
   for (const a of bannerAngles) { const [x, z] = polar(bannerR, a); irons.push(prop(cylinder(0.035, 0.045, 3.4, 6), x, wall.top + 1.7, z, 0, 1, 1, IRON, wall.top), prop(box(1.3, 0.06, 0.06), x, bannerTop, z, a, 1, 1, IRON, -5)); }
   const fallenStart = irons.length;
   // Dropped gear in the sand (iron, tinted): a fallen shield by the wall and a broken blade half-buried near the ring.
@@ -462,7 +464,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   if (theme.backdrop) {   // the painted far world (Dom 2026-10-03, arena-wow): one painting, mirrored eight times round a ring inside the dome; its
     // faded foot meets the haze over the wall, its faded head the sky. Unfogged like the dome, and no ridges in front of it.
     // No DOM (the node tests): a blank map the strip's size, so the cost test still counts it.
-    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(theme.backdrop);
+    const map = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(420 * 535 * 4), 420, 535) : new THREE.TextureLoader().load(`${import.meta.env?.BASE_URL ?? '/'}${theme.backdrop.replace(/^\//, '')}`);   // against the page base: a preview lives under /preview/<name>/
     map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = theme.backdropRepeat ?? 8;
     map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;   // 0.9 MB without mips: the arena's texture budget is 12 MB
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
@@ -479,7 +481,43 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
   const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
-  mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
+  let abyssGround: THREE.Mesh | null = null;
+  if (cliff) {   // the sand ends here: a floating island (Dom 2026-10-06, "ice-cream cone"). A short sheer lip, then the rock tapers in and down to a point, irregular, with nothing but the painted far world round it and an aerial view far below.
+    const lip = 2.4, depth = 15, tipR = 0.35, rows = 26, shoulder = edgeR * 1.025, ring: THREE.Vector2[] = [];   // lathe points tip -> sand. The lip (2.4 m, flaring a hair) is the part the fight camera sees; below it the rock tapers in and away
+    for (let j = 0; j <= rows; j++) { const w = 1 - j / rows; ring.push(new THREE.Vector2(tipR + (shoulder - tipR) * (1 - w ** 1.25), -lip - w * (depth - lip))); }
+    for (let j = 1; j <= 4; j++) ring.push(new THREE.Vector2(shoulder + (edgeR - shoulder) * (j / 4) ** 2, -lip * (1 - j / 4)));
+    const face = new THREE.LatheGeometry(ring, 120), pos = face.attributes.position;
+    for (let i = 0; i < pos.count; i++) {   // ragged bite round the rim, ledges and bulges down the flank, the spike wandering off true; the colour, ledges and cracks are the texture's (cliffPixels: one map, no tiling round the rim)
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), r = Math.hypot(x, z), w = Math.min(1, Math.max(0, (-y - lip) / (depth - lip))), a = Math.atan2(x, z);
+      if (r < 1e-3) { pos.setXYZ(i, Math.sin(w * 3.1) * 0.6, y, Math.cos(w * 2.3) * 0.6); continue; }
+      const k = Math.sqrt(w), grow = 1 + k * (0.34 * (mottle(a * 0.95 + 3, w * 2.2 + 1) - 0.5) + 0.07 * Math.sin(a * 7 + w * 9) + 0.05 * Math.sin(w * 22 + a * 3)), rr = r * grow;
+      pos.setXYZ(i, x * rr / r + Math.sin(w * 3.1) * 0.6 * w, y, z * rr / r + Math.cos(w * 2.3) * 0.6 * w);
+    }
+    const uv = face.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - Math.min(1, -pos.getY(i) / depth) ** 0.35);   // the rock map's gradient: sand at the lip, stone half dark by the foot of the lip, the rest sinking to black at the point
+    face.computeVertexNormals();
+    const unmipped = (t: THREE.DataTexture) => { t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; return t; };   // no mips: the arena's texture budget (tests/arena.test.ts) leaves this map little room
+    const rockMap = unmipped(dataTexture(cliffPixels(640, 96, 13), true));
+    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, color: '#9db0c6', roughness: 1, side: THREE.DoubleSide }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
+    // Far below: an aerial photograph of ranges, snow, a lake and drifting clouds (scripts/arena-abyss.py, ~9 KB webp; the arena's one extra texture, ruled by Lead
+    // for Dom 2026-10-06) on a disc, its rim faded into the haze; round it a bowl inside the sky dome that runs from the painted clouds' cream into the same haze. Unfogged; the clear colour never shows.
+    // The map is fetched against the page's base (a preview lives under /preview/<name>/, where '/arena/abyss.webp' is a 404) and until it lands, or if it never does, the disc is the
+    // haze colour, never the black an empty texture samples as.
+    const haze = new THREE.Color().setRGB(ABYSS_HAZE[0] / 255, ABYSS_HAZE[1] / 255, ABYSS_HAZE[2] / 255, THREE.SRGBColorSpace), size = 420;
+    const groundMaterial = new THREE.MeshBasicMaterial({ name: 'abyss ground', color: haze, fog: false, toneMapped: false }); materials.push(groundMaterial);
+    const groundLanded = (map: THREE.Texture) => {
+      map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping; map.generateMipmaps = true; map.minFilter = THREE.LinearMipmapLinearFilter; map.anisotropy = 4;
+      groundMaterial.map = map; groundMaterial.color.set(0xffffff); groundMaterial.needsUpdate = true; groundMaterial.addEventListener('dispose', () => map.dispose());
+    };
+    if (typeof document === 'undefined') groundLanded(new THREE.DataTexture(new Uint8Array(size * size * 4), size, size));
+    else new THREE.TextureLoader().load(`${import.meta.env?.BASE_URL ?? '/'}arena/abyss.webp`, groundLanded);
+    abyssGround = mesh(new THREE.CircleGeometry(80, 48).rotateX(-Math.PI / 2).translate(0, -36, 0), groundMaterial, 'abyss ground', false); abyssGround.receiveShadow = false;
+    const bowl = new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), cream = new THREE.Color().setRGB(0.89, 0.8, 0.74, THREE.SRGBColorSpace), bowlColors = new Float32Array(bowl.attributes.position.count * 3), tint = new THREE.Color();
+    for (let i = 0; i < bowl.attributes.position.count; i++) { const below = Math.asin(Math.min(1, -bowl.attributes.position.getY(i) / 148)); tint.copy(cream).lerp(haze, smooth(0, 0.42, below)); tint.toArray(bowlColors, i * 3); }
+    bowl.setAttribute('color', new THREE.BufferAttribute(bowlColors, 3));
+    const bowlMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', vertexColors: true, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(bowlMaterial);
+    mesh(bowl, bowlMaterial, 'abyss', false).receiveShadow = false;
+    mesh(face, rock, 'cliff', false);
+  } else mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
 
   // Motion. Only dt-driven: a hit-stop passes dt 0 and everything holds its pose with the fighters.
@@ -508,6 +546,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const was = rise; rise = riseStep(rise, riseOpen, dt);
     if (rise !== was) { gateBars.position.y = riseMetres(rise); props.liftGate(riseMetres(rise)); }   // the portcullis (procedural or authored) rises with the gate's open; props is built after update(0) and a still gate never reads it
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
+    if (abyssGround) abyssGround.rotation.y = time * 0.004;   // the land far below turns, slowly: the island drifts over it
     for (const e of events) {
       if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; }
       if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Killed') flare = 1;

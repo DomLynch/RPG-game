@@ -437,7 +437,7 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 });
 
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
-  const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
+  const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }, undefined, {}, '?opponent=dwarf'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // the full circle (a dwarf, not Arena 1: its circle is smaller now, play-radius.ts); level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
   const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
@@ -491,7 +491,7 @@ test('the Kick button says when the warden is inside its cone', () => {
 });
 
 test('a cancelled touch withdraws its press even after the simulation has buffered it, and never another control\'s press', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const app = boot(undefined, undefined, {}, '?opponent=dwarf'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const me = () => app.rendered.duel.fighters[0];
   const press = (el: Element, type: string, id = 6) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
@@ -598,7 +598,7 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
 });
 
 test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const app = boot(undefined, undefined, {}, '?opponent=dwarf'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const me = () => app.rendered.duel.fighters[0], light = MOVES.light_right;
   const at = (type: string, x: number, y: number, id = 6) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60 && !me().exposed); i++) app.tick(); };

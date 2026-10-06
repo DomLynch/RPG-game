@@ -6,6 +6,8 @@
 // π/2 in three parts, exact for the sim's angles (|x| far below 2^20·π/2). tests/detmath.test.ts pins accuracy against Math.* and bans
 // any Math transcendental inside the sim files.
 
+import { underPlayScale } from './play-radius.ts';
+
 const S1 = -1.66666666666666324348e-01, S2 = 8.33333333332248946124e-03, S3 = -1.98412698298579493134e-04,
   S4 = 2.75573137070700676789e-06, S5 = -2.50507602534068634195e-08, S6 = 1.58969099521155010221e-10;
 const C1 = 4.16666666666666019037e-02, C2 = -1.38888888888741095749e-03, C3 = 2.48015872894767294178e-05,
@@ -101,9 +103,9 @@ const LEGACY: Table = Object.freeze({ sin: Math.sin, cos: Math.cos, atan2: Math.
 let table = DETMATH;
 // What the sim calls. Never Math.<transcendental> in a sim file (tests/detmath.test.ts).
 export const M: Table = { sin: (x) => table.sin(x), cos: (x) => table.cos(x), atan2: (y, x) => table.atan2(y, x), hypot: (...a) => table.hypot(...a) };
-export function underRecord<T>(record: { readonly v: number }, run: () => T): T {
+export function underRecord<T>(record: { readonly v: number; readonly opponent?: string }, run: () => T): T {
   const outer = table; table = record.v < FIRST_DETMATH_VERSION ? LEGACY : DETMATH;
-  try { return run(); } finally { table = outer; }
+  try { return underPlayScale(record.opponent ?? '', record.v, run); } finally { table = outer; }   // and the play circle the record was fought in (play-radius.ts)
 }
 export const mathTableFor = (record: { readonly v: number }): 'legacy' | 'detmath' => underRecord(record, () => (table === LEGACY ? 'legacy' : 'detmath'));   // tests
 export const LEGACY_TABLE_IS_NATIVE = (): boolean => LEGACY.sin === Math.sin && LEGACY.cos === Math.cos && LEGACY.atan2 === Math.atan2 && LEGACY.hypot === Math.hypot;

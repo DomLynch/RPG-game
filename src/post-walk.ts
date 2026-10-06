@@ -4,7 +4,7 @@
 // advance), so it means the same thing before the fight, in it and after it. The sand circle bounds him (sim.ts RADIUS) except inside the
 // gate's arc, where he may walk on to the wall line; what happens at the gate is the Pit's (pit-coordinator.ts).
 import { inGate, LAYOUT } from './arena.ts';
-import { RADIUS, type State } from './sim.ts';
+import { PLAY_SCALE, RADIUS, type State } from './sim.ts';
 
 export const WALK = 1.9;   // m/s: the rig's walk blend (characters.ts gaitWeights), the Pit's own pace (src/pit/mover.ts WALK)
 export const GATE_REACH = LAYOUT.wall.inner - 0.3;   // how far through the arc he may go: the wall line, less his own half-width
@@ -15,7 +15,8 @@ export const walkerFrom = (body: Pick<State, 'x' | 'z' | 'heading'>): Walker => 
 
 // The farthest he may stand at this angle: the sand circle, or through the gate's arc the wall line. Inside the arc at the circle's own
 // radius the arc is measured at that radius, so a step that starts in the arc stays free to carry on toward the wall.
-export const reachAt = (angle: number, r: number): number => (inGate(angle, Math.min(r, GATE_REACH)) ? GATE_REACH : RADIUS);
+// The arena comes inward with the play circle (play-radius.ts), gate and wall with it: the gate is measured in the arena's own metres.
+export const reachAt = (angle: number, r: number): number => (inGate(angle, Math.min(r / PLAY_SCALE, GATE_REACH)) ? GATE_REACH * PLAY_SCALE : RADIUS);
 
 const allowed = (x: number, z: number) => { const r = Math.hypot(x, z); return r <= reachAt(Math.atan2(x, z), r) + 1e-9; };
 

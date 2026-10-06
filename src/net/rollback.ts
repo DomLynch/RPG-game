@@ -7,6 +7,7 @@
 import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../duel.ts';
 import { quantizeIntent } from '../record.ts';
 import { initialState, TARGET } from '../sim.ts';
+import { setPlayScale } from '../play-radius.ts';
 import type { SkillId, WeaponId } from '../moves.ts';
 
 // delay: the starting input delay, the same on both sides (the first `delay` ticks are idle by agreement). maxDelay: the ceiling the
@@ -19,7 +20,7 @@ export const NET = { delay: 2, maxDelay: 12, maxRollback: 8, hashEvery: 30, redu
 // re-derives each side's Loadout from these ids itself (gear-stats.ts), never from a number a client sent. The v20 sim steps gear-neutral:
 // pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel, and the record needs no second format then.
 export type Kit = { weapon: WeaponId; skill: SkillId | null; gear?: readonly string[] };
-export const pvpDuel = (a: Kit = { weapon: 'longsword', skill: null }, b: Kit = { weapon: 'longsword', skill: null }): Duel => ({
+export const pvpDuel = (a: Kit = { weapon: 'longsword', skill: null }, b: Kit = { weapon: 'longsword', skill: null }): Duel => (setPlayScale(1), {   // PvP is not Arena 1: both peers and the verifier pin the original circle at duel start, whatever the page's last Match left (play-radius.ts)
   tick: 0, finish: null, events: [],
   fighters: [{ ...createFighter(initialState(), 'sheathed', a.weapon), skill: a.skill }, { ...createFighter({ ...TARGET, heading: 0, distance: 0 }, 'sheathed', b.weapon), skill: b.skill }],
 });

@@ -63,7 +63,7 @@ test('specials: a release on the tick its caster falls still lands; lethal both 
   assert.deepEqual([next.fighters[0].health, next.fighters[1].health, next.finish?.draw], [0, 0, true]);
 });
 
-test('specials: a fight with them records the flag (v22), and the replay builds the same fight from it', async () => {
+test('specials: a fight with them records the flag (v22: a headless fight in the old circle), and the replay builds the same fight from it', async () => {
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
