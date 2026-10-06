@@ -32,6 +32,7 @@ import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
+import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
@@ -41,7 +42,7 @@ import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fatigue-tune.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
-import { bloodGrow } from './blood-style.ts';
+import { bloodGrow, foeBurstPull } from './blood-style.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -189,7 +190,8 @@ export function createScene(
     footDust = createFootDust(scene, dustToneFor(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
-    skillImpact = createSkillImpact(scene);
+    skillImpact = createSkillImpact(scene),
+    miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
@@ -907,14 +909,15 @@ export function createScene(
           flinches[victim].hit(px, pz, dead, victim === 0 ? FLINCH_GAIN.hero : FLINCH_GAIN.opponent);
           const scale = victim === 1 ? OPPONENTS[opponentId].scale : 1, y = (blow.location === 'head' ? 1.5 : blow.location === 'legs' ? 0.55 : 1.15) * scale;
           // The same blood on both bodies (Dom: it showed when he was hit, rarely when he hit): the foe is 2-3x further from the camera, so its drops are scaled up
-          // to cover about the hero burst's screen size, and the spawn moves to the camera's open side and up, clear of the hero's torso that covers the contact.
+          // to cover about the hero burst's screen size, and the spawn is pulled toward the camera (blood-style.ts foeBurstPull), clear of the hero's torso that covers the contact.
           const cam = rig.camera.position, reach = (px: number, pz: number, py: number) => Math.hypot(cam.x - px, cam.y - py, cam.z - pz);
           let sx = target.x - bx * 0.3, sz = target.z - bz * 0.3, sy = y, grow = 1;
           if (victim === 1) {
-            right.setFromMatrixColumn(rig.camera.matrixWorld, 0);
-            const side = along === 'left' ? -1 : 1, open = 0.35 * scale;
-            sx += right.x * side * open; sz += right.z * side * open; sy += 0.1 * scale;
-            grow = bloodGrow(reach(target.x, target.z, y), reach(state.x, state.z, 1.15));
+            const far = reach(target.x, target.z, y), near = reach(state.x, state.z, 1.15), pull = foeBurstPull(far, near);   // close up the hero covers the contact: bring the spawn toward the camera, same screen spot
+            sy += 0.1 * scale;
+            const dx = cam.x - sx, dy = cam.y - sy, dz = cam.z - sz, len = Math.hypot(dx, dy, dz) || 1;
+            sx += dx / len * pull; sy += dy / len * pull; sz += dz / len * pull;
+            grow = bloodGrow(reach(sx, sz, sy), near);
           }
           burstPool.burst(feel, sx, sy, sz, bx, bz, dead, grow);
         }
@@ -1186,6 +1189,7 @@ export function createScene(
       }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+      if (miasmaMark) { miasmaMark.fire(events); miasmaMark.update(dt, practice.duel.fighters, [1, OPPONENTS[opponentId].scale], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null]); }
 
       // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
       witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
