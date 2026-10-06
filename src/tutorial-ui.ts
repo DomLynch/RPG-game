@@ -9,8 +9,8 @@ const PROMPT: Record<TutorialStep, { word: string; how: string }> = {
   slash: { word: 'SLASH', how: 'tap Slash' },
   stab: { word: 'STAB', how: 'tap Stab' },
   heavy: { word: 'HEAVY', how: 'hold Heavy, then let go' },
-  guard: { word: 'GUARD', how: 'hold Guard as his swing comes' },
-  parry: { word: 'PARRY', how: 'TAP Guard when it says NOW!' },
+  guard: { word: 'GUARD', how: 'hold Guard as his stab comes' },
+  parry: { word: 'PARRY', how: 'slide Guard UP when it says NOW!' },
   kick: { word: 'KICK', how: 'he is guarding: tap Kick' },
   roll: { word: 'ROLL', how: 'roll as his thrust comes' },
 };
@@ -22,7 +22,7 @@ export function tutorialPrompt(current: TutorialStep | null, done: number, parry
   if (current === null) return done === TUTORIAL_STEPS.length ? TUTORIAL_READY : null;
   if (tooFar) return TUTORIAL_CLOSER;   // beyond his swing range and nothing is happening: the step cannot land from here
   const base = current === 'slash' && !drawn ? { word: PROMPT.slash.word, how: 'tap Fight to draw' } : PROMPT[current];   // the button reads FIGHT until the sword is out, then SLASH
-  return current === 'parry' && parryWindow ? { word: 'NOW!', how: 'TAP Guard!', now: true } : base;
+  return current === 'parry' && parryWindow ? { word: 'NOW!', how: 'slide Guard UP!', now: true } : base;
 }
 
 type Lookup = <T extends HTMLElement>(id: string) => T;

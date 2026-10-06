@@ -35,8 +35,8 @@ test('STEP CLOSER replaces the step prompt while he is out of range, never the r
   assert.equal(tutorialPrompt('roll', 6, false, true, false)!.how, 'roll as his thrust comes');
 });
 
-test('GUARD is a hold and PARRY is a tap: the two how lines say so, and NOW! says tap', () => {
-  assert.equal(tutorialPrompt('guard', 3, false)!.how, 'hold Guard as his swing comes');
-  assert.equal(tutorialPrompt('parry', 4, false)!.how, 'TAP Guard when it says NOW!');
-  assert.equal(tutorialPrompt('parry', 4, true)!.how, 'TAP Guard!');
+test('GUARD is a plain hold (it covers his stab) and PARRY is a guard slid UP (his heavy comes from above, tutorial.guardWith): the how lines say so', () => {
+  assert.equal(tutorialPrompt('guard', 3, false)!.how, 'hold Guard as his stab comes');
+  assert.equal(tutorialPrompt('parry', 4, false)!.how, 'slide Guard UP when it says NOW!');
+  assert.equal(tutorialPrompt('parry', 4, true)!.how, 'slide Guard UP!');
 });
