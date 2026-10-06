@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bandOf, fatigueTarget, FRESH, stepFatigue, TIRED, WINDED } from '../src/fatigue.ts';
-import { clarityOf, initialPractice, stepPractice } from '../src/combat.ts';
+import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent } from '../src/duel.ts';
 
 const man = (stamina: number, extra: Partial<{ maxStamina: number; legWound: boolean; exhausted: boolean }> = {}) => ({ stamina, maxStamina: 100, legWound: false, exhausted: false, ...extra });
@@ -43,17 +43,18 @@ test('second wind: the tick he leaves exhaustion the straighten starts, then fad
   assert.equal(f.gassed, 0);
 });
 
-test('both fighters carry it, the player reaching band 2 raises one FatigueBand, and the fight itself is unchanged', () => {
-  let a = initialPractice(11), b = initialPractice(11);
-  const bands: number[] = [];
-  for (let i = 0; i < 1500; i++) {
-    const intent = { ...idleIntent(), action: i % 9 === 0 ? ('heavy' as const) : null, move: { x: 0, z: i % 2 ? 1 : -1, yaw: 0, run: true } };
-    a = stepPractice(a, intent); b = stepPractice(b, intent);
-    for (const c of a.clarity) if (c.type === 'FatigueBand' && c.actor === 0) bands.push(c.band!);
-  }
-  assert.deepEqual(a.duel, b.duel);
+test('both fighters carry it, the player reaching each band raises one FatigueBand, and the fight itself is unchanged', () => {
+  const tire = (stamina: number) => { const p = initialPractice(11), f = [...p.duel.fighters] as typeof p.duel.fighters; f[0] = { ...f[0], phase: 'ready', stamina }; return { ...p, duel: { ...p.duel, fighters: f } }; };
+  let a = tire(60), b = tire(60);
   assert.equal(a.fatigue.length, 2);
-  assert.ok(bands.length > 0 && bands.every((v, i) => i === 0 || v > bands[i - 1] || v <= 1), 'bands are reported as they rise');
-  assert.ok(a.fatigue[0].level > 0, 'the man who ran and swung is tired');
-  void clarityOf;
+  const bands: number[] = [];
+  for (const stamina of [60, 45, 20, 20, 20]) {
+    a = { ...a, duel: { ...a.duel, fighters: [{ ...a.duel.fighters[0], stamina }, a.duel.fighters[1]] } };
+    b = { ...b, duel: { ...b.duel, fighters: [{ ...b.duel.fighters[0], stamina }, b.duel.fighters[1]] } };
+    for (let i = 0; i < 90; i++) { a = stepPractice(a, idleIntent()); b = stepPractice(b, idleIntent()); for (const c of a.clarity) if (c.type === 'FatigueBand' && c.actor === 0) bands.push(c.band!); }
+  }
+  assert.deepEqual(bands, [1, 2], 'winded at 45, tired at 20, each reported once as it rises');
+  assert.deepEqual(a.duel, b.duel);
+  assert.equal(a.fatigue[0].band, 2);
+  assert.equal(a.fatigue[1].band, 0, 'the fresh foe stays fresh');
 });
