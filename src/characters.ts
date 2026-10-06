@@ -12,6 +12,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
+import { type Fatigue, type FatigueTune, breathe, fatigueLayer } from './fatigue.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from './grades.ts';
 
@@ -452,6 +453,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // tilted for the beta; the weapons lane replaces it with authored guard clips family by family. Blended so a slide never snaps.
     const spine1 = root.getObjectByName('spine_01'), spine2 = root.getObjectByName('spine_02');
     const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
+    let tired: Pick<Fatigue, 'level' | 'gassed' | 'second'> = { level: 0, gassed: 0, second: 0 }, tune: FatigueTune | undefined, breath = 0, calmWeight = 0;   // fatigue.ts: the tired-body layer (presentation only), its body's tuning, the breath clock and how calm the pose is
     let leaning = 0, leanDrive = 0;   // the charged-heavy lean's weight, 0..1, and the ease that drives it
     let tiltApplied = false;   // the mixer rewrites a bone only when its clip value changes (a held guard's does not), so the tilt is undone by hand before every update
     let speed = 0;
@@ -599,6 +601,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
       slam(weight: number) { slam = weight; },
+      // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
+      fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
@@ -646,11 +650,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         leanDrive += (Number(!!lean && holding) - leanDrive) * follow; leaning += (leanDrive - leaning) * follow;
         if (leaning < 1e-3 && leanDrive < 1e-3) leaning = leanDrive = 0;
         const l = lean ?? NO_LEAN;
-        if (tilt.yaw || tilt.spine || tilt.arm || leaning) {
+        // The tired body (fatigue.ts): breathing in the chest, a hunch, the sword arm sagging; only while the pose is calm (a swing's contact pose is the sim's blade).
+        calmWeight += (Number(!dead && (pose === 'ready' || pose === 'guard' || pose === 'sheathed')) - calmWeight) * ease;
+        breath += step * breathe(tired, tune);
+        const layer = tired.level > 0 || tired.gassed > 0 || calmWeight > .001 ? fatigueLayer(tired, breath, calmWeight, tune) : null;
+        if (tilt.yaw || tilt.spine || tilt.arm || leaning || layer) {
           tilted.forEach((b, i) => untilted[i].copy(b.quaternion)); tiltApplied = true;
           if (spine1) { spine1.rotation.y += tilt.yaw + leaning * l.yaw; spine1.rotation.z += leaning * l.side; }
           if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
           if (upperArm) { upperArm.rotation.x += tilt.arm + leaning * (l.lift ?? 0); upperArm.rotation.y += leaning * l.arm; }
+          if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
         }
         const shieldHeld = shieldArm && armed && !dead, guardUp = shieldHeld && (pose === 'guard' || pose === 'block' || pose === 'parry'), cutting = shieldHeld && (pose === 'attack' || pose === 'kick' || pose === 'deflected' || pose === 'roll');   // a deflect throws the arm open; a roll tucks it
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) - raise) * ease; strike += (Number(cutting) - strike) * ease;
