@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-06 ~16:00 (+04) — HANDOFF #11 before /clear. READ FIRST (supersedes #10 where it differs)
+
+### Now
+- Wait for Lead's placement/rotation call for the painted arenas (4-11; only 2 and 3 are on the ladder, bands: 1:'1' 2:'2' 3:'3' 4:'c' 5:'d'). Do NOT build rotation unasked. Each rung that changes arena also needs its public/versus/<id>.webp re-baked (`node scripts/versus-cards.mjs --only <id>` on the VPS, then check-budget).
+- If Dom sends more paintings: same recipe (below).
+
+### Done / open (all pushed)
+- LIVE: #1421 Arena 2 (rungs 3-4), #1425 Arena 3 (rungs 5-6) merged; #1420 row 51 fix in the release; #1424 row 44 pin.
+- **#1429** versus-card re-bake (veteran, pitborn, goblin, nightborn, executioner, dwarf) world/versus-arenas @ ad454493: with Lead/Auditor routing; assets only.
+- **Previews, none on the ladder, ONE stacked chain** (publish /preview/arenaN/ from the top, world/arena11 @ ef7dd3b6 carries 4-11): arena4 737b9d8d <- arena5 d59f747a <- arena6 02323ce4 <- arena7 ff8093ed <- arena8 662b29a8 <- arena9 2ad427f3 <- arena10 f258888b <- arena11 ef7dd3b6. Each: theme `{...ARENA_1, id, name, backdrop}`, ?arena=N, Stage option, row 44 pin in the same commit (final: ['', '1'..'11', 'a','b','c','d']), Pit still public/pit/arena/N.webp, dust table, wall exemption. Stills at ~/Desktop/Business/frankendom-arena-scale/arenaN/aN-ready.png. NOT YET SENT to Lead: shas for 9, 10, 11 and their stills (Lead knows to expect them; send: arena9 2ad427f3, arena10 f258888b, arena11 ef7dd3b6, "VPS 31/31 at the arena11 head, one publish from arena11 covers 4-11").
+- **armfeel sound** world/armfeel-sound @ 0108802f (stacked on combat/armfeel): Combat integrates; Dom sets levels by ear (OUTPUT_GAIN).
+- Old items: #9 queue PR A (rotation), circle bump still valid but Lead has not asked.
+
+### Recipe for a painting (all in scripts/arena-backdrop-2.py)
+`python3 scripts/arena-backdrop-2.py <portrait.webp> <out.webp> x0 x1 y1 [y0]` fractions; strip is 0.785 w:h (width frac*941 = 0.785 * height frac*1672); head fades to Arena 1 sky (154,116,81), foot to (90,64,46). Crops used: portraits 3-8: full width y 0.10/0-0.717..0.817; 9: x .06-.86 y .10-.675; 10: x .02-.955 y .03-.70; 11: full y .12-.837. Pick the portrait over the wide image when it keeps the landmarks. Paintings with a painted foreground floor: crop above it. Pit stills + a-still: VPS helper scripts a9.sh..a11.sh, a?-still.mjs in /opt/frankendom-shadow/work (copy the pattern: sed arena=N and the branch name; run with `setsid nohup`, poll the A?_DONE flag in world-blood; a 5 min timeout means VPS load, rerun).
+
+### Gotchas (new)
+- Versus/loading card = baked public/versus/<opponent>.webp (09-22): goes stale whenever an opponent's arena changes; the card framing is tuned for the full circle (setting the live 0.36 circle breaks it).
+- Row 44 pins #arena-select options (scripts/sparring-browser-check.mjs:34): every new Stage option needs the pin re-pinned in the same commit; the row itself exceeds its 180 s cap on software GL (Auditor), so the Mac row decides.
+- artifacts/ is gitignored: `git add -f`. ssh pkill inside the same ssh command kills your own shell.
+- Keys can be two characters ('10', '11'): URL parse is \w+, allow-lists are plain arrays, fine so far.
+
 ## 2026-10-06 ~13:45 (+04) — HANDOFF #10 before /clear. READ FIRST (supersedes #9 where it differs)
 
 ### Now
