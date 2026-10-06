@@ -43,7 +43,6 @@ import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, pref
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
-import { budgetOn, createRenderBudget } from './render-budget.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
@@ -237,7 +236,6 @@ if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try
 // ?dpr= (quality.ts DPR_OVERRIDE, read before this line runs) is the same: this page load only, gone from the address at once. dprOverride is
 // the same value read here, before the strip: the readout tags it, and it turns off the frame-time auto-drop below for this load.
 const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(location.search);
-const renderBudget = typeof location !== 'undefined' && budgetOn(location.search) ? createRenderBudget() : null;   // ?budget=on only
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
@@ -672,7 +670,7 @@ function sendBeacon() {
   if (automated(nav, window.location?.search ?? '')) return;
   beaconSent = true;
   const body = beaconPayload({
-    fightFrames, firstFightAt, renderRatio: view.renderer.getPixelRatio(), renderScale: renderBudget?.scale ?? null, loweredFrom, dprOverride, tris: info.triangles, draws: info.calls,
+    fightFrames, firstFightAt, renderRatio: view.renderer.getPixelRatio(), loweredFrom, dprOverride, tris: info.triangles, draws: info.calls,
     phone: phoneTier(), lookOn: (globalThis as { __rankLookOn?: unknown }).__rankLookOn !== undefined, revision: revision ?? null,
     userAgent: nav?.userAgent ?? '', screen: (typeof screen === 'undefined' ? null : screenOf(screen.width, screen.height, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)) ?? '0x0@1',
     cores: nav?.hardwareConcurrency, memoryGb: nav?.deviceMemory,
@@ -1937,8 +1935,6 @@ function frame(now: number) {
     if (Number.isNaN(fightStartAt)) fightStartAt = performance.now();   // the beacon's look_swap_s counts from here, on the look's own clock
     if (Number.isNaN(firstExchangeAt) && !idleBeat(match.practice)) firstExchangeAt = performance.now();
     fightFrames.push(elapsed * 1000);
-    const scale = renderBudget?.update(elapsed, elapsed * 1000);
-    if (scale !== undefined) view.setRenderScale(scale);
   }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
@@ -1948,7 +1944,7 @@ function frame(now: number) {
     element('menu-performance').textContent = element('performance').textContent;
     // A slow window drops the pixel ratio to 1 for the page (scene.ts lowerResolution), except under an explicit ?dpr= (Lead 2026-09-28): that
     // load is an A/B instrument and must render at the ratio it asked for, or the readout would compare two drops.
-    if (median > 22 && dprOverride === undefined && !renderBudget) lowered(() => view.lowerResolution());
+    if (median > 22 && dprOverride === undefined) lowered(() => view.lowerResolution());
     frames = [];
     reportAt = now;
     // A dropped frame is one longer than 16.7 ms - the 60 fps budget - COUNTED, not averaged, because an average hides them.
