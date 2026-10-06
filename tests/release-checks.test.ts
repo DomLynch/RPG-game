@@ -357,6 +357,10 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
   for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])
     assert.equal(kept('src/main.ts', file), 51, `${file} changes the build or the gate: every row (Auditor B1 on #1381)`);
+  assert.equal(kept('src/lessons.ts'), 6, 'the first-loss row joins the core five for the lesson files');
+  assert.equal(kept('src/first-loss.ts'), 6);
+  assert.equal(kept('scripts/first-loss-browser-check.mjs'), 6, 'a changed check script runs its own row');
+  assert.equal(kept('src/hud.ts'), 7, 'files outside its trigger do not run it');
   assert.equal(kept('src/audio/mix.ts'), 7, 'audio adds its two rows');
   assert.equal(kept('src/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
 });

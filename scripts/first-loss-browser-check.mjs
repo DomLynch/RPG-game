@@ -14,7 +14,7 @@ import { preview } from 'vite';
 import process from 'node:process';
 import console from 'node:console';
 import { setTimeout as sleep } from 'node:timers/promises';
-/* global localStorage, document, globalThis, location */
+/* global localStorage, document, location */
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
