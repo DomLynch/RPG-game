@@ -7,6 +7,8 @@ import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
+import { armfeelLayers, MAX_LAYERS, OUTPUT_GAIN } from './audio/armfeel-sound.ts';
+import type { Feel } from './armfeel.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
@@ -42,6 +44,7 @@ export function createFeedback(host?: FeedbackHost) {
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
+  let armfeel: Feel | undefined, armfeelLive = 0;   // ?look=armfeel (audio/armfeel-sound.ts): extra body and transient layers on a landed blow; absent = the game's own sound
   let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
   // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
   const specialWanted = new Set<SpecialCue>(), specialBuffers = new Map<SpecialCue, AudioBuffer | null>();
@@ -119,6 +122,24 @@ export function createFeedback(host?: FeedbackHost) {
       tone.onended = () => { sources.delete(tone); tone.disconnect(); envelope.disconnect(); };
     }
   }
+  function armfeelPlay(events: readonly CombatEvent[], time: number) {
+    for (const layer of armfeelLayers(armfeel, events)) {
+      if (armfeelLive >= MAX_LAYERS) return;
+      const gain = context!.createGain(), end = time + layer.seconds;
+      gain.gain.setValueAtTime(.0001, time); gain.gain.exponentialRampToValueAtTime(layer.volume * OUTPUT_GAIN, time + .002); gain.gain.exponentialRampToValueAtTime(.0001, end);
+      let source: AudioScheduledSourceNode, filter: BiquadFilterNode | undefined;
+      if (layer.kind === 'tone') {
+        const tone = context!.createOscillator(); tone.type = layer.wave; tone.frequency.setValueAtTime(layer.from, time); tone.frequency.exponentialRampToValueAtTime(layer.to, end);
+        tone.connect(gain); source = tone;
+      } else {
+        const air = context!.createBufferSource(); filter = context!.createBiquadFilter(); air.buffer = noise!; filter.type = 'highpass'; filter.frequency.value = layer.highpass;
+        air.connect(filter).connect(gain); source = air;
+      }
+      gain.connect(bus!); sources.add(source); armfeelLive++;
+      source.onended = () => { sources.delete(source); armfeelLive--; source.disconnect(); filter?.disconnect(); gain.disconnect(); };
+      source.start(time); source.stop(end + .01);
+    }
+  }
   function stopSources() {
     pendingDraw = undefined;
     if (!context) return;
@@ -131,6 +152,7 @@ export function createFeedback(host?: FeedbackHost) {
   }
   return {
     unlock,
+    armfeel(feel: Feel | undefined) { armfeel = feel; },
     // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
     // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
     // A failed fetch (a dropped connection) is tried once more after GATE_RETRY_MS, and again at the next Pit open: the page is not silent for good.
@@ -187,6 +209,7 @@ export function createFeedback(host?: FeedbackHost) {
         const { voice, source } = rising; rising = undefined;
         if (voice.source === source) { const g = voice.gain.gain; g.cancelScheduledValues(time); g.setValueAtTime(g.value, time); g.linearRampToValueAtTime(0, time + CUT); try { source.stop(time + CUT); } catch { /* already ended */ } voice.until = time + CUT; }
       }
+      armfeelPlay(events, time);
       if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
