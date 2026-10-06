@@ -67,3 +67,20 @@ test('clearHold returns to live', () => {
   clearHold(r.h);
   assert.deepEqual([r.h.shown, r.h.holdMs, r.h.queue.length], [null, 0, 0]);
 });
+
+test('a rollback drops the queued predicted ticks: their events are still delivered, their poses are never drawn, and the screen goes live from the corrected state', () => {
+  type RSnap = Snap & { gen: number };
+  const h = newHold<RSnap>(); let gen = 0;
+  const tickOnce = (tick: number, stop = 0) => { const s: RSnap = { tick, events: stop ? [`hit${tick}`] : [`e${tick}`], stop, gen }; onTick(h, s, h.shown ? 0 : stop, 99); };
+  tickOnce(1); onFrame(h, FRAME, [], stopOf, eventsOf);
+  tickOnce(2, 220);                                   // contact: a 220 ms hold
+  const first = onFrame(h, FRAME, ['hit2'], stopOf, eventsOf, (s) => s.gen !== gen);
+  assert.equal(first.shown?.tick, 2); assert.equal(first.held, true);
+  tickOnce(3); tickOnce(4); tickOnce(5);              // predicted ticks queue behind the hold
+  gen++;                                              // a rollback re-steps history: those three are stale
+  const shown: (number | null)[] = [], got: string[] = [];
+  for (let i = 0; i < 30; i++) { const d = onFrame(h, FRAME, [], stopOf, eventsOf, (s) => s.gen !== gen); shown.push(d.shown?.tick ?? null); got.push(...d.events); if (!h.shown) break; }
+  assert.ok(shown.every((t) => t === 2 || t === null), `only the contact tick is drawn, then live: ${JSON.stringify(shown)}`);
+  assert.deepEqual(got, ['e3', 'e4', 'e5'], 'the confirmed events of the dropped ticks are delivered once');
+  assert.equal(h.shown, null); assert.equal(h.queue.length, 0);
+});

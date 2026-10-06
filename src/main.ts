@@ -765,7 +765,7 @@ const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/
 let hitStop = 0;
 // PvP presentation hold: the contact tick's picture stays on screen for stopFor() ms while the sim keeps stepping (those ticks queue as snapshots), then
 // the queue plays out CATCHUP (pvp-hold.ts) ticks a frame until the screen is live again. Never read by the sim, the driver or a record.
-const pvpHold = newHold<{ state: typeof state; practice: typeof match.practice }>();
+const pvpHold = newHold<{ state: typeof state; practice: typeof match.practice; rollbacks: number }>();
 function clearPvpHold() { clearHold(pvpHold); }
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
@@ -1870,7 +1870,7 @@ function frame(now: number) {
       state = practice.fighter;
       accumulator -= step();
       if (match.mode === 'pvp' && !quiet) {   // the drawn hold: the sim above has already stepped; only what the next draw shows is delayed
-        onTick(pvpHold, { state, practice }, pvpHold.shown ? 0 : stopFor(practice.events), match.frameEvents.length);
+        onTick(pvpHold, { state, practice, rollbacks: match.pvp?.rollbacks ?? 0 }, pvpHold.shown ? 0 : stopFor(practice.events), match.frameEvents.length);
       }
       if (result === 'ended') {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
@@ -1932,7 +1932,7 @@ function frame(now: number) {
     if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
   }
   const alpha = accumulator / step();
-  const drawn = match.mode === 'pvp' ? onFrame(pvpHold, elapsed * 1000, match.frameEvents, (v) => stopFor(v.practice.events), (v) => v.practice.events) : { shown: null, events: match.frameEvents, held: false };
+  const drawn = match.mode === 'pvp' ? onFrame(pvpHold, elapsed * 1000, match.frameEvents, (v) => stopFor(v.practice.events), (v) => v.practice.events, (v) => v.rollbacks !== (match.pvp?.rollbacks ?? 0)) : { shown: null, events: match.frameEvents, held: false };
   const pvpShown = drawn.shown, shownEvents = drawn.events, held = drawn.held;   // behind the sim: the snapshot is drawn, not the live tick
   try {
     view.render(
