@@ -961,9 +961,9 @@
   },
   "nightborn:30:731:walkin": {
    "ticks": 600,
-   "draws": 359,
-   "rng": "d0e46645c06d149d",
-   "state": "737f9c1d10bacb13"
+   "draws": 309,
+   "rng": "405c4d6247a17619",
+   "state": "0d637664c4e52000"
   },
   "nightborn:30:20260922:idle": {
    "ticks": 600,
