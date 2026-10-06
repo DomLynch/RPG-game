@@ -49,8 +49,8 @@ test('every arena\'s floor stays darker than the hero\'s skin, and each new aren
     const base = luminance(one.sand) * shade;
     assert.ok(Math.abs(floor / base - 1) < 0.15, `${theme.id}: floor luminance ${floor.toFixed(3)} is more than 15 % from Arena 1's ${base.toFixed(3)}`);
     if (theme.id === '1') continue;
-    // Arenas 2, 3 and 4 (painted far worlds) keep Arena 1's masonry on purpose: its difference is the painted far world, not the wall.
-    if (['2', '3', '4'].includes(theme.id)) continue;
+    // Arenas 2 to 5 (painted far worlds) keep Arena 1's masonry on purpose: its difference is the painted far world, not the wall.
+    if (['2', '3', '4', '5'].includes(theme.id)) continue;
     // A different wall, not a recoloured one: the masonry's luminance pattern barely correlates with Arena 1's.
     const lum = (p: { data: Uint8Array }) => Float64Array.from({ length: p.data.length / 4 }, (_, i) => 0.3 * p.data[i * 4] + 0.59 * p.data[i * 4 + 1] + 0.11 * p.data[i * 4 + 2]);
     const a = lum(maps.stone), b = lum(one.stone), ma = a.reduce((x, y) => x + y) / a.length, mb = b.reduce((x, y) => x + y) / b.length;

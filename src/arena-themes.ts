@@ -47,7 +47,7 @@ export type ArenaTheme = {
   spectators?: boolean;   // false: no crowd
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
-export type ArenaKey = '1' | '2' | '3' | '4' | 'a' | 'b' | 'c' | 'd';
+export type ArenaKey = '1' | '2' | '3' | '4' | '5' | 'a' | 'b' | 'c' | 'd';
 
 const ONE: RGB = [1, 1, 1];
 // Arena 1's numbers, exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes: its maps are byte-identical.
@@ -69,6 +69,8 @@ const ARENA_2: ArenaTheme = { ...ARENA_1, id: '2', name: 'The Skull Gate', backd
 const ARENA_3: ArenaTheme = { ...ARENA_1, id: '3', name: 'Sunset Legion', backdrop: '/arena/backdrop-3.webp' };
 // Arena 4, Heaven's Breach (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=4; not on the ladder yet.
 const ARENA_4: ArenaTheme = { ...ARENA_1, id: '4', name: "Heaven's Breach", backdrop: '/arena/backdrop-4.webp' };
+// Arena 5, The Bone Camp (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=5; not on the ladder yet.
+const ARENA_5: ArenaTheme = { ...ARENA_1, id: '5', name: 'The Bone Camp', backdrop: '/arena/backdrop-5.webp' };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
 const BRICK: WallStyle = { courses: 14, blocks: [6, 9], mortar: 0.62, hues: [[1.08, 0.94, 0.88], [1, 0.9, 0.84], [1.12, 0.98, 0.9], [0.94, 0.86, 0.82], [1.04, 0.96, 0.9], [0.9, 0.84, 0.8]] };
@@ -77,6 +79,7 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
   '2': ARENA_2,
   '3': ARENA_3,
   '4': ARENA_4,
+  '5': ARENA_5,
   // A — The Night Pit (2A evolved): no sun. A starless night; the braziers are the only warm light, one low firelight that sways
   // and flickers so the fighters' shadows run long and move; embers rise off the coals instead of ash. Red clay, brick wall.
   a: {
