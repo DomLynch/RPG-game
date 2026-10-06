@@ -1,11 +1,12 @@
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 export const STEP = 1 / 60;
-import { PLAY_SCALE, RADIUS } from './play-radius.ts';
+import { PLAY_SCALE, RADIUS, spawnScale } from './play-radius.ts';
 export { PLAY_SCALE, RADIUS };   // the play circle (play-radius.ts): 8.55 m, 0.6 of it in Arena 1 from record version 23
 export const TARGET = { x: 0, z: -2.5 };
 export type State = { x: number; z: number; heading: number; distance: number };
 export type Input = { x: number; z: number; yaw: number; run: boolean };
-export const initialState = (): State => ({ x: 0, z: 4, heading: Math.PI, distance: 0 });
+export const initialState = (): State => ({ x: 0, z: 4 * spawnScale(), heading: Math.PI, distance: 0 });
+export const initialTarget = (): { x: number; z: number } => ({ x: 0, z: TARGET.z * spawnScale() });   // the opponent's start (TARGET is the full-size one)
 
 // World coordinates only. No renderer, clock, animation, physics or browser state.
 // `pace` scales the fighter's speed (moves.ts `Opponent.speed`; 1 = a man): walking, sprinting, the wind-up lunge and the backstep all follow it.

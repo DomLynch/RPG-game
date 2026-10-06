@@ -389,13 +389,13 @@ test('the lock camera is the original framing (Dom 2026-10-05): back max(4.2, d*
   }
 });
 
-test('in a smaller arena the lock looks 0.9 m nearer the camera at 0.6, and the default arena is untouched', async () => {
+test('in a smaller arena the lock looks 1.44 m nearer the camera at 0.36, and the default arena is untouched', async () => {
   const { setPlayScale } = await import('../src/play-radius.ts');
   const state = { x: 0, z: 4, heading: Math.PI, distance: 0 };
   const full = cameraPose(state, 0, 0.5, true);
-  setPlayScale(0.6);
+  setPlayScale(0.36);
   const small = cameraPose(state, 0, 0.5, true);
   setPlayScale(1);
-  assert.ok(Math.abs(small.lookZ - full.lookZ - 0.9) < 1e-9 && small.lookX === full.lookX);
+  assert.ok(Math.abs(small.lookZ - full.lookZ - 1.44) < 1e-9 && small.lookX === full.lookX);
   assert.deepEqual(cameraPose(state, 0, 0.5, true), full);
 });
