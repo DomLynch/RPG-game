@@ -1,5 +1,6 @@
-// O2 burns: consume (quest hand-in) and applyUpgrade (the smith's material cost) spend units for good, all or nothing, once per op id,
-// each into the ledger, so conservation reads minted = held + burned per root mint key.
+// O2 burns: consume (quest hand-in) and applyUpgrade (the smith's material cost) spend units for good, all or nothing, once per op id
+// (a same-request retry returns the original burn), each into the ledger, so conservation reads minted = held + burned per root mint key.
+// Story-critical pieces burn only on a quest step that names them.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Result } from '../contracts/core.ts';
@@ -16,6 +17,7 @@ const ORE = 'item:exchange-ore' as ItemId;
 const holdings = (inv: Inventory, ledger: readonly Burn[] = []): Holdings => ({ inventory: inv, ledger });
 const withItems = (...items: ItemInstance[]): Inventory => items.reduce((inv, item) => value(receive(inv, item, lookup)), empty());
 const handIn = (patch: Partial<ConsumeOp> = {}): ConsumeOp => ({ op: 'quest:ore-handin:0001', owner: PC, reason: 'quest-handin', qty: 5, itemId: ORE, ...patch });
+const RECORD = 'item:stolen-name-record' as ItemId;
 // A refused burn leaves the frozen state byte-identical.
 function unchanged(state: Holdings, op: (s: Holdings) => Result<unknown>, code: string, path?: string): void {
   const frozen = deepFreeze(state), before = JSON.stringify(frozen);
@@ -31,7 +33,7 @@ test('consume burns from the backpack, lowest slot first, across stacks; the led
   const b = find(out.inventory, 'inst:ore-b')!;
   assert.deepEqual([b.quantity, b.version, b.location], [8, find(inv, 'inst:ore-b')!.version + 1, find(inv, 'inst:ore-b')!.location]);
   assert.deepEqual(out.ledger, [{
-    op: 'quest:ore-handin:0001', owner: PC, reason: 'quest-handin',
+    op: 'quest:ore-handin:0001', owner: PC, reason: 'quest-handin', asked: { qty: 5, itemId: ORE },
     lines: [{ instance: 'inst:ore-a', item: ORE, mintKey: 'loot:ruin-vigil:a', quantity: 3 }, { instance: 'inst:ore-b', item: ORE, mintKey: 'loot:ruin-vigil:b', quantity: 2 }],
   }]);
   assert.deepEqual(checkConservation(out.inventory.items, minted, out.ledger), []);
@@ -49,7 +51,9 @@ test('consume refuses, state untouched: too few, a repeated op id, unknown items
   unchanged(s, (x) => consume(x, handIn(), lookup), 'rule-violation', 'qty'); // 4 in the pack; the 10 in the bank never count
   unchanged(s, (x) => consume(x, handIn({ qty: 5, itemId: undefined, mintKey: 'loot:ruin-vigil:b' }), lookup), 'rule-violation', 'qty');
   const once = value(consume(s, handIn({ qty: 2 }), lookup));
+  // The same op id with a different request is refused (an op id names one request).
   unchanged(once, (x) => consume(x, handIn({ qty: 1 }), lookup), 'duplicate-id', 'op');
+  unchanged(once, (x) => consume(x, handIn({ qty: 2, itemId: undefined, mintKey: 'loot:ruin-vigil:a' }), lookup), 'duplicate-id', 'op');
   for (const itemId of ['item:nothing', 'constructor', '__proto__', 42]) unchanged(s, (x) => consume(x, handIn({ itemId: itemId as ItemId }), lookup), 'unknown-id', 'itemId');
   unchanged(s, (x) => consume(x, handIn({ itemId: undefined, mintKey: 'loot:ruin-vigil:zzz' }), lookup), 'unknown-id', 'mintKey');
   for (const qty of [0, -1, 1.5, Number.NaN, '2' as never, Infinity]) unchanged(s, (x) => consume(x, handIn({ qty }), lookup), 'out-of-range', 'qty');
@@ -59,7 +63,33 @@ test('consume refuses, state untouched: too few, a repeated op id, unknown items
   unchanged(s, (x) => consume(x, handIn({ reason: 'sell' as never }), lookup), 'wrong-type', 'reason');
   unchanged(s, (x) => consume(x, handIn({ op: 'x' }), lookup), 'wrong-type', 'op');
   unchanged(s, (x) => consume(x, null as never, lookup), 'wrong-type', 'op');
-  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: 'item:stolen-name-record' as ItemId }), lookup), 'rule-violation', 'itemId');
+  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: RECORD }), lookup), 'rule-violation', 'itemId');
+});
+
+test('a retry with the same op id and the same request returns the original burn and changes nothing', () => {
+  const s = holdings(withItems(oreStack('inst:ore-a', 10, 'a')));
+  const first = value(consume(s, handIn(), lookup));
+  assert.equal(first.replayed, false);
+  const frozen = deepFreeze(first), before = JSON.stringify([frozen.inventory, frozen.ledger]);
+  const again = value(consume(frozen, handIn(), lookup));
+  assert.equal(again.replayed, true);
+  assert.equal(again.burn, first.burn, 'the original ledger entry, not a new one');
+  assert.equal(JSON.stringify([again.inventory, again.ledger]), before);
+  assert.equal(find(again.inventory, 'inst:ore-a')!.quantity, 5, 'spent once');
+});
+
+test('story-critical pieces: never by a generic burn; a quest step that names the item may burn it; naming another item is refused', () => {
+  const s = holdings(withItems(record(), oreStack('inst:ore-a', 10, 'a')));
+  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: RECORD }), lookup), 'rule-violation', 'itemId');
+  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: undefined, mintKey: 'quest:stolen-name:ruin:dom-1' }), lookup), 'rule-violation', 'itemId');
+  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: RECORD, consumesStoryItem: ORE }), lookup), 'rule-violation', 'consumesStoryItem');
+  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: ORE, consumesStoryItem: RECORD }), lookup), 'rule-violation', 'consumesStoryItem');
+  unchanged(s, (x) => consume(x, handIn({ qty: 1, itemId: RECORD, consumesStoryItem: RECORD, reason: 'upgrade-cost' }), lookup), 'rule-violation', 'consumesStoryItem');
+  const minted = mintTotals(s.inventory.items);
+  const done = value(consume(s, handIn({ op: 'quest:stolen-name:returned', qty: 1, itemId: RECORD, consumesStoryItem: RECORD }), lookup));
+  assert.equal(find(done.inventory, 'inst:5f0c2d4e-0003'), undefined);
+  assert.deepEqual(done.burn.lines, [{ instance: 'inst:5f0c2d4e-0003', item: RECORD, mintKey: 'quest:stolen-name:ruin:dom-1', quantity: 1 }]);
+  assert.deepEqual(checkConservation(done.inventory.items, minted, done.ledger), []);
 });
 
 test('split, merge and consume keep conservation: minted = held + burned per root mint key, by item or by mint family', () => {
@@ -113,9 +143,14 @@ test('applyUpgrade replaces the piece in place and burns the cost lines in the s
   assert.equal(find(next.inventory, 'inst:iron-b')!.quantity, 8);
   assert.deepEqual(next.ledger.map((b) => [b.op, b.reason, b.lines.map((l) => [l.instance, l.quantity])]), [['upgrade:req-0002', 'upgrade-cost', [['inst:iron-a', 3], ['inst:iron-b', 2]]]]);
   assert.deepEqual(checkConservation(next.inventory.items, minted, next.ledger), []);
-  // Applied once: the same outcome again, or the smith's replay of it, is refused.
-  unchanged(next, (x) => applyUpgrade(x, out, lookup, EXCHANGE), 'duplicate-id');
-  unchanged(next, (x) => applyUpgrade(x, { replayed: true, receipt: out.receipt }, lookup, EXCHANGE), 'duplicate-id', 'outcome');
+  // Applied once: the same outcome again, or the smith's replay of it, returns the original burn and changes nothing.
+  const frozen = deepFreeze(next), books = JSON.stringify([frozen.inventory, frozen.ledger]);
+  for (const retry of [out, { replayed: true as const, receipt: out.receipt }]) {
+    const r = value(applyUpgrade(frozen, retry, lookup, EXCHANGE));
+    assert.deepEqual([r.replayed, r.burn === next.burn, JSON.stringify([r.inventory, r.ledger])], [true, true, books]);
+  }
+  // A different receipt under the same key is refused.
+  unchanged(next, (x) => applyUpgrade(x, { ...out, receipt: { ...out.receipt, coin: 1 } }, lookup, EXCHANGE), 'duplicate-id', 'op');
 });
 
 test('applyUpgrade refuses, state untouched: bank lines away from the Exchange, a stale piece or stack, a disagreeing outcome', () => {
@@ -130,6 +165,8 @@ test('applyUpgrade refuses, state untouched: bank lines away from the Exchange, 
   // An outcome whose rows disagree with its receipt.
   const forged: Worked = { ...out, materials: out.materials.map((m) => ({ ...m, quantity: m.quantity + 1 })) };
   unchanged(s, (x) => applyUpgrade(x, forged, lookup, EXCHANGE), 'version-conflict', 'outcome.materials');
+  // The smith's replay of an upgrade this inventory never applied carries no rows to apply.
+  unchanged(s, (x) => applyUpgrade(x, { replayed: true, receipt: out.receipt }, lookup, EXCHANGE), 'rule-violation', 'outcome');
   // Another character's receipt.
   unchanged(s, (x) => applyUpgrade(x, { ...out, receipt: { ...out.receipt, character: RIVAL } }, lookup, EXCHANGE), 'rule-violation', 'owner');
 });
