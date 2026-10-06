@@ -1,4 +1,4 @@
-// Up/down rehearsal and checks for the Origins trade-limits migration (202610070004 slice 1: cooldown guard, DB-written trade history, expiry sweep, event kinds, config) on a
+// Up/down rehearsal and checks for the Origins trade-limits migration (202610070005 slice 1: cooldown guard, DB-written trade history, expiry sweep, event kinds, config) on a
 // disposable PostgreSQL cluster on top of every earlier migration: apply, attack as the writer role, down-script, probes identical to before.
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const UP = '202610070004_origins_trade_limits.sql';
+const UP = '202610070005_origins_trade_limits.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -166,6 +166,14 @@ try {
   open('tr:5', pcB, pcC);
   refused('no readable clock fails closed', 'no readable trade clock', () => change('tr:5', pcB, 0, [put('it:old2', ver('it:old2'), esc('tr:5', pcB))]));
   cancel('tr:5', 'cancelled', []);
+
+  // a retirement nulls loc_kind: the cooldown guard must let a burn of a cooling piece through. 0003's escrow guard has the same flaw in prod and blocks every
+  // burn until 0004_origins_escrow_guard_null (#1523) is in the migrations folder, so this row runs only once that file is on the base.
+  if (files.some(n => n.includes('escrow_guard_null'))) {
+    commit(B, [mintOp('it:burn', 'gem', 1, loc('pack', pcB, 9), 'mk:burn', { ...one, ...at(fresh) })]);
+    commit(B, [{ op: 'burn', id: 'it:burn', expected_version: ver('it:burn'), count: 1 }]);
+    eq(psql(`select count(*) from public.origins_items where id = 'it:burn' and retired_at is not null`), '1', 'a cooling piece can still be burned (null-safe guard)');
+  } else console.log('origins-trade-limits-check: burn row SKIPPED (escrow_guard_null not on this base)');
 
   // M10: the sweep
   eq(psql(`select count(*) from public.origins_expire_trades()`), '0', 'a fresh trade is not swept');

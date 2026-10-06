@@ -1,5 +1,5 @@
 begin;
--- Drops exactly what 202610070004_origins_trade_limits.sql creates and restores 0003's 13-kind event check. Valid only while no 'trade-reversal', 'trade-hold' or
+-- Drops exactly what 202610070005_origins_trade_limits.sql creates and restores 0003's 13-kind event check. Valid only while no 'trade-reversal', 'trade-hold' or
 -- 'metal' event exists (events are append-only).
 drop function public.origins_expire_trades();
 drop trigger origins_trade_history on public.origins_items;

@@ -1,7 +1,7 @@
 begin;
 -- DRAFT, NOT FOR APPLY. No PRE, no apply until Strategy + Lead's joint GO (Dom too for any class 2 statement).
--- ROLLBACK: supabase/down/202610070004_origins_trade_limits_down.sql (valid only while no 'trade-reversal'/'trade-hold'/'metal' event exists).
--- Origins trade limits, slice 1 of 0004 (docs/specs/origins/trading.md §6 M9, M10, M11, M13). Origins-only; the flag is OFF and the tables hold no rows.
+-- ROLLBACK: supabase/down/202610070005_origins_trade_limits_down.sql (valid only while no 'trade-reversal'/'trade-hold'/'metal' event exists).
+-- Origins trade limits, slice 1 of 0005 (docs/specs/origins/trading.md §6 M9, M10, M11, M13). Origins-only; the flag is OFF and the tables hold no rows.
 --   M9  the per-item trade cooldown (economy.ts tradeCooldown, no hard limit: Dom 2026-10-07): the DB writes the 'trade' history entry itself (0003's guard forbids
 --       a client-sent history_append) and refuses a piece entering escrow before its cooldown ends.
 --   M10 origins_expire_trades(): the open trades the writer must now cancel (past expires_at, or idle too long).
@@ -30,7 +30,7 @@ $$;
 create function public.origins_trade_cooldown_guard() returns trigger language plpgsql security definer set search_path = '' as $$
 declare hops int; since timestamptz; wait_s bigint;
 begin
-  if not (new.loc_kind = 'trade-escrow' and (tg_op = 'INSERT' or old.loc_kind is distinct from 'trade-escrow' or old.loc_container is distinct from new.loc_container)) then return new; end if;
+  if not (new.loc_kind is not distinct from 'trade-escrow' and (tg_op = 'INSERT' or old.loc_kind is distinct from 'trade-escrow' or old.loc_container is distinct from new.loc_container)) then return new; end if;   -- null-safe: a retirement nulls loc_kind
   select count(*), max((e ->> 'at')::timestamptz) into hops, since from jsonb_array_elements(new.history) e where e ->> 'kind' = 'trade';
   since := coalesce(since, (new.provenance ->> 'at')::timestamptz);
   wait_s := public.origins_trade_cooldown_s(hops);
