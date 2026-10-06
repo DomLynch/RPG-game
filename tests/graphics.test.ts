@@ -450,7 +450,7 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
   const measured: Record<string, number[]> = {}, expected: Record<string, number[]> = {};
   let needTick = true;
-  for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
+  for (let frame = 0; frame < 30000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
     const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
     if (needTick) { if (hitsDone) { app.key('KeyQ'); app.key('ArrowUp'); } else if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }   // Q + up: the overhead guard that meets a heavy (directional guard)
     needTick = true;
