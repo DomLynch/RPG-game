@@ -60,7 +60,7 @@ export const gift = (offered: string[]): Trade => value(parseTrade({
   sides: [{ character: RIVAL, account: RIVAL_ACCOUNT, offered, accepted: true }, { character: PC, account: ACCOUNT, offered: [], accepted: true }],
 }));
 export const escrowed = (inst: ItemInstance): ItemInstance => ({ ...inst, location: { kind: 'trade-escrow', container: 'container:trade.7' as never, from: RIVAL } });
-export const LATER = '2026-10-07T09:30:00Z';
+export const LATER = '2026-10-09T12:00:00Z'; // 72 h after F.AT: a fresh piece's first-trade delay (economy.ts FIRST_TRADE_DELAY_S) has run
 
 export function empty(packSize = 4, bankSize = 4, owner = PC, account = ACCOUNT): Inventory {
   const r = openInventory({ owner, account, items: [], packSize, bankSize }, lookup);

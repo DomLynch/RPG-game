@@ -98,7 +98,7 @@ test('record: packing refuses a record whose tick count and intents disagree, or
   const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   rec.push(intent()); const r = rec.finish('draw');
   assert.throws(() => packRecord({ ...r, ticks: 2 }), /ticks does not match/);
-  assert.throws(() => packRecord({ ...r, level: 47 }), /unknown level or outcome/);
+  assert.throws(() => packRecord({ ...r, level: 51 }), /unknown level or outcome/);
   assert.throws(() => packRecord({ ...r, build: 'sha-é' }), /non-ASCII/);
 });
 

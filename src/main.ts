@@ -51,6 +51,7 @@ import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
+import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
@@ -102,18 +103,17 @@ const message = element('message');
 // The rank row (Dom 2026-09-23: "a progress bar, with future visibility to what's next"): ONE component for the account panel, the
 // journal's fighter card and the fight-end panel, so they never drift. Left the class + numeral, then one segment per numeral of the
 // class (done numerals full, the current one filled by its pips), then the class it climbs toward. The bar is the information: no counts
-// in prose; the full label (with the pips) stays as the row's accessible name. Origin has no bar.
+// in prose; the full label (with the pips) stays as the row's accessible name. Origin is five sub-ranks now (I–V, the 50-level ladder), so it has its bar too, with no class after it.
 function renderRank(host: HTMLElement, rank: Rank) {
   const make = (tag: string, className: string, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };
   host.setAttribute('aria-label', rank.label);
-  if (!rank.next) { host.replaceChildren(make('span', 'rank-now', rank.title)); return; }
   const bar = make('span', 'rank-bar');
   bar.replaceChildren(...Array.from({ length: RANK_STEPS }, (_, i) => {
     const segment = make('i', 'rank-seg');
     segment.style.setProperty('--fill', `${i < rank.step ? 100 : i === rank.step ? Math.round(rank.fill * 100) : 0}%`);
     return segment;
   }));
-  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
+  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, ...(rank.next ? [make('span', 'rank-next', rank.next)] : []));
 }
 // The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
@@ -529,7 +529,7 @@ const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
-// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
+// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 50; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
@@ -548,11 +548,11 @@ const shownTier = (met: Tier = metAt): Tier => lookTier ?? (match.mode === 'spar
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
-// The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
+// The Sparring tab's Difficulty: any of the 50 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
 // (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 // Difficulty is the Opponent's ten legends, one per rank, "6 – Hannibal" (Dom 2026-09-29, layout A: rank number – legendAt), then the
-// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 46); the line of the rank the
+// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 50); the line of the rank the
 // current level sits in carries that level as its value (its text stays "2 – Ragnar Lothbrok"; Strategy 2026-09-29), so the control still
 // names the fight's level (the release rows read it) and Start sparring without a new pick fights where it stands. Any pick rebuilds the
 // list on the picked top, so every fresh pick fights at its rank's top. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
@@ -799,7 +799,9 @@ function winFace(src: string | null) {
 const LESSON_MS = 4000;
 let lessonNow: LessonId | undefined, lessonTimer = 0;
 export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
   hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
@@ -1240,6 +1242,18 @@ if (lessonAsked) {
   match.startLesson((id) => { heard.push(id); document.documentElement.dataset.lesson = id; onLesson(id); });
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
   began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
+}
+// The tutorial start scene (src/tutorial.ts, Match 'tutorial'): `?tutorial=1` only, until Dom approves the preview. The slow warden waits on each step;
+// the step ids land on <html data-tutorial-done> and __tutorial for the Web lane's instructions and the stills harness.
+if (!sparKit && !replayText && !sharedId && !invalidSparringPreview && !lessonAsked && new URLSearchParams(window.location?.search ?? '').get('tutorial') === '1') {
+  welcome.hidden = true; watching = false;
+  const done: string[] = [];
+  // After the last step the prompt turns into "YOU'RE READY" with a Fight! button: it marks the lesson done and drops into a normal first fight (?fight=1, as the first loss does).
+  tutorialUi = createTutorialUi(element, () => { try { storage.setItem(LESSON_DONE_KEY, '1'); } catch { /* unsaved: harmless */ } location.assign(`${location.pathname}?fight=1`); });
+  document.documentElement.dataset.tutorial = '1';   // style.css hides the old status line: one message only
+  match.startTutorial((id) => { done.push(id); document.documentElement.dataset.tutorialDone = id; });
+  Object.assign(globalThis, { __tutorial: () => ({ tick: match.practice.duel.tick, done: [...done], current: match.tutorial?.current ?? null, recorder: !!match.recorder, finish: match.practice.finish }) });
+  began();
 }
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
@@ -1776,7 +1790,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson' && match.mode !== 'tutorial') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {
@@ -1844,7 +1858,7 @@ function frame(now: number) {
         holding: foeHolding(practice.duel.fighters[1]),
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
-      });
+      }, quiet ? [] : practice.clarity);
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;
