@@ -10,8 +10,9 @@
   tradeable), `origins/world` (zones as data; world group #16 `town` comes from `feuds.md` §11), `origins/progression`
   (`TYPE_WEIGHTS`, first-win-only bosses, `MIN_CONTRIBUTION_PERMILLE`) and `origins/boss` (the world boss state machine, #1448).
 - Standing rules, unchanged: **never gear loss**; every NPC strike is telegraphed and dodgeable; collect-N stays banned; travel stays
-  short; twists are Origins encounter flags that never move the live ladder. **One deliberate exception:** clan perk templates
-  apply in the Pit too (Dom's override, §10), with a `RECORD_VERSION` bump and a re-pinned RNG fingerprint.
+  short; twists are Origins encounter flags that never move the live ladder. **One deliberate exception:** clan perks
+  reach the Pit too (Dom's override, §10), but only the no-damage sidegrades of `patron-perks-sim.md` (Strategy, 2026-10-07; the
+  §10.2 damage templates are Origins PvE only), with a `RECORD_VERSION` bump and a re-pinned RNG fingerprint.
 
 ## 1. The loop
 
@@ -711,8 +712,8 @@ Per player: `{ "kind": "allegiance", "character": "pc:…", "clan": "clan:… | 
 - **Player lords** may set their town's patron to their own clan's patron once per term (§11.2), if the clan has one. The strike
   changes with it, and the book records it. A legend-headed clan with no strike leaves the town's strike off.
 - **Phasing (Dom's override):** the **choice**, trials and marks ship **at graduation**, as part of the first Origins step.
-  **Perk templates** ship when Combat's duel-sim hook, the `RECORD_VERSION` bump and Stats' win-rate check are ready; until then a
-  clan is identity only. **War-goal sides** and prestige ship with the war goals (phase d). **Patron defenders** ship with player
+  **Arena sidegrades** (`patron-perks-sim.md`, no damage) ship when Combat's duel-sim hook, the `RECORD_VERSION` bump and Stats'
+  win-rate check are ready; the §10.2 damage templates are Origins PvE only. Until then a clan is identity only in the arena. **War-goal sides** and prestige ship with the war goals (phase d). **Patron defenders** ship with player
   lords after the PvP verifier (phase e). Strategy is re-sequencing.
 
 ## 11. The player rule (phase e: built after the PvP verifier)
@@ -886,7 +887,7 @@ Strategy's order (§2.4), re-sequenced by Strategy on 2026-10-06 to match the ta
 
 | Phase | Ships | Needs | Pre-verifier? |
 |---|---|---|---|
-| (0) Graduation (Dom) | clan and patron choice at Gladiator, entry trials, marks, the Exchange's book line; perk templates when Combat's hook lands | the trial encounter, the `clan` kind, a `RECORD_VERSION` bump for perks | yes |
+| (0) Graduation (Dom) | clan and patron choice at Gladiator, entry trials, marks, the Exchange's book line; arena no-damage sidegrades when Combat's hook lands (damage templates Origins PvE only) | the trial encounter, the `clan` kind, a `RECORD_VERSION` bump for perks | yes |
 | (a) Rifts | scheduler, sites, warning, shared bar, personal loot, the `rift-boss` row, weekly cap | #1448 (merged, pure), the server's loot roll, a contracts row | yes |
 | (b) History book | server log, templates, the town lectern and web page, moderated names; plaques and donations | the deed ops of `feuds.md` (rival kill, bouncer, succession) | yes |
 | (c) NPCs remember | `book-has` barks, shop bans and pardons by NPC rulers and petition | (b) | yes |
