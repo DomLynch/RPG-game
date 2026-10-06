@@ -34,10 +34,22 @@ function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, 
 const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
 const column = (r: number, h: number) => new THREE.CylinderGeometry(r * 0.88, r, h, 14);
 
+// The kit's column (Concord Exchange kit, slice 1): a base plinth and torus, a shaft with entasis (a slight swell, narrower at the neck) and 16 flutes,
+// and a capital of necking, echinus and abacus. Same footprint as the greybox column (radius r, height h from `base`), so nothing around it moves.
+function flutedShaft(r: number, h: number): THREE.BufferGeometry {
+  const profile = [[0.9, 0], [1, 0.03], [1.01, 0.4], [1, 0.62], [0.92, 1]].map(([k, t]) => new THREE.Vector2(r * k, t * h));
+  const g = new THREE.LatheGeometry(profile, 32).toNonIndexed(), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), f = 1 - 0.045 * Math.abs(Math.sin(Math.atan2(z, x) * 8)) ** 0.6; p.setXYZ(i, x * f, p.getY(i), z * f); }
+  return g;
+}
 function fluteColumn(out: THREE.BufferGeometry[], x: number, z: number, h: number, r: number, base = 0) {
-  out.push(piece(box(r * 2.6, 0.35, r * 2.6), x, base + 0.175, z, DARKSTONE, 0, base),
-    piece(column(r, h - 0.8), x, base + 0.35 + (h - 0.8) / 2, z, SANDSTONE, 0, base),
-    piece(box(r * 2.8, 0.45, r * 2.8), x, base + h - 0.225, z, SANDSTONE, 0, base));
+  const cap = 0.55, shaft = h - 0.3 - cap;   // plinth .3 + torus, shaft, then neck + echinus + abacus (cap)
+  out.push(piece(box(r * 2.7, 0.3, r * 2.7), x, base + 0.15, z, DARKSTONE, 0, base),
+    piece(new THREE.CylinderGeometry(r * 1.18, r * 1.28, 0.16, 20), x, base + 0.38, z, DARKSTONE, 0, base),
+    piece(flutedShaft(r, shaft).translate(0, 0.46, 0), x, base, z, SANDSTONE, 0, base),
+    piece(new THREE.CylinderGeometry(r * 0.92, r * 0.86, 0.1, 20), x, base + h - cap + 0.05, z, DARKSTONE, 0, base),
+    piece(new THREE.CylinderGeometry(r * 1.45, r * 0.95, 0.28, 20), x, base + h - cap + 0.24, z, SANDSTONE, 0, base),
+    piece(box(r * 3.0, 0.17, r * 3.0), x, base + h - 0.085, z, SANDSTONE, 0, base));
 }
 
 // The frieze inscription: carved letters on a stone-coloured canvas (greybox signage, not final art).
@@ -84,11 +96,14 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
     const x = side * (Z.halfWidth - 1.5), back = side * (Z.halfWidth + 3), from = Z.near - 6, to = Z.far + 6;
     for (let z = from; z >= to; z -= 4) fluteColumn(stones, x, z, 5.2, 0.32);
     stones.push(piece(box(5.4, 0.7, from - to + 2), (x + back) / 2, 5.55, (from + to) / 2, SANDSTONE));
+    for (let z = from; z >= to; z -= 4) stones.push(piece(box(5.4, 0.32, 0.5), (x + back) / 2, 5.05, z, DARKSTONE, 0, 4.9));   // a beam across every bay, under the roof slab, over each column
+    stones.push(piece(box(0.4, 0.5, from - to + 2), x, 5.0, (from + to) / 2, DARKSTONE, 0, 4.8));                                  // the architrave the beams rest on
     stones.push(piece(box(0.8, 5.2, from - to + 2), back, 2.6, (from + to) / 2, DARKSTONE, 0, 0));
     for (let z = from - 2; z > to; z -= 8) soot.push(piece(box(0.1, 2.6, 1.6), back - side * 0.42, 1.3, z, SOOT));   // doorways into the back rooms
   }
   // The contract board, under the left stoa: a timber frame and pinned notices.
-  stones.push(piece(box(0.25, 2.6, 0.25), -12.2, 1.3, -34.6, SOOT), piece(box(0.25, 2.6, 0.25), -12.2, 1.3, -37.4, SOOT), piece(box(0.14, 1.5, 3.1), -12.2, 1.75, -36, [0.5, 0.36, 0.24]));
+  stones.push(piece(box(0.25, 2.6, 0.25), -12.2, 1.3, -34.6, SOOT), piece(box(0.25, 2.6, 0.25), -12.2, 1.3, -37.4, SOOT), piece(box(0.14, 1.5, 3.1), -12.2, 1.75, -36, [0.5, 0.36, 0.24]),
+    piece(box(0.4, 0.12, 3.5), -12.2, 2.66, -36, SOOT), piece(box(0.3, 0.1, 3.3), -12.2, 2.78, -36, [0.45, 0.33, 0.22]), piece(box(0.22, 0.08, 3.3), -12.2, 1.0, -36, SOOT));   // posts, board, a crossbar with a little hood and a ledge
   for (let i = 0; i < 9; i++) stones.push(piece(box(0.02, 0.36, 0.28), -12.1, 1.3 + (i % 3) * 0.45, -35 - Math.floor(i / 3) * 0.95 + (i % 2) * 0.12, [1.5, 1.42, 1.25]));
 
   // The Covenant Stone at the centre: why rivals may meet here without blades. A stepped round plinth and a tall dark stele.
@@ -126,7 +141,15 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
   const braziers = [new THREE.Vector3(-4, 0, B - 1.2), new THREE.Vector3(4, 0, B - 1.2), new THREE.Vector3(-3.4, 0, P.to - 2), new THREE.Vector3(3.4, 0, P.to - 2), new THREE.Vector3(-4.2, 0, S.z), new THREE.Vector3(4.2, 0, S.z)];
   const coal: THREE.BufferGeometry[] = [piece(new THREE.BoxGeometry(1.3, 0.08, 1.3), FORGE.x - FORGE.halfX + 1.1, 0.94, FORGE.z - 1.2, [1, 1, 1])];
   for (const b of braziers) {
-    irons.push(piece(new THREE.CylinderGeometry(0.08, 0.14, 1.2, 8), b.x, 0.6, b.z, SOOT, 0, 0), piece(new THREE.CylinderGeometry(0.5, 0.28, 0.35, 12), b.x, 1.3, b.z, [0.6, 0.5, 0.4]));
+    for (let k = 0; k < 3; k++) {   // a tripod: three legs splayed from the bowl's ring to the flags, joined by a low hoop
+      const a = (k / 3) * Math.PI * 2 + 0.4, lx = Math.cos(a), lz = Math.sin(a), leg = new THREE.CylinderGeometry(0.035, 0.045, 1.25, 6);
+      leg.rotateZ(-lx * 0.17).rotateX(lz * 0.17);
+      irons.push(piece(leg, b.x + lx * 0.2, 0.62, b.z + lz * 0.2, SOOT, 0, 0));
+    }
+    irons.push(piece(new THREE.TorusGeometry(0.3, 0.03, 6, 14).rotateX(Math.PI / 2), b.x, 0.45, b.z, SOOT, 0, 0),
+      piece(new THREE.TorusGeometry(0.5, 0.045, 6, 18).rotateX(Math.PI / 2), b.x, 1.46, b.z, SOOT),
+      piece(new THREE.CylinderGeometry(0.5, 0.26, 0.38, 14, 1, true), b.x, 1.29, b.z, [0.6, 0.5, 0.4]),
+      piece(new THREE.CylinderGeometry(0.26, 0.05, 0.1, 10), b.x, 1.07, b.z, SOOT));
     coal.push(piece(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 12), b.x, 1.46, b.z, [1, 1, 1]));
   }
 
@@ -135,8 +158,12 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
   const awnings: THREE.Mesh[] = [];
   for (let i = 0; i < 4; i++) {
     const x = 8.5, z = -31 - i * 6.5;
-    stones.push(piece(box(2.6, 1.0, 1.2), x, 0.5, z, [0.55, 0.42, 0.3], 0, 0));
-    for (const dx of [-1.25, 1.25]) for (const dz of [-0.8, 0.8]) stones.push(piece(box(0.1, 2.3, 0.1), x + dx, 1.15, z + dz, [0.45, 0.33, 0.22], 0, 0));
+    const wood: Tint = [0.45, 0.33, 0.22];
+    stones.push(piece(box(2.6, 0.12, 1.2), x, 1.0, z, [0.55, 0.42, 0.3], 0, 0), piece(box(2.5, 0.88, 0.1), x, 0.5, z + 0.55, [0.5, 0.38, 0.26], 0, 0),   // the counter top and its front board
+      piece(box(0.1, 0.88, 1.0), x - 1.25, 0.5, z, wood, 0, 0), piece(box(0.1, 0.88, 1.0), x + 1.25, 0.5, z, wood, 0, 0), piece(box(2.5, 0.08, 1.1), x, 0.3, z, wood, 0, 0),   // its ends and a lower shelf
+      piece(box(2.7, 0.1, 0.1), x, 2.28, z - 0.8, wood, 0, 0), piece(box(2.7, 0.1, 0.1), x, 2.28, z + 0.8, wood, 0, 0));                                                      // the beams the awning hangs from
+    for (const dx of [-1.25, 1.25]) for (const dz of [-0.8, 0.8]) stones.push(piece(box(0.1, 2.3, 0.1), x + dx, 1.15, z + dz, wood, 0, 0));
+    for (let c = 0; c < 4; c++) stones.push(piece(new THREE.CylinderGeometry(0.15, 0.17, 0.2, 8), x - 0.8 + c * 0.55, 1.16, z + 0.05, [0.62 - c * 0.04, 0.5, 0.36 + c * 0.03], 0, 0));   // wares: jars along the counter
     const awning = new THREE.Mesh(new THREE.PlaneGeometry(3, 2.2, 6, 4), new THREE.MeshStandardMaterial({ color: dyes[i], roughness: 1, side: THREE.DoubleSide }));
     awning.position.set(x, 2.35, z); awning.rotation.set(-Math.PI / 2 + 0.18, 0, 0); awning.castShadow = awning.receiveShadow = true;
     group.add(awning); awnings.push(awning);
