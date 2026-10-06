@@ -20,7 +20,9 @@ import { initialPractice, project } from '/src/combat.ts';
 import { OPPONENTS } from '/src/moves.ts';
 import { LADDER } from '/src/ladder.ts';
 import { TARGET } from '/src/sim.ts';
+import { playScaleFor, setPlayScale } from '/src/play-radius.ts';
 const id = new URLSearchParams(location.search).get('opponent'), TICK = 1 / 60;
+setPlayScale(playScaleFor(id, 99));   // the circle the fight is played in today (Arena 1's 0.36), set before the scene reads it
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, id);
 // Both fighters armed and facing, the hero \`gap\` metres from the target (tests/combat.test.ts, scripts/impact-preview.mjs).
 function ready(gap) {
