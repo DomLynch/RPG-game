@@ -2,6 +2,18 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 03:30 (+04, Mac clock) — HANDOFF #17 before /clear. READ FIRST (supersedes #16 where it differs)
+
+### Now
+- **Auditor verdicts (all PASS):** #1525 @88b63b09 (retargeted to trunk, GO'd; #1505 live), #1527 telegraph @e2c7f697, #1535 standoff @48820302. **#1536 power words @a2543a9a**: delta with the NEW Auditer session (resumes from docs/state/code-quality.md, PR #1538); parked for Dom's names.
+- **Hamstrung blood (Lead's order, #1537 is Characters' draft):** timing reviewed = right to the frame. My fix is `world/hamstrung-blood` @f301a14c (knee 1.1, back 1.4 tilted up, 8 seeded drops; before/after strips in ~/Desktop/Business/frankendom-blood/hamstrung/), sha sent to Characters to cherry-pick; I never push to char/hamstrung.
+- **#26 posture-break beat (Strategy research, not a morning target):** `world/breakbeat` @26048960 pushed, NO PR yet: `?look=breakbeat[120|150|180]` = PostureBroken hold (main.ts HIT_STOP.PostureBroken, today 120) + a dry bone_crack thud (audio/cues.ts, feedback.breakThud); VPS 147/0, eslint 0, tsc 0. **Owed: the 120/150/180 clip for Dom** (375, same posture-break fight; control = no flag), then the PR (+ add './break-beat.ts' stays in graphics.test.ts modules map, already done).
+
+### Gotchas
+- Any new module main.ts imports must be registered in tests/graphics.test.ts's `modules` map; anything inside main's special-audio loop is EXTRACTED and run by tests/special-audio-runtime.test.ts (its sandbox context lacks new symbols).
+- `finisher-preview.mjs` forces a picker-only finisher with `--only <id>`; my scratch `--hamstrung-frames` mode (frame-stepped `__finisher.step`) lives in /private/tmp/claude-501/bloodside/finisher-preview.ham.mjs (not committed). The Mac blocks `node --test`/tsc/eslint while a deploy is in flight: run them on the VPS via `capture world <script>`.
+- zsh does not word-split unquoted `$vars`: build ffmpeg arg lists in python/subprocess.
+
 ## 2026-10-07 02:00 (+04, Mac clock) — HANDOFF #16 before /clear. READ FIRST (supersedes #15 where it differs)
 
 ### Now
