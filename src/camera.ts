@@ -2,12 +2,13 @@
 // state across frames — yaw/pitch, the settle lerp, the camera kick, the authorized finisher push-in and the side-view reveal.
 // The rig reads simulation positions and the scene's finisher facts as plain data; it never reaches into rigs, blood or wounds.
 import * as THREE from 'three';
-import { TARGET, wrapAngle, type State } from './sim.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 
+const AIM_PER_SHRINK = 2.25;   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.6)
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
   SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
   SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
@@ -46,12 +47,14 @@ export function cameraPose(
     const near = Math.abs(Math.sin(yaw) * (x - state.x) + Math.cos(yaw) * (z - state.z)) || back;   // distance behind the player
     y += short * hiddenAt(near) * near / gap;
   }
+  // In a smaller arena (play-radius.ts) the lock looks a little nearer to the camera, so the player stands higher on the phone, clear of the Slash and Roll buttons, with the backdrop still above the wall.
+  const aim = locked ? AIM_PER_SHRINK * (1 - PLAY_SCALE) : 0;
   return {
     x,
     y,
     z,
-    lookX: locked ? (state.x + target.x) / 2 : state.x,
-    lookZ: locked ? (state.z + target.z) / 2 : state.z,
+    lookX: locked ? (state.x + target.x) / 2 + Math.sin(yaw) * aim : state.x,
+    lookZ: locked ? (state.z + target.z) / 2 + Math.cos(yaw) * aim : state.z,
   };
 }
 
