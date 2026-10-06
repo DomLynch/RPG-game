@@ -15,11 +15,14 @@ A pure TypeScript module for a character's backpack and bank. It covers items 2 
   - `split`, `merge`
   - `canWear`, `equip`, `unequip`
   - `settle`: a trade between two inventories, through the contracts' `settleTrade`
+  - `consume`: burn units from the backpack (a quest hand-in), by `itemId` or by root `mintKey`
+  - `applyUpgrade`: apply the contracts' `performUpgrade` outcome (the piece replaced in place, its material lines burned) in one step
   - `gridView`, `openInventory`, `checkInventory`, `checkConservation`
 
   Every operation is atomic: you get the new state, or a refusal with a reason and the input unchanged. Before returning, each operation runs the full invariant (`checkInventory`) on its result.
 - **Stacking.** Armour, and any other stack-1 piece, never stacks. Stackables split, and merge back up to their definition's `stack`, all or nothing. A merge needs the same root mint key and otherwise equal provenance, history, binding, tier and upgrade level, so it can never launder one stack's origin into another's.
-- **Conservation.** Across all rows of one mint, the units always add up to the minted quantity. `checkConservation(rows, minted)` checks it against the server's ledger. Every operation except `receive`, `remove` and `settle` (which only move units across the inventory's border) also checks it on its own result.
+- **Conservation.** Per root mint key, the units held across all rows plus the units burned add up to the minted quantity. `checkConservation(rows, minted, burned)` checks it against the server's ledgers. Every operation except `receive`, `remove` and `settle` (which only move units across the inventory's border) also checks it on its own result.
+- **Burns.** `consume` and `applyUpgrade` work on `Holdings` (`{ inventory, ledger }`) and append one `Burn` per operation: its op id, owner, reason (`quest-handin` or `upgrade-cost`) and one line per row spent (instance, item, mint key, quantity). All or nothing; an op id already in the ledger is refused, so a retry never spends twice. `consume` takes only from the backpack, lowest slot first, and never a story-critical piece. `applyUpgrade` uses the receipt's idempotency key as its op id, may spend bank rows only at the Exchange, and refuses an outcome that no longer matches the rows (a stale piece or stack).
 - **The bank opens only at the Concord Exchange.** That covers deposit, withdraw, any move, split, merge or removal that touches the bank, and looking into it.
 - **One of each piece per player across pack, bank and worn.** A second copy is refused.
 - **Provenance and history are kept.** Every move keeps the provenance (won by whom, from which legend, at which rank, on which date) and the history unchanged.
@@ -48,7 +51,7 @@ A pure TypeScript module for a character's backpack and bank. It covers items 2 
    - a replayed stale half is named by `checkConservation`;
    - a forged row sharing a child key is refused by custody.
 
-   Selling is not covered, because neither this module nor the contracts have a sell yet. A sell must record its burn in the ledger.
+   Burns (`consume`, `applyUpgrade`) record every unit they spend in the ledger, and conservation counts them. Selling is not covered, because neither this module nor the contracts have a sell yet; a sell would add a burn reason.
 2. **64 slots and trading.** `PACK_SLOTS` in `items.ts` is the one constant. The bag reads it, and so does `settleTrade`. `settleTrade` now takes `packSizeOf` and fills each receiver only up to its real pack size, from its actual holdings. `settle` passes each `Inventory`'s own `packSize`. Tests:
    - a trade into a nearly full pack is refused, with both states byte-identical;
    - a trade that exactly fits settles;
@@ -70,7 +73,7 @@ A pure TypeScript module for a character's backpack and bank. It covers items 2 
 These run on the VPS, never on the shared Mac:
 
 ```sh
-node --test tests/origins-inventory.test.ts
+node --test tests/origins-inventory.test.ts   # inventory, property and consume tests
 node --test tests/origins-contracts.test.ts
 npx tsc -p <temp tsconfig extending ./tsconfig.json, types [vite/client, node], include origins/inventory, origins/contracts, src/vite-env.d.ts>
 npx eslint origins/inventory origins/contracts
