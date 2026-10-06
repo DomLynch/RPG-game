@@ -135,10 +135,10 @@ export const ownedName = (id: LootId, tier?: number): string => {
   return lootName(id, tier && isLegendOpponent(from) ? legendAt(from, tier).name : ROSTER[from as OpponentId].name);
 };
 
-// The career sub-rank as one number: Recruit I is 0, Legionary I is 5, Origin is 45.
+// The career sub-rank as one number: Recruit I is 0, Legionary I is 5, Origin I is 45, Origin V 49.
 export function subRank(marks: number): number {
   const rank = rankFor(marks);
-  return rank.title === 'Origin' ? 45 : TITLES.indexOf(rank.title) * 5 + ['I', 'II', 'III', 'IV', 'V'].indexOf(rank.numeral);
+  return TITLES.indexOf(rank.title) * 5 + ['I', 'II', 'III', 'IV', 'V'].indexOf(rank.numeral);
 }
 // The drop for a win against `opponent` at the sub-rank the fight was fought at: fixed per sub-rank, never a duplicate. Armour only:
 // a weapon is never dropped, it is TAKEN — the kill screen's "Take one" choice (lead) offers LOOT[opponent] minus owned, weapons included.
