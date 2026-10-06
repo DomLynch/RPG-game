@@ -4,14 +4,16 @@
 // is the server's.
 import type { QuestId } from '../contracts/ids.ts';
 import { advance } from '../quests/journal.ts';
+import { Refused } from './errors.ts';
 import { career, factsOf, field, journalOf, must, ownCharacter, questBatch, type Clock, type StoryContent } from './story.ts';
 import { openAccount, type Handler } from './handlers.ts';
 import * as store from './store.ts';
 
 const optionalChoice = (v: unknown): string | undefined => (v === undefined || v === null ? undefined : field(v, 'choice', 64));
 
-export function questAdvance(content: StoryContent, now: Clock = () => new Date()): Handler {
+export function questAdvance(content: StoryContent | null, now: Clock = () => new Date()): Handler {
   return async (ctx, body) => {
+    if (!content) throw new Refused(503, 'quests are not loaded: the writer is not ready');
     const quest = field(body.quest, 'quest', 120) as QuestId, stage = field(body.stage, 'stage', 64), choice = optionalChoice(body.choice);
     const snap = await openAccount(ctx);
     const character = ownCharacter(snap, body.character);

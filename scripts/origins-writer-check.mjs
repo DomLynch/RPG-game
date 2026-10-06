@@ -1,21 +1,18 @@
 // The Origins writer service (origins/server) end to end: real HTTP -> real handlers -> psql as the frankendom_origins role -> the real migration, in the
 // same disposable socket-only cluster as origins-database-check.mjs. Only Supabase Auth is faked (a token table). No DATABASE_URL or SUPABASE_* is read.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
-import { handlers } from '../origins/server/handlers.ts';
-import { questAdvance } from '../origins/server/quest-advance.ts';
-import { talkPick } from '../origins/server/talk-pick.ts';
+import { handlers, storyOps } from '../origins/server/handlers.ts';
+import { readStoryContent } from '../origins/server/content.ts';
+import { storyBundle } from '../origins/server/fixtures.ts';
 import { creditFromMarks } from '../origins/progression/model.ts';
-import { parseQuestDefinition } from '../origins/contracts/story.ts';
-import { concordCommission, smithsFavour } from '../origins/quests/fixtures.ts';
-import { loadTalk } from '../origins/talk/talk.ts';
-import { orla } from '../origins/talk/fixtures.ts';
+
 
 const dir = 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-writer-'));
@@ -25,10 +22,8 @@ const run = (command, args, input) => execFileSync(pg(command), args, { input, e
 const psql = sql => run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'], sql).trim();
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const TOKENS = { ta: A, tb: B, tc: C, td: D };
-// The story ops run on the O2 example content (the Concord Commission and Orla), the same records their own tests load.
-const value = r => { if (!r.ok) throw Error(JSON.stringify(r.issues)); return r.value; };
+// The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
-const CONTENT = { quests: new Map([concordCommission(), smithsFavour()].map(r => value(parseQuestDefinition(r))).map(d => [d.id, d])), talks: new Map([[NPC, value(loadTalk(orla()))]]) };
 let checks = 0, started = false, server;
 const eq = (got, want, what) => { checks++; if (JSON.stringify(got) !== JSON.stringify(want)) throw Error(`${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`); };
 
@@ -47,8 +42,9 @@ try {
   psql(readdirSync(dir).filter(n => n.endsWith('.sql')).sort().map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${B}','Bran',0,'{"owned":[],"equipped":{}}'),('${D}','Dara',10,'{"owned":[],"equipped":{}}');`);
 
+  writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null,
-    handlers: { ...handlers, quest_advance: questAdvance(CONTENT), talk_pick: talkPick(CONTENT) } });
+    handlers: { ...handlers, ...storyOps(readStoryContent(join(root, 'content.json'))) } });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/origins/`;
   const call = async (op, token, body, method = 'POST') => {
@@ -136,6 +132,27 @@ try {
   const second = await call('quest_advance', 'td', { character: dara2, quest: CQ, stage: 'smith' });
   eq([second.status, second.json.result.cp, credit()[0]], [200, 0, stepCp + fetchCp], 'the same story step on a second character pays 0');
   eq(psql(`select payload->>'reason' from public.origins_events where event_id = 'story:${dara2}:${CQ}:smith'`), 'already-done', 'its story event says why');
+  // A stage that rewards faction standing (or loot) is refused whole: nothing written, the stage stays unrewarded; the other branch finishes.
+  const EQ = 'quest:orla-errand';
+  eq((await call('quest_advance', 'td', { character: dara, quest: EQ, stage: 'asked' })).status, 200, 'errand taken');
+  const errandRow = () => q(`select stage || '|' || array_to_string(rewarded, ',') || '|' || version || '|' || (select count(*) from public.origins_events where event_id like 'quest:$PC:${EQ}:%') || '|' || (select world_credit from public.origins_career where account = '${D}') from public.origins_quest_state where character = '$PC' and quest = '${EQ}'`);
+  const beforeFavour = errandRow();
+  const favour = await call('quest_advance', 'td', { character: dara, quest: EQ, stage: 'favour', choice: 'favour' });
+  eq([favour.status, /faction standing/.test(favour.json.error)], [501, true], 'a standing-reward stage is refused with 501');
+  eq(errandRow(), beforeFavour, 'nothing written: still at asked, favour not rewarded, no event, no credit');
+  const finished = await call('quest_advance', 'td', { character: dara, quest: EQ, stage: 'done', choice: 'thanks' });
+  eq([finished.status, finished.json.result.status, finished.json.result.cp > fetchCp], [200, 'finished', true], 'the other branch finishes and pays the chapter');
+  // a writer started without content answers 503 for both ops and writes nothing
+  const bare = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null });
+  await new Promise(r => bare.listen(0, '127.0.0.1', r));
+  try {
+    const events = psql(`select count(*) from public.origins_events`);
+    for (const [op, body] of [['quest_advance', { character: dara, quest: EQ, stage: 'asked' }], ['talk_pick', { character: dara, npc: NPC, line: 'farewell' }]]) {
+      const res = await globalThis.fetch(`http://127.0.0.1:${bare.address().port}/origins/${op}`, { method: 'POST', headers: { authorization: 'Bearer td' }, body: JSON.stringify(body) });
+      eq(res.status, 503, `no content: ${op} is not ready`);
+    }
+    eq(psql(`select count(*) from public.origins_events`), events, 'no content: nothing written');
+  } finally { bare.close(); }
   console.log(`origins-writer-check: ${checks} checks passed`);
 } finally {
   server?.close();

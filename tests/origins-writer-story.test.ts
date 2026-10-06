@@ -4,17 +4,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import { parseQuestDefinition, type QuestDefinition } from '../origins/contracts/story.ts';
-import type { CharacterId, QuestId } from '../origins/contracts/ids.ts';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { creditFromMarks, levelOfCredit, basePay, TYPE_WEIGHTS } from '../origins/progression/model.ts';
-import { concordCommission, smithsFavour } from '../origins/quests/fixtures.ts';
-import { orla } from '../origins/talk/fixtures.ts';
-import { loadTalk, type Talk } from '../origins/talk/talk.ts';
 import { DbError, type Db } from '../origins/server/db.ts';
-import { BadRequest, handlers, type Ctx } from '../origins/server/handlers.ts';
+import { loadStoryContent, readStoryContent } from '../origins/server/content.ts';
+import { Refused } from '../origins/server/errors.ts';
+import { storyBundle } from '../origins/server/fixtures.ts';
+import { BadRequest, handlers, storyOps, type Ctx } from '../origins/server/handlers.ts';
 import { questAdvance } from '../origins/server/quest-advance.ts';
 import { createWriter } from '../origins/server/server.ts';
 import type { StoryContent } from '../origins/server/story.ts';
+import type { QuestId } from '../origins/contracts/ids.ts';
+import type { Talk } from '../origins/talk/talk.ts';
 import { talkPick } from '../origins/server/talk-pick.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -22,8 +25,7 @@ const PA = 'pc:aaaa', PB = 'pc:bbbb';
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 const NOW = new Date('2026-10-06T12:00:00.000Z');
 const ok = <T>(r: { ok: true; value: T } | { ok: false; issues: unknown }): T => { assert.ok(r.ok, JSON.stringify(r)); return r.value; };
-const quests = new Map<QuestId, QuestDefinition>([concordCommission(), smithsFavour()].map(r => ok(parseQuestDefinition(r))).map(d => [d.id, d]));
-const CONTENT: StoryContent = { quests, talks: new Map<CharacterId, Talk>([[NPC as CharacterId, ok(loadTalk(orla()))]]) };
+const CONTENT: StoryContent = ok(loadStoryContent(storyBundle()));
 const questOp = questAdvance(CONTENT, () => NOW), talkPickOp = talkPick(CONTENT, () => NOW);
 type Moved = { quest: string; stage: string; status: string; cp: number; replay: boolean };
 const advanceOp = async (ctx: Ctx, body: Record<string, unknown>): Promise<Moved> => (await questOp(ctx, body)) as Moved;
@@ -155,7 +157,7 @@ test('quest_advance: account, reward, credit and stage results in the body are i
   const [qs, qe, se, cs] = f.commits[0].batch;
   assert.deepEqual([qs.status, qs.rewarded, (qs.journal_append as Row[]).length], ['active', ['smith'], 1]);
   assert.deepEqual([qe.account, se.account, cs.account, cs.world_credit], [A, A, A, STEP_CP]);
-  assert.deepEqual(qe.payload, { stage: 'smith', rewards: { loot: null, standing: [] }, unpaid: [] });
+  assert.deepEqual(qe.payload, { stage: 'smith' });
 });
 
 test('quest_advance: illegal moves are refused with nothing written', async () => {
@@ -181,21 +183,29 @@ test('quest_advance: illegal moves are refused with nothing written', async () =
   await assert.rejects(advanceOp({ db: lowDb, account: A }, { character: PA, quest: CQ, stage: 'smith' }), BadRequest);
 });
 
-test('quest_advance: a stage with standing or loot rewards records them as unpaid on its event; a finish pays the chapter', async () => {
+const refused501 = (e: unknown): boolean => e instanceof Refused && e.status === 501;
+test('quest_advance: a stage that rewards faction standing or loot is refused (501) with nothing written, so it stays unrewarded', async () => {
   const f = fakeDb({ items: [ore()] });
   await step(f, 'smith'); await step(f, 'fetch');
-  await step(f, 'forge', 'smith');
-  const forge = f.commits.at(-1)!.batch.find(o => o.kind === 'quest-stage')!;
-  assert.deepEqual(forge.payload, { stage: 'forge', rewards: { loot: null, standing: [{ faction: 'faction:concord', delta: 25 }] }, unpaid: ['standing'] });
-  const done = await step(f, 'returned');
+  const before = structuredClone(f.world()), n = f.commits.length;
+  await assert.rejects(step(f, 'forge', 'smith'), (e: unknown) => refused501(e) && /faction standing/.test((e as Error).message), 'forge pays standing');
+  assert.equal(f.commits.length, n, 'no commit attempted');
+  assert.deepEqual(f.world(), before, 'quest still at fetch, forge not in rewarded, no event, no credit');
+  assert.deepEqual([f.world().quests[0].stage, f.world().quests[0].rewarded], ['fetch', ['smith', 'fetch']]);
+  // the loot stage too (broker -> returned pays the commission's loot table)
+  await step(f, 'broker', 'broker');
+  await assert.rejects(step(f, 'returned', 'confess'), (e: unknown) => refused501(e) && /loot/.test((e as Error).message));
+  assert.deepEqual([f.world().quests[0].stage, (f.world().quests[0].rewarded as string[]).includes('returned')], ['broker', false]);
+  // the refusal is on the stage, not the quest: its other branch still moves
+  const g = fakeDb();
+  await advanceOp(g.ctx, { character: PA, quest: 'quest:orla-errand', stage: 'asked' });
+  await assert.rejects(advanceOp(g.ctx, { character: PA, quest: 'quest:orla-errand', stage: 'favour', choice: 'favour' }), refused501);
+  const done = await advanceOp(g.ctx, { character: PA, quest: 'quest:orla-errand', stage: 'done', choice: 'thanks' });
   assert.equal(done.status, 'finished');
-  const batch = f.commits.at(-1)!.batch;
-  assert.deepEqual(batch.find(o => o.kind === 'quest-stage')!.payload, { stage: 'returned', rewards: { loot: 'loottable:concord-commission', standing: [] }, unpaid: ['loot'] });
-  const story = batch.find(o => o.kind === 'story-step')!.payload as Row;
+  const story = g.commits.at(-1)!.batch.find(o => o.kind === 'story-step')!.payload as Row;
   assert.equal(story.type, 'story-chapter');
   assert.ok(Number(story.cp) > STEP_CP, 'a chapter pays more than a step');
-  assert.equal((f.world().career.story as string[]).length, 4);
-  await assert.rejects(step(f, 'exposed', 'lie'), BadRequest, 'finished is final');
+  assert.deepEqual(g.world().quests[0].rewarded, ['asked', 'done']);
 });
 
 test('talk_pick: a once-line and its quest step commit together; conditions read the server\'s rows', async () => {
@@ -221,6 +231,28 @@ test('talk_pick: a once-line and its quest step commit together; conditions read
   assert.equal(f.commits.length, n);
   // the ore line needs the ore in this character's pack (server rows), not the body's say-so
   await assert.rejects(talkOp(f.ctx, { character: PA, npc: NPC, line: 'hand-ore', hasItem: true, items: [ore()] }), BadRequest);
+  // with the ore held, the line's step to forge would pay standing: the whole pick is refused, the once-line stays unsaid
+  const g = fakeDb({ items: [ore()] });
+  for (const line of ['offer', 'take-job']) await talkOp(g.ctx, { character: PA, npc: NPC, line });
+  const talkBefore = structuredClone(g.world().talk);
+  await assert.rejects(talkOp(g.ctx, { character: PA, npc: NPC, line: 'hand-ore' }), refused501);
+  assert.deepEqual(g.world().talk, talkBefore);
+});
+
+test('talk_pick: a line whose steps pay twice books both on one career, each at the version the step before left', async () => {
+  // loadTalk allows one quest effect per line, so this talk is built directly: the batch must still be right if content ever allows two.
+  const npc = 'character:double' as Talk['npc'];
+  const both: Talk = { npc, lines: [{ id: 'both', text: 'Both.', reply: 'Both, then.', priority: 0, once: false, when: [], effects: [
+    { kind: 'quest', quest: CQ as QuestId, stage: 'smith', choice: null }, { kind: 'quest', quest: 'quest:orla-errand' as QuestId, stage: 'asked', choice: null },
+  ] }] };
+  const op = talkPick({ ...CONTENT, talks: new Map(CONTENT.talks).set(npc, both) }, () => NOW);
+  const f = fakeDb();
+  const res = await op(f.ctx, { character: PA, npc, line: 'both' }) as { cp: number };
+  const sets = f.commits[0].batch.filter(o => o.op === 'career_set');
+  assert.deepEqual(sets.map(o => o.expected_version), [1, 2]);
+  assert.deepEqual(sets[1].story, [`${CQ}:smith`, 'quest:orla-errand:asked']);
+  assert.equal(sets[1].world_credit, res.cp);
+  assert.deepEqual([f.world().career.world_credit, f.world().career.version, res.cp > STEP_CP], [res.cp, 3, true]);
 });
 
 test('talk_pick: refusals — another account\'s character, an unknown NPC or line, a forged account', async () => {
@@ -234,17 +266,48 @@ test('talk_pick: refusals — another account\'s character, an unknown NPC or li
   assert.deepEqual([f.commits[0].account, f.commits[0].batch[1].account], [A, A]);
 });
 
-test('the registry serves quest_advance and talk_pick; with no content loaded they refuse with a 400', async () => {
+test('the registry: with no content loaded both ops answer 503; with the bundle loaded they work', async () => {
   const f = fakeDb();
-  const server = createWriter({ db: f.db, verify: async t => (t === 'tok' ? A : null) });
-  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
-  try {
+  const serve = async (ops: typeof handlers) => {
+    const server = createWriter({ db: f.db, verify: async t => (t === 'tok' ? A : null), handlers: ops });
+    await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/`;
-    for (const [op, body] of [['quest_advance', { character: PA, quest: CQ, stage: 'smith' }], ['talk_pick', { character: PA, npc: NPC, line: 'greet-first' }]] as const) {
-      assert.ok(Object.hasOwn(handlers, op));
-      const res = await fetch(url + op, { method: 'POST', headers: { authorization: 'Bearer tok' }, body: JSON.stringify(body) });
-      assert.equal(res.status, 400, op);
+    return { server, call: async (op: string, body: unknown) => { const res = await fetch(url + op, { method: 'POST', headers: { authorization: 'Bearer tok' }, body: JSON.stringify(body) }); return { status: res.status, body: await res.json() as { error?: string } }; } };
+  };
+  const calls = [['quest_advance', { character: PA, quest: CQ, stage: 'smith' }], ['talk_pick', { character: PA, npc: NPC, line: 'greet-first' }]] as const;
+  const bare = await serve(handlers);   // ORIGINS_CONTENT is unset under the test runner
+  try {
+    for (const [op, body] of calls) {
+      const res = await bare.call(op, body);
+      assert.deepEqual([res.status, /not ready/.test(res.body.error ?? '')], [503, true], op);
     }
     assert.equal(f.commits.length, 0);
-  } finally { server.close(); }
+  } finally { bare.server.close(); }
+  const dir = mkdtempSync(join(tmpdir(), 'origins-content-'));
+  const loaded = await serve({ ...handlers, ...storyOps(readStoryContent((writeFileSync(join(dir, 'b.json'), JSON.stringify(storyBundle())), join(dir, 'b.json')))) });
+  try {
+    for (const [op, body] of calls) assert.equal((await loaded.call(op, body)).status, 200, op);
+    assert.equal(f.commits.length, 2);
+  } finally { loaded.server.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('content: a bundle that does not load stops the writer', () => {
+  const issues = (records: unknown): string => { const r = loadStoryContent(records); assert.ok(!r.ok); return JSON.stringify(r.issues); };
+  assert.match(issues({}), /array/);
+  const bundle = storyBundle();
+  assert.match(issues(bundle.filter(r => r.id !== 'faction:concord')), /faction:concord/, 'a quest reward names an undefined faction');
+  const talk = bundle.find(r => r.kind === 'npc-talk')!;
+  assert.match(issues([...bundle, talk]), /two talk records/);
+  const badStep = structuredClone(talk) as { lines: { effects: { kind: string; stage?: string }[] }[] };
+  badStep.lines.find(l => l.effects.some(e => e.kind === 'quest'))!.effects.find(e => e.kind === 'quest')!.stage = 'nowhere';
+  assert.match(issues([...bundle.filter(r => r !== talk), badStep]), /has no stage .*nowhere/);
+  assert.match(issues([...bundle, { kind: 'npc-talk', schemaVersion: 1, npc: 'character:x', lines: [] }]), /lines/);
+  const dir = mkdtempSync(join(tmpdir(), 'origins-content-'));
+  try {
+    writeFileSync(join(dir, 'bad.json'), JSON.stringify([...bundle, talk]));
+    assert.throws(() => readStoryContent(join(dir, 'bad.json')), /two talk records/);
+    writeFileSync(join(dir, 'good.json'), JSON.stringify(bundle));
+    const c = readStoryContent(join(dir, 'good.json'));
+    assert.deepEqual([c.quests.size, c.talks.size], [3, 1]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

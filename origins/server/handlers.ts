@@ -1,11 +1,13 @@
 // The op registry. Each handler gets the account the token proved and a parsed JSON body, and returns the JSON the client sees. Later PRs
 // (inventory, quest journal, talk) plug their ops into `handlers`; nothing here lets a client name an account, a reward or an amount.
+import process from 'node:process';
 import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
 import { DbError, type Db } from './db.ts';
+import { readStoryContent } from './content.ts';
 import { BadRequest } from './errors.ts';
 import { questAdvance } from './quest-advance.ts';
-import { NO_CONTENT } from './story.ts';
+import type { StoryContent } from './story.ts';
 import * as store from './store.ts';
 import { talkPick } from './talk-pick.ts';
 
@@ -42,5 +44,8 @@ const createCharacter: Handler = async (ctx, body) => {
   return { id: await store.createCharacter(ctx.db, ctx.account, name) };
 };
 
-// quest_advance and talk_pick run on loaded content; until the server loads a content bundle they know no quest and no NPC and refuse.
-export const handlers: Record<string, Handler> = { open, create_character: createCharacter, quest_advance: questAdvance(NO_CONTENT), talk_pick: talkPick(NO_CONTENT) };
+// quest_advance and talk_pick run on the story content, loaded once when the writer starts from the bundle ORIGINS_CONTENT names (a bundle
+// that does not load stops the writer). With none loaded both answer 503: the writer is up but not ready for them.
+export const storyOps = (content: StoryContent | null): Record<string, Handler> => ({ quest_advance: questAdvance(content), talk_pick: talkPick(content) });
+export const content: StoryContent | null = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGINS_CONTENT) : null;
+export const handlers: Record<string, Handler> = { open, create_character: createCharacter, ...storyOps(content) };

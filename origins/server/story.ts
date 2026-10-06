@@ -8,11 +8,10 @@ import { award, levelOfCredit } from '../progression/model.ts';
 import { loadJournal, type Advanced, type Journal } from '../quests/journal.ts';
 import type { Talk, TalkState } from '../talk/talk.ts';
 import { careerState } from './career.ts';
-import { BadRequest } from './errors.ts';
+import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json, Snapshot } from './store.ts';
 
 export type StoryContent = { quests: ReadonlyMap<QuestId, QuestDefinition>; talks: ReadonlyMap<CharacterId, Talk> };
-export const NO_CONTENT: StoryContent = { quests: new Map(), talks: new Map() };
 export type Clock = () => Date;
 
 const MAX_EVENT_ID = 200;   // origins_events.event_id check
@@ -79,22 +78,22 @@ export const eventId = (id: string): string => { if (id.length > MAX_EVENT_ID) t
 
 // One advanced quest -> its writes, in one batch. Nothing when the journal module answered a replay (same journal back). A stage reached the
 // first time writes quest:<pc>:<quest>:<stage> (the once-lock for its rewards) and, when it pays one, story:<pc>:<step> with the CP award()
-// prices and the career_set that books it. Loot and faction standing have no write yet: they are recorded as unpaid on the quest-stage
-// event, so a later payer can settle them from the ledger and nothing is lost.
+// prices and the career_set that books it. A stage whose rewards carry loot or faction standing is refused (501): the schema has no write
+// for either yet, and QuestState.rewarded is one entry per stage (it also answers 'stage-reached'), so a stage cannot be marked paid for
+// its CP and unpaid for the rest. Refusing writes nothing, so the stage pays in full once the writes exist.
 export function questBatch(
   account: string, character: CharacterInstanceId, quest: QuestId, journal: Journal, stored: Stored, adv: Advanced, row: CareerRow, now: Date,
 ): { batch: Json[]; cp: number; row: CareerRow } {
   if (adv.journal === journal) return { batch: [], cp: 0, row };
+  const unpayable = adv.rewards ? [...(adv.rewards.loot ? ['loot'] : []), ...(adv.rewards.standing.length ? ['faction standing'] : [])] : [];
+  if (unpayable.length) throw new Refused(501, `stage "${adv.journal.quests.get(quest)!.stage}" of ${quest} rewards ${unpayable.join(' and ')}, which the writer cannot pay yet`);
   const state = adv.journal.quests.get(quest)!;
   const before = stored.get(quest);
   const batch: Json[] = [{
     op: 'quest_set', character, quest, story_version: state.storyVersion, stage: state.stage, status: state.status, flags: state.flags, rewarded: state.rewarded,
     ...(before ? { expected_version: before.version } : {}), journal_append: state.journal.slice(before?.lines ?? 0),
   }];
-  if (adv.rewards) {
-    const unpaid = [...(adv.rewards.loot ? ['loot'] : []), ...(adv.rewards.standing.length ? ['standing'] : [])];
-    batch.push({ op: 'event', event_id: eventId(`quest:${character}:${quest}:${state.stage}`), kind: 'quest-stage', account, character, payload: { stage: state.stage, rewards: adv.rewards, unpaid } });
-  }
+  if (adv.rewards) batch.push({ op: 'event', event_id: eventId(`quest:${character}:${quest}:${state.stage}`), kind: 'quest-stage', account, character, payload: { stage: state.stage } });
   let cp = 0;
   if (adv.event) {
     const id = eventId(`story:${character}:${adv.event.id}`);
