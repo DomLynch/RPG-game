@@ -24,6 +24,6 @@ export function bossSpecialId(name: SpecialName | null): BossSpecialId | null {
 }
 
 export function bossSpecialFor(opponent: OpponentId, level: number): BossSpecialId | null {
-  if (!Number.isInteger(level) || level < 1 || level > 46) return null;
+  if (!Number.isInteger(level) || level < 1 || level > 50) return null;
   return bossSpecialId(specialOf(opponent, level));
 }

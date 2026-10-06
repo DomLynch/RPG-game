@@ -157,7 +157,13 @@ a place. Spawns:
 
 The `concord-exchange` region gains the `contract-board` waypoint and a `marrow` spawn there.
 
+*Superseded with §3:* the five `feud-*` spawns and the dock-fight note on `ferry-landing`. Under systemic Feuds, `ferry-landing`
+is the town of the Grey Ferry ([feuds.md](feuds.md) §10).
+
 ## 2. NPCs and talk
+
+> *Superseded with §3:* the Feud talk lines below (Marrow's offer, the Sergeant's spare-or-execute flags, Ansel, Varney's debt)
+> belonged to the scripted Feud. Grudge talk is in [feuds.md](feuds.md) §3.
 
 Talk only frames the fights. It offers the Feud, delivers the choice, and taunts after a loss. Every record is
 `npc-talk` v1 (`npc`, `lines[]` with `id`, `text`, `reply`, `priority`, `once`, `when`, `effects`). `Q` stands for
@@ -198,6 +204,9 @@ Lines, written as `id (priority, once): text → reply [when] {effects}`:
 Taunts on a loss live in the twist table (section 3). They play as the retry prompt, not as a talk tree.
 
 ## 3. Chapter one: *The Stolen Name* (a Feud)
+
+> **SUPERSEDED (Dom, 2026-10-07):** Dom rejected this scripted Feud chain. Feuds are now systemic: see [feuds.md](feuds.md). It is
+> kept below for the record. **The Bounties subsection at the end of this section stays in force.**
 
 > **PROVISIONAL, pending Dom.** "Feud" and "Bounty" are working names that Dom may rename. Strategy ruled on 2026-10-07 that Feuds and
 > Bounties **replace** classic quests, and the quest journal stays as the Feud log. No fetch, collect-N, kill-N or errand appears
@@ -331,6 +340,9 @@ own row.
 
 ## 4. Bosses and creatures
 
+> *Superseded with §3:* every "Feud step" reference and the five `encounter:feud-*` rows. Grendel's Mother stays as the public
+> event boss, the Bounty rows stand, and Varney has no encounter until a grudge or event uses him.
+
 Every figure fights through `encounterForms`, as a roster opponent at a level. A kill is priced by the `TYPE_WEIGHTS` row the server
 names in the `Kill` event (`target` = character id, `targetLevel` = the form's level).
 
@@ -387,6 +399,9 @@ Anything at `d ≤ −6` is grey and pays nothing.
 
 ## 5. Loot
 
+> *Superseded with §3:* the Feud ending rewards (`item:feud.court-mail`, `item:feud.blood-marker`, `item:stolen-name-record`, and
+> the two `feud-stolen-name-*` tables) are parked. Grudge rewards are metal ([feuds.md](feuds.md) §3).
+
 Two provenance kinds are used (`items.ts` `PROVENANCE_KINDS`):
 
 - **`loot`** for creature, boss and public-event drops: `{ mintKey: 'loot:<encounter or kill id>:<n>', wonBy, table, encounter }`.
@@ -440,6 +455,9 @@ yet on trunk). Never tradeable: the page and the marker (bound), grave iron (sta
 
 ## 6. Content-bundle files
 
+> *Superseded with §3:* `quests.json`, the Feud records in `talk.json` and `encounters.json`, and the Feud acceptance checks.
+> Grudge content kinds are listed in [feuds.md](feuds.md) §11.
+
 `ORIGINS_CONTENT` (on `expansion/o3-writer-story`, `origins/server/content.ts`) names **one JSON file holding one array**.
 Definitions go through `loadContent`, and `npc-talk` records go through `loadTalk`, with talk quest steps checked against the
 quests. Proposed source layout: one array per kind, concatenated in this order into that file. The loader resolves
@@ -486,7 +504,7 @@ A duplicate id anywhere in the combined bundle is refused. Example record:
 
 1. **Names.** Bosses and named climax targets are legends: Grendel's Mother, Varney, and the Bounty targets Hrungnir and Peg Powler.
    Mooks and side NPCs may be original (`lore.source: "original"`).
-2. **Quests vs contracts.** Feuds and Bounties **replace** classic quests. The journal stays as the Feud log. No fetch, collect-N or
+2. **Quests vs contracts.** Feuds and Bounties **replace** classic quests. The journal stays as the Feud log *(superseded: systemic Feuds keep no journal; see feuds.md)*. No fetch, collect-N or
    kill-N anywhere: the doc was re-checked, and the matriarch's public-event stage went from "3 brood kills" to one brood guardian.
 3. **Lockout.** Follow the #1428 model: first win only, no 7-day lockout. `restartSeconds` is the world respawn only.
 4. **Metal** is the one bound NPC currency, the same balance as `LootTable.currency`. Metals replace "tribute". One balance.
@@ -518,8 +536,8 @@ A duplicate id anywhere in the combined bundle is refused. Example record:
    - **(e)** on `Condition`, a new kind, `encounter-lost`;
    - **(f)** retry taunt text;
    - **(g)** the `bounty-definition` kind and the `bounty` namespace.
-2. **Talk flags into the server.** Step 5 reads the step 2 talk flags, but no server path connects them yet.
-3. **Stage rewards blocked.** The writer refuses stages carrying loot or standing (501, `expansion/o3-writer-story`). The Feud's
+2. *(Superseded with §3.)* **Talk flags into the server.** Step 5 reads the step 2 talk flags, but no server path connects them yet.
+3. *(Superseded with §3.)* **Stage rewards blocked.** The writer refuses stages carrying loot or standing (501, `expansion/o3-writer-story`). The Feud's
    endings and the `jetty` stage carry them.
 4. **World params outside `ORIGINS_CONTENT`.** A second file, or a new content kind?
 5. **World-loot tier.** The zone's `lootTier` (Gladiator), or the killer's own title?

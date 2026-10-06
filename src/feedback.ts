@@ -1,4 +1,4 @@
-import type { CombatEvent } from './combat.ts';
+import type { ClarityEvent, CombatEvent } from './combat.ts';
 import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
 import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadGate, playGate } from './audio/gate.ts';
@@ -192,7 +192,7 @@ export function createFeedback(host?: FeedbackHost) {
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
     async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); await prepareBell(); return decoded; },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
-    update(events: CombatEvent[], presentation?: DeathPresentation, frame?: ArenaFrame) {
+    update(events: CombatEvent[], presentation?: DeathPresentation, frame?: ArenaFrame, clarity?: readonly ClarityEvent[]) {
       if (!frame?.drawing || frame.ended || frame.match !== pendingDraw) pendingDraw = undefined;
       if (!enabled || quieted) return;
       // Touchend may enable WebKit audio after Draw's simulation tick. Keep only this still-active draw, never a stale cue.
@@ -210,7 +210,7 @@ export function createFeedback(host?: FeedbackHost) {
         if (voice.source === source) { const g = voice.gain.gain; g.cancelScheduledValues(time); g.setValueAtTime(g.value, time); g.linearRampToValueAtTime(0, time + CUT); try { source.stop(time + CUT); } catch { /* already ended */ } voice.until = time + CUT; }
       }
       armfeelPlay(events, time);
-      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent)) play(cue, time); return; }
+      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
       else if (events.some(e => e.type === 'Blocked')) synth('steel', time);

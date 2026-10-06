@@ -71,10 +71,10 @@ test('sparring: the link carries a checked kit; any unknown value refuses it', (
   assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=godlike&skill=none'), null);
   assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=easy&skill=fireball'), null);
   assert.equal(sparringParam('?spar=1&weapon=maul&difficulty=easy&skill=none', PLAYER_WEAPONS.filter(w => w !== 'maul')), null, 'a weapon this build cannot draw is refused');
-  // The Sparring tab's Difficulty is a level 1–46 (Dom 2026-09-29): a numbered level rides the link as a number; off the dial it is refused.
+  // The Sparring tab's Difficulty is a level 1–50 (Dom 2026-09-29): a numbered level rides the link as a number; off the dial it is refused.
   assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=6&skill=none')?.difficulty, 6);
-  assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=46&skill=none')?.difficulty, 46);
-  for (const off of ['0', '47', '99', '6.5', '-1']) assert.equal(sparringParam(`?spar=1&weapon=longsword&difficulty=${off}&skill=none`), null, `level ${off} is refused`);
+  assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=50&skill=none')?.difficulty, 50);
+  for (const off of ['0', '51', '99', '6.5', '-1']) assert.equal(sparringParam(`?spar=1&weapon=longsword&difficulty=${off}&skill=none`), null, `level ${off} is refused`);
   assert.match(sparringLink('knight', { weapon: 'longsword', difficulty: 12, skill: null }), /difficulty=12/);
 });
 
@@ -159,8 +159,8 @@ test('sparring: the tab holds ONE Opponent picker and ONE Difficulty control wit
 
 // The Dev kit (Dom, 2026-09-27): the weapon, move and level an admin's ladder fights use. The stored text is input: each bad field is dropped alone.
 test('dev kit: a stored weapon, move and level are read back; a bad field, a weapon this build cannot draw or unreadable text is dropped', () => {
-  assert.deepEqual(devKit(JSON.stringify({ weapon: 'maul', skill: SPARRING_SKILLS[0], level: 46 })), { weapon: 'maul', skill: SPARRING_SKILLS[0], level: 46 });
-  assert.deepEqual(devKit(JSON.stringify({ weapon: 'bazooka', skill: 'fireball', level: 47 })), {});
+  assert.deepEqual(devKit(JSON.stringify({ weapon: 'maul', skill: SPARRING_SKILLS[0], level: 50 })), { weapon: 'maul', skill: SPARRING_SKILLS[0], level: 50 });
+  assert.deepEqual(devKit(JSON.stringify({ weapon: 'bazooka', skill: 'fireball', level: 51 })), {});
   assert.deepEqual(devKit(JSON.stringify({ weapon: 'maul', level: 0 }), PLAYER_WEAPONS.filter((w) => w !== 'maul')), {}, 'a weapon this build cannot draw');
   assert.deepEqual(devKit(JSON.stringify({ level: 2.5, skill: SPARRING_SKILLS[1] })), { skill: SPARRING_SKILLS[1] });
   for (const bad of [null, '', 'not json', 'null', '[]']) assert.deepEqual(devKit(bad), {}, String(bad));
