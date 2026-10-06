@@ -157,6 +157,10 @@ export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2',
 // random would be this one line: `return ARENA_THEMES[ARENA_PICK[(1 + Math.floor(Math.random() * 5)) as 1 | 2 | 3 | 4 | 5]]`.
 // Next reloads the page (main.ts), so a band change swaps the arena inside the same load that fetches the next rig: never mid-fight,
 // never on a rematch, and only one arena is ever resident.
+// The painted arenas a career fight can come up in (Lead + Dom 2026-10-06, "all live"): Arena 1 and Dom's ten paintings. The first fight is always
+// Arena 1 (no stored arena); after that a shuffle-bag, no arena twice in a row (ladder.ts nextArena). 'a'-'d' are the older generated looks and stay out.
+export const ARENA_ROTATION: readonly ArenaKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+export const isRotationArena = (k: unknown): k is ArenaKey => ARENA_ROTATION.includes(k as ArenaKey);
 export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(5, Math.ceil(rung / 2))) as 1 | 2 | 3 | 4 | 5;
 // True when a theme's sand maps are Arena 1's own (the plain gravelled sand: no clay or flags laid over it, no tint, the same seed). The glow Pit's yard
 // is always that sand, whatever arena the fight was in (scene.ts pitStage arenaMaterials).
