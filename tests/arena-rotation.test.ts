@@ -30,7 +30,7 @@ test('nextArena: each arena once per cycle, never the same twice in a row (also 
     const w = walk(60, '1', seed);
     for (let i = 1; i < w.length; i++) assert.notEqual(w[i], w[i - 1], `${seed}: ${w[i]} twice at ${i}`);
     assert.deepEqual([...w.slice(0, 11)].sort(), [...ARENA_ROTATION].sort(), `${seed}: the first cycle (starting at Arena 1) shows all eleven once`);
-    assert.equal(new Set(w.slice(11, 22)).size, 11, `${seed}: the second cycle shows all eleven once`);
+    assert.equal(new Set(w.slice(10, 21)).size, 11, `${seed}: the second cycle (it opens on the arena that closed the first) shows all eleven once`);
   }
   const a = nextArena('1', ['1'], 5), b = nextArena('1', ['1'], 5);
   assert.deepEqual(a, b);
@@ -62,8 +62,8 @@ test('record v26: the arena byte round-trips, and an unnamed arena stays unnamed
   assert.equal(unpackRecord(packRecord(r)).arena, '10'); assert.equal((await decodeRecord(await encodeRecord(r))).arena, '10');
   assert.equal('arena' in unpackRecord(packRecord(p)), false);
   assert.equal((await peekRecordHeader(await encodeRecord(r)))?.outcome, 'abandoned', 'the header peek skips the arena byte');
-  const raw = packRecord(r), at = raw.indexOf(10, 3 + 1 + 1 + 1 + 6 + 1 + 9 + 2); raw[3 + 1 + 1 + 'b'.length + 1 + 'goblin'.length + 1 + 'longsword'.length + 1 + 1] = 99;   // the arena byte, past the table
-  assert.throws(() => unpackRecord(raw), /unknown arena/); void at;
+  const raw = packRecord(r); raw[3 + (1 + 'b'.length) + (1 + 'goblin'.length) + (1 + 'longsword'.length) + 1 + 1] = 99;   // the arena byte: after skill and specials, past the table
+  assert.throws(() => unpackRecord(raw), /unknown arena/);
   assert.ok(ARENAS.length === 16 && ARENAS[0] === undefined);
 });
 
