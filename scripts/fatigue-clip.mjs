@@ -16,6 +16,7 @@ import { createRecorder, encodeRecord } from '../src/record.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const DIST = arg('dist', 'dist'), OUT = arg('out', 'artifacts/fatigue'), EVERY = Number(arg('every', 3)), DPR = Number(arg('dpr', 2)), AFTER = Number(arg('after', 40));
+const STILLS = arg('stills', '');   // a meta.json from the AFTER run: take the same frames in a BEFORE replay
 const OPPONENT = arg('opponent', 'veteran'), LEVEL = Number(arg('level', 3)), RECORD = arg('record', ''), MAX = Number(arg('max', 2400));
 
 // The gasper: heavies whenever legal; once exhausted he guards and waits for his stamina, then starts again.
@@ -24,7 +25,8 @@ function bot(p) {
   if (me.phase === 'sheathed') return { ...intent, action: 'light' };
   if (me.exhausted || (me.stamina < 55 && resting)) { resting = me.stamina < 70; return { ...intent, guard: true }; }
   resting = false;
-  return { ...intent, action: legal(me, 'heavy') ? 'heavy' : null, lock: true };
+  if (legal(me, 'heavy')) return { ...intent, action: 'heavy', lock: true };
+  return me.phase === 'ready' ? { ...intent, move: { x: 0, z: 1, yaw: 0, run: true }, lock: false } : intent;   // too tired to swing: sprint it down to nothing, which is what gasses a man
 }
 let resting = false;
 
@@ -65,7 +67,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   const clock = await harnessClock(page), shots = [];
-  const want = new Map(bands.filter(([, b]) => b > 0 || true).map(([t, b]) => [t + AFTER, `band${b}-t${t}`]));
+  const want = new Map(STILLS ? Object.entries(JSON.parse(await fs.readFile(STILLS, 'utf8')).stills).map(([name, n]) => [n, name]) : bands.map(([t, b]) => [t + AFTER, `band${b}-t${t}`]));
   const stills = {};
   for (let n = 0; n < (ticks || MAX) + 120; n++) {
     const shoot = n % EVERY === 0, still = [...want.keys()].find((k) => k >= n && k < n + 1);
