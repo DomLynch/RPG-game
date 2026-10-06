@@ -480,8 +480,8 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
   const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
-  if (cliff) {   // the sand ends here: a rock face a few metres deep under its edge, narrowing and darkening, and nothing but the painted far world beyond (no far ground)
-    const depth = 3.2, face = new THREE.CylinderGeometry(edgeR, edgeR * 0.6, depth, 72, 5, true), pos = face.attributes.position, shade = new Float32Array(pos.count * 3);
+  if (cliff) {   // the sand ends here: a sheer rock face a few metres deep under its edge (vertical, flaring a little: an undercut would hide under the lip from the fight camera), darkening, and nothing but the painted far world beyond (no far ground)
+    const depth = 3.2, face = new THREE.CylinderGeometry(edgeR, edgeR * 1.04, depth, 72, 5, true), pos = face.attributes.position, shade = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i), k = Math.min(1, Math.max(0, (depth / 2 - y) / depth)), a = Math.atan2(pos.getX(i), pos.getZ(i)), bite = k * (0.35 * (mottle(a * 1.3 + 3, k * 3 + 1) - 0.5) + 0.12 * Math.sin(a * 9 + y)), r = Math.hypot(pos.getX(i), pos.getZ(i)), rr = r + bite;
       pos.setXYZ(i, pos.getX(i) * rr / r, y - 0.0, pos.getZ(i) * rr / r);
