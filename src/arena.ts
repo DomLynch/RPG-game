@@ -502,7 +502,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // for Dom 2026-10-06) on a disc, its rim faded into the haze; round it a bowl inside the sky dome that runs from the painted clouds' cream into the same haze. Unfogged; the clear colour never shows.
     // The map is fetched against the page's base (a preview lives under /preview/<name>/, where '/arena/abyss.webp' is a 404) and until it lands, or if it never does, the disc is the
     // haze colour, never the black an empty texture samples as.
-    const abyss = theme.abyss ?? ABYSS_ONE, haze = new THREE.Color().setRGB(abyss.haze[0] / 255, abyss.haze[1] / 255, abyss.haze[2] / 255, THREE.SRGBColorSpace), size = 420;
+    const abyss = ABYSS_ONE, haze = new THREE.Color().setRGB(abyss.haze[0] / 255, abyss.haze[1] / 255, abyss.haze[2] / 255, THREE.SRGBColorSpace), size = 420;
     const groundMaterial = new THREE.MeshBasicMaterial({ name: 'abyss ground', color: haze, fog: false, toneMapped: false }); materials.push(groundMaterial);
     const groundLanded = (map: THREE.Texture) => {
       map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping; map.generateMipmaps = true; map.minFilter = THREE.LinearMipmapLinearFilter; map.anisotropy = 4;

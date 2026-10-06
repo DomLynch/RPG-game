@@ -45,7 +45,6 @@ export type ArenaTheme = {
   backdropRepeat?: number;   // copies of the painting round the ring (8): more copies, each narrower
   backdropTall?: number;   // the ring's height factor: <1 shrinks the painting vertically
   spectators?: boolean;   // false: no crowd
-  abyss?: { map: string; haze: RGB; cream: RGB };   // the aerial map far below a cliff arena (public/<map>, scripts/arena-abyss.py), the haze its rim fades into, and the colour the horizon bowl starts from; unset = Arena 1's sky-blue abyss
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | '2' | 'a' | 'b' | 'c' | 'd';
@@ -63,7 +62,7 @@ const ARENA_1: ArenaTheme = {
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
 };
-// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1 byte for byte (light, sky, fog, abyss, island, props) with only the painted far world swapped.
+// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1 byte for byte (light, sky, fog, abyss, island, props) with only the painted far world swapped. On the ladder for rungs 3–4 (ARENA_PICK).
 // Reached by ?arena=2; not on the ladder yet. Every later arena follows the same rule: one backdrop URL.
 const ARENA_2: ArenaTheme = { ...ARENA_1, id: '2', name: 'The Skull Gate', backdrop: '/arena/backdrop-2.webp' };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
@@ -126,8 +125,8 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
 };
 // Owner 2026-09-24 (via Strategy): "get all arenas, they are all good" — all five ride the ladder, two rungs each, in the order
 // they were made. The order is PROVISIONAL: Dom chooses the final rung → arena mapping later; that pick edits this one line.
-export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: 'a', 3: 'b', 4: 'c', 5: 'd' };
-// THE ROTATION SEAM: an opponent → an arena. The ladder band decides (rungs 1–2 Arena 1, 3–4 A, 5–6 B, 7–8 C, 9–10 D). Per-fight
+export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2', 3: 'b', 4: 'c', 5: 'd' };
+// THE ROTATION SEAM: an opponent → an arena. The ladder band decides (rungs 1–2 Arena 1, 3–4 Arena 2, 5–6 B, 7–8 C, 9–10 D). Per-fight
 // random would be this one line: `return ARENA_THEMES[ARENA_PICK[(1 + Math.floor(Math.random() * 5)) as 1 | 2 | 3 | 4 | 5]]`.
 // Next reloads the page (main.ts), so a band change swaps the arena inside the same load that fetches the next rig: never mid-fight,
 // never on a rematch, and only one arena is ever resident.
