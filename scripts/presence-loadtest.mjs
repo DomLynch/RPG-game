@@ -3,7 +3,7 @@
 // bytes/s down, upload messages/s, entities per packet, the server's CPU (of one core) and memory, and the longest tick. Those numbers replace the
 // note's est. figures and set the "add a host at ~80% of one host's cap" trigger.
 // Run it on the VPS (or any host that is not the Mac), never against production Supabase: it needs no database and no Supabase at all.
-//   node scripts/presence-loadtest.mjs [--bots=100] [--seconds=30] [--warmup=5] [--crowd-m=60] [--layer-cap=100] [--ramp=bots]
+//   node scripts/presence-loadtest.mjs [--bots=100] [--seconds=30] [--warmup=5] [--crowd-m=60] [--layer-cap=100] [--max-layers=8]
 // --crowd-m: the side of the square the bots wander in (60 puts everyone inside everyone's 40 m radius, the worst case; 300 spreads them over the zone).
 // --layer-cap: PRESENCE_SOFT and HARD for the run (100 puts every bot in one layer; the default rules would split 100 bots 80 + 20).
 import { spawn, execFileSync } from 'node:child_process';
@@ -11,11 +11,11 @@ import { readFileSync } from 'node:fs';
 import { once } from 'node:events';
 
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? Number(hit.split('=')[1]) : fallback; };
-const BOTS = arg('bots', 100), SECONDS = arg('seconds', 30), WARMUP = arg('warmup', 5), CROWD_CM = arg('crowd-m', 60) * 100, CAP = arg('layer-cap', 100), PORT = arg('port', 18788);
+const BOTS = arg('bots', 100), SECONDS = arg('seconds', 30), WARMUP = arg('warmup', 5), CROWD_CM = arg('crowd-m', 60) * 100, CAP = arg('layer-cap', 100), PORT = arg('port', 18788), MAX_LAYERS = arg('max-layers', 8);
 const ZONE = 30000, STEP_MS = 100, SPEED_CMS = 500;   // bots walk at 5 m/s, uploading at 10 Hz like a real client
 
 const server = spawn(process.execPath, ['origins/presence/main.ts'], {
-  env: { ...process.env, ORIGINS_PRESENCE: '1', ORIGINS_PRESENCE_TEST_AUTH: '1', PRESENCE_PORT: String(PORT), PRESENCE_HOST: '127.0.0.1', PRESENCE_SOFT: String(CAP), PRESENCE_HARD: String(CAP), PRESENCE_MAX_LAYERS: '8', PRESENCE_LOG_MS: '3600000', SUPABASE_URL: '', SUPABASE_ANON_KEY: '' },
+  env: { ...process.env, ORIGINS_PRESENCE: '1', ORIGINS_PRESENCE_TEST_AUTH: '1', PRESENCE_PORT: String(PORT), PRESENCE_HOST: '127.0.0.1', PRESENCE_SOFT: String(CAP), PRESENCE_HARD: String(CAP), PRESENCE_MAX_LAYERS: String(MAX_LAYERS), PRESENCE_LOG_MS: '3600000', SUPABASE_URL: '', SUPABASE_ANON_KEY: '' },
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 await new Promise((resolve, reject) => { server.stdout.on('data', d => String(d).includes('listening') && resolve()); server.on('exit', c => reject(new Error(`server exited ${c}`))); });
