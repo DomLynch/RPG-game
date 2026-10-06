@@ -3,7 +3,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { Verify } from './auth.ts';
 import { DbError, type Db } from './db.ts';
-import { BadRequest, handlers as defaults, type Handler } from './handlers.ts';
+import { BadRequest, Conflict, handlers as defaults, type Handler } from './handlers.ts';
 
 const MAX_BODY = 64 * 1024;
 const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, '23505': 409 };
@@ -32,6 +32,7 @@ export function createWriter({ db, verify, handlers = defaults }: { db: Db; veri
       send(200, { ok: true, result: await handlers[op]({ db, account }, body as Record<string, unknown>) });
     } catch (e) {
       if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
+      if (e instanceof Conflict) return send(409, { ok: false, error: e.message, code: 'op-conflict' });
       if (e instanceof DbError && STATUS[e.code]) return send(STATUS[e.code], { ok: false, error: e.code === '23505' ? 'already exists' : e.message, code: e.code });
       console.error('origins-writer:', e instanceof Error ? e.message : e);
       send(500, { ok: false, error: 'server error' });

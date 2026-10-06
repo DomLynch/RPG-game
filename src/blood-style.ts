@@ -15,7 +15,9 @@ export const makeRng = (seed: number) => { let s = seed >>> 0; return () => { s 
 const between = (rnd: () => number, lo: number, hi: number) => lo + (hi - lo) * rnd();
 
 // Fills slot `p`; (x, y, z) the contact, (dx, dz) the blow's unit direction. Size is the DIAMETER of the unit sphere the pool scales: width = size, length = size x stretch.
-export function spawnBlood(p: Particle, i: number, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, feel: Feel, rnd: () => number): void {
+// `grow` scales the size (1 = as drawn): the burst on the far fighter is made as big on screen as the near one's (Dom: blood appeared when he was hit, rarely when he hit).
+export const bloodGrow = (far: number, near: number): number => Math.min(3, Math.max(1, far / (near || 1)));
+export function spawnBlood(p: Particle, i: number, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, feel: Feel, rnd: () => number, grow = 1): void {
   p.x = x; p.y = y; p.z = z;
   const low = feel === 'low' ? 0.7 : 1, a = rnd() * Math.PI * 2;   // no ring: a random bearing each, never evenly spaced
   if (i < BLOOD.drops[kill ? 'kill' : 'hit']) {   // the first few are the heavy drops, the rest the mist
@@ -26,4 +28,5 @@ export function spawnBlood(p: Particle, i: number, x: number, y: number, z: numb
     const speed = between(rnd, 1.2, 3.6);
     p.vx = Math.cos(a) * speed * 0.6 + dx * between(rnd, 0.5, 2.4); p.vz = Math.sin(a) * speed * 0.6 + dz * between(rnd, 0.5, 2.4); p.vy = between(rnd, 0.2, 2.6);
   }
+  p.size *= grow;
 }
