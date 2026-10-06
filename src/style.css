@@ -2172,7 +2172,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 /* The admin Sparring tab (Dom 2026-09-29, via Strategy): the one tab of test picks (Opponent, Difficulty level, Stage, Move, Weapon,
    Finisher) wrapping as the journal's chips, then Start sparring. Players never see it (main.ts / account.ts hide #sparring-tab). */
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
-/* Every Sparring select shrinks to the line (the Difficulty labels "46 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
+/* Every Sparring select shrinks to the line (the Difficulty labels "50 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
 .sparring-row .menu-select { max-width: 100%; min-width: 0; }
 .sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; background: var(--jp); color: var(--jf); color-scheme: dark; }
 .sparring-row .menu-select select:disabled { opacity: 1; color: var(--jm); }
