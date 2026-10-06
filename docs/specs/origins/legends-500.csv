@@ -1,0 +1,517 @@
+id,name,kind,group,source,era_or_date,alignment,clan_theme,perk_template,sidegrade_hint,pronouns,notes
+zeus,Zeus,patron,greek,"Hesiod, Theogony",c. 700 BC,neutral,the sky-king's storm host,opener,strong in the first 20 s / weak after; flavour: thunder at the first clash,he,living-world 10.1 sample patron; never beatable
+poseidon,Poseidon,patron,greek,"Homer, Odyssey",c. 8th c. BC,neutral,tide and earthquake sworn,closer,weak in the first 20 s / strong after; flavour: the slow wave breaks late,he,living-world 10.1 sample patron; never beatable
+hades,Hades,patron,greek,"Hesiod, Theogony",c. 700 BC,dark,host of the shades below,iron-hide,takes less damage / deals less damage,he,also ladder nightborn 9 (the Pit fights the legend; a clan serves the patron)
+hera,Hera,patron,greek,"Homer, Iliad; Homeric Hymn 12",c. 8th-6th c. BC,neutral,the queen's jealous court,finisher,strong on a foe under half health / weak on a foe above half,she,
+demeter,Demeter,patron,greek,Homeric Hymn to Demeter,c. 7th c. BC,neutral,harvest-keepers who outlast famine,tireless,cheaper stamina / deals less damage,she,
+ares,Ares,patron,greek,"Homer, Iliad",c. 8th c. BC,dark,the bloodied spear-band,glass,deals more damage / takes more damage,he,Mars is a separate Roman row
+artemis,Artemis,patron,greek,"Homeric Hymn 27; Callimachus, Hymn 3",c. 7th-3rd c. BC,neutral,moonlit huntresses,waxing,strong while the moon waxes / weak while it wanes,she,
+dionysus,Dionysus,patron,greek,"Euripides, Bacchae",405 BC,neutral,the wild revel-band,last-stand,strong while under half health / weak while above half,he,
+persephone,Persephone,patron,greek,Homeric Hymn to Demeter,c. 7th c. BC,dark,"half the year below, queen of the dead",night-half,strong in the night half / weak in the day half,she,
+aphrodite,Aphrodite,patron,greek,"Hesiod, Theogony; Homeric Hymn 5",c. 700 BC,neutral,desire's sworn champions,underdog,strong against a higher-level foe / weak against a lower one,she,
+kronos,Kronos,patron,greek,"Hesiod, Theogony",c. 700 BC,dark,the devouring Titan's old order,closer,weak in the first 20 s / strong after,he,
+gaia,Gaia,patron,greek,"Hesiod, Theogony",c. 700 BC,neutral,earth-mother of giants,tireless,cheaper stamina / deals less damage,she,
+helios,Helios,patron,greek,"Homeric Hymn 31; Homer, Odyssey 12",c. 8th-6th c. BC,neutral,riders of the sun chariot,day-half,strong in the day half / weak in the night half; flavour: noon glare,he,
+selene,Selene,patron,greek,Homeric Hymn 32,c. 6th c. BC,neutral,drivers of the moon,waxing,strong while the moon waxes / weak while it wanes,she,
+nemesis,Nemesis,patron,greek,"Hesiod, Theogony; Pausanias 1.33",c. 700 BC,neutral,retribution for the proud,underdog,strong against a higher-level foe / weak against a lower one,she,
+eris,Eris,patron,greek,"Hesiod, Works and Days; Proclus, summary of the Cypria",c. 700 BC,dark,sowers of strife,glass,deals more damage / takes more damage,she,
+pan,Pan,patron,greek,Homeric Hymn 19,c. 6th c. BC,neutral,the panic of the wild,opener,strong in the first 20 s / weak after,he,
+prometheus,Prometheus,patron,greek,"Aeschylus (attrib.), Prometheus Bound",5th c. BC,neutral,"fire-thieves, chained but unbowed",last-stand,strong while under half health / weak while above half,he,
+atlas,Atlas,patron,greek,"Hesiod, Theogony",c. 700 BC,neutral,bearers of the sky,iron-hide,takes less damage / deals less damage,he,
+hypnos,Hypnos,patron,greek,"Homer, Iliad 14; Hesiod, Theogony",c. 8th c. BC,neutral,bringers of sleep,closer,weak in the first 20 s / strong after,he,twin of Thanatos (ladder executioner 9)
+nike,Nike,patron,greek,"Hesiod, Theogony",c. 700 BC,neutral,victory's wings,finisher,strong on a foe under half health / weak on a foe above half,she,
+heracles,Heracles,legend,greek,"Apollodorus, Library 2",1st-2nd c. AD,neutral,twelve-labour strongmen,glass,deals more damage / takes more damage,he,
+perseus,Perseus,legend,greek,"Apollodorus, Library 2.4; Ovid, Metamorphoses 4-5",1st-2nd c. AD,neutral,gorgon-slayers with borrowed gifts,opener,strong in the first 20 s / weak after,he,
+theseus,Theseus,legend,greek,"Plutarch, Life of Theseus",c. AD 100,neutral,runners of the labyrinth,underdog,strong against a higher-level foe / weak against a lower one,he,
+jason,Jason,legend,greek,"Apollonius of Rhodes, Argonautica",3rd c. BC,neutral,the Argo's crew,opener,strong in the first 20 s / weak after,he,
+odysseus,Odysseus,legend,greek,"Homer, Odyssey",c. 8th c. BC,neutral,cunning wanderers who win late,closer,weak in the first 20 s / strong after,he,
+atalanta,Atalanta,legend,greek,"Apollodorus, Library 3.9; Ovid, Metamorphoses 10",AD 8,neutral,swift huntresses,opener,strong in the first 20 s / weak after,she,
+bellerophon,Bellerophon,legend,greek,"Homer, Iliad 6; Pindar, Olympian 13",c. 8th-5th c. BC,neutral,winged riders,opener,strong in the first 20 s / weak after,he,
+orpheus,Orpheus,legend,greek,"Ovid, Metamorphoses 10-11; Virgil, Georgics 4",29 BC-AD 8,neutral,singers who walked among the dead,night-half,strong in the night half / weak in the day half,he,
+diomedes,Diomedes,legend,greek,"Homer, Iliad 5",c. 8th c. BC,neutral,the man who wounded gods,underdog,strong against a higher-level foe / weak against a lower one,he,
+patroclus,Patroclus,legend,greek,"Homer, Iliad 16",c. 8th c. BC,neutral,the borrowed-armour band,last-stand,strong while under half health / weak while above half,he,
+agamemnon,Agamemnon,legend,greek,"Homer, Iliad; Aeschylus, Agamemnon",c. 8th-5th c. BC,neutral,the high king's host,iron-hide,takes less damage / deals less damage,he,
+cassandra,Cassandra,legend,greek,"Aeschylus, Agamemnon",458 BC,neutral,seers no one believes,last-stand,strong while under half health / weak while above half,she,
+meleager,Meleager,legend,greek,"Homer, Iliad 9; Ovid, Metamorphoses 8",c. 8th c. BC-AD 8,neutral,hunters of the Calydonian boar,finisher,strong on a foe under half health / weak on a foe above half,he,
+castor,Castor,legend,greek,"Pindar, Nemean 10",5th c. BC,neutral,horse-tamers of the bright day,day-half,strong in the day half / weak in the night half,he,twin of Pollux; the twins share life and death day by day
+pollux,Pollux,legend,greek,"Pindar, Nemean 10; Apollonius, Argonautica 2",5th-3rd c. BC,neutral,boxers of the shared night,night-half,strong in the night half / weak in the day half,he,also Polydeuces
+hippolyta,Hippolyta,legend,greek,"Apollodorus, Library 2.5.9",1st-2nd c. AD,neutral,Amazon belt-bearers,glass,deals more damage / takes more damage,she,
+medusa,Medusa,legend,greek,"Hesiod, Theogony; Ovid, Metamorphoses 4",c. 700 BC-AD 8,dark,the stone-gaze sisters,finisher,strong on a foe under half health / weak on a foe above half,she,
+minotaur,The Minotaur,legend,greek,"Apollodorus, Library 3.1; Plutarch, Life of Theseus",1st-2nd c. AD,dark,beasts of the labyrinth,closer,weak in the first 20 s / strong after,he,named Asterion in Apollodorus
+lernaean-hydra,The Lernaean Hydra,legend,greek,"Hesiod, Theogony; Apollodorus, Library 2.5.2",c. 700 BC,dark,heads that grow back,last-stand,strong while under half health / weak while above half,they,
+chimera,The Chimera,legend,greek,"Homer, Iliad 6; Hesiod, Theogony",c. 8th c. BC,dark,fire-breathing hybrids,glass,deals more damage / takes more damage,she,
+cerberus,Cerberus,legend,greek,"Hesiod, Theogony",c. 700 BC,dark,the hound at the gate,iron-hide,takes less damage / deals less damage,they,
+scylla,Scylla,legend,greek,"Homer, Odyssey 12",c. 8th c. BC,dark,the six-headed strait guard,opener,strong in the first 20 s / weak after,she,
+charybdis,Charybdis,legend,greek,"Homer, Odyssey 12",c. 8th c. BC,dark,the whirlpool that swallows,closer,weak in the first 20 s / strong after,she,
+sphinx-of-thebes,The Sphinx of Thebes,legend,greek,"Sophocles, Oedipus Tyrannus; Apollodorus, Library 3.5.8",c. 429 BC,dark,riddle-guards,finisher,strong on a foe under half health / weak on a foe above half,she,
+celaeno,Celaeno,legend,greek,"Virgil, Aeneid 3",29-19 BC,dark,the harpy who foretells hunger,finisher,strong on a foe under half health / weak on a foe above half,she,
+lamia,Lamia,legend,greek,Diodorus Siculus 20.41,1st c. BC,dark,the night queen who steals children,night-half,strong in the night half / weak in the day half,she,
+empusa,Empusa,legend,greek,"Aristophanes, Frogs",405 BC,dark,the shape-shifting spectre,night-half,strong in the night half / weak in the day half,she,
+echidna,Echidna,legend,greek,"Hesiod, Theogony",c. 700 BC,dark,mother of monsters,tireless,cheaper stamina / deals less damage,she,
+ladon,Ladon,legend,greek,"Hesiod, Theogony; Apollonius, Argonautica 4",c. 700 BC,dark,the sleepless serpent of the golden apples,iron-hide,takes less damage / deals less damage,they,
+talos,Talos,legend,greek,"Apollonius of Rhodes, Argonautica 4",3rd c. BC,neutral,the bronze sentinel,iron-hide,takes less damage / deals less damage,he,
+geryon,Geryon,legend,greek,"Hesiod, Theogony; Apollodorus, Library 2.5.10",c. 700 BC,dark,the three-bodied herdsman,iron-hide,takes less damage / deals less damage,he,
+nemean-lion,The Nemean Lion,legend,greek,"Apollodorus, Library 2.5.1",1st-2nd c. AD,dark,a hide no blade cuts,iron-hide,takes less damage / deals less damage,they,
+briareus,Briareus,legend,greek,"Hesiod, Theogony; Homer, Iliad 1",c. 700 BC,neutral,the hundred-handed guard,tireless,cheaper stamina / deals less damage,he,
+python,Python,legend,greek,Homeric Hymn to Apollo,c. 6th c. BC,dark,the serpent of Delphi,closer,weak in the first 20 s / strong after,she,the Hymn's serpent is female
+pegasus,Pegasus,legend,greek,"Hesiod, Theogony; Pindar, Olympian 13",c. 700 BC,neutral,the winged horse,opener,strong in the first 20 s / weak after,they,
+alecto,Alecto,legend,greek,"Virgil, Aeneid 7",29-19 BC,dark,the unceasing fury,tireless,cheaper stamina / deals less damage,she,
+keres,The Keres,legend,greek,"Hesiod, Theogony; Hesiod (attrib.), Shield of Heracles",c. 700 BC,dark,death-spirits of the battlefield,finisher,strong on a foe under half health / weak on a foe above half,they,
+graeae,The Graeae,legend,greek,"Hesiod, Theogony; Aeschylus (attrib.), Prometheus Bound",c. 700 BC,dark,grey sisters sharing one eye,underdog,strong against a higher-level foe / weak against a lower one,she,
+procrustes,Procrustes,legend,greek,"Plutarch, Life of Theseus 11",c. AD 100,dark,the host who makes you fit,iron-hide,takes less damage / deals less damage,he,
+arachne,Arachne,legend,greek,"Ovid, Metamorphoses 6",AD 8,neutral,weavers who out-weave gods,closer,weak in the first 20 s / strong after,she,
+midas,Midas,legend,greek,"Ovid, Metamorphoses 11",AD 8,neutral,the gold-cursed touch,glass,deals more damage / takes more damage,he,
+sisyphus,Sisyphus,legend,greek,"Homer, Odyssey 11",c. 8th c. BC,neutral,climbers who never stop,tireless,cheaper stamina / deals less damage,he,
+tantalus,Tantalus,legend,greek,"Homer, Odyssey 11",c. 8th c. BC,dark,ever-thirsting,last-stand,strong while under half health / weak while above half,he,
+phaethon,Phaethon,legend,greek,"Ovid, Metamorphoses 2",AD 8,neutral,reckless sun-drivers,glass,deals more damage / takes more damage,he,
+daedalus,Daedalus,legend,greek,"Ovid, Metamorphoses 8",AD 8,neutral,master builders,tireless,cheaper stamina / deals less damage,he,
+jupiter,Jupiter,patron,roman,"Virgil, Aeneid; Ovid, Fasti",29 BC-AD 8,neutral,the Capitol's thunder,opener,strong in the first 20 s / weak after,he,separate clan from Zeus
+juno,Juno,patron,roman,"Virgil, Aeneid 1",29-19 BC,neutral,the queen's long grudge,finisher,strong on a foe under half health / weak on a foe above half,she,
+minerva,Minerva,patron,roman,"Ovid, Fasti 3",AD 8,neutral,craft and counsel,tireless,cheaper stamina / deals less damage,she,Athena is ladder shieldmaiden 10; separate figure
+neptune,Neptune,patron,roman,"Virgil, Aeneid 1",29-19 BC,neutral,the calmer of storms,closer,weak in the first 20 s / strong after,he,
+mars,Mars,patron,roman,"Livy 1; Ovid, Fasti 3",c. 27 BC-AD 8,neutral,"Legion of Mars, the shield-wall",iron-hide,takes less damage / deals less damage,he,also ladder veteran 10; living-world 10.2 sample clan
+vulcan,Vulcan,patron,roman,"Virgil, Aeneid 8",29-19 BC,neutral,the forge under Etna,tireless,cheaper stamina / deals less damage,he,
+janus,Janus,patron,roman,"Ovid, Fasti 1",AD 8,neutral,keepers of the first door,opener,strong in the first 20 s / weak after,he,
+saturn,Saturn,patron,roman,"Virgil, Aeneid 8; Macrobius, Saturnalia",29 BC-5th c. AD,neutral,exiles of the golden age,closer,weak in the first 20 s / strong after,he,
+bellona,Bellona,patron,roman,"Virgil, Aeneid 8",29-19 BC,dark,the war-frenzy,glass,deals more damage / takes more damage,she,
+diana,Diana,patron,roman,"Catullus 34; Ovid, Metamorphoses 3",1st c. BC-AD 8,neutral,huntresses of the grove,waxing,strong while the moon waxes / weak while it wanes,she,
+venus,Venus,patron,roman,"Virgil, Aeneid 1; Lucretius, De Rerum Natura 1",1st c. BC,neutral,mother of Aeneas's line,underdog,strong against a higher-level foe / weak against a lower one,she,
+mercury,Mercury,patron,roman,"Virgil, Aeneid 4",29-19 BC,neutral,swift heralds,opener,strong in the first 20 s / weak after,he,Hermes is ladder goblin 9; separate figure
+fortuna,Fortuna,patron,roman,"Horace, Odes 1.35",23 BC,neutral,turners of the wheel,underdog,strong against a higher-level foe / weak against a lower one,she,
+dis-pater,Dis Pater,patron,roman,"Caesar, Gallic War 6.18",c. 50 BC,dark,wealth below the earth,iron-hide,takes less damage / deals less damage,he,
+vesta,Vesta,patron,roman,"Ovid, Fasti 6",AD 8,neutral,keepers of the undying flame,iron-hide,takes less damage / deals less damage,she,
+mithras,Mithras,patron,roman,"Statius, Thebaid 1.719-20; Roman cult reliefs",1st-4th c. AD,neutral,the bull-slayers' cave brotherhood,night-half,strong in the night half / weak in the day half,he,cult known mostly from monuments; text source thin
+aeneas,Aeneas,legend,roman,"Virgil, Aeneid",29-19 BC,neutral,exiles who carry their home on their backs,last-stand,strong while under half health / weak while above half,he,
+turnus,Turnus,legend,roman,"Virgil, Aeneid 7-12",29-19 BC,neutral,the Rutulian challenger,opener,strong in the first 20 s / weak after,he,
+dido,Dido,legend,roman,"Virgil, Aeneid 4",29-19 BC,neutral,the queen of Carthage,last-stand,strong while under half health / weak while above half,she,
+horatius-cocles,Horatius Cocles,legend,roman,Livy 2.10,c. 27 BC,neutral,holders of the bridge,iron-hide,takes less damage / deals less damage,he,semi-legendary (509 BC)
+mucius-scaevola,Mucius Scaevola,legend,roman,Livy 2.12,c. 27 BC,neutral,the hand held in the fire,last-stand,strong while under half health / weak while above half,he,semi-legendary
+cloelia,Cloelia,legend,roman,Livy 2.13,c. 27 BC,neutral,swimmers of the Tiber,underdog,strong against a higher-level foe / weak against a lower one,she,semi-legendary
+coriolanus,Coriolanus,legend,roman,"Plutarch, Life of Coriolanus",c. AD 100,neutral,the banished general,underdog,strong against a higher-level foe / weak against a lower one,he,semi-legendary
+erichtho,Erichtho,legend,roman,"Lucan, Pharsalia 6",AD 61-65,dark,the Thessalian witch of the dead,night-half,strong in the night half / weak in the day half,she,"also in Goethe, Faust II"
+lemures,The Lemures,legend,roman,"Ovid, Fasti 5",AD 8,dark,the restless household dead,night-half,strong in the night half / weak in the day half,they,
+strix,The Strix,legend,roman,"Ovid, Fasti 6",AD 8,dark,blood-drinking night birds,night-half,strong in the night half / weak in the day half,they,
+odin,Odin,patron,norse,"Snorri Sturluson, Prose Edda (Gylfaginning)",c. 1220,neutral,ravens and the hanged wanderer,closer,weak in the first 20 s / strong after,he,also ladder witch 10 (the Pit fights the legend)
+thor,Thor,patron,norse,"Snorri Sturluson, Prose Edda",c. 1220,neutral,"Thunder-kin, giant-slayers",glass,deals more damage / takes more damage,he,also ladder knight 10; living-world 10.2 sample clan
+freyja,Freyja,patron,norse,"Snorri, Prose Edda; Poetic Edda (Lokasenna)",c. 1220-1270,neutral,claimers of half the slain,finisher,strong on a foe under half health / weak on a foe above half,she,
+freyr,Freyr,patron,norse,Poetic Edda (Skirnismal),c. 1270 (MS),neutral,the lord who gave his sword away,underdog,strong against a higher-level foe / weak against a lower one,he,
+tyr,Tyr,patron,norse,"Snorri, Prose Edda (Gylfaginning 25)",c. 1220,neutral,one-handed oath-keepers,last-stand,strong while under half health / weak while above half,he,
+heimdall,Heimdall,patron,norse,"Snorri, Prose Edda; Voluspa",c. 1220,neutral,watchers of the bridge,iron-hide,takes less damage / deals less damage,he,
+baldr,Baldr,patron,norse,"Snorri, Prose Edda (Gylfaginning 49)",c. 1220,neutral,the one nothing could harm,iron-hide,takes less damage / deals less damage; flavour: only the mistletoe,he,
+frigg,Frigg,patron,norse,"Snorri, Prose Edda",c. 1220,neutral,the queen who knows and does not tell,tireless,cheaper stamina / deals less damage,she,
+njord,Njord,patron,norse,"Snorri, Prose Edda",c. 1220,neutral,the sea-wind,closer,weak in the first 20 s / strong after,he,
+skadi,Skadi,patron,norse,"Snorri, Prose Edda (Skaldskaparmal)",c. 1220,neutral,ski-hunters of the mountain,opener,strong in the first 20 s / weak after,she,
+hel,Hel,patron,norse,"Snorri, Prose Edda",c. 1220,dark,"Hel's Thralls, the grave frost",tireless,cheaper stamina / deals less damage,she,also ladder executioner 4; living-world 10.1 sample patron
+loki,Loki,patron,norse,"Snorri, Prose Edda",c. 1220,dark,tricksters of Asgard,glass,deals more damage / takes more damage,he,also ladder goblin 10
+aegir,Aegir,patron,norse,Poetic Edda (Lokasenna); Skaldskaparmal,c. 1220,neutral,brewers of the sea-feast,closer,weak in the first 20 s / strong after,he,
+ran,Ran,patron,norse,"Snorri, Skaldskaparmal",c. 1220,dark,the drowning net,finisher,strong on a foe under half health / weak on a foe above half,she,
+fenrir,Fenrir,legend,norse,"Snorri, Prose Edda",c. 1220,dark,the chained wolf,last-stand,strong while under half health / weak while above half,he,
+jormungandr,Jormungandr,legend,norse,"Snorri, Prose Edda",c. 1220,dark,the world serpent,tireless,cheaper stamina / deals less damage,they,
+sleipnir,Sleipnir,legend,norse,"Snorri, Prose Edda",c. 1220,neutral,the eight-legged steed,opener,strong in the first 20 s / weak after,they,
+nidhogg,Nidhogg,legend,norse,"Voluspa; Snorri, Gylfaginning",c. 1220,dark,the root-gnawer,tireless,cheaper stamina / deals less damage,they,
+fafnir,Fafnir,legend,norse,Volsunga saga; Fafnismal,13th c.,dark,the hoard-dragon,iron-hide,takes less damage / deals less damage,he,
+gudrun,Gudrun,legend,norse,Volsunga saga; Atlakvida,13th c.,neutral,the widow's vengeance,last-stand,strong while under half health / weak while above half,she,Kriemhild is her German twin (not listed)
+starkad,Starkad,legend,norse,"Saxo Grammaticus, Gesta Danorum 6-8",c. 1200,neutral,three lifetimes of war,tireless,cheaper stamina / deals less damage,he,
+hrolf-kraki,Hrolf Kraki,legend,norse,Hrolfs saga kraka,c. 1400,neutral,the king's champions,iron-hide,takes less damage / deals less damage,he,
+bodvar-bjarki,Bodvar Bjarki,legend,norse,Hrolfs saga kraka,c. 1400,neutral,the bear who fights while the man sleeps,last-stand,strong while under half health / weak while above half,he,
+grettir,Grettir,legend,norse,Grettis saga,c. 1325,neutral,the strong outlaw who fears the dark,day-half,strong in the day half / weak in the night half; flavour: fear of the dark after Glamr,he,
+glamr,Glamr,legend,norse,Grettis saga,c. 1325,dark,the draugr shepherd,night-half,strong in the night half / weak in the day half,he,
+kara,Kara,legend,norse,Helgakvida Hundingsbana II (prose); Hromundar saga,13th c.,neutral,the swan-shaped valkyrie,opener,strong in the first 20 s / weak after,she,
+angantyr,Angantyr,legend,norse,Hervarar saga,13th c.,dark,the berserk in the barrow,glass,deals more damage / takes more damage,he,father of Hervor (ladder shieldmaiden 2)
+thrym,Thrym,legend,norse,Thrymskvida,c. 1270 (MS),dark,the giant who stole the hammer,iron-hide,takes less damage / deals less damage,he,
+thjazi,Thjazi,legend,norse,"Snorri, Skaldskaparmal",c. 1220,dark,the eagle-shaped giant,opener,strong in the first 20 s / weak after,he,
+utgarda-loki,Utgarda-Loki,legend,norse,"Snorri, Gylfaginning 44-47",c. 1220,dark,the illusion king,closer,weak in the first 20 s / strong after,he,
+skoll,Skoll,legend,norse,"Grimnismal; Snorri, Gylfaginning",c. 1220,dark,the wolf who chases the sun,day-half,strong in the day half / weak in the night half,they,
+hati,Hati,legend,norse,"Grimnismal; Snorri, Gylfaginning",c. 1220,dark,the wolf who chases the moon,waxing,strong while the moon waxes / weak while it wanes,they,
+draugr,The Draugr,legend,norse,Eyrbyggja saga; Grettis saga,13th-14th c.,dark,the barrow dead,tireless,cheaper stamina / deals less damage,they,
+berserkers,The Berserkers,legend,norse,"Snorri, Ynglinga saga 6",c. 1230,dark,bear-shirts,glass,deals more damage / takes more damage,they,
+norns,The Norns,legend,norse,"Voluspa; Snorri, Gylfaginning",c. 1220,neutral,"weavers of fate (Urd, Verdandi, Skuld)",tireless,cheaper stamina / deals less damage,they,
+valkyries,The Valkyries,legend,norse,Voluspa; Darradarljod,c. 1270 (MS),neutral,choosers of the slain,finisher,strong on a foe under half health / weak on a foe above half,they,Brynhildr is ladder shieldmaiden 9; the band is separate
+einherjar,The Einherjar,legend,norse,"Grimnismal; Snorri, Gylfaginning",c. 1220,neutral,the dead who feast and fight,tireless,cheaper stamina / deals less damage,they,
+angrboda,Angrboda,legend,norse,"Snorri, Gylfaginning",c. 1220,dark,mother of wolves,waxing,strong while the moon waxes / weak while it wanes,she,
+ymir,Ymir,legend,norse,"Snorri, Gylfaginning",c. 1220,dark,the first giant,iron-hide,takes less damage / deals less damage,he,
+mimir,Mimir,legend,norse,"Snorri, Ynglinga saga 4; Voluspa",c. 1230,neutral,the counsel of the severed head,underdog,strong against a higher-level foe / weak against a lower one,he,
+gullveig,Gullveig,legend,norse,Voluspa,c. 1270 (MS),dark,the thrice-burned witch,last-stand,strong while under half health / weak while above half,she,
+egil-skallagrimsson,Egil Skallagrimsson,legend,norse,Egils saga,c. 1240,neutral,the skald with the axe,glass,deals more damage / takes more damage,he,"saga hero, historical figure (d. c. 990)"
+ra,Ra,patron,egyptian,Book of the Dead; Book of the Heavenly Cow,New Kingdom,neutral,crew of the sun barque,day-half,strong in the day half / weak in the night half,he,
+osiris,Osiris,patron,egyptian,"Plutarch, On Isis and Osiris; Pyramid Texts",c. 2400 BC-AD 100,neutral,the risen king of the dead,last-stand,strong while under half health / weak while above half,he,
+isis,Isis,patron,egyptian,"Plutarch, On Isis and Osiris",c. AD 100,neutral,healers of kings,tireless,cheaper stamina / deals less damage,she,
+horus,Horus,patron,egyptian,The Contendings of Horus and Set (Papyrus Chester Beatty I),c. 1150 BC,neutral,falcon avengers,underdog,strong against a higher-level foe / weak against a lower one,he,
+set,Set,patron,egyptian,"Plutarch, On Isis and Osiris",c. AD 100,dark,"Red Sand, the sandstorm",underdog,strong against a higher-level foe / weak against a lower one,he,also ladder nightborn 8; living-world 10.1 sample patron
+anubis,Anubis,patron,egyptian,"Book of the Dead, spell 125",New Kingdom,neutral,weighers of hearts,finisher,strong on a foe under half health / weak on a foe above half,he,also ladder executioner 5
+thoth,Thoth,patron,egyptian,"Book of the Dead; Plato, Phaedrus 274",New Kingdom,neutral,scribes who reckon by the moon,waxing,strong while the moon waxes / weak while it wanes,he,
+sekhmet,Sekhmet,patron,egyptian,Book of the Heavenly Cow,New Kingdom,dark,"Lion's Eye, the sun-flare",day-half,strong in the day half / weak in the night half,she,also ladder plaguedoctor 6; living-world 10.1 sample patron
+bastet,Bastet,patron,egyptian,Herodotus 2.60; Bubastis temple texts,5th c. BC,neutral,cat-guards of the home,night-half,strong in the night half / weak in the day half,she,
+hathor,Hathor,patron,egyptian,Book of the Heavenly Cow,New Kingdom,neutral,the cow-mother's revel,closer,weak in the first 20 s / strong after,she,
+sobek,Sobek,patron,egyptian,Pyramid Texts; Kom Ombo temple texts,c. 2400 BC,neutral,crocodiles of the Nile,finisher,strong on a foe under half health / weak on a foe above half,he,
+khonsu,Khonsu,patron,egyptian,Pyramid Texts (Cannibal Hymn); Bentresh Stela,c. 2400-400 BC,neutral,the moon wanderer,waxing,strong while the moon waxes / weak while it wanes,he,
+montu,Montu,patron,egyptian,Poem of Pentaur (Kadesh inscriptions),c. 1274 BC,neutral,the Theban war-falcon,opener,strong in the first 20 s / weak after,he,
+nephthys,Nephthys,patron,egyptian,"Pyramid Texts; Plutarch, On Isis and Osiris",c. 2400 BC,neutral,mourners at dusk,night-half,strong in the night half / weak in the day half,she,
+ptah,Ptah,patron,egyptian,Memphite Theology (Shabaka Stone),c. 710 BC,neutral,craftsmen of Memphis,tireless,cheaper stamina / deals less damage,he,also ladder dwarf 7
+amun,Amun,patron,egyptian,Leiden Hymns to Amun (Papyrus Leiden I 350),c. 1200 BC,neutral,the hidden king,closer,weak in the first 20 s / strong after,he,
+neith,Neith,patron,egyptian,The Contendings of Horus and Set,c. 1150 BC,neutral,archer-weavers of Sais,opener,strong in the first 20 s / weak after,she,
+serket,Serket,patron,egyptian,Pyramid Texts; Metternich Stela,c. 2400-360 BC,neutral,scorpion-healers,glass,deals more damage / takes more damage,she,
+bes,Bes,patron,egyptian,Metternich Stela; household magical texts,c. 360 BC,neutral,the guard against night terrors,night-half,strong in the night half / weak in the day half,he,
+apep,Apep,legend,egyptian,Book of Overthrowing Apep (Papyrus Bremner-Rhind),c. 310 BC,dark,the chaos serpent,night-half,strong in the night half / weak in the day half,he,
+ammit,Ammit,legend,egyptian,"Book of the Dead, spell 125",New Kingdom,dark,devourer of the unworthy heart,finisher,strong on a foe under half health / weak on a foe above half,she,
+bennu,Bennu,legend,egyptian,"Book of the Dead, spell 83",New Kingdom,neutral,the heron of renewal,last-stand,strong while under half health / weak while above half,they,
+sinuhe,Sinuhe,legend,egyptian,The Story of Sinuhe,c. 1875 BC,neutral,the exile who comes home,underdog,strong against a higher-level foe / weak against a lower one,he,
+shipwrecked-sailors-serpent,The Shipwrecked Sailor's Serpent,legend,egyptian,The Tale of the Shipwrecked Sailor,c. 2000 BC,neutral,the serpent-king of the island,iron-hide,takes less damage / deals less damage,he,
+setne-khamwas,Setne Khamwas,legend,egyptian,First Tale of Setne (Papyrus Cairo 30646),Ptolemaic,neutral,the scholar who robs tombs for a book,closer,weak in the first 20 s / strong after,he,literary form of prince Khaemwaset (d. c. 1225 BC); not monsterised
+naneferkaptah,Naneferkaptah,legend,egyptian,First Tale of Setne (Papyrus Cairo 30646),Ptolemaic,dark,the dead sorcerer who keeps the Book of Thoth,night-half,strong in the night half / weak in the day half,he,
+tiamat,Tiamat,patron,mesopotamian,Enuma Elish,c. 1100 BC,dark,"Brood of Tiamat, the brine surge",closer,weak in the first 20 s / strong after,she,living-world 10.1 sample patron
+ereshkigal,Ereshkigal,patron,mesopotamian,Descent of Inanna,c. 1900 BC,dark,The Seven Gates,iron-hide,takes less damage / deals less damage,she,also ladder executioner 6; living-world 10.1 sample patron
+marduk,Marduk,patron,mesopotamian,Enuma Elish,c. 1100 BC,neutral,slayers of the sea-dragon,finisher,strong on a foe under half health / weak on a foe above half,he,
+enlil,Enlil,patron,mesopotamian,Atrahasis,c. 1700 BC,neutral,the wind-lord who sent the flood,iron-hide,takes less damage / deals less damage,he,
+enki,Enki,patron,mesopotamian,Atrahasis; Enki and Ninmah,c. 1700 BC,neutral,tricksters of the sweet waters,underdog,strong against a higher-level foe / weak against a lower one,he,also called Ea
+anu,Anu,patron,mesopotamian,Enuma Elish; Epic of Gilgamesh VI,c. 1100 BC,neutral,the far sky-father,closer,weak in the first 20 s / strong after,he,
+inanna,Inanna,patron,mesopotamian,Descent of Inanna; Inanna and Ebih,c. 1900 BC,neutral,the queen of heaven and war,last-stand,strong while under half health / weak while above half,she,also called Ishtar
+shamash,Shamash,patron,mesopotamian,Epic of Gilgamesh III-V,c. 1200 BC (SB),neutral,the sun-judges,day-half,strong in the day half / weak in the night half,he,also called Utu
+nanna,Nanna,patron,mesopotamian,Nanna-Suen's Journey to Nippur,c. 2000 BC,neutral,lords of the moon,waxing,strong while the moon waxes / weak while it wanes,he,also called Suen
+ninurta,Ninurta,patron,mesopotamian,Lugal-e; Anzu epic,c. 2100-1700 BC,neutral,the farmer-warrior,opener,strong in the first 20 s / weak after,he,
+nergal,Nergal,patron,mesopotamian,Nergal and Ereshkigal,c. 1400 BC,dark,lords of plague and noon,glass,deals more damage / takes more damage,he,also ladder plaguedoctor 7
+dumuzi,Dumuzi,patron,mesopotamian,Descent of Inanna; Dumuzid's Dream,c. 1900 BC,neutral,the shepherd who spends half the year below,night-half,strong in the night half / weak in the day half,he,
+gilgamesh,Gilgamesh,legend,mesopotamian,Epic of Gilgamesh (Standard Babylonian),c. 1200 BC,neutral,kings who seek to outlive death,tireless,cheaper stamina / deals less damage,he,
+enkidu,Enkidu,legend,mesopotamian,Epic of Gilgamesh I-VII,c. 1200 BC,neutral,the wild man of the steppe,opener,strong in the first 20 s / weak after,he,
+bull-of-heaven,The Bull of Heaven,legend,mesopotamian,Epic of Gilgamesh VI,c. 1200 BC,dark,the drought bull,glass,deals more damage / takes more damage,they,
+utnapishtim,Utnapishtim,legend,mesopotamian,Epic of Gilgamesh XI,c. 1200 BC,neutral,the survivor of the flood,iron-hide,takes less damage / deals less damage,he,
+lamashtu,Lamashtu,legend,mesopotamian,Lamashtu incantations,2nd-1st mill. BC,dark,the fever-bringer,finisher,strong on a foe under half health / weak on a foe above half,she,
+pazuzu,Pazuzu,legend,mesopotamian,Neo-Assyrian amulets and incantations,1st mill. BC,dark,the wind-demon who wards off Lamashtu,underdog,strong against a higher-level foe / weak against a lower one,he,"art from the amulets, never a film"
+kingu,Kingu,legend,mesopotamian,Enuma Elish,c. 1100 BC,dark,Tiamat's general with the tablet of destinies,closer,weak in the first 20 s / strong after,he,
+anzu,Anzu,legend,mesopotamian,Anzu epic,c. 1700 BC,dark,the lion-headed thief-bird,opener,strong in the first 20 s / weak after,he,
+mushussu,Mushussu,legend,mesopotamian,Enuma Elish; Ishtar Gate reliefs,c. 1100-575 BC,neutral,the dragon of the gate,iron-hide,takes less damage / deals less damage,they,
+scorpion-men,The Scorpion Men,legend,mesopotamian,Epic of Gilgamesh IX,c. 1200 BC,neutral,wardens of the sunset gate,night-half,strong in the night half / weak in the day half,they,Girtablullu
+ugallu,Ugallu,legend,mesopotamian,Enuma Elish; Assyrian palace reliefs,c. 1100-700 BC,dark,the lion-demon of storms,glass,deals more damage / takes more damage,they,
+asag,Asag,legend,mesopotamian,Lugal-e,c. 2100 BC,dark,the demon with an army of stones,iron-hide,takes less damage / deals less damage,they,
+semiramis,Semiramis,legend,mesopotamian,Diodorus Siculus 2.4-20,1st c. BC,neutral,the legend-queen of Babylon,underdog,strong against a higher-level foe / weak against a lower one,she,legendary; loosely based on Shammuramat
+adapa,Adapa,legend,mesopotamian,Adapa myth,c. 1400 BC,neutral,the sage who refused the bread of life,tireless,cheaper stamina / deals less damage,he,
+morrigan,The Morrigan,patron,celtic,Tain Bo Cuailnge; Cath Maige Tuired,c. 12th c. (MSS),dark,Crows of the Ford,finisher,strong on a foe under half health / weak on a foe above half,she,also ladder executioner 7; living-world 10.1 sample patron
+dagda,The Dagda,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),neutral,club and cauldron,tireless,cheaper stamina / deals less damage,he,
+lugh,Lugh,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),neutral,the many-skilled,opener,strong in the first 20 s / weak after,he,
+nuada,Nuada,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),neutral,the silver-handed kings,last-stand,strong while under half health / weak while above half,he,
+manannan-mac-lir,Manannan mac Lir,patron,celtic,Immram Brain; Echtra Cormaic,c. 8th-12th c.,neutral,the mist-cloaked sea,closer,weak in the first 20 s / strong after,he,
+ogma,Ogma,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),neutral,champions of strength and letters,glass,deals more damage / takes more damage,he,
+balor,Balor,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),dark,the evil eye of the Fomorians,opener,strong in the first 20 s / weak after,he,
+bres,Bres,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),dark,the half-Fomorian tyrant,underdog,strong against a higher-level foe / weak against a lower one,he,
+macha,Macha,patron,celtic,Noinden Ulad; Tain Bo Cuailnge,c. 12th c. (MSS),neutral,the racing queen's curse,last-stand,strong while under half health / weak while above half,she,
+badb,Badb,patron,celtic,Cath Maige Tuired,c. 12th c. (MS),dark,the battle crow,finisher,strong on a foe under half health / weak on a foe above half,she,
+aengus,Aengus,patron,celtic,Aislinge Oenguso,c. 8th c.,neutral,swan-dreamers,night-half,strong in the night half / weak in the day half,he,
+gwyn-ap-nudd,Gwyn ap Nudd,patron,celtic,Culhwch and Olwen,c. 1100,dark,the wild hunt of Annwn,night-half,strong in the night half / weak in the day half,he,
+rhiannon,Rhiannon,patron,celtic,"Mabinogi, First Branch",c. 1100,neutral,the unhurried white mare,closer,weak in the first 20 s / strong after,she,
+bran-the-blessed,Bran the Blessed,patron,celtic,"Mabinogi, Second Branch",c. 1100,neutral,the giant king's speaking head,iron-hide,takes less damage / deals less damage,he,
+gwydion,Gwydion,patron,celtic,"Mabinogi, Fourth Branch",c. 1100,neutral,shape-changing enchanters,underdog,strong against a higher-level foe / weak against a lower one,he,
+lleu-llaw-gyffes,Lleu Llaw Gyffes,patron,celtic,"Mabinogi, Fourth Branch",c. 1100,neutral,the skilled hand,last-stand,strong while under half health / weak while above half,he,
+arianrhod,Arianrhod,patron,celtic,"Mabinogi, Fourth Branch",c. 1100,neutral,the silver wheel,waxing,strong while the moon waxes / weak while it wanes,she,
+taranis,Taranis,patron,celtic,"Lucan, Pharsalia 1.444-46",AD 61-65,neutral,Gaulish thunder,glass,deals more damage / takes more damage,he,
+cernunnos,Cernunnos,patron,celtic,"Pillar of the Boatmen, Paris",AD 14-37,neutral,the antlered lord of beasts,tireless,cheaper stamina / deals less damage,he,known from inscription and relief; no myth text survives
+epona,Epona,patron,celtic,"Juvenal, Satire 8; Gallo-Roman inscriptions",c. AD 120,neutral,the horse-riders,opener,strong in the first 20 s / weak after,she,
+cu-chulainn,Cu Chulainn,legend,celtic,Tain Bo Cuailnge,c. 12th c. (MSS),neutral,"the hound of Ulster, battle-warp",last-stand,strong while under half health / weak while above half,he,pupil of Scathach (ladder shieldmaiden 7)
+fionn-mac-cumhaill,Fionn mac Cumhaill,legend,celtic,Macgnimartha Finn; Acallam na Senorach,c. 12th c.,neutral,the Fianna and the thumb of knowledge,underdog,strong against a higher-level foe / weak against a lower one,he,
+medb,Medb,legend,celtic,Tain Bo Cuailnge,c. 12th c. (MSS),neutral,the queen who started the cattle raid,opener,strong in the first 20 s / weak after,she,
+fergus-mac-roich,Fergus mac Roich,legend,celtic,Tain Bo Cuailnge,c. 12th c. (MSS),neutral,the exiled king,tireless,cheaper stamina / deals less damage,he,
+ferdiad,Ferdiad,legend,celtic,Tain Bo Cuailnge,c. 12th c. (MSS),neutral,the horn-skinned foster-brother,iron-hide,takes less damage / deals less damage,he,
+oisin,Oisin,legend,celtic,"Michael Comyn, Laoi Oisin i dTir na nOg",c. 1750,neutral,the poet back from the land of youth,closer,weak in the first 20 s / strong after,he,
+diarmuid-ua-duibhne,Diarmuid Ua Duibhne,legend,celtic,Toraigheacht Dhiarmada agus Ghrainne,c. 16th c. (MSS),neutral,the love-spot and the boar's doom,glass,deals more damage / takes more damage,he,
+conall-cernach,Conall Cernach,legend,celtic,Tain Bo Cuailnge; Scela Mucce Meic Datho,c. 12th c. (MSS),neutral,the avenger of Ulster,finisher,strong on a foe under half health / weak on a foe above half,he,
+ysbaddaden,Ysbaddaden,legend,celtic,Culhwch and Olwen,c. 1100,dark,the chief giant whose eyelids need forks,closer,weak in the first 20 s / strong after,he,
+twrch-trwyth,Twrch Trwyth,legend,celtic,Culhwch and Olwen,c. 1100,dark,the cursed boar-king,iron-hide,takes less damage / deals less damage,he,
+blodeuwedd,Blodeuwedd,legend,celtic,"Mabinogi, Fourth Branch",c. 1100,dark,the flower-made owl,night-half,strong in the night half / weak in the day half,she,
+banshee,The Banshee,legend,celtic,"Lady Wilde, Ancient Legends of Ireland",1887,neutral,keeners of the dying,finisher,strong on a foe under half health / weak on a foe above half,she,bean sidhe
+dullahan,The Dullahan,legend,celtic,"Thomas Crofton Croker, Fairy Legends of the South of Ireland",1825-28,dark,the headless rider,night-half,strong in the night half / weak in the day half,he,
+puca,The Puca,legend,celtic,"Croker 1825; W. B. Yeats, Fairy and Folk Tales of the Irish Peasantry",1825-1888,neutral,the shape-changing goblin horse,night-half,strong in the night half / weak in the day half,they,Yeats d. 1939
+kelpie,The Kelpie,legend,celtic,"Robert Burns, Address to the Deil",1786,dark,the water-horse,closer,weak in the first 20 s / strong after,they,
+selkie,The Selkie,legend,celtic,"Samuel Hibbert, Description of the Shetland Islands",1822,neutral,the seal-folk,waxing,strong while the moon waxes / weak while it wanes,they,
+nuckelavee,The Nuckelavee,legend,celtic,"Walter Traill Dennison, in The Scottish Antiquary",1891,dark,the skinless sea-rider,glass,deals more damage / takes more damage,he,
+sluagh,The Sluagh,legend,celtic,"Alexander Carmichael, Carmina Gadelica",1900,dark,the host of the restless dead,night-half,strong in the night half / weak in the day half,they,
+leanan-sidhe,The Leanan Sidhe,legend,celtic,"W. B. Yeats, Fairy and Folk Tales of the Irish Peasantry",1888,dark,the muse who drains,tireless,cheaper stamina / deals less damage,she,
+cu-sith,The Cu-sith,legend,celtic,"John Gregorson Campbell, Superstitions of the Highlands and Islands",1900,dark,the fairy hound,opener,strong in the first 20 s / weak after,they,
+korrigans,The Korrigans,legend,celtic,"Theodore Hersart de La Villemarque, Barzaz Breiz",1839,neutral,the dancing dwarf-folk of Brittany,night-half,strong in the night half / weak in the day half,they,
+knockers,The Knockers,legend,celtic,"Robert Hunt, Popular Romances of the West of England",1865,neutral,the knocking spirits of the mines,tireless,cheaper stamina / deals less damage,they,
+gwyllgi,The Gwyllgi,legend,celtic,"Wirt Sikes, British Goblins",1880,dark,the dog of darkness,night-half,strong in the night half / weak in the day half,they,
+gwrach-y-rhibyn,Gwrach y Rhibyn,legend,celtic,"Wirt Sikes, British Goblins",1880,dark,the hag of the mist,finisher,strong on a foe under half health / weak on a foe above half,she,
+king-arthur,King Arthur,patron,arthurian,"Thomas Malory, Le Morte d'Arthur",1485,light,Knights of the Grail,day-half,strong in the day half / weak in the night half; flavour: Gawain's strength to noon,he,living-world 10.2 sample clan; the light side
+galahad,Galahad,legend,arthurian,Malory; La Queste del Saint Graal,c. 1225-1485,light,grail-seekers pure in purpose,iron-hide,takes less damage / deals less damage,he,
+percival,Percival,legend,arthurian,"Chretien de Troyes, Perceval",c. 1190,light,the innocent who must ask the question,underdog,strong against a higher-level foe / weak against a lower one,he,
+bors,Bors,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the steadfast grail knight,tireless,cheaper stamina / deals less damage,he,
+gareth,Gareth,legend,arthurian,"Malory, Le Morte d'Arthur VII",1485,light,the kitchen knight,underdog,strong against a higher-level foe / weak against a lower one,he,
+gaheris,Gaheris,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the loyal brother,iron-hide,takes less damage / deals less damage,he,
+agravain,Agravain,legend,arthurian,"Malory, Le Morte d'Arthur",1485,neutral,the accuser at court,finisher,strong on a foe under half health / weak on a foe above half,he,
+kay,Kay,legend,arthurian,Culhwch and Olwen; Malory,c. 1100-1485,neutral,the seneschal who goes nine nights without sleep,tireless,cheaper stamina / deals less damage,he,
+lamorak,Lamorak,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the third-best knight,glass,deals more damage / takes more damage,he,
+tristan,Tristan,legend,arthurian,"Gottfried von Strassburg, Tristan; Malory",c. 1210-1485,light,harp and blade,closer,weak in the first 20 s / strong after,he,
+isolde,Isolde,legend,arthurian,"Gottfried von Strassburg, Tristan",c. 1210,neutral,the healer of Ireland,tireless,cheaper stamina / deals less damage,she,
+palamedes,Palamedes,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the hunter of the Questing Beast,underdog,strong against a higher-level foe / weak against a lower one,he,written as a knight; no faith framing
+pellinore,Pellinore,legend,arthurian,"Malory, Le Morte d'Arthur",1485,neutral,the king who hunts the beast,tireless,cheaper stamina / deals less damage,he,
+questing-beast,The Questing Beast,legend,arthurian,Malory; Post-Vulgate Queste,c. 1230-1485,neutral,the baying beast that is never caught,opener,strong in the first 20 s / weak after,they,
+uther-pendragon,Uther Pendragon,legend,arthurian,"Geoffrey of Monmouth, Historia Regum Britanniae",c. 1136,neutral,the dragon-banner king,opener,strong in the first 20 s / weak after,he,
+igraine,Igraine,legend,arthurian,"Geoffrey of Monmouth, Historia Regum Britanniae",c. 1136,neutral,the mother of the king,tireless,cheaper stamina / deals less damage,she,
+guinevere,Guinevere,legend,arthurian,"Geoffrey of Monmouth; Chretien, Lancelot",c. 1136-1180,light,the queen's court,underdog,strong against a higher-level foe / weak against a lower one,she,
+lady-of-shalott,The Lady of Shalott,legend,arthurian,"Alfred Tennyson, The Lady of Shalott",1832/1842,neutral,the weaver who looks out,last-stand,strong while under half health / weak while above half,she,
+fisher-king,The Fisher King,legend,arthurian,"Chretien de Troyes, Perceval",c. 1190,light,the wounded keeper of the grail,last-stand,strong while under half health / weak while above half,he,
+green-knight,The Green Knight,legend,arthurian,Sir Gawain and the Green Knight,c. 1390,neutral,the beheading game,iron-hide,takes less damage / deals less damage,he,Gawain is ladder knight 3
+morgause,Morgause,legend,arthurian,"Malory, Le Morte d'Arthur",1485,dark,the queen of Orkney,night-half,strong in the night half / weak in the day half,she,
+urien,Urien,legend,arthurian,Malory; Book of Taliesin,c. 14th c.-1485,neutral,the lord of Rheged,tireless,cheaper stamina / deals less damage,he,
+yvain,Yvain,legend,arthurian,"Chretien de Troyes, Yvain, the Knight of the Lion",c. 1180,light,the knight of the lion,last-stand,strong while under half health / weak while above half,he,
+erec,Erec,legend,arthurian,"Chretien de Troyes, Erec et Enide",c. 1170,light,the sparrowhawk champion,opener,strong in the first 20 s / weak after,he,
+enide,Enide,legend,arthurian,"Chretien de Troyes, Erec et Enide",c. 1170,light,the companion who never breaks,tireless,cheaper stamina / deals less damage,she,
+lohengrin,Lohengrin,legend,arthurian,"Wolfram von Eschenbach, Parzival",c. 1210,light,the swan knight,opener,strong in the first 20 s / weak after,he,
+klingsor,Klingsor,legend,arthurian,"Wolfram von Eschenbach, Parzival",c. 1210,dark,the sorcerer of the castle of marvels,night-half,strong in the night half / weak in the day half,he,
+cundrie,Cundrie,legend,arthurian,"Wolfram von Eschenbach, Parzival",c. 1210,neutral,the grail messenger,finisher,strong on a foe under half health / weak on a foe above half,she,
+galehaut,Galehaut,legend,arthurian,Prose Lancelot (Vulgate Cycle),c. 1220,neutral,the lord of the far isles,iron-hide,takes less damage / deals less damage,he,
+balin,Balin,legend,arthurian,"Malory, Le Morte d'Arthur II",1485,neutral,the knight with two swords,glass,deals more damage / takes more damage,he,
+balan,Balan,legend,arthurian,"Malory, Le Morte d'Arthur II",1485,neutral,the brother's doom,last-stand,strong while under half health / weak while above half,he,
+sagramore,Sagramore,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the Desirous,opener,strong in the first 20 s / weak after,he,
+dinadan,Dinadan,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the jesting knight,underdog,strong against a higher-level foe / weak against a lower one,he,
+dagonet,Dagonet,legend,arthurian,"Malory, Le Morte d'Arthur",1485,neutral,the king's fool,underdog,strong against a higher-level foe / weak against a lower one,he,
+sir-tor,Sir Tor,legend,arthurian,"Malory, Le Morte d'Arthur",1485,light,the cowherd's son,underdog,strong against a higher-level foe / weak against a lower one,he,
+sir-ironside,Sir Ironside,legend,arthurian,"Malory, Le Morte d'Arthur VII",1485,dark,the Red Knight of the Red Lands,day-half,strong in the day half / weak in the night half; flavour: strength that grows to noon,he,
+vortigern,Vortigern,legend,arthurian,"Geoffrey of Monmouth, Historia Regum Britanniae",c. 1136,dark,the usurper over the dragons,underdog,strong against a higher-level foe / weak against a lower one,he,
+red-and-white-dragons,The Red and White Dragons,legend,arthurian,Historia Brittonum; Geoffrey of Monmouth,c. 830-1136,neutral,the two dragons under the hill,closer,weak in the first 20 s / strong after,they,
+taliesin,Taliesin,legend,arthurian,Hanes Taliesin; Book of Taliesin,14th-16th c. (MSS),neutral,the bard reborn,underdog,strong against a higher-level foe / weak against a lower one,he,
+culhwch,Culhwch,legend,arthurian,Culhwch and Olwen,c. 1100,neutral,the giant's impossible tasks,tireless,cheaper stamina / deals less damage,he,
+count-dracula,Count Dracula,patron,gothic-lit,"Bram Stoker, Dracula",1897,dark,House of Dracula,night-half,"strong in the night half / weak in the day half; flavour: garlic, the wild rose and running water",he,"Stoker's character, never Vlad III; never ""the Impaler""; art cites the novel, never a film"
+frankensteins-creature,Frankenstein's Creature,patron,gothic-lit,"Mary Shelley, Frankenstein; or, The Modern Prometheus",1818,neutral,The Stitched,tireless,cheaper stamina / deals less damage; flavour: fear of fire,he,living-world 10.2 sample clan (The Stitched)
+victor-frankenstein,Victor Frankenstein,legend,gothic-lit,"Mary Shelley, Frankenstein",1818,neutral,the maker who fled his work,glass,deals more damage / takes more damage,he,
+abraham-van-helsing,Abraham Van Helsing,legend,gothic-lit,"Bram Stoker, Dracula",1897,neutral,the vampire hunters,day-half,strong in the day half / weak in the night half,he,
+mina-harker,Mina Harker,legend,gothic-lit,"Bram Stoker, Dracula",1897,neutral,the hunters' steadfast memory,tireless,cheaper stamina / deals less damage,she,
+lucy-westenra,Lucy Westenra,legend,gothic-lit,"Bram Stoker, Dracula",1897,dark,the risen bride of Hampstead,night-half,strong in the night half / weak in the day half,she,
+three-sisters-of-castle-dracula,The Three Sisters of Castle Dracula,legend,gothic-lit,"Bram Stoker, Dracula",1897,dark,the three women of the castle,night-half,strong in the night half / weak in the day half,they,"never ""Brides of Dracula"" (a film title)"
+quincey-morris,Quincey Morris,legend,gothic-lit,"Bram Stoker, Dracula",1897,neutral,the Texan with the bowie knife,finisher,strong on a foe under half health / weak on a foe above half,he,
+dr-jekyll,Dr Jekyll,legend,gothic-lit,"Robert Louis Stevenson, Strange Case of Dr Jekyll and Mr Hyde",1886,neutral,the divided doctor,day-half,strong in the day half / weak in the night half,he,
+mr-hyde,Mr Hyde,legend,gothic-lit,"Robert Louis Stevenson, Strange Case of Dr Jekyll and Mr Hyde",1886,dark,the self let loose,night-half,strong in the night half / weak in the day half,he,
+dorian-gray,Dorian Gray,legend,gothic-lit,"Oscar Wilde, The Picture of Dorian Gray",1890,dark,the face that never ages,iron-hide,takes less damage / deals less damage,he,
+headless-horseman,The Headless Horseman,legend,gothic-lit,"Washington Irving, The Legend of Sleepy Hollow",1820,dark,the night-rider of the hollow,night-half,strong in the night half / weak in the day half,he,
+erik-the-opera-ghost,"Erik, the Opera Ghost",legend,gothic-lit,"Gaston Leroux, Le Fantome de l'Opera",1910,dark,the ghost under the opera,night-half,strong in the night half / weak in the day half,he,"Leroux d. 1927; art cites the novel, never a film or musical"
+doctor-moreau,Doctor Moreau,legend,gothic-lit,"H. G. Wells, The Island of Doctor Moreau",1896,dark,the island of made beasts,tireless,cheaper stamina / deals less damage,he,Wells d. 1946
+griffin-the-invisible-man,"Griffin, the Invisible Man",legend,gothic-lit,"H. G. Wells, The Invisible Man",1897,dark,the unseen man,opener,strong in the first 20 s / weak after,he,
+queen-tera,Queen Tera,legend,gothic-lit,"Bram Stoker, The Jewel of Seven Stars",1903,dark,the sleeping queen who waits to wake,last-stand,strong while under half health / weak while above half,she,
+bellinghams-mummy,Bellingham's Mummy,legend,gothic-lit,"Arthur Conan Doyle, Lot No. 249",1892,dark,the stalking mummy,tireless,cheaper stamina / deals less damage,they,Doyle d. 1930
+beetle,The Beetle,legend,gothic-lit,"Richard Marsh, The Beetle",1897,dark,the shape-shifter from the east,night-half,strong in the night half / weak in the day half,they,keep the art free of the novel's ethnic caricature
+clarimonde,Clarimonde,legend,gothic-lit,"Theophile Gautier, La Morte amoureuse",1836,dark,the vampire courtesan,night-half,strong in the night half / weak in the day half,she,
+gorcha,Gorcha,legend,gothic-lit,"A. K. Tolstoy, The Family of the Vourdalak",1839 (pub. 1884),dark,the father who came back wrong,night-half,strong in the night half / weak in the day half,he,
+viy,Viy,legend,gothic-lit,"Nikolai Gogol, Viy",1835,dark,the chief of the gnomes with iron eyelids,finisher,strong on a foe under half health / weak on a foe above half,he,
+pannochka,Pannochka,legend,gothic-lit,"Nikolai Gogol, Viy",1835,dark,the witch in the coffin,night-half,strong in the night half / weak in the day half,she,
+helen-vaughan,Helen Vaughan,legend,gothic-lit,"Arthur Machen, The Great God Pan",1894,dark,the child of what lies behind the veil,closer,weak in the first 20 s / strong after,she,Machen d. 1947
+lady-arabella-march,Lady Arabella March,legend,gothic-lit,"Bram Stoker, The Lair of the White Worm",1911,dark,the white worm in the well,finisher,strong on a foe under half health / weak on a foe above half,she,
+hound-of-the-baskervilles,The Hound of the Baskervilles,legend,gothic-lit,"Arthur Conan Doyle, The Hound of the Baskervilles",1902,dark,the hound on the moor,night-half,strong in the night half / weak in the day half,they,
+coppelius,Coppelius,legend,gothic-lit,"E. T. A. Hoffmann, Der Sandmann",1816,dark,the sandman who takes eyes,opener,strong in the first 20 s / weak after,he,
+horla,The Horla,legend,gothic-lit,"Guy de Maupassant, Le Horla",1887,dark,the unseen drinker,night-half,strong in the night half / weak in the day half,they,
+cthulhu,Cthulhu,legend,gothic-lit,"H. P. Lovecraft, The Call of Cthulhu (Weird Tales, Feb. 1928)",1928,dark,the dreamer under the sea,closer,weak in the first 20 s / strong after,they,"published before 1929 and Lovecraft d. 1937, so both tests pass; later stories are not used"
+nyarlathotep,Nyarlathotep,legend,gothic-lit,"H. P. Lovecraft, Nyarlathotep",1920,dark,the crawling herald,underdog,strong against a higher-level foe / weak against a lower one,he,
+sweeney-todd,Sweeney Todd,legend,gothic-lit,"The String of Pearls (penny serial, attrib. Rymer and Prest)",1846-47,dark,the barber of Fleet Street,finisher,strong on a foe under half health / weak on a foe above half,he,fictional; same authors as Varney (ladder)
+lycaon,Lycaon,patron,werewolf-folklore,"Ovid, Metamorphoses 1",AD 8,dark,The Wolf-kin,waxing,strong while the moon waxes / weak while it wanes; flavour: the full moon,he,PROVISIONAL as patron (a dark lord head); living-world 10.2 sample names werewolf folklore as head
+bisclavret,Bisclavret,legend,werewolf-folklore,"Marie de France, Bisclavret",c. 1170,neutral,the knight who becomes a wolf,waxing,strong while the moon waxes / weak while it wanes; flavour: lost without his clothes,he,
+alphonse-the-werewolf,Alphonse the Werewolf,legend,werewolf-folklore,"Guillaume de Palerne (English: William of Palerne, c. 1350)",c. 1194-97,neutral,the wolf prince who guards,iron-hide,takes less damage / deals less damage,he,
+damarchus,Damarchus,legend,werewolf-folklore,Pausanias 6.8.2,c. AD 160,neutral,"the Arcadian boxer, nine years a wolf",glass,deals more damage / takes more damage,he,
+neuri,The Neuri,legend,werewolf-folklore,Herodotus 4.105,c. 430 BC,neutral,the people who turn wolf a few days each year,waxing,strong while the moon waxes / weak while it wanes,they,an ancient people known only from Herodotus
+ulfhednar,The Ulfhednar,legend,werewolf-folklore,Vatnsdaela saga; Haraldskvaedi,13th c.,dark,the wolf-coat warriors,opener,strong in the first 20 s / weak after,they,
+sinfjotli,Sinfjotli,legend,werewolf-folklore,Volsunga saga 8,13th c.,dark,the outlaw in the wolf-skin,night-half,strong in the night half / weak in the day half,he,
+werewolves-of-ossory,The Werewolves of Ossory,legend,werewolf-folklore,"Gerald of Wales, Topographia Hibernica",1188,neutral,"the cursed couple, seven years as wolves",tireless,cheaper stamina / deals less damage,they,
+christina-the-white-wolf-of-the-hartz,"Christina, the White Wolf of the Hartz",legend,werewolf-folklore,"Frederick Marryat, The Phantom Ship",1839,dark,the wolf-bride,night-half,strong in the night half / weak in the day half,she,
+white-fell,White Fell,legend,werewolf-folklore,"Clemence Housman, The Were-Wolf",1896,dark,the snow huntress,opener,strong in the first 20 s / weak after,she,Housman d. 1955; published 1896
+hugues-the-wer-wolf,Hugues the Wer-Wolf,legend,werewolf-folklore,"Sutherland Menzies, Hugues the Wer-Wolf",1838,dark,the outcast who took the wolf's shape,underdog,strong against a higher-level foe / weak against a lower one,he,
+fernand-wagner,Fernand Wagner,legend,werewolf-folklore,"G. W. M. Reynolds, Wagner the Wehr-Wolf",1846-47,dark,youth bought with a monthly curse,waxing,strong while the moon waxes / weak while it wanes,he,id differs from Faust's Wagner
+beast-of-gevaudan,The Beast of Gevaudan,legend,werewolf-folklore,French royal reports and gazettes,1764-67,dark,the wolf of the Margeride,finisher,strong on a foe under half health / weak on a foe above half,they,"an animal, not a person"
+loup-garou,The Loup-garou,legend,werewolf-folklore,"French folklore; Jean Bodin, De la demonomanie des sorciers",1580,dark,night-runners of France,night-half,strong in the night half / weak in the day half,they,"Bodin's book also records trials; use the folklore beast only, never a named accused person"
+lobisomem,The Lobisomem,legend,werewolf-folklore,"Portuguese folklore; Teofilo Braga, O Povo Portuguez",1885,dark,the seventh son's curse,waxing,strong while the moon waxes / weak while it wanes,they,
+koschei-the-deathless,Koschei the Deathless,legend,european-folklore,"Alexander Afanasyev, Russian Fairy Tales",1855-63,dark,the death hidden in a needle,iron-hide,takes less damage / deals less damage,he,
+zmey-gorynych,Zmey Gorynych,legend,european-folklore,Russian byliny (Dobrynya and the Serpent); Afanasyev,19th c. (collected),dark,the three-headed dragon,glass,deals more damage / takes more damage,he,
+rusalka,The Rusalka,legend,european-folklore,"Alexander Pushkin, Rusalka",1832,dark,the drowned river maidens,night-half,strong in the night half / weak in the day half,she,
+leshy,The Leshy,legend,european-folklore,"Alexander Afanasyev, Russian Fairy Tales",1855-63,neutral,the forest lord who leads astray,closer,weak in the first 20 s / strong after,he,
+vodyanoy,The Vodyanoy,legend,european-folklore,"Alexander Afanasyev, Russian Fairy Tales",1855-63,dark,the drowning grandfather,finisher,strong on a foe under half health / weak on a foe above half,he,
+kikimora,The Kikimora,legend,european-folklore,"Russian folklore; Afanasyev, Poetic Views of the Slavs on Nature",1865-69,neutral,the night spinner of the house,night-half,strong in the night half / weak in the day half,she,
+poludnitsa,Poludnitsa,legend,european-folklore,"Karel Jaromir Erben, Polednice (Kytice)",1853,dark,"Lady Midday, the noon reaper",day-half,strong in the day half / weak in the night half,she,
+black-annis,Black Annis,legend,european-folklore,"Charles James Billson, County Folk-Lore: Leicestershire and Rutland",1895,dark,the blue-faced hag of the Dane Hills,night-half,strong in the night half / weak in the day half,she,
+barghest,The Barghest,legend,european-folklore,"William Henderson, Notes on the Folk-Lore of the Northern Counties of England and the Borders",1866,dark,the black hound of the north,night-half,strong in the night half / weak in the day half,they,
+rubezahl,Rubezahl,legend,european-folklore,"Johann Karl August Musaeus, Volksmaerchen der Deutschen",1783,neutral,the mountain lord of the Giant Mountains,closer,weak in the first 20 s / strong after,he,
+lorelei,The Lorelei,legend,european-folklore,"Clemens Brentano, Lore Lay; Heinrich Heine, Die Lorelei",1801-1824,dark,the siren of the Rhine rock,opener,strong in the first 20 s / weak after,she,
+pied-piper-of-hamelin,The Pied Piper of Hamelin,legend,european-folklore,"Brothers Grimm, Deutsche Sagen; Robert Browning, The Pied Piper of Hamelin",1816-1842,dark,the piper who collects the debt,finisher,strong on a foe under half health / weak on a foe above half,he,
+bluebeard,Bluebeard,legend,european-folklore,"Charles Perrault, La Barbe bleue",1697,dark,the forbidden room,closer,weak in the first 20 s / strong after,he,
+melusine,Melusine,legend,european-folklore,"Jean d'Arras, Roman de Melusine",1393,neutral,the serpent-tailed lady of Lusignan,waxing,strong while the moon waxes / weak while it wanes,she,
+prince-lindworm,Prince Lindworm,legend,european-folklore,"Svend Grundtvig, Gamle danske Minder i Folkemunde",1854-61,dark,the serpent prince,iron-hide,takes less damage / deals less damage,he,
+tatzelwurm,The Tatzelwurm,legend,european-folklore,"Johann Jakob Scheuchzer, Itinera per Helvetiae alpinas regiones",1723,dark,the Alpine cat-worm,opener,strong in the first 20 s / weak after,they,
+flying-dutchman,The Flying Dutchman,legend,european-folklore,"George Barrington, A Voyage to Botany Bay; Blackwood's Magazine",1795-1821,dark,the crew who can never make port,tireless,cheaper stamina / deals less damage,they,
+spring-heeled-jack,Spring-heeled Jack,legend,european-folklore,Victorian broadsides and penny dreadfuls,1837-1904,dark,the leaping terror,opener,strong in the first 20 s / weak after,he,
+herne-the-hunter,Herne the Hunter,legend,european-folklore,"William Shakespeare, The Merry Wives of Windsor",c. 1597,dark,the antlered ghost of Windsor,night-half,strong in the night half / weak in the day half,he,
+wild-hunt,The Wild Hunt,legend,european-folklore,"Jacob Grimm, Deutsche Mythologie",1835,dark,the riders across the storm sky,night-half,strong in the night half / weak in the day half,they,
+mara,The Mara,legend,european-folklore,"Snorri, Ynglinga saga 13",c. 1230,dark,the rider of sleepers,night-half,strong in the night half / weak in the day half,she,
+snow-queen,The Snow Queen,legend,european-folklore,"Hans Christian Andersen, The Snow Queen",1844,dark,the palace of cold,iron-hide,takes less damage / deals less damage,she,
+nachzehrer,The Nachzehrer,legend,european-folklore,"Michael Ranft, De masticatione mortuorum in tumulis",1725,dark,the shroud-chewing dead,tireless,cheaper stamina / deals less damage,they,
+perchta,Perchta,legend,european-folklore,"Jacob Grimm, Deutsche Mythologie",1835,neutral,the winter lady who judges,finisher,strong on a foe under half health / weak on a foe above half,she,
+lambton-worm,The Lambton Worm,legend,european-folklore,"Cuthbert Sharp, The Bishoprick Garland",1834,dark,the worm that rejoins itself,last-stand,strong while under half health / weak while above half,they,
+laidly-worm-of-spindleston-heugh,The Laidly Worm of Spindleston Heugh,legend,european-folklore,"Robert Lambe, The Laidley Worm of Spindleston-Heughs (ballad)",1778,neutral,the princess cursed into a worm,iron-hide,takes less damage / deals less damage,she,
+tam-lin,Tam Lin,legend,european-folklore,The Ballad of Tam Lin (Child 39),1549 (first mention),neutral,the captive who must be held fast,iron-hide,takes less damage / deals less damage,he,
+sun-wukong,Sun Wukong,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West",1592,neutral,Monkey King's Band,opener,strong in the first 20 s / weak after; flavour: the binding headband,he,"clan head, never a god (living-world 10.2)"
+zhu-bajie,Zhu Bajie,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West",1592,neutral,the pig-snouted rake-wielder,tireless,cheaper stamina / deals less damage,he,
+sha-wujing,Sha Wujing,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West",1592,neutral,the river ogre with the crescent spade,iron-hide,takes less damage / deals less damage,he,
+bull-demon-king,The Bull Demon King,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West",1592,dark,the demon king of the Flaming Mountains,glass,deals more damage / takes more damage,he,
+princess-iron-fan,Princess Iron Fan,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West",1592,dark,the palm-leaf fan of storms,opener,strong in the first 20 s / weak after,she,
+red-boy,Red Boy,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West",1592,dark,the true fire,glass,deals more damage / takes more damage,he,
+white-bone-demon,The White Bone Demon,legend,east-asian-folklore,"Wu Cheng'en (attrib.), Journey to the West 27",1592,dark,the three disguises,closer,weak in the first 20 s / strong after,she,
+jiangshi,The Jiangshi,legend,east-asian-folklore,"Yuan Mei, Zi Bu Yu; Ji Xiaolan, Yuewei Caotang Biji",1788-1798,dark,the hopping dead,night-half,strong in the night half / weak in the day half,they,living-world 10.2 sample clan; no peach-wood or other living rite as flavour
+huli-jing,The Huli Jing,legend,east-asian-folklore,"Pu Songling, Liaozhai Zhiyi",c. 1740,neutral,the fox spirits,night-half,strong in the night half / weak in the day half,she,
+nie-xiaoqian,Nie Xiaoqian,legend,east-asian-folklore,"Pu Songling, Liaozhai Zhiyi",c. 1740,neutral,the ghost bound to a tree demon,night-half,strong in the night half / weak in the day half,she,
+painted-skin,The Painted Skin,legend,east-asian-folklore,"Pu Songling, Liaozhai Zhiyi (Hua Pi)",c. 1740,dark,the demon in a painted skin,closer,weak in the first 20 s / strong after,they,
+bai-suzhen,Bai Suzhen,legend,east-asian-folklore,"Feng Menglong, Stories to Caution the World",1624,neutral,the white snake who loved a mortal,tireless,cheaper stamina / deals less damage,she,
+oni,The Oni,legend,east-asian-folklore,"Toriyama Sekien, Gazu Hyakki Yagyo",1776,dark,"Oni-kin, the iron clubs",glass,deals more damage / takes more damage,they,living-world 10.2 sample clan; no beans or holly as flavour
+shuten-doji,Shuten-doji,legend,east-asian-folklore,Oeyama Ekotoba; Otogizoshi,14th-17th c.,dark,the oni king who drinks,closer,weak in the first 20 s / strong after,he,
+ibaraki-doji,Ibaraki-doji,legend,east-asian-folklore,"Kanze Nobumitsu, Rashomon (Noh)",c. 1500,dark,the oni who comes back for the arm,last-stand,strong while under half health / weak while above half,he,
+tamamo-no-mae,Tamamo-no-Mae,legend,east-asian-folklore,Otogizoshi; Sesshoseki (Noh),15th-17th c.,dark,the nine-tailed fox courtesan,night-half,strong in the night half / weak in the day half,she,
+kappa,The Kappa,legend,east-asian-folklore,"Toriyama Sekien, Gazu Hyakki Yagyo; Kunio Yanagita, Tono Monogatari",1776-1910,neutral,the river imps,closer,weak in the first 20 s / strong after,they,
+tengu,The Tengu,legend,east-asian-folklore,Konjaku Monogatarishu,c. 1120,neutral,the mountain swordsmen,opener,strong in the first 20 s / weak after,they,generic tengu only; no named tengu venerated at a living shrine
+yuki-onna,Yuki-onna,legend,east-asian-folklore,"Lafcadio Hearn, Kwaidan",1904,dark,the snow woman,night-half,strong in the night half / weak in the day half,she,
+rokurokubi,The Rokurokubi,legend,east-asian-folklore,"Lafcadio Hearn, Kwaidan",1904,dark,the heads that wander loose,night-half,strong in the night half / weak in the day half,they,
+jorogumo,The Jorogumo,legend,east-asian-folklore,Taihei Hyakumonogatari,1732,dark,the spider woman,finisher,strong on a foe under half health / weak on a foe above half,she,
+nue,The Nue,legend,east-asian-folklore,The Tale of the Heike,1371 (Kakuichi text),dark,the chimera in the storm cloud,night-half,strong in the night half / weak in the day half,they,
+nure-onna,The Nure-onna,legend,east-asian-folklore,"Toriyama Sekien, Gazu Hyakki Yagyo",1776,dark,the serpent of the shore,closer,weak in the first 20 s / strong after,she,
+oiwa,Oiwa,legend,east-asian-folklore,"Tsuruya Nanboku IV, Tokaido Yotsuya Kaidan",1825,dark,the vengeful ghost,last-stand,strong while under half health / weak while above half,she,
+okiku,Okiku,legend,east-asian-folklore,Bancho Sarayashiki (joruri 1741; Okamoto Kido 1916),1741,dark,the counter of plates in the well,tireless,cheaper stamina / deals less damage,she,
+kiyohime,Kiyohime,legend,east-asian-folklore,Konjaku Monogatarishu (Dojo-ji tale),c. 1120,dark,the jealous serpent,last-stand,strong while under half health / weak while above half,she,
+yamauba,Yamauba,legend,east-asian-folklore,"Yamanba (Noh, attrib. Zeami)",c. 1430,neutral,the mountain hag,tireless,cheaper stamina / deals less damage,she,
+ronin,The Ronin,legend,east-asian-folklore,"Japanese history (a class, no named person)",Edo period,neutral,the lone road,opener,strong in the first 20 s / weak after,they,living-world 10.2 sample clan
+gumiho,The Gumiho,legend,east-asian-folklore,Korean folklore (Joseon-era tales),Joseon period,dark,the nine-tailed fox,finisher,strong on a foe under half health / weak on a foe above half,she,first printed source to confirm
+dokkaebi,The Dokkaebi,legend,east-asian-folklore,"Seong Hyeon, Yongjae Chonghwa",1525,neutral,the goblin with the club,underdog,strong against a higher-level foe / weak against a lower one,they,
+la-llorona,La Llorona,legend,latam-folklore,"Vicente Riva Palacio and Juan de Dios Peza, Tradiciones y leyendas mexicanas",1885,dark,"The Weeping, by the river",night-half,strong in the night half / weak in the day half,she,"clan head, never a god (living-world 10.2)"
+chupacabra,The Chupacabra,legend,latam-folklore,Puerto Rican and Latin American folklore,1995 on,dark,Goat-sucker Pack,finisher,strong on a foe under half health / weak on a foe above half,they,no pre-1929 source (ruled in); art must not draw on film or TV
+el-silbon,El Silbon,legend,latam-folklore,Venezuelan llanos folklore (oral),19th c.,dark,the whistler with the sack of bones,night-half,strong in the night half / weak in the day half,he,first printed source to confirm
+la-sayona,La Sayona,legend,latam-folklore,Venezuelan folklore (oral),19th c.,dark,the veiled avenger,night-half,strong in the night half / weak in the day half,she,first printed source to confirm
+el-cadejo,El Cadejo,legend,latam-folklore,Central American folklore (oral),19th c.,neutral,the black dog of the night road,night-half,strong in the night half / weak in the day half,they,first printed source to confirm
+el-sombreron,El Sombreron,legend,latam-folklore,Guatemalan folklore (oral),19th c.,dark,the braiding hat-man,closer,weak in the first 20 s / strong after,he,first printed source to confirm
+la-patasola,La Patasola,legend,latam-folklore,Colombian folklore (oral),19th c.,dark,the one-legged hag of the forest,finisher,strong on a foe under half health / weak on a foe above half,she,first printed source to confirm
+la-siguanaba,La Siguanaba,legend,latam-folklore,Central American folklore (oral),19th c.,dark,the beauty with the horse's face,closer,weak in the first 20 s / strong after,she,first printed source to confirm
+el-coco,El Coco,legend,latam-folklore,"Iberian and Latin American lullaby folklore; Francisco Goya, Que viene el Coco (Los Caprichos 3)",1799,dark,the shadow that takes,night-half,strong in the night half / weak in the day half,they,
+el-familiar,El Familiar,legend,latam-folklore,"Argentine sugar-mill folklore, Tucuman (oral)",19th c.,dark,the black dog of the mill bargain,tireless,cheaper stamina / deals less damage,they,first printed source to confirm
+la-luz-mala,La Luz Mala,legend,latam-folklore,Argentine and Uruguayan folklore (oral),19th c.,dark,the evil light over buried bones,night-half,strong in the night half / weak in the day half,they,first printed source to confirm
+azazel,Azazel,legend,fallen-watchers,"1 Enoch 8.1 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,"the Watcher who taught swords, shields and breastplates",glass,"deals more damage / takes more damage; flavour: the forge's gift, the price in blood",he,"Dom override 2026-10-06: IN, despite Leviticus 16; legend, not worship"
+semjaza,Semjaza,legend,fallen-watchers,"1 Enoch 6.3-7, 8.3 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,the leader of the oath on Hermon,underdog,strong against a higher-level foe / weak against a lower one,he,Dom override: Watchers allowed as legend; Shemihaza in other editions
+arakiba,Arakiba,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,iron-hide,takes less damage / deals less damage,he,Dom override
+kokabiel,Kokabiel,legend,fallen-watchers,"1 Enoch 6.7, 8.3 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,the teacher of the constellations,night-half,strong in the night half / weak in the day half,he,Dom override
+tamiel,Tamiel,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,closer,weak in the first 20 s / strong after,he,Dom override
+baraqel,Baraqel,legend,fallen-watchers,"1 Enoch 6.7, 8.3 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,the teacher of lightning-signs,opener,strong in the first 20 s / weak after,he,Dom override; Baraqijal in Charles
+armaros,Armaros,legend,fallen-watchers,"1 Enoch 6.7, 8.3 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,the undoer of enchantments,underdog,strong against a higher-level foe / weak against a lower one,he,Dom override
+batarel,Batarel,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,tireless,cheaper stamina / deals less damage,he,Dom override
+ananel,Ananel,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,finisher,strong on a foe under half health / weak on a foe above half,he,Dom override
+zaqiel,Zaqiel,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,glass,deals more damage / takes more damage,he,Dom override
+shamsiel,Shamsiel,legend,fallen-watchers,"1 Enoch 6.7, 8.3 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,the teacher of the sun's signs,day-half,strong in the day half / weak in the night half,he,Dom override; Samsapeel in 6.7
+satarel,Satarel,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,last-stand,strong while under half health / weak while above half,he,Dom override
+turel,Turel,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,iron-hide,takes less damage / deals less damage,he,Dom override
+jomjael,Jomjael,legend,fallen-watchers,"1 Enoch 6.7 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,a chief of ten,closer,weak in the first 20 s / strong after,he,Dom override
+araqiel,Araqiel,legend,fallen-watchers,"1 Enoch 8.3 (R. H. Charles translation, 1917)",c. 3rd c. BC,dark,the teacher of the earth's signs,iron-hide,takes less damage / deals less damage,he,Dom override
+penemue,Penemue,legend,fallen-watchers,"1 Enoch 69.8-11 (R. H. Charles translation, 1917)",c. 1st c. BC,dark,the teacher of ink and the bitter and sweet,tireless,cheaper stamina / deals less damage,he,Dom override
+kasdeja,Kasdeja,legend,fallen-watchers,"1 Enoch 69.12 (R. H. Charles translation, 1917)",c. 1st c. BC,dark,the teacher of blows against spirits,finisher,strong on a foe under half health / weak on a foe above half,he,Dom override
+gadreel,Gadreel,legend,fallen-watchers,"1 Enoch 69.6 (R. H. Charles translation, 1917)",c. 1st c. BC,dark,"the teacher of shield, mail and sword",glass,deals more damage / takes more damage,he,Dom override
+jeqon,Jeqon,legend,fallen-watchers,"1 Enoch 69.4 (R. H. Charles translation, 1917)",c. 1st c. BC,dark,the first to lead the others astray,underdog,strong against a higher-level foe / weak against a lower one,he,Dom override
+asbeel,Asbeel,legend,fallen-watchers,"1 Enoch 69.5 (R. H. Charles translation, 1917)",c. 1st c. BC,dark,the giver of ill counsel,closer,weak in the first 20 s / strong after,he,Dom override
+mulciber,Mulciber,legend,fallen-watchers,"John Milton, Paradise Lost 1.740",1667,dark,the architect of the fallen city,tireless,cheaper stamina / deals less damage,he,Milton's name for the rebel builder (a Roman epithet of Vulcan); not a scripture name
+cinderwing,Cinderwing,legend,fallen-watchers,"original (Frankendom), in the spirit of Milton's Paradise Lost",original,dark,the rebel whose wings burned on the way down,last-stand,strong while under half health / weak while above half,they,original rebel-angel name
+hollow-herald,The Hollow Herald,legend,fallen-watchers,"original (Frankendom), in the spirit of Milton's Paradise Lost",original,dark,the messenger with nothing left to say,opener,strong in the first 20 s / weak after,they,original rebel-angel name
+vesperel,Vesperel,legend,fallen-watchers,"original (Frankendom), in the spirit of Milton's Paradise Lost",original,dark,the rebel of the evening star,night-half,strong in the night half / weak in the day half,they,original rebel-angel name
+agares,Agares,legend,goetia,"Ars Goetia, Lesser Key of Solomon (S. L. MacGregor Mathers ed., 1904)",17th c.,dark,a duke who rides a crocodile and shakes the earth,opener,strong in the first 20 s / weak after,he,
+vassago,Vassago,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a prince who finds what is lost,underdog,strong against a higher-level foe / weak against a lower one,he,
+marbas,Marbas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a lion-shaped president of sickness and mechanics,finisher,strong on a foe under half health / weak on a foe above half,he,
+valefor,Valefor,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a duke who tempts to theft,opener,strong in the first 20 s / weak after,he,
+barbatos,Barbatos,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a duke of hunters who knows the speech of birds,opener,strong in the first 20 s / weak after,he,
+paimon,Paimon,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,"a crowned king on a dromedary, preceded by music",closer,weak in the first 20 s / strong after,he,"art from the grimoire, never a film"
+beleth,Beleth,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a king on a pale horse with trumpets,opener,strong in the first 20 s / weak after,he,
+leraje,Leraje,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a marquis archer whose wounds fester,finisher,strong on a foe under half health / weak on a foe above half,he,
+eligos,Eligos,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a duke-knight with lance and banner who knows wars,opener,strong in the first 20 s / weak after,he,
+purson,Purson,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a lion-faced king on a bear,iron-hide,takes less damage / deals less damage,he,
+marax,Marax,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a man-faced bull of stars and herbs,night-half,strong in the night half / weak in the day half,he,
+aim,Aim,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a three-headed duke with a firebrand,glass,deals more damage / takes more damage,he,
+glasya-labolas,Glasya-Labolas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,"a winged dog, captain of slaughter",glass,deals more damage / takes more damage,he,
+bune,Bune,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a three-headed dragon duke of riches,iron-hide,takes less damage / deals less damage,he,
+forneus,Forneus,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a sea-monster marquis,closer,weak in the first 20 s / strong after,he,
+furfur,Furfur,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a winged hart with a burning tail who raises storms,glass,deals more damage / takes more damage,he,
+marchosias,Marchosias,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,"a winged wolf marquis, strong in battle",last-stand,strong while under half health / weak while above half,he,
+stolas,Stolas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,an owl-shaped prince of stars and herbs,night-half,strong in the night half / weak in the day half,he,
+phenex,Phenex,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a phoenix marquis with a sweet voice,last-stand,strong while under half health / weak while above half,he,
+halphas,Halphas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a stork-shaped earl who builds towers and arms them,iron-hide,takes less damage / deals less damage,he,
+malphas,Malphas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a crow-shaped president who raises and razes walls,closer,weak in the first 20 s / strong after,he,
+raum,Raum,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a crow-shaped earl who steals from kings,underdog,strong against a higher-level foe / weak against a lower one,he,
+focalor,Focalor,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a gryphon-winged duke who sinks warships,finisher,strong on a foe under half health / weak on a foe above half,he,
+vepar,Vepar,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,"a duke of storms at sea, mermaid-shaped",closer,weak in the first 20 s / strong after,he,text uses he; appears as a mermaid
+sabnock,Sabnock,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a lion-headed marquis who builds castles,iron-hide,takes less damage / deals less damage,he,
+shax,Shax,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a stork-shaped marquis who steals sight and hearing,opener,strong in the first 20 s / weak after,he,
+bifrons,Bifrons,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,an earl who lights candles on graves,night-half,strong in the night half / weak in the day half,he,
+haagenti,Haagenti,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a gryphon-winged bull who turns metal to gold,tireless,cheaper stamina / deals less damage,he,
+furcas,Furcas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a bearded knight on a pale horse with a sharp weapon,finisher,strong on a foe under half health / weak on a foe above half,he,
+caim,Caim,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a thrush-shaped president who answers with a sword,opener,strong in the first 20 s / weak after,he,
+murmur,Murmur,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a warrior duke on a gryphon with trumpets,last-stand,strong while under half health / weak while above half,he,
+orobas,Orobas,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a horse-shaped prince who never deceives,iron-hide,takes less damage / deals less damage,he,
+gremory,Gremory,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a duke in the form of a crowned woman on a camel,underdog,strong against a higher-level foe / weak against a lower one,he,text uses he; appears as a woman
+andras,Andras,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a raven-headed marquis on a black wolf who sows discord,glass,deals more damage / takes more damage,he,
+dantalion,Dantalion,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,a many-faced duke who reads thoughts,underdog,strong against a higher-level foe / weak against a lower one,he,
+andromalius,Andromalius,legend,goetia,"Ars Goetia (Mathers ed., 1904)",17th c.,dark,an earl with a serpent who punishes thieves,finisher,strong on a foe under half health / weak on a foe above half,he,
+mephistopheles,Mephistopheles,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus; J. W. von Goethe, Faust I",c. 1592-1808,dark,"The Pact (head as literary character, not worshipped)",glass,deals more damage / takes more damage; flavour: the signed page,he,literary character; not a patron (no worship)
+doctor-faustus,Doctor Faustus,legend,faustian-pact,"Historia von D. Johann Fausten (Spies); Marlowe, Doctor Faustus",1587-c. 1592,dark,the scholar who signed,glass,deals more damage / takes more damage,he,"the legend, not the historical Johann Georg Faust (d. c. 1541)"
+wagner-the-famulus,Wagner the Famulus,legend,faustian-pact,"J. W. von Goethe, Faust I-II; Wagnerbuch",1593-1832,neutral,the apprentice who made life in a flask,tireless,cheaper stamina / deals less damage,he,
+homunculus,Homunculus,legend,faustian-pact,"J. W. von Goethe, Faust II",1832,neutral,the life in the glass,underdog,strong against a higher-level foe / weak against a lower one,he,
+three-mighty-men,The Three Mighty Men,legend,faustian-pact,"J. W. von Goethe, Faust II, Act 4",1832,dark,"the bruiser, the grabber and the holder",glass,deals more damage / takes more damage,they,"Raufebold, Habebald, Haltefest"
+melmoth-the-wanderer,Melmoth the Wanderer,legend,faustian-pact,"Charles Maturin, Melmoth the Wanderer",1820,dark,the man who wants someone to take his bargain,tireless,cheaper stamina / deals less damage,he,
+peter-schlemihl,Peter Schlemihl,legend,faustian-pact,"Adelbert von Chamisso, Peter Schlemihls wundersame Geschichte",1814,neutral,the man who sold his shadow,underdog,strong against a higher-level foe / weak against a lower one,he,
+man-in-the-grey-coat,The Man in the Grey Coat,legend,faustian-pact,"Adelbert von Chamisso, Peter Schlemihls wundersame Geschichte",1814,dark,the buyer of shadows,closer,weak in the first 20 s / strong after,he,
+kaspar-the-marksman,Kaspar the Marksman,legend,faustian-pact,"Friedrich Kind, libretto of Weber's Der Freischutz",1821,dark,"the cast bullets, the seventh not his",finisher,strong on a foe under half health / weak on a foe above half; flavour: the seventh bullet,he,the tempter Samiel is excluded
+tom-walker,Tom Walker,legend,faustian-pact,"Washington Irving, The Devil and Tom Walker",1824,dark,the miser who took the deal,closer,weak in the first 20 s / strong after,he,
+pride,Pride,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus, Act 2 (pageant of the Sins)",c. 1592,dark,the pageant's first sin,glass,deals more damage / takes more damage,they,allegory in the pageant
+covetousness,Covetousness,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus, Act 2",c. 1592,dark,the hoarding sin,iron-hide,takes less damage / deals less damage,they,allegory in the pageant
+wrath,Wrath,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus, Act 2",c. 1592,dark,the sin with two rapiers,opener,strong in the first 20 s / weak after,they,allegory in the pageant
+envy,Envy,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus, Act 2",c. 1592,dark,the sin that wants others to fall,underdog,strong against a higher-level foe / weak against a lower one,they,allegory in the pageant
+gluttony,Gluttony,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus, Act 2",c. 1592,dark,the sin that eats the feast,tireless,cheaper stamina / deals less damage,they,allegory in the pageant
+sloth,Sloth,legend,faustian-pact,"Christopher Marlowe, Doctor Faustus, Act 2",c. 1592,dark,the sin that will not rise,closer,weak in the first 20 s / strong after,they,allegory in the pageant
+counter-signer,The Counter-Signer,legend,faustian-pact,"original (Frankendom), in the spirit of the Faust legend",original,dark,the witness who seals every bargain,finisher,strong on a foe under half health / weak on a foe above half,they,original Pact name
+ledger,The Ledger,legend,faustian-pact,"original (Frankendom), in the spirit of the Faust legend",original,dark,the keeper of what is owed,tireless,cheaper stamina / deals less damage,they,original Pact name
+julius-caesar,Julius Caesar,legend,historical,"Caesar, Commentaries on the Gallic War; Suetonius, Divus Julius",d. 44 BC,neutral,the legion that crosses the river,opener,strong in the first 20 s / weak after,he,
+scipio-africanus,Scipio Africanus,legend,historical,Livy 26-30; Polybius,d. 183 BC,neutral,the man who beat Hannibal,underdog,strong against a higher-level foe / weak against a lower one,he,Hannibal is ladder veteran 6
+cincinnatus,Cincinnatus,legend,historical,Livy 3.26-29,5th c. BC,neutral,the farmer who took up and laid down power,tireless,cheaper stamina / deals less damage,he,
+vercingetorix,Vercingetorix,legend,historical,"Caesar, Commentaries on the Gallic War 7",d. 46 BC,neutral,the chief who held Gergovia,last-stand,strong while under half health / weak while above half,he,
+arminius,Arminius,legend,historical,"Tacitus, Annals 1-2",d. AD 21,neutral,the forest ambush,opener,strong in the first 20 s / weak after,he,
+zenobia,Zenobia,legend,historical,"Historia Augusta, Tyranni Triginta 30",d. after 274,neutral,the queen of Palmyra,underdog,strong against a higher-level foe / weak against a lower one,she,
+themistocles,Themistocles,legend,historical,"Herodotus 8; Plutarch, Life of Themistocles",d. c. 459 BC,neutral,the wooden wall at Salamis,closer,weak in the first 20 s / strong after,he,
+pyrrhus-of-epirus,Pyrrhus of Epirus,legend,historical,"Plutarch, Life of Pyrrhus",d. 272 BC,neutral,victories that cost too much,glass,deals more damage / takes more damage,he,
+belisarius,Belisarius,legend,historical,"Procopius, History of the Wars",d. 565,neutral,the general who won with few,underdog,strong against a higher-level foe / weak against a lower one,he,
+harald-hardrada,Harald Hardrada,legend,historical,"Snorri Sturluson, Heimskringla",d. 1066,neutral,the hard ruler's last charge,last-stand,strong while under half health / weak while above half,he,
+ivar-the-boneless,Ivar the Boneless,legend,historical,Ragnarssona thattr; Anglo-Saxon Chronicle,d. c. 873,neutral,the great army's leader,closer,weak in the first 20 s / strong after,he,son of Ragnar (ladder veteran 2)
+aethelflaed,Aethelflaed,legend,historical,Anglo-Saxon Chronicle (Mercian Register),d. 918,neutral,the Lady of the Mercians and her burhs,iron-hide,takes less damage / deals less damage,she,
+richard-the-lionheart,Richard the Lionheart,legend,historical,"Ambroise, Estoire de la guerre sainte",d. 1199,neutral,the king at the front of the charge,opener,strong in the first 20 s / weak after,he,crusade context not used as theme
+edward-the-black-prince,Edward the Black Prince,legend,historical,"Jean Froissart, Chronicles",d. 1376,neutral,the prince of Crecy and Poitiers,opener,strong in the first 20 s / weak after,he,
+bertrand-du-guesclin,Bertrand du Guesclin,legend,historical,"Cuvelier, La Chanson de Bertrand du Guesclin",d. 1380,neutral,the ugly champion of France,underdog,strong against a higher-level foe / weak against a lower one,he,
+jacques-de-lalaing,Jacques de Lalaing,legend,historical,Livre des faits de Jacques de Lalaing,d. 1453,neutral,the jousting knight of the Fountain of Tears,iron-hide,takes less damage / deals less damage,he,
+johannes-liechtenauer,Johannes Liechtenauer,legend,historical,Nuremberg Hausbuch (GNM Hs. 3227a),c. 1389,neutral,the long-sword masters,opener,strong in the first 20 s / weak after,he,
+fiore-dei-liberi,Fiore dei Liberi,legend,historical,"Fiore dei Liberi, Flos Duellatorum",1409,neutral,the four guards of the Flower of Battle,closer,weak in the first 20 s / strong after,he,
+hans-talhoffer,Hans Talhoffer,legend,historical,"Hans Talhoffer, Fechtbuch",1459-67,neutral,the trial-by-combat master,finisher,strong on a foe under half health / weak on a foe above half,he,
+joachim-meyer,Joachim Meyer,legend,historical,"Joachim Meyer, Grundtliche Beschreibung der Kunst des Fechtens",1570,neutral,the Strasbourg fencing book,tireless,cheaper stamina / deals less damage,he,
+george-silver,George Silver,legend,historical,"George Silver, Paradoxes of Defence",1599,neutral,the English short-sword against the rapier,iron-hide,takes less damage / deals less damage,he,
+julie-daubigny,Julie d'Aubigny,legend,historical,contemporary accounts (La Maupin),d. 1707,neutral,the duelling opera singer,glass,deals more damage / takes more damage,she,
+chevalier-de-saint-georges,The Chevalier de Saint-Georges,legend,historical,"Henry Angelo, Reminiscences",d. 1799,neutral,the fencer-composer,opener,strong in the first 20 s / weak after,he,
+gotz-von-berlichingen,Gotz von Berlichingen,legend,historical,"Gotz von Berlichingen, Lebensbeschreibung (pub. 1731)",d. 1562,neutral,the iron hand,last-stand,strong while under half health / weak while above half,he,
+bayard,Bayard,legend,historical,"Le Loyal Serviteur, La tres joyeuse histoire du bon chevalier Bayard",d. 1524,neutral,the knight without fear or reproach,iron-hide,takes less damage / deals less damage,he,
+john-hawkwood,John Hawkwood,legend,historical,"Jean Froissart, Chronicles; Florentine records",d. 1394,neutral,the White Company,closer,weak in the first 20 s / strong after,he,
+sasaki-kojiro,Sasaki Kojiro,legend,historical,Nitenki,d. 1612,neutral,the swallow cut,opener,strong in the first 20 s / weak after,he,Musashi is ladder veteran 5
+tsukahara-bokuden,Tsukahara Bokuden,legend,historical,Koyo Gunkan,d. 1571,neutral,the undefeated swordsman,tireless,cheaper stamina / deals less damage,he,
+tomoe-gozen,Tomoe Gozen,legend,historical,The Tale of the Heike (Kakuichi text),12th c.,neutral,the rider who took a head in battle,opener,strong in the first 20 s / weak after,she,historicity uncertain
+hattori-hanzo,Hattori Hanzo,legend,historical,Kansei Choshu Shokafu,d. 1596,neutral,the guard of the night roads,night-half,strong in the night half / weak in the day half,he,
+lu-bu,Lu Bu,legend,historical,"Chen Shou, Records of the Three Kingdoms",d. 198,neutral,the matchless halberd,glass,deals more damage / takes more damage,he,
+zhao-yun,Zhao Yun,legend,historical,"Chen Shou, Records of the Three Kingdoms",d. 229,neutral,the rider who carried the heir through,last-stand,strong while under half health / weak while above half,he,
+xiang-yu,Xiang Yu,legend,historical,"Sima Qian, Records of the Grand Historian",d. 202 BC,neutral,the hegemon-king,opener,strong in the first 20 s / weak after,he,
+grace-omalley,Grace O'Malley,legend,historical,English State Papers (petition of 1593),d. 1603,neutral,the pirate queen of Connacht,closer,weak in the first 20 s / strong after,she,
+anne-bonny,Anne Bonny,legend,historical,"Charles Johnson, A General History of the Pyrates",1724,neutral,the pirate who fought to the end,last-stand,strong while under half health / weak while above half,she,
+mary-read,Mary Read,legend,historical,"Charles Johnson, A General History of the Pyrates",1724,neutral,the soldier-turned-pirate,glass,deals more damage / takes more damage,she,
+edward-teach,Edward Teach,legend,historical,"Charles Johnson, A General History of the Pyrates",d. 1718,neutral,Blackbeard's crew,opener,strong in the first 20 s / weak after,he,"written as a pirate captain, never a monster"
+francis-drake,Francis Drake,legend,historical,"Richard Hakluyt, Principal Navigations",1589,neutral,the circumnavigator,opener,strong in the first 20 s / weak after,he,
+imhotep,Imhotep,legend,historical,Manetho (via Africanus); Step Pyramid inscriptions,c. 2650 BC,neutral,the architect of the first pyramid,tireless,cheaper stamina / deals less damage,he,"the architect, never a film mummy"
+ramesses-ii,Ramesses II,legend,historical,Poem of Pentaur (Kadesh inscriptions),d. 1213 BC,neutral,the king at Kadesh,last-stand,strong while under half health / weak while above half,he,
+hatshepsut,Hatshepsut,legend,historical,Deir el-Bahari inscriptions,d. 1458 BC,neutral,the king who was a woman,iron-hide,takes less damage / deals less damage,she,
+cleopatra-vii,Cleopatra VII,legend,historical,"Plutarch, Life of Antony",d. 30 BC,neutral,the last queen of Egypt,underdog,strong against a higher-level foe / weak against a lower one,she,
+bavarian-illuminati,The Bavarian Illuminati,legend,dead-order,Bavarian electoral edicts against secret societies,1776-1785,neutral,"the owl of Minerva, an Enlightenment society",underdog,strong against a higher-level foe / weak against a lower one,they,the historical society only; no New World Order tropes; founder not named (founders rule)
+knights-templar,The Knights Templar,legend,dead-order,"William of Tyre, Historia 12.7; trial records",1119-1312,neutral,the medieval order of the red cross,iron-hide,takes less damage / deals less damage,they,a medieval order only; no named Grand Master; no holy framing
+vehmic-courts,The Vehmic Courts,legend,dead-order,"Westphalian court records; Goethe, Gotz von Berlichingen",13th-16th c.,neutral,the secret tribunal of the red earth,finisher,strong on a foe under half health / weak on a foe above half,they,
+hellfire-club,The Hellfire Club,legend,dead-order,"Horace Walpole, letters; contemporary accounts",1749-c. 1766,neutral,the Medmenham revellers,closer,weak in the first 20 s / strong after,they,no devil-worship tropes
+order-of-the-dragon,The Order of the Dragon,legend,dead-order,Statutes of Sigismund,1408-c. 1440s,neutral,the dragon-badge order of Hungary,iron-hide,takes less damage / deals less damage,they,never linked to Vlad III
+varangian-guard,The Varangian Guard,legend,dead-order,"Michael Psellos, Chronographia; Anna Komnene, Alexiad",c. 988-c. 1204,neutral,the axe-bearing guard of the emperor,iron-hide,takes less damage / deals less damage,they,
+praetorian-guard,The Praetorian Guard,legend,dead-order,"Tacitus, Histories; Suetonius",27 BC-AD 312,neutral,the guard that made emperors,finisher,strong on a foe under half health / weak on a foe above half,they,
+sacred-band-of-thebes,The Sacred Band of Thebes,legend,dead-order,"Plutarch, Life of Pelopidas 18-19",378-338 BC,neutral,the hundred and fifty pairs,last-stand,strong while under half health / weak while above half,they,
+immortals,The Immortals,legend,dead-order,Herodotus 7.83,5th c. BC,neutral,"the ten thousand, always replaced",tireless,cheaper stamina / deals less damage,they,Achaemenid guard
+jomsvikings,The Jomsvikings,legend,dead-order,Jomsvikinga saga,10th c.,neutral,the fortress brotherhood,glass,deals more damage / takes more damage,they,
+hanseatic-league,The Hanseatic League,legend,dead-order,Hanserezesse (diet records); Lubeck charters,c. 1356-1669,neutral,the merchant cog-fleet,tireless,cheaper stamina / deals less damage,they,Exchange-friendly theme
+lodge-of-the-compass,Lodge of the Compass,legend,dead-order,fictional stand-in (the Freemasons are a living organisation),fictional,neutral,the builders' lodge with an original emblem,tireless,cheaper stamina / deals less damage,they,stand-in; never the square and compasses or any Masonic mark
+order-of-the-thorned-rose,Order of the Thorned Rose,legend,dead-order,fictional stand-in (Rosicrucian bodies are living organisations),fictional,neutral,the rose-and-thorn brotherhood with an original emblem,closer,weak in the first 20 s / strong after,they,stand-in; no rose-cross emblem
