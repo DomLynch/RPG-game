@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import warriorUrl from '../../src/assets/warrior.glb?url';
 import { buildArena } from '../../src/arena.ts';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../src/quality.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
+import { ASSETS, play, SMITH_NAME, WORLD_TUNING as T, type Kind } from './play.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -51,8 +51,13 @@ const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.15, 4, 12), new THR
 body.position.y = 0.88; body.castShadow = true;
 const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.45 }));
 cap.position.y = 1.62; hero.add(body, cap); scene.add(hero);
+// Greybox stand-ins for the assets map's null entries: Orla at her anvil (a figure in the envoys' capsule style) and the ore cart's pile.
+const orla = new THREE.Mesh(new THREE.CapsuleGeometry(T.orla.radius, T.orla.length, 4, 10), body.material);
+orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.castShadow = true;
+const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(T.orePile.radius, 0), arena.materials.stone); ore.scale.y = 0.5;
+ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow = true; scene.add(orla, ore);
 let mixer: THREE.AnimationMixer | undefined, idle: THREE.AnimationAction | undefined, walk: THREE.AnimationAction | undefined;
-new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(warriorUrl).then((gltf) => {
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then((gltf) => {
   gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   if (PHONE) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);   // the game's iPhone black-fighters guard (characters.ts loadFighter)
   mixer = new THREE.AnimationMixer(gltf.scene);
@@ -71,18 +76,17 @@ for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListen
 addEventListener('keydown', (e) => keys.add(e.code)); addEventListener('keyup', (e) => keys.delete(e.code)); addEventListener('blur', () => keys.clear());
 const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
-// Tap-to-open: the blacksmith and the bank. Placeholder panels; real items come from origins/inventory later.
-type Kind = 'blacksmith' | 'bank';
+// Tap-to-open: the prompt opens what you stand near; panels are play.ts's (rules modules) built with the ui.ts kit.
 const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
-const slots = (n: number) => `<div class="grid">${'<i></i>'.repeat(n)}</div>`;
-const PANELS: Record<Kind, string> = {
-  blacksmith: `<h2>Blacksmith</h2><h3>Upgrade a piece</h3>${['Helm', 'Breastplate', 'Sword'].map((p) => `<div class="piece"><span>${p}</span><span>+0</span></div>`).join('')}<button class="act" disabled>Upgrade</button><p>coming next: real items</p>`,
-  bank: `<h2>Bank — Concord Exchange</h2>${slots(8)}<h3>Backpack</h3>${slots(8)}<p>coming next: your items</p>`,
-};
+const NEAR: Partial<Record<Kind, string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore' };
 let near: Kind | null = null, open: Kind | null = null;
+const show = (kind: Kind | null) => { open = kind; shade.hidden = !kind; if (kind) card.innerHTML = play.render(kind); };
 function openPanel(kind: Kind | null) {
-  open = kind; shade.hidden = !kind; if (kind) { card.innerHTML = PANELS[kind]; keys.clear(); stick = null; ring.style.display = 'none'; }
+  play.fresh(); if (kind === 'ore') play.takeOre();
+  show(kind); if (kind) { keys.clear(); stick = null; ring.style.display = 'none'; }
 }
+card.addEventListener('click', (e) => { if (open) show(play.act((e.target as Element).closest<HTMLElement>('[data-say],[data-item],[data-do],[data-go]'), open)); });
+document.getElementById('journal')!.addEventListener('click', () => openPanel('journal'));
 for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
 prompt.addEventListener('click', () => openPanel(near));
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
@@ -112,8 +116,10 @@ function step(dt: number) {
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   place.textContent = atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
-  near = Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < 3 ? 'blacksmith' : state.z < BANK_STEP_Z + 3.6 && Math.abs(state.x) < 13 ? 'bank' : null;
-  prompt.hidden = !near || !!open; if (near) prompt.textContent = near === 'bank' ? 'Bank — tap to open' : 'Blacksmith — tap to open';
+  near = Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
+    : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
+    : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
+  prompt.hidden = !near || !!open; if (near) prompt.textContent = NEAR[near]!;
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
 }
 
@@ -129,4 +135,8 @@ renderer.setAnimationLoop(() => {
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
 });
-(window as unknown as { originsPreview: unknown }).originsPreview = { state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel };
+(window as unknown as { originsPreview: unknown }).originsPreview = {
+  pos: state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
+  talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
+  journal: () => openPanel('journal'), state: play.state,
+};
