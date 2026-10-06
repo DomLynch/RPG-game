@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, opponentAt, profileAt, type SkillId } from '../src/moves.ts';
-import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
@@ -139,7 +139,7 @@ test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/
   assert.ok(log.some(e => e.actor !== undefined && e.move === 'skill_witchfire' && (e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' || e.type === 'AttackMissed')), 'a cast resolved');
   assert.equal(record.skill, 'witchfire');
   const encoded = await encodeRecord(record), decoded = await decodeRecord(encoded);
-  assert.deepEqual(await peekRecordHeader(encoded), { v: RECORD_VERSION, build: 'skill', opponent: 'veteran', weapon: 'longsword', outcome: record.outcome }, 'the retired-link header reader steps over the skill byte');
+  assert.deepEqual(await peekRecordHeader(encoded), { v: record.v, build: 'skill', opponent: 'veteran', weapon: 'longsword', outcome: record.outcome }, 'the retired-link header reader steps over the skill byte');
   assert.deepEqual(decoded, record, 'the skill survives the transport');
   const check = verifyRecord(decoded);
   assert.equal(check.ok, true, check.ok ? '' : check.reason);

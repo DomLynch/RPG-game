@@ -11,6 +11,7 @@
 import type { Action, Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
+import { FIRST_SCALED_VERSION, PLAY_SCALE, playScaleFor } from './play-radius.ts';
 
 export const RECORD_VERSION = 23;   // 23: bump 23 (2026-10-06, Dom via Lead) — Arena 1's play circle comes inward to 0.6 of 8.55 m (play-radius.ts; the veteran and the pitborn, every level). A record's version picks its circle: v22 and older replay in the old 8.55 m (detmath.ts underRecord, match.ts), so REACH[23] is empty and every shared link still replays its own fight. 22: bump 22 (2026-10-02; Combat, #1280, with #1114 not live) — Dom's final special rule in the sim (RULES.special: boss share .25, the cooldown re-arms from the release, a 45-tick no-attack recovery; duel.ts specialRecover). Only a fight with the specials flag steps differently, so a v21 specials record would replay another fight: 21 stays readable beside 22 (Lead: v21 is the writer on the specials base); a flag-off fight is bit for bit as v20, so v18–v20 stay readable and REACH[22] is empty.
 // 21: bump 21 (2026-09-29, Dom's GO via Lead; Combat) — Special Moves on the SKILL slot (duel.ts withSpecials, RULES.special), behind a per-fight flag the header now carries (one byte after the skill). With the flag off a v21 fight steps bit for bit as v20 (every new branch reads a field only withSpecials sets), so v20 stays readable (REACH[21] is empty).
@@ -76,6 +77,11 @@ export const REACH: Readonly<Record<number, readonly { opponent: OpponentId; fro
   22: [],   // the final special rule (#1280): only a fight with the flag moves, and v21 is not readable
   23: [],   // Arena 1's smaller play circle: a record below 23 replays in the old circle (underRecord), so no older fight is reached
 };
+// A record states the play circle its fight was fought in (play-radius.ts): this build's version when the circle in force is the one this build
+// fights `opponent` in, the previous (old-circle) version when it is not (a headless run that never set it, a script). Either replays to the
+// fight it recorded, because the version picks the circle (detmath.ts underRecord).
+const OLD_CIRCLE_VERSION = FIRST_SCALED_VERSION - 1;
+const stampedVersion = (opponent: string): number => PLAY_SCALE === playScaleFor(opponent, RECORD_VERSION) ? RECORD_VERSION : OLD_CIRCLE_VERSION;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
@@ -121,7 +127,7 @@ export function createRecorder(meta: RecordMeta) {
       return q;
     },
     finish(outcome: Outcome): FightRecord {
-      done ??= { v: RECORD_VERSION, ...meta, ticks: intents.length, outcome, intents: intents.slice() };
+      done ??= { v: stampedVersion(meta.opponent) as RecordVersion, ...meta, ticks: intents.length, outcome, intents: intents.slice() };
       return done;
     },
   };
@@ -133,7 +139,7 @@ export function createRecorder(meta: RecordMeta) {
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
 export function packRecord(r: FightRecord): Uint8Array {
-  if (r.v !== RECORD_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
+  if (r.v !== RECORD_VERSION && r.v !== OLD_CIRCLE_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
   if (r.intents.length !== r.ticks) throw Error('Fight record: ticks does not match the intent count');
   const build = ascii(r.build), opp = ascii(r.opponent), wpn = ascii(r.weapon);
   if (build.length > 255 || opp.length > 255 || wpn.length > 255) throw Error('Fight record: build, opponent or weapon id too long');
@@ -142,7 +148,7 @@ export function packRecord(r: FightRecord): Uint8Array {
   if (skill < 0) throw Error('Fight record: unknown skill');
   const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 1 + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
   let o = 0;
-  out[o++] = 0x46; out[o++] = 0x4b; out[o++] = RECORD_VERSION;
+  out[o++] = 0x46; out[o++] = 0x4b; out[o++] = r.v;
   out[o++] = build.length; out.set(build, o); o += build.length;
   out[o++] = opp.length; out.set(opp, o); o += opp.length; out[o++] = wpn.length; out.set(wpn, o); o += wpn.length;
   out[o++] = skill; out[o++] = r.specials ? 1 : 0; out[o++] = level; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;

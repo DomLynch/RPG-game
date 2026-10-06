@@ -4,7 +4,7 @@ import { ARENA_ONE_SCALE, BASE_RADIUS, FIRST_SCALED_VERSION, ARENA_ONE, PLAY_SCA
 import { underRecord } from '../src/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
-import { RECORD_VERSION } from '../src/record.ts';
+import { RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
 
 test('the scaled opponents are exactly the ladder rungs that fight in Arena 1', () => {
   const arenaOne = LADDER.filter((_, i) => ARENA_PICK[arenaBand(i + 1)] === '1').map(o => o.id);
@@ -41,4 +41,10 @@ test('fighters start inside the smaller circle, shrunk with it but never closer 
   assert.deepEqual([p.z, t.z], [2, -1.25]);
   assert.ok(Math.hypot(p.x, p.z) < RADIUS && Math.hypot(t.x, t.z) < RADIUS && p.z - t.z >= 3);
   setPlayScale(1);
+});
+
+test('a record states the circle its fight was fought in: this build\'s version in the live circle, the old-circle version otherwise, and both round-trip', () => {
+  const stamp = (opponent: 'veteran' | 'goblin') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); assert.deepEqual(unpackRecord(packRecord(r)), r); return r.v; };
+  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), RECORD_VERSION); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION - 1, 'a goblin fought in the small circle was not fought in his own');
+  setPlayScale(1); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'a veteran fought in the old circle is an old-circle record'); assert.equal(stamp('goblin'), RECORD_VERSION);
 });
