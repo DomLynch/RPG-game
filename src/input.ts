@@ -32,6 +32,10 @@ export const guardSide = (dx: number, dy: number, held: Direction | null = null)
   const horizontal = held === 'left' || held === 'right' ? fromHorizontal < 45 + GUARD_DEAD_BAND_DEG : held === 'overhead' || held === 'low' ? fromHorizontal < 45 - GUARD_DEAD_BAND_DEG : Math.abs(dx) > Math.abs(dy);
   return horizontal ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'overhead' : 'low';
 };
+// Directional cuts (Dom GO 2026-10-07; the strike circle's flick did this until 226456f9 retired it, and the sim never stopped taking both): LIGHT pressed while the
+// move stick, A/D or the arrows are held to a side cuts to that side; held neutral keeps the alternating light. Intent only: the sim already accepts light_left and light_right.
+export const CUT_PUSH = 0.4;   // the stick's own dead zone is 0.12; a side cut wants a deliberate push, not a wobble
+export const cutAction = (lateral: number): Action => (lateral <= -CUT_PUSH ? 'light_left' : lateral >= CUT_PUSH ? 'light_right' : 'light');
 const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
@@ -103,6 +107,8 @@ export function createInput(env: InputEnv) {
   const keys = new Set<string>();
   // Step: a tap is a backstep, a hold (150 ms) becomes a roll. With the stick already deflected (or a movement key down) the intent is a roll in
   // that direction, so it rolls at once: the invulnerability arrives with the press, not 150 ms later.
+  const arrowKey = (code: string) => !keys.has('KeyQ') && keys.has(code);   // Q held turns the arrows into the guard side
+  const lateral = () => moveX + Number(keys.has('KeyD') || arrowKey('ArrowRight')) - Number(keys.has('KeyA') || arrowKey('ArrowLeft'));
   const moving = () => moveX !== 0 || moveZ !== 0 || MOVE_KEYS.some((k) => keys.has(k));
   function pressDodge(now: number) {
     if (dodgeHeld) return;
@@ -128,7 +134,7 @@ export function createInput(env: InputEnv) {
     request('parry');
   }
   function requestStrike(isHeavy = false) {
-    request(isHeavy ? 'heavy' : 'light');
+    request(isHeavy ? 'heavy' : cutAction(lateral()));
   }
   env.window.addEventListener('keydown', (event) => {
     if (paused() || (event.target as { tagName?: string } | null)?.tagName === 'INPUT') return; // typing a name is not fighting
@@ -407,11 +413,10 @@ export function createInput(env: InputEnv) {
       const guardDirection = guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null);
       const sideLabel = guardDirection ?? 'straight';
       if (guardId === null && guardButton.dataset.side !== sideLabel) guardButton.dataset.side = sideLabel;   // write only on change: no style invalidation 60× a second
+      const x = lateral(), cut = cutAction(x), cutSide = cut === 'light_left' ? 'left' : cut === 'light_right' ? 'right' : null;
+      if ((attackButton.dataset.cut ?? null) !== cutSide) { if (cutSide) attackButton.dataset.cut = cutSide; else delete attackButton.dataset.cut; }   // the button lights the side the next LIGHT will cut (style.css)
       return {
-        x:
-          moveX +
-          Number(keys.has('KeyD') || arrow('ArrowRight')) -
-          Number(keys.has('KeyA') || arrow('ArrowLeft')),
+        x,
         z:
           moveZ +
           Number(keys.has('KeyS') || arrow('ArrowDown')) -
