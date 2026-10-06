@@ -7,7 +7,7 @@ import { createBurstPool } from '../src/armfeel-fx.ts';
 import { BLOOD, bloodCount, bloodFrom, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 test('the flag: only a and b select a style; anything else is today\'s burst', () => {
-  assert.deepEqual(['?blood=a', '?blood=b', '?blood=b2', '?blood=c', '', '?blood='].map(bloodFrom), ['a', 'b', 'b2', undefined, undefined, undefined]);
+  assert.deepEqual(['?blood=a', '?blood=b', '?blood=b2', '?blood=b3', '?blood=c', '', '?blood='].map(bloodFrom), ['a', 'b', 'b2', 'b3', undefined, undefined, undefined]);
 });
 
 test('no style: the default burst is untouched (same slots, same spawn numbers, stretch 1.8)', () => {
@@ -46,10 +46,22 @@ test('b2: b made 30% less thick: 0.7x the particles, 0.7x the size, same colour 
   assert.ok(hit.every((p) => p.life >= 0.14 && p.life <= 0.72), 'life windows unchanged');
 });
 
+test('b3: b2 35% thinner, strands 20% longer, 15% darker red; counts, timing and speeds unchanged', () => {
+  const shade = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  for (const key of ['start', 'end'] as const) shade(BLOOD.b3[key]).forEach((c, i) => assert.ok(Math.abs(c - shade(BLOOD.b2[key])[i] * 0.85) <= 1, `${key} channel ${i} is 15% darker`));
+  for (const kill of [false, true]) assert.equal(bloodCount('b3', 'high', kill), bloodCount('b2', 'high', kill));
+  const r2 = makeRng(5), r3 = makeRng(5);
+  for (let i = 0; i < 30; i++) {
+    const a = newParticle(), b = newParticle(); spawnBlood('b2', a, i, 0, 1, 0, 0, 1, i % 4 === 0, 'high', r2); spawnBlood('b3', b, i, 0, 1, 0, 0, 1, i % 4 === 0, 'high', r3);
+    assert.ok(Math.abs(b.size - a.size * 0.65) < 1e-9, 'width x0.65'); assert.ok(Math.abs(b.size * b.stretch - a.size * a.stretch * 1.2) < 1e-9, 'length x1.2');
+    assert.ok(b.stretch > a.stretch, 'strands, not ovals'); assert.deepEqual([b.vx, b.vy, b.vz, b.life], [a.vx, a.vy, a.vz, a.life]);
+  }
+});
+
 test('the same seed draws the same blood; the pool is one mesh and a thousand hits never grow it; Off draws nothing', () => {
   const run = () => { const rnd = makeRng(7), p = newParticle(); spawnBlood('b', p, 5, 0, 1, 0, 0, 1, true, 'high', rnd); return [p.vx, p.vy, p.vz, p.size, p.life]; };
   assert.deepEqual(run(), run());
-  for (const style of ['a', 'b', 'b2'] as const) {
+  for (const style of ['a', 'b', 'b2', 'b3'] as const) {
     const scene = new THREE.Scene(), pool = createBurstPool(scene, style);
     assert.equal(pool.capacity, BLOOD[style].slots); assert.equal(scene.children.filter((c) => c.name === 'armfeel burst').length, 1);
     const before = scene.children.length;
