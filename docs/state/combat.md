@@ -1,3 +1,49 @@
+## 2026-10-06 — COMBAT-002 scythe dead band: MEASURED AND PARKED (Lead ruling, change nothing)
+
+**Ruling (Lead, 10-06):** the scythe's 1.4 m dead band is the documented design ("a scythe is dead close in"), the bot that lands in it spams swings where a human does not, and the smallest fix is a sim change (RECORD_VERSION bump, re-pins, the Executioner's spacing and fight-length pins moving) for a thin 6–9% band. Not worth Dom's back-to-basics bar. No "too close" cue unless Dom asks. **Do not re-measure.**
+
+**Measurement (sim only, VPS capture ~58 s, trunk 4de563ff):** the scripted-strategy battery (tests/strategies.ts, 10 strategies x 10 ladder rungs x normal+hard x 24 seeds) with the PLAYER carrying the scythe, plus the Executioner's own scythe against a longsword player; each scythe swing bucketed by its START gap (`attackFrom.gap`) and outcome. Player reap (light_right/left), 0.2 m bands:
+
+| Start gap | swings | hit | hit/blocked/parried | what the rest did |
+|---|---|---|---|---|
+| 0.8–1.0 | 1347 | 0% | 0% | 25% miss inside minReach, 75% interrupted |
+| 1.0–1.2 | 1757 | 0% | 0% | 38% miss inside minReach, 62% interrupted |
+| 1.2–1.4 | 2379 | 0% | 0% | 81% miss inside minReach, 19% interrupted |
+| 1.4–1.6 | 906 | 10% | 31% | |
+| 1.6–1.8 | 919 | 15% | 47% | |
+| 1.8–2.0 | 1227 | 24% | 61% | |
+| 2.0–2.2 | 1191 | 21% | 56% | |
+
+**Cause:** `minReach: 1.4` on light_right / light_left / slash_riposte (moves.ts reap()), enforced at duel.ts `attackFrom.gap < minReach` -> no impact location, so the swing can neither hit nor be blocked. 5483 of 9726 player reaps (56%) started inside it. The Executioner's AI honours minReach (ai.ts) and starts none there. Softer far edge: the heel-jab started at 2.0–2.2 m hits 16% (n 753) against 48–51% at 1.4–1.6 m; a heavy inside 1.0 m is mostly interrupted (36-tick wind-up).
+
+**Smallest fix tested, NOT shipped:** minReach 1.4 -> 1.2 on those three moves: the 1.2–1.4 band goes 0% -> 9% hit (17% hit/blocked/parried); 1.0 -> the 1.0–1.2 band 0% -> 6%; nothing below 1.0 m improves and nothing above 1.4 m changes. The Executioner shares the number, so his spacing and fight-length pin would need re-measuring.
+
+## 2026-10-06 — HANDOFF: Goblin stab #1416 (v25) and Armfeel ship #1431 both with their reviewers
+
+**Now (what the next session picks up):**
+1. **#1416 Goblin stab and #1431 Armfeel ship are both MERGED** (Auditor PASS at 3683fe0e; Lead PASS at ee03cf33; trunk 17ab81e9). Armfeel goes live with the Deploy run that was in flight at 10-06 (release.json showed 03cd0d61 before it): verify live, then the browser release rows that I only grep-checked are Deploy's real check.
+2. Parked: #1351 seven class A readability repair (listed MERGED on GitHub at f01fd0dd; confirm what shipped before touching it).
+3. Nothing else is mine until Lead assigns it.
+
+**Done today:**
+- **Goblin offence (COMBAT-001 3/3).** New `AiProfile.stab` (absent = 0; Goblin normal .6, hard 1): a whiffed man out of cut reach is answered with the knife's 12-tick thrust, shorter than a reactive guard's reaction. Human bot n=120 blocker/skilled L6 97/89, L18 63/72, L46 52/54 (was 97/92, 83/85, 82/90); goblin out of KNOWN_FLAT; median 43.3 s (band 25-60 s, Dom's word); battery untouched max 1/24. Gated by record version (`src/stab-rule.ts`, an ERA flag like late notice: off headless, on live, set by `underRecord`), REACH[25]=[], `tests/v24-goblin.test.ts` replays six trunk-recorded v24 Goblin L12/18/46 fights hash for hash (+ a control). Clean-clone test:all 1945/1943/0/2 skipped.
+- **Armfeel look test** (`combat/armfeel` @6b66990f, preview from 922815b8 by Deploy): victim flinch on a visual pivot, 100 ms white flash, blood droplet burst (flesh hits only; 48-slot instanced pool), blade hold as a FLOOR (adds 0 ms), World's layered sounds. Nausea finding: the camera reads only logical state, never the rig; the hero's own flinch swept 50 px of a 375 px screen, so the hero keeps a quarter (9 px) and the opponent's is turned to the blow's arrival side (7 -> 57 px).
+- **#1431** opened with before/after 375 stills in `docs/stills/armfeel/`; clean-clone test:all 1956/1954/0/2 skipped at 68752df1.
+
+**Open:**
+- #1416: Auditor verdict, then Strategy's numbers audit.
+- #1431: Lead's review and the Deploy GO. **Not verified by me:** the browser release rows (browser-check parry/riposte screenshots, the pixel-reading rows) were checked by grep only; Deploy's release run is the real check.
+- Dom wants NO clips in his thread (Lead 10-06); clips are for Lead's review only.
+
+**Gotchas (each cost time):**
+- Heavy jobs run on the VPS (`capture combat <script>`; script files live OUTSIDE the rsynced work dir, `rsync --delete` wipes them). The Mac's PreToolUse hook blocks test suites/builds while a deploy runs and blocks the WHOLE bash command, including edits in the same call.
+- `browser-replay-check.mjs --write` needs a git repo: use the full clone `/opt/frankendom-shadow/work/combat-goblin-full`, then scp the fixture back. A clean-clone `test:all` (not a partial rsync that lacks `public/` and `docs/`) is the receipt that counts.
+- `vite build` on the VPS can fail silently with a root-owned `node_modules/.vite-temp` and leave a STALE dist: use `npx vite build --configLoader native`.
+- A monitor that waits for `EXIT=` reads the previous run's log if the capture is still queued; wait for `released at` in the capture log. `pkill -f <script>` over ssh kills your own ssh.
+- Era flags: a headless recorder stamps the version before the eras (late notice off -> v23); tests that need today's rules call `setLateNotice(true); setStab(true)` and put them back. `tests/player-weapons.test.ts` [slow] had been red on trunk for the same reason.
+- New sim leaf files must join `eslint.config.js` SIM, `tests/detmath.test.ts` SIM, `tests/record-version-guard.test.ts` SIM_FILES + SIM_DIGEST; `child-process-bounds` wants a `timeout:` on every `execFileSync`; `graphics.test.ts` needs new main.ts imports registered in its module map.
+- Identical before/after stills (a block) read as a mistake: ship one image and say why.
+
 ## 2026-10-03 — One bounded readability repair, source stage
 
 Lead authorized only five held A effects after native source28/completion closed and original packet sealed. Personally inspected SetFoot playerDAY tell/foeNIGHT payoff and HeelReap player/foeDAY payoff: soft alpha blends with shadow/floor, Heel painted light rim makes cream crescent. Own SetFoot/Heel repair changes only private alpha/tint and compact lateral placement/width; reuses existing geometry/maps/pools with unchanged common clock/strike/fizzle/yield/fade. Added four dark-paint/opaque-core/world-side-footprint guards RED on original; initial SetFoot density still failed guard, retained negative, final own focused21PASS. No new texture recipe/asset/clip/rig/kit/pose/light/travel, old B/boss unchanged. Lunge/Cleaver source stays unchanged for explicit carry of accepted8 c251 cases. Web399ba/Goblin7733 readability deltas source-reviewed and ready; sole integrated20 changed-case capture after current combined CPU gate and Lead slot remains. Postrepair visible acceptance is unverified, PR1351 stays draft.
