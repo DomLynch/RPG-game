@@ -1,5 +1,29 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 00:30 (+04) — HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom; tonight's rulings all there). Session folder: app worktree `.../worktrees/elastic-gates-c6edc0` (restart hook says lead-catalogue; it IS expansion). Re-arm the 20-min check-in cron after restart (it dies with /clear).
+
+**1. LIVE:** a928c586 (50 levels). Merged tonight: #1465 (preview reads saved career), #1488 Feuds spec, #1490 one-shard (+Dom's §7 rulings), #1468. Trading 0003 is LIVE (Backend #1469).
+
+**2. CODE CHAIN (Lead order; Strategy drives while Lead clears):**
+- #1459 @f3040d99: trunk merged (rehearsed resolution), VPS origins 236/236 + writer-check 62/62, Auditor delta PASS. Waits on GO/merge in the chain (#1392 → #1505 → #1459 → #1482/#1484 → #1460 → #1502).
+- **#1460 @f22fed65 (Auditor PASS) is now CONFLICTING with trunk: NEXT ACTION** merge trunk (rehearsal in /private/tmp/claude-501/expansion-1460-rebase 7e83ba8f; conflict moved to errors.ts; writer-check racedBurn), run origins tests + writer-check on the VPS (reuse /opt/frankendom-shadow/work/expansion/w1460 export: `git archive <sha> | ssh … tar x`, node_modules symlink to bn-full; writer-check as `sudo -u frankrows env PG_BIN=/usr/lib/postgresql/16/bin`), push, then sha → Auditor delta → GO. Then #1472 retarget (close/reopen for CI).
+- #1492 @ce5b9b05: retargeted to trunk, undrafted, Auditor PASS unchanged. GO after #1459/#1460.
+- **Audit finding D (mine, NEXT ACTION):** origins/preview/main.ts startFight awaits `import('./pit-duel.ts')` with no catch, so a failed chunk leaves "Loading…". Fix: try/catch; if still the current fight (`fighting && fight === next`), restore the walk (duel layer hidden, canvas + journal back, setAnimationLoop(walkLoop)) and show "Could not load the duel, tap to retry"; don't count it as a started fight; a stale failure does nothing. Small PR → Auditor.
+
+**3. DOCS:** #1491 Living World @3866f437 PASS, #1498 legends @9a525f09 PASS (+N1–N3 applied); merge order #1491 → #1498. #1504 date fix: Lead GO'd. #1513 combat study (draft) for Dom to choose: tag-team tokens first; NO luck roll in Pit/PvP (Dom asked ±5; study: skill-based hit quality, ±5% world-monsters-only in reserve).
+
+**4. OVERNIGHT BUILDS (Dom: "big items live by morning", told preview-only, flags off):**
+- #1511 Feuds engine @48ed46cf: done, undrafted, in the Auditor queue after #1502.
+- #1510 presence (Backend) @5c1ca7e9: flag OFF; 100 bots = 8.6% of a core, ~1,000/host worst, 80% trigger ≈ 800/host.
+- Background agents STILL RUNNING at clear (they may die with it): patrons (branch expansion/patrons), Region 1 data (expansion/region1-content), crowd tag-team tokens (expansion/crowd-tokens in ~/Developer/frankendom-expansion-crowds). After restart: check `gh pr list --head <branch>`; if no PR, restart from these briefs (no tsc/tests on the Mac; all on VPS; new worktrees under ~/Developer).
+- Art: Characters & Art has the Concord Exchange kit brief (living-world §3, concord.ts, exchange.ts API + footprint); told hands off preview main/play/save.
+
+**5. DOM OWES:** run `ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18 bash /root/origins-writer-setup.sh` (writes /etc/frankendom/origins-writer.env 0600 with a generated password, prints the `alter role frankendom_origins …` line) and paste that line in Supabase SQL editor. I must NOT set the password (prohibited). Then Deploy installs #1463, flag on for Dom only first. Also: damage-variance choice from #1513.
+
+**6. RULINGS TONIGHT (all in memory):** chat free text + server filter; buy servers (80% trigger), queue only for spikes; game-assigned layers + join-friend; names letters/spaces/hyphens + filter + AI; Azazel + 5 Watchers IN; national heroes IN as honourable (Wallace/Tell/Skanderbeg patrons); Aztec/Maya gods IN; Cain legend only; no Adam/Eve/Abel/Samson/Lestat/The Beetle; Sundiata kept; legends list 600 (500 + world + lost civs + cryptids). legends-rule skill updated (1931 line, folk heroes, Watchers, Aztec/Maya, Cain).
+
 ## 2026-10-06 23:05 (+04) — HANDOFF before /clear. READ FIRST, then memory
 
 (Date note: the two entries below say 2026-10-07; the Mac clock said 2026-10-06 all day. They are the same day.)
