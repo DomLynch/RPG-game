@@ -49,5 +49,5 @@ test('the foe burst: at range the first offset stands; up close it is pushed pas
   assert.equal(close.side, -1);
   assert.ok(close.open > 0.35 && close.open <= 1.4 && close.up > 0.1 && close.up <= 0.35);   // behind the hero: out to his edge, and up
   assert.equal(foeBurstSpot(-0.6, 1, 1, 1).side, -1);   // the contact leans to the left of the hero: go left whatever side the blow named
-  assert.equal(foeBurstSpot(0, 1, 1, 50).open, 70);   // capped at 1.4 x scale
+  assert.equal(foeBurstSpot(0, 1, 3, 1).open, 1.4);   // capped at 1.4 x scale
 });
