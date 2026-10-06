@@ -1,6 +1,8 @@
 // The proposal's worked examples as event lists (docs/specs/origins/progression-proposal.md §6). Shared by model.test.ts so the doc's
 // numbers and the pinned numbers come from one place. Region and creature names are placeholders for the region-1 content lane.
-import type { CareerEvent, MobClass } from './model.ts';
+import {
+  DAY_S, MAX_LEVEL, award, levelOfCredit, newCareer, nextLegend, tierOf, type CareerEvent, type CareerState, type MobClass,
+} from './model.ts';
 
 export const MIN = 60;
 export const HOUR = 3600;
@@ -52,4 +54,63 @@ export function botDay(t0: number, hours = 24): CareerEvent[] {
     out.push({ kind: 'mob', id: id('bot'), at: t0 + i * 15, mob, mobClass: 'ordinary', mobLevel: 30 });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Days to each title for two players (proposal §2.4). Deterministic: wins come from a permille accumulator, never a random number.
+// Assumptions (stated in the doc): Pit win rate by title tier 80% at Recruit, five points lower each title (40% at Invictus, 35% at
+// Origin); creatures fought at the player's own level across 20 ordinary and 5 elite kinds (never hot); bosses at the player's own
+// level, three per title band, each locked 7 days; one story chapter per title (4 steps × 100 + the chapter 500, Dom 2026-10-06).
+export type Player = {
+  name: string; pitFights: number; ordinary: number; elite: number; bossDays: readonly number[]; storyEvery: number;
+};
+export const CASUAL: Player = { name: 'casual, 30 min a day', pitFights: 3, ordinary: 12, elite: 1, bossDays: [6], storyEvery: 3 };
+export const HEAVY: Player = { name: 'heavy, 3 h a day', pitFights: 20, ordinary: 80, elite: 10, bossDays: [1, 3, 5], storyEvery: 1 };
+export const winPermille = (tier: number): number => Math.max(350, 800 - 50 * (tier - 1));
+export type Source = 'pit' | 'boss' | 'story' | 'mob';
+export type PlayerRun = { dayReached: Record<number, number>; credit: Record<Source, number>; finalLevel: number };
+
+export function playerDays(
+  p: Player, opponents: readonly string[], maxDays: number, cap: number = MAX_LEVEL, start: CareerState = newCareer(0, 0, cap),
+): PlayerRun {
+  let s = start;
+  let acc = 0;
+  const storySteps: Record<number, number> = {};
+  let bossTurn = 0;
+  const credit: Record<Source, number> = { pit: 0, boss: 0, story: 0, mob: 0 };
+  const dayReached: Record<number, number> = { [levelOfCredit(s.credit, cap)]: 0 };
+  const take = (e: CareerEvent, source: Source): void => {
+    const a = award(s, e, cap);
+    s = a.state;
+    credit[source] += a.cp;
+  };
+  for (let d = 0; d < maxDays && levelOfCredit(s.credit, cap) < cap; d++) {
+    let t = d * DAY_S + 18 * HOUR;
+    for (let f = 0; f < p.pitFights; f++, t += 180) {
+      acc += winPermille(tierOf(s.pit.rung));
+      if (acc < 1000) continue; // a loss: the same legend again next time
+      acc -= 1000;
+      const opponent = nextLegend(s.pit, opponents, d * 97 + f, cap) ?? 'mass-produced';
+      take({ kind: 'arena-win', id: `pit-${d}-${f}`, at: t, opponent }, 'pit');
+    }
+    for (let i = 0; i < p.ordinary + p.elite; i++, t += 30) {
+      const elite = i >= p.ordinary;
+      const level = levelOfCredit(s.credit, cap);
+      take({ kind: 'mob', id: `m-${d}-${i}`, at: t, mob: elite ? `e${i % 5}` : `o${i % 20}`, mobClass: elite ? 'elite' : 'ordinary', mobLevel: level }, 'mob');
+    }
+    if (p.bossDays.includes(d % 7)) {
+      const level = levelOfCredit(s.credit, cap);
+      take({ kind: 'boss', id: `b-${d}`, at: t, boss: `band${tierOf(level)}-boss${bossTurn++ % 3}`, bossLevel: level, contributionPermille: 300 }, 'boss');
+    }
+    if (d % p.storyEvery === 0) {
+      const tier = tierOf(levelOfCredit(s.credit, cap));
+      const step = (storySteps[tier] ?? 0) + 1;
+      if (step <= 5) {
+        storySteps[tier] = step;
+        take({ kind: 'story', id: `st-${tier}-${step}`, at: t, step: `title${tier}/${step}`, cp: step === 5 ? 500 : 100 }, 'story');
+      }
+    }
+    for (let l = 1; l <= levelOfCredit(s.credit, cap); l++) if (!(l in dayReached)) dayReached[l] = d + 1;
+  }
+  return { dayReached, credit, finalLevel: levelOfCredit(s.credit, cap) };
 }
