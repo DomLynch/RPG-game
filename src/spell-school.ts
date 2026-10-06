@@ -14,10 +14,12 @@ export const SCHOOL_OF: Readonly<Record<string, School>> = {
   mist: 'frost', storm: 'frost',
 };
 const looks = (search: string) => (new URLSearchParams(search).get('look') ?? '').split(',');
-export const schoolsFlag = (search: string) => looks(search).some((l) => l === 'schools' || l === 'schools2');
-// ?look=schools2: the same hues, half the saturation and half the lightness (Lead 2026-10-07: Dom's rulings want specials grey/dark/unsaturated, the plain flag is the loud one), so Dom picks in one look.
-export const schoolsSoft = (search: string) => looks(search).includes('schools2');
-const SOFT = { saturation: 0.5, lightness: 0.5 } as const;
+export const schoolsFlag = (search: string) => looks(search).some((l) => l === 'schools' || l === 'schools2' || l === 'schools3');
+// Three strengths of the same hues, so Dom picks in one look (Lead 2026-10-07: his rulings want specials grey/dark/unsaturated): ?look=schools is the plain school colour,
+// schools2 half the saturation and half the lightness (a soft lavender haze), schools3 a violet-black smoke (saturation x0.4, lightness x0.28).
+export const STRENGTH = { plain: { saturation: 1, lightness: 1 }, soft: { saturation: 0.5, lightness: 0.5 }, dark: { saturation: 0.4, lightness: 0.28 } } as const;
+export type Strength = keyof typeof STRENGTH;
+export const schoolsStrength = (search: string): Strength => { const l = looks(search); return l.includes('schools3') ? 'dark' : l.includes('schools2') ? 'soft' : 'plain'; };
 
 // The effects paint dark ink into DataTexture maps, and a material colour only multiplies its map (black x any hue is black), so a mapped material's pixels are recoloured in
 // place: the school hue at the pixel's own shading (relative to the map's brightest), alpha untouched, so the shape, tear and fade stay the effect's own. An unmapped material
@@ -35,9 +37,9 @@ function recolour(map: THREE.Texture, hue: THREE.Color) {
   }
   map.needsUpdate = true;
 }
-export function schoolTinter(group: THREE.Object3D, school: School, soft = false) {
+export function schoolTinter(group: THREE.Object3D, school: School, strength: Strength = 'plain') {
   const done = new WeakSet<object>(), hue = new THREE.Color(SCHOOLS[school]);
-  if (soft) { const hsl = { h: 0, s: 0, l: 0 }; hue.getHSL(hsl); hue.setHSL(hsl.h, hsl.s * SOFT.saturation, hsl.l * SOFT.lightness); }
+  if (strength !== 'plain') { const hsl = { h: 0, s: 0, l: 0 }, k = STRENGTH[strength]; hue.getHSL(hsl); hue.setHSL(hsl.h, hsl.s * k.saturation, hsl.l * k.lightness); }
   return () => group.traverse((o) => {
     const m = (o as THREE.Mesh).material as Tintable | Tintable[] | undefined;
     for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
