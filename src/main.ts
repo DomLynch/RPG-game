@@ -30,6 +30,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { breakBeatFrom } from './break-beat.ts';
 import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
@@ -771,6 +772,8 @@ function clearPvpHold() { clearHold(pvpHold); }
 const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
+const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
+feedback.breakThud(!!breakBeat?.thud);
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
@@ -778,7 +781,7 @@ function stopFor(events: CombatEvent[]): number {
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
-    const base = HIT_STOP[e.type] ?? 0;
+    const base = e.type === 'PostureBroken' && breakBeat ? breakBeat.holdMs : HIT_STOP[e.type] ?? 0;
     if (!base) continue;
     const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
     ms = Math.max(
