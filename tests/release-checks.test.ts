@@ -393,17 +393,24 @@ test('deploy scope: a public asset runs the rows of its folder, never all 51; th
   assert.doesNotMatch(picked('src/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
 });
 
-test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', () => {
-  // Lead 2026-10-06: a row-list edit ran all 51 rows. 8d1a979a is a trunk revision whose gate had 50 rows (no first-loss row).
+test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', async () => {
+  // Lead 2026-10-06: a row-list edit ran all 51 rows. The row diff is fed in directly (deployRowsFor's second argument), so the test
+  // does not depend on the runner's git history: CI's shallow clone cannot `git show` an old trunk revision, and every row is then right.
   const pick = (base: string | null, ...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', ...(base ? ['--base', base] : [])], { input: files.join('\n'), encoding: 'utf8' });
   const kept = (r: ReturnType<typeof pick>) => 51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
   assert.equal(kept(pick(null, '.quality-gate.json')), 51, 'no base: every row');
   assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), 51, 'an unreadable base: every row');
   assert.equal(kept(pick('HEAD', '.quality-gate.json')), 5, 'the same row list as the base: the core five only');
-  const r = pick('8d1a979a', '.quality-gate.json');
-  assert.match(r.stderr, /\b51 first-loss-browser-check\b/, 'the row added since the base runs');
-  assert.doesNotMatch(r.stderr, /\b44 sparring-browser-check\b/, 'a row unchanged since the base does not');
-  assert.ok(kept(r) < 51 && kept(r) >= 6, `the core five plus the added or edited rows, not all 51: ${kept(r)}`);
+  const { deployRowsFor, rows } = await import('../scripts/release-rows-for.mjs');
+  const live = rows.map((r: { argv: string }) => JSON.parse(r.argv) as string[]);
+  const names = (picked: { index: number; name: string }[]) => picked.map(r => `${r.index} ${r.name}`);
+  assert.equal(deployRowsFor(['.quality-gate.json'], live).length, 5, 'identical lists: the core five only');
+  const added = names(deployRowsFor(['.quality-gate.json'], live.filter((_, i) => i !== 50)));
+  assert.ok(added.includes('51 first-loss-browser-check'), `a row the live gate lacks runs: ${added}`);
+  assert.ok(!added.includes('44 sparring-browser-check') && added.length === 6, `rows unchanged since the base do not: ${added}`);
+  const edited = live.map((command, i) => (i === 43 ? [...command, '--changed'] : command));
+  assert.ok(names(deployRowsFor(['.quality-gate.json'], edited)).includes('44 sparring-browser-check'), 'a row whose argv changed runs');
+  assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, 51, 'no previous list: every row');
 });
 
 test('deploy scope: a run of every row writes the full-run stamp even behind the fast unit gate; a scoped run never does', () => {
