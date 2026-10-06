@@ -92,13 +92,13 @@ test('the picture is never more than MAX_LAG_TICKS behind the sim, whatever the 
   assert.ok(kill.held.filter(Boolean).length * FRAME <= 100 + FRAME, `the kill hold was ${kill.held.filter(Boolean).length} frames`);
   // A burst: a 90 ms contact every 3 ticks for 120 ticks, one tick a frame. The queue (ticks the screen has not shown) never passes the cap at a frame's end.
   const stops: Record<number, number> = {}; for (let t = 2; t <= 120; t += 3) stops[t] = 90;
-  const h = newHold<Snap>(); let tick = 0, maxQueue = 0, holds = 0, wasHeld = false; const frames = 160;
+  const h = newHold<Snap>(); let tick = 0, maxQueue = 0, heldFrames = 0; const frames = 160;
   for (let f = 0; f < frames; f++) {
     if (f < 120) { tick++; const s = snap(tick, stops[tick] ?? 0); onTick(h, s, h.shown ? 0 : s.stop, 1); }
-    const d = onFrame(h, FRAME, [], stopOf, eventsOf); if (d.held && !wasHeld) holds++; wasHeld = d.held; maxQueue = Math.max(maxQueue, h.queue.length);
+    const d = onFrame(h, FRAME, [], stopOf, eventsOf); if (d.held) heldFrames++; maxQueue = Math.max(maxQueue, h.queue.length);
   }
   assert.ok(maxQueue <= MAX_LAG_TICKS, `the queue reached ${maxQueue} ticks`);
-  assert.ok(holds >= 2, `contacts still hold (${holds} holds)`);
+  assert.ok(heldFrames >= 5 && heldFrames < frames, `contacts still hold, but the screen is not frozen throughout (${heldFrames} held frames of ${frames})`);
   assert.equal(h.shown, null, 'the burst drains and the screen is live again');
 });
 
