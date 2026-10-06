@@ -22,6 +22,7 @@
     #hud { position: fixed; z-index: 1; left: 0; right: calc(var(--tap) * 2 + var(--gap-m)); top: env(safe-area-inset-top); padding: var(--gap-s) var(--gap-m); font: 600 var(--fs-m)/1.3 var(--f-serif); color: var(--c-ink); text-shadow: 0 1px 3px var(--c-shadow); pointer-events: none; }
     #hud small { display: block; font-weight: 400; opacity: 0.8; }
     #journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #stick { position: fixed; width: var(--stick); height: var(--stick); margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2); border-radius: 50%; border: 2px solid var(--c-ring); display: none; pointer-events: none; }
     #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
     #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
@@ -58,6 +59,7 @@
   <div id="stick"></div>
   <button id="prompt" class="glass" hidden></button>
   <button id="journal" class="glass">Journal</button>
+  <button id="allegiance" class="glass" hidden>Allegiance</button>
   <div id="shade" hidden><div id="panel" role="dialog"><button id="shut" aria-label="Close">×</button><div id="card"></div></div></div>
   <!-- The Pit duel (pit-duel.ts, its own chunk): the arena's input and HUD bind to these by data-ctl; its canvas is added on the first fight. -->
   <section id="duel" class="layer" aria-label="The Pit duel" hidden>
