@@ -12,15 +12,15 @@ import { LADDER } from '../src/ladder.ts';
 // Arenas 2 and 3: a theme is colour and light only. The rotation follows the ladder band; the geometry never moves.
 const SKIN_SAMPLE = 0.166;   // tests/arena.test.ts: the hero's skin albedo, which every floor must stay below
 
-test('the ladder band picks the arena: two rungs each, 1 → A → B → C → D, all five arenas on the ladder; an override wins; unknown is Arena 1', () => {
+test('the ladder band picks the arena: two rungs each, 1 → Skull Gate → B → C → D, five arenas on the ladder (the Night Pit left it for Arena 2, Dom 2026-10-06); an override wins; unknown is Arena 1', () => {
   assert.equal(LADDER.length, 10, 'ten rungs: five bands of two');
   assert.deepEqual(LADDER.map((_, i) => arenaBand(i + 1)), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
-  assert.deepEqual(Object.values(ARENA_PICK), ['1', 'a', 'b', 'c', 'd'], 'every built arena is picked exactly once');
+  assert.deepEqual(Object.values(ARENA_PICK), ['1', '2', 'b', 'c', 'd'], 'every picked arena is picked exactly once');
   LADDER.forEach((o, i) => {
     const rung = i + 1, want = ARENA_PICK[arenaBand(rung)];
     assert.equal(arenaFor(o.id).id, want, `${o.id} (rung ${rung})`);
   });
-  assert.equal(arenaFor('goblin').id, 'a'); assert.equal(arenaFor('shieldmaiden').id, 'd');
+  assert.equal(arenaFor('goblin').id, '2'); assert.equal(arenaFor('shieldmaiden').id, 'd');
   assert.equal(arenaFor('veteran').id, '1');
   assert.equal(arenaFor('veteran', 'd').id, 'd');
   assert.equal(arenaFor('veteran', 'nonsense').id, '1');
