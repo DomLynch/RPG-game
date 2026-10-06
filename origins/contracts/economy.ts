@@ -11,6 +11,11 @@
 //   - NPC services instead of player crafting (UO-style). The blacksmith raises a piece's upgrade level on the existing per-piece score
 //     scale, never past the 1.15 / 0.80 caps, for the one trade currency plus optional material lines, priced from a versioned cost table.
 //     Crafting stays out.
+//
+// Dom's ruling, 2026-10-07 (replaces the "2 hand changes, then bound" proposal): no hard trade limit and no permanent binding of earned
+// or shop gear. Instead an escalating PER-ITEM cooldown (tradeCooldown below): a fresh piece waits FIRST_TRADE_DELAY_S after it entered
+// its owner's hands, and after each change of hands the new owner waits COOLDOWN_STEPS_S[hops - 1], capped at the last step forever.
+// Cash-shop items, metal, shop consumables and every stackable stay untradeable.
 import { SLOT_WEIGHT } from '../../src/gear-stats.ts';
 import { levelOf as tierLevel } from '../../src/grades.ts';
 import { isWeaponSlot } from '../../src/loot.ts';
@@ -30,6 +35,80 @@ import { verifiedTier, type CareerStanding } from './world.ts';
 
 // The neutral plaza beside the Pit (blueprint §8). The only place a trade settles.
 export const CONCORD_EXCHANGE = 'region:concord-exchange' as RegionId;
+
+// ---- Trade cooldown (Dom, 2026-10-07) ----------------------------------------------------------------------------------------------
+//
+// DATA, in one place, read-only, for the server and the UI. Seconds.
+//   - FIRST_TRADE_DELAY_S: a freshly looted, minted or bought piece cannot be offered until this long after it was minted.
+//   - COOLDOWN_STEPS_S[k]: after its (k + 1)th change of hands the new owner waits this long; every later trade uses the last step.
+// The hop count is the number of 'trade' entries in the piece's append-only history, so it never decays and survives every version
+// bump, upgrade, move and split (a split copies history). The clock starts at the last trade entry's `at`, or the mint `at` if none.
+const HOUR_S = 3600, DAY_S = 24 * HOUR_S;
+export const FIRST_TRADE_DELAY_S = 72 * HOUR_S;
+export const COOLDOWN_STEPS_S: readonly number[] = Object.freeze([7 * DAY_S, 14 * DAY_S, 30 * DAY_S]);
+
+// Why a piece can or cannot be offered right now. 'cooling' is the only reason that passes with time; every other refusal is permanent
+// for that piece as it stands (a bound piece stays bound; a stackable never becomes single-copy).
+export type TradeBlock = 'bound' | 'story-critical' | 'stackable' | 'cash-shop' | 'shop-not-gear' | 'wrong-definition' | 'bad-clock';
+export type TradeCooldown = {
+  tradeable: boolean;
+  until: number | null; // epoch milliseconds the cooldown ends (may be in the past); null when the piece can never be offered
+  hops: number; // changes of hands so far
+  reason: 'ok' | 'cooling' | TradeBlock;
+};
+
+// How many times a piece has changed hands: its history's 'trade' entries. History only grows, so this never falls.
+export const tradeHops = (inst: Pick<ItemInstance, 'history'>): number => inst.history.reduce((n, entry) => (entry.kind === 'trade' ? n + 1 : n), 0);
+
+// The wait, in seconds, before a piece that has changed hands `hops` times may be offered again.
+export function cooldownSecondsFor(hops: number): number {
+  if (hops <= 0) return FIRST_TRADE_DELAY_S;
+  return COOLDOWN_STEPS_S[Math.min(hops, COOLDOWN_STEPS_S.length) - 1]!;
+}
+
+// Never tradeable, whatever the clock says. Bound and story-critical were already refused at settle; the rest is Dom's 2026-10-07 list.
+// Metal is not an item at all (an account balance, docs/specs/origins/trading.md §3.2): the Trade contract has no field that could carry it.
+function tradeBlock(inst: ItemInstance, def: ItemDefinition): TradeBlock | null {
+  if (inst.item !== def.id) return 'wrong-definition';
+  if (inst.boundTo !== null) return 'bound';
+  if (def.story === 'story-critical') return 'story-critical';
+  if (def.stack !== 1) return 'stackable';
+  if (inst.provenance.kind === 'cash-shop') return 'cash-shop';
+  if (inst.provenance.kind === 'shop' && def.category !== 'gear') return 'shop-not-gear';
+  return null;
+}
+
+// Pure, and the one answer the trade contract, the server and the UI all read. `now` is epoch milliseconds. Fails closed: an
+// unreadable clock or timestamp is never tradeable.
+export function tradeCooldown(inst: ItemInstance, def: ItemDefinition, now: number): TradeCooldown {
+  const hops = tradeHops(inst);
+  const block = tradeBlock(inst, def);
+  if (block !== null) return { tradeable: false, until: null, hops, reason: block };
+  let lastTrade: string | undefined;
+  for (const entry of inst.history) if (entry.kind === 'trade') lastTrade = entry.at;
+  const since = Date.parse(lastTrade ?? inst.provenance.at);
+  if (!Number.isFinite(since) || !Number.isFinite(now)) return { tradeable: false, until: null, hops, reason: 'bad-clock' };
+  const until = since + cooldownSecondsFor(hops) * 1000;
+  return now >= until ? { tradeable: true, until, hops, reason: 'ok' } : { tradeable: false, until, hops, reason: 'cooling' };
+}
+
+const BLOCK_TEXT: Record<TradeBlock, string> = {
+  'bound': 'is bound and cannot change hands',
+  'story-critical': 'is story-critical and cannot change hands',
+  'stackable': 'is a stackable and never trades',
+  'cash-shop': 'was bought from the cash shop and never trades',
+  'shop-not-gear': 'was bought from a shop and only shop gear trades',
+  'wrong-definition': 'was checked against the wrong definition',
+  'bad-clock': 'has no readable trade clock',
+};
+// The refusal for a piece that cannot be offered now, at `path` (a cooling piece at `<path>.cooldown`), or null when it can.
+function cooldownIssue(id: ItemInstanceId, cd: TradeCooldown, path: string): Issue | null {
+  if (cd.tradeable) return null;
+  if (cd.reason === 'cooling' && cd.until !== null) {
+    return { code: 'rule-violation', path: join(path, 'cooldown'), message: `${id} is cooling down after ${cd.hops} trade${cd.hops === 1 ? '' : 's'}: tradeable again at ${new Date(cd.until).toISOString()}` };
+  }
+  return { code: 'rule-violation', path, message: `${id} ${BLOCK_TEXT[cd.reason as TradeBlock]}` };
+}
 
 // ---- Trade ------------------------------------------------------------------------------------------------------------------------
 
@@ -85,7 +164,12 @@ const firstRepeat = <T>(ids: readonly T[]): T | undefined => {
 };
 
 // Any offer change clears BOTH accepts and bumps the version (the secure-trade rule), so an accept can only ever mean the offer on screen.
-export function changeOffer(trade: Trade, character: CharacterInstanceId, offered: ItemInstanceId[], expectedVersion: number): Result<Trade> {
+// Every piece on the new offer must be tradeable now (tradeCooldown): `items` are the offerer's instances (at least the offered ones),
+// `lookup` their definitions, `now` an ISO time. An id not among `items` is refused, never assumed tradeable.
+export function changeOffer(
+  trade: Trade, character: CharacterInstanceId, offered: ItemInstanceId[], expectedVersion: number,
+  items: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined, now: string,
+): Result<Trade> {
   if (trade.version !== expectedVersion) return fail('version-conflict', 'version', `the trade is at version ${trade.version}`);
   const i = sideOf(trade, character);
   if (i < 0) return fail('rule-violation', 'character', `${character} is not in this trade`);
@@ -95,6 +179,18 @@ export function changeOffer(trade: Trade, character: CharacterInstanceId, offere
   const theirs = new Set(trade.sides[1 - i]!.offered);
   const both = offered.find((id) => theirs.has(id));
   if (both !== undefined) return fail('duplicate-id', 'offered', `${both} is already offered by the other side`);
+  const issues = new Issues();
+  const nowMs = Date.parse(now);
+  offered.forEach((id, j) => {
+    const path = `offered[${j}]`;
+    const inst = items.find((it) => it.id === id);
+    if (!inst) return issues.add('unknown-id', path, `${id} is not among the offerer's items`);
+    const def = lookup(inst.item);
+    if (!def) return issues.add('unknown-id', path, `${inst.item} is not defined in this content`);
+    const issue = cooldownIssue(id, tradeCooldown(inst, def, nowMs), path);
+    if (issue) issues.list.push(issue);
+  });
+  if (!issues.empty) return issues.finish(undefined as never);
   const sides = trade.sides.map((s, j) => ({ ...s, offered: j === i ? [...offered] : s.offered, accepted: false })) as [TradeSide, TradeSide];
   return ok({ ...trade, sides, version: trade.version + 1 });
 }
@@ -152,7 +248,12 @@ export function settleTrade(
       if (inst.location.kind !== 'trade-escrow' || inst.location.container !== trade.id || inst.location.from !== side.character) {
         return issues.add('rule-violation', path, `${id} is not in this trade's escrow from ${side.character}`);
       }
-      if (inst.boundTo !== null || def.story === 'story-critical') return issues.add('rule-violation', path, `${id} is bound and cannot change hands`);
+      // Re-checked at settle (Dom, 2026-10-07): an escrowed piece cannot change hands mid-trade, but the offer may be older than a rule.
+      const blocked = cooldownIssue(id, tradeCooldown(inst, def, Date.parse(now)), path);
+      if (blocked) {
+        issues.list.push(blocked);
+        return;
+      }
       let index = 0;
       while (used.has(index)) index++;
       if (index >= size) return issues.add('rule-violation', path, `${recipient}'s pack is full (${size} slots)`);
