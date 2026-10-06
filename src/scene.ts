@@ -148,6 +148,8 @@ export function createScene(
   // `?look=armfeel&feel=high|low|off` (armfeel.ts): the victim's flinch on a visual pivot between the fighter's root and its rig. Absent or `off`: no pivot, today's frame.
   const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
+  // SCRATCH (COMBAT blade-clear proposal, never ships as is): `?bladeclear=<m>` slides the FOE's drawn body sideways by <m> metres in its own frame while it winds up, on the armfeel pivot, to show the stills of the lateral-step fix. Presentation only.
+  const bladeClear = typeof location === 'undefined' ? 0 : Number(new URLSearchParams(location.search).get('bladeclear') ?? 0) || 0; let bladeShift = 0;
   const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   const burstPool = flinches ? createBurstPool(scene) : null;
@@ -1126,6 +1128,7 @@ export function createScene(
         pivot.quaternion.copy(lean);
         pivot.position.copy(hip).sub(swing.copy(hip).applyQuaternion(lean)).add(swing.set(dx * mag, 0, dz * mag));
       }
+      if (flinches && bladeClear) { const winding = !finisher && !walking && theirs.pose === 'attack' && theirs.progress < theirs.contact; bladeShift += ((winding ? 1 : 0) - bladeShift) * (1 - Math.exp(-dt * 25)); pivots[1].position.x += bladeShift * bladeClear; }
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
