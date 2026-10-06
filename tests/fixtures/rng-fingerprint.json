@@ -853,9 +853,9 @@
   },
   "nightborn:11:731:walkin": {
    "ticks": 600,
-   "draws": 331,
-   "rng": "6d756c4392b7f19e",
-   "state": "97bbdf9cc6bb8616"
+   "draws": 358,
+   "rng": "87282772fd08ec37",
+   "state": "09a8d6316041a8b5"
   },
   "nightborn:11:20260922:idle": {
    "ticks": 600,
@@ -865,9 +865,9 @@
   },
   "nightborn:11:20260922:walkin": {
    "ticks": 600,
-   "draws": 348,
-   "rng": "296eb156970c136c",
-   "state": "0dd6388524396ea1"
+   "draws": 418,
+   "rng": "28a42a76889378d5",
+   "state": "6bf85419182a97f5"
   },
   "nightborn:11:4242424242:idle": {
    "ticks": 600,
@@ -877,9 +877,9 @@
   },
   "nightborn:11:4242424242:walkin": {
    "ticks": 600,
-   "draws": 321,
-   "rng": "e454e9b8d8d413af",
-   "state": "5572128fcb93f9ab"
+   "draws": 371,
+   "rng": "b13d7ea09457a22e",
+   "state": "75dbfbd6a480e844"
   },
   "nightborn:12:731:idle": {
    "ticks": 600,
@@ -889,9 +889,9 @@
   },
   "nightborn:12:731:walkin": {
    "ticks": 600,
-   "draws": 376,
-   "rng": "930eb70c9db16820",
-   "state": "2d8daf49cc713001"
+   "draws": 385,
+   "rng": "e917d89ecb8d0c63",
+   "state": "fd9dab5228c0322e"
   },
   "nightborn:12:20260922:idle": {
    "ticks": 600,
@@ -901,9 +901,9 @@
   },
   "nightborn:12:20260922:walkin": {
    "ticks": 600,
-   "draws": 411,
-   "rng": "8884e1355342713f",
-   "state": "42ab8fc9bf49631f"
+   "draws": 340,
+   "rng": "a9acb5bc54ef8a82",
+   "state": "fa855475c7685c3f"
   },
   "nightborn:12:4242424242:idle": {
    "ticks": 600,
@@ -913,9 +913,9 @@
   },
   "nightborn:12:4242424242:walkin": {
    "ticks": 600,
-   "draws": 389,
-   "rng": "d69e68bd3aa8047a",
-   "state": "dddef99ab4fa22f8"
+   "draws": 417,
+   "rng": "b92e49e07a5be8c8",
+   "state": "626667577d734d27"
   },
   "nightborn:18:731:idle": {
    "ticks": 600,
@@ -937,9 +937,9 @@
   },
   "nightborn:18:20260922:walkin": {
    "ticks": 600,
-   "draws": 292,
-   "rng": "3bdda51fe594f1e4",
-   "state": "fae24c6c353dac0e"
+   "draws": 348,
+   "rng": "296eb156970c136c",
+   "state": "000241aa053f392a"
   },
   "nightborn:18:4242424242:idle": {
    "ticks": 600,
@@ -949,9 +949,9 @@
   },
   "nightborn:18:4242424242:walkin": {
    "ticks": 600,
-   "draws": 418,
-   "rng": "553c28148eea9177",
-   "state": "9f439961dbfdd6bd"
+   "draws": 425,
+   "rng": "fe2a8a200cd7107b",
+   "state": "01f6c4ed6e19f4a9"
   },
   "nightborn:30:731:idle": {
    "ticks": 600,
@@ -961,9 +961,9 @@
   },
   "nightborn:30:731:walkin": {
    "ticks": 600,
-   "draws": 309,
-   "rng": "405c4d6247a17619",
-   "state": "0d637664c4e52000"
+   "draws": 352,
+   "rng": "7db77f1f4959ed96",
+   "state": "00d083aca8ac9f98"
   },
   "nightborn:30:20260922:idle": {
    "ticks": 600,
@@ -973,9 +973,9 @@
   },
   "nightborn:30:20260922:walkin": {
    "ticks": 600,
-   "draws": 337,
-   "rng": "9222a970790ad8eb",
-   "state": "948d6aa218c1ab2a"
+   "draws": 328,
+   "rng": "c5807dd688811370",
+   "state": "16f9be682b00d912"
   },
   "nightborn:30:4242424242:idle": {
    "ticks": 600,
@@ -985,9 +985,9 @@
   },
   "nightborn:30:4242424242:walkin": {
    "ticks": 600,
-   "draws": 393,
-   "rng": "c20583a20189c4f2",
-   "state": "3d2226ddc3fdea9d"
+   "draws": 389,
+   "rng": "d69e68bd3aa8047a",
+   "state": "30b35a814854d55b"
   },
   "nightborn:46:731:idle": {
    "ticks": 600,
@@ -1609,9 +1609,9 @@
   },
   "wraith:11:731:walkin": {
    "ticks": 600,
-   "draws": 359,
-   "rng": "d0e46645c06d149d",
-   "state": "29237a21c3895b45"
+   "draws": 408,
+   "rng": "759dfbb4412f4e0a",
+   "state": "a34d47c6de4ca6f6"
   },
   "wraith:11:20260922:idle": {
    "ticks": 600,
@@ -1621,9 +1621,9 @@
   },
   "wraith:11:20260922:walkin": {
    "ticks": 600,
-   "draws": 449,
-   "rng": "002e29cb5d56d148",
-   "state": "a228c251179e5abd"
+   "draws": 389,
+   "rng": "fb03043b731e4f32",
+   "state": "374d047a55778a0a"
   },
   "wraith:11:4242424242:idle": {
    "ticks": 600,
@@ -1633,9 +1633,9 @@
   },
   "wraith:11:4242424242:walkin": {
    "ticks": 600,
-   "draws": 321,
-   "rng": "e454e9b8d8d413af",
-   "state": "f93c3dd19cf12aaf"
+   "draws": 306,
+   "rng": "53100be589de8ce2",
+   "state": "54d2c08504da373b"
   },
   "wraith:12:731:idle": {
    "ticks": 600,
@@ -1645,9 +1645,9 @@
   },
   "wraith:12:731:walkin": {
    "ticks": 600,
-   "draws": 298,
-   "rng": "47963252ae211136",
-   "state": "2ca69d8d484a1c3d"
+   "draws": 330,
+   "rng": "c7aaa9bd2c626010",
+   "state": "ce7c4eb2fdc66dac"
   },
   "wraith:12:20260922:idle": {
    "ticks": 600,
@@ -1657,9 +1657,9 @@
   },
   "wraith:12:20260922:walkin": {
    "ticks": 600,
-   "draws": 406,
-   "rng": "f12129c67609449f",
-   "state": "c9542b2ff3b733c3"
+   "draws": 369,
+   "rng": "3a837a1d32e8978d",
+   "state": "e5d0be493e2284fd"
   },
   "wraith:12:4242424242:idle": {
    "ticks": 600,
@@ -1669,9 +1669,9 @@
   },
   "wraith:12:4242424242:walkin": {
    "ticks": 600,
-   "draws": 401,
-   "rng": "fb66201daf512a64",
-   "state": "f3ca392ec87378ea"
+   "draws": 297,
+   "rng": "5c7036606c37c7d7",
+   "state": "f8aaa1a470bdc3f0"
   },
   "wraith:18:731:idle": {
    "ticks": 600,
@@ -1681,9 +1681,9 @@
   },
   "wraith:18:731:walkin": {
    "ticks": 600,
-   "draws": 358,
-   "rng": "87282772fd08ec37",
-   "state": "a0261f7220fd9890"
+   "draws": 307,
+   "rng": "6d607af8cc9e4a02",
+   "state": "107e92b03b18a6ce"
   },
   "wraith:18:20260922:idle": {
    "ticks": 600,
@@ -1693,9 +1693,9 @@
   },
   "wraith:18:20260922:walkin": {
    "ticks": 600,
-   "draws": 363,
-   "rng": "395715532e292018",
-   "state": "268b416ab69fefb0"
+   "draws": 311,
+   "rng": "0c3e5948fcc9a6ab",
+   "state": "89f9c9acce77df90"
   },
   "wraith:18:4242424242:idle": {
    "ticks": 600,
@@ -1705,9 +1705,9 @@
   },
   "wraith:18:4242424242:walkin": {
    "ticks": 600,
-   "draws": 309,
-   "rng": "14c70d71693ec89f",
-   "state": "c18593ee891043de"
+   "draws": 354,
+   "rng": "65972195f35e7c96",
+   "state": "f87acec15ec1347f"
   },
   "wraith:30:731:idle": {
    "ticks": 600,
@@ -1717,9 +1717,9 @@
   },
   "wraith:30:731:walkin": {
    "ticks": 600,
-   "draws": 270,
-   "rng": "472d906065ee1817",
-   "state": "cffcc3964dff29ae"
+   "draws": 307,
+   "rng": "6d607af8cc9e4a02",
+   "state": "499a2bd364880669"
   },
   "wraith:30:20260922:idle": {
    "ticks": 600,
@@ -1729,9 +1729,9 @@
   },
   "wraith:30:20260922:walkin": {
    "ticks": 600,
-   "draws": 330,
-   "rng": "99437104c53c0699",
-   "state": "e49f90725574c4d2"
+   "draws": 310,
+   "rng": "3b7e9ba78447e82d",
+   "state": "ec3261158780181d"
   },
   "wraith:30:4242424242:idle": {
    "ticks": 600,
@@ -1741,9 +1741,9 @@
   },
   "wraith:30:4242424242:walkin": {
    "ticks": 600,
-   "draws": 338,
-   "rng": "a9c26aedec683e4f",
-   "state": "f634ea92fe9bcd6a"
+   "draws": 366,
+   "rng": "875e89e63833c0aa",
+   "state": "23892ec131909249"
   },
   "wraith:46:731:idle": {
    "ticks": 600,

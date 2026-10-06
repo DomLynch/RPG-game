@@ -1,7 +1,7 @@
 {
  "note": "Browser replay vs Node sim (release row scripts/browser-replay-check.mjs, Strategy via Lead 2026-09-29). One pinned record per playable roster opponent, recorded by Combat on trunk fc2254aa the way rank-look-check records (L18, AI hero, tick 0 forced light, first seed of 731+97k that ends). Regenerate ONLY on a record bump or an intentional rules change: node scripts/browser-replay-check.mjs --write (the PR carrying the new fixture is the receipt).",
  "generated": {
-  "revision": "b667755",
+  "revision": "7cffc2d",
   "recordVersion": 29,
   "by": "scripts/browser-replay-check.mjs --write"
  },
@@ -161,12 +161,12 @@
    "opponent": "nightborn",
    "seed": 731,
    "level": 18,
-   "encoded": "H4sIAAAAAAAAA-3YS07CQBgH8A-YGmkAoYiwMbgyoHHlHdx4CokGSEhrqgnxXj7Y4T3cYKKXoKUxLRoZmc6L0BmT-W3n9c8300mmF5eHtn9zO7p6OPO9cdEd9gf3Pc93iyPP7d-NPf8aAJy3PMAxAsiB9mYwIwn5gUBf_kkTIiPi1O807fZRzEKoUMj_AogkLPPJjJRcClcqlyuVvWq1VnOcen2_0ThoNlstxlZ_Zq3T6XZPqCC15WOb8LrwRpLE_gYfFVldmJ4wIh_1c34g0Jd_0oTIiGixCMMwCOZBCgsl98NaqaTyi-eTRtq1p6Xnby-xyYRxGE-zNp2-MkBqy1aD4XXhjSSJfUsYhmHQqXpyWPxdN464s-kEiv33_Ewav3uR6gDrNK6W8cfPPwNd6Z7PoMlhlC4e2zXk2AnVKdJpmc8mKxGpDqsSXp9MFyP5AlHX8dgTGQAA",
+   "encoded": "H4sIAAAAAAAAA-3Z32_SQBwA8K9bMfaYVrcHl2DBxKc9LM74P_jiX-GimSYLGDRZ9O_yxysU_gEKbA--bFh9WcvPAoswYq7HgNqDXc_SFu3noVzS3t33eve9I_DsuYyyr94evviwm80ciek3B6_f72eyafEwkz54d5TJvgSAzW9rAPs3YRWcwinNkB24eJa9UYubGjjqs0VSqYdYTBDW19emAEYcSHw8NTm7sru46Pd7vW7XNDuddqvVbDbqdUNnmvBzh-tq3OEBlBLdI5tUkkYmHhCJRCJxcnJ8XK1WK5VKuayqaglKJVUtuzbTh_0GGTo1GB_8HPsxpmmaBpqmbW_fD4Cmad9n1CyAL5LEtTio_nwHsgxk1pPJLU_IE-Mh1Gq1M90woF43DF13JgYv_VzXnRfeTHKwNfMpIDBbXmhE3yafsgMXz7I3anFTY3R5ORwOB4NfgzlignW2OF4VV_zu4-NGmzUS-ueJLxamE-arw3U1nvAASonuo03f0iO6hGnik7TTabfbrRY-T5uNRi6Xy-fzeUVRlEKhUChCsYg_FZd2puw3yNB3ArK1SdzD7mKSBJIk7QaC7GW3sQ0sHo_HESCE0B7X2qCbzvvVpIM59tgT5oQ1BISQKIo4bUj2OBPDW7yZ5GBrhinnI5FIJBJx7UZA_cbYH_3rEFfj18D5Vj1-L3n3LqbLSvSszUVcrHh2wjIa5RWqYHzZ2nzaPZeydGg8msGgDpV_y9V_JGEV9vgikUioCEv5inArwgdZgo5ivlDGh1j4H5XvPXpmg9V_F8y8cFatCx8tJ_V-A6rZuHV7JgAA",
    "expect": {
-    "victim": 0,
+    "victim": 1,
     "draw": false,
-    "tick": 1062,
-    "killedTick": 1062
+    "tick": 1634,
+    "killedTick": 1634
    },
    "hashes": {
     "60": "992b13165148",
@@ -178,15 +178,25 @@
     "420": "9656ee407641",
     "480": "712326f787fa",
     "540": "6fe102c1ac90",
-    "600": "e996f74d61e3",
-    "660": "a751c07a5a39",
-    "720": "943be5f36404",
-    "780": "5a677e180637",
-    "840": "5a60d2764cbc",
-    "900": "f3535c93388f",
-    "960": "8fa7b9a2f5ae",
-    "1020": "f4af0dfe593f",
-    "1062": "89fae40389ed"
+    "600": "d99013df48ef",
+    "660": "9b8205fd51f1",
+    "720": "77f9cc90c143",
+    "780": "5fa7ea03d395",
+    "840": "0909e9566771",
+    "900": "1d5d85d6792d",
+    "960": "aac5e8d8c51d",
+    "1020": "378024db19f1",
+    "1080": "bb3fd25df48a",
+    "1140": "2f130b6f98bd",
+    "1200": "3c100d40d07a",
+    "1260": "c67cbb38a1a3",
+    "1320": "dfaed5be1adb",
+    "1380": "716dac6deed1",
+    "1440": "e7bcb28a19fb",
+    "1500": "0ec24af432ff",
+    "1560": "d1a10a86ead3",
+    "1620": "454e19bbfac5",
+    "1634": "b828bbbaeb96"
    }
   },
   {
