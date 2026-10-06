@@ -1,8 +1,9 @@
 // Frankendom: Origins — patrons and clans (allegiance at graduation). Pure, integer-only, no DOM, storage, network or clock: every time is
-// a server-seconds integer the caller passes in. Not under src/: nothing here reaches the live arena game. The arena perks are the
-// Combat lane's no-damage sidegrades (docs/specs/origins/patron-perks-sim.md: Vitality, Wind, Thrift, Guard, Poise, Stride, a
-// RECORD_VERSION bump). The damage-based templates here are ORIGINS PvE ONLY (Strategy, 2026-10-07): resolvePerk returns zeros for
-// any other venue, so a damage perk can never reach an arena fight, a Pit duel or a PvP fight.
+// a server-seconds integer the caller passes in. Not under src/: nothing here reaches the live arena game. Patron and clan perks do
+// apply in the arena, but only as the no-damage sidegrades (Vitality, Wind, Thrift, Guard, Poise, Stride; ≤30‰ per side; Edge out;
+// visible to both fighters), and those come only from Combat's patron hook (docs/specs/origins/patron-perks-sim.md, RECORD_VERSION
+// 28), never from this module. The §10.2 damage templates here are ORIGINS PvE ONLY (Strategy, 2026-10-07): resolvePerk gives no
+// §10.2 (damage) modifiers in any other venue, so a damage template can never reach an arena fight, a Pit duel or a PvP fight.
 //
 // Specs: docs/specs/origins/living-world.md §10 (PR #1491: §10.2 templates, §10.6 leaving and switching, §10.7 data) and the patron list
 // docs/specs/origins/legends-500.csv (PR #1498, rows with kind=patron and their perk_template column; read through csv.ts and generated
@@ -285,8 +286,9 @@ export function parseAllegianceState(raw: unknown): Result<AllegianceState> {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // 4. Resolution: what the template does in one Origins fight. Read at engage for the world clock (it holds for the whole fight, §10.3) and
 // at each hit for the fight's own state. Output is per-mille DELTAS (0 = unchanged), tagged for Origins: the live arena never reads them.
-// Every template moves damage, so it resolves only in an Origins PvE fight (Strategy, 2026-10-07). The caller must name the venue: 'arena'
-// (the live game: the Pit, arena duels) and 'pvp' (any player against player, Origins included) always resolve to zeros.
+// Every §10.2 template moves damage, so it resolves only in an Origins PvE fight (Strategy, 2026-10-07). The caller must name the venue:
+// 'arena' (the live game: the Pit, arena duels) and 'pvp' (any player against player, Origins included) get no §10.2 (damage)
+// modifiers here; arena perks come only from Combat's no-damage sidegrade hook.
 
 export const VENUES = ['origins-pve', 'arena', 'pvp'] as const;
 export type Venue = (typeof VENUES)[number];

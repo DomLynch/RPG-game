@@ -1,5 +1,5 @@
 // Patrons and clans (patrons.ts): templates equal by construction, the patron list, the graduation choice, leave/switch pricing, the book,
-// and resolution to Origins-only modifiers.
+// and resolution of the §10.2 damage templates, which apply in Origins PvE only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -196,7 +196,7 @@ test('a stored state round-trips through the reader; anything else is refused', 
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Resolution to Origins-only modifiers.
+// Resolution of the §10.2 damage templates (Origins PvE only).
 
 const fight = (over: Partial<FightContext> = {}): FightContext => ({ venue: 'origins-pve', clockHalf: 'day', moon: 0, fightTicks: 0, selfLevel: 12, foeLevel: 12, selfHealthPermille: 1000, foeHealthPermille: 1000, ...over });
 test('Independent, no choice, or a missing template: all zeros, tagged origins', () => {
@@ -217,9 +217,9 @@ test('a patron clan resolves its template against the fight', () => {
   assert.equal(resolvePerk(co, fight({ foeLevel: 13 })).damageDealtPermille, 30);
   assert.equal(resolvePerk(co, fight({ foeLevel: 11 })).damageDealtPermille, -30);
 });
-// Strategy, 2026-10-07: every template moves damage, so the templates are Origins PvE only. The arena gets only Combat's no-damage
-// sidegrades (patron-perks-sim.md), never these; PvP gets none of them either.
-test('damage templates never resolve outside Origins PvE: the arena and PvP get all zeros for every patron, company and context', () => {
+// Strategy, 2026-10-07: every §10.2 template moves damage, so these templates are Origins PvE only. Arena perks come only from Combat's
+// no-damage sidegrade hook (patron-perks-sim.md), never from this module.
+test('no §10.2 (damage) modifiers in the arena or PvP; arena perks come only from Combat\'s no-damage sidegrade hook', () => {
   assert.deepEqual([...VENUES], ['origins-pve', 'arena', 'pvp']);
   const allegiances: Allegiance[] = [...[...PATRONS.values()].map((p): Allegiance => ({ kind: 'patron-clan', patron: p.patron })),
     ...[...PERK_TEMPLATES.keys()].map((template): Allegiance => ({ kind: 'company', name: 'Grey Company', template }))];

@@ -30,7 +30,7 @@ export const picker = {
     if (state.allegiance) {
       const t = templateOf(state.allegiance);
       return ui.panel('Allegiance', ui.heading(allegianceName(state.allegiance)), ui.text(t ? `${t.id}: ${templateText(t)}` : 'No perk: you stand alone.'),
-        ui.text('Perks are Origins-only and not applied in this preview.', true), ui.heading('The Exchange book'), ...state.log.map((e) => ui.text(bookLine(e, player), true)),
+        ui.text('In the Pit: small, visible perks that never add damage. Damage perks only in Origins. Leaving a clan: joining another within 28 days costs 2,000 bronze.', true), ui.heading('The Exchange book'), ...state.log.map((e) => ui.text(bookLine(e, player), true)),
         ui.text(`Switching clan costs ${RULES.switchBronze.toLocaleString('en')} bronze and waits ${RULES.switchCooldownSeconds / 86400} days (not in the preview).`, true));
     }
     if (view === 'top') {
