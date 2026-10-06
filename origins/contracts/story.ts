@@ -5,13 +5,13 @@
 // conditions that must all hold. Every condition kind is listed below: content that asks for anything else is refused with an explicit
 // "unsupported condition" issue rather than translated into a guess (blueprint Stage B: unsupported script behaviour must be reported).
 // The graph is checked when the content loads, so a soft lock (a stage you can enter and never leave) is a content error, not a bug report.
-import { isTier, type Tier } from '../../src/grades.ts';
+import { isTier, levelOf, type Tier } from '../../src/grades.ts';
 import {
   Issues, LOCAL_KEY, checkString, isPlainObject, join, ok, readArray, readEnum, readInt, readKind, readObject, readSchemaVersion, readString, readText, readTimestamp,
   fail, type Issue, type Obj, type Result,
 } from './core.ts';
 import { readId, readOptionalId, type CharacterInstanceId, type EncounterId, type FactionId, type ItemId, type LootTableId, type QuestId } from './ids.ts';
-import { GATES, STANDING_MAX, STANDING_MIN, type Gate } from './world.ts';
+import { GATES, STANDING_MAX, STANDING_MIN, verifiedTier, type CareerStanding, type Gate } from './world.ts';
 
 export const QUEST_DEFINITION_VERSION = 1;
 export const QUEST_STATE_VERSION = 1;
@@ -24,11 +24,12 @@ export type Condition =
   | { kind: 'choice'; choice: string } // the player picked this option at this stage
   | { kind: 'flag'; name: string; value: boolean } // a flag on this quest's state
   | { kind: 'stage-reached'; quest: QuestId; stage: string } // another quest's progress
+  | { kind: 'quest-at'; quest: QuestId; stage: string | null } // where a quest stands now; null = not started
   | { kind: 'standing-at-least'; faction: FactionId; value: number }
   | { kind: 'tier-at-least'; tier: Tier } // read through the canonical rank function, never a hardcoded win count
   | { kind: 'has-item'; item: ItemId }
   | { kind: 'encounter-cleared'; encounter: EncounterId };
-export const CONDITION_KINDS = ['choice', 'flag', 'stage-reached', 'standing-at-least', 'tier-at-least', 'has-item', 'encounter-cleared'] as const;
+export const CONDITION_KINDS = ['choice', 'flag', 'stage-reached', 'quest-at', 'standing-at-least', 'tier-at-least', 'has-item', 'encounter-cleared'] as const;
 
 export type Transition = { to: string; when: Condition[]; label: string | null };
 export type Stage = {
@@ -55,7 +56,7 @@ export type QuestDefinition = {
 const QUEST_KEYS = ['kind', 'schemaVersion', 'id', 'title', 'storyVersion', 'scope', 'gate', 'start', 'stages', 'migrations'] as const;
 const MAX_DELTA = 200;
 
-function readCondition(issues: Issues, raw: unknown, path: string): Condition | undefined {
+export function readCondition(issues: Issues, raw: unknown, path: string): Condition | undefined {
   if (!isPlainObject(raw)) {
     issues.add('not-object', path, 'expected a condition object');
     return undefined;
@@ -80,6 +81,11 @@ function readCondition(issues: Issues, raw: unknown, path: string): Condition | 
       const o = keys(['quest', 'stage']); const quest = o && readId(issues, o, 'quest', path, 'quest'), stage = o && readString(issues, o, 'stage', path, { pattern: LOCAL_KEY });
       return quest && stage ? { kind, quest, stage } : undefined;
     }
+    case 'quest-at': {
+      const o = keys(['quest', 'stage']); const quest = o && readId(issues, o, 'quest', path, 'quest');
+      const stage = o && (o.stage === null ? null : readString(issues, o, 'stage', path, { pattern: LOCAL_KEY }));
+      return quest && stage !== undefined ? { kind, quest, stage } : undefined;
+    }
     case 'standing-at-least': {
       const o = keys(['faction', 'value']); const faction = o && readId(issues, o, 'faction', path, 'faction'), value = o && readInt(issues, o, 'value', path, STANDING_MIN, STANDING_MAX);
       return faction && value !== undefined ? { kind, faction, value } : undefined;
@@ -99,6 +105,37 @@ function readCondition(issues: Issues, raw: unknown, path: string): Condition | 
     }
   }
   return undefined;
+}
+
+// The lookups a condition reads, injected so the contracts never read a journal, inventory or talk state. A missing lookup fails closed.
+export type ConditionFacts = {
+  standing: CareerStanding; // server-verified career level, for 'tier-at-least'
+  quest: (id: QuestId) => Pick<QuestState, 'stage' | 'rewarded'> | undefined; // undefined = not started
+  choice?: string; // the option the player picked
+  flag?: (name: string) => boolean;
+  hasItem?: (item: ItemId) => boolean;
+  standingWith?: (faction: FactionId) => number;
+  cleared?: (encounter: EncounterId) => boolean;
+};
+
+// The one evaluator for Condition: quest journal transitions and NPC talk lines both call it.
+export function holdsCondition(c: Condition, f: ConditionFacts): boolean {
+  switch (c.kind) {
+    case 'choice': return f.choice === c.choice;
+    case 'flag': return (f.flag?.(c.name) === true) === c.value;
+    case 'stage-reached': {
+      const q = f.quest(c.quest);
+      return q !== undefined && (q.stage === c.stage || q.rewarded.includes(c.stage));
+    }
+    case 'quest-at': return (f.quest(c.quest)?.stage ?? null) === c.stage;
+    case 'tier-at-least': {
+      const tier = verifiedTier(f.standing);
+      return tier.ok && levelOf(tier.value) >= levelOf(c.tier);
+    }
+    case 'has-item': return f.hasItem?.(c.item) === true;
+    case 'standing-at-least': return (f.standingWith?.(c.faction) ?? -Infinity) >= c.value;
+    case 'encounter-cleared': return f.cleared?.(c.encounter) === true;
+  }
 }
 
 function readStage(issues: Issues, raw: unknown, path: string): Stage | undefined {
