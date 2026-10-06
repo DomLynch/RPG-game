@@ -302,6 +302,6 @@ test('upgrade receipt: the emitter and the parser agree at the maximum, and an o
 
 test('upgrade: an out-of-range or non-integer career level is refused', () => {
   refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 0 } })), 'out-of-range', 'standing.careerLevel');
-  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 47 } })), 'out-of-range', 'standing.careerLevel');
+  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 51 } })), 'out-of-range', 'standing.careerLevel');
   refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 16.5 } })), 'wrong-type', 'standing.careerLevel');
 });

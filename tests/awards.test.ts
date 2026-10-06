@@ -6,7 +6,7 @@ import { LOOT, WORN_FROM } from '../src/loot.ts';
 
 // The DB half (seed, verified win, guest convert, forged cache) is scripts/awards-database-check.mjs on real PostgreSQL; this is the rule.
 test('the take is the claimed piece, armour or weapon, at the tier the fight was met at', () => {
-  assert.deepEqual(awardFor({ opponent: 'veteran', piece: 'veteran.Greaves' }, { marks: 4, owned: [] }), { piece: 'veteran.Greaves', tier: 1 });   // Recruit V (4 wins, 46-level ladder)
+  assert.deepEqual(awardFor({ opponent: 'veteran', piece: 'veteran.Greaves' }, { marks: 4, owned: [] }), { piece: 'veteran.Greaves', tier: 1 });   // Recruit V (4 wins, 50-level ladder)
   assert.deepEqual(awardFor({ opponent: 'veteran', piece: 'veteran.Greaves' }, { marks: 5, owned: [] }), { piece: 'veteran.Greaves', tier: 2 });   // Legionary I
   assert.deepEqual(awardFor({ opponent: 'goblin', piece: 'goblin.Knife' }, { marks: 45, owned: [] }), { piece: 'goblin.Knife', tier: 10 });   // Origin
 });
@@ -37,8 +37,8 @@ test('levelRefusal: the floor is the rank level minus DIAL_TRAIL, never below 1;
   assert.equal(levelRefusal(1, 0), null, 'a fresh account: rank 1, floor 1');
   assert.equal(levelRefusal(1, DIAL_TRAIL), null, 'rank 1 + DIAL_TRAIL still floors at 1');
   assert.match(String(levelRefusal(1, DIAL_TRAIL + 1)), /didn't count \(level 1; your rank is level 7, floor 2\)/);
-  assert.equal(levelRefusal(MAX_LEVEL - DIAL_TRAIL, 100000), null, 'Origin: the dial may trail to 41');
-  assert.match(String(levelRefusal(MAX_LEVEL - DIAL_TRAIL - 1, 100000)), /floor 41/);
+  assert.equal(levelRefusal(MAX_LEVEL - DIAL_TRAIL, 100000), null, 'Origin: the dial may trail to 45');
+  assert.match(String(levelRefusal(MAX_LEVEL - DIAL_TRAIL - 1, 100000)), /floor 45/);
   assert.equal(levelRefusal(MAX_LEVEL, 0), null, 'harder than the rank is never an exploit');
   assert.equal(levelRefusal(1, 19), "This win was fought below your rank and didn't count (level 1; your rank is level 20, floor 15).", 'the player reads it');
   assert.equal(levelRefusal(15, 19), null, 'the floor itself counts'); assert.ok(levelRefusal(14, 19), 'one under the floor does not');

@@ -49,7 +49,7 @@ test('the rank shows the server figure when there is one, else the device count 
   assert.equal(shownMarks(null, profile, 2), 100000); // no server figure: the device count alone, never plus the outbox
 });
 test('the ladder level is the career\'s: 1 + wins, capped at 50, and the sim reads the same ceiling', () => {
-  assert.equal(levelOf(0), 1); assert.equal(levelOf(17), 18); assert.equal(levelOf(45), MAX_LEVEL);
+  assert.equal(levelOf(0), 1); assert.equal(levelOf(17), 18); assert.equal(levelOf(49), MAX_LEVEL);
   assert.equal(levelOf(Number.NaN), 1, 'a bad count is a fresh fighter');
   assert.equal(MAX_LEVEL, LEVELS, 'career.ts and moves.ts profileAt agree on the top level');
 });

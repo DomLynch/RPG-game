@@ -30,7 +30,7 @@ test('every registered preview appears only under its authoritative class/band; 
       missing += Number(!group.ids.length);
       for (const id of group.ids) { seen.push(id); assert.equal(SPECIAL_TESTS[id].opponent, opponent); assert.ok(SPECIAL_LABELS[id]); assert.ok(id === 'hades' || SPECIAL_MODES[id], `${id}: explicit mode, no accidental Hades fallback`); }
     }
-    for (const [level, band] of [[1, 0], [15, 0], [16, 1], [35, 1], [36, 2], [40, 2], [41, 3], [45, 3], [46, 4]]) {
+    for (const [level, band] of [[1, 0], [15, 0], [16, 1], [35, 1], [36, 2], [40, 2], [41, 3], [45, 3], [46, 4], [50, 4]]) {
       assert.equal(specialBand(level), band);
       assert.equal(defaultSparringSpecial(opponent, level), expected[band]);
     }
@@ -39,7 +39,7 @@ test('every registered preview appears only under its authoritative class/band; 
   assert.equal(missing, 0);
   assert.equal(seen.length, 50);
   assert.deepEqual(seen.sort(), Object.keys(SPECIAL_TESTS).sort());
-  for (const bad of [0, 47, 1.5, NaN]) assert.equal(specialBand(bad), null);
+  for (const bad of [0, 51, 1.5, NaN]) assert.equal(specialBand(bad), null);
   assert.equal(defaultSparringSpecial('nightborn', 46), 'nyx', 'visible rank10 is simulation level46');
 });
 
@@ -52,7 +52,7 @@ test('combined links retain explicit player kit/difficulty; wrong class/unknown/
     assert.deepEqual(legacy, { special: id, kit: null, invalid: false, off: false, yourSpecial: null }, 'standalone preview still owns its opponent/kit');
   }
   const valid = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=46&skill=miasma&special=nyx';
-  for (const search of [valid.replace('nightborn', 'witch'), valid.replace('nyx', 'fake'), valid.replace('nyx', 'nyx!'), valid.replace('estoc', 'fake'), valid.replace('46', '47'), valid.replace('46', 'dummy'), valid.replace('miasma', 'fake')]) {
+  for (const search of [valid.replace('nightborn', 'witch'), valid.replace('nyx', 'fake'), valid.replace('nyx', 'nyx!'), valid.replace('estoc', 'fake'), valid.replace('46', '51'), valid.replace('46', 'dummy'), valid.replace('miasma', 'fake')]) {
     assert.deepEqual(resolveSparringPreview(search), { special: null, kit: null, invalid: true, off: false, yourSpecial: null }, search);
   }
   assert.equal(resolveSparringPreview(valid, ['knife']).invalid, true, 'un-carried weapon refused by both main and scene');

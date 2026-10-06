@@ -228,7 +228,7 @@ test('equipItem: owning is not wearing — the wearer needs the piece\'s rank, r
   assert.ok(worn.ok);
   assert.deepEqual(worn.value.location, { kind: 'equipped', owner: PC, slot: 'head' });
   refused(equipItem(h, helmet, 3, PC, { source: 'device', careerLevel: 46 }), 'rule-violation', 'standing');
-  refused(equipItem(h, helmet, 3, PC, { source: 'server', careerLevel: 47 }), 'out-of-range', 'standing.careerLevel'); // past MAX_LEVEL
+  refused(equipItem(h, helmet, 3, PC, { source: 'server', careerLevel: 51 }), 'out-of-range', 'standing.careerLevel'); // past MAX_LEVEL
   refused(equipItem(h, helmet, 3, PC, { source: 'server', careerLevel: 11.5 }), 'wrong-type', 'standing.careerLevel');
   refused(equipItem(h, helmet, 2, PC, server(10)), 'version-conflict', 'version');
   refused(equipItem(h, helmet, 3, OTHER, server(45)), 'rule-violation', 'location');
@@ -335,7 +335,7 @@ test('loot table: every rejection path', () => {
   refused(entry({ chance: 12.5 }), 'wrong-type', 'rolls[0].entries[0].chance');
   refused(entry({ item: 'faction:x' }), 'wrong-namespace', 'rolls[0].entries[0].item');
   refused(entry({ levelMin: 20, levelMax: 10 }), 'rule-violation', 'rolls[0].entries[0]');
-  refused(entry({ levelMax: 47 }), 'out-of-range', 'rolls[0].entries[0].levelMax');
+  refused(entry({ levelMax: 51 }), 'out-of-range', 'rolls[0].entries[0].levelMax');
   refused(parseLootTable({ ...F.bossLoot(), currency: { min: 300, max: 200 } }), 'rule-violation', 'currency');
   refused(parseLootTable({ ...F.bossLoot(), currency: { min: -1, max: 200 } }), 'out-of-range', 'currency.min');
   refused(parseLootTable({ ...F.bossLoot(), fallback: { kind: 'gold', amount: 5 } }), 'wrong-type', 'fallback.kind');

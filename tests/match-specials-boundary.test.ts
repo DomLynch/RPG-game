@@ -137,12 +137,12 @@ test('presentation identity uses replay and clip records and restores the origin
 });
 
 
-test('phase-two B-and-boss gate accepts exactly integer levels 16–46 and records the phase at every rung', () => {
-  for (let level = 1; level <= 46; level++) {
+test('phase-two B-and-boss gate accepts exactly integer levels 16–50 and records the phase at every rung', () => {
+  for (let level = 1; level <= 50; level++) {
     const m = match(level); assertPve(m, level);
     assert.equal(!!m.recorder!.finish('abandoned').specials, level >= 16, `record level ${level}`);
   }
-  for (const level of [0, -1, 15.5, 16.5, 35.5, 36.5, 46.5, 47, NaN, Infinity]) {
+  for (const level of [0, -1, 15.5, 16.5, 35.5, 36.5, 50.5, 51, NaN, Infinity]) {
     assert.equal(match(level).specials, false, `invalid level ${level} cannot activate`);
   }
 });
