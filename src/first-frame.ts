@@ -16,7 +16,7 @@ export type FirstFrame = {
 // clock, a throttled tab) still boots to a playable fight. The budget is checked between slices; `frame()` is a macrotask yield, not a rAF.
 export async function warmFirstFrame(w: FirstFrame): Promise<'done' | 'timeout' | 'skipped'> {
   if (w.lost()) return 'skipped';
-  const begin = w.now(); let late = false;
+  const begin = w.now();
   try {
     for (let i = 0; i < w.textures.length;) {   // as many maps as fit a slice (at least one): a yield each would stretch the card by a second or more
       await w.frame(); if (w.lost()) return 'skipped';
@@ -24,7 +24,7 @@ export async function warmFirstFrame(w: FirstFrame): Promise<'done' | 'timeout' 
       const start = w.now(); do w.upload(w.textures[i++]); while (i < w.textures.length && w.now() - start < w.sliceMs);
     }
     await w.frame(); if (w.lost()) return 'skipped';
-    late = w.now() - begin > w.budgetMs; if (late) return 'timeout';
+    if (w.now() - begin > w.budgetMs) return 'timeout';
     w.draw(); return 'done';
   } catch { return 'skipped'; }   // a warm-up that throws only costs the warm-up: the first real frame pays as before
 }
