@@ -61,6 +61,7 @@ try {
     process.exit(0);   // finally below still closes the browser and server
   }
   const want = [['windup', (s) => s.stage === 'windup' && s.progress >= 0.8], ['strike', (s) => s.stage === 'recover' && s.progress < 0.1], ['recover', (s) => s.stage === 'recover' && s.progress >= 0.5]];
+  want.length = Math.min(want.length, Number(process.env.FRAMES) || want.length);   // FRAMES=2: wind-up and strike only (a slow software-GL box cannot finish the recover inside its slot)
   for (let polls = 0; polls < 3000 && want.length; polls++) {   // ~60 s at the 20 ms poll
     const { tick, stages } = await page.evaluate(() => globalThis.__special());
     const caster = stages[1] ?? stages[0];
