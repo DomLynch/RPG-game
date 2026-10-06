@@ -85,15 +85,16 @@ export function replayInNode(record, sampleEvery = 60) {
 
 /** One standard-battery fight, recorded as rank-look-check records (Combat's method): L18, the AI drives the hero, tick 0 forced 'light'. */
 export async function recordFight(opponent, seed) {
-  const level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'replay-row', opponent, weapon: 'longsword', level, seed });
-  const { p, killed } = underPlayScale(opponent, RECORD_VERSION, () => {   // fought in the circle this build records it in (play-radius.ts)
+  const level = LEVEL_ANCHORS.normal;
+  const { p, killed, recorder } = underPlayScale(opponent, RECORD_VERSION, () => {   // fought in the circle this build records it in (play-radius.ts); the recorder is born inside it, so its version stamp names that circle
+    const recorder = createRecorder({ build: 'replay-row', opponent, weapon: 'longsword', level, seed });
     let p = initialPractice(seed, opponentAt(OPPONENTS[opponent], level)), hero = initialAi(seed ^ 0x5bd1e995), killed = -1;
     while (!p.finish && p.duel.tick < MAX_TICKS) {
       const w = decide(p.duel, 0, hero, PROFILES.normal); hero = w.ai;
       p = stepPractice(p, recorder.push(p.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[opponent], level));
       if (killed < 0 && p.events.some((e) => e.type === 'Killed')) killed = p.duel.tick;
     }
-    return { p, killed };
+    return { p, killed, recorder };
   });
   if (!p.finish) return null;
   const won = !p.finish.draw && p.finish.victim === 1, encoded = await encodeRecord(recorder.finish(won ? 'killed' : 'died'));
