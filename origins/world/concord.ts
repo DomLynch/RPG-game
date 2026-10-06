@@ -5,7 +5,7 @@ import { fail, ok, type Result } from '../contracts/core.ts';
 import { toMetres, toWorld, type Mount } from './derive.ts';
 import { resolveZone, SCHEMA_VERSION, type WorldData } from './resolve.ts';
 
-export const CONCORD_REGION = 'region:concord';
+export const CONCORD_REGION = 'region:concord-exchange'; // the contracts' and Trade's id (economy.ts CONCORD_EXCHANGE; region1 spec ruling 7)
 
 export const CONCORD: WorldData = {
   schemaVersion: SCHEMA_VERSION,
