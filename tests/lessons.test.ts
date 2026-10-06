@@ -31,3 +31,11 @@ test('the lesson is due once: a plain page, nothing stored, no fight yet', () =>
   assert.equal(firstLossDue(base), true);
   for (const off of [{ stored: true }, { fights: 1 }, { search: '?opponent=goblin' }, { search: '?duel=new' }, { pathname: '/s/abc' }]) assert.equal(firstLossDue({ ...base, ...off }), false, JSON.stringify(off));
 });
+
+test('"Fight for real" is a full page load, so the lesson kit, weapon and level never carry into the real fight; the notice lists every port', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), notice = readFileSync(new URL('../public/licenses/world-of-claudecraft.txt', import.meta.url), 'utf8');
+  assert.match(main, /if \(match\.mode === 'lesson'\) \{ location\.assign\(location\.pathname\); return; \}/, 'a reload, not a Match restore: startLesson sets weapon/skill/level and nothing restores them');
+  for (const file of ['src/net/backoff.ts', 'src/net/reconnect-policy.ts', 'src/first-loss.ts', 'src/lessons.ts', 'src/render-budget.ts', 'src/touch-router.ts', 'src/layout-tier.ts']) assert.ok(notice.includes(file), `${file} is listed`);
+  assert.match(notice, /MIT License/); assert.match(notice, /f46f30f/);
+});
