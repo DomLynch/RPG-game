@@ -92,6 +92,15 @@ test('the arena updates and disposes without touching the fighters [slow]', () =
   assert.equal(scene.getObjectByName('arena'), undefined, 'the arena group leaves the scene');
 });
 
+test('the coals\' flare after a landed blow decays to nothing within a second (it once stuck at 1 behind a comment)', () => {
+  const { arena } = built();
+  arena.update(1 / 60, [{ tick: 1, type: 'Hit', actor: 0, target: 1 } as never]);
+  assert.ok(arena.materials.coal.emissiveIntensity > 2, `flare lifts the coals to ${arena.materials.coal.emissiveIntensity.toFixed(2)}`);
+  for (let t = 0; t < 60; t++) arena.update(1 / 60, []);
+  assert.ok(arena.materials.coal.emissiveIntensity < 1.5, `a second on, the coals still glow ${arena.materials.coal.emissiveIntensity.toFixed(2)} (rest flicker tops out near 1.4)`);
+  arena.dispose();
+});
+
 test('spectators have solid, readable bodies and distinct roster proportions', () => {
   const crowds = crowded.meshes.filter(m => m.name.startsWith('crowd '));
   const heights = new Map<string, number>();

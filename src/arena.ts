@@ -538,7 +538,8 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const was = rise; rise = riseStep(rise, riseOpen, dt);
     if (rise !== was) { gateBars.position.y = riseMetres(rise); props.liftGate(riseMetres(rise)); }   // the portcullis (procedural or authored) rises with the gate's open; props is built after update(0) and a still gate never reads it
-    time += dt; since += dt; if (abyssGround) abyssGround.rotation.y = time * 0.004;   // the land far below turns, slowly: the island drifts over it flare = Math.max(0, flare - dt * 2.5);
+    time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
+    if (abyssGround) abyssGround.rotation.y = time * 0.004;   // the land far below turns, slowly: the island drifts over it
     for (const e of events) {
       if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; }
       if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Killed') flare = 1;
