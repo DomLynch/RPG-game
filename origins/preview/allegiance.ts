@@ -3,7 +3,7 @@
 // career at Gladiator or above (a preview or offline career never opens it), and the choice is kept in the preview's own save (save.ts
 // ALLEGIANCE_KEY), never in the live game's storage. Perks are shown, never applied: the preview's Pit duel is the live arena fight.
 import { gateAccess } from '../contracts/world.ts';
-import { allegianceName, bookLine, chooseAtGraduation, PATRONS, PERK_TEMPLATES, RULES, templateOf, templateText, type Allegiance, type AllegianceState, type PatronId } from '../patrons/patrons.ts';
+import { allegianceName, bookLine, chooseAtGraduation, PATRONS, PERK_TEMPLATES, templateOf, templateText, type Allegiance, type AllegianceState, type PatronId } from '../patrons/patrons.ts';
 import { ui } from './ui.ts';
 
 // Gladiator or above on the career the writer returned. `saved` is false for the in-memory preview career (offline, reset, checking).
@@ -30,8 +30,7 @@ export const picker = {
     if (state.allegiance) {
       const t = templateOf(state.allegiance);
       return ui.panel('Allegiance', ui.heading(allegianceName(state.allegiance)), ui.text(t ? `${t.id}: ${templateText(t)}` : 'No perk: you stand alone.'),
-        ui.text('In the Pit: small, visible perks that never add damage. Damage perks only in Origins. Leaving a clan: joining another within 28 days costs 2,000 bronze.', true), ui.heading('The Exchange book'), ...state.log.map((e) => ui.text(bookLine(e, player), true)),
-        ui.text(`Switching clan costs ${RULES.switchBronze.toLocaleString('en')} bronze and waits ${RULES.switchCooldownSeconds / 86400} days (not in the preview).`, true));
+        ui.text('In the Pit: small, visible perks that never add damage. Damage perks only in Origins. Leaving a clan: joining another within 28 days costs 2,000 bronze (not in the preview).', true), ui.heading('The Exchange book'), ...state.log.map((e) => ui.text(bookLine(e, player), true)));
     }
     if (view === 'top') {
       return ui.panel('Choose your allegiance', ui.text('You passed the outer gate. Stand Independent, found a company, or swear to a patron\'s clan. Your first choice is free.'),
