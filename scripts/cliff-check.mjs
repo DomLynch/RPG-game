@@ -18,6 +18,6 @@ for (const id of ids) for (const b of bots) {
   let worst = 0, at = 0;
   for (let l = 1; l < 50; l++) { const d = curve[l - 1] - curve[l]; if (d > worst) { worst = d; at = l + 1; } }
   out[`${id} ${b}`] = { curve, worst, at };
-  console.log(`${`${id} ${b}`.padEnd(22)} worst ${String(worst).padStart(3)} at L${String(at).padEnd(3)} anchors L6 ${curve[5]} L18 ${curve[17]} L46 ${curve[45]}  ${worst > 25 ? 'FAIL' : 'ok'}`);
+  console.log(`${`${id} ${b}`.padEnd(22)} worst ${String(worst).padStart(3)} at L${String(at).padEnd(3)} anchors L6 ${curve[5]} L18 ${curve[17]} L46 ${curve[45]} L50 ${curve[49]}  ${worst > 25 ? 'FAIL' : 'ok'}`);
 }
 const json = arg('json', ''); if (json) writeFileSync(json, JSON.stringify(out));
