@@ -485,11 +485,11 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i), k = Math.min(1, Math.max(0, (depth / 2 - y) / depth)), a = Math.atan2(pos.getX(i), pos.getZ(i)), bite = k * (0.35 * (mottle(a * 1.3 + 3, k * 3 + 1) - 0.5) + 0.12 * Math.sin(a * 9 + y)), r = Math.hypot(pos.getX(i), pos.getZ(i)), rr = r + bite;
       pos.setXYZ(i, pos.getX(i) * rr / r, y - 0.0, pos.getZ(i) * rr / r);
-      const tone = (0.62 - 0.5 * k) * (0.9 + 0.2 * mottle(a * 2.1 + 7, k * 5 + 2));
+      const tone = (0.5 - 0.42 * k) * (0.7 + 0.6 * mottle(a * 3.7 + 7, k * 4 + 2)) * (1 + 0.18 * Math.sin(a * 41 + k * 3));   // darker than the sand and streaked, so a sunlit face does not wash out to a flat tan
       shade.set([tone * 1.1, tone * 0.9, tone * 0.76], i * 3);
     }
     face.setAttribute('color', new THREE.BufferAttribute(shade, 3)); face.translate(0, -depth / 2, 0); face.computeVertexNormals();
-    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', color: '#8a7058', roughness: 1, vertexColors: true }); materials.push(rock);
+    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', color: '#5a4636', roughness: 1, vertexColors: true }); materials.push(rock);
     mesh(face, rock, 'cliff', false);
   } else mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
