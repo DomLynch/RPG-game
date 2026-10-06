@@ -16,7 +16,7 @@ export type Habits = {
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5,
+  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
@@ -163,6 +163,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
         : r < parryChance + profile.dodge && self.stamina >= RULES.rollCost ? 'dodge'
         : unblockable ? (self.stamina >= RULES.rollCost && !(profile.step && clears && roll() < profile.step) ? 'dodge' : !self.parryCooldown && guardShare > 0 ? 'parry' : 'evade')
         : affordable && (guardShare >= 1 || roll() < guardShare) ? 'block' : 'evade';
+      // Late notice (COMBAT-001): `spare` is the ticks between noticing the blow and its contact. A swing noticed on the contact tick or later is never answered
+      // in time; one noticed with a tick to spare is answered only (spare - 1) / (lateNotice - 1) of the time, so the step from "never in time" to "always in
+      // time" spreads over lateNotice - 1 levels of reaction instead of one. No draw is made at spare <= 0, so a warden slower than the cut keeps its stream.
+      const spare = timing(opponent).windup - reaction;
+      if (next.plan !== 'ignore' && spare > 0 && spare < READ.lateNotice && roll() >= (spare - 1) / (READ.lateNotice - 1)) next.plan = 'ignore';
       next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
     }
   } else if (noticed && next.plan === 'block' && charging(opponent) && !next.brace) {   // a heavy seen to be charging will break the guard: change the answer
