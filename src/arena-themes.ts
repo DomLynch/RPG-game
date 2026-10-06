@@ -47,7 +47,7 @@ export type ArenaTheme = {
   spectators?: boolean;   // false: no crowd
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
-export type ArenaKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'a' | 'b' | 'c' | 'd';
+export type ArenaKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'a' | 'b' | 'c' | 'd';
 
 const ONE: RGB = [1, 1, 1];
 // Arena 1's numbers, exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes: its maps are byte-identical.
@@ -79,6 +79,8 @@ const ARENA_7: ArenaTheme = { ...ARENA_1, id: '7', name: 'Cloud Reach', backdrop
 const ARENA_8: ArenaTheme = { ...ARENA_1, id: '8', name: 'Legion Heights', backdrop: '/arena/backdrop-8.webp' };
 // Arena 9, The Reaper Gate (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped (the strip is cropped above his painted ground). Reached by ?arena=9; not on the ladder.
 const ARENA_9: ArenaTheme = { ...ARENA_1, id: '9', name: 'The Reaper Gate', backdrop: '/arena/backdrop-9.webp' };
+// Arena 10, The Pale Gate (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped (the strip is cropped above his painted marsh). Reached by ?arena=10; not on the ladder.
+const ARENA_10: ArenaTheme = { ...ARENA_1, id: '10', name: 'The Pale Gate', backdrop: '/arena/backdrop-10.webp' };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
 const BRICK: WallStyle = { courses: 14, blocks: [6, 9], mortar: 0.62, hues: [[1.08, 0.94, 0.88], [1, 0.9, 0.84], [1.12, 0.98, 0.9], [0.94, 0.86, 0.82], [1.04, 0.96, 0.9], [0.9, 0.84, 0.8]] };
@@ -92,6 +94,7 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
   '7': ARENA_7,
   '8': ARENA_8,
   '9': ARENA_9,
+  '10': ARENA_10,
   // A — The Night Pit (2A evolved): no sun. A starless night; the braziers are the only warm light, one low firelight that sways
   // and flickers so the fighters' shadows run long and move; embers rise off the coals instead of ash. Red clay, brick wall.
   a: {
