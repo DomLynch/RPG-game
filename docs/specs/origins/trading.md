@@ -443,7 +443,7 @@ These are per-account and separate from the per-item cooldown (§2.10).
 **(Strategy, 2026-10-07).** These caps are config, set so a normal player never meets them; 0005's **10** settled trades a day is the
 starting point. They are a safety net against farms and bugs, not a limit on play. Dom's "no hard limit" is about how often an **item**
 changes hands (§2.10), which these caps do not touch. Strategy has put a one-line confirm on Dom's morning list in case Dom wants the caps
-gone.
+gone (gate G4 in [launch-gates.md](launch-gates.md)).
 
 | Cap | Value |
 |---|---|
@@ -562,14 +562,12 @@ farm cannot learn which action tripped it.
 the 0004 escrow-guard fix. A later lock fix, `202610070003_origins_trade_open_lock.sql`, serialises `origins_open_trade` per account. The
 other rows below wait for later migrations (draft #1522).
 
-**Before player trade opens (Strategy, 2026-10-07).** Binding gates. Player trade does not open, and no trading flag turns on, until
-every item holds:
+**Before player trade opens (Strategy, 2026-10-07).** Binding gates; no trading flag turns on until all three are closed. Tracked in
+[launch-gates.md](launch-gates.md) (the one home for opening gates), with owners, proofs and status.
 
-| # | Gate | Why |
-|---|---|---|
-| G1 | Migration **0005** (draft #1522) is applied: every settle writes the `trade` history entry and so the hop count, in the database | 0003's settle refuses `history_append` (§2.6 step 4), so the hop count would never grow |
-| G2 | The cooldown is **checked in the database** (0005's cooldown guard), not only in the writer | A writer bug must not let a cooling piece move |
-| G3 | The tradeable scope ("rare and up, or a Pit piece", D5) is in the contract or DB check, **with a test** | Today the writer applies it alone (§2.10); that is a stopgap, not a permanent split |
+- **G1:** 0005 (draft #1522) applied, so every settle writes the `trade` history and the hop count in the database (§2.6 step 4).
+- **G2:** the cooldown checked in the database, not only in the writer.
+- **G3:** the tradeable scope (D5) in the contract or DB check, with a test (§2.10).
 
 Nothing in 0003 touches a live non-Origins table. Every item creates or replaces something under `origins_*`, with a down-script that
 restores exactly the 0001/0002 state, a branch-DB run of `scripts/origins-database-check.mjs` plus §4.3, and Auditor probes.
