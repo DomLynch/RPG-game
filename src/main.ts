@@ -9,7 +9,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -1004,7 +1004,7 @@ function nextFight(): void {
   if (next) {
     profile.encounter = next.id; profile.pass = next.pass; profile.arena = next.arena; profile.arenaPass = next.arenaPass;
     persist();
-    void settled.then(() => location.reload());
+    void reloadAfter(settled, () => location.reload());   // the profile is already advanced: reload even if the settle threw (loot-claims.ts)
     return;
   } // the next fighter is another rig: a fresh page loads it
   // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file

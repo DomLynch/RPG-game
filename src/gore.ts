@@ -107,6 +107,7 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
 // is at 60 % health or below; from there the marks darken and the drips lengthen down to the death. Presentation only:
 // the simulation decides the hit, the damage and the location. Hidden in blood 'off', cleared on rematch.
 export const WOUND_THRESHOLD = 0.6, WOUNDS_PER_FIGHTER = 5;
+const SIDES = [0, 1] as const;   // the two fighters: one shared tuple for the per-frame wound loop, not an array a frame
 export type WoundHit = { location: HitLocation; direction: Direction; heading: number };   // heading = the struck fighter's facing
 type WoundSite = { bone: string; dir: [number, number, number]; radius: number; width: number };
 // The struck fighter's own frame: +x his left, +z his front (the rig convention). A blow from the attacker's right crosses to the victim's left.
@@ -132,7 +133,7 @@ export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>, limb: 0
 const BLOOD_ASSET = (file: string) => new URL(`./assets/blood/${file}`, import.meta.url).href;
 const FLOOR_FRESH = new THREE.Color('#ffffff'), FLOOR_DRIED = new THREE.Color('#b09a9a'), FLOOR_DARK_MODE = new THREE.Color('#a8a0a0');
 const FLOOR_DRY = 8;   // seconds for a stain to settle from wet to dried
-export const BLOOD_TEXTURES = { floorPool: 'floor-pool.png', floorSplash: 'floor-splash.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
+const BLOOD_TEXTURES = { floorPool: 'floor-pool.png', floorSplash: 'floor-splash.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
 // The wound itself, authored for a vertical body, not a floor (owner 2026-09-23 on the phone: "paint-ball graffiti stickers… less
 // uniform… more dripping style not a star"; he picked B, C and D from four FLUX candidates): B a cut with uneven streaks, C a patch
 // with one trickle and a hanging drop, D loose teardrops. Each is 256×320, top edge = the cut, drawn upright — never spun, since the
@@ -148,7 +149,7 @@ export const DRY = { seconds: 20, roughness: [0.42, 0.75] } as const;   // a thi
 // stopped growing its first run sheds a drop from its tip every `every` seconds (seeded per strand) until the wound is half dry. A drop falls
 // under gravity and leaves a small spot on the sand. Hard caps: `inFlight` drops in the air, `spots` on the floor (oldest recycled).
 export const DROPS = { every: [3, 6], until: 0.5, inFlight: 8, spots: 24, spot: [0.04, 0.08], gravity: 9.8, floor: 0.021, seconds: 25 } as const;   // s, dry share, count, count, metres, m/s², metres, s
-export const ARM_SHARE = 0.5;   // share of side cuts across the torso that land on the near arm instead (half upper arm, half wrist)
+const ARM_SHARE = 0.5;   // share of side cuts across the torso that land on the near arm instead (half upper arm, half wrist)
 const FRESH = new THREE.Color('#e0a0a0'), DRIED = new THREE.Color('#7a5456');   // multiplied over the art's own dark reds: a light hand, or it reads as soot (owner 2026-09-23: near-black on the hero's back)
 const CANVAS_FRESH = new THREE.Color('#581017'), CANVAS_DRIED = new THREE.Color('#2a1516');   // the tint the white canvas splat needs until the photo lands (and under node)
 const DARK_MODE = new THREE.Color('#5a4d4c');
@@ -196,7 +197,7 @@ THREE.SkinnedMesh.prototype.applyBoneTransform = function (this: THREE.SkinnedMe
   return out.applyMatrix4(this.bindMatrixInverse);
 } as typeof THREE.SkinnedMesh.prototype.applyBoneTransform;
 const skinCache = new WeakMap<THREE.Object3D, THREE.Object3D[]>();
-export function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
+function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
   let skins = skinCache.get(root);
   if (!skins) { skins = []; root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) skins!.push(o); }); skinCache.set(root, skins); }
   return skins;
@@ -218,7 +219,7 @@ export function surfaceHit(root: THREE.Object3D, bone: THREE.Object3D, normal: T
 // How far the blood can run before it leaves the body: from the wound, step down the surface and ask, at each step, whether there
 // is still something under it. A run that grew past the edge of a cape or the underside of an arm hung in mid-air (owner
 // 2026-09-22: "not joined to the gear or opponent"). Four short rays per hit, none per frame. Returns metres, 0 if nothing holds.
-export function surfaceReach(root: THREE.Object3D, point: THREE.Vector3, normal: THREE.Vector3, down: THREE.Vector3, max: number): number {
+function surfaceReach(root: THREE.Object3D, point: THREE.Vector3, normal: THREE.Vector3, down: THREE.Vector3, max: number): number {
   const skins = skinsOf(root).filter((o) => o.visible);
   if (!skins.length) return max;
   let reach = 0;
@@ -372,7 +373,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
         const met = surfaceHit(glueRoot, glue.bone, out);
         if (met) { glue.dir.copy(met.normal).applyQuaternion(glue.bone.getWorldQuaternion(scratchQuat).invert()); glue.anchor.copy(glue.bone.worldToLocal(met.point)); }
       }
-      for (const side of [0, 1] as const) {
+      for (const side of SIDES) {
         const severity = Math.min(1, Math.max(0, (WOUND_THRESHOLD - health[side]) / WOUND_THRESHOLD)), root = roots[side];
         for (const mark of fighters[side]) {
           const bone = mark.used ? mark.bone : null;
@@ -393,7 +394,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
           // A grazing mark on the silhouette still belongs to the body the player is looking at, so only one clearly turned away is
           // dropped (−0.15, not 0): with true surface normals a hard zero blinked marks out along the edge of a shoulder or a hip.
           // The dry-out: from the moment the last run has stopped, 20 s from wet and bright to matte and dark.
-          const stopped = mark.strands.reduce((t, s) => (s.live ? Math.max(t, s.start + s.duration) : t), 0);
+          let stopped = 0; for (const s of mark.strands) if (s.live) stopped = Math.max(stopped, s.start + s.duration);   // a loop, not a closure per mark per frame
           const dry = Math.min(1, Math.max(0, (mark.age - stopped) / DRY.seconds));
           shed(mark, severity, dry);
           if (eye && scratchEye.copy(eye).sub(mark.group.position).normalize().dot(normal) < -0.15) { mark.group.visible = false; continue; }
