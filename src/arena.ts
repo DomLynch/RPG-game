@@ -489,7 +489,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     face.translate(0, -depth / 2, 0); face.computeVertexNormals();
     const unmipped = (t: THREE.DataTexture) => { t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; return t; };   // no mips: the arena's texture budget is 12 MB and these two are what is left of it
     const rockMap = unmipped(dataTexture(cliffPixels(640, 96), true));
-    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, roughness: 1 }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
+    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, color: '#9db0c6', roughness: 1 }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
     // Under the drop, where the painted world ends: a cloud sea down to a dusk abyss on a bowl inside the sky dome, unfogged, so the clear colour never shows.
     const abyssMap = unmipped(dataTexture(abyssPixels(128, 32), true));
     const abyssMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', map: abyssMap, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(abyssMaterial); abyssMaterial.addEventListener('dispose', () => abyssMap.dispose());

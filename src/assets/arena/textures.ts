@@ -182,12 +182,12 @@ export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
     const cc = chunk(u, v * 0.9), c = 0.5 * cc + 0.5 * smoothstep(0.38, 0.62, cc), g = grain(u, v) - 0.5, p = patch(u, v * 0.9);
     const cr = Math.abs(crack(u, v * 0.012) - 0.5), crackLine = (1 - smoothstep(0.006, 0.03, cr)) * smoothstep(0.45, 0.6, crackMask(u, v)), ve = Math.abs(vein(u + v * 0.2, v * 0.55) - 0.5), veinLine = (1 - smoothstep(0.005, 0.02, ve)) * smoothstep(0.5, 0.66, veinMask(u, v * 0.8));
     const tone = (0.55 + 0.4 * bandTone + 0.5 * blockTone + 0.95 * (c - 0.5) + 0.3 * g + 0.5 * lit - 0.45 * under - 0.4 * joint) * (1 - 0.65 * smoothstep(0.0, 1.0, d));
-    const k = 128 * tone;   // grey-green stone, one patch of hue drifting over the face
+    const k = 150 * tone;   // grey-green stone, one patch of hue drifting over the face
     let r = k * (0.62 + 0.4 * (p - 0.5)), gg = k * (0.82 + 0.3 * (p - 0.5)), b = k * (0.88 + 0.3 * (p - 0.5));   // cool: the sun is warm
     const pale = Math.min(0.85, veinLine * 0.8 * smoothstep(0.1, 0.4, d) + lit * 0.1);   // pale veins, a pale edge on the ledge lip
     r += (190 - r) * pale; gg += (204 - gg) * pale; b += (194 - b) * pale;
     const dark = Math.min(0.9, crackLine * 0.8 + joint * 0.3); r *= 1 - dark; gg *= 1 - dark; b *= 1 - dark;
-    const sand = 1 - smoothstep(0.0, 0.1 + 0.08 * (wave(u, 0.3) - 0.5), d + 0.04 * g);   // the lip is sand, ragged, breaking into stone
+    const sand = 1 - smoothstep(0.0, 0.07 + 0.06 * (wave(u, 0.3) - 0.5), d + 0.04 * g);   // the lip is sand, ragged, breaking into stone
     return [r + (140 * (0.9 + 0.2 * g) - r) * sand, gg + (112 * (0.9 + 0.2 * g) - gg) * sand, b + (84 * (0.9 + 0.2 * g) - b) * sand];
   });
 }
