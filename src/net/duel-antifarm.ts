@@ -35,9 +35,9 @@ export function taper(already: number, cfg: AntifarmConfig = DUEL_ANTIFARM): num
 
 export function decideDuelResult(input: {
   winnerId: string; loserId: string; winnerRating?: number | null; loserRating?: number | null; verified: boolean; draw?: boolean;
-  winnerTodayWins: readonly CountedWin[]; now: number; cfg?: AntifarmConfig; rewardsOn?: boolean;
+  winnerTodayWins: readonly CountedWin[]; now: number; cfg?: AntifarmConfig;
 }): DuelDecision {
-  const cfg = input.cfg ?? DUEL_ANTIFARM, rewardsOn = input.rewardsOn ?? PVP_REWARDS;
+  const cfg = input.cfg ?? DUEL_ANTIFARM;
   const w = rating(input.winnerRating, cfg), l = rating(input.loserRating, cfg);
   const none = (reason: DuelDecision['reason']): DuelDecision => ({ counted: false, reason, winner: w, loser: l, wouldPay: 0, pay: 0 });
   if (!input.verified) return none('unverified');
@@ -47,5 +47,5 @@ export function decideDuelResult(input: {
   if (today.some((x) => x.opponent === input.loserId)) return none('repeat-opponent');
   const gain = Math.round(cfg.elo.k * (1 - expectedScore(w, l)));
   const wouldPay = Math.round(cfg.reward.base * taper(today.length, cfg) * 100) / 100;
-  return { counted: true, reason: 'ok', winner: w + gain, loser: Math.max(cfg.elo.floor, l - gain), wouldPay, pay: rewardsOn ? wouldPay : 0 };
+  return { counted: true, reason: 'ok', winner: w + gain, loser: Math.max(cfg.elo.floor, l - gain), wouldPay, pay: PVP_REWARDS ? wouldPay : 0 };
 }

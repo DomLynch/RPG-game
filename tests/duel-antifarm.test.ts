@@ -10,7 +10,7 @@ test('rewards are off: a counted win pays 0 and reports what it would have paid'
   assert.equal(PVP_REWARDS, false);
   const d = decideDuelResult(base);
   assert.equal(d.counted, true); assert.equal(d.pay, 0); assert.equal(d.wouldPay, DUEL_ANTIFARM.reward.base);
-  assert.equal(decideDuelResult({ ...base, rewardsOn: true }).pay, DUEL_ANTIFARM.reward.base, 'only the flag turns pay on');
+  assert.equal(decideDuelResult({ ...base, rewardsOn: true } as never).pay, 0, 'no caller argument can turn pay on: only PVP_REWARDS does');
 });
 
 test('rule 1, Elo: equal ratings move by K/2, an upset moves more than a favourite win, ratings never fall below the floor', () => {
@@ -25,7 +25,7 @@ test('rule 1, Elo: equal ratings move by K/2, an upset moves more than a favouri
 
 test('rule 2, first win per opponent per UTC day: a rematch win that day moves nothing and pays nothing; the next day it counts again', () => {
   const won: CountedWin[] = [{ opponent: 'b', at: now - 3600_000 }];
-  const again = decideDuelResult({ ...base, winnerRating: 1000, loserRating: 1000, winnerTodayWins: won, rewardsOn: true });
+  const again = decideDuelResult({ ...base, winnerRating: 1000, loserRating: 1000, winnerTodayWins: won });
   assert.equal(again.counted, false); assert.equal(again.reason, 'repeat-opponent'); assert.equal(again.pay, 0); assert.equal(again.wouldPay, 0);
   assert.equal(again.winner, 1000); assert.equal(again.loser, 1000);
   assert.equal(decideDuelResult({ ...base, winnerTodayWins: [{ opponent: 'c', at: now - 3600_000 }] }).counted, true, 'a different opponent counts');
@@ -46,7 +46,7 @@ test('rule 3, the daily taper: the first perFullWin wins pay in full, each furth
 
 test('nothing counts without a verified result, between one account and itself, or on a draw', () => {
   for (const [input, reason] of [[{ verified: false }, 'unverified'], [{ loserId: 'a' }, 'same-account'], [{ draw: true }, 'draw']] as const) {
-    const d = decideDuelResult({ ...base, winnerRating: 1000, loserRating: 1000, rewardsOn: true, ...input });
+    const d = decideDuelResult({ ...base, winnerRating: 1000, loserRating: 1000, ...input });
     assert.equal(d.counted, false); assert.equal(d.reason, reason); assert.equal(d.pay, 0); assert.equal(d.winner, 1000);
   }
 });
