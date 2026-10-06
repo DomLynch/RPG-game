@@ -3,11 +3,15 @@
 import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
 import { DbError, type Db } from './db.ts';
+import { BadRequest } from './errors.ts';
+import { questAdvance } from './quest-advance.ts';
+import { NO_CONTENT } from './story.ts';
 import * as store from './store.ts';
+import { talkPick } from './talk-pick.ts';
 
 export type Ctx = { db: Db; account: string };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
-export class BadRequest extends Error {}
+export { BadRequest };
 
 const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the rest wait for the next open
 
@@ -38,4 +42,5 @@ const createCharacter: Handler = async (ctx, body) => {
   return { id: await store.createCharacter(ctx.db, ctx.account, name) };
 };
 
-export const handlers: Record<string, Handler> = { open, create_character: createCharacter };
+// quest_advance and talk_pick run on loaded content; until the server loads a content bundle they know no quest and no NPC and refuse.
+export const handlers: Record<string, Handler> = { open, create_character: createCharacter, quest_advance: questAdvance(NO_CONTENT), talk_pick: talkPick(NO_CONTENT) };
