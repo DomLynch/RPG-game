@@ -385,7 +385,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const advancing = (d.phase === 'ready' || d.phase === 'guard') && a.attackFrom !== null && distance(d.body, { ...d.body, x: a.attackFrom.x, z: a.attackFrom.z }) < a.attackFrom.gap - R.stopHit.walk;
         const stop = a.move === 'thrust' && (counter || advancing);
         const rear = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) > Math.PI - R.rear.arc / 2;
-        const dealt = Math.round(damage * (stop ? R.stopHit.damage : counter ? R.counter.damage : 1) * (rear ? R.rear.damage * (d.phase === 'hurt' ? R.rear.downed : 1) : 1)), stun = Math.round(baseStun * (stop ? R.stopHit.stagger : counter ? R.counter.stagger : 1) * (rear ? R.rear.stagger : 1));
+        const dealt = Math.round(damage * (stop ? R.stopHit.damage : counter ? R.counter.damage : 1) * (rear ? (d.phase === 'hurt' ? R.rear.downed : R.rear.damage) : 1)), stun = Math.round(baseStun * (stop ? R.stopHit.stagger : counter ? R.counter.stagger : 1) * (rear ? R.rear.stagger : 1));
         if (!def.path) spend(j, def.staminaDamage);
         // Poise: a brute shrugs a plain blow under his threshold — no stagger, no knockback; the wound and the posture still count.
         const shrugged = poised || (dealt < d.poise && !counter && !stop && !rear && !charged);

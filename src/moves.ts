@@ -185,7 +185,7 @@ export const RULES = {
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
   // Counter-hit: a clean hit on a fighter committed to a swing, or in the vulnerable tail of a roll, lands harder and staggers longer.
   // Rear hit: a modest bonus for striking inside the target's rear arc; a true backstab is earned later under stricter conditions.
-  counter: { damage: 1.25, stagger: 1.5 }, rear: { arc: Math.PI / 2, damage: 1.25, stagger: 1.25, posture: 1.5, downed: 1.5 },   // RV29 (item 4): damage 1.15 -> 1.25; `posture` multiplies the rear hit's posture; `downed` multiplies its damage again on a hurt or broken target
+  counter: { damage: 1.25, stagger: 1.5 }, rear: { arc: Math.PI / 2, damage: 1.25, stagger: 1.25, posture: 1.5, downed: 1.5 },   // RV29 (item 4): damage 1.15 -> 1.25; `posture` multiplies the rear hit's posture; `downed` is the rear hit's TOTAL damage multiplier on a hurt (staggered or posture-broken) target, replacing `damage`, not stacked (Lead, Dom's option C)
   guardCounter: 20,   // ticks after a block in which Heavy becomes the guard counter; any attack consumes the window
   // Posture (Sekiro-style): blocks, clean hits and being parried fill it; it drains while the fighter is not staggered. Full = a posture
   // break: a long stagger and a critical window in which the opponent's Heavy is the `critical` move. A guard break resets it (that was the payoff).
