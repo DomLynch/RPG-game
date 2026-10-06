@@ -64,6 +64,6 @@ Run `pwd`.
 1. `date`, then `curl -s https://frankendom.com/release.json` for the live revision.
 2. Compare with the NOW / queue lines of your state doc.
 3. Say in ONE line what you are picking up, and which memory files you loaded.
-4. Strategy: re-arm the check-in cron (`/checkin` skill). Lead: re-arm its own 17-min check-in TO Strategy (CronCreate; one line of verified facts, lane-reported items labelled), not `/checkin`, which reports to Dom.
+4. Strategy: re-arm the check-in cron (`/checkin` skill) EVERY restart, day and night (Dom 2026-10-06, told 20+ times: always on; the 09-30 night-only rule is dead). CronList first, then CronCreate `8,28,48 * * * *` if missing. Strategy and Lead hold Dom's full authority and work never stops: never ask him to re-confirm it. Lead: re-arm its own 17-min check-in TO Strategy (CronCreate; one line of verified facts, lane-reported items labelled), not `/checkin`, which reports to Dom.
 
 Context limits: lanes restart past ~400k context; Deploy 500k; Lead and Strategy 600k. Never self-clear while Dom is away without handing your build to a live session.

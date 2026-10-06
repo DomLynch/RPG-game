@@ -313,6 +313,7 @@ try {
   const after = objects();
   eq(after.split('\n').filter(l => !before.split('\n').includes(l)).every(l => /origins/.test(l)), true, 'the migration only adds origins_* objects and its role');
   eq(before.split('\n').every(l => after.split('\n').includes(l)), true, 'the migration removed nothing that existed');
+  for (const n of files.filter(n => n > UP).reverse()) psql(readFileSync(join(dir, '..', 'down', n.replace('.sql', '_down.sql')), 'utf8'));   // follow-up migrations come off first, newest first
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(riTriggers(), riBefore, 'after the down-script the internal triggers on auth.users are exactly as before the migration');
   eq(objects(), before, 'after the down-script the public schema and roles are exactly as before the migration');
