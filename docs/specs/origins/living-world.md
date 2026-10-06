@@ -46,6 +46,17 @@ fight as duels while the ruler is offline.
    duel game.
 5. **Hard lines:** no AI chat NPCs, ever; no trust-matchmaking; no become-the-boss.
 
+### Ruled (Strategy, 2026-10-06, on the open list)
+
+6. **Region 1 gets three towns:** the Exchange town, Cinder Hold and Mere End. War goals and the same-trade alert spread both need
+   them (§12).
+7. **Rulers are never grudge targets.** An ordinary grudge never targets a mayor or lord (a griefing guard). A ruler dies only at
+   the climax of a **war goal or an avenge goal**, behind the town's strongest defence (rings, bouncer and patron strike). The death
+   goes in the history book, with the succession rules (§4.8).
+8. **The Lambton Worm** (Surtees, 1820) is approved as a rift boss (§8, §16).
+9. **Pit legend and patron overlap is approved:** "the Pit fights the legend; a clan serves the patron" (§10.1).
+10. **Phasing 0 to e** (§15) matches Strategy's re-sequencing. It waits on Lead confirming the order.
+
 ### Design lines this spec adds
 
 - **No Nemesis-style NPCs.** The WB Nemesis patent runs to 2036. No NPC ranks up, gains power, gets new abilities or changes its
@@ -136,8 +147,7 @@ A town nobody visits loses 12 a day, so a village at 300 falls to hamlet in abou
 
 Every non-safe town has a ruler: a **reeve** (hamlet, village), a **mayor** (town) or a **lord** (city). A ruler is a
 `CharacterDefinition` with a `ruler` block, a stand-in steward and a temperament. Rulers are original NPCs unless a later content
-PR names a legend (legends rule). A ruler is never `essential`, so it can be murdered (§4.8), but it is never a grudge rival while
-a war goal involving its town is live.
+PR names a legend (legends rule). A ruler is never `essential`, so it can die (§4.8), but it is **never a grudge rival** (ruled).
 
 **Temperament** is fixed data, chosen at content time or seeded at succession. It only weights which goal kinds a ruler declares.
 It **never changes** because of what a player did: this is the Nemesis line.
@@ -241,18 +251,22 @@ raised by the loss source for the loser. Treasury moves are town-to-town counter
 - the garrison baseline, so an unpopular town is not stripped by a handful of players;
 - every goal declared 24 h ahead with its stakes.
 
-### 4.8 Murdering a ruler, and succession
+### 4.8 Killing a ruler, and succession (ruled, Strategy, 2026-10-06)
 
-A ruler can die two ways: the **avenge** goal's final post is the ruler's champion, and a won avenge lets the top contributor duel
-the ruler; or the grudge generator (`feuds.md` §3.1) may pick a ruler as a rival with the trade key `ruler` (weight 5, never while
-the town is in a live goal). Either way:
+Ordinary grudges never target a ruler: the grudge generator (`feuds.md` §3.1) refuses any `CharacterDefinition` with a `ruler`
+block. A ruler dies only at the **climax** of a war goal (raid or avenge) against its town:
 
-- `feuds.md` applies: the ruler is dead for everyone, notoriety **+700** in the town (`NOTORIETY_RULER_KILL`), the alert spreads to
-  towns with the same patron (not the same trade), the succession event opens, and the steward stands in.
-- The killer gains a **shop ban** in that town (§6.3) and a book entry.
-- The successor arrives 7–14 days later. If player lords are live and the town is village tier or above, the vacancy instead opens
-  an **election** (§11.1); the steward rules until it closes.
-- Every new ruler, NPC or player, may **pardon** (§6.3).
+- **Unlock.** The attacking side must win the goal. Its top contributor (or, if they decline within 1 h, the next) may then
+  challenge the ruler within **2 h**.
+- **The strongest defence.** The ruler fights at the keep, behind every layer at once: all three guard rings active for the
+  challenger, the town's **bouncer** at the keep door (beaten first, one duel), and the **patron strike** at its inner-ring cadence.
+  Every attack and strike stays telegraphed and dodgeable (`feuds.md` §7.1, hard rule). A loss is an arrest, never gear loss.
+- **On the kill:** `feuds.md` applies. The ruler is dead for everyone, notoriety **+700** in the town (`NOTORIETY_RULER_KILL`),
+  the alert spreads to towns with the same patron, the succession event opens, and the steward stands in. The killer gains a **shop
+  ban** in that town (§6.3) and the death is written in the book.
+- **Succession.** The successor arrives 7–14 days later. If player lords are live and the town is village tier or above, the vacancy
+  opens an **election** (§11.1) instead; the steward rules until it closes. Every new ruler, NPC or player, may **pardon** (§6.3).
+- **A defended war, not a lucky duel:** if the goal is lost or drawn, no one may challenge the ruler.
 
 ## 5. NPCs remember (records, not personalities)
 
@@ -518,8 +532,8 @@ A patron gives four things and **no raw stat power**:
 - **Count Dracula is Stoker's character, never Vlad III** (a real person, already the ladder's `Vlad`, sourced to Chalkokondyles).
   "The Impaler" is never used as a name or an epithet. Art briefs cite the novel, never a film.
 - **Out (legends rule: living religion):** Hindu deities, any Abrahamic figure, Aztec and Maya gods. Allowed equivalents are the list above.
-- **Ladder overlap, accepted by Strategy's list:** Set, Hades, Hel, Ereshkigal, the Morrígan, Sekhmet and Thor are also beatable Pit
-  legends. Wording rule proposed: the Pit fights *the legend*; a clan serves *the patron*. Zeus and Poseidon stay never-beatable
+- **Ladder overlap (ruled, Strategy, 2026-10-06):** Set, Hades, Hel, Ereshkigal, the Morrígan, Sekhmet and Thor are also beatable
+  Pit legends. **The Pit fights the legend; a clan serves the patron.** Zeus and Poseidon stay never-beatable
   (`feuds.md` §12).
 - Switching costs metal and is written in the history book (§10.6).
 
@@ -750,16 +764,21 @@ lord's own level or gear, and they keep every telegraph. The lord's own characte
 - **Lord-vs-player duels** (the lord fighting raiders live) need the PvP verifier (#1392, #1485, #1487) and open-world PvP. Until
   then everything above is PvE against configured NPCs; Strategy still parks the whole phase until the verifier exists.
 
-## 12. Region 1 example
+## 12. Region 1 (ruled, Strategy, 2026-10-06: three towns)
 
-Region 1 today has one non-safe town (the Grey Ferry). War goals need three (`minTownsForWar`), so the generator stays off there
-until the World lane adds two settlements. PROPOSED:
+Region 1 gets **three towns**: the Exchange town, Cinder Hold and Mere End. War goals (`minTownsForWar` 3) and the same-trade alert
+spread (`feuds.md` §7.1) both need them.
 
 | Town | Zone | Tier at start | Ruler | Temperament | Patron |
 |---|---|---|---|---|---|
-| the Grey Ferry | `ferry-landing` | village (420) | Reeve Tamsin (original, she) | mercantile | Zeus (ruled in `feuds.md`) |
-| Cinder Hold | a new hamlet zone beside `cinder-fields` | village (260) | Warden Brannoc (original, he) | ambitious | Hel |
-| Mere End | a new hamlet zone at the `black-mere` causeway | hamlet (180) | Reeve Osk (original, she) | cautious | Poseidon |
+| the Exchange town | the town around the Concord Exchange | town (500) | Mayor (original, PROPOSED) | mercantile | Zeus |
+| Cinder Hold | a new zone beside `cinder-fields` | village (260) | Warden Brannoc (original, he) | ambitious | Hel |
+| Mere End | a new zone at the `black-mere` causeway | hamlet (180) | Reeve Osk (original, she) | cautious | Poseidon |
+
+**To confirm (Lead/Strategy):** §3 keeps the Concord Exchange itself **safe** (never at war, never ruined, the neutral ground for
+pay-offs and trades). Two readings fit the ruling: (a) the Exchange town is a non-safe town quarter outside the safe Exchange
+square, which can go to war while the square stays neutral; or (b) "the Exchange town" means the **Grey Ferry** (`ferry-landing`,
+Reeve Tamsin, Zeus, as in `feuds.md`). This spec assumes (a) and keeps the Grey Ferry as the grudge town of `feuds.md`.
 
 Rifts need no towns and can ship first, with the five sites in §8.4.
 
@@ -836,7 +855,7 @@ the metal ledger with a reason): `war_roll_write`, `enlist`, `war_post_win`, `wa
 
 ## 15. Phasing
 
-Strategy's order (§2.4), after Region 1. The beta is the duel game; none of this is in it.
+Strategy's order (§2.4), re-sequenced by Strategy on 2026-10-06 to match the table below (Lead to confirm). The beta is the duel game; none of this is in it.
 
 | Phase | Ships | Needs | Pre-verifier? |
 |---|---|---|---|
@@ -853,7 +872,7 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
 
 | Name | Source | Allowed because | Pronoun |
 |---|---|---|---|
-| The Lambton Worm (rift boss, PROPOSED) | County Durham folklore; recorded in Robert Surtees, *The History and Antiquities of the County Palatine of Durham*, vol. 2, 1820 | English folklore, PD source, no living-religion scripture, not a living people's folk hero; not on the ladder. Text is original prose | it |
+| The Lambton Worm (rift boss, approved by Strategy, 2026-10-06) | County Durham folklore; recorded in Robert Surtees, *The History and Antiquities of the County Palatine of Durham*, vol. 2, 1820 | English folklore, PD source, no living-religion scripture, not a living people's folk hero; not on the ladder. Text is original prose | it |
 | Patrons and clan heads | as cited in §10.1 and §10.2 | Strategy's rulings (2026-10-06): dead pantheons and literature as patrons; Asian and Latin American folklore as clans or monsters, never gods | Zeus, Poseidon, Hades, Thor, Set, Mars, Sun Wukong, Dracula, Arthur he; Hel, Sekhmet, Tiamat, Ereshkigal, the Morrígan, La Llorona she |
 | Shemihaza, Armaros, Baraqel, Kokabiel, Penemue (the Fallen) | 1 Enoch (the Book of the Watchers), R. H. Charles translation, 1917 | owner override (Dom, 2026-10-06; Strategy accepted): legend, not worship; Azazel excluded (Leviticus) | he |
 | Mephistopheles (literary, the Pact) | Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust* | literature by authors dead 70+ years; a character, not a faith's devil (Strategy) | he |
@@ -868,16 +887,15 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
    +100 raid notoriety, ruler kill +700, rift 2–4 a day and 30 minutes, 5 rift rolls a week, rent, statue and plaque costs, the
    2,000 switch, terms of 28 days, 3 hold points and the shields.
 2. **Clan perks** (§10.2): Strategy to re-sequence after Dom's override; Combat to own the duel-sim hook; confirm the ±3% templates,
-   the ±1 point win-rate drift rule, and the `RECORD_VERSION` bump. Patron and Pit-legend name overlap: confirm the wording "the Pit fights the
-   legend; a clan serves the patron". The original names for the Pact clan.
-3. **Lambton Worm** as the first rift boss: Strategy to pass the name.
+   the ±1 point win-rate drift rule, and the `RECORD_VERSION` bump. The original names for the Pact clan.
+3. **The Exchange town** (§12): a non-safe quarter outside the safe Exchange square, or the Grey Ferry?
 4. **Rift contribution threshold**: the crowd-scaled `min(100, 500 / participants)` permille, or a fixed 10%? It interacts with
    `region1-ash-frontier.md` open question 7 (two contribution measures).
 5. **The `rift-boss` progression row** (weight 150, repeatable, rested): a contracts change. Confirm.
-6. **Ruler murder via the grudge generator** (`trade: ruler`), or only through avenge goals?
+6. **Ruler climax** (§4.8): the 2 h challenge window and the top-contributor rule.
 7. **Alert spread for a ruler murder**: same-patron towns (proposed) or same-trade as `feuds.md` §7.1?
 8. **NPC pardon by petition**: a seeded 50% roll, or a fixed waiting period? A roll is fairer to read but feels like a lottery.
-9. **Region 1 towns**: does the World lane add Cinder Hold and Mere End, or do war goals wait for Region 2?
+9. **Region 1 zones**: the World lane adds the Cinder Hold and Mere End zones (ruled three towns; zone layout open).
 10. **Statue displacement** after 90 days, or strictly permanent slots with a waiting list?
 11. **Elections and alts**: account age 30 days, Gladiator and a town record per voter. Enough? (No trust-matchmaking is used or
     proposed.)
