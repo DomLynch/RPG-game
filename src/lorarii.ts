@@ -52,7 +52,7 @@ export type Lorarii = { update(dt: number, events: readonly CombatEvent[], sim?:
 
 type Phase = 'pace' | 'raise' | 'hold' | 'lash' | 'recover';
 
-function placeholderGeometry(): THREE.BufferGeometry {
+export function placeholderGeometry(): THREE.BufferGeometry {
   // 1.78 m figure: capsule body (0.5 m wide), a head, and the whip stock held up at the right hand. Merged, so one instanced draw.
   const body = new THREE.CapsuleGeometry(0.22, 1.05, 4, 10); body.translate(0, 0.22 + 1.05 / 2, 0);
   const head = new THREE.SphereGeometry(0.13, 10, 8); head.translate(0, 1.62, 0);
@@ -107,7 +107,7 @@ export async function loadGuardAsset(url: string) {
   return asset as unknown as { scene: THREE.Object3D; animations: THREE.AnimationClip[] };
 }
 
-function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeometry = placeholderGeometry(), material: THREE.Material = new THREE.MeshStandardMaterial({ color: 0x3a3229, roughness: 0.92, metalness: 0.05 })): Lorarii {
+export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeometry = placeholderGeometry(), material: THREE.Material = new THREE.MeshStandardMaterial({ color: 0x3a3229, roughness: 0.92, metalness: 0.05 })): Lorarii {
   // `?guards=<n>` caps the six (the documented fallback if the phone tier busts). Read defensively: this module is imported by
   // node unit tests and by the arena preview, where there is no `location`.
   const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('guards');
