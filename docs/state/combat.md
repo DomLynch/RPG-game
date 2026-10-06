@@ -1,9 +1,9 @@
 ## 2026-10-06 — HANDOFF: Goblin stab #1416 (v25) and Armfeel ship #1431 both with their reviewers
 
 **Now (what the next session picks up):**
-1. **#1416 Goblin stab** — branch `combat/goblin-offence`, head **3683fe0e**, on trunk a2cf3529 at RECORD_VERSION 25. With the Auditor, then Strategy's numbers audit. Nothing to do until a verdict; on a change request rebase and keep the version one past whatever is on trunk (re-pin SIM_DIGEST, READABLE, REACH[N]=[] and regenerate `tests/fixtures/browser-replay-records.json` from a git clone on the VPS).
-2. **#1431 Armfeel ship** — branch `combat/armfeel-ship`, head **ee03cf33** (code 68752df1; later commits only stills), ON by default at High, `?feel=low|off` and reduced motion -> Low. Lead reviews and GOs Deploy. Dom's "i think combat blood is good now, get it live" was on the **922815b8** look (bright red, tone-mapped), so the ship PR carries exactly that; a darker variant exists (27b10f06 / 0be7adf7: droplet material `toneMapped:false`) if he asks.
-3. Parked behind both: #1351 seven class A (SetFoot/HeelReap readability repair; one integrated20 changed-case capture on the VPS once Lead gives a slot).
+1. **#1416 Goblin stab and #1431 Armfeel ship are both MERGED** (Auditor PASS at 3683fe0e; Lead PASS at ee03cf33; trunk 17ab81e9). Armfeel goes live with the Deploy run that was in flight at 10-06 (release.json showed 03cd0d61 before it): verify live, then the browser release rows that I only grep-checked are Deploy's real check.
+2. Parked: #1351 seven class A readability repair (listed MERGED on GitHub at f01fd0dd; confirm what shipped before touching it).
+3. Nothing else is mine until Lead assigns it.
 
 **Done today:**
 - **Goblin offence (COMBAT-001 3/3).** New `AiProfile.stab` (absent = 0; Goblin normal .6, hard 1): a whiffed man out of cut reach is answered with the knife's 12-tick thrust, shorter than a reactive guard's reaction. Human bot n=120 blocker/skilled L6 97/89, L18 63/72, L46 52/54 (was 97/92, 83/85, 82/90); goblin out of KNOWN_FLAT; median 43.3 s (band 25-60 s, Dom's word); battery untouched max 1/24. Gated by record version (`src/stab-rule.ts`, an ERA flag like late notice: off headless, on live, set by `underRecord`), REACH[25]=[], `tests/v24-goblin.test.ts` replays six trunk-recorded v24 Goblin L12/18/46 fights hash for hash (+ a control). Clean-clone test:all 1945/1943/0/2 skipped.
