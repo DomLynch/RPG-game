@@ -483,9 +483,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   if (open) materials.push(plainMaterial);
   let abyssGround: THREE.Mesh | null = null;
   if (cliff) {   // the sand ends here: a floating island (Dom 2026-10-06, "ice-cream cone"). A short sheer lip, then the rock tapers in and down to a point, irregular, with nothing but the painted far world round it and an aerial view far below.
-    const lip = 0.5, depth = 14, tipR = 0.35, rows = 28, ring: THREE.Vector2[] = [];   // lathe points tip -> lip: v runs 0 at the point to 1 at the sand (the rock map's gradient runs down the cone)
-    for (let j = 0; j <= rows; j++) { const w = 1 - j / rows; ring.push(new THREE.Vector2(tipR + (edgeR - tipR) * (1 - w), -lip - w * (depth - lip))); }
-    ring.push(new THREE.Vector2(edgeR, 0));
+    const lip = 2.4, depth = 15, tipR = 0.35, rows = 26, shoulder = edgeR * 1.025, ring: THREE.Vector2[] = [];   // lathe points tip -> sand. The lip (2.4 m, flaring a hair) is the part the fight camera sees; below it the rock tapers in and away
+    for (let j = 0; j <= rows; j++) { const w = 1 - j / rows; ring.push(new THREE.Vector2(tipR + (shoulder - tipR) * (1 - w ** 1.25), -lip - w * (depth - lip))); }
+    for (let j = 1; j <= 4; j++) ring.push(new THREE.Vector2(shoulder + (edgeR - shoulder) * (j / 4) ** 2, -lip * (1 - j / 4)));
     const face = new THREE.LatheGeometry(ring, 120), pos = face.attributes.position;
     for (let i = 0; i < pos.count; i++) {   // ragged bite round the rim, ledges and bulges down the flank, the spike wandering off true; the colour, ledges and cracks are the texture's (cliffPixels: one map, no tiling round the rim)
       const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), r = Math.hypot(x, z), w = Math.min(1, Math.max(0, (-y - lip) / (depth - lip))), a = Math.atan2(x, z);
@@ -493,6 +493,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       const k = Math.sqrt(w), grow = 1 + k * (0.34 * (mottle(a * 0.95 + 3, w * 2.2 + 1) - 0.5) + 0.07 * Math.sin(a * 7 + w * 9) + 0.05 * Math.sin(w * 22 + a * 3)), rr = r * grow;
       pos.setXYZ(i, x * rr / r + Math.sin(w * 3.1) * 0.6 * w, y, z * rr / r + Math.cos(w * 2.3) * 0.6 * w);
     }
+    const uv = face.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - Math.min(1, -pos.getY(i) / depth) ** 0.35);   // the rock map's gradient: sand at the lip, stone half dark by the foot of the lip, the rest sinking to black at the point
     face.computeVertexNormals();
     const unmipped = (t: THREE.DataTexture) => { t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; return t; };   // no mips: the arena's texture budget (tests/arena.test.ts) leaves this map little room
     const rockMap = unmipped(dataTexture(cliffPixels(640, 96, 13), true));
