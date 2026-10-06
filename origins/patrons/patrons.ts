@@ -1,6 +1,8 @@
 // Frankendom: Origins — patrons and clans (allegiance at graduation). Pure, integer-only, no DOM, storage, network or clock: every time is
-// a server-seconds integer the caller passes in. Not under src/: nothing here reaches the live arena game. The ±3% arena perks are the
-// Combat lane's (docs/specs/origins/patron-perks-sim.md, a RECORD_VERSION bump); this module resolves perks to ORIGINS-ONLY modifiers.
+// a server-seconds integer the caller passes in. Not under src/: nothing here reaches the live arena game. The arena perks are the
+// Combat lane's no-damage sidegrades (docs/specs/origins/patron-perks-sim.md: Vitality, Wind, Thrift, Guard, Poise, Stride, a
+// RECORD_VERSION bump). The damage-based templates here are ORIGINS PvE ONLY (Strategy, 2026-10-07): resolvePerk returns zeros for
+// any other venue, so a damage perk can never reach an arena fight, a Pit duel or a PvP fight.
 //
 // Specs: docs/specs/origins/living-world.md §10 (PR #1491: §10.2 templates, §10.6 leaving and switching, §10.7 data) and the patron list
 // docs/specs/origins/legends-500.csv (PR #1498, rows with kind=patron and their perk_template column; read through csv.ts and generated
@@ -11,8 +13,9 @@
 //      construction (complementary conditions of equal measure with the same stat and opposite sign, or `always` on both with equal and
 //      opposite benefit on two different stats; |value| = the 30‰ budget on both sides).
 //   2. ALLEGIANCE: the choice at graduation (Gladiator, the outer gate) of Independent, a player clan (a "company") or a patron's clan;
-//      leaving is free with a 7-day wait before joining again; switching clan to clan costs 2,000 bronze and waits 28 days; every change
-//      is written to a log that reads as the Exchange's book.
+//      leaving is free with a 7-day wait before joining again; switching clan to clan costs 2,000 bronze and waits 28 days, and so does
+//      joining any clan within 28 days of leaving one (going Independent does not reset that clock); every change is written to a log
+//      that reads as the Exchange's book.
 //   3. RESOLUTION: an allegiance plus a fight's context -> per-mille deltas tagged `scope: 'origins'`. Independent is all zeros.
 
 import { fail, Issues, join, ok, readEnum, readInt, readObject, readString, type Issue, type Result } from '../contracts/core.ts';
@@ -207,8 +210,10 @@ export function chooseAtGraduation(state: AllegianceState, to: Allegiance, ctx: 
 
 // Every later change, priced by §10.6:
 //   clan -> Independent: free; you may not join another clan for 7 days.
-//   Independent -> clan: free once that wait is over.
+//   Independent -> clan: free once that wait is over, unless you left a clan less than 28 days ago: then it is priced as a switch
+//     (Strategy, 2026-10-07: going Independent is free but does not reset the clock, so it is no way round the switch cost).
 //   clan -> another clan: 2,000 bronze (a sink, debited by the caller from `bronze`) and a 28-day wait before the next switch.
+// The 28-day wait from a paid switch also holds through a spell as Independent.
 export function changeAllegiance(state: AllegianceState, to: Allegiance, ctx: Ctx & { bronze: number }): Result<Change> {
   const from = state.allegiance;
   if (!from) return fail('rule-violation', 'state', 'choose at graduation first');
@@ -219,11 +224,14 @@ export function changeAllegiance(state: AllegianceState, to: Allegiance, ctx: Ct
   if (to.kind === 'independent') return ok(commit(state, to, { at, event: 'left', from: fromKey, to: toKey, bronze: 0 }, { nextJoinAt: at + RULES.leaveCooldownSeconds }));
   if (from.kind === 'independent') {
     if (at < state.nextJoinAt) return fail('rule-violation', 'at', `you may join a clan again in ${state.nextJoinAt - at} s`);
-    return ok(commit(state, to, { at, event: 'joined', from: fromKey, to: toKey, bronze: 0 }, {}));
+    // An Independent's last log entry is the graduation choice or the 'left' that made them Independent: that is when the clock started.
+    const last = state.log[state.log.length - 1], leftAt = last?.event === 'left' ? last.at : null;
+    if (leftAt === null || at >= leftAt + RULES.switchCooldownSeconds) return ok(commit(state, to, { at, event: 'joined', from: fromKey, to: toKey, bronze: 0 }, {}));
   }
   if (at < state.nextSwitchAt) return fail('rule-violation', 'at', `you may switch clan again in ${state.nextSwitchAt - at} s`);
   if (ctx.bronze < RULES.switchBronze) return fail('rule-violation', 'bronze', `switching clan costs ${RULES.switchBronze} bronze; you have ${ctx.bronze}`);
-  return ok(commit(state, to, { at, event: 'switched', from: fromKey, to: toKey, bronze: RULES.switchBronze }, { nextSwitchAt: at + RULES.switchCooldownSeconds }));
+  const event = from.kind === 'independent' ? 'joined' : 'switched';
+  return ok(commit(state, to, { at, event, from: fromKey, to: toKey, bronze: RULES.switchBronze }, { nextSwitchAt: at + RULES.switchCooldownSeconds }));
 }
 
 // The Exchange's book line for a log entry (living-world §6.1 / §10.6 wording; the trial is not modelled yet, so "chose" not "passed the trial").
@@ -277,8 +285,13 @@ export function parseAllegianceState(raw: unknown): Result<AllegianceState> {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // 4. Resolution: what the template does in one Origins fight. Read at engage for the world clock (it holds for the whole fight, §10.3) and
 // at each hit for the fight's own state. Output is per-mille DELTAS (0 = unchanged), tagged for Origins: the live arena never reads them.
+// Every template moves damage, so it resolves only in an Origins PvE fight (Strategy, 2026-10-07). The caller must name the venue: 'arena'
+// (the live game: the Pit, arena duels) and 'pvp' (any player against player, Origins included) always resolve to zeros.
 
+export const VENUES = ['origins-pve', 'arena', 'pvp'] as const;
+export type Venue = (typeof VENUES)[number];
 export type FightContext = {
+  venue: Venue;
   clockHalf: 'day' | 'night';   // §10.3 worldTimeAt at engage: night is the last third of the day, the rest is day
   moon: number;                 // 0..7 at engage; 0–3 waxing, 4–7 waning
   fightTicks: number;           // ticks since the fight began, 60 Hz
@@ -308,7 +321,7 @@ export function holds(when: When, f: FightContext): boolean {
 }
 
 export function resolvePerk(allegiance: Allegiance | null, f: FightContext): OriginsModifiers {
-  const t = templateOf(allegiance);
+  const t = f.venue === 'origins-pve' ? templateOf(allegiance) : null;
   if (!t) return NO_MODIFIERS;
   const out: OriginsModifiers = { ...NO_MODIFIERS, template: t.id };
   for (const s of [t.gain, t.cost]) if (holds(s.when, f)) out[s.stat] += s.value;

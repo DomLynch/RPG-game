@@ -8,7 +8,7 @@ import { parseCsv, patronsFromCsv, renderData } from './csv.ts';
 import { PATRON_ROWS } from './patrons.data.ts';
 import {
   applyPermille, bookLine, changeAllegiance, chooseAtGraduation, FIGHT_HALF_TICKS, holds, loadPatrons, NEW_ALLEGIANCE, NO_MODIFIERS, parseAllegianceState,
-  parsePerkTemplate, PATRONS, PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA, PERK_TEMPLATES, resolvePerk, RULES, STATS, templateText, WHENS, COMPLEMENT,
+  parsePerkTemplate, PATRONS, PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA, PERK_TEMPLATES, resolvePerk, RULES, STATS, templateText, VENUES, WHENS, COMPLEMENT,
   type Allegiance, type AllegianceState, type FightContext, type PatronId, type When,
 } from './patrons.ts';
 
@@ -34,7 +34,7 @@ test('the eleven §10.2 templates load, each a +3% gain and a matching −3% cos
 // (exactly one, or neither at the boundary), and an always-on template's net benefit is zero.
 const contexts = function* (): Generator<FightContext> {
   for (const clockHalf of ['day', 'night'] as const) for (const moon of [0, 3, 4, 7]) for (const fightTicks of [0, FIGHT_HALF_TICKS - 1, FIGHT_HALF_TICKS, 9999])
-    for (const [selfLevel, foeLevel] of [[12, 11], [12, 12], [12, 13]]) for (const h of [0, 499, 500, 501, 1000]) yield { clockHalf, moon, fightTicks, selfLevel: selfLevel!, foeLevel: foeLevel!, selfHealthPermille: h, foeHealthPermille: 1000 - h };
+    for (const [selfLevel, foeLevel] of [[12, 11], [12, 12], [12, 13]]) for (const h of [0, 499, 500, 501, 1000]) yield { venue: 'origins-pve', clockHalf, moon, fightTicks, selfLevel: selfLevel!, foeLevel: foeLevel!, selfHealthPermille: h, foeHealthPermille: 1000 - h };
 };
 test('every template is equal power: never both sides at once (conditional), always both (always-on), net benefit 0', () => {
   const sign = { damageDealtPermille: 1, damageTakenPermille: -1, staminaCostPermille: -1 } as const;
@@ -145,15 +145,36 @@ test('switching clan costs 2,000 bronze, waits 28 days, and is logged', () => {
   assert.ok(changeAllegiance(r.state, zeus, { standing: GLADIATOR, at: T0 + 1 + 28 * day, bronze: 5000 }).ok, 'after the 28 days');
   assert.equal(changeAllegiance(r.state, hel, { standing: GLADIATOR, at: T0 + 99 * day, bronze: 5000 }).ok, false, 'already sworn there');
 });
-test('leaving is free; joining again waits 7 days and is free; neither touches bronze', () => {
+test('leaving is free; joining again waits 7 days, and is free once 28 days have passed since leaving', () => {
   const day = 86400, left = value(changeAllegiance(chosen(zeus), ind, { standing: GLADIATOR, at: T0 + 10, bronze: 0 }));
   assert.equal(left.charged, 0);
   assert.equal(left.state.nextJoinAt, T0 + 10 + 7 * day);
-  assert.equal(changeAllegiance(left.state, hel, { standing: GLADIATOR, at: T0 + 7 * day, bronze: 0 }).ok, false);
-  const back = value(changeAllegiance(left.state, hel, { standing: GLADIATOR, at: T0 + 10 + 7 * day, bronze: 0 }));
+  assert.equal(changeAllegiance(left.state, hel, { standing: GLADIATOR, at: T0 + 7 * day, bronze: 5000 }).ok, false, 'inside the 7 days');
+  const back = value(changeAllegiance(left.state, hel, { standing: GLADIATOR, at: T0 + 10 + 28 * day, bronze: 0 }));
   assert.equal(back.charged, 0);
   assert.deepEqual(back.state.log.map((e) => e.event), ['chose', 'left', 'joined']);
   assert.equal(changeAllegiance(NEW_ALLEGIANCE, ind, { standing: GLADIATOR, at: T0, bronze: 0 }).ok, false, 'choose at graduation first');
+});
+// Strategy, 2026-10-07: going Independent is free but does not reset the clock, so it is no way round the switch cost.
+test('leave clan A, stand Independent, join clan B: on day 10 it costs 2,000 bronze and starts the 28-day wait; on day 29 it is free', () => {
+  const day = 86400, left = value(changeAllegiance(chosen(zeus), ind, { standing: GLADIATOR, at: T0, bronze: 0 })).state;
+  assert.equal(changeAllegiance(left, hel, { standing: GLADIATOR, at: T0 + 10 * day, bronze: 1999 }).ok, false, 'day 10, cannot pay');
+  const paid = value(changeAllegiance(left, hel, { standing: GLADIATOR, at: T0 + 10 * day, bronze: 5000 }));
+  assert.equal(paid.charged, RULES.switchBronze);
+  assert.deepEqual(paid.entry, { at: T0 + 10 * day, event: 'joined', from: 'independent', to: 'clan:hel', bronze: 2000 });
+  assert.equal(paid.state.nextSwitchAt, T0 + 38 * day, 'the 28-day switch wait starts on joining');
+  assert.equal(changeAllegiance(paid.state, zeus, { standing: GLADIATOR, at: T0 + 37 * day, bronze: 5000 }).ok, false, 'under the switch wait');
+  assert.equal(changeAllegiance(left, hel, { standing: GLADIATOR, at: T0 + 28 * day - 1, bronze: 0 }).ok, false, 'the last second of the window still costs');
+  const free = value(changeAllegiance(left, hel, { standing: GLADIATOR, at: T0 + 29 * day, bronze: 0 }));
+  assert.equal(free.charged, 0, 'day 29 is outside the window');
+  assert.equal(free.state.nextSwitchAt, 0);
+  // The wait from a paid switch holds through a spell as Independent too.
+  const switched = value(changeAllegiance(chosen(zeus), hel, { standing: GLADIATOR, at: T0, bronze: 2000 })).state;
+  const out = value(changeAllegiance(switched, ind, { standing: GLADIATOR, at: T0 + day, bronze: 0 })).state;
+  assert.equal(changeAllegiance(out, zeus, { standing: GLADIATOR, at: T0 + 10 * day, bronze: 5000 }).ok, false, 'still inside the switch wait');
+  assert.equal(value(changeAllegiance(out, zeus, { standing: GLADIATOR, at: T0 + 28 * day, bronze: 5000 })).charged, 2000, 'wait over, still inside 28 days of leaving');
+  // Independent from graduation never left a clan: joining is free.
+  assert.equal(value(changeAllegiance(chosen(ind), hel, { standing: GLADIATOR, at: T0 + 1, bronze: 0 })).charged, 0);
 });
 test('the book reads each change in the Exchange-book wording', () => {
   const s1 = chosen(zeus), s2 = value(changeAllegiance(s1, hel, { standing: GLADIATOR, at: T0 + 5, bronze: 2000 })).state;
@@ -177,7 +198,7 @@ test('a stored state round-trips through the reader; anything else is refused', 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Resolution to Origins-only modifiers.
 
-const fight = (over: Partial<FightContext> = {}): FightContext => ({ clockHalf: 'day', moon: 0, fightTicks: 0, selfLevel: 12, foeLevel: 12, selfHealthPermille: 1000, foeHealthPermille: 1000, ...over });
+const fight = (over: Partial<FightContext> = {}): FightContext => ({ venue: 'origins-pve', clockHalf: 'day', moon: 0, fightTicks: 0, selfLevel: 12, foeLevel: 12, selfHealthPermille: 1000, foeHealthPermille: 1000, ...over });
 test('Independent, no choice, or a missing template: all zeros, tagged origins', () => {
   assert.deepEqual(resolvePerk(null, fight()), NO_MODIFIERS);
   assert.deepEqual(resolvePerk(ind, fight()), NO_MODIFIERS);
@@ -195,6 +216,18 @@ test('a patron clan resolves its template against the fight', () => {
   assert.equal(resolvePerk(co, fight()).damageDealtPermille, 0);
   assert.equal(resolvePerk(co, fight({ foeLevel: 13 })).damageDealtPermille, 30);
   assert.equal(resolvePerk(co, fight({ foeLevel: 11 })).damageDealtPermille, -30);
+});
+// Strategy, 2026-10-07: every template moves damage, so the templates are Origins PvE only. The arena gets only Combat's no-damage
+// sidegrades (patron-perks-sim.md), never these; PvP gets none of them either.
+test('damage templates never resolve outside Origins PvE: the arena and PvP get all zeros for every patron, company and context', () => {
+  assert.deepEqual([...VENUES], ['origins-pve', 'arena', 'pvp']);
+  const allegiances: Allegiance[] = [...[...PATRONS.values()].map((p): Allegiance => ({ kind: 'patron-clan', patron: p.patron })),
+    ...[...PERK_TEMPLATES.keys()].map((template): Allegiance => ({ kind: 'company', name: 'Grey Company', template }))];
+  for (const venue of ['arena', 'pvp'] as const) for (const a of allegiances) for (const f of contexts()) {
+    assert.deepEqual(resolvePerk(a, { ...f, venue }), NO_MODIFIERS, `${venue} ${JSON.stringify(a)}`);
+  }
+  assert.equal(resolvePerk(zeus, fight({ venue: 'arena', fightTicks: 0 })).damageDealtPermille, 0);
+  assert.equal(resolvePerk(zeus, fight({ fightTicks: 0 })).damageDealtPermille, 30, 'the same fight in Origins PvE');
 });
 test('applyPermille: integer in, integer out; a zero delta is the identity', () => {
   assert.equal(applyPermille(100, 30), 103);
