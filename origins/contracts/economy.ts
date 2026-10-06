@@ -26,7 +26,7 @@ import {
   MAX_UPGRADE_LEVEL, PACK_SLOTS, RARITIES, checkOneOfEach, effectiveTier, ownerOf, piecePoints, placeWithHistory, upgradeLevelOf,
   type AccountOf, type ItemDefinition, type ItemInstance, type Rarity,
 } from './items.ts';
-import { tierOf, type CareerStanding } from './world.ts';
+import { verifiedTier, type CareerStanding } from './world.ts';
 
 // The neutral plaza beside the Pit (blueprint §8). The only place a trade settles.
 export const CONCORD_EXCHANGE = 'region:concord-exchange' as RegionId;
@@ -73,6 +73,16 @@ export function parseTrade(raw: unknown, path = ''): Result<Trade> {
 }
 
 const sideOf = (trade: Trade, character: CharacterInstanceId): number => trade.sides.findIndex((s) => s.character === character);
+// The first id that appears twice in a list, if any. Every function here that takes a list of instance ids (or instances) refuses a
+// repeat outright, so one piece or one stack can never be counted, moved or spent twice.
+const firstRepeat = <T>(ids: readonly T[]): T | undefined => {
+  const seen = new Set<T>();
+  for (const id of ids) {
+    if (seen.has(id)) return id;
+    seen.add(id);
+  }
+  return undefined;
+};
 
 // Any offer change clears BOTH accepts and bumps the version (the secure-trade rule), so an accept can only ever mean the offer on screen.
 export function changeOffer(trade: Trade, character: CharacterInstanceId, offered: ItemInstanceId[], expectedVersion: number): Result<Trade> {
@@ -80,6 +90,11 @@ export function changeOffer(trade: Trade, character: CharacterInstanceId, offere
   const i = sideOf(trade, character);
   if (i < 0) return fail('rule-violation', 'character', `${character} is not in this trade`);
   if (offered.length > MAX_OFFER) return fail('out-of-range', 'offered', `at most ${MAX_OFFER} pieces per side`);
+  const twice = firstRepeat(offered);
+  if (twice !== undefined) return fail('duplicate-id', 'offered', `${twice} is offered twice`);
+  const theirs = new Set(trade.sides[1 - i]!.offered);
+  const both = offered.find((id) => theirs.has(id));
+  if (both !== undefined) return fail('duplicate-id', 'offered', `${both} is already offered by the other side`);
   const sides = trade.sides.map((s, j) => ({ ...s, offered: j === i ? [...offered] : s.offered, accepted: false })) as [TradeSide, TradeSide];
   return ok({ ...trade, sides, version: trade.version + 1 });
 }
@@ -104,6 +119,12 @@ export function settleTrade(trade: Trade, holdings: readonly ItemInstance[], loo
     if (!side.accepted) issues.add('rule-violation', `sides[${i}].accepted`, `${side.character} has not accepted`);
     if (accountOf(side.character) !== side.account) issues.add('rule-violation', `sides[${i}].account`, `${side.character} does not belong to ${side.account}`);
   });
+  // A trade object or a holdings list that names one piece twice is refused before anything is resolved: no copy "wins".
+  const offeredTwice = firstRepeat(trade.sides.flatMap((s) => s.offered));
+  if (offeredTwice !== undefined) issues.add('duplicate-id', 'sides', `${offeredTwice} is offered twice`);
+  const heldTwice = firstRepeat(holdings.map((h) => h.id));
+  if (heldTwice !== undefined) issues.add('duplicate-id', 'holdings', `${heldTwice} appears twice in the holdings`);
+  if (!issues.empty) return issues.finish(undefined as never);
   const byId = new Map(holdings.map((inst) => [inst.id, inst]));
   const offered = new Set(trade.sides.flatMap((s) => s.offered));
   for (const inst of holdings) {
@@ -203,7 +224,7 @@ export function parseUpgradeCostTable(raw: unknown, path = ''): Result<UpgradeCo
       const m = readObject(issues, mv, mp, ['item', 'quantity']);
       const item = m && readId(issues, m, 'item', mp, 'item'), quantity = m && readInt(issues, m, 'quantity', mp, 1, 999);
       return item && quantity !== undefined ? { item, quantity } : undefined;
-    }, { max: 4 });
+    }, { max: MAX_MATERIAL_LINES });
     if (materials && new Set(materials.map((m) => m.item)).size !== materials.length) issues.add('duplicate-id', join(p, 'materials'), 'a material is listed twice in one row');
     return level !== undefined && rarity && coin !== undefined && materials ? { level, rarity, coin, materials } : undefined;
   }, { min: 1, max: MAX_UPGRADE_LEVEL * RARITIES.length });
@@ -222,6 +243,13 @@ export function parseUpgradeCostTable(raw: unknown, path = ''): Result<UpgradeCo
   }
   return issues.finish({ kind: 'upgrade-cost-table', schemaVersion: 1, id: id!, revision: revision!, currency: currency!, rows: rows! });
 }
+
+// The most material instances one upgrade may spend, and so the most lines its receipt can carry: the smith writes one line per instance
+// (an instance holds one item, so it pays at most one cost line), refuses a repeated instance, and refuses an offer longer than this,
+// so every receipt it writes parses under parseUpgradeReceipt. A cost line is payable from one stack (registry: quantity ≤ stack), so a
+// player never needs more than MAX_MATERIAL_LINES (4) instances; the headroom is for partial stacks.
+export const MAX_UPGRADE_MATERIAL_INPUTS = 64;
+export const MAX_MATERIAL_LINES = 4;
 
 export const UPGRADE_REQUEST_VERSION = 1;
 export const UPGRADE_RECEIPT_VERSION = 1;
@@ -287,7 +315,8 @@ export function parseUpgradeReceipt(raw: unknown, path = ''): Result<UpgradeRece
     const m = readObject(issues, v, p, ['instance', 'item', 'quantity']);
     const inst = m && readId(issues, m, 'instance', p, 'inst'), item = m && readId(issues, m, 'item', p, 'item'), quantity = m && readInt(issues, m, 'quantity', p, 1, 999);
     return inst && item && quantity !== undefined ? { instance: inst, item, quantity } : undefined;
-  }, { max: 64 });
+  }, { max: MAX_UPGRADE_MATERIAL_INPUTS });
+  if (materials && firstRepeat(materials.map((m) => m.instance)) !== undefined) issues.add('duplicate-id', join(path, 'materials'), 'one instance is listed twice; a receipt has one line per instance spent');
   const at = readTimestamp(issues, obj, 'at', path);
   if (fromLevel !== undefined && toLevel !== undefined && toLevel !== fromLevel + 1) issues.add('rule-violation', join(path, 'toLevel'), 'a receipt records one level');
   return issues.finish({
@@ -304,7 +333,7 @@ export type UpgradeInput = {
   def: ItemDefinition;
   standing: CareerStanding; // the requester's server standing
   balance: number; // the requester's coin
-  materials: readonly ItemInstance[]; // material instances the requester offers to spend, consumed in this order
+  materials: readonly ItemInstance[]; // material instances the requester offers to spend, consumed in this order; each id once, at most MAX_UPGRADE_MATERIAL_INPUTS
   materialDefs: (id: ItemId) => ItemDefinition | undefined;
   receipts: ReadonlyMap<string, UpgradeReceipt>; // receipts already committed, by idempotency key
   now: string;
@@ -341,11 +370,16 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   if (!row) return fail('rule-violation', 'toLevel', `${costs.id} r${costs.revision} offers no level ${request.toLevel} for ${def.rarity} pieces`);
   // The upgraded piece must still be wearable by the one paying for it.
   const need = effectiveTier(afterInst)!;
-  if (standing.source !== 'server') return fail('rule-violation', 'standing', 'upgrades need server-verified marks');
-  if (tierLevel(tierOf(standing)) < tierLevel(need)) return fail('rule-violation', 'toLevel', `level ${request.toLevel} would need rank ${need}; you are ${tierOf(standing)}`);
+  const payer = verifiedTier(standing); // upgrades need a valid, server-verified career level
+  if (!payer.ok) return payer;
+  if (tierLevel(payer.value) < tierLevel(need)) return fail('rule-violation', 'toLevel', `level ${request.toLevel} would need rank ${need}; you are ${payer.value}`);
   if (input.balance < row.coin) return fail('rule-violation', 'balance', `needs ${row.coin} coin; you have ${input.balance}`);
 
-  // Materials: spend each line from the offered instances, in order. All or nothing.
+  // Materials: spend each line from the offered instances, in order. All or nothing. A repeated instance is refused before the loop: the
+  // same stack listed twice would otherwise be spent twice (5 + 3 from a stack of 5) and land in both `consumed` and `materials`.
+  const repeated = firstRepeat(input.materials.map((m) => m.id));
+  if (repeated !== undefined) return fail('duplicate-id', 'materials', `${repeated} is offered twice`);
+  if (input.materials.length > MAX_UPGRADE_MATERIAL_INPUTS) return fail('out-of-range', 'materials', `at most ${MAX_UPGRADE_MATERIAL_INPUTS} material instances per upgrade (merge your stacks)`);
   const issues = new Issues();
   const spent: UpgradeReceipt['materials'] = [], updated: ItemInstance[] = [], consumed: ItemInstanceId[] = [];
   for (const line of row.materials) {

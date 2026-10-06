@@ -5,11 +5,11 @@ import test from 'node:test';
 import { CAPS } from '../../src/gear-stats.ts';
 import type { Result } from './core.ts';
 import {
-  acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
+  MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
   type ServiceDefinition, type Trade, type UpgradeCostTable, type UpgradeInput, type UpgradeReceipt, type UpgradeRequest,
 } from './economy.ts';
 import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId } from './ids.ts';
+import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
 import {
   checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
 } from './items.ts';
@@ -114,6 +114,20 @@ test('trade: escrow, binding and capacity rules', () => {
   refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), ...full], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
 });
 
+test('trade: a piece listed twice is refused (duplicate-id) wherever the list comes from, and never moves twice', () => {
+  const t = trade();
+  const ids = (...xs: string[]): ItemInstanceId[] => xs as ItemInstanceId[];
+  refused(changeOffer(t, PC, ids('inst:h', 'inst:h'), 2), 'duplicate-id', 'offered');
+  refused(changeOffer(t, OTHER, ids('inst:i', 'inst:h'), 2), 'duplicate-id', 'offered'); // already on the other side
+  // A trade built without parseTrade (a server object, a bug elsewhere) is still refused at settlement.
+  const doubled: Trade = { ...t, sides: [{ ...t.sides[0], offered: ids('inst:h', 'inst:h') }, t.sides[1]] };
+  refused(settleTrade(doubled, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'sides');
+  const crossed: Trade = { ...t, sides: [t.sides[0], { ...t.sides[1], offered: ids('inst:i', 'inst:h') }] };
+  refused(settleTrade(crossed, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'sides');
+  // The same holding passed twice (two rows for one id) is refused, not resolved by whichever copy wins.
+  refused(settleTrade(t, [offeredHelmet(), offeredHelmet({ version: 9 }), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'holdings');
+});
+
 // ---- service, cost table, request and receipt contracts ---------------------------------------------------------------------------
 
 test('service and cost table: fixtures parse; costs are data with a revision', () => {
@@ -150,7 +164,7 @@ const SERVICE = (): ServiceDefinition => must(parseServiceDefinition(F.blacksmit
 const COSTS = (): UpgradeCostTable => must(parseUpgradeCostTable(F.forgeCosts()));
 const input = (patch: Partial<UpgradeInput> = {}, request: Raw = {}): UpgradeInput => ({
   request: must(parseUpgradeRequest(requestRaw(request))), service: SERVICE(), costs: COSTS(), instance: must(parseItemInstance(F.helmetInstance())), def: helmetDef,
-  standing: { source: 'server', victoryMarks: 15 }, balance: 1000, materials: [], materialDefs: lookup, receipts: new Map(), now: LATER, ...patch,
+  standing: { source: 'server', careerLevel: 16 }, balance: 1000, materials: [], materialDefs: lookup, receipts: new Map(), now: LATER, ...patch,
 });
 
 test('upgrade: one level, charged from the table, stamped with a receipt and a history entry; provenance kept', () => {
@@ -181,7 +195,7 @@ test('upgrade: idempotent — a repeated request returns the same receipt and ch
 test('upgrade: materials are optional cost lines, spent all-or-nothing in order', () => {
   const at1 = must(parseItemInstance({ ...F.helmetInstance(), upgradeLevel: 1 }));
   const iron = (quantity: number, id = 'inst:iron', index = 4): ItemInstance => must(parseItemInstance({ ...F.ironInstance(), id, quantity, location: { kind: 'bank', owner: F.PC, index }, provenance: { ...F.ironInstance().provenance, mintKey: `loot:${id.slice(5)}-mint` } }));
-  const level2 = (materials: ItemInstance[]) => performUpgrade(input({ instance: at1, materials, standing: { source: 'server', victoryMarks: 20 } }, { toLevel: 2 }));
+  const level2 = (materials: ItemInstance[]) => performUpgrade(input({ instance: at1, materials, standing: { source: 'server', careerLevel: 21 } }, { toLevel: 2 }));
   const partly = must(level2([iron(12)]));
   assert.ok(!partly.replayed);
   assert.deepEqual([partly.balance, partly.materials.map((m) => m.quantity), partly.consumed], [750, [7], []]);
@@ -198,7 +212,7 @@ test('upgrade: the caps are never passed — a Recruit piece climbs to Origin wo
   let piece = must(parseItemInstance({ ...F.helmetInstance(), tier: 'Recruit', location: { kind: 'pack', owner: F.PC, index: 0 }, provenance: { ...F.helmetInstance().provenance, atRank: 'Recruit', fromLegend: 'veteran-1' } }));
   let bought = 0;
   for (let level = 1; level <= 9; level++) {
-    const r = performUpgrade(input({ instance: piece, costs: must(parseUpgradeCostTable(allLevels)), standing: { source: 'server', victoryMarks: 45 } }, { idempotencyKey: `upgrade:climb-${level}`, toLevel: level, expectedVersion: piece.version }));
+    const r = performUpgrade(input({ instance: piece, costs: must(parseUpgradeCostTable(allLevels)), standing: { source: 'server', careerLevel: 46 } }, { idempotencyKey: `upgrade:climb-${level}`, toLevel: level, expectedVersion: piece.version }));
     if (!r.ok) break;
     assert.ok(!r.value.replayed);
     piece = r.value.instance;
@@ -209,7 +223,7 @@ test('upgrade: the caps are never passed — a Recruit piece climbs to Origin wo
   assert.ok(loadout.res >= CAPS.res && loadout.attack <= CAPS.attack);
   // Already at Origin worth: the next level would change nothing, so it is refused (and never charged).
   const origin = must(parseItemInstance({ ...F.helmetInstance(), tier: 'Origin', provenance: { ...F.helmetInstance().provenance, atRank: 'Origin', fromLegend: 'veteran-10' } }));
-  refused(performUpgrade(input({ instance: origin, standing: { source: 'server', victoryMarks: 45 } })), 'rule-violation', 'toLevel');
+  refused(performUpgrade(input({ instance: origin, standing: { source: 'server', careerLevel: 46 } })), 'rule-violation', 'toLevel');
 });
 
 test('upgrade: a zero-weight slot gains nothing, so the smith refuses it', () => {
@@ -219,8 +233,8 @@ test('upgrade: a zero-weight slot gains nothing, so the smith refuses it', () =>
 });
 
 test('upgrade: every refusal path', () => {
-  refused(performUpgrade(input({ standing: { source: 'server', victoryMarks: 10 } })), 'rule-violation', 'toLevel'); // +1 needs Veteran; you are Gladiator
-  refused(performUpgrade(input({ standing: { source: 'device', victoryMarks: 45 } })), 'rule-violation', 'standing');
+  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 11 } })), 'rule-violation', 'toLevel'); // +1 needs Veteran; you are Gladiator
+  refused(performUpgrade(input({ standing: { source: 'device', careerLevel: 46 } })), 'rule-violation', 'standing');
   refused(performUpgrade(input({ balance: 99 })), 'rule-violation', 'balance');
   refused(performUpgrade(input({}, { toLevel: 2 })), 'rule-violation', 'toLevel'); // one level at a time
   refused(performUpgrade(input({ instance: must(parseItemInstance({ ...F.helmetInstance(), upgradeLevel: 2 })) }, { toLevel: 3 })), 'rule-violation', 'toLevel'); // no level-3 common price
@@ -246,4 +260,44 @@ test('upgrade receipt: contract rejections', () => {
   refused(parseUpgradeReceipt({ ...raw, coin: 0 }), 'out-of-range', 'coin');
   const req: UpgradeRequest = must(parseUpgradeRequest(requestRaw()));
   assert.equal(req.kind, 'upgrade-request');
+});
+
+// ---- review fixes: duplicate material stacks, receipt size, invalid career level -------------------------------------------------
+
+const ironStack = (quantity: number, id: string, index: number): ItemInstance =>
+  must(parseItemInstance({ ...F.ironInstance(), id, quantity, location: { kind: 'bank', owner: F.PC, index }, provenance: { ...F.ironInstance().provenance, mintKey: `loot:${id.slice(5)}-mint` } }));
+const ironCosts = (level1Iron: number): UpgradeCostTable =>
+  must(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 100, materials: [{ item: 'item:grave-iron', quantity: level1Iron }] }] }));
+
+test('upgrade: one stack offered twice is refused (duplicate-id), never spent as 5 + 3 from a stack of 5', () => {
+  const five = ironStack(5, 'inst:iron-five', 1);
+  const r = performUpgrade(input({ costs: ironCosts(8), materials: [five, five] }));
+  refused(r, 'duplicate-id', 'materials');
+  // The honest offer of the same stack once is simply short.
+  refused(performUpgrade(input({ costs: ironCosts(8), materials: [five] })), 'rule-violation', 'materials');
+  // Two different stacks still pay together, each spent once and listed once.
+  const out = must(performUpgrade(input({ costs: ironCosts(8), materials: [five, ironStack(5, 'inst:iron-more', 2)] })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([out.consumed, out.materials.map((m) => [m.id, m.quantity]), out.receipt.materials.map((m) => [m.instance, m.quantity])],
+    [['inst:iron-five'], [['inst:iron-more', 2]], [['inst:iron-five', 5], ['inst:iron-more', 3]]]);
+});
+
+test('upgrade receipt: the emitter and the parser agree at the maximum, and an offer past it is refused up front', () => {
+  const max = MAX_UPGRADE_MATERIAL_INPUTS;
+  const ones = Array.from({ length: max + 1 }, (_, k) => ironStack(1, `inst:one-${String(k).padStart(4, '0')}`, k));
+  const out = must(performUpgrade(input({ costs: ironCosts(max), materials: ones.slice(0, max) })));
+  assert.ok(!out.replayed);
+  assert.equal(out.receipt.materials.length, max);
+  assert.deepEqual(must(parseUpgradeReceipt(out.receipt)), out.receipt, 'a receipt at the maximum parses through its own contract');
+  // One more input than a receipt can record: refused before anything is charged.
+  refused(performUpgrade(input({ costs: ironCosts(max + 1), materials: ones })), 'out-of-range', 'materials');
+  // A receipt that lists one instance twice is not a receipt the smith writes.
+  const line = out.receipt.materials[0]!;
+  refused(parseUpgradeReceipt({ ...out.receipt, materials: [line, line] }), 'duplicate-id', 'materials');
+});
+
+test('upgrade: an out-of-range or non-integer career level is refused', () => {
+  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 0 } })), 'out-of-range', 'standing.careerLevel');
+  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 47 } })), 'out-of-range', 'standing.careerLevel');
+  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 16.5 } })), 'wrong-type', 'standing.careerLevel');
 });

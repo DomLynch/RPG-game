@@ -2,12 +2,13 @@
 // CharacterDefinition (content rule, routines), factions and standing, regions and encounters.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { TITLES, rankFor } from '../../src/career.ts';
+import { MAX_LEVEL, TITLES, levelOf, rankFor } from '../../src/career.ts';
 import type { Result } from './core.ts';
 import * as F from './fixtures.ts';
 import {
   ATTITUDE_BANDS, GATE_TIER, STANDING_MAX, STANDING_MIN, adjustStanding, attitudeFor, attitudeOf, canPromote, checkStanding, gateAccess, membershipRequired,
   parseCharacterDefinition, parseCharacterInstance, parseEncounterDefinition, parseFactionDefinition, parseFactionStanding, parseRegionDefinition, rankOf,
+  checkCareerStanding, titleForLevel,
   reactionOf, regionAccess, type CareerStanding, type FactionDefinition, type FactionStanding,
 } from './world.ts';
 import type { FactionId } from './ids.ts';
@@ -19,34 +20,67 @@ const refused = (r: Result<unknown>, code: string, path?: string): void => {
   assert.ok(r.issues.some((i) => i.code === code && (path === undefined || i.path === path)), `want ${code}${path ? ` at ${path}` : ''}; got ${JSON.stringify(r.issues)}`);
 };
 const must = <T>(r: Result<T>): T => { assert.ok(r.ok, JSON.stringify(!r.ok && r.issues)); return r.value; };
-const server = (victoryMarks: number): CareerStanding => ({ source: 'server', victoryMarks });
+// The gate input is the server's career level (computed by origins/progression from career credit). For a legacy account the level is
+// today's levelOf(marks), so `marks(m)` is the standing an account with m victory marks has today.
+const server = (careerLevel: number): CareerStanding => ({ source: 'server', careerLevel });
+const marks = (m: number): CareerStanding => server(levelOf(m));
 
 // ---- gates ----------------------------------------------------------------------------------------------------------------------------
 
-test('gates: rank comes from src/career.ts rankFor, never a copy', () => {
-  for (const marks of [0, 9, 10, 14, 19, 20, 44, 45, 200]) assert.deepEqual(rankOf(server(marks)), rankFor(marks));
+test('gates: rank is the server career level, titled exactly as src/career.ts; legacy marks keep today\'s rank', () => {
+  for (const m of [0, 9, 10, 14, 19, 20, 44, 45, 200]) {
+    const today = rankFor(m);
+    assert.deepEqual(rankOf(marks(m)), { level: today.level, title: today.title }, `${m} marks`);
+  }
   assert.equal(TITLES.indexOf(GATE_TIER.outer) + 1, 3, 'ruling 2: Gladiator is rank 3');
 });
 
+test('gates: career level 11 opens the Gladiator gate; a level reached through world play alone opens it too', () => {
+  assert.deepEqual(gateAccess('outer', server(10), false), { ok: false, reason: 'rank', needs: 'Gladiator' });
+  assert.deepEqual(gateAccess('outer', server(11), false), { ok: true });
+  // No Pit marks at all (today's rank would be Recruit I), but world play took the career to level 11: the gate opens.
+  assert.equal(rankFor(0).title, 'Recruit');
+  assert.deepEqual(gateAccess('outer', server(11), false), gateAccess('outer', marks(10), false));
+  assert.deepEqual(gateAccess('second-realm', server(21), true), { ok: true });
+});
+
+test('gates: titles are cap-parametric — floor((level - 1) / 5), Origin at the top of any ladder', () => {
+  assert.deepEqual([titleForLevel(1), titleForLevel(5), titleForLevel(6), titleForLevel(11), titleForLevel(45), titleForLevel(MAX_LEVEL)], ['Recruit', 'Recruit', 'Legionary', 'Gladiator', 'Invictus', 'Origin']);
+  assert.deepEqual([titleForLevel(46, 50), titleForLevel(50, 50)], ['Origin', 'Origin']);
+  assert.deepEqual(checkCareerStanding(server(50), 50), []);
+  assert.equal(checkCareerStanding(server(50))[0]?.code, 'out-of-range', 'past the default cap of src/career.ts MAX_LEVEL');
+});
+
+test('gates: an out-of-range or non-integer career level is rejected and opens nothing', () => {
+  for (const level of [0, -1, MAX_LEVEL + 1, 10.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.ok(checkCareerStanding(server(level)).length > 0, `level ${level} is refused`);
+    const access = gateAccess('outer', server(level), true);
+    assert.equal(access.ok, false, `level ${level} opens nothing`);
+    assert.equal(!access.ok && access.reason, 'invalid');
+  }
+  assert.equal(checkCareerStanding({ source: 'server', careerLevel: '11' as unknown as number })[0]?.code, 'wrong-type');
+  assert.equal(checkCareerStanding({ source: 'browser' as 'server', careerLevel: 11 })[0]?.code, 'wrong-type');
+});
+
 test('gates: Gladiator opens the outer gate, Champion the next realm, Origin the endgame; the Pit is always open', () => {
-  assert.deepEqual(gateAccess('pit', { source: 'device', victoryMarks: 0 }, false), { ok: true });
-  assert.deepEqual(gateAccess('outer', server(9), false), { ok: false, reason: 'rank', needs: 'Gladiator' }); // Legionary V
-  assert.deepEqual(gateAccess('outer', server(10), false), { ok: true }); // Gladiator I, no membership needed
-  assert.deepEqual(gateAccess('second-realm', server(19), true), { ok: false, reason: 'rank', needs: 'Champion' });
-  assert.deepEqual(gateAccess('second-realm', server(20), false), { ok: false, reason: 'membership', needs: 'membership' });
-  assert.deepEqual(gateAccess('second-realm', server(20), true), { ok: true });
-  assert.deepEqual(gateAccess('endgame', server(44), true), { ok: false, reason: 'rank', needs: 'Origin' });
-  assert.deepEqual(gateAccess('endgame', server(45), true), { ok: true });
+  assert.deepEqual(gateAccess('pit', { source: 'device', careerLevel: 1 }, false), { ok: true });
+  assert.deepEqual(gateAccess('outer', marks(9), false), { ok: false, reason: 'rank', needs: 'Gladiator' }); // Legionary V
+  assert.deepEqual(gateAccess('outer', marks(10), false), { ok: true }); // Gladiator I, no membership needed
+  assert.deepEqual(gateAccess('second-realm', marks(19), true), { ok: false, reason: 'rank', needs: 'Champion' });
+  assert.deepEqual(gateAccess('second-realm', marks(20), false), { ok: false, reason: 'membership', needs: 'membership' });
+  assert.deepEqual(gateAccess('second-realm', marks(20), true), { ok: true });
+  assert.deepEqual(gateAccess('endgame', marks(44), true), { ok: false, reason: 'rank', needs: 'Origin' });
+  assert.deepEqual(gateAccess('endgame', marks(45), true), { ok: true });
 });
 
 test('gates: device marks never open a world gate, whatever they say', () => {
-  assert.deepEqual(gateAccess('outer', { source: 'device', victoryMarks: 45 }, true), { ok: false, reason: 'unverified', needs: 'server-verified marks' });
+  assert.deepEqual(gateAccess('outer', { source: 'device', careerLevel: MAX_LEVEL }, true), { ok: false, reason: 'unverified', needs: 'a server-verified career level' });
 });
 
 test('gates: membership is derived from the gate (ruling 3), never authored', () => {
   assert.deepEqual([membershipRequired('pit'), membershipRequired('outer'), membershipRequired('second-realm'), membershipRequired('endgame')], [false, false, true, true]);
   const region = must(parseRegionDefinition(F.frontier()));
-  assert.deepEqual(regionAccess(region, server(10), false), { ok: true });
+  assert.deepEqual(regionAccess(region, marks(10), false), { ok: true });
   refused(parseRegionDefinition({ ...F.frontier(), membership: 'free' }), 'unknown-field', 'membership');
 });
 

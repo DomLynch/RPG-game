@@ -7,7 +7,7 @@
 // The graph is checked when the content loads, so a soft lock (a stage you can enter and never leave) is a content error, not a bug report.
 import { isTier, type Tier } from '../../src/grades.ts';
 import {
-  Issues, LOCAL_KEY, isPlainObject, join, ok, readArray, readEnum, readInt, readKind, readObject, readSchemaVersion, readString, readText, readTimestamp,
+  Issues, LOCAL_KEY, checkString, isPlainObject, join, ok, readArray, readEnum, readInt, readKind, readObject, readSchemaVersion, readString, readText, readTimestamp,
   fail, type Issue, type Obj, type Result,
 } from './core.ts';
 import { readId, readOptionalId, type CharacterInstanceId, type EncounterId, type FactionId, type ItemId, type LootTableId, type QuestId } from './ids.ts';
@@ -226,8 +226,13 @@ export type QuestState = {
   // Chronological. The text is final when written and never re-resolved: a later content edit does not rewrite what the player read.
   journal: JournalEntry[];
   flags: Record<string, boolean>;
+  // The stages whose rewards have been granted, in the current story version's stage names. A stage's rewards are granted once, ever
+  // (grantStageRewards); migrations carry this record through the stage map. Optional on the wire with a defined default of [] so every
+  // state written before it existed validates unchanged; always present once parsed.
+  rewarded: string[];
 };
-const STATE_KEYS = ['kind', 'schemaVersion', 'character', 'quest', 'storyVersion', 'stage', 'status', 'journal', 'flags'] as const;
+const STATE_KEYS = ['kind', 'schemaVersion', 'character', 'quest', 'storyVersion', 'stage', 'status', 'journal', 'flags', 'rewarded'] as const;
+const MAX_STAGES = 64;
 export const statusFor = (kind: StageKind): QuestStatus => (kind === 'finish' ? 'finished' : kind === 'fail' ? 'failed' : 'active');
 
 export function parseQuestState(raw: unknown, path = ''): Result<QuestState> {
@@ -257,7 +262,14 @@ export function parseQuestState(raw: unknown, path = ''): Result<QuestState> {
       else flags[name] = value;
     }
   }
-  return issues.finish({ kind: 'quest-state', schemaVersion: 1, character: character!, quest: quest!, storyVersion: storyVersion!, stage: stage!, status: status!, journal: journal!, flags: flags! });
+  let rewarded: string[] | undefined = [];
+  if (Object.hasOwn(obj, 'rewarded')) {
+    rewarded = readArray(issues, obj, 'rewarded', path, (v, p) => checkString(issues, v, p, { pattern: LOCAL_KEY }), { max: MAX_STAGES });
+    rewarded?.forEach((id, i) => {
+      if (rewarded!.indexOf(id) !== i) issues.add('duplicate-id', join(join(path, 'rewarded'), i), `stage "${id}" is recorded as rewarded twice`);
+    });
+  }
+  return issues.finish({ kind: 'quest-state', schemaVersion: 1, character: character!, quest: quest!, storyVersion: storyVersion!, stage: stage!, status: status!, journal: journal!, flags: flags!, rewarded: rewarded! });
 }
 
 // A state against the definition it claims to follow. A different story version is its own code so the caller migrates rather than
@@ -272,18 +284,53 @@ export function checkQuestState(state: QuestState, def: QuestDefinition, path = 
   const stage = def.stages.find((s) => s.id === state.stage);
   if (!stage) issues.add('unknown-id', join(path, 'stage'), `stage "${state.stage}" is not in ${def.id} v${def.storyVersion}`);
   else if (statusFor(stage.kind) !== state.status) issues.add('rule-violation', join(path, 'status'), `stage "${stage.id}" is a ${stage.kind} stage, so the status is "${statusFor(stage.kind)}"`);
+  state.rewarded.forEach((id, i) => {
+    if (!def.stages.some((s) => s.id === id)) issues.add('unknown-id', join(join(path, 'rewarded'), i), `rewarded stage "${id}" is not in ${def.id} v${def.storyVersion}`);
+  });
   return issues.list;
 }
 
-// Move a state written under an older story version onto the current one: the mapped stage if the migration names it, else the
-// migration's safe checkpoint. No migration for that version is an explicit failure, never a guess. Journal and flags are kept as written.
+// Move a state written under an older story version onto the current one. No migration for that version is an explicit failure, never a
+// guess. Journal and flags are kept as written.
+//   - An ACTIVE quest goes to the mapped stage if the migration names it, else to the migration's safe checkpoint.
+//   - A FINISHED or FAILED quest stays terminal: its ending must be mapped onto a current stage of the same kind (finish → finish,
+//     fail → fail). It is never sent to the checkpoint or any progress stage, where its stage rewards could pay a second time; with no
+//     such mapping the migration is refused ('no-migration') and the content needs a stageMap entry for that ending.
+//   - The rewards record is carried through the same stage map. A granted stage the map renames is recorded under its new name; one the
+//     map does not name is kept if a current stage still has that name (over-recording can only withhold a reward, never pay one twice)
+//     and dropped only when no current stage has it.
 export function migrateQuestState(state: QuestState, def: QuestDefinition): Result<QuestState> {
   if (state.quest !== def.id) return fail('rule-violation', 'quest', `state is for ${state.quest}, not ${def.id}`);
   if (state.storyVersion === def.storyVersion) return ok(state);
   if (state.storyVersion > def.storyVersion) return fail('story-version-mismatch', 'storyVersion', `state is from story version ${state.storyVersion}, newer than this content (${def.storyVersion})`);
   const migration = def.migrations.find((m) => m.fromVersion === state.storyVersion);
   if (!migration) return fail('no-migration', 'storyVersion', `${def.id} has no migration from story version ${state.storyVersion}`);
-  const stageId = migration.stageMap.find((e) => e.from === state.stage)?.to ?? migration.checkpoint;
-  const stage = def.stages.find((s) => s.id === stageId)!;
-  return ok({ ...state, storyVersion: def.storyVersion, stage: stage.id, status: statusFor(stage.kind) });
+  const mapped = migration.stageMap.find((e) => e.from === state.stage)?.to;
+  let stage: Stage;
+  if (state.status === 'active') {
+    stage = def.stages.find((s) => s.id === (mapped ?? migration.checkpoint))!;
+  } else {
+    if (mapped === undefined) return fail('no-migration', 'stage', `${state.quest} is ${state.status} at "${state.stage}"; v${def.storyVersion} must map that ending, a ${state.status} quest is never reopened at a checkpoint`);
+    stage = def.stages.find((s) => s.id === mapped)!;
+    if (statusFor(stage.kind) !== state.status) return fail('rule-violation', 'stage', `${state.quest} is ${state.status}; "${mapped}" is a ${stage.kind} stage, and a ${state.status} quest stays ${state.status}`);
+  }
+  const current = new Set(def.stages.map((s) => s.id));
+  const rewarded: string[] = [];
+  for (const id of state.rewarded) {
+    const to = migration.stageMap.find((e) => e.from === id)?.to ?? (current.has(id) ? id : undefined);
+    if (to !== undefined && !rewarded.includes(to)) rewarded.push(to);
+  }
+  return ok({ ...state, storyVersion: def.storyVersion, stage: stage.id, status: statusFor(stage.kind), rewarded });
+}
+
+// Grant a stage's rewards: once, ever, and only at the stage the quest is at, under the current story version. Returns the state with the
+// stage recorded and the rewards to pay; the server commits both in one transaction, so a retry finds the record and is refused.
+export function grantStageRewards(state: QuestState, def: QuestDefinition, stageId: string): Result<{ state: QuestState; rewards: Stage['rewards'] }> {
+  if (state.quest !== def.id) return fail('rule-violation', 'quest', `state is for ${state.quest}, not ${def.id}`);
+  if (state.storyVersion !== def.storyVersion) return fail('story-version-mismatch', 'storyVersion', `state is at story version ${state.storyVersion}; migrate to ${def.storyVersion} first`);
+  if (state.stage !== stageId) return fail('rule-violation', 'stage', `the quest is at "${state.stage}", not "${stageId}"`);
+  const stage = def.stages.find((s) => s.id === stageId);
+  if (!stage) return fail('unknown-id', 'stage', `stage "${stageId}" is not in ${def.id} v${def.storyVersion}`);
+  if (state.rewarded.includes(stageId)) return fail('duplicate-id', 'rewarded', `the rewards of "${stageId}" were already granted`);
+  return ok({ state: { ...state, rewarded: [...state.rewarded, stageId] }, rewards: stage.rewards });
 }

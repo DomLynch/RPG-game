@@ -2,6 +2,7 @@
 // level), custody and one-of-each, rank-to-equip, the Attack/RES spine, and LootTable.
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { levelOf } from '../../src/career.ts';
 import { CAPS, NAKED, loadoutFor } from '../../src/gear-stats.ts';
 import { ARMOUR_SLOTS } from '../../src/loot.ts';
 import type { Issue, Result } from './core.ts';
@@ -26,7 +27,8 @@ const inst = (raw: Raw): ItemInstance => { const r = parseItemInstance(raw); ass
 const PC = F.PC as CharacterInstanceId, OTHER = F.OTHER_PC as CharacterInstanceId, ALT = 'pc:dom-2' as CharacterInstanceId;
 const ACCOUNTS: Record<string, AccountId> = { [F.PC]: F.ACCOUNT as AccountId, [ALT]: F.ACCOUNT as AccountId, [F.OTHER_PC]: F.OTHER_ACCOUNT as AccountId };
 const accountOf = (pc: CharacterInstanceId): AccountId | undefined => ACCOUNTS[pc];
-const server = (victoryMarks: number): CareerStanding => ({ source: 'server', victoryMarks });
+// A legacy account's server standing: its career level is today's levelOf(marks).
+const server = (marks: number): CareerStanding => ({ source: 'server', careerLevel: levelOf(marks) });
 const pitProvenance = (patch: Raw = {}): Raw => ({ ...F.helmetInstance().provenance, ...patch });
 
 // ---- definitions --------------------------------------------------------------------------------------------------------------------
@@ -218,14 +220,16 @@ test('moveItem: compare-and-bump version within one holder; equipping and changi
   assert.equal(taken.value.boundTo, PC);
 });
 
-test('equipItem: owning is not wearing — the wearer needs the piece\'s rank, read from server marks', () => {
+test('equipItem: owning is not wearing — the wearer needs the piece\'s rank, read from the server career level', () => {
   const helmet = def(F.helmetDef()), token = def(F.tokenDef());
   const h = inst({ ...F.helmetInstance(), location: { kind: 'pack', owner: F.PC, index: 0 } }); // won at Gladiator
   refused(equipItem(h, helmet, 3, PC, server(9)), 'rule-violation', 'tier'); // Legionary V
   const worn = equipItem(h, helmet, 3, PC, server(10)); // Gladiator I
   assert.ok(worn.ok);
   assert.deepEqual(worn.value.location, { kind: 'equipped', owner: PC, slot: 'head' });
-  refused(equipItem(h, helmet, 3, PC, { source: 'device', victoryMarks: 45 }), 'rule-violation', 'standing');
+  refused(equipItem(h, helmet, 3, PC, { source: 'device', careerLevel: 46 }), 'rule-violation', 'standing');
+  refused(equipItem(h, helmet, 3, PC, { source: 'server', careerLevel: 47 }), 'out-of-range', 'standing.careerLevel'); // past MAX_LEVEL
+  refused(equipItem(h, helmet, 3, PC, { source: 'server', careerLevel: 11.5 }), 'wrong-type', 'standing.careerLevel');
   refused(equipItem(h, helmet, 2, PC, server(10)), 'version-conflict', 'version');
   refused(equipItem(h, helmet, 3, OTHER, server(45)), 'rule-violation', 'location');
   // An upgraded piece needs the rank it now counts at: Gladiator + 2 levels = Champion.
@@ -235,7 +239,7 @@ test('equipItem: owning is not wearing — the wearer needs the piece\'s rank, r
   assert.ok(equipItem(up, helmet, 3, PC, server(20)).ok);
   // A cosmetic has no rank requirement; on-equip binds it.
   const t = inst({ ...F.ironInstance(), item: 'item:ferry-token', quantity: 1, location: { kind: 'pack', owner: F.PC, index: 1 } });
-  const crest = equipItem(t, token, 0, PC, { source: 'device', victoryMarks: 0 });
+  const crest = equipItem(t, token, 0, PC, { source: 'device', careerLevel: 1 });
   assert.ok(crest.ok);
   assert.equal(crest.value.boundTo, PC);
 });

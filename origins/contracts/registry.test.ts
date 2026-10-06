@@ -1,12 +1,14 @@
 // O1 registry: a whole content bundle loads with every cross-reference resolved; every dangling id, duplicate and stray kind fails
 // explicitly; lookups never return undefined.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import type { Result } from './core.ts';
 import * as F from './fixtures.ts';
 import type { CharacterId, ItemId, QuestId } from './ids.ts';
 import { parseItemInstance } from './items.ts';
-import { character, checkInstances, costTable, itemDef, loadContent, quest, service } from './registry.ts';
+import type { UpgradeCostTable } from './economy.ts';
+import { character, checkCostTablePayable, checkInstances, costTable, itemDef, loadContent, quest, service } from './registry.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {
@@ -84,4 +86,28 @@ test('registry: instances are checked against content — unknown items refused,
   const issues = checkInstances(reg, [...instances, ghost]);
   assert.ok(issues.some((i) => i.code === 'unknown-id' && i.path === '[3].item'));
   assert.ok(checkInstances(reg, [instances[0]!, instances[0]!]).some((i) => i.code === 'duplicate-id'));
+});
+
+// A stack-1 material can only ever be held one at a time (one of each), so a cost line asking for two of it can never be paid. Every
+// cost line must be payable under the stacking and one-of-each rules, checked when the content loads.
+const trophyDef = (stack = 1): Raw => ({ ...F.graveIronDef(), id: 'item:boss-trophy', name: 'Boss trophy', rarity: 'relic', story: 'notable', stack });
+const trophyRows = (quantity: number): Raw[] => [{ level: 1, rarity: 'common', coin: 5, materials: [{ item: 'item:boss-trophy', quantity }] }];
+
+test('registry: a cost line must be payable — never more than one of a stack-1 material, never more than a stack', () => {
+  must(loadContent([...swap('costtable:forge', { rows: trophyRows(1) }), trophyDef()]));
+  refused(loadContent([...swap('costtable:forge', { rows: trophyRows(2) }), trophyDef()]), 'rule-violation', 'costtable:forge.rows[0].materials[0].quantity');
+  must(loadContent([...swap('costtable:forge', { rows: trophyRows(2) }), trophyDef(5)])); // a stackable trophy could be asked for twice
+  const iron = (quantity: number): Raw[] => [{ level: 1, rarity: 'common', coin: 5, materials: [{ item: 'item:grave-iron', quantity }] }];
+  must(loadContent(swap('costtable:forge', { rows: iron(50) })));
+  refused(loadContent(swap('costtable:forge', { rows: iron(51) })), 'rule-violation', 'costtable:forge.rows[0].materials[0].quantity');
+});
+
+test('registry: every material line in the blacksmith cost proposal is payable', () => {
+  const doc = readFileSync(new URL('../../docs/specs/origins/blacksmith-costs-proposal.md', import.meta.url), 'utf8');
+  const json = /```json\n([\s\S]*?)```/.exec(doc);
+  assert.ok(json, 'the proposal carries its cost table as JSON');
+  const table = JSON.parse(json[1]!) as UpgradeCostTable; // abridged on purpose (not every level), so only the lines are checked here
+  const defs = new Map([F.graveIronDef(), trophyDef()].map((d) => [d.id as ItemId, { stack: d.stack as number, category: d.category as 'material' }]));
+  assert.deepEqual(checkCostTablePayable(table, (id) => defs.get(id)), []);
+  assert.ok(table.rows.some((r) => r.materials.some((m) => m.item === ('item:boss-trophy' as ItemId))), 'the trophy lines are still in the proposal');
 });

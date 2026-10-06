@@ -26,7 +26,7 @@ import {
   legacyLootOfItemId, readId, readOptionalId,
   type AccountId, type CharacterId, type CharacterInstanceId, type ContainerId, type EncounterId, type ItemId, type ItemInstanceId, type LootTableId, type QuestId,
 } from './ids.ts';
-import { tierOf, type CareerStanding } from './world.ts';
+import { verifiedTier, type CareerStanding } from './world.ts';
 
 // ---- ItemDefinition ---------------------------------------------------------------------------------------------------------------
 
@@ -464,8 +464,9 @@ export function equipItem(inst: ItemInstance, def: ItemDefinition, expectedVersi
   if (ownerOf(inst.location) !== owner) return fail('rule-violation', 'location', `${inst.id} is not in ${owner}'s pack or bank`);
   const need = effectiveTier(inst);
   if (need !== null) {
-    if (standing.source !== 'server') return fail('rule-violation', 'standing', 'equipping a ranked piece needs server-verified marks');
-    if (tierLevel(tierOf(standing)) < tierLevel(need)) return fail('rule-violation', 'tier', `${inst.id} needs rank ${need}; the wearer is ${tierOf(standing)}`);
+    const wearer = verifiedTier(standing); // equipping a ranked piece needs a valid, server-verified career level
+    if (!wearer.ok) return wearer;
+    if (tierLevel(wearer.value) < tierLevel(need)) return fail('rule-violation', 'tier', `${inst.id} needs rank ${need}; the wearer is ${wearer.value}`);
   }
   return place(inst, def, { kind: 'equipped', owner, slot: paperdollOf(def.slot) });
 }

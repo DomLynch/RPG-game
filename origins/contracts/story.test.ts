@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Result } from './core.ts';
 import * as F from './fixtures.ts';
-import { checkQuestState, migrateQuestState, parseQuestDefinition, parseQuestState, type QuestDefinition, type QuestState } from './story.ts';
+import { checkQuestState, grantStageRewards, migrateQuestState, parseQuestDefinition, parseQuestState, type QuestDefinition, type QuestState } from './story.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {
@@ -96,4 +96,41 @@ test('quest state: migration maps a stage, falls back to the checkpoint, keeps t
   refused(migrateQuestState(state({ storyVersion: 3 }), q), 'story-version-mismatch', 'storyVersion');
   refused(migrateQuestState(state({ storyVersion: 1 }), { ...q, migrations: [] }), 'no-migration', 'storyVersion');
   refused(migrateQuestState(state({ quest: 'quest:other' }), q), 'rule-violation', 'quest');
+});
+
+const withMigration = (stageMap: { from: string; to: string }[]): QuestDefinition => ({ ...quest(), migrations: [{ fromVersion: 1, stageMap, checkpoint: 'erased' }] });
+
+test('quest state: a finished or failed quest stays terminal across a migration — never sent back to a checkpoint', () => {
+  // Finished, and the new version's map does not name its ending: refused, not reopened at the checkpoint (where its rewards could pay again).
+  refused(migrateQuestState(state({ storyVersion: 1, stage: 'returned', status: 'finished' }), withMigration([])), 'no-migration', 'stage');
+  refused(migrateQuestState(state({ storyVersion: 1, stage: 'old-ending', status: 'failed' }), quest()), 'no-migration', 'stage');
+  // Mapped onto an ending of the same kind: it stays finished there.
+  const kept = must(migrateQuestState(state({ storyVersion: 1, stage: 'old-ending', status: 'finished' }), withMigration([{ from: 'old-ending', to: 'bargained' }])));
+  assert.deepEqual([kept.storyVersion, kept.stage, kept.status], [2, 'bargained', 'finished']);
+  assert.deepEqual(checkQuestState(kept, quest()), []);
+  // Mapped onto a progress stage, or onto an ending of the other kind: refused.
+  refused(migrateQuestState(state({ storyVersion: 1, stage: 'old-ending', status: 'finished' }), withMigration([{ from: 'old-ending', to: 'courier' }])), 'rule-violation', 'stage');
+  refused(migrateQuestState(state({ storyVersion: 1, stage: 'old-ending', status: 'failed' }), withMigration([{ from: 'old-ending', to: 'returned' }])), 'rule-violation', 'stage');
+});
+
+test('quest state: stage rewards are recorded when granted and can never be granted again, across migrations', () => {
+  const q = quest();
+  assert.deepEqual(state().rewarded, [], 'a state written before the record existed reads as nothing granted');
+  const granted = must(grantStageRewards(state(), q, 'ruin'));
+  assert.deepEqual(granted.rewards, q.stages.find((s) => s.id === 'ruin')!.rewards);
+  assert.deepEqual(granted.state.rewarded, ['ruin']);
+  refused(grantStageRewards(granted.state, q, 'ruin'), 'duplicate-id', 'rewarded');
+  refused(grantStageRewards(state(), q, 'courier'), 'rule-violation', 'stage'); // rewards are granted at the stage the quest is at
+  refused(grantStageRewards(state({ storyVersion: 1 }), q, 'ruin'), 'story-version-mismatch', 'storyVersion');
+  // Migration carries the record through the stage map: 'missing' (granted under v1) is now 'courier', which therefore never pays again.
+  const migrated = must(migrateQuestState(state({ storyVersion: 1, stage: 'missing', rewarded: ['erased', 'missing', 'gone-for-good'] }), q));
+  assert.deepEqual([migrated.stage, migrated.rewarded], ['courier', ['erased', 'courier']]);
+  refused(grantStageRewards(migrated, q, 'courier'), 'duplicate-id', 'rewarded');
+  // A finished quest keeps its record through the migration too.
+  const done = must(migrateQuestState(state({ storyVersion: 1, stage: 'old-ending', status: 'finished', rewarded: ['old-ending'] }), withMigration([{ from: 'old-ending', to: 'returned' }])));
+  refused(grantStageRewards(done, q, 'returned'), 'duplicate-id', 'rewarded');
+  // The record's own shape.
+  refused(parseQuestState({ ...F.questState(), rewarded: ['ruin', 'ruin'] }), 'duplicate-id', 'rewarded[1]');
+  refused(parseQuestState({ ...F.questState(), rewarded: ['Ruin'] }), 'wrong-type', 'rewarded[0]');
+  assert.equal(checkQuestState(state({ rewarded: ['nowhere'] }), q)[0]!.code, 'unknown-id');
 });

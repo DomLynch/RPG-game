@@ -144,10 +144,8 @@ function crossCheck(issues: Issues, reg: Registry): void {
     need(reg.costTables, sv.costTable, `${sv.id}.costTable`, 'cost table');
   }
   for (const table of reg.costTables.values()) {
-    table.rows.forEach((row, i) => row.materials.forEach((m, j) => {
-      const mp = `${table.id}.rows[${i}].materials[${j}].item`;
-      if (need(reg.items, m.item, mp, 'item') && reg.items.get(m.item)!.category !== 'material') issues.add('rule-violation', mp, `${m.item} is not a material`);
-    }));
+    table.rows.forEach((row, i) => row.materials.forEach((m, j) => need(reg.items, m.item, `${table.id}.rows[${i}].materials[${j}].item`, 'item')));
+    for (const issue of checkCostTablePayable(table, (id) => reg.items.get(id))) if (issue.code !== 'unknown-id') issues.add(issue.code, issue.path, issue.message);
   }
   function checkConditionRefs(c: Condition, path: string): void {
     switch (c.kind) {
@@ -162,6 +160,26 @@ function crossCheck(issues: Issues, reg: Registry): void {
       default: return; // choice, flag and tier name nothing outside the quest
     }
   }
+}
+
+// Every material line of a cost table must be payable by a player who follows the rules: it names a material, and its quantity fits in
+// one stack of it. A stack-1 material can be held only one at a time (one of each, items.ts checkOneOfEach), so a line asking for two
+// of it could never be paid; for a stackable one, one stack always pays the line (and stackables merge). Exported so a proposal's table
+// can be checked line by line before it is complete.
+export function checkCostTablePayable(table: UpgradeCostTable, lookup: (id: ItemId) => Pick<ItemDefinition, 'category' | 'stack'> | undefined): Issue[] {
+  const issues = new Issues();
+  table.rows.forEach((row, i) => row.materials.forEach((m, j) => {
+    const mp = `${table.id}.rows[${i}].materials[${j}]`;
+    const def = lookup(m.item);
+    if (!def) return issues.add('unknown-id', join(mp, 'item'), `item ${m.item} is not defined in this content`);
+    if (def.category !== 'material') issues.add('rule-violation', join(mp, 'item'), `${m.item} is not a material`);
+    if (m.quantity > def.stack) {
+      issues.add('rule-violation', join(mp, 'quantity'), def.stack === 1
+        ? `${m.item} is a single-copy material (one of each), so a line can ask for 1, not ${m.quantity}`
+        : `${m.item} stacks to ${def.stack}; a line asks for at most one stack, not ${m.quantity}`);
+    }
+  }));
+  return issues.list;
 }
 
 // Lookups. An id that is not in the content is an explicit failure.

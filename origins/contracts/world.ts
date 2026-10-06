@@ -1,14 +1,16 @@
 // Origins O1: who and where — CharacterDefinition, CharacterInstance (and access from the one career), FactionDefinition with its
 // standing model, RegionDefinition and EncounterDefinition.
 //
-// Rank is NOT defined here. It is src/career.ts `rankFor(marks)` over the account's server-verified marks, exactly as the HUD, the
-// journal and the loot verifier read it. A CharacterInstance stores no marks, no rank and no stats (ruling 7: one career, one rank, one
-// stat set, server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
-import { MAX_LEVEL, rankFor, type Rank } from '../../src/career.ts';
+// Rank is NOT computed from marks or credit here. The gate input is the account's CAREER LEVEL, which the server's progression model
+// (origins/progression) computes from career credit on its rising requirement curve; this module only titles that level exactly as
+// src/career.ts does (TITLES, five levels per title, MAX_LEVEL). A legacy account's level is today's levelOf(marks), so every existing
+// rank reads the same. A CharacterInstance stores no marks, credit, level or stats (ruling 7: one career, one rank, one stat set,
+// server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
+import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
 import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
 import { isOpponentId, type OpponentId } from '../../src/roster.ts';
 import {
-  Issues, LOCAL_KEY, checkString, join, readArray, readBoolean, readEnum, readInt, readKind, readObject, readSchemaVersion,
+  Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readSchemaVersion,
   readString, readText, readTimestamp, type Issue, type Obj, type Result,
 } from './core.ts';
 import {
@@ -27,21 +29,49 @@ export const GATE_TIER: Readonly<Record<Gate, Tier>> = { pit: 'Recruit', outer: 
 // stored on content, so no region can be authored free past the outer gate by mistake.
 export const membershipRequired = (gate: Gate): boolean => gate === 'second-realm' || gate === 'endgame';
 
-// What the server says about the account's career: the marks from standing_of()/my_standing (src/career.ts shownMarks with a server
-// figure). `device` marks are a guest's or an offline count: the HUD may show them, but they never open a gate (blueprint §4: the
-// browser "does not validate its own campaign unlock").
-export type CareerStanding = { source: 'server' | 'device'; victoryMarks: number };
-export const rankOf = (standing: CareerStanding): Rank => rankFor(standing.victoryMarks);
-export const tierOf = (standing: CareerStanding): Tier => rankOf(standing).title;
+// What the server says about the account's career. `careerLevel` is SERVER-VERIFIED: the progression model computes it from the account's
+// career credit (Pit wins and world play alike) and the server hands it over; the browser never derives it. An integer 1..cap, where the
+// cap is src/career.ts MAX_LEVEL unless a caller passes a longer ladder. `device` standing is a guest's or an offline figure: the HUD may
+// show it, but it never opens a gate, equips a ranked piece or buys an upgrade (blueprint §4: the browser "does not validate its own
+// campaign unlock").
+export type CareerStanding = { source: 'server' | 'device'; careerLevel: number };
+export type CareerRank = { level: number; title: Tier };
 
-export type Denial = 'unverified' | 'rank' | 'membership';
-export type Access = { ok: true } | { ok: false; reason: Denial; needs: Tier | 'membership' | 'server-verified marks' };
+// src/career.ts rankFor's title rule, cap-parametric: five levels per title (RANK_STEPS), Origin at the top of any ladder.
+export const titleForLevel = (level: number, cap: number = MAX_LEVEL): Tier =>
+  TITLES[Math.min(TITLES.length - 1, Math.floor((Math.min(cap, Math.max(1, Math.floor(level))) - 1) / RANK_STEPS))]!;
 
-export function gateAccess(gate: Gate, standing: CareerStanding, hasMembership: boolean): Access {
+export function checkCareerStanding(standing: CareerStanding, cap: number = MAX_LEVEL, path = ''): Issue[] {
+  const issues = new Issues();
+  if (standing.source !== 'server' && standing.source !== 'device') issues.add('wrong-type', join(path, 'source'), 'a standing comes from the server or the device');
+  const level: unknown = standing.careerLevel;
+  if (typeof level !== 'number' || !Number.isInteger(level)) issues.add('wrong-type', join(path, 'careerLevel'), 'a career level is a whole number');
+  else if (level < 1 || level > cap) issues.add('out-of-range', join(path, 'careerLevel'), `a career level is 1..${cap}, not ${level}`);
+  return issues.list;
+}
+
+// The rank of a VALID standing (check it first; verifiedTier does both).
+export const rankOf = (standing: CareerStanding, cap: number = MAX_LEVEL): CareerRank => ({ level: standing.careerLevel, title: titleForLevel(standing.careerLevel, cap) });
+export const tierOf = (standing: CareerStanding, cap: number = MAX_LEVEL): Tier => rankOf(standing, cap).title;
+
+// The one check every rank-gated action uses (gates, equipping, the smith): server-verified, a valid level, then its title. Paths are
+// under `standing`.
+export function verifiedTier(standing: CareerStanding, cap: number = MAX_LEVEL): Result<Tier> {
+  const invalid = checkCareerStanding(standing, cap, 'standing');
+  if (invalid.length) return { ok: false, issues: invalid };
+  if (standing.source !== 'server') return fail('rule-violation', 'standing', 'this needs a server-verified career level');
+  return ok(tierOf(standing, cap));
+}
+
+export type Denial = 'unverified' | 'invalid' | 'rank' | 'membership';
+export type Access = { ok: true } | { ok: false; reason: Denial; needs: Tier | 'membership' | 'a server-verified career level' | 'a valid career level' };
+
+export function gateAccess(gate: Gate, standing: CareerStanding, hasMembership: boolean, cap: number = MAX_LEVEL): Access {
   if (gate === 'pit') return { ok: true };
-  if (standing.source !== 'server') return { ok: false, reason: 'unverified', needs: 'server-verified marks' };
+  if (checkCareerStanding(standing, cap).length) return { ok: false, reason: 'invalid', needs: 'a valid career level' };
+  if (standing.source !== 'server') return { ok: false, reason: 'unverified', needs: 'a server-verified career level' };
   const need = GATE_TIER[gate];
-  if (tierLevel(tierOf(standing)) < tierLevel(need)) return { ok: false, reason: 'rank', needs: need };
+  if (tierLevel(tierOf(standing, cap)) < tierLevel(need)) return { ok: false, reason: 'rank', needs: need };
   if (membershipRequired(gate) && !hasMembership) return { ok: false, reason: 'membership', needs: 'membership' };
   return { ok: true };
 }
@@ -53,14 +83,14 @@ export type CharacterInstance = {
   kind: 'character-instance';
   schemaVersion: 1;
   id: CharacterInstanceId;
-  // The career link: the account. Its marks (standing_of) are the character's career; there is one career per account today, and a
-  // second character on one account shares it rather than forking a second ladder.
+  // The career link: the account. Its server career level (CareerStanding) is the character's career; there is one career per account
+  // today, and a second character on one account shares it rather than forking a second ladder.
   account: AccountId;
   name: string;
   createdAt: string;
 };
-// Deliberately absent, and refused as unknown fields: marks, rank, level, stats, inventory, equipped, bank. Each already has exactly one
-// authority (the server standing, rankFor, the ItemInstance location) and a copy here would be a second one.
+// Deliberately absent, and refused as unknown fields: marks, credit, rank, level, stats, inventory, equipped, bank. Each already has
+// exactly one authority (the server's progression model and standing, the ItemInstance location) and a copy here would be a second one.
 const CHARACTER_INSTANCE_KEYS = ['kind', 'schemaVersion', 'id', 'account', 'name', 'createdAt'] as const;
 
 export function parseCharacterInstance(raw: unknown, path = ''): Result<CharacterInstance> {

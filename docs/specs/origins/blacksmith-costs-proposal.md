@@ -38,8 +38,10 @@ Level L is priced at **(1 + L/2) wins** of income at the lowest rank that can we
 | 6 | 560 | Master (7) | 140 | 4.0 | 4 × grave iron |
 | 7 | 720 | Primus (8) | 160 | 4.5 | 4 × grave iron + 1 boss trophy |
 | 8 | 900 | Invictus (9) | 180 | 5.0 | 5 × grave iron + 1 boss trophy |
-| 9 | 1,100 | Origin (10) | 200 | 5.5 | 6 × grave iron + 2 boss trophies |
+| 9 | 1,100 | Origin (10) | 200 | 5.5 | 6 × grave iron + 1 boss trophy |
 | **Total** | **4,380** | | | **31.5** | |
+
+**Every material line must be payable** (checked when the content loads, `registry.ts` `checkCostTablePayable`): a line asks for at most one stack of its material. A boss trophy is a single-copy material (stack 1), and one of each means a player can hold only one at a time, so a line can ask for **one** trophy, never two. The earlier draft's "2 boss trophies" at level 9 could never have been paid; level 9 now asks for one, like levels 7 and 8 (each upgrade spends the trophy, so a player beats the boss again for the next level). Grave iron stacks to 50, so its lines (at most 6) fit in one stack.
 
 A piece won at a higher rank needs fewer levels: a Gladiator piece tops out at +7. Its player also already earns more per win, so the same price list costs them fewer wins.
 
@@ -80,7 +82,7 @@ Prices are rounded up to the nearest 10. Why rarer costs more: players keep and 
   "rows": [
     { "level": 1, "rarity": "common", "coin": 60, "materials": [] },
     { "level": 4, "rarity": "common", "coin": 300, "materials": [{ "item": "item:grave-iron", "quantity": 2 }] },
-    { "level": 9, "rarity": "relic", "coin": 2200, "materials": [{ "item": "item:grave-iron", "quantity": 6 }, { "item": "item:boss-trophy", "quantity": 2 }] }
+    { "level": 9, "rarity": "relic", "coin": 2200, "materials": [{ "item": "item:grave-iron", "quantity": 6 }, { "item": "item:boss-trophy", "quantity": 1 }] }
   ] }
 ```
 

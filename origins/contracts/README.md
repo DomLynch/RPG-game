@@ -2,7 +2,7 @@
 
 Versioned TypeScript schemas, hand-written validators and a few pure server-side transactions for Frankendom: Origins. They come from the blueprint (`docs/briefs/origins/origins-blueprint-2026-10-06.md`, with Dom's rulings at the top), the clean-room specs in `docs/specs/origins/`, and Dom's decisions of 2026-10-06 passed on by the Lead. None of this is donor code.
 
-**Status:** paper and prototype only. Nothing in `src/` imports this folder, and nothing ships. The dependency runs one way: the contracts import read-only from `src/` (`career.ts` `rankFor`, `gear-stats.ts` `loadoutFor`/`CAPS`/`SLOT_WEIGHT`, `grades.ts`, `loot.ts`, `legends.ts`, `roster.ts`), so rank, gear pricing and today's ids each still have exactly one source. There are no new dependencies.
+**Status:** paper and prototype only. Nothing in `src/` imports this folder, and nothing ships. The dependency runs one way: the contracts import read-only from `src/` (`career.ts` `TITLES`/`MAX_LEVEL`/`RANK_STEPS`, `gear-stats.ts` `loadoutFor`/`CAPS`/`SLOT_WEIGHT`, `grades.ts`, `loot.ts`, `legends.ts`, `roster.ts`), so rank titles, gear pricing and today's ids each still have exactly one source. **Career level is not computed here:** the gate input is the server-verified `careerLevel`, which the progression model computes from career credit on its rising requirement curve. That curve lives in `origins/progression`, not in these contracts. There are no new dependencies.
 
 **Checks** (run on the VPS, never on the shared Mac):
 
@@ -11,7 +11,7 @@ node --test origins/contracts/*.test.ts      # Node's built-in runner, like test
 npx tsc -p <temp tsconfig extending ./tsconfig.json, types [vite/client, node], include [origins/contracts]>
 ```
 
-Last run: 69 tests, 69 pass. `tsc` strict is clean. `eslint origins/contracts` is clean.
+Last run: 80 tests, 80 pass. `tsc` strict is clean. `eslint origins/contracts` is clean.
 
 ## Files
 
@@ -33,7 +33,7 @@ Last run: 69 tests, 69 pass. `tsc` strict is clean. `eslint origins/contracts` i
 - **Unknown fields are refused** (`unknown-field`). A field this build does not know is either a typo or newer data. An older build must never half-read a record and write it back without the fields it skipped; `src/loot.ts` `cleanLoot` does exactly that today (O0 baseline §5, collision 3).
 - **Schema versions.** Every top-level record carries `kind` and `schemaVersion`. A missing version is `missing-version`. Any version the reader does not list, older or newer, is `unsupported-version`. Every contract is at version 1.
 - **Unknown IDs.** A malformed id is `bad-id`. A well-formed id in the wrong namespace is `wrong-namespace`. A reserved legacy form that names nothing in today's tables is `legacy-unknown`. A reference to an id the loaded content does not define is `unknown-id`, reported at the path that made the reference. Registry lookups return `unknown-id` and never return `undefined`.
-- **One inventory authority.** An `ItemInstance` carries its own single `location`, and nothing else lists items. `CharacterInstance` refuses `inventory`, `equipped`, `bank`, `victoryMarks`, `rank`, `level` and `stats` as unknown fields. `checkCustody` enforces one id = one copy, one mint key = one mint, and one occupant per slot.
+- **One inventory authority.** An `ItemInstance` carries its own single `location`, and nothing else lists items. `CharacterInstance` refuses `inventory`, `equipped`, `bank`, `victoryMarks`, `rank`, `level` and `stats` as unknown fields (the career level arrives in a `CareerStanding` read from the server, never stored on the character). `checkCustody` enforces one id = one copy, one mint key = one mint, and one occupant per slot.
 
 ## Contracts
 
@@ -41,21 +41,21 @@ Last run: 69 tests, 69 pass. `tsc` strict is clean. `eslint origins/contracts` i
 |---|---|---|---|
 | ID scheme (`ids.ts`) | n/a | Stable, namespaced, branded ids. Legacy ids are embedded, not re-minted | O1 |
 | `CharacterDefinition` | 1 | A named figure: lore identity, faction, relationships, quest roles, presentations, encounter forms (a roster opponent at a level 1..46 and/or an encounter), essential flag, a 24-hour routine | O1, O4 (NPCs), O6 |
-| `CharacterInstance` | 1 | A player character. It links to the career through its account. Rank is always `rankFor(server marks)`, and no copy of marks, rank, stats or items is stored | O1, O3, O4 |
-| Gates (`gateAccess`, `regionAccess`) | n/a | Ruling 2: Gladiator opens the outer gate, Champion the next realm, Origin the endgame. Ruling 3: membership is derived from the gate, not authored. Device marks never open a gate | O4 |
+| `CharacterInstance` | 1 | A player character. It links to the career through its account. Rank is always the title of the account's server-verified career level, and no copy of marks, credit, level, rank, stats or items is stored | O1, O3, O4 |
+| `CareerStanding` and gates (`checkCareerStanding`, `verifiedTier`, `gateAccess`, `regionAccess`) | n/a | The input is `{ source, careerLevel }`: an integer 1..`MAX_LEVEL` (cap-parametric), server-verified, computed by `origins/progression` from career credit. The title is `TITLES[floor((level − 1) / 5)]`, as in `src/career.ts`, Origin at the top of any ladder. A legacy account's level is `levelOf(marks)`, so every existing rank is unchanged, and a level reached through world play opens gates the same way. Ruling 2: Gladiator (level 11) opens the outer gate, Champion the next realm, Origin the endgame. Ruling 3: membership is derived from the gate. A device standing, or an out-of-range or non-integer level, opens nothing | O4 |
 | `FactionDefinition` | 1 | Dense ranks (up to 10, ascending standing) and directional reactions as one of four attitudes | O6 |
 | `FactionStanding` | 1 | A character's standing, bounded to −1000..1000, plus rank and expelled. `attitudeOf`, `canPromote` (offered, never automatic), `adjustStanding` (clamped) | O6 |
 | `RegionDefinition` | 1 | Gate, waypoints, portals (two-way references checked), landmarks, spawns, quest triggers, asset manifest | O3 (Exchange), O4 |
 | `EncounterDefinition` | 1 | A staged boss or public event: ordered stages (kills to advance, population, weighted roster, stage loot), boss and boss loot, decay, restart, personal reward threshold | O2 (staged boss proof), O5, O6 |
 | `QuestDefinition` | 1 | Named stages (progress, finish or fail), transitions guarded by typed conditions, journal text, stage rewards, a `storyVersion` and migrations. The graph is checked at load: no soft locks, no orphan stages, at least one finish | O2 (journal proof), O4 |
-| `QuestState` | 1 | One character's progress: story version, stage, status, a chronological journal of final text, and flags. `checkQuestState`, `migrateQuestState` | O2, O4 |
+| `QuestState` | 1 | One character's progress: story version, stage, status, a chronological journal of final text, flags, and `rewarded` (stages whose rewards were granted; absent = `[]`). `checkQuestState`, `migrateQuestState`, `grantStageRewards` (once per stage, ever) | O2, O4 |
 | `ItemDefinition` | 1 | Category, **four rarities**, power budget, material, appearance and story significance as five separate fields. Binding, stack size | O1, O2, O3 |
 | `ItemInstance` | 1 | One physical copy: unique id, one location, version (optimistic lock), tier won at, optional `upgradeLevel` (absent = 0), binding, permanent provenance, append-only history | O2 (inventory proof), O3 |
 | `LootTable` | 1 | Rolls (probability gate, repeat, independent or weighted with drop limits), entries with integer chances and level gates, one currency range, the take-one or collect presentation, personal distribution, a repeat-attempt fallback | O2, O6 |
 | `Trade` | 1 | Two-sided escrowed trade. Settles only at the Concord Exchange. An accept names the offer version. Gifts are allowed | O3 |
 | `ServiceDefinition` | 1 | The generic NPC-service pattern (npc, region, kind, cost table, what it accepts). Today `upgrade` only; an armourer or merchant adds a kind | O3 |
-| `UpgradeCostTable` | 1 | Upgrade prices as data, with its own `revision`: one row per (level, rarity), coin plus optional material lines | O3 |
-| `UpgradeRequest` / `UpgradeReceipt` | 1 | The blacksmith's request (with idempotency key and expected version) and its receipt | O3 |
+| `UpgradeCostTable` | 1 | Upgrade prices as data, with its own `revision`: one row per (level, rarity), coin plus up to 4 material lines. At load every line must be payable: a material, at most one stack of it (so 1 for a stack-1 material) | O3 |
+| `UpgradeRequest` / `UpgradeReceipt` | 1 | The blacksmith's request (with idempotency key and expected version) and its receipt: one material line per instance spent, no instance twice, at most `MAX_UPGRADE_MATERIAL_INPUTS` (64) lines, so every receipt the smith writes parses | O3 |
 
 ### The fixed spine
 
@@ -70,13 +70,14 @@ Gear stays on Attack and RES, resolved before the fight by `src/gear-stats.ts`, 
 - **Provenance is permanent.** A Pit piece's provenance names `wonBy` (character), `fromLegend` (`<opponent>-<rung>`, checked against `PORTRAIT_KEYS`, the piece's opponent and the rank) and `atRank`, with `at` as the date. Trades and upgrades only append to `history`. `checkHistoryKept` proves the provenance is unchanged and the old history is a prefix of the new one.
 - **One of each per player** (`checkOneOfEach`). A player is an account. The rule covers worn, pack, bank, account vault and open trade offers, and applies to single-copy definitions only (stackables merge). `settleTrade` refuses a trade that would break it, and nothing moves.
 - **Trades are valid only at the Concord Exchange.** `Trade.region` must be `region:concord-exchange`. Any offer change clears both accepts and bumps the version. An accept names the version it accepts.
+- **No id counts twice.** Every function that takes a list of instance ids or instances refuses a repeat with `duplicate-id`: `changeOffer` (twice on one side, or already on the other side), `settleTrade` (an offer or a holdings list naming one piece twice), `performUpgrade` (one material stack offered twice) and `parseUpgradeReceipt`. `moveItem` and `equipItem` take one instance; `resolveLoadout` and `checkOneOfEach` take instances, and `checkCustody` reports a repeated id.
 - **Owning is not wearing.** `equipItem` requires server-verified rank ≥ the piece's effective tier (won rank + upgrade levels). `moveItem` refuses to equip, and refuses any move that changes who holds the item: that is a trade.
 - **Crafting is out.** There is no craft provenance, no recipes and no material rules beyond the blacksmith's optional cost lines.
 - **NPC services; the blacksmith is first** (`performUpgrade`, server-only):
   - It raises `upgradeLevel` by one level per request. Each level is worth one rung of the piece's own slot weight, and the effective tier is clamped at Origin.
   - It refuses an upgrade that would have no effect: a zero-weight slot, or a piece already worth Origin.
-  - It requires the payer's rank to reach the upgraded piece's effective tier.
-  - It charges one-currency coin plus optional material lines from the cost table, all or nothing.
+  - It requires the payer's rank (a valid, server-verified career level) to reach the upgraded piece's effective tier.
+  - It charges one-currency coin plus optional material lines from the cost table, all or nothing. A material stack offered twice is refused before anything is spent, and so is an offer of more than 64 instances.
   - It writes a receipt (cost table id and revision included) and appends `history: { kind: 'upgrade', smith, level, receipt }`.
   - A repeated idempotency key returns the original receipt with no new charge. A reused key on a different request is refused. A stale item version is refused.
   - The upgrade level travels with the piece on trade.
@@ -124,6 +125,8 @@ Each item below is a change made on purpose, with the reason.
 13. Stages are named, and the index never goes down (there is no `SetJournalIndex`). There is no restart propagation by display name.
 14. An unknown stage or condition is a **content-load error**. OpenMW raises the index silently. *Reason:* blueprint test matrix, "no silent invented progression".
 15. Saved journal text is kept even if its stage later disappears; OpenMW drops it on load. Story-version migration maps stages or falls back to a named checkpoint, and with no migration the state is refused. *Reason:* blueprint §9, "store the version of a story… provide migrations or a safe checkpoint".
+    - **Changed (review fix):** the checkpoint is for active quests only. A finished or failed quest stays terminal: its ending must be mapped onto a current stage of the same kind, or the migration is refused (`no-migration`); mapping it onto a progress stage or the other kind of ending is a `rule-violation`. Before, a finished quest with no mapping went back to the active checkpoint, where its stage rewards could pay again.
+    - **New:** `QuestState.rewarded` records each stage whose rewards were granted; `grantStageRewards` refuses a second grant (`duplicate-id`), and migrations carry the record through the stage map (an unmapped id is kept while a current stage has that name). *Reason:* rewards are paid once, ever.
 16. The story graph is checked at load (reachability, a way out of every progress stage, at least one finish). This has no donor equivalent. *Reason:* "no irreversible soft lock".
 
 **Factions (openmw-factions-disposition, gothic-guilds-attitudes):**
@@ -143,9 +146,14 @@ Each item below is a change made on purpose, with the reason.
 
 **Upgrades (no donor spec; Dom's 2026-10-06 ruling):**
 26. Each upgrade level is one rung of the piece's own slot weight, clamped at Origin. That makes an upgraded piece worth at most what the same piece won at Origin is worth, and its wearer needs that rank.
+27. **Changed (review fix):** a cost line must be payable under the stacking and one-of-each rules, checked at content load (`checkCostTablePayable`): at most one stack of a material, so a stack-1 material (a boss trophy) can be asked for once per line, never twice. The proposal's level-9 "2 boss trophies" became 1. We are stricter than strictly necessary for stackables (several stacks could pay a larger line) on purpose: one stack always pays, and it keeps a receipt small.
+28. **Changed (review fix):** a receipt has one material line per instance spent and refuses a repeated instance; the smith refuses more than 64 material instances, which is the receipt's own line limit, so a server receipt always parses.
+
+**Career (ruling 7, one progression):**
+29. **Changed (review fix):** gates, equipping and the smith read the server-verified **career level**, not victory marks. The contracts title a level exactly as `src/career.ts` (`TITLES`, five levels per title, `MAX_LEVEL`, cap-parametric), and they do not compute a level from marks or credit: the rising credit curve is the progression model's (`origins/progression`). Legacy accounts are unchanged because their level is today's `levelOf(marks)`. An out-of-range or non-integer level is refused (`checkCareerStanding`), and a gate reports it as `invalid`.
 
 **Process:**
-27. Tests use Node's built-in runner (`node:test`) rather than vitest, matching `tests/*.test.ts`. vitest is not a dependency (Lead confirmed).
+30. Tests use Node's built-in runner (`node:test`) rather than vitest, matching `tests/*.test.ts`. vitest is not a dependency (Lead confirmed).
 
 ## Proposal: legacy loot ids → item instances (needs arena Lead + Backend sign-off; not before beta)
 
@@ -195,4 +203,4 @@ This is a proposal only. Nothing in `src/`, `supabase/` or `scripts/` changes, a
 - An O2 loot roller (seeded, deterministic) and an encounter runtime, built on `LootTable` and `EncounterDefinition`.
 - A currency ledger contract (the balance is an input to `performUpgrade` today) and currency in trades.
 - Guild vault roles and limits, and the market escrow (blueprint §8: later).
-- The ruling-7 progression proposal (world kills feeding the one career) is a separate deliverable and is not encoded here.
+- The ruling-7 progression model (career credit from Pit and world play, and the rising level curve) lives in `origins/progression`. These contracts take its output, the server-verified career level, and encode no curve.
