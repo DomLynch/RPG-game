@@ -657,7 +657,7 @@ test('online clock ignores stored solo tempo; a contact holds only the drawn fra
       app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
       let samples = 0;
       let events: combat.Practice['events'] = [];
-      live.startPvp({ frame: () => { samples++; return { ...live.practice, events }; },
+      live.startPvp({ frame: () => { samples++; const now = events; events = []; return { ...live.practice, events: now }; },   // a contact is one tick's event, delivered once (a hit that repeated every tick would hold every tick)
         get practice() { return live.practice; }, settled: false });
       // Actual main frame loop and Match wiring, including each ordinary/heavy/kill contact.
       for (const type of ['Hit', 'Blocked', 'Parried', 'GuardBroken', 'PostureBroken', 'Killed', 'SpecialLanded'] as const) {
