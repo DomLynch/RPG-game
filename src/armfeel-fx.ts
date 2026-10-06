@@ -17,9 +17,9 @@ export function createBurstPool(scene: THREE.Scene) {
     mesh,
     get alive() { return live; },
     get capacity() { return slots.length; },
-    burst(feel: Feel, x: number, y: number, z: number, dx: number, dz: number, kill: boolean): void {
+    burst(feel: Feel, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, grow = 1): void {
       const count = bloodCount(feel, kill);
-      for (let i = 0; i < count; i++) spawnBlood(slots[next++ % slots.length], i, x, y, z, dx, dz, kill, feel, rnd);
+      for (let i = 0; i < count; i++) spawnBlood(slots[next++ % slots.length], i, x, y, z, dx, dz, kill, feel, rnd, grow);
     },
     update(dt: number): void {
       live = 0;
