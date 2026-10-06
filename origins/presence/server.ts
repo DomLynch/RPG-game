@@ -1,5 +1,5 @@
 // The presence service (docs/specs/origins/one-shard.md §1-§5): who is where, in memory, rebuilt from nothing after a restart. It writes no rows and
-// decides nothing that pays. wss://frankendom.com/origins/presence?token=<supabase access token>[&friend=<account id>] (nginx -> 127.0.0.1).
+// decides nothing that pays. wss://frankendom.com/origins/presence[?friend=<account id>] (nginx -> 127.0.0.1) with the Supabase access token in the Sec-WebSocket-Protocol header (`frankendom.presence.v1, token.<jwt>`), never in the URL: a URL lands in proxy logs and browser history.
 // No npm dependency, like the duel relay: the RFC 6455 subset a browser needs (masked client frames, no fragments, no extensions).
 // Skeleton: movement, interest, layers, caps and counts. Names, guild/party lookup and speech arrive with their own PRs; a player is its account id for now.
 import { createHash } from 'node:crypto';
@@ -10,6 +10,7 @@ import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+export const PROTOCOL = 'frankendom.presence.v1';   // the one subprotocol the client offers next to `token.<jwt>`; the server echoes this one, never the token
 const UUID = /^[0-9a-f-]{36}$/;
 export const LIMITS = { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 };
 export type Limits = typeof LIMITS;
@@ -22,12 +23,12 @@ function frame(opcode: number, payload: Uint8Array): Buffer {
 export type PresenceOptions = {
   verify: (token: string) => Promise<string | null>;   // the client's access token -> its account id (origins/server/auth.ts supabaseVerify)
   rules?: Rules; limits?: Limits; maxLayers?: number;
-  now?: () => number; log?: (line: string) => void; logEveryMs?: number; ipHeader?: boolean;   // ipHeader: trust nginx's X-Real-IP (only behind nginx on 127.0.0.1)
+  now?: () => number; log?: (line: string) => void; logEveryMs?: number; sweepEveryMs?: number; ipHeader?: boolean;   // ipHeader: trust nginx's X-Real-IP (only behind nginx on 127.0.0.1)
 };
 export type Presence = { server: Server; world: World; port: () => number; stats: () => Record<string, unknown>; close: () => Promise<void> };
 
 export function createPresence(opts: PresenceOptions): Presence {
-  const { verify, rules = RULES, limits = LIMITS, now = Date.now, log = console.log, logEveryMs = 60_000 } = opts;
+  const { verify, rules = RULES, limits = LIMITS, now = Date.now, log = console.log, logEveryMs = 60_000, sweepEveryMs = 60_000 } = opts;
   const world = new World(rules, opts.maxLayers ?? 8);
   const sockets = new Map<Player, Duplex>();
   const perIp = new Map<string, { sockets: number; windowStart: number; joins: number }>();
@@ -58,9 +59,11 @@ export function createPresence(opts: PresenceOptions): Presence {
     log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)}`);
     counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
   }, logEveryMs);
-  for (const t of [ticker, beats, reporter]) t.unref();
+  // perIp must not grow with every address ever seen: an entry with no socket whose join window has passed holds nothing, so it goes.
+  const sweeper = setInterval(() => { const t = now(); for (const [ip, b] of perIp) if (b.sockets <= 0 && t - b.windowStart >= 60_000) perIp.delete(ip); }, sweepEveryMs);
+  for (const t of [ticker, beats, reporter, sweeper]) t.unref();
 
-  const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut) });
+  const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut) });
   const server = createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/origins/presence/health') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return void res.end(JSON.stringify(stats())); }
     res.writeHead(404); res.end();
@@ -74,8 +77,10 @@ export function createPresence(opts: PresenceOptions): Presence {
     let b = perIp.get(ip); if (!b || t - b.windowStart >= 60_000) { b = { sockets: b?.sockets ?? 0, windowStart: t, joins: 0 }; perIp.set(ip, b); }
     if (++b.joins > limits.ipJoinsPerMinute) return refuse(429, 'join-rate');
     if (b.sockets >= limits.ipSockets) return refuse(429, 'ip-sockets');
-    const token = url.searchParams.get('token'), friend = url.searchParams.get('friend')?.toLowerCase();
-    if (!token || token.length > 4096 || (friend && !UUID.test(friend))) return refuse(400, 'bad-request');
+    if (url.searchParams.has('token')) return refuse(400, 'token-in-url');   // a token in the URL is already in a log: refuse it loudly rather than accept it
+    const offered = String(req.headers['sec-websocket-protocol'] ?? '').split(',').map(x => x.trim()), friend = url.searchParams.get('friend')?.toLowerCase();
+    const token = offered.find(x => x.startsWith('token.'))?.slice(6);
+    if (!offered.includes(PROTOCOL) || !token || token.length > 4096 || (friend && !UUID.test(friend))) return refuse(400, 'bad-request');
     const bucket = b; bucket.sockets++;   // held while the token is being checked, so a burst of slow checks cannot overshoot the cap
     socket.on('error', () => {});
     void verify(token).then(account => {
@@ -83,7 +88,7 @@ export function createPresence(opts: PresenceOptions): Presence {
       const player = world.join(account, now(), friend);
       if (!player) { bucket.sockets--; return refuse(503, world.byAccount.has(account) ? 'already-in' : 'world-full'); }
       sockets.set(player, socket); counts.joined++;
-      socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\n\r\n`);
+      socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\nSec-WebSocket-Protocol: ${PROTOCOL}\r\n\r\n`);
       (socket as Socket).setNoDelay(true);
       socket.write(frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: player.id, layer: player.layer.id }))));
       let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout;
@@ -124,6 +129,6 @@ export function createPresence(opts: PresenceOptions): Presence {
 
   return {
     server, world, stats, port: () => (server.address() as { port: number }).port,
-    close: () => new Promise(done => { for (const t of [ticker, beats, reporter]) clearInterval(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
+    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper]) clearInterval(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
   };
 }

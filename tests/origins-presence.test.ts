@@ -108,7 +108,7 @@ test('a player with no known position is placed by its first pose, then clamped 
 
 // The real socket path: Node's built-in WebSocket client against the service on loopback.
 const open = (port: number, token: string, extra = ''): Promise<{ ws: WebSocket; hello: { id: number; layer: number }; downs: ReturnType<typeof decodeDown>[] }> => new Promise((resolve, reject) => {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence?token=${token}${extra}`);
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence${extra ? `?${extra.replace(/^&/, '')}` : ''}`, ['frankendom.presence.v1', `token.${token}`]);
   ws.binaryType = 'arraybuffer';
   const downs: ReturnType<typeof decodeDown>[] = [];
   ws.onmessage = ev => {
@@ -153,5 +153,43 @@ test('socket: the world-full and already-in refusals', async () => {
     await assert.rejects(open(p.port(), 'u2'), /refused/, 'the only layer is full and no more may open');
     await assert.rejects(open(p.port(), 'u1'), /refused/, 'the same account is in once');
     a.ws.close();
+  } finally { await p.close(); }
+});
+
+test('socket: the token rides the Sec-WebSocket-Protocol header, is never echoed, and a token in the URL is refused', async () => {
+  const p = createPresence({ verify, log: () => {} });
+  await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
+  const port = p.port();
+  try {
+    const a = await open(port, 'u1');
+    assert.equal(a.ws.protocol, 'frankendom.presence.v1', 'the server picks the plain protocol name, not the token entry');
+    a.ws.close();
+    const tryOpen = (url: string, protocols?: string[]) => new Promise<'open' | 'refused'>(resolve => {
+      const ws = new WebSocket(url, protocols); ws.onopen = () => { ws.close(); resolve('open'); }; ws.onerror = () => resolve('refused');
+    });
+    assert.equal(await tryOpen(`ws://127.0.0.1:${port}/origins/presence?token=u2`, ['frankendom.presence.v1']), 'refused', 'a token in the URL is refused even when it is valid');
+    assert.equal(await tryOpen(`ws://127.0.0.1:${port}/origins/presence?token=u2`, ['frankendom.presence.v1', 'token.u2']), 'refused', 'and so is a header token next to a URL token');
+    assert.equal(await tryOpen(`ws://127.0.0.1:${port}/origins/presence`), 'refused', 'no subprotocol, no token');
+    assert.equal(await tryOpen(`ws://127.0.0.1:${port}/origins/presence`, ['token.u2']), 'refused', 'a token without the protocol name');
+    assert.equal(await tryOpen(`ws://127.0.0.1:${port}/origins/presence`, ['frankendom.presence.v1']), 'refused', 'the protocol name without a token');
+    const refusedWhy = (p.stats() as { refused: Record<string, number> }).refused;
+    assert.equal(refusedWhy['token-in-url'], 2);
+  } finally { await p.close(); }
+});
+
+test('perIp is swept: an address with no socket and an expired join window is forgotten', async () => {
+  let clock = 1_000_000;
+  const p = createPresence({ verify, log: () => {}, now: () => clock, sweepEveryMs: 20 });
+  await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
+  const port = p.port();
+  try {
+    const a = await open(port, 'u1');
+    assert.equal((p.stats() as { ips: number }).ips, 1, 'the address is tracked while it has a socket');
+    clock += 120_000;
+    await new Promise(r => setTimeout(r, 120));
+    assert.equal((p.stats() as { ips: number }).ips, 1, 'a live socket keeps its entry past the window');
+    a.ws.close();
+    await new Promise(r => setTimeout(r, 200));
+    assert.equal((p.stats() as { ips: number }).ips, 0, 'once it has left and the window has passed, the entry is gone');
   } finally { await p.close(); }
 });

@@ -9,6 +9,10 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { once } from 'node:events';
+import console from 'node:console';
+import process from 'node:process';
+import { clearInterval, setInterval, setTimeout } from 'node:timers';
+/* global WebSocket, fetch */
 
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? Number(hit.split('=')[1]) : fallback; };
 const BOTS = arg('bots', 100), SECONDS = arg('seconds', 30), WARMUP = arg('warmup', 5), CROWD_CM = arg('crowd-m', 60) * 100, CAP = arg('layer-cap', 100), PORT = arg('port', 18788), MAX_LAYERS = arg('max-layers', 8);
@@ -35,7 +39,7 @@ for (let i = 0; i < BOTS; i++) {
   const b = { i, x: lo + Math.random() * CROWD_CM, z: lo + Math.random() * CROWD_CM, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
   const pick = () => { b.tx = lo + Math.random() * CROWD_CM; b.tz = lo + Math.random() * CROWD_CM; };
   pick(); bots.push(b);
-  b.ws = new WebSocket(`ws://127.0.0.1:${PORT}/origins/presence?token=bot-${(i + 1).toString(36)}`);
+  b.ws = new WebSocket(`ws://127.0.0.1:${PORT}/origins/presence`, ['frankendom.presence.v1', `token.bot-${(i + 1).toString(36)}`]);
   b.ws.binaryType = 'arraybuffer';
   b.ws.onmessage = ev => {
     if (typeof ev.data === 'string') { const m = JSON.parse(ev.data); if (m.t === 'hello') { b.layer = m.layer; b.ready = true; } return; }
