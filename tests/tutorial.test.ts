@@ -9,7 +9,7 @@ import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { STRATEGIES, W, P, act, idle, ready, gap, swingStart, guard } from './strategies.ts';
-import type { Duel, Intent } from '../src/duel.ts';
+import { timing, type Duel, type Intent } from '../src/duel.ts';
 
 const counting = () => { const m = new Map<string, string>(); let writes = 0; return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { writes++; m.set(k, v); }, removeItem: (k: string) => { m.delete(k); }, writes: () => writes }; };
 // A player who does exactly the step the foe is waiting on (and nothing else); null = a player who never does anything.
@@ -82,4 +82,59 @@ test('parryWindow is true only on the parry step, in the ticks before a heavy la
     assert.ok(beats.some((b) => b.id === 'parry'), `seed ${seed}: pressing on the window parries`);
     assert.equal(match.tutorial!.parryWindow, false);
   }
+});
+
+// Drive the fight to a given step with the step-doing bot, then hand over.
+function toStep(seed: number, step: TutorialStep) {
+  const b = boot(seed), base = doer(() => b.match.tutorial!.current);
+  for (let i = 0; i < 20000 && b.match.tutorial!.current !== step; i++) tick(b.match, base);
+  assert.equal(b.match.tutorial!.current, step);
+  for (let i = 0; i < 90; i++) tick(b.match, idle);   // the settle pause
+  return b;
+}
+
+test('the guard step accepts a guard raised on time (a Parry), which the sim reports instead of a Block', () => {
+  for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = toStep(seed, 'guard');
+    let parried = false;
+    for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'guard'); i++) { tick(match, STRATEGIES['perfect parry']!); parried ||= match.practice.events.some((e) => e.type === 'Parried' && e.actor === 0); }
+    assert.ok(parried, `seed ${seed}: the guard was a parry`);
+    assert.ok(beats.some((b) => b.id === 'guard'), `seed ${seed}: the guard step completes`);
+  }
+});
+
+test('the roll step completes however early the player rolls back from the thrust (Dodged contact, or the swing ending on nothing)', () => {
+  let missed = 0, dodged = 0;
+  for (const early of [0, 2, 4, 6, 8]) for (let seed = 1; seed <= 4; seed++) {
+    const { match, beats } = toStep(seed, 'roll');
+    for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'roll'); i++) {
+      tick(match, (d) => (W(d).phase === 'attack' && W(d).age === early && ready(d) ? act('dodge', { move: { x: 0, z: -1, yaw: 0, run: false } }) : idle()));
+      for (const e of match.practice.events) { if (beats.length >= 6) { if (e.type === 'Dodged') dodged++; if (e.type === 'AttackMissed' && e.actor === 1) missed++; } }
+    }
+    assert.ok(beats.some((b) => b.id === 'roll'), `seed ${seed}, roll at swing age ${early}: the step completes`);
+  }
+  // Receipt (VPS, 2026-10-06): in all 20 rolls the contact fell in the safe frames (Dodged); no whiff by distance occurs at these timings, so the missed-thrust path is a safety net.
+  assert.ok(dodged + missed > 0);
+});
+
+test('parryWindow is not early and not late: a press on its first and on its last tick both parry', () => {
+  for (const pressOn of ['first', 'last'] as const) for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = toStep(seed, 'parry');
+    let was = false;
+    for (let i = 0; i < 6000 && !beats.some((b) => b.id === 'parry'); i++) {
+      const w = match.tutorial!.parryWindow, f = W(match.practice.duel), edge = pressOn === 'first' ? w && !was : w && !!f.move && f.age === timing(f).windup - 1;
+      tick(match, (d) => (edge ? guard(d, { action: 'parry' }) : idle()));
+      was = w;
+    }
+    assert.ok(beats.some((b) => b.id === 'parry'), `seed ${seed}: a press on the ${pressOn} tick parries`);
+  }
+});
+
+test('tooFar is true while the player stands outside the foe\'s reach and false once he is in it', () => {
+  const { match } = boot(3);
+  for (let i = 0; i < 200; i++) tick(match, () => idle());
+  const far = match.practice.duel;
+  assert.equal(match.tutorial!.tooFar, gap(far) > 2.1);
+  for (let i = 0; i < 400 && match.tutorial!.tooFar; i++) tick(match, () => ({ ...idle(), move: { x: 0, z: 1, yaw: 0, run: false }, lock: true }));
+  assert.equal(match.tutorial!.tooFar, false);
 });
