@@ -142,7 +142,7 @@ test('player preset omission preserves native foe semantics; explicit none permi
 });
 test('malformed, conflicting, duplicated and non-Spar player presets refuse instead of falling through to career or None', () => {
   const valid = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=none&special=none&yourSpecial=price';
-  const bad = [valid.replace('price', 'fake'), valid.replace('price', 'price!'), valid.replace('price', 'special:price'), valid.replace('skill=none', 'skill=miasma'), valid.replace('spar=1', 'spar=0'), valid.replace('estoc', 'fake'), valid.replace('difficulty=6', 'difficulty=47'), valid.replace('nightborn', 'unknown'), `${valid}&yourSpecial=none`, `${valid}&skill=none`, `${valid}&special=nyx`, valid.replace('special=none', 'special=nyx').replace('difficulty=6', 'difficulty=dummy')];
+  const bad = [valid.replace('price', 'fake'), valid.replace('price', 'price!'), valid.replace('price', 'special:price'), valid.replace('skill=none', 'skill=miasma'), valid.replace('spar=1', 'spar=0'), valid.replace('estoc', 'fake'), valid.replace('difficulty=6', 'difficulty=51'), valid.replace('nightborn', 'unknown'), `${valid}&yourSpecial=none`, `${valid}&skill=none`, `${valid}&special=nyx`, valid.replace('special=none', 'special=nyx').replace('difficulty=6', 'difficulty=dummy')];
   for (const search of bad) { const r = resolveSparringPreview(search); assert.equal(r.invalid, true, search); assert.equal(r.kit, null); assert.equal(r.selection, undefined); }
   for (const value of ['special:fake', 'special:price!', 'price', 'skill:miasma', 'unavailable:witch:0', '']) assert.equal(playerSparringChoice(value), null, value);
 });

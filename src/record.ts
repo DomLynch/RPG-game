@@ -82,6 +82,7 @@ export const REACH: Readonly<Record<number, readonly { opponent: OpponentId; fro
   24: [],   // late notice: a record below 24 replays without the ramp (underRecord), so no older fight is reached
   25: [],   // the Goblin's stab: a record below 25 replays without it (underRecord, stab-rule.ts), so no older fight is reached
   26: [],   // the arena byte: presentation only, a record below 26 names no arena and replays in its ladder band, so no older fight is reached
+  27: [],   // the 50-level ladder: levels 47–50 are new fights (the tail past hard); levels 1–46 profile and body are byte-identical (tests/ladder-tail.test.ts digest), so no older fight is reached
 };
 // A record states the era its fight was fought in (play-radius.ts): this build's version when the circle in force is the one this build fights `opponent` in AND late
 // notice is on (a live fight); the version before the ramp when the circle is right but the ramp was never turned on; the version before the circle when neither is
