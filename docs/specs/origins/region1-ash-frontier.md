@@ -430,8 +430,8 @@ No weapons drop in region 1 (ruled).
 
 The two `collect` Feud tables are not progress gates. They are the shape the contracts already use to pay a stage. One of each per
 account (`checkOneOfEach`) stops duplicates. **Boss loot is first win only** (ruled; revisit after beta). The boss table rolls
-only on the kill that pays the once-row. A repeat kill rolls no boss table and pays what the model pays for its row (`world-boss`
-→ `already-beaten`, 0 CP).
+only on the kill that pays the once-row. A repeat boss kill rolls NO boss table and drops no ordinary creature loot; it pays only
+what the model gives (0 credit for a world boss, `already-beaten`).
 
 **Trading.** Frontier gear and the Feud mail trade only at the Exchange (`Trade.region` = `region:concord-exchange`; the Frontier
 has `rules.tradeAllowed: false`). There is **no hard limit**. Each piece has its own cooldown: `FIRST_TRADE_DELAY_S` (72 h from
@@ -533,8 +533,8 @@ A duplicate id anywhere in the combined bundle is refused. Example record:
 | Name | Source | Allowed because | Pronoun |
 |---|---|---|---|
 | Grendel's Mother | *Beowulf*, an anonymous Old English poem, c. 8th–11th century. Sole manuscript British Library Cotton Vitellius A.xv (the mere episode) | medieval literature by an author dead far beyond 70 years. She is known from the poem, not from scripture, and is no living people's folk hero. The backstory is original prose with no quotation. Her son Grendel is already the pitborn rung-5 legend; no relationship row is written, so the bundle needs no Grendel record | she |
-| Hrungnir | Snorri Sturluson, *Prose Edda*, Skáldskaparmál (c. 1220): the stone-hearted giant who raced Odin's horse and fought Thor with a whetstone | Norse myth, a dead pantheon whose figures are already on the ladder (Thor, Odin, Loki). Not yet a Pit legend. The Bounty text is original | he |
-| Peg Powler | English river folklore of the Tees: a green-haired water hag who drags the careless under. Recorded in William Henderson, *Notes on the Folk-Lore of the Northern Counties of England and the Borders* (1866) | English folklore, PD source, no living-religion tie, no living people's folk hero | she |
+| Hrungnir | Snorri Sturluson, *Prose Edda*, Skáldskaparmál, c. 1220 | Norse myth (a dead pantheon whose figures are already on the ladder: Thor, Odin, Loki); not yet a Pit legend; Bounty text is original prose. Confirmed by Strategy | he |
+| Peg Powler | Tees river folklore; William Henderson, *Notes on the Folk-Lore of the Northern Counties of England and the Borders*, 1866 | English folklore, PD source, no living-religion tie, no living people's folk hero; Bounty text is original prose. Confirmed by Strategy | she |
 | Varney | *Varney the Vampire; or, The Feast of Blood*, penny serial 1845–47, attributed to James Malcolm Rymer and Thomas Peckett Prest | pre-1929 literature, both authors dead 70+ years. Already `src/legends.ts` nightborn rung 3 and the contracts fixture (`Varney the Vampire, 1847`) | he |
 | Marrow, Vell, Hesk, Ansel, the Tithe Sergeant, Mistress Gall, all mobs | original (`lore.source: "original"`) | — | Marrow she, Vell he, Hesk he, Ansel he, Gall she |
 
