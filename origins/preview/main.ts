@@ -9,7 +9,7 @@ import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
-import { fetchOpen, isOffline, previewCp, saveLine, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, fetchOpen, isOffline, previewCp, saveLine, storedToken, writerBase, type Source } from './save.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -149,7 +149,7 @@ renderer.setAnimationLoop(walkLoop);
 // this page's memory. The one thing read from outside is the player's saved career (save.ts: the writer's `open`, read-only, with the stored
 // session's token); nothing here writes the game's storage, account or fight results, and no duel result is ever sent anywhere.
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
-let source: Source = { offline: 'loading' };
+let source: Source = CHECKING;
 let duel: typeof import('./pit-duel.ts') | null = null;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('journal')!;
 const saveNote = document.getElementById('save')!;

@@ -9,7 +9,7 @@ import console from 'node:console';
 import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { creditFromMarks } from '../origins/progression/model.ts';
-import { fetchOpen } from '../origins/preview/save.ts';
+import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 
 const dir = 'supabase/migrations';
@@ -98,6 +98,13 @@ try {
   eq(await fetchOpen('tc', { base: writer }), { offline: 'http-403' }, 'preview: not on the allowlist -> offline');
   eq(await fetchOpen('ta', { base: writer.replace(/origins$/, 'nope') }), { offline: 'http-404' }, 'preview: no route -> offline');
   eq(await fetchOpen(null, { base: writer }), { offline: 'no-session' }, 'preview: no session -> no call');
+  // prod today: the flag is off. An allowlisted account then gets 403 too, and the preview shows the offline line.
+  psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
+  eq(psql(`select count(*) from public.origins_access where account = '${A}'`), '1', 'A is still on the allowlist');
+  const flagOff = await fetchOpen('ta', { base: writer });
+  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Offline preview: progress is not saved'], 'preview: flag off + access row -> 403 -> the offline line');
+  psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
+  eq(isOffline(await fetchOpen('ta', { base: writer })), false, 'preview: flag back on -> the saved career again');
   console.log(`origins-writer-check: ${checks} checks passed`);
 } finally {
   server?.close();

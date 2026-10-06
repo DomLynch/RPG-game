@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
-import { AUTH_KEY, careerOf, fetchOpen, isOffline, previewCp, saveLine, storedToken, WRITER_PATH, writerBase, type Opened } from './save.ts';
+import { AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, previewCp, saveLine, storedToken, WRITER_PATH, writerBase, type Opened } from './save.ts';
 
 const row = { seed_credit: 5000, world_credit: 700, total_credit: 5700, rested: 12, rested_at: 99, heat: { wolf: { units: 5, at: 9 } }, beaten: ['legend:knight@12'], story: ['s1'], version: 4 };
 const reply = (status: number, body: unknown) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -130,4 +130,14 @@ test('preview wins sit on top of the saved career, counted as preview CP; offlin
   assert.equal(previewCp({ offline: 'http-404' }, won.session.career), 0);
   assert.equal(saveLine({ offline: 'http-404' }), 'Offline preview: progress is not saved');
   assert.match(saveLine({ saved }), /saved career/);
+});
+
+test('the save line is neutral until the read answers, then the real career or the offline line', async () => {
+  assert.equal(saveLine(CHECKING), 'Checking saved progress…');
+  for (const reason of ['no-session', 'http-403', 'timeout', 'network', 'bad-reply', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Offline preview: progress is not saved', reason);
+  const { f } = recorder(() => new Promise(() => {}));
+  const answered = await fetchOpen('tok', { fetch: f, timeoutMs: 20 });
+  if (!isOffline(answered)) return assert.fail('a timeout is offline');
+  assert.equal(saveLine(answered), 'Offline preview: progress is not saved', 'a timeout ends the checking line');
+  assert.notEqual(saveLine(answered), saveLine(CHECKING));
 });

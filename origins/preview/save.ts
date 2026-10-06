@@ -73,6 +73,9 @@ export async function fetchOpen(token: string | null, opts: { base?: string; fet
 }
 
 // The HUD's one save line, and the CP the preview added on top of the saved career (memory only, never sent).
+// Before the read answers (or times out) the line is neutral: the page starts as CHECKING and never claims offline until it knows.
 export type Source = { saved: CareerState } | { offline: string };
-export const saveLine = (source: Source): string => ('saved' in source ? 'Your saved career · duel wins here are preview only' : 'Offline preview: progress is not saved');
+export const CHECKING: Source = { offline: 'checking' };
+export const saveLine = (source: Source): string =>
+  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : 'Offline preview: progress is not saved';
 export const previewCp = (source: Source, career: CareerState): number => ('saved' in source ? Math.max(0, career.credit - source.saved.credit) : 0);
