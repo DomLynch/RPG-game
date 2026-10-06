@@ -84,7 +84,7 @@ test('loot: every weapon piece names a player weapon whose equip file ships with
 });
 
 test('loot: one fixed piece per opponent per career sub-rank, never a duplicate, nothing from an opponent without pieces', () => {
-  assert.equal(subRank(0), 0); assert.equal(subRank(1), 1); assert.equal(subRank(4), 4); assert.equal(subRank(5), 5); assert.equal(subRank(10), 10); assert.equal(subRank(45), 45); assert.equal(subRank(205), 45); assert.equal(subRank(-4), 0);   // one win per sub-rank (46-level ladder)
+  assert.equal(subRank(0), 0); assert.equal(subRank(1), 1); assert.equal(subRank(4), 4); assert.equal(subRank(5), 5); assert.equal(subRank(10), 10); assert.equal(subRank(45), 45); assert.equal(subRank(205), 49); assert.equal(subRank(-4), 0);   // one win per sub-rank (46-level ladder)
   // The Veteran wears six slots (slot order: Helmet, Crest, Body, Arms, Greaves, Boots); the seventh sub-rank comes round to the first.
   assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 1, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 2, []), 'veteran.Body'); assert.equal(dropFor('veteran', 4, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 6, []), 'veteran.Gloves'); assert.equal(dropFor('veteran', 7, []), 'veteran.Shield'); assert.equal(dropFor('veteran', 8, []), 'veteran.Helmet', 'eight armour pieces, so the ninth sub-rank comes round to the first');
   assert.equal(dropFor('veteran', 8, ['veteran.Helmet']), null, 'a piece already owned never drops twice');

@@ -1,5 +1,5 @@
 {
- "version": 26,
+ "version": 27,
  "ticks": 600,
  "levels": [
   1,
@@ -15,7 +15,7 @@
   20260922,
   4242424242
  ],
- "levelCount": 46,
+ "levelCount": 50,
  "cells": {
   "veteran:1:731:idle": {
    "ticks": 600,

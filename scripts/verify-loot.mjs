@@ -143,7 +143,7 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
     if (record.outcome !== 'killed') return `record outcome is ${record.outcome}, not a win`;
-    const low = levelRefusal(record.level, standing.marks);
+    const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
     if (!replay) return null;
     const result = verifyRecord(record);

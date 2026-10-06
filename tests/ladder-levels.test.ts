@@ -1,4 +1,4 @@
-// The 46-level ladder's profiles (moves.ts profileAt; Dom via Strategy 2026-09-27, anchors 1 / 6 / 18 / 46). The fairness of each level is
+// The 50-level ladder's profiles (moves.ts profileAt; Dom via Strategy 2026-09-27, anchors 1 / 6 / 18 / 46). The fairness of each level is
 // the battery's (tests/ladder-battery.test.ts); this file pins the blend itself: the anchors are the tables, the novice lowers only skill,
 // identity holds, the tick counts round, and the ladder's ceiling agrees with the career's.
 import test from 'node:test';
@@ -54,7 +54,7 @@ test('between anchors every level is a blend: skill knobs move monotonically, co
       }
       prev = p;
     }
-    assert.equal(profileAt(o, 0), profileAt(o, 1), 'below 1 is 1'); assert.equal(profileAt(o, 99), o.profiles.hard, 'above 46 is 46');
+    assert.equal(profileAt(o, 0), profileAt(o, 1), 'below 1 is 1'); assert.equal(profileAt(o, 99), profileAt(o, 50), 'above 50 is 50');
   }
 });
 

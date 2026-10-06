@@ -119,7 +119,7 @@ const SETS: Record<string, [string, string, string]> = {
   knight: ['thesling', 'wrath', 'stormfollowshim'],
 };
 for (const [id, set] of Object.entries(SETS)) {
-  for (const [level, name] of [[35, undefined], [36, set[0]], [40, set[0]], [41, set[1]], [45, set[1]], [46, set[2]]] as Array<[number, string | undefined]>) {
+  for (const [level, name] of [[35, undefined], [36, set[0]], [40, set[0]], [41, set[1]], [45, set[1]], [46, set[2]], [50, set[2]]] as Array<[number, string | undefined]>) {
     test(`specials: ${id} at level ${level} casts ${name ?? 'his class skill'}, named in SpecialStarted and SpecialLanded, on the shared rule`, () => {
       const spec = recordSpecials({ specials: true, level, opponent: id as never })!;
       assert.equal(spec.name, name);
