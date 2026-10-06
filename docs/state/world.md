@@ -2,6 +2,25 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 02:00 (+04, Mac clock) — HANDOFF #16 before /clear. READ FIRST (supersedes #15 where it differs)
+
+### Now
+- All four of Lead's items are PRs; nothing of mine is running on the VPS (check `capture --status` before saying so). Wait for the Auditor's verdicts and Lead's pings; (B) is next: Characters' hamstrung + execution PRs, tune `finisher-blood.ts` blood timing when they open.
+- **#1525** close-range foe blood, head `world/blood-foe-close` @**88b63b09** (FROZEN: Auditor reviews it; never push), base `world/blood-default` (#1505). Final fix = `foeBurstPull` (spawn pulled toward the camera along the contact ray, 0.35 m in front of the hero's depth, never within 1.5 m of the lens). The sideways offset (1.4x) and the 0.5x clamp both left the spray floating (Lead's frame strips); ray pull passes (5-hit median 372 vs clamp 336 vs #1505 285). **Owed:** retarget to trunk right after #1505 merges, tell Lead the sha.
+- **#1527** boss telegraph, `world/boss-telegraph` @e2c7f697, Lead PASS on stills, with the Auditor. `?telegraph=1` only; default-on only after Dom sees it.
+- **#1535** standoff, `world/standoff` @567ffe37, `?standoff=1` look-test, Lead PASS on the clip; Deploy publishes /preview/standoff/. Hidden cost measured: first press -> first swing 44 ticks = 733 ms (tests/standoff.test.ts). The real version starts both fighters `ready` in the sim = RV29 batch.
+- **#1536** power words, `world/power-words` @4eefb425: Witch Ashvael/Ixoreth/Melusaar, Plague Doctor Vuskarn/Orzhul/Thaniveck, muted (gain 0), `frankendom:powerword` window event only.
+
+### Done today (since #15)
+- Foe-blood proof run (clip + pixel table), #1525 reworked twice on Lead's review, telegraph still fixed (harness never tapped #attack-button), standoff built + clip, power words.
+
+### Gotchas
+- **A harness `?special=` / `?opponent=` page needs the full spar params** (`weapon=longsword&difficulty=3&skill=none&yourSpecial=none&special=none`) or it shows "That sparring link isn't valid"; the stills harness taps `#attack-button` first so the warden casts, and reads the caster from `stages[1]`.
+- **Anything timed in the page must tick on frame `dt`, not `performance.now()`**: the stepped harness clock restarts the fake clock after boot.
+- **Moving a foe's blood sideways to clear the hero reads as floating**; pull it along the camera ray instead (same pixel).
+- `capture` FIFO: kill only my own queued pid (check `ps -o cmd -p <pid>` first); a queued script that the Mac edits after submit uses the new copy; watch /tmp/<job>.done (rm'd at job start, so a stale one fires a monitor at once: wait on a fresh mtime).
+- `sed -i` on macOS needs `-i ''`; a failed `sed && git commit` chain still ran my `;`-separated commit once: use Edit/python for source edits.
+
 ## 2026-10-07 00:30 (+04, `date` on the Mac) — HANDOFF #15 before /clear. READ FIRST (supersedes #14 where it differs)
 
 ### Now (Lead's order, one VPS capture job at a time): (1) close-range foe blood, (2) boss telegraph, (3) power words
