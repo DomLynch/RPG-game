@@ -65,3 +65,21 @@ test('the foe never kills the player nor falls, whatever the player does', () =>
     assert.equal(result, 'stepped', name);
   }
 });
+
+test('parryWindow is true only on the parry step, in the ticks before a heavy lands, and pressing guard on it parries', () => {
+  for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = boot(seed);
+    const base = doer(() => match.tutorial!.current);
+    let sawWindow = false, other = false;
+    const who = (d: Duel): Intent => {
+      const w = match.tutorial!.parryWindow;
+      if (w && match.tutorial!.current === 'parry') { sawWindow = true; return guard(d, { action: 'parry' }); }
+      if (w) other = true;
+      return match.tutorial!.current === 'parry' ? idle() : base(d);
+    };
+    for (let i = 0; i < 20000 && !beats.some((b) => b.id === 'parry'); i++) tick(match, who);
+    assert.ok(sawWindow && !other, `seed ${seed}`);
+    assert.ok(beats.some((b) => b.id === 'parry'), `seed ${seed}: pressing on the window parries`);
+    assert.equal(match.tutorial!.parryWindow, false);
+  }
+});

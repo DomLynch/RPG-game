@@ -5,7 +5,7 @@
 // after the last step it stands and never ends the fight itself. Both fighters are kept above half health.
 import { decide } from './ai.ts';
 import { project, type Practice } from './combat.ts';
-import { distance, legal, stepDuel, type Action, type CombatEvent, type Duel, type Intent } from './duel.ts';
+import { distance, guardOf, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './duel.ts';
 import { SPARRING_DUMMY, disarm } from './sparring.ts';
 
 export const TUTORIAL_STEPS = ['slash', 'stab', 'heavy', 'guard', 'parry', 'kick', 'roll'] as const;
@@ -28,10 +28,12 @@ const FLOOR = 0.5;    // share of a bar both fighters are kept above
 
 export function createTutorial(onDone: (id: TutorialStep) => void = () => {}) {
   const done: TutorialStep[] = [];
-  let index = 0, lastSwing = -GAP, settleUntil = 0;
+  let index = 0, lastSwing = -GAP, settleUntil = 0, parryNow = false;
   return {
     get done(): readonly TutorialStep[] { return done; },
     get current(): TutorialStep | null { return TUTORIAL_STEPS[index] ?? null; },
+    // True while the parry step's heavy is inside the ticks in which pressing guard now would catch it (the player's own parry window before contact): the Web lane's "now!".
+    get parryWindow(): boolean { return parryNow; },
     step(current: Practice, intent: Intent): Practice {
       const before = current.duel, tick = before.tick, [p0, f0] = before.fighters;
       const live = !before.finish && p0.health > 0 && f0.health > 0;
@@ -46,6 +48,8 @@ export function createTutorial(onDone: (id: TutorialStep) => void = () => {}) {
       const next = stepDuel(duel, [intent, foeIntent]);
       if (next.events.some((e) => e.type === 'AttackStarted' && e.actor === 1)) lastSwing = tick;
       if (waiting && id && next.events.some(want.cue)) { done.push(id); index++; settleUntil = tick + SETTLE; lastSwing = tick; onDone(id); }
+      const swing = next.fighters[1], t = swing.move ? timing(swing) : null;
+      parryNow = TUTORIAL_STEPS[index] === 'parry' && !!t && swing.phase === 'attack' && !swing.landed && swing.age < t.windup && swing.age >= t.windup - guardOf(next.fighters[0]).window;
       return project(next, dec.ai, current);
     },
   };
