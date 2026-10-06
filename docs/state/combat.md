@@ -1,3 +1,23 @@
+## 2026-10-06 — COMBAT-002 scythe dead band: MEASURED AND PARKED (Lead ruling, change nothing)
+
+**Ruling (Lead, 10-06):** the scythe's 1.4 m dead band is the documented design ("a scythe is dead close in"), the bot that lands in it spams swings where a human does not, and the smallest fix is a sim change (RECORD_VERSION bump, re-pins, the Executioner's spacing and fight-length pins moving) for a thin 6–9% band. Not worth Dom's back-to-basics bar. No "too close" cue unless Dom asks. **Do not re-measure.**
+
+**Measurement (sim only, VPS capture ~58 s, trunk 4de563ff):** the scripted-strategy battery (tests/strategies.ts, 10 strategies x 10 ladder rungs x normal+hard x 24 seeds) with the PLAYER carrying the scythe, plus the Executioner's own scythe against a longsword player; each scythe swing bucketed by its START gap (`attackFrom.gap`) and outcome. Player reap (light_right/left), 0.2 m bands:
+
+| Start gap | swings | hit | hit/blocked/parried | what the rest did |
+|---|---|---|---|---|
+| 0.8–1.0 | 1347 | 0% | 0% | 25% miss inside minReach, 75% interrupted |
+| 1.0–1.2 | 1757 | 0% | 0% | 38% miss inside minReach, 62% interrupted |
+| 1.2–1.4 | 2379 | 0% | 0% | 81% miss inside minReach, 19% interrupted |
+| 1.4–1.6 | 906 | 10% | 31% | |
+| 1.6–1.8 | 919 | 15% | 47% | |
+| 1.8–2.0 | 1227 | 24% | 61% | |
+| 2.0–2.2 | 1191 | 21% | 56% | |
+
+**Cause:** `minReach: 1.4` on light_right / light_left / slash_riposte (moves.ts reap()), enforced at duel.ts `attackFrom.gap < minReach` -> no impact location, so the swing can neither hit nor be blocked. 5483 of 9726 player reaps (56%) started inside it. The Executioner's AI honours minReach (ai.ts) and starts none there. Softer far edge: the heel-jab started at 2.0–2.2 m hits 16% (n 753) against 48–51% at 1.4–1.6 m; a heavy inside 1.0 m is mostly interrupted (36-tick wind-up).
+
+**Smallest fix tested, NOT shipped:** minReach 1.4 -> 1.2 on those three moves: the 1.2–1.4 band goes 0% -> 9% hit (17% hit/blocked/parried); 1.0 -> the 1.0–1.2 band 0% -> 6%; nothing below 1.0 m improves and nothing above 1.4 m changes. The Executioner shares the number, so his spacing and fight-length pin would need re-measuring.
+
 ## 2026-10-06 — HANDOFF: Goblin stab #1416 (v25) and Armfeel ship #1431 both with their reviewers
 
 **Now (what the next session picks up):**
