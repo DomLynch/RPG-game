@@ -154,6 +154,7 @@ test('consume refusals: short, bank-only, story piece, wrong reason, bad op id, 
       [handIn({ op: `quest:${'x'.repeat(115)}` }), 'op: an operation id (8..120'],   // the pure module allows 128; the event id must fit 200
       [handIn({ character: OTHER }), 'character'],
       [handIn({ character: undefined }), 'character'],
+      [handIn({ character: 7 }), 'character: a character id'],
       [handIn({ qty: 0 }), 'qty: burn a whole number'],
     ];
     for (const [body, path] of cases) {

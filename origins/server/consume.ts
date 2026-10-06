@@ -36,6 +36,7 @@ export function consumeHandler(content: Content): Handler {
     const { character, op, reason, qty, itemId, mintKey, consumesStoryItem } = body;
     if (typeof op !== 'string' || op.length > 120) throw new BadRequest('op: an operation id (8..120 of a-z 0-9 : . _ -)');   // the pattern is the pure module's; the cap keeps the event id within 200
     if (reason !== 'quest-handin') throw new BadRequest('reason: consume burns only for a quest hand-in (\'quest-handin\'); the smith is apply_upgrade');
+    if (typeof character !== 'string') throw new BadRequest('character: a character id');   // checked before it is spliced into the event id
     const eventId = `burn:${character}:${op}`;
     const ask = { op, owner: character, reason, qty, itemId, mintKey, consumesStoryItem } as ConsumeOp;
     // Read the holdings and any stored burn for this op id, and let the pure module decide: a fresh burn, the original one, or a refusal.
