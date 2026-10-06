@@ -480,7 +480,7 @@ const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY)
 const arenaSelect = element<HTMLSelectElement>('arena-select');
 const rawArena = sparParams.get('arena');
 const requestedArena = sparPreview.kit && rawArena !== null
-  ? ['1', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  ? ['1', '2', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
 arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
@@ -1281,7 +1281,7 @@ if (duelAsked) {
     if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
       banner('Choose a valid Sparring kit before Start sparring.', true); return;
     }
-    link.searchParams.set('arena', ['1', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    link.searchParams.set('arena', ['1', '2', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
   });
