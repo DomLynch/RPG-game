@@ -5,6 +5,7 @@ import { resolveSparringPreview } from './sparring-specials.ts';
 import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
 import { createTitheLighting } from './special-lighting.ts';
 import { warmFirstFrame } from './first-frame.ts';
+import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -481,6 +482,7 @@ export function createScene(
   let previewGroup: THREE.Scene | undefined;
   const previewLighting = createTitheLighting(scene);
   const previewBackground = scene.background instanceof THREE.Color ? scene.background.clone() : null;
+  const bossTelegraph = typeof location !== 'undefined' && telegraphFlag(location.search) ? createBossTelegraph(scene) : null;   // ?telegraph=1 look-test (boss-telegraph.ts)
   const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
@@ -1154,6 +1156,10 @@ export function createScene(
         const at = mode?.at === 'feet' ? [feet(warriors?.player), feet(warriors?.opponent)] as const : [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null] as const;
         (specialFx as ModeFx).render(dt, events, practice.duel.fighters, practice.duel.tick, at, !!practice.finish, ...(mode?.extra?.(warriors) ?? []));
         if (mode?.hideTrail && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above a raised sword
+      }
+      if (bossTelegraph) {
+        const l = warriors?.player.boneWorld('foot_l'), r = warriors?.player.boneWorld('foot_r');
+        bossTelegraph.update(practice.duel.fighters[1], l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null, practice.duel.tick);
       }
       if (runtimeSpecial) {
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
