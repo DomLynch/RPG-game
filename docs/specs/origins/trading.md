@@ -1,16 +1,22 @@
-# Origins trading spec: barter trade, trade-limited items, bound metals, anti-dupe, RMT limits (DESIGN ONLY)
+# Origins trading spec: barter trade, per-item trade cooldown, bound metals, anti-dupe, RMT limits (DESIGN ONLY)
 
 Expansion lane, 2026-10-06, written against trunk `256114d9`. For Strategy, Lead and the Auditor. **Nothing here is built and no
 migration exists for it.** Every claim about current code cites `file:line` at that sha. Numbers marked **PROPOSED** are starting values
 for Strategy to move. Anything not known is marked **OPEN**. Clean room: written from our own code, the blueprint and the analyst specs
 in this folder (`modernuo-secure-trade.md`, `modernuo-bank.md`), never from donor source.
 
-**The recommended design in one paragraph.** Players trade by **barter only**: items for items, through the existing escrow and
-double-accept flow. There is **no player-tradeable currency**. Only **trade-limited items** change hands: earned gear (rare and up, plus
-Pit pieces) may change hands **at most 2 times**, then binds to its third owner. Materials, stackables and consumables are bound, so no
-item can work as money. NPC services may later cost **metals** (bronze, silver, gold), an account-bound balance earned by play that can never be traded. Dom is
-the only seller for real money: cosmetics and membership convenience, always bound, never random, never stats. Discovery after beta is a
-**barter board** (want/offer listings, no prices), not a priced market. This is Dom's direction with Strategy's view (2026-10-06).
+**Update (Dom, 2026-10-07).** Dom approved the trading decisions ("implement it"). They are folded in below and marked "(Dom, 2026-10-07)".
+Since this spec was written, three things landed on trunk: the per-item trade cooldown in the contracts (#1479, `origins/contracts/economy.ts`
+`tradeCooldown`), migration 0003 (`202610060003_origins_trade_settle.sql`, applied on prod as version 20261006174845) and its escrow-guard fix
+(`202610070004_origins_escrow_guard_null.sql`, prod version 20261006205219). No writer trade op exists yet (`origins/server/handlers.ts`).
+
+**The design in one paragraph.** Players trade by **barter only**: items for items, through the existing escrow and double-accept flow.
+**No currency changes hands in a player trade** (Dom, 2026-10-07). Earned gear and shop gear trade under an **escalating per-item cooldown**
+with **no hard trade limit**: a fresh piece waits 72 hours, then each change of hands makes the new owner wait 7, 14, then 30 days, and 30
+days for every later trade (Dom, 2026-10-07; §2.10). Materials, stackables and consumables are bound, so no item can work as money. NPCs
+charge **metals** (bronze, silver, gold, 100:1), a bound balance earned by play that can never be traded; NPC shops sell base gear for metal.
+Dom is the only seller for real money: a narrow cash shop of cosmetics and convenience, always bound, never random, never stats. Discovery
+after beta is a **barter board** (want/offer listings, no prices), not a priced market.
 
 Standing rulings this spec follows (Dom/Strategy/Lead, 2026-10-05/06):
 
@@ -24,7 +30,8 @@ Standing rulings this spec follows (Dom/Strategy/Lead, 2026-10-05/06):
 | R6 | The marketplace is after beta. Phase 1 is direct player-to-player trade. | §1 |
 | R7 | Additive Origins-only migration = class 1 (Strategy+Lead GO, down-script, branch-DB test, Auditor probes). ALTER/DROP/backfill of a live table = class 2 (Dom's yes at the sha). | §6 |
 | R8 | Server-authoritative: the client never names an account, an amount it is owed, or a reward. | §2.9 |
-| R9 | Barter only, no tradeable currency; trade-limited items (2 hand changes, then bound); stackables bound; NPC costs in bound metals; cash sales bound, cosmetic or convenience, never random (Dom + Strategy, 2026-10-06). | whole doc |
+| R9 | Barter only, no tradeable currency; trade-limited items (2 hand changes, then bound); stackables bound; NPC costs in bound metals; cash sales bound, cosmetic or convenience, never random (Dom + Strategy, 2026-10-06). The 2-hand limit is replaced by R10. | whole doc |
+| R10 | Dom approved, 2026-10-07: barter only; an escalating per-item cooldown replaces the hard limit; metals are a bound NPC currency and gems are not money; a narrow bound cash shop; auto-holds freeze trading only; NPC shops sell base gear for metal; the trade gates; same-definition swaps settle after 0003. | §2.7, §2.10, §3, §5.3, §5.8, §5.11, §7 |
 
 ---
 
@@ -32,16 +39,16 @@ Standing rulings this spec follows (Dom/Strategy/Lead, 2026-10-05/06):
 
 | Phase | When | What | Not in it |
 |---|---|---|---|
-| **1. Direct barter** | Beta, behind the Origins flag | Two players at the Concord Exchange: offer, change, double accept, settle or cancel. Items for items, one or more each side. Only trade-limited items (§2.10). | Currency of any kind, gifts (D4), listings, mail, NPC buy/sell, cross-region trade. |
+| **1. Direct barter** | Beta, behind the Origins flag | Two players at the Concord Exchange: offer, change, double accept, settle or cancel. Items for items, one or more each side. Only tradeable pieces that are off cooldown (§2.10). | Currency of any kind, gifts (D4), listings, mail, NPC buy/sell, cross-region trade. |
 | **2. Barter board** | After beta (R6) | Want/offer listings, item for item, **no prices**. Multi-item offers and "any of these" offers. Every match settles as a phase-1 trade. | Priced listings, auctions, buy orders. |
 
 ### 1.1 Phase 2 barter board (sketch, not for build)
 
-- A listing names what the lister **offers** (one or more of their own trade-limited pieces) and what they **want**: a list of definitions,
+- A listing names what the lister **offers** (one or more of their own tradeable pieces) and what they **want**: a list of definitions,
   either **all of** (multi-item) or **any of these** (the first one a responder offers satisfies it).
 - Listings hold no escrow. A response opens an ordinary phase-1 trade between the two players with the listed pieces pre-offered, so the
-  double accept, escrow, trade limit and every §4 invariant apply unchanged. A listing can never settle by itself.
-- A listing is withdrawn automatically when a listed piece leaves the lister, binds, or is offered elsewhere.
+  double accept, escrow, cooldown and every §4 invariant apply unchanged. A listing can never settle by itself.
+- A listing is withdrawn automatically when a listed piece leaves the lister, binds, or is offered elsewhere. A cooling piece cannot be listed.
 - New needs, all OPEN until phase 2 is scheduled: a listing table, browse/search reads, a cap on live listings per account (PROPOSED **10**),
   expiry (PROPOSED **7 days**), and whether a listing shows to players who cannot reach the Exchange.
 - Why no prices: with no currency there is nothing to price in, and a priced board would invite an off-site currency to fill the gap.
@@ -83,7 +90,7 @@ means the offer on screen" (`economy.ts:87`). D2 asks Strategy to confirm and to
                                      │ accept(v) by the other side
                                      ▼
                        settle in the same request (§2.6)
-                          ├─ refused (full pack, one-of-each, trade limit, stale item) → [open A✗ B✗ v+1], reason shown
+                          ├─ refused (full pack, one-of-each, cooldown, stale item) → [open A✗ B✗ v+1], reason shown
                           └─ committed → [settled]
    cancel by either side / expiry / a side erased / heartbeat timeout → [cancelled], escrow returned
 ```
@@ -116,7 +123,7 @@ the version (`economy.ts:104`). A settle can only ever move the exact offer both
 | A side erased | Already handled: the side becomes null (`0001:148-149`), settle refuses (`0001:495`), cancel releases the survivor's escrow (`0001:501-510`); tested in `scripts/origins-database-check.mjs:262-275`. |
 | Cancel return slot | Each piece goes to the offerer's first free pack slot, then the first free bank slot (the trade is at the Exchange, where the bank opens, `inventory.ts:43`). **OPEN:** if both are full. Recommendation: refuse an offer the offerer could not take back if the trade failed (UO's rule, `modernuo-secure-trade.md:76-77`), and re-check at cancel. |
 
-A cancel or expiry writes **no** history entry, so it never counts toward the trade limit (§2.10).
+A cancel or expiry writes **no** history entry, so it never counts as a hop and never lengthens the cooldown (§2.10).
 
 ### 2.6 Escrow and settle
 
@@ -125,13 +132,18 @@ A cancel or expiry writes **no** history entry, so it never counts toward the tr
    the offerer's (`0001:231`). Withdrawing a piece is the reverse `put`.
 2. **Settle** runs when the second accept lands, in the same request. The writer reads both accounts' full holdings (`origins_open`,
    `0001:340`), runs `settleTrade` with `packSizeOf = origins_characters.pack_slots` (`0001:29`), and sends the moved instances as `put` ops
-   (with `history_append` and, on a piece's second trade, `bound_to`, `0001:403`) plus one `trade` event per account to
+   (with `history_append`, `0001:403`, which 0003 now refuses, see step 4; no `bound_to`, since a trade never binds, Dom 2026-10-07) plus one `trade` event per account to
    `origins_settle_trade` (`0001:490-500`). One transaction: any failure aborts all of it.
 3. **Holdings must be account-wide.** `settleTrade` asks for "every instance either player holds" (`economy.ts:111-112`), but the inventory
-   wrapper passes only the two characters' items (`inventory.ts:441`). The DB index catches what the pure check misses (`0001:132`), so this
+   wrapper passes only the two characters' items (`inventory.ts:441`). The DB one-of-each check catches what the pure check misses (0003's deferred count, §6.3), so this
    is safe, but the writer should pass the whole account so a refusal is a clear rule message, not a `23505`.
+4. **Gap on trunk today: the DB settle cannot write the trade history entry.** 0003's `origins_settle_trade` refuses any `put` that carries
+   `history_append` or `bound_to` (`202610060003_origins_trade_settle.sql:143`). The cooldown counts hops from `trade` history entries
+   (§2.10), so a trade settled through the DB as it stands would leave the hop count at 0 and the cooldown would never escalate. Draft #1522
+   (`202610070005`, not applied) has the DB write the trade history itself and adds a DB cooldown guard. Player trade must not open before
+   that, or an equivalent, is applied.
 
-### 2.7 Finding: a same-definition swap is refused by the database
+### 2.7 Finding: a same-definition swap was refused by the database (fixed by 0003)
 
 Swapping two copies of the same single-copy piece (a +0 helm for a +3 helm) is valid in the pure end state, which `settleTrade` checks
 after all moves (`economy.ts:166-167`). In the database it fails: `origins_items_one_of_each` is a unique **index** (`0001:132`), which
@@ -140,6 +152,13 @@ neutral parking location (a live row must have a `loc_kind`, `0001:125`). Recomm
 it at `change_offer` with a clear message. A deferrable form needs a unique constraint, which cannot be partial, so it is a redesign.
 **Update (Backend, 2026-10-06):** 0003 replaces the index with a deferred check at commit (§6.3, M17), after which the swap settles; D10 is
 then superseded (Strategy confirmed 2026-10-06; conditions in decision 10).
+
+**What is true today (Dom, 2026-10-07).** 0003 is applied (prod 20261006174845), with its escrow-guard fix 0004 (prod 20261006205219). It
+drops the index and counts one-of-each at commit under an advisory lock (`202610060003_origins_trade_settle.sql:195-210`). Nothing on trunk
+refuses a same-definition swap any more: the pure `settleTrade` checks one-of-each only on the end state (`economy.ts` `settleTrade`, the
+`checkOneOfEach` call after all moves), and `scripts/origins-trade-check.mjs:167-178` proves a +0 to +3 helm swap settles and a trade that
+would leave one account with two copies still fails at commit. So a same-definition swap **settles**, and the `change_offer` pre-check above
+is no longer needed. Each piece in the swap gains a hop and its own cooldown (§2.10).
 
 ### 2.8 Exchange only, and no same-device trade
 
@@ -160,7 +179,7 @@ so Exchange-only already implies Gladiator rank.
 | User agent family | Request header | Yes | Audit only. |
 
 **Limits, said plainly:** one person with two accounts on two real devices on different networks passes every check. The device rule stops
-casual self-trade, not a determined mule. The backstops are the trade limit, the caps, the flags and review (§5). Signals are stored hashed.
+casual self-trade, not a determined mule. The backstops are the per-item cooldown, the caps, the flags and review (§5). Signals are stored hashed.
 
 **Bot trade (R3).** A bot counterparty exists only in the preview build as a test harness (no such code exists yet). The writer refuses any
 trade where either side is not an `origins_characters` row of an allowed account (`origins_open_trade` already checks both, `0001:486`).
@@ -175,47 +194,53 @@ server-side event id `trade:<character>:<op_id>`, the pattern `202610060002_orig
 | Op | Request (all the client sends) | What the server derives and checks |
 |---|---|---|
 | `open_trade` | `{op_id, character, with}`, `with` = the other character's public `pc:` id seen in the hub | Caller owns `character`; `with` exists and is allowed; different accounts; neither character nor account in another open trade; both at the Exchange; gates and caps (§5); device rule (§2.8). Derives the container id (`container:trade-<uuid>`), both accounts, `expires_at`. Calls `origins_open_trade`. Returns `{trade, version: 0}`. |
-| `change_offer` | `{op_id, trade, character, offered: inst[], expected_version}` | Caller owns `character` and it is a side; version matches; each id is the caller's, **tradeable** (§2.10: trade-limited, under its limit, unbound, not stackable), not worn, not story-critical, at most 16 (`economy.ts:37`), not offered by the other side (`economy.ts:95-97`). Pre-checks the receiver's free slots and one-of-each (advisory; settle re-checks). Builds the escrow in/out `put`s. Version+1, both accepts cleared. |
+| `change_offer` | `{op_id, trade, character, offered: inst[], expected_version}` | Caller owns `character` and it is a side; version matches; each id is the caller's, **tradeable now** (§2.10: off cooldown, unbound, not stackable, not a cash-shop or non-gear shop item), not worn, not story-critical, at most 16 (`economy.ts:37`), not offered by the other side (`economy.ts:95-97`). Pre-checks the receiver's free slots and one-of-each (advisory; settle re-checks). Builds the escrow in/out `put`s. Version+1, both accepts cleared. |
 | `accept` | `{op_id, trade, character, expected_version, accepted}` | Caller owns a side; version matches. If both now accepted: settle in this request (§2.6). Returns `{state, version}` or the settle receipt. |
 | `cancel` | `{op_id, trade, character}` | Caller owns a side. Builds the return `put`s (§2.5). Calls `origins_cancel_trade`. |
-| `trade_status` | `{trade, character}` (read) | Both offers as public item views (definition, tier, upgrade level, provenance, history, **hand changes left**), both accepts, version, expiry. The client cannot read the other side's escrow itself: item RLS shows only its own rows (`0001:297`) and `origins_trades` has no client policy (`0001:301`). Doubles as the heartbeat. |
+| `trade_status` | `{trade, character}` (read) | Both offers as public item views (definition, tier, upgrade level, provenance, history, **hops so far and when its cooldown ends**), both accepts, version, expiry. The client cannot read the other side's escrow itself: item RLS shows only its own rows (`0001:297`) and `origins_trades` has no client policy (`0001:301`). Doubles as the heartbeat. |
 
 The client never sends: an account, a region, a receiver slot, a binding, a history entry or a trade count.
 
-### 2.10 What can be traded: trade-limited items
+### 2.10 What can be traded: the per-item cooldown
 
-**Rule (R9, recommended).** A piece is tradeable only if all hold:
+**Rule (Dom, 2026-10-07; replaces "2 hand changes, then bound").** There is **no hard trade limit** and a trade never binds a piece.
+Instead each piece carries an **escalating cooldown**. The merged code is the source (`origins/contracts/economy.ts`, `tradeCooldown`,
+#1479). A piece is tradeable only if all hold:
 
 | Test | Source today |
 |---|---|
-| It is earned **gear** of rarity **rare or relic**, or a **Pit piece** (`arena-award` or `legacy-unlock` provenance), see D5 | `Category` (`items.ts:34`), `RARITIES` (`items.ts:37`), provenance kinds (`items.ts:142-148`) |
-| It is single-copy (stack 1). Every stackable (ore, materials, consumables) is untradeable. | `stack` on the definition (`items.ts:101`) |
-| It is unbound and not story-critical | `economy.ts:155`, `items.ts:102` |
-| It has changed hands **fewer than 2 times** | Its `trade` history entries (`items.ts:153`) |
-| It is not a cash-shop item or a creator-minted cosmetic | `creator-mint` is cosmetics only (`items.ts:412`); cash items are always bound (§5.8) |
+| It is earned **gear** of rarity **rare or relic**, or a **Pit piece** (`arena-award` or `legacy-unlock` provenance), see D5 | `Category` (`items.ts:34`), `RARITIES` (`items.ts:37`), provenance kinds (`items.ts:142-148`). **Not in `tradeCooldown` today:** the code has no rarity test, so the writer must apply D5 (§7). |
+| Or it is **shop gear** (provenance `shop`, category gear). Shop consumables and anything else a shop sells never trade. | `tradeCooldown`: `shop-not-gear` |
+| It is single-copy (stack 1). Every stackable (ore, materials, consumables) is untradeable. | `tradeCooldown`: `stackable` |
+| It is unbound and not story-critical | `tradeCooldown`: `bound`, `story-critical` |
+| It is not a cash-shop item | `tradeCooldown`: `cash-shop` (§5.8). `creator-mint` is cosmetics only (`items.ts:412`). |
+| Its cooldown has run out | `tradeCooldown`: `cooling`, below |
 
-**Why the Pit-piece clause.** The only Pit piece in the fixtures is rarity `common` (`origins/contracts/fixtures.ts:11`). A strict
-"rare and up" rule would make every common Pit piece untradeable, which contradicts R1. **OPEN:** legacy loot rarities are not set in live
-content yet. D5 asks Strategy which wins.
+**The cooldown, as the code has it.** `FIRST_TRADE_DELAY_S` = **72 hours**. `COOLDOWN_STEPS_S` = **7, 14, 30 days**.
 
-**Hand changes.** A settled trade moves a piece to a new owner and appends one `trade` entry (`economy.ts:160`). Count = the number of
-`trade` entries in its history. Owner 1 earns it; trade 1 makes owner 2; trade 2 makes owner 3, and **that settle binds it to owner 3**
-(`bound_to` set in the same `put`, `0001:403`). A bound piece is then refused by every trade path (`economy.ts:155`, `inventory.ts:260`). A
-third trade is impossible.
+| Hops so far | Wait before it can be offered | Clock starts at |
+|---|---|---|
+| 0 (fresh: looted, Pit-won, minted or bought) | 72 hours | the mint `at` in its provenance |
+| 1 | 7 days | the last `trade` history entry |
+| 2 | 14 days | the last `trade` history entry |
+| 3 or more | 30 days, for every later trade (the cap) | the last `trade` history entry |
 
-**Where the count lives: options.**
+The hop count is the number of `trade` entries in the piece's history (`tradeHops`). History only grows, so the count never decays and
+survives every version bump, upgrade, move and split (a split copies history). An unreadable clock fails closed (`bad-clock`).
+`changeOffer` refuses a cooling piece with "tradeable again at <time>", and `settleTrade` re-checks every piece at settle. The same
+function answers the server and the UI.
 
-| Option | How | For | Against |
-|---|---|---|---|
-| **A. Derive from history** | Count `trade` entries in `history`. History is append-only and checked by trigger (`0001:220-223`), so the count can never fall. | One source of truth; no new column; already survives split (the child copies `history`, `0001:418`) and escrow/cancel (no entry is written). | A reversal written as a `trade` entry would count; a JSON count in a trigger is a small cost per row (history max 1,000 entries, `items.ts:357`). |
-| **B. Counter column** | `trade_count int` on `origins_items`, raised by trigger when a `trade` entry is appended. | Cheap to index and read. | A second record of the same fact that can drift from history; ALTER of an Origins table (§6 class note). |
+**Where the count lives.** History, derived (D7). A counter column was considered and rejected: it is a second record of the same fact
+and can drift. Reversals (§5.7) use a new history kind `reversal` (a contract change to `HistoryEntry`, `items.ts:152-155`) so they
+never count as a hop.
 
-**Recommendation: A**, enforced in the DB by the 0003 trigger (M9): on an update that appends a `trade` entry, count the entries; refuse if
-the count would pass 2; require `bound_to` to name the new owner when it reaches 2. Reversals (§5.7) use a new history kind `reversal` (a
-contract change to `HistoryEntry`, `items.ts:152-155`) so they never count. Binding is to the **character** (the existing `boundTo` field,
-`items.ts:167`), which keeps it off the account vault (`items.ts:402-410`); binding to the account instead is D6.
+**DB enforcement: not on trunk yet.** The contracts enforce the cooldown; the database does not. The 0003 settle cannot even write the
+`trade` history entry (§2.6 step 4). Draft #1522 (`202610070005`, not applied) adds a DB cooldown guard and DB-written trade history.
 
-Upgrades keep working on a bound piece (`performUpgrade` checks the owner, not the binding, `economy.ts:365`).
+**Why a cooldown and not a limit.** A hard limit bound good gear to its third owner forever. The cooldown keeps every piece in the
+economy but slows resale: a reseller holds each piece for weeks, which makes flipping farmed gear slow and visible.
+
+Upgrades keep working on any piece the player holds (`performUpgrade` checks the owner, not the binding, `economy.ts:365`).
 
 ### 2.11 Pit pieces and re-winning (R1, R2)
 
@@ -227,7 +252,7 @@ Upgrades keep working on a bound piece (`performUpgrade` checks the owner, not t
   `legacy-unlock` mint key is fixed per account and loot id (`items.ts:339`), so it can never be minted twice (`0001:104`); an `arena-award`
   is keyed by claim (`items.ts:143`), so a fresh win can mint a fresh copy. **OPEN:** whether the Pit would award a piece the player once
   owned depends on today's award logic (the `owned` collection set, `ids.ts:12`), a live system. Risk: win, trade, re-win is an unlimited
-  supply of one legend's piece per account, the raw material of a gear-selling farm. The 2-hand limit bounds each copy, not the supply.
+  supply of one legend's piece per account, the raw material of a gear-selling farm. The cooldown slows each copy, not the supply.
 
 ---
 
@@ -251,11 +276,11 @@ balance (`economy.ts:340`, `:381`, `:413`). Those hooks serve bound metals below
 
 ### 3.2 Metals: the bound NPC currency (later)
 
-**Strategy's view (2026-10-06), replacing the working name "tribute":** the bound NPC currency is **metals**, in three denominations:
+**Strategy's view (2026-10-06), replacing the working name "tribute", approved by Dom (2026-10-07):** the bound NPC currency is **metals**, in three denominations:
 **100 bronze = 1 silver, 100 silver = 1 gold.** The balance is one integer in **bronze** (the smallest unit); silver and gold are display
 only, so there is no conversion step and no rounding. `MAX_COIN` (`economy.ts:210`, 1,000,000,000) caps it at 100,000 gold.
 
-Metals are earned by play, spent at NPCs, and **can never be traded, gifted, listed or sold for cash.** No trade op takes them (§2.9) and the
+Metals are earned by play, spent at NPCs, and **can never be traded, gifted, listed or sold for cash** (Dom, 2026-10-07). No trade op takes them (§2.9) and the
 trade contract has no currency field (`economy.ts:38`). They are not needed at beta: the smith stays materials-only (R4).
 
 **Where it would live (option for 0003, not needed for phase 1):**
@@ -280,29 +305,28 @@ Amounts in bronze.
 | **Sink: repair** | No durability exists on `ItemInstance` (`items.ts:157-170`); it needs a durability field first. | Later |
 | **Sink: travel** | Paid passage between regions. Needs the world's travel system. | Later |
 | **Sink: housing** | Rent or upkeep. Not in the blueprint's first chapter. | Later |
-| NPC shop | No shop service kind exists (`economy.ts:177`). | Not phase 1 |
-| Selling items to NPCs | Would burn items for metal: a faucet, so only with measured sinks. | Not phase 1 |
+| **Sink: NPC shop** (Dom, 2026-10-07) | NPC shops sell **base gear** for metal. Shop **gear** is tradeable under the cooldown and keeps provenance `shop` (`items.ts` `Provenance`, `economy.ts` `tradeCooldown`). Shop **consumables** are bound and never trade. No shop service kind exists yet (`SERVICE_KINDS` is `upgrade` only). | Contracts ready for shop provenance; service not built |
+| Selling items to NPCs (Dom, 2026-10-07) | Sell-back pays **at most 25%** of the shop price, and about **0** for shop-origin gear, so buy-and-sell-back is never a faucet. A **daily cap** limits how much metal an account can get from NPC purchases of its items. **OPEN:** the cap's number (Stats). | Not built |
 
 A bound currency with no sinks only piles up. Metals ship with at least one live sink (the smith's metal price), and Stats watches the
 faucet/sink totals from the ledger before more faucets are added.
 
 ### 3.4 Gems are not money
 
-A stackable, tradeable gem is gold by another name. **Strategy's view:** gems are one of two things, never a currency:
+A stackable, tradeable gem is gold by another name. **Strategy's view, approved by Dom (2026-10-07):** gems are not money. They are one of two things, never a currency:
 
 | Kind | Rules |
 |---|---|
 | **Bound crafting material** | Stackable, bound, untradeable like every material (§2.10); spent at the smith or for socketing (when either exists). |
-| **Unique named jewel** | Single-copy (stack 1), a trade-limited item under the 2-hand rule (§2.10), one of each per account. |
+| **Unique named jewel** | Single-copy (stack 1), tradeable under the per-item cooldown (§2.10), one of each per account. |
 
 No gem definition may be both stackable and tradeable. The content check: `stack > 1` implies untradeable (§2.10 already says so).
 
-### 3.5 Tradeable metal: no for beta (awaiting Dom)
+### 3.5 Tradeable metal: none at beta (Dom, 2026-10-07)
 
-**No tradeable metal at beta.** If Dom later wants it, Strategy's fallback is a **capped sweetener inside a barter**, never metal for
-nothing: at most **1 gold** (10,000 bronze) per trade, at most **3** such trades per account per day, behind the same gates (§5.3), and only
-in a trade where both sides also offer at least one item. It would need a transfer reason in the metal ledger, a per-side amount in the
-`Trade` contract (`economy.ts:38`) and in the accepted set (§6.1), and the RMT case against coin (§3.1) applies in full. **Awaiting Dom.**
+**No tradeable metal at beta.** Metal never moves between players, not even as a sweetener inside a barter. Strategy's earlier fallback (at
+most 1 gold per trade, 3 such trades a day) is not adopted. Reopening it would need a transfer reason in the metal ledger and a per-side
+amount in the `Trade` contract, and the RMT case against coin (§3.1) applies in full.
 
 ---
 
@@ -316,13 +340,13 @@ in a trade where both sides also offer at least one item. It would need a transf
 | I2 | **A mint key is unique forever**; a split child is `parent::s<version>` and shares the root. | `mint_key unique` (`0001:104`), `mint_root` (`0001:105`), split key (`0001:418`, `inventory.ts:348`). | None. |
 | I3 | **One row per place** in pack, bank, worn, account vault and guild vault. | Partial unique indexes (`0001:126-130`); slot within the grid (`0001:234-239`). | Escrow has no place (`items.ts:501`), by design. |
 | I4 | **One live location per row**, so a piece cannot be in two escrows. | Location columns are the only record (`0001:113-123`); every `put` compares and bumps `version` (`0001:398-401`). | An escrow row can name any container text (`0001:99`) or a `from` that is not a side. 0003 guard (M8). |
-| I5 | **Single copy per account**, escrow counted for the offerer. | `origins_items_one_of_each` (`0001:132`), holder by trigger (`0001:226-233`); pure `checkOneOfEach` (`items.ts:507-525`). | Same-definition swaps refused (§2.7). |
+| I5 | **Single copy per account**, escrow counted for the offerer. | 0003's deferred count at commit (`202610060003_origins_trade_settle.sql:195-210`), holder by trigger (`0001:226-233`); pure `checkOneOfEach` (`items.ts:507-525`). | None. Same-definition swaps now settle (§2.7). |
 | I6 | **Atomic settle:** every offered piece moves, or nothing. | One batch, one transaction (`0001:490-500`); rollback tested (`scripts/origins-database-check.mjs:156-157`). | The DB does not check both accepts or the version (`0001:490-500`). 0003 adds them. |
 | I7 | **No escrow outlives its trade.** | Not checked: a cancel batch that forgets a piece strands it in a closed trade. | 0003: settle and cancel refuse if the container still holds a live row. |
 | I8 | **A trade settles once.** | `state = 'open' for update` (`0001:493-494`, `:504-505`); tested (`scripts/origins-database-check.mjs:158`). | None. |
 | I9 | **Idempotent op ids.** | Event pk aborts a replay with O0001 (`0001:66`, `:435-438`); stored payload read back (`0002:13-15`). | `trade` is not an event kind yet (`0002:9-10`). 0003 adds it. |
 | I10 | **Provenance fixed, history append-only.** | Trigger (`0001:217-223`); `placeWithHistory` (`items.ts:457`). | None. |
-| I11 | **Trade limit:** a piece has at most 2 `trade` history entries, and one with 2 is bound to its holder. Survives split (history copied, `0001:418`), escrow and cancel (no entry written). | Nothing yet. | 0003 trigger (M9); pure check in `settleTrade`. |
+| I11 | **Cooldown (Dom, 2026-10-07):** a piece is offered and settled only after its cooldown (72 h fresh, then 7, 14, 30 days per hop, 30 forever after). Every settled trade appends exactly one `trade` entry, so the hop count survives split (history copied, `0001:418`), escrow and cancel (no entry written). | Pure: `tradeCooldown` in `changeOffer` and `settleTrade`. | DB: 0003's settle refuses `history_append` (§2.6 step 4) and has no cooldown guard. Draft #1522 adds both. |
 | I12 | **Only tradeable pieces enter escrow:** never a stackable (`single_copy = false`), never a bound row. | Pure: `economy.ts:155`. DB: nothing. | 0003 guard (M8) refuses `single_copy = false` or `bound_to is not null` into escrow. Rarity and provenance rules stay in the writer (the DB does not store rarity). |
 | I13 | **Bound and story-critical never move between accounts.** | `economy.ts:155`, `inventory.ts:260`, `items.ts:402-410`; story-critical binds on acquire (`items.ts:102`). | Covered by I12 for the bound column. |
 | I14 | **Metal is never transferred** (when built): its ledger has no transfer reason, balance = sum of ledger, 0..`MAX_COIN`. | Nothing yet. | Option B (§3.2). |
@@ -345,7 +369,7 @@ packs filled mid-trade, pieces passed A → B → C → A). After every step:
 | P8 | After settle or cancel the container's escrow is empty. |
 | P9 | Every moved piece keeps its provenance and gains exactly one `trade` entry (`checkHistoryKept`, `items.ts:421`). |
 | P10 | No piece lands past the receiver's real pack size. |
-| P11 | **Trade limit:** no piece ever has more than 2 `trade` entries; every piece with 2 is bound to its holder; a third trade is refused. |
+| P11 | **Cooldown:** no piece is offered or settled before its cooldown ends; each settle adds exactly one hop; no trade ever binds a piece. |
 | P12 | **The count survives:** cancel, expiry, escrow in/out and withdrawn offers never change it; a reversal does not raise it. |
 | P13 | No stackable and no bound piece is ever in escrow. |
 | P14 | Two concurrent settles of one trade: exactly one wins (model the row lock as a mutex). |
@@ -361,7 +385,7 @@ packs filled mid-trade, pieces passed A → B → C → A). After every step:
 | D5 | Two trades offering the same piece | Second escrow `put` stale (O0002); with 0003 also refused as already in an open trade. |
 | D6 | Receiver full | Writer refuses first; a forced batch into a taken slot fails the place index (`0001:126`). Trade stays open. |
 | D7 | Receiver already holds the piece | `origins_items_one_of_each` refuses, nothing moves (exists: `:156-157`). |
-| D8 | Same-definition swap | Before 0003: refused (§2.7). After M17: a +0↔+3 helm swap settles; a trade that would leave any account holding two copies still fails at commit; both items' hand-change counts go up and the 2-hand-change limit applies to each (Strategy 2026-10-06). |
+| D8 | Same-definition swap | 0003 is applied: a +0↔+3 helm swap settles; a trade that would leave any account holding two copies still fails at commit (exists: `scripts/origins-trade-check.mjs:167-178`). Each item gains a hop and its own cooldown (Dom, 2026-10-07). |
 | D9 | Cancel batch that leaves a piece in escrow | Refused by 0003; trade stays open. |
 | D10 | Settle without both accepts, or at a stale version | Refused by 0003 (today the DB allows it). |
 | D11 | Two characters of one account | Refused by 0003. |
@@ -369,9 +393,9 @@ packs filled mid-trade, pieces passed A → B → C → A). After every step:
 | D13 | Settle after `expires_at` | Refused; the sweep cancels and returns escrow. |
 | D14 | A side erased mid-trade | Exists (`:262-275`). |
 | D15 | Settle batch carrying `mint`, `burn`, `split` or `career_set` | Refused by 0003 (settle takes `put` and `event` only). Today `origins_apply` runs any op (`0001:382-475`). |
-| D16 | **Third trade of a piece** (A → B → C, then C offers it) | C's escrow `put` refused (bound); a forced settle appending a third `trade` entry refused by the trigger. |
-| D17 | **Second trade without binding** (a batch that appends the 2nd `trade` entry but leaves `bound_to` null) | Refused by the trigger. |
-| D18 | **Count survives escrow and cancel:** a piece offered and cancelled 5 times, then traded twice | Binds on the 2nd settle, not before. |
+| D16 | **A cooling piece offered** (fresh under 72 h, or inside its 7/14/30 day step) | Escrow `put` refused. Needs #1522's cooldown guard. |
+| D17 | **A settle that writes no trade history, or a forged one** | Every settle appends exactly one `trade` entry per moved piece, written by the DB, never by the batch. Needs #1522. |
+| D18 | **Count survives escrow and cancel:** a piece offered and cancelled 5 times, then traded | Hop count goes from 0 to 1 on the settle only; it never binds. |
 | D19 | **Count survives split** (defence in depth: force a stackable row with 2 `trade` entries, split it) | The child carries both entries (`0001:418`) and is refused from escrow. |
 | D20 | A stackable or a bound row put into escrow | Refused by 0003's guard. |
 | D21 | Client token calling any trade function or reading `origins_trades` | Refused (reads exist: `:170`). |
@@ -387,16 +411,16 @@ currency cases T9-T10) are the acceptance bar (`item-loot-storage-summary.md:37`
 ### 5.1 An honest note first
 
 Banning tradeable currency does not capture the real-money margin by itself. Off-site sellers will still sell rare gear and whole accounts.
-What shrinks them is the sum of: **trade limits** (a piece can be resold at most twice), **gates**, **caps**, **provenance trails**, a
+What shrinks them is the sum of: the **per-item cooldown** (each resale waits longer, up to 30 days), **gates**, **caps**, **provenance trails**, a
 **ToS ban** with enforcement, and a **cash shop that sells what buyers actually want** (looks and convenience, §5.8), so the legitimate
 route is easier than the grey one. None of these removes RMT; together they make it small, slow and visible.
 
 ### 5.2 What can be traded at all
 
-Trade-limited unique pieces only (§2.10). No currency. Stackables bound. Cash items bound. A farmed piece can pass through at most two
-buyers, and the second buyer cannot resell it.
+Unique pieces under the per-item cooldown only (§2.10). No currency. Stackables bound. Cash items and shop consumables bound. A farmed
+piece can be resold, but each resale waits longer (7, 14, then 30 days), so a farm cannot flip gear quickly (Dom, 2026-10-07).
 
-### 5.3 Who may trade (PROPOSED)
+### 5.3 Who may trade (Dom, 2026-10-07)
 
 | Gate | Value | Why |
 |---|---|---|
@@ -405,7 +429,9 @@ buyers, and the second buyer cannot resell it.
 | Account age | **7 days** since the account was created | Throwaway accounts cost a week. |
 | Origins age | **48 hours** since `origins_access.granted_at` (`0001:17`) | Stops instant farms on new allowlist rows. |
 
-### 5.4 Cooldowns (PROPOSED)
+### 5.4 Account cooldowns (PROPOSED)
+
+These are per-account and separate from the per-item cooldown (§2.10).
 
 - **New device:** for **72 hours** after a device id is first seen on an account, the account can receive but not give.
 - **Password or email change:** **72 hours**, same rule. A bought account cannot be stripped quickly. **OPEN:** the writer needs this
@@ -448,17 +474,17 @@ Caps are config rows (`origins_config`, `0001:15-16`), so Strategy moves them wi
 | Dom, or Strategy on Dom's say | Reverse a trade. |
 
 **Reversal** is a writer-only function that moves each piece still held by its receiver back to its sender with a `reversal` history entry
-(not counted toward the limit, §2.10) and a `trade-reversal` event naming who and why. Nothing is deleted or rewritten. **OPEN:** a piece
+(never counted as a hop, §2.10) and a `trade-reversal` event naming who and why. Nothing is deleted or rewritten. **OPEN:** a piece
 already passed on. Recommendation: reverse only what the receiver still holds and freeze the rest for review.
 
-### 5.8 Real money: only Dom sells, and what he sells is always bound
+### 5.8 Real money: a narrow cash shop, only Dom sells, always bound (Dom, 2026-10-07)
 
 | Rule | |
 |---|---|
 | Seller | Dom only. Players never sell to players for money through the game. |
-| Catalogue | **Cosmetics** (including transmog: wearing the look of a piece you earned, never its stats) and **membership convenience**: bank slots (`bank_slots`, `0001:30`), character slots (cap 5 today, `0001:309`), pack slots (`pack_slots`, `0001:29`), region access (membership, blueprint `:9`). |
+| Catalogue | **Cosmetics and convenience only.** Cosmetics (including transmog: wearing the look of a piece you earned, never its stats) and **membership convenience**: bank slots (`bank_slots`, `0001:30`), character slots (cap 5 today, `0001:309`), pack slots (`pack_slots`, `0001:29`), region access (membership, blueprint `:9`). |
 | Never | Stats, gear power, upgrade levels, materials, metals, gems used as currency, rank, or anything tradeable. |
-| Always | **Account-bound and untradeable.** Never in a random box. |
+| Always | **Account-bound and untradeable** (provenance `cash-shop`, refused by `tradeCooldown`). **Never random**: never in a random box. |
 
 Reasons:
 
@@ -478,7 +504,8 @@ Account selling is where gold sellers go when there is no gold. **It cannot be r
   72 hours, long enough for a report or a flag.
 - **Provenance trails** (§5.7): a farm that levels accounts and resells their pieces shows up as one winner's pieces spreading to many
   accounts, and as accounts whose device and contact details change just before their pieces move.
-- Bound gear limits the prize: most of a strong account's kit is bound to it (cash items, materials, pieces on their third owner).
+- Bound items and the cooldown limit the prize: cash items, materials and consumables are bound, and recently traded gear cannot move again
+  for weeks (§2.10).
 
 ### 5.10 Bots
 
@@ -490,12 +517,13 @@ Account selling is where gold sellers go when there is no gold. **It cannot be r
 
 ### 5.11 Anti-bot (Strategy's view, 2026-10-06)
 
-**Auto-hold (Dom's idea).** When an account's wealth or velocity is anomalous (pieces arriving or leaving far faster than its play could
+**Auto-hold (Dom's idea, approved by Dom 2026-10-07).** When an account's wealth or velocity is anomalous (pieces arriving or leaving far faster than its play could
 explain, or a farm-chain pattern), the writer puts a **hold** on it:
 
-- A hold freezes **trading only**: open, offer and accept refuse. It **never** stops play: fights, quests, the Pit and the bank keep working.
+- A hold freezes **trading only**: open, offer and accept refuse. It freezes nothing else: fights, quests, the Pit, the bank and NPC
+  services keep working.
 - A hold **expires after 72 hours** unless a reviewer confirms it.
-- **Strategy or Lead** review holds against **stated, written rules**. **Dom** decides bans and trade reversals (§5.7).
+- **Strategy or Lead** review holds against **stated, written rules**. **Only Dom bans** (Dom, 2026-10-07). Trade reversals follow §5.7.
 - A hold is a config row with a reason, a start and an expiry, plus an event, so every hold is auditable. (M13's config rows; the event
   kind is `trade-hold`, added to M11.)
 
@@ -522,6 +550,10 @@ farm cannot learn which action tripped it.
 ---
 
 ## 6. What 0003 needs (additive, Origins-only)
+
+**Status (2026-10-07):** 0003 shipped M1, M3, M4, M5, M6, M7, M8, M11 (`trade`, `trade-cancel` only) and M17, and is applied on prod with
+the 0004 escrow-guard fix. A later lock fix, `202610070003_origins_trade_open_lock.sql`, serialises `origins_open_trade` per account. The
+other rows below wait for later migrations (draft #1522).
 
 Nothing in 0003 touches a live non-Origins table. Every item creates or replaces something under `origins_*`, with a down-script that
 restores exactly the 0001/0002 state, a branch-DB run of `scripts/origins-database-check.mjs` plus §4.3, and Auditor probes.
@@ -614,7 +646,7 @@ spec follows that: changing an **Origins** table that holds no player rows (the 
 | M17 | **BLOCKER.** Drop `origins_items_one_of_each` (`0001:132`); add a deferred constraint trigger that counts live single-copy rows per `(holder_account, item)` at commit, under an advisory lock (§6.3). Down-script restores the index. | index drop + trigger | 1* |
 | M2 | One open trade per character and per account: partial unique indexes on `side_a` / `side_b` where open, plus a cross-column check in `origins_open_trade`; index on `(state, expires_at)` where open | index | 1 |
 | M3 | Replace `origins_open_trade`: two different accounts; neither already trading; set `region`, `expires_at` | function replace | 1 |
-| M9 | Trade-limit trigger on `origins_items`: when an update appends a `trade` history entry, count them; refuse above **2**; at 2 require `bound_to` = the new holder | trigger | 1 |
+| M9 | **Replaced (Dom, 2026-10-07):** no trade-limit trigger. Instead a cooldown guard on escrow entry (72 h fresh, then 7, 14, 30 days per hop) and DB-written `trade` history on settle, so the hop count cannot be skipped (draft #1522) | trigger | 1 |
 | M10 | New `origins_expire_trades()` for the writer's sweep | function | 1 |
 | M11 | `origins_events` kind check gains `trade`, `trade-cancel`, `trade-reversal`, `trade-hold` (same form as `0002:8-10`; `metal` too if M15 ships) | constraint replace | 1* |
 | M12 | New `origins_trade_audit (container, account, character, session_id, device_hash, ip_hash, ua_family, at)`; replace `origins_purge_account` to delete its rows | table + function replace | 1 |
@@ -626,35 +658,37 @@ spec follows that: changing an **Origins** table that holds no player rows (the 
 Not in 0003: any change to `loot_claims`, `awards`, `fighter_profiles` or another Pit table (re-winnable pieces, R2, would touch the live
 award path and is class 2 if adopted); cash-shop tables; barter-board tables (phase 2).
 
-Contract changes that go with it (code, not migration): a tradeable predicate (§2.10) used by `changeOffer`/`settleTrade`; the 2-trade bind
-in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts off if D4 says so (`economy.ts:68`).
+Contract changes that go with it (code, not migration): the tradeable predicate and cooldown (§2.10) used by `changeOffer`/`settleTrade`
+(**done**, #1479, `tradeCooldown`; it replaced the 2-trade bind); the D5 rarity test (not in `tradeCooldown` yet); a `reversal`
+`HistoryEntry` kind (`items.ts:152-155`); gifts off if D4 says so (`economy.ts:68`).
 
 ---
 
 ## 7. Decisions for Strategy
 
-1. **Player currency:** none, barter only / tradeable coin. **Awaiting Dom. Recommend none; coin considered and rejected (§3.1).**
+1. **Player currency:** none, barter only / tradeable coin. **RULED (Dom, 2026-10-07): barter only; no currency changes hands in a player trade (§3.1).**
 2. **Full receiver:** refuse the whole trade and keep it open (today's code) / move what fits, return the rest. **RULED (Strategy 2026-10-06): refuse whole; fix `server-save-schema.md:76`.**
-3. **Trade limit:** 2 hand changes then bind to the third owner / 1 / unlimited. **Awaiting Dom. Recommend 2.**
+3. **Trade limit:** 2 hand changes then bind to the third owner / 1 / unlimited. **REPLACED (Dom, 2026-10-07): no hard trade limit. An escalating per-item cooldown instead: 72 h for a fresh piece, then 7, 14 and 30 days per hop, capped at 30 days for every later trade; hop count from the piece's `trade` history entries; a trade never binds (§2.10, `economy.ts` `tradeCooldown`).**
 4. **Gifts (one empty side):** off at beta / on. **RULED (Strategy 2026-10-06): off at beta (one or more items each side), the contract allows them today (`economy.ts:68`).**
 5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-06): rare-and-up plus Pit pieces, so R1 holds.**
-6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-06): the character for beta; revisit account-bind after beta. No contract change.**
+6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-06): the character for beta; revisit account-bind after beta. No contract change.** Moot since decision 3: a trade no longer binds (Dom, 2026-10-07).
 7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-06): history.**
-8. **NPC costs:** bound metals (bronze/silver/gold, 100:1, stored in bronze), ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-06): bound metals in ledger tables when built (replaces "tribute"); materials-only at beta.**
+8. **NPC costs:** bound metals (bronze/silver/gold, 100:1, stored in bronze), ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-06): bound metals in ledger tables when built (replaces "tribute"); materials-only at beta. Approved (Dom, 2026-10-07): metals are a bound NPC currency and never tradeable.**
 9. **Metal per Pit win:** 20 x payer tier bronze, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-06): 20 x payer tier as the placeholder; Stats sets the number.**
-10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-06): refuse until 0003 lands; after that the swap settles through the deferred one-of-each trigger (M17).** Conditions: 0003 includes a test proving a +0↔+3 helm swap settles AND a test proving a trade that would leave anyone holding two copies still fails at commit; the 2-hand-change limit applies to both items.
+10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-06): refuse until 0003 lands; after that the swap settles through the deferred one-of-each trigger (M17).** Conditions: 0003 includes a test proving a +0↔+3 helm swap settles AND a test proving a trade that would leave anyone holding two copies still fails at commit. **Today (Dom, 2026-10-07): 0003 is applied (prod 20261006174845) with its escrow-guard fix 0004 (prod 20261006205219), both tests exist (`scripts/origins-trade-check.mjs:167-178`), and nothing on trunk refuses the swap, so it settles. Each item gains a hop and its own cooldown (§2.7).**
 11. **Same-IP trades:** allow and flag / refuse. **RULED (Strategy 2026-10-06): allow and flag; refuse same session or device.**
 12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **RULED (Strategy 2026-10-06): class 1 while the flag is OFF and the tables are empty; same path, joint GO.**
-13. **Trade gates:** Gladiator only / plus verified email, 7-day account, 48 h Origins age (phone dropped for beta). **CHANGED (Strategy 2026-10-06): Gladiator rank + verified email + 7-day-old account + 48 h in Origins. Phone verification is an optional later gate (SMS costs money per message; Dom's purchase call).**
+13. **Trade gates:** Gladiator only / plus verified email, 7-day account, 48 h Origins age (phone dropped for beta). **CHANGED (Strategy 2026-10-06), approved (Dom, 2026-10-07): Gladiator rank + verified email + account at least 7 days old + 48 h in Origins. Phone verification is an optional later step; SMS costs money per message, so whether to buy it is Dom's call, not decided here.**
 14. **Cooldown after a new device or a password/email change:** 72 h / 24 h / none. **RULED (Strategy 2026-10-06): 72 h.**
-15. **Cash shop:** Dom only; cosmetics, transmog and membership convenience; always bound, never random, never stats / anything wider. **Awaiting Dom. Recommend the narrow catalogue.**
+15. **Cash shop:** Dom only; cosmetics, transmog and membership convenience; always bound, never random, never stats / anything wider. **RULED (Dom, 2026-10-07): the narrow shop. Cosmetics and convenience only, always bound, never random, never stats (§5.8).**
 16. **Phase 2 discovery:** barter board with multi-item and "any of these" offers, no prices / priced market. **RULED (Strategy 2026-10-06): the barter board.**
 17. **Re-winnable once sold (R2):** adopt with a give cap / reject / defer. **RULED (Strategy 2026-10-06): defer until after beta (live award path).**
 18. **Who may reverse a trade:** Dom / Dom or Strategy on Dom's say / any admin. **RULED (Strategy 2026-10-06): Dom or Strategy on Dom's say; admins freeze only.**
 19. **Player trade before the hub runtime exists:** heartbeat only / wait for the hub to prove the Exchange position. **RULED (Strategy 2026-10-06): wait; heartbeat in the preview.**
-20. **Tradeable metal:** none at beta / a capped sweetener inside a barter (at most 1 gold per trade, 3 such trades a day, same gates). **Awaiting Dom. Recommend none at beta; the sweetener only if Dom insists later.**
-21. **Gems:** bound crafting materials or unique named jewels under the 2-hand rule / a stackable tradeable gem. **Strategy's view: never a stackable tradeable gem (it would be gold by another name).**
-22. **Auto-holds:** wealth/velocity anomalies freeze trading only, expire after 72 h unless confirmed; Strategy/Lead review on written rules; Dom decides bans and reversals / no auto-holds. **Awaiting Dom (his idea). Recommend adopt, as the last beta layer after gates, rate limits and Turnstile.**
+20. **Tradeable metal:** none at beta / a capped sweetener inside a barter (at most 1 gold per trade, 3 such trades a day, same gates). **RULED (Dom, 2026-10-07): no tradeable metal at beta (§3.5).**
+21. **Gems:** bound crafting materials or unique named jewels under the per-item cooldown / a stackable tradeable gem. **RULED (Dom, 2026-10-07): gems are not money; never a stackable tradeable gem (§3.4).**
+22. **Auto-holds:** wealth/velocity anomalies freeze trading only, expire after 72 h unless confirmed; Strategy/Lead review on written rules; Dom decides bans and reversals / no auto-holds. **RULED (Dom, 2026-10-07): adopt. A hold freezes trading only and nothing else, expires after 72 h, is reviewed by Strategy or Lead, and only Dom bans (§5.11).**
+23. **NPC shops:** sell base gear for metal / none. **RULED (Dom, 2026-10-07): NPC shops sell base gear for metal. Shop gear is tradeable (provenance `shop`, under the cooldown); shop consumables are bound. Sell-back pays at most 25% of the price (about 0 for shop-origin gear), with a daily NPC purchase cap (§3.3).**
 
 ---
 
@@ -668,6 +702,7 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 6. Which tier Pit metal uses, and whether grey or already-beaten legends pay it (§3.3).
 7. A value measure for the lopsided-trade flag with no prices (§5.6).
 8. How the writer learns of a password or email change (§5.4); and, if Dom buys SMS later, whether phone verification can be turned on in Supabase Auth (§5.3).
+14. The daily NPC purchase cap's number, and the exact sell-back rate below 25% (§3.3; Stats).
 9. Whether a reversal follows a piece already passed on (§5.7).
 10. Whether a pre-check that says "the other player cannot receive this piece" is an acceptable leak of their inventory (§2.9).
 11. Whether 0001 is applied on the hosted project yet (decides M1/M11's class in practice).
