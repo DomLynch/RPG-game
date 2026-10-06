@@ -7,7 +7,7 @@ import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
 import { riseMetres, riseStep } from './gate-rise.ts';
-import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
+import { abyssPixels, bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
 
@@ -481,15 +481,19 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
   if (cliff) {   // the sand ends here: a sheer rock face a few metres deep under its edge (vertical, flaring a little: an undercut would hide under the lip from the fight camera), darkening, and nothing but the painted far world beyond (no far ground)
-    const depth = 3.2, face = new THREE.CylinderGeometry(edgeR, edgeR * 1.04, depth, 72, 5, true), pos = face.attributes.position, shade = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) {
+    const depth = 3.2, face = new THREE.CylinderGeometry(edgeR, edgeR * 1.04, depth, 144, 5, true), pos = face.attributes.position;
+    for (let i = 0; i < pos.count; i++) {   // the ragged bite and the flare; the colour, ledges and cracks are the texture's (cliffPixels: one map, no tiling round the 75 m of rim)
       const y = pos.getY(i), k = Math.min(1, Math.max(0, (depth / 2 - y) / depth)), a = Math.atan2(pos.getX(i), pos.getZ(i)), bite = k * (0.35 * (mottle(a * 1.3 + 3, k * 3 + 1) - 0.5) + 0.12 * Math.sin(a * 9 + y)), r = Math.hypot(pos.getX(i), pos.getZ(i)), rr = r + bite;
-      pos.setXYZ(i, pos.getX(i) * rr / r, y - 0.0, pos.getZ(i) * rr / r);
-      const tone = (0.5 - 0.42 * k) * (0.7 + 0.6 * mottle(a * 3.7 + 7, k * 4 + 2)) * (1 + 0.18 * Math.sin(a * 41 + k * 3));   // darker than the sand and streaked, so a sunlit face does not wash out to a flat tan
-      shade.set([tone * 1.1, tone * 0.9, tone * 0.76], i * 3);
+      pos.setXYZ(i, pos.getX(i) * rr / r, y, pos.getZ(i) * rr / r);
     }
-    face.setAttribute('color', new THREE.BufferAttribute(shade, 3)); face.translate(0, -depth / 2, 0); face.computeVertexNormals();
-    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', color: '#5a4636', roughness: 1, vertexColors: true }); materials.push(rock);
+    face.translate(0, -depth / 2, 0); face.computeVertexNormals();
+    const unmipped = (t: THREE.DataTexture) => { t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; return t; };   // no mips: the arena's texture budget is 12 MB and these two are what is left of it
+    const rockMap = unmipped(dataTexture(cliffPixels(640, 96), true));
+    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, bumpMap: rockMap, bumpScale: 1.5, roughness: 1 }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
+    // Under the drop, where the painted world ends: a cloud sea down to a dusk abyss on a bowl inside the sky dome, unfogged, so the clear colour never shows.
+    const abyssMap = unmipped(dataTexture(abyssPixels(128, 32), true));
+    const abyssMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', map: abyssMap, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(abyssMaterial); abyssMaterial.addEventListener('dispose', () => abyssMap.dispose());
+    mesh(new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), abyssMaterial, 'abyss', false).receiveShadow = false;
     mesh(face, rock, 'cliff', false);
   } else mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);

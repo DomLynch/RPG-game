@@ -168,6 +168,39 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
     return [sky[0] + (gr - sky[0]) * ground, sky[1] + (gg - sky[1]) * ground, sky[2] + (gb - sky[2]) * ground];
   });
 }
+// Arena 1's cliff face (Dom 2026-10-06, the reference photo: dark grey-green layered rock, ledges, cracks, pale veins). Unit square =
+// the face unrolled: u around (seamless: every noise tiles), v = 1 at the sand's lip down to 0. Horizontal strata thin in v and long in u
+// (the ledges, their lips catching light), tall hairline cracks, diagonal pale veins, grain; the colour runs from sand at the lip into
+// dark stone, so the drop reads as the floor's own edge breaking off.
+export function cliffPixels(width = 1024, height = 192, seed = 43): Pixels {
+  const strata = fbm(10, 2, seed, 0.4), chunk = fbm(9, 4, seed + 2), crack = fbm(120, 1, seed + 5), crackMask = fbm(6, 2, seed + 6), vein = fbm(8, 3, seed + 7), veinMask = fbm(5, 3, seed + 8), grain = fbm(64, 3, seed + 9), patch = fbm(7, 3, seed + 11);
+  return pixels(width, height, (u, v) => {
+    const d = 1 - v, t = strata(u, v * 0.75) * 7, band = Math.floor(t), fr = t - band;   // ledges: the contour bands of a long, flat noise
+    const lit = 1 - smoothstep(0.0, 0.16, fr), under = smoothstep(0.84, 1.0, fr), bandTone = hash(band, 3, seed) - 0.5;   // each band its own tone, a lit lip on top, a shadow under
+    const c = chunk(u, v * 0.8), facet = Math.floor(c * 5) / 5, g = grain(u, v) - 0.5, p = patch(u, v * 0.9);
+    const cr = Math.abs(crack(u, v * 0.012) - 0.5), crackLine = (1 - smoothstep(0.006, 0.026, cr)) * smoothstep(0.5, 0.62, crackMask(u, v)), ve = Math.abs(vein(u + v * 0.2, v * 0.55) - 0.5), veinLine = (1 - smoothstep(0.004, 0.016, ve)) * smoothstep(0.52, 0.68, veinMask(u, v * 0.8));
+    const tone = (0.78 + 0.5 * bandTone + 0.55 * (facet - 0.5) + 0.35 * (c - 0.5) + 0.3 * g + 0.5 * lit - 0.45 * under) * (1 - 0.6 * smoothstep(0.0, 1.0, d));
+    const k = 128 * tone;   // grey-green stone, one patch of hue drifting over the face
+    let r = k * (0.78 + 0.35 * (p - 0.5)), gg = k * (0.9 + 0.3 * (p - 0.5)), b = k * (0.86 + 0.3 * (p - 0.5));
+    const pale = Math.min(0.85, veinLine * 0.8 * smoothstep(0.15, 0.5, d) + lit * 0.12);   // pale veins, a pale edge on the ledge lip
+    r += (190 - r) * pale; gg += (204 - gg) * pale; b += (194 - b) * pale;
+    const dark = crackLine * 0.8; r *= 1 - dark; gg *= 1 - dark; b *= 1 - dark;
+    const sand = 1 - smoothstep(0.0, 0.2 + 0.12 * (strata(u, 0.3) - 0.5), d + 0.05 * g);   // the lip is sand, ragged, breaking into stone
+    return [r + (140 * (0.9 + 0.2 * g) - r) * sand, gg + (112 * (0.9 + 0.2 * g) - gg) * sand, b + (84 * (0.9 + 0.2 * g) - b) * sand];
+  });
+}
+// Below the drop: a cloud sea running down into a dusk abyss, so the arena floats and no flat clear colour ever shows. Equirectangular, v = 1 at
+// the horizon (the painted world's cloud bank, cream and rose) down to 0 at the nadir (deep blue-grey).
+export function abyssPixels(width = 512, height = 128, seed = 61): Pixels {
+  const cloud = fbm(8, 5, seed), wisp = fbm(20, 3, seed + 3);
+  return pixels(width, height, (u, v) => {
+    const down = 1 - v, n = cloud(u, v * 0.9), puff = smoothstep(0.36, 0.68, n), w = wisp(u, v * 0.8) - 0.5, deep = smoothstep(0.0, 0.75, down);
+    const light: [number, number, number] = [226, 202, 184], shade: [number, number, number] = [150, 140, 150], dusk: [number, number, number] = [60, 66, 92], night: [number, number, number] = [30, 34, 54];
+    const cl = (i: number) => shade[i] + (light[i] - shade[i]) * (puff * (1 - 0.6 * deep) + 0.25 * w), sky = (i: number) => dusk[i] + (night[i] - dusk[i]) * smoothstep(0.4, 1.0, down);
+    const k = smoothstep(0.35, 0.85, down) , m = (i: number) => cl(i) * (1 - k) + sky(i) * k;
+    return [m(0), m(1), m(2)];
+  });
+}
 // A torn banner: a cut mask. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.
 export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
   const hem = fbm(6, 3, seed), holes = fbm(5, 3, seed + 3), fray = fbm(10, 2, seed + 5);
