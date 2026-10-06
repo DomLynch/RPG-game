@@ -218,3 +218,90 @@ test('manager Tithe matches authored solo arena transform and composes with real
   const frame = capture(managed); presentation.render(0, pair, 205, bones, bones, undefined, false); assert.deepEqual(capture(managed), frame, 'frozen draws do not compound transformations');
   presentation.clear(); assert.deepEqual(capture(managed), base);
 });
+
+test('a repeat cast of the same special creates nothing new: the effect is built once per fight, only its cast state is reset', async () => {
+  const scene = new THREE.Scene(), pair = fighters(), built: string[] = [], cleared: number[] = [];
+  const fight = { opponent: 'nightborn' as const, level: 46 };
+  const land = (actor: 0 | 1, tick: number): CombatEvent => ({ type: 'SpecialLanded', actor, tick, name: 'hadesshadow' } as CombatEvent);
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (id, group) => {
+    built.push(id); const mark = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()); group.add(mark);
+    return { render() {}, clear() { cleared.push(built.length); } };
+  });
+  presentation.prepare(1, [], pair, 1, false, fight); await flush();
+  const atFightStart = built.length, children = scene.children.length, groups = [...scene.children];
+  presentation.prepare(1, [start(1, 100)], pair, 100, false, fight); await flush();
+  presentation.prepare(1, [land(1, 220)], pair, 220, false, fight); await flush();
+  assert.equal(built.length, atFightStart, 'the first cast builds nothing: it was built at the fight start');
+  for (const second of [900, 1700]) {
+    presentation.prepare(1, [start(1, second)], pair, second, false, fight); await flush();
+    presentation.prepare(1, [land(1, second + 120)], pair, second + 120, false, fight); await flush();
+  }
+  assert.equal(built.length, atFightStart, 'a second and a third cast build nothing new');
+  assert.equal(scene.children.length, children, 'and the arena gained no group');
+  assert.deepEqual(scene.children, groups, 'the same groups stay in the scene (none disposed and replaced)');
+  assert.ok(cleared.length >= 2, 'each repeat resets the effect\'s cast state');
+  presentation.clear();
+});
+
+test('a load that failed is tried again on the next cast', async () => {
+  const scene = new THREE.Scene(), pair = fighters(), built: string[] = [];
+  const fight = { opponent: 'nightborn' as const, level: 46 };
+  let fail = true;
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (id) => { built.push(id); if (fail) { fail = false; throw Error('load failed'); } return { render() {}, clear() {} }; });
+  presentation.prepare(1, [], pair, 1, false, fight); await flush(); await flush();
+  const first = built.length;
+  presentation.prepare(1, [start(0, 100)], pair, 100, false, fight); await flush();   // side 0's first load was the one that failed
+  assert.ok(built.length > first, 'the failed load is tried again on the next cast');
+  presentation.clear();
+});
+
+// Reuse must be invisible: a second cast on the kept effect draws exactly what a freshly built effect draws for the same events. Every real special, same stream.
+test('every special: a second cast on the reused effect draws the same frames as a freshly built effect [slow]', async () => {
+  const { SPECIAL_MODES } = await import('../src/special-modes.ts');
+  const { SPECIAL_TESTS } = await import('../src/special-look.ts');
+  const feet = [new THREE.Vector3(0, 0, 2), new THREE.Vector3(0, 0, -1.25)] as const, heads = [new THREE.Vector3(0, 1.7, 2), new THREE.Vector3(0, 1.7, -1.25)] as const;
+  const rig = (x: number) => ({ boneWorld: () => new THREE.Vector3(x, 1.2, 0), anchor: new THREE.Group() });
+  const warriors = { player: rig(0), opponent: rig(1) } as never;
+  type Drawn = [string, number, number, number, number, number, number][];
+  const look = (scene: THREE.Scene): Drawn => {
+    const out: Drawn = [];
+    scene.traverseVisible((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (o.type === 'Scene' || (o as THREE.Mesh).isMesh === undefined && !(o as THREE.Sprite).isSprite && !(o as THREE.Points).isPoints && !(o as THREE.Line).isLine) return;
+      if (m && m.opacity < 0.002) return;   // a fully transparent object draws nothing: stale scale or position on it is not a difference
+      out.push([o.name, +o.position.x.toFixed(4), +o.position.y.toFixed(4), +o.position.z.toFixed(4), +o.scale.x.toFixed(4), +o.scale.y.toFixed(4), +(m?.opacity ?? 1).toFixed(4)]);
+    });
+    return out;
+  };
+  // Some effects run a free-running flutter clock (a `t += dt` the wobble sines read) that a reused effect carries on from its last cast: positions may differ by the
+  // wobble's amplitude, never by what is drawn. So: the same objects, and every number within a flutter's reach.
+  const sameDrawing = (a: Drawn, b: Drawn): boolean => a.length === b.length && a.every((x, i) => x[0] === b[i]![0] && x.slice(1).every((v, k) => Math.abs((v as number) - (b[i]![k + 1] as number)) <= (k === 5 ? 0.08 : k >= 3 ? 0.5 : 0.3)));
+  const { SKILL_MOVE } = await import('../src/moves.ts');
+  const moves = [...new Set(Object.values(SKILL_MOVE))] as string[];   // each effect's own predicate names the move that is its cast (special-timing.ts is*): try them
+  const frames = async (id: string, withFirst: boolean, move: string): Promise<Drawn[]> => {
+    const ev = (type: 'SpecialStarted' | 'SpecialLanded', tick: number) => ({ type, actor: 1, tick, move } as unknown as CombatEvent);
+    const t = SPECIAL_TESTS[id as keyof typeof SPECIAL_TESTS], pair = withSpecials(initialDuel(OPPONENTS[t.opponent], 'longsword', null), t.level, null).fighters;
+    const scene = new THREE.Scene(), p = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), (lid, group, opp, lighting) => SPECIAL_MODES[lid]!.load(group, opp, 1, new THREE.PerspectiveCamera(), lighting));
+    const fight = { opponent: t.opponent, level: t.level, presets: [null, id] as never };
+    const step = async (tick: number, events: CombatEvent[]) => { p.prepare(1, events, pair, tick, false, fight); await flush(); p.render(1 / 60, pair, tick, feet, heads, warriors, false); };
+    await step(1, []); for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
+    if (withFirst) { await step(100, [ev('SpecialStarted', 100)]); for (let tick = 104; tick < 400; tick += 4) await step(tick, tick === 220 ? [ev('SpecialLanded', 220)] : []); }
+    const out: Drawn[] = [];
+    await step(900, [ev('SpecialStarted', 900)]); out.push(look(scene));
+    for (let tick = 904; tick < 1100; tick += 4) { await step(tick, tick === 1020 ? [ev('SpecialLanded', 1020)] : []); out.push(look(scene)); }
+    p.clear(); return out;
+  };
+  const ids = (Object.keys(SPECIAL_TESTS) as (keyof typeof SPECIAL_TESTS)[]).filter((id) => SPECIAL_MODES[id]);
+  assert.ok(ids.length > 40);
+  let driven = 0; const silent: string[] = [];
+  for (const id of ids) {
+    let fresh: Drawn[] = [], move = moves[0]!;
+    for (move of moves) { fresh = await frames(id, false, move); if (fresh.some((f) => f.length)) break; }
+    if (!fresh.some((f) => f.length)) { silent.push(id); continue; }
+    driven++;
+    const reused = await frames(id, true, move);
+    reused.forEach((frame, n) => { if (!sameDrawing(frame, fresh[n]!) && process.env.SPECIAL_DIFF) console.log(id, n, JSON.stringify(frame.slice(0, 4)), JSON.stringify(fresh[n]!.slice(0, 4))); assert.ok(sameDrawing(frame, fresh[n]!), `${id}: frame ${n} of the reused effect's second cast differs from a fresh effect's (cast move ${move})`); });
+  }
+  if (process.env.SPECIAL_DIFF) console.log('driven', driven, 'of', ids.length, 'silent', silent.join(','));
+  assert.ok(driven >= ids.length * 0.9, `the check must actually draw something: ${driven} of ${ids.length} specials were driven; silent: ${silent.join(', ')}`);
+});
