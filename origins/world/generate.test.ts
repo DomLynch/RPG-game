@@ -53,6 +53,17 @@ test('overrides apply on top of the draw and are validated with it', () => {
   assert.equal(generateZone(WILDS, 1, { spawns: { boss: 'missing' } }).ok, false);
 });
 
+test('a template landmark that leaves u/v out starts from the default 0.5, as in a zone file (jitter 0 and jittered)', () => {
+  const bare = { ...WILDS, base: { ...WILDS.base, layout: { ...WILDS.base.layout, well: {}, post: { facing: 90 } } } };
+  const still = generateZone({ ...bare, jitter: 0 }, 3);
+  assert.ok(still.ok, JSON.stringify(!still.ok && still.issues));
+  assert.deepEqual(still.value.layout.well, { u: 0.5, v: 0.5, facing: 0 });
+  assert.deepEqual(still.value.layout.post, { u: 0.5, v: 0.5, facing: 90 });
+  const moved = generateZone(bare, 3);
+  assert.ok(moved.ok, JSON.stringify(!moved.ok && moved.issues));
+  assert.ok(Math.abs(moved.value.layout.well!.u - 0.5) <= 0.08 + 1e-9 && Math.abs(moved.value.layout.well!.v - 0.5) <= 0.08 + 1e-9);
+});
+
 test('templates and seeds are checked before any draw', () => {
   const bad = (t: Partial<Template>, seed = 1) => {
     const r = generateZone({ ...WILDS, ...t }, seed);

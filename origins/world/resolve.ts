@@ -25,7 +25,7 @@ export function merge(base: unknown, over: unknown): unknown {
   return out;
 }
 
-const fieldDefaults = (fields: Record<string, Field>): Obj => {
+export const fieldDefaults = (fields: Record<string, Field>): Obj => {
   const out: Obj = {};
   for (const [k, f] of Object.entries(fields)) if ('def' in f && f.def !== undefined) out[k] = f.def;
   return out;

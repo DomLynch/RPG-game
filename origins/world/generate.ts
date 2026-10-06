@@ -2,7 +2,7 @@
 // and a layout jitter; a seed picks inside them. Same template + seed → the same zone, byte for byte (a seeded PRNG, never Math.random),
 // and every generated zone goes through the same validation as authored data.
 import { Issues, fail, ok, type Obj, type Result } from '../contracts/core.ts';
-import { defaultsOf, merge, validate, SCHEMA_VERSION, type Layer, type WorldData } from './resolve.ts';
+import { defaultsOf, fieldDefaults, merge, validate, SCHEMA_VERSION, type Layer, type WorldData } from './resolve.ts';
 import { SCHEMA, type Params } from './schema.ts';
 
 export type Template = { base: Layer; vary: Record<string, readonly [number, number]>; jitter: number };
@@ -40,8 +40,12 @@ export function generateZone(template: Template, seed: number, overrides: Layer 
     const [g, k] = path.split('.') as [keyof typeof SCHEMA, string], f = (SCHEMA[g] as { fields: Obj }).fields[k] as { t: string };
     zone[g] = { ...zone[g], [k]: f.t === 'int' ? lo + Math.floor(rand() * (hi - lo + 1)) : round(lo + rand() * (hi - lo), 0.01) };
   }
-  const nudge = (x: number) => round(Math.min(1, Math.max(0, x + (rand() * 2 - 1) * template.jitter)), 0.0001);
-  zone.layout = Object.fromEntries(Object.entries(zone.layout ?? {}).map(([k, l]) => [k, { ...(l as Obj), u: nudge((l as { u: number }).u), v: nudge((l as { v: number }).v) }]));
+  // Landmark defaults first (as resolve does), so a landmark that leaves u/v out is nudged from 0.5, not from undefined.
+  const nudge = (x: number) => round(Math.min(1, Math.max(0, x + (rand() * 2 - 1) * template.jitter)), 0.0001), entry = fieldDefaults(SCHEMA.layout.entries);
+  zone.layout = Object.fromEntries(Object.entries(zone.layout ?? {}).map(([k, l]) => {
+    const full = merge(entry, l) as { u: number; v: number };
+    return [k, { ...full, u: nudge(full.u), v: nudge(full.v) }];
+  }));
   return validate(merge(zone, overrides), SCHEMA);
 }
 
