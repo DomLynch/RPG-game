@@ -1,5 +1,40 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 07:05 (+04) — HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (all rulings, in order; the 2026-10-07 lines are newest). Session folder: app worktree `.../worktrees/elastic-gates-c6edc0`; Dom to reopen on `~/Developer/frankendom-expansion`, worktree switch off.
+
+**1. LIVE:** arena `925ff6c2` (includes #1443 bag+bank, #1446 journal, #1447 talk). Preview https://frankendom.com/preview/origins/ = greybox + REAL Pit duel (build from expansion/origins-combat @70761dac; I checked it at 375: duel vs Brokkr, 0 errors, live storage untouched). Writer route NOT installed (#1463 draft; needs Lead go + Deploy installer + Dom's role password/env file + flag/allowlist GO).
+
+**2. PRs (mine):**
+| PR | What | State |
+|---|---|---|
+| #1456 @42cbaff8 | inventory consume/burn + ledger | Auditor PASS, queued with Deploy |
+| #1459 @bb88a203 | writer quest_advance + talk_pick | PASS, queued |
+| #1460 @f22fed65 | writer consume (DEPLOY ORDER: after 0002, applied) | PASS, queued after #1459 |
+| #1461 @6aba6a60 | contracts accept coin 0 (smith materials only) | PASS, with Lead |
+| #1462 @d9ddfacd | greybox real Pit duel + "Loading…" | PASS, queued after #1460 |
+| #1465 @13be8939 | greybox reads saved career via `open`, offline fallback | PASS, queued after #1462; when #1462 merges retarget to trunk with NO new commits |
+| #1472 @c202fea7 | writer apply_upgrade (smith, coin>0 → 501) | PASS; after #1460+#1461 land: retarget to trunk, close/reopen for CI, tell Lead green → GO |
+| #1457 @68c6fbc5 | boss id → 12-char sha-256 key | PASS, waits on #1448 merge, then retarget |
+| #1468 @67e0be65 | trading spec (docs) | Lead GO'd for docs pass; DON'T PUSH until merged |
+| #1450 | world params | PASS (earlier) |
+Backend: #1469 = 0003 trade-settle blockers (acceptance model, escrow guard, deferred one-of-each trigger + 2 required swap tests), with Auditor, NO apply until trading is built.
+
+**3. In flight at clear (agents; check their worktrees, restart from these briefs if unpushed):**
+- Trade cooldown (pure contracts): `/private/tmp/claude-501/expansion-trade-cooldown`, branch `expansion/trade-cooldown` (had a `wip2` commit). Rule: 72 h first-trade delay, then 7/14/30 days per hop, cap 30, hop count from history 'trade' entries, no hard limit, never bound; bound = cash-shop items, metal, shop consumables/stackables; shop gear tradeable with origin 'shop'. Enforce in changeOffer + recheck in settleTrade; constants as data; exported tradeCooldown() for UI. PR to trunk.
+- Region 1 content spec (docs): `/private/tmp/claude-501/expansion-region1`, branch `expansion/region1-spec` (no commit yet at clear). Ash Frontier, chapter one "The Stolen Name": zones as world params, NPCs/talk, 5–8 stage quest chain with #1428 CP, bosses/mobs (matriarch), loot, content-bundle files; legends rule binding.
+
+**4. QUEUE:**
+(1) Trading follow-up docs PR after #1468 merges: Dom's decisions (APPROVED "implement it" 07:00): barter only; escalating per-item cooldown replaces decision 3 (no hard limit); metals bronze/silver/gold 100:1 = BOUND NPC currency; gems not money; no tradeable metal at beta; narrow cash shop (cosmetics + convenience, bound, never random, never stats); auto-holds freeze trading only, 72 h expiry, Strategy/Lead review, Dom bans; NPC shops sell base gear for metal — shop GEAR tradeable (origin 'shop'), consumables bound, sell-back ≤ 25% (≈0 for shop-origin), daily NPC purchase cap; gates = Gladiator + verified email + 7-day account + 48 h Origins (phone = optional later, SMS cost is Dom's call); decision 10 = refuse same-def swaps until 0003, then settle.
+(2) Smith follow-up after #1472: banked piece upgradable ONLY at the Exchange (Strategy (a)); story pieces may be upgraded + test the story flag survives.
+(3) Cleanup PR after #1459/#1462/#1465 merge: inject ORIGINS_CONTENT from scripts/origins-writer.mjs (not at handlers import); openAccount comment (intended: quest/talk need priced career); vite.config.mjs node globals; "No reward: already beaten" HUD line; test pinning credentials:'omit'; N4 mint/single_copy consistency (or to Backend); FIPS two-block sha vector.
+(4) Writer trade ops on 0003 once Strategy + Lead GO trading build; server-side trade gates; NPC shop module; metals ledger (0003 list in #1468 §6).
+(5) Region 1 content bundle (after the spec): content files for ORIGINS_CONTENT.
+
+**5. Gotchas:** retargeting a PR base does NOT trigger quality.yml — close+reopen. The `base` CI job sometimes times out on checkout (5-min cap); re-run the job. VPS DB checks run as user `frankrows` with PG_BIN=/usr/lib/postgresql/16/bin. VPS disk hovers near the 40 GB floor — tiny footprints, delete folders. Always verify a peer's claim before relaying; mark Dom's answers provisional until explicit.
+
+
 ## 2026-10-06 18:35 (+04) — HANDOFF before /clear. READ FIRST, then memory
 
 Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (every ruling today, in order). Session folder is still the app worktree `.../worktrees/elastic-gates-c6edc0` (change_directory refused); Dom to reopen on `~/Developer/frankendom-expansion`, worktree switch off.
