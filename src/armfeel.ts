@@ -1,4 +1,4 @@
-// ?look=armfeel (Dom 2026-10-06, via Strategy and Lead): the melee-relevant hit feel of his Armagedom prototype (docs/COMBAT_HANDOFF.md, "Universal
+// Armfeel (Dom 2026-10-06, via Strategy and Lead; on by default since he liked the look test): the melee-relevant hit feel of his Armagedom prototype (docs/COMBAT_HANDOFF.md, "Universal
 // impact effects"), as a LOOK TEST. Presentation only: nothing here is read by the simulation, so a fight's records and replays are byte-identical
 // with the flag on or off (tests/armfeel.test.ts pins both). `&feel=high|low|off` scales every effect; `off` is the game as it is.
 // Combat's half: the victim's flinch (a lean and a nudge on a visual pivot; the root and the collider never move) and the weapon's hit hold
@@ -8,11 +8,10 @@ import type { CombatEvent } from './duel.ts';
 
 export type Feel = 'high' | 'low' | 'off';
 export const FEELS: readonly Feel[] = ['high', 'low', 'off'];
-// `?look=armfeel` turns it on (High unless `&feel=` says otherwise; reduced motion starts at Low, as the prototype does); without the look, undefined.
-export function armfeelFrom(search: string, reducedMotion = false): Feel | undefined {
-  const params = new URLSearchParams(search);
-  if (!(params.get('look') ?? '').split(',').includes('armfeel')) return undefined;
-  const feel = params.get('feel');
+// On for everyone at High (Dom 2026-10-06: "likes armfeel"); `?feel=low|off` (and `?look=armfeel&feel=...`, the look test's old links) still choose, and reduced motion starts at Low
+// as the prototype does. `off` is the game as it was before this.
+export function armfeelFrom(search: string, reducedMotion = false): Feel {
+  const feel = new URLSearchParams(search).get('feel');
   return feel === 'high' || feel === 'low' || feel === 'off' ? feel : reducedMotion ? 'low' : 'high';
 }
 

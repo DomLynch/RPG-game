@@ -11,15 +11,15 @@ import { createRecorder, packRecord } from '../src/record.ts';
 import { opponentAt, profileAt } from '../src/moves.ts';
 import { idleIntent, legal, type CombatEvent } from '../src/duel.ts';
 
-test('the flag: only ?look=armfeel; High unless &feel= says otherwise; reduced motion starts at Low', () => {
-  assert.equal(armfeelFrom(''), undefined);
-  assert.equal(armfeelFrom('?look=souls'), undefined);
+test('the setting: High for everyone; ?feel= (with or without the old ?look=armfeel) picks Low or Off; reduced motion starts at Low', () => {
+  assert.equal(armfeelFrom(''), 'high');
+  assert.equal(armfeelFrom('?look=souls'), 'high');
   assert.equal(armfeelFrom('?look=armfeel'), 'high');
-  assert.equal(armfeelFrom('?look=armfeel&feel=low'), 'low');
+  assert.equal(armfeelFrom('?feel=low'), 'low');
   assert.equal(armfeelFrom('?look=armfeel&feel=off'), 'off');
-  assert.equal(armfeelFrom('?look=armfeel&feel=bogus'), 'high');
-  assert.equal(armfeelFrom('?look=armfeel', true), 'low');
-  assert.equal(armfeelFrom('?look=armfeel&feel=high', true), 'high', 'an explicit feel wins over reduced motion');
+  assert.equal(armfeelFrom('?feel=bogus'), 'high');
+  assert.equal(armfeelFrom('', true), 'low');
+  assert.equal(armfeelFrom('?feel=high', true), 'high', 'an explicit feel wins over reduced motion');
 });
 
 test('the flinch: 0.45 rad lean and a 0.16 nudge along the blow, 0.9 on a kill, decaying 12 per second after the hold', () => {

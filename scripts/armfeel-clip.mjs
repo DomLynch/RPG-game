@@ -56,7 +56,7 @@ async function take(text, feel, name, frames) {
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   const dir = `${OUT}/${name}-${feel}`; await fs.rm(dir, { recursive: true, force: true }); await fs.mkdir(dir, { recursive: true });
   try {
-    await page.goto(`${server.origin}/?replay=${text}&look=armfeel&feel=${feel}&debug`);
+    await page.goto(`${server.origin}/?replay=${text}${feel === 'default' ? '' : `&feel=${feel}`}&debug`);   // 'default': no flag at all, the game as shipped
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
     await page.evaluate(() => { globalThis.__hits = []; globalThis.__blocks = []; globalThis.__frame = 0; window.addEventListener('frankendom:combat', (e) => { for (const ev of e.detail.events) { if (ev.type === 'Hit' && ev.target === 1) globalThis.__hits.push(globalThis.__frame); else if (ev.type === 'Blocked' || ev.type === 'Parried') globalThis.__blocks.push(globalThis.__frame); } }); });
     await page.addStyleTag({ content: '#debug{display:none!important}' });
