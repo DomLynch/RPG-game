@@ -63,9 +63,9 @@ A **layer** is another presence instance of the same zone, in the same world. It
 
 **Assignment on join:** the layer of your party leader or guild-mate who is online (so friends are never split by a crowd), otherwise **the fullest layer still under the soft limit** (fill first, so the town feels alive rather than ten empty copies), otherwise a **new layer**. A layer with no players for a few minutes is closed.
 
-**Moving:** a "join friend" action moves you to a named player's layer (cooldown about 30 s, *est.*, so layer-hopping cannot be used to scout or dodge). Trades and duels need the same layer; the join action is how you get there.
+**Moving (Dom's ruling: layers are game-assigned plus join-friend only, no player-chosen layer list, and layers stay invisible to players):** a "join friend" action moves you to a named player's layer (cooldown about 30 s, *est.*, so layer-hopping cannot be used to scout or dodge). Trades and duels need the same layer; the join action is how you get there.
 
-**When every layer is at its hard stop** (past the box's budget): a queue with a visible position rather than a degraded town. That is a decision for Dom (see §7), not something to hide.
+**Capacity is bought, not queued (Dom's ruling).** Presence scales out: new layers, then new hosts, and the first step is presence on its own host off the shared VPS. A host is added when it reaches about **80% of its measured cap**, so capacity arrives before anyone waits. That cap comes from the pre-beta VPS load test (the planned 100-bot test, extended to find one host's player limit), not from an estimate. A **queue** with a visible position (the Pit and arena stay playable while waiting) is only a safety net for the minutes a new host takes to start during a sudden spike.
 
 ## 6. Cost and risk (where Supabase and realtime limits matter)
 
@@ -76,13 +76,22 @@ A **layer** is another presence instance of the same zone, in the same world. It
 | **Database load** | Presence writes nothing. The database sees a character load at join, a save at leave and every real action (the writer's batches). The writer already has caps per account; the presence service adds none to the database on its own. |
 | **Single point of failure** | One VPS in Germany runs presence, the writer, the verifier and the relay. A restart empties every layer (players reconnect on their own, nothing is lost: state is in the database), but the box's load must be watched (heavy jobs already run there). Splitting presence off to its own small host is the first scaling step, not a redesign. |
 | **Latency** | A player in Dubai or South-East Asia is about 150–200 ms from Germany (*est.*, from the duel note's far-test plan). That is fine for 10 Hz presence with interpolation, and does not touch duels (peer to peer). |
-| **Griefing in crowds** | Mute and block lists, a report button, rate limits on shout. Open-text chat within 20 m is a moderation load: a decision for Dom whether v1 has free text or only emotes and presets. |
+| **Griefing in crowds** | Mute and block, a report button and rate limits from day one; free-text chat is allowed and moderated as in the next section. |
 | **Interest bugs** | The worst failure is an invisible or ghost player. A test in the first build drives bots across cell borders and checks that each pair that should see each other does, in both directions. |
 | **Cheating** | Position and emotes are cosmetic and clamped (§2); anything of value is decided by the writer or the verifier, so a forged position gains nothing. |
 | **Cost** | The VPS is already paid for. Added cost is CPU and traffic on it, plus the cost of a second host if the load test says the box cannot hold three layers. No vendor message pricing applies to movement. |
 
+## 6a. Chat and names (Dom's ruling, 2026-10-06): free text, protected from day one
+
+- **Server-side filter** (a client filter can be bypassed). A word list of about 5,000 entries is checked against the raw text and a normalised copy: leetspeak mapped back ($ to s, @ to a, 1 to i or l, 0 to o), repeated letters squashed, letters split by spaces or dots joined, lookalike letters from other alphabets mapped back. No special characters in chat.
+- **Clear hits are blocked before display.** Borderline hits and reported lines go to a cheap LLM check (not every message), which also clears false positives (the "Scunthorpe" problem).
+- **Auto-report, per-player mute and block, and a report button from day one.** Strikes: warning, 10 minute mute, 24 hours, chat ban.
+- **No links.** Rate limit about 1 message per 2 s with a burst cap.
+- **Player names:** real English words; the JOINED name is filtered too (two clean words can form a slur). Open detail for Dom: strictly English words, or letters, spaces and hyphens plus the filter and the LLM check (non-English names such as Brokkr or Takeshi).
+- **Backend owns the list and its updates and logs every catch.** A daily new-word report (terms suddenly spreading across many players) feeds additions.
+
 ## 7. Decisions needed and the first build step
 
-- **Dom/Strategy:** (1) free text chat or presets and emotes only in v1; (2) a queue or a hard "world full" message when every layer is full; (3) whether a layer may be chosen by the player or only by the join rules above.
+- **Ruled by Dom 2026-10-06 (Strategy agrees):** (1) free text chat, filtered as in §6a; (2) buy capacity with an 80% add-a-host trigger from the load test, a queue only as a spike safety net (§5); (3) game-assigned layers plus join-friend only (§5). **Still open for Dom:** the player-name rule (strictly English words, or letters, spaces and hyphens with the filter and LLM check).
 - **Expansion/Lead:** confirm the Living World spec keeps the history book, world events and NPC state global (§1, §5).
 - **First build (small, measure-first, no player-facing change):** a presence service skeleton behind a flag that is off, a 100-bot synthetic load test on the VPS reporting CPU, packets/s and bytes/s per layer, and the 40-character render test on the slowest phone. Those two measurements replace every *est.* in §4.
