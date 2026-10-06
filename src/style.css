@@ -2485,3 +2485,12 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 
 /* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
 #fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
+
+/* A refusal card is up (main.ts banner(), stale): an old or unplayable link stalls the page and PLAY NOW is the one thing to press. The stick, the fight buttons, the run toggle and the
+   "Tap Fight" hint behind it did nothing (the match is stalled) yet drew over the card (HEAVY showed through PLAY NOW, Lead 2026-10-07). Hidden and inert; PLAY NOW stays. */
+:root.card-up #joystick,
+:root.card-up #combat-status,
+:root.card-up #run-button,
+:root.card-up #actions button:not(#reset-button) {
+  visibility: hidden !important; pointer-events: none !important;
+}
