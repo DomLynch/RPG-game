@@ -40,6 +40,7 @@ A patron is up to two templates with signed weights in per-mille, e.g. Wind +20�
 2. `packRecord` with no patron equals the v27 golden bytes (`tests/record.test.ts` corpus + a stored golden set).
 3. Differential: `stepDuel` with `perk = undefined` against the pre-change build, `hashDuel` equal over the whole replay corpus and the ladder battery (10 strategies × 10 rungs × 24 seeds).
 4. `SIM_DIGEST` re-pinned **with** the version bump, deliberately; `tests/ladder-tail` digest (L1–46 bodies and profiles) untouched. Any cell that moves is a finding, not a re-pin.
+5. **Guard behaviour for a v27 writer under ceiling 28 (new pattern).** `tests/record-version-guard.test.ts` reads only the ceiling `RECORD_VERSION`, never the byte `packRecord` emits. With `RECORD_VERSION = 28` it asserts: ceiling >= `PINNED_FOR_VERSION`; the sim digest equals `SIM_DIGEST` when the ceiling equals the pin (otherwise the ceiling must be higher); every bump in `READABLE_VERSIONS[0]+1 .. 28` declares a `REACH` entry (`REACH[28] = []`); and 28 is in `READABLE_VERSIONS`, with 27 kept. It does not assert that a no-patron record is v27. That is pinned by proof 2 (the stored v27 golden bytes in `tests/record.test.ts`) and by the fingerprint fixture's 0 changed cells, so the guard and those two together describe the pattern.
 
 ## Balance gate
 Every template is measured on the battery before it ships; the ladder anchors (Goblin median, `KNOWN_FLAT` bands) must stay inside their bands with the **worst-case** template. A perk applies to a player's fight against a foe, never to the foe.
