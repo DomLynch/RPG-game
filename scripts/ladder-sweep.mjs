@@ -13,6 +13,8 @@
 // What it is NOT: tests/strategies.ts + tests/battery.test.ts are the gate (simple strategies must not dominate the Veteran at normal/hard); this is the
 // survey across the whole ladder and roster. The bots read the simulation state directly, so they are tighter than a thumb; a human is neither as
 // precise nor as bad as `masher`. Read a win rate as "what this strategy can do", never as how the fight feels (phone playtests own that).
+import console from 'node:console';
+import process from 'node:process';
 import { OPPONENTS, MOVES, canStrike, initialPractice, stepPractice } from '../src/combat.ts';
 import { RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { mirror, movesOf, timing } from '../src/duel.ts';

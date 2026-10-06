@@ -9,11 +9,11 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 
 | What | Value | Source |
 | --- | --- | --- |
-| Trunk commit surveyed | `8a3cefb7d124807532fef1ddfc5902af357a174f` (Merge PR #1424 `lead/sparring-arena2-pin`), branch `expansion/o0-baseline` | `git rev-parse HEAD` |
-| Live deployed revision | `a2cf35291f0d98c48b7746de554b8bcb5bae3fbb`, phase `0B-swordplay` | `curl -s https://frankendom.com/release.json` → `{"revision":"a2cf3529…","phase":"0B-swordplay"}` |
-| Live vs trunk | Live is an ancestor of trunk and 13 commits behind it. The gap is Arena 2 on ladder rungs 3–4 (#1421) and the Stage-list re-pin (#1424). Neither is a sim-file change: Arena 2 is "Arena 1 byte for byte except the backdrop" (commit 6fe2199a). | `git merge-base --is-ancestor`, `git log a2cf3529..HEAD` |
-| Record format | `RECORD_VERSION = 24`, readable `[18…24]` | `src/record.ts:16`, `src/record.ts:69` |
-| Sim digest pin | `SIM_DIGEST 5a572021…` for version 24 over 11 sim files | `tests/record-version-guard.test.ts:19-21` |
+| Trunk commit surveyed | Surveyed at `8a3cefb7`; the pins below were re-checked at `03cd0d61` (Merge PR #1426), 2026-10-06. **These numbers move with every sim change: read `src/record.ts` and `tests/record-version-guard.test.ts` on the commit you build on; never trust a number copied from here.** | `git rev-parse HEAD` |
+| Live deployed revision | `d05ba4adfa3fdde2bf19db0fd11341c4605fd066`, phase `0B-swordplay` (2026-10-06) | `curl -s https://frankendom.com/release.json` |
+| Live vs trunk | Live is an ancestor of trunk `03cd0d61`, 12 commits behind it at the re-check. | `git merge-base --is-ancestor`, `git log d05ba4ad..03cd0d61` |
+| Record format | `RECORD_VERSION = 25` at `03cd0d61` (was 24 at `8a3cefb7`; v25 adds the Goblin's stab, v24 the late notice) | `src/record.ts:17` |
+| Sim digest pin | `SIM_DIGEST 6e389dbc…` for version 25 over **12** sim files (`src/stab-rule.ts` joined the list) | `tests/record-version-guard.test.ts:20-21` |
 
 ---
 
@@ -37,10 +37,12 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
   1. **Lint ban.** The `SIM` file list (`eslint.config.js:3`) bans `Math.random`, `Date.now`, `performance.now`, `window`, `document`, `localStorage` and `requestAnimationFrame` (`eslint.config.js:8`).
   2. **Import boundary.** Sim modules may import only each other (`tests/sim-boundary.test.ts:14`).
   3. **Cross-engine math.** `src/detmath.ts` gives fdlibm ports of sin, cos, atan2 and hypot built on + − × ÷ √ only (`src/detmath.ts:1-7`). The sim calls `M.*`, never `Math.<transcendental>` (`tests/detmath.test.ts:16`). Records before v20 replay on the frozen engine `Math` table, chosen only through `underRecord` (`src/detmath.ts:99-109`).
-  4. **Version guard.** Any change to the 11 sim files without a `RECORD_VERSION` bump fails `tests/record-version-guard.test.ts:24`, which compares against the digest pin.
+  4. **Version guard.** Any change to the sim files (12 at `03cd0d61`) without a `RECORD_VERSION` bump fails `tests/record-version-guard.test.ts:24`, which compares against the digest pin.
   5. **Intent quantization.** Intents are quantized before both recording and netcode (`src/record.ts:107`).
-- **Hazard: module-level mutable sim state.** `PLAY_SCALE`/`RADIUS` (`src/play-radius.ts:12-15`), `LATE_NOTICE` (`src/play-radius.ts:24-26`) and the detmath `table` (`src/detmath.ts:104`) are globals. They are switched per record by `underRecord`/`underPlayScale`, and `pvpDuel` calls `setPlayScale(1)` (`src/net/rollback.ts:23`). Any new caller that steps a duel (an Origins arena, server tooling) must enter through the same doors, or it will replay in the wrong circle or rule set.
+- **Hazard: module-level mutable sim state.** Three era flags plus the math table are globals: `PLAY_SCALE`/`RADIUS` and `LATE_NOTICE` (`src/play-radius.ts`), `STAB_ON` (`src/stab-rule.ts:6`, off by default when headless) and the detmath `table` (`src/detmath.ts`). They are set only through three doors: **live fights** through `match.ts` begin, which sets the circle, `setLateNotice(true)` and `setStab(true)` (`src/match.ts:112`); **replays** through `detmath.underRecord`, which wraps `underPlayScale` and `underStab` by the record's version (`src/detmath.ts:107-109`); and **PvP** through `pvpDuel`, which calls `setPlayScale(1)` (`src/net/rollback.ts`). Any new caller that steps a duel or a Practice (an Origins arena, server tooling) must enter through one of these doors. Otherwise it fights in the wrong circle, with no late notice and no Goblin stab, while still stamping the current record version.
 - **Gear is not an input today.** `Loadout` is not consumed by `stepDuel`. The only `src/` importer of `gear-stats.ts` is a comment in `src/net/rollback.ts:18-21`, which says "pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel".
+
+> **Which rank scale?** Specs and proposals that touch rank must name their scale: **tier** (1–10, the title: Recruit … Origin) or **career level** (1 to the cap: 46 today, 50 after Dom's 2026-10-05 ruling). Gladiator is tier 3 = career level 11.
 
 ### 2.2 `src/net/rollback.ts`: live PvP rollback
 
