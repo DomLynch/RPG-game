@@ -5,8 +5,10 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildArena } from '../../src/arena.ts';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../src/quality.ts';
+import { LEGEND_OPPONENTS } from '../../src/legends.ts';
+import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
-import { ASSETS, play, SMITH_NAME, WORLD_TUNING as T, type Kind } from './play.ts';
+import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -78,8 +80,8 @@ const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
 // Tap-to-open: the prompt opens what you stand near; panels are play.ts's (rules modules) built with the ui.ts kit.
 const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
-const NEAR: Partial<Record<Kind, string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore' };
-let near: Kind | null = null, open: Kind | null = null;
+const NEAR: Partial<Record<Kind | 'fight', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit' };
+let near: Kind | 'fight' | null = null, open: Kind | null = null;
 const show = (kind: Kind | null) => { open = kind; shade.hidden = !kind; if (kind) card.innerHTML = play.render(kind); };
 function openPanel(kind: Kind | null) {
   play.fresh(); if (kind === 'ore') play.takeOre();
@@ -88,9 +90,12 @@ function openPanel(kind: Kind | null) {
 card.addEventListener('click', (e) => { if (open) show(play.act((e.target as Element).closest<HTMLElement>('[data-say],[data-item],[data-do],[data-go]'), open)); });
 document.getElementById('journal')!.addEventListener('click', () => openPanel('journal'));
 for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
-prompt.addEventListener('click', () => openPanel(near));
+prompt.addEventListener('click', () => { if (near === 'fight') void startFight(); else openPanel(near); });
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
-addEventListener('keydown', (e) => { if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) openPanel(near); });
+addEventListener('keydown', (e) => {
+  if (fighting) return;   // the duel's own keys (src/input.ts) own the keyboard while it is up
+  if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) { if (near === 'fight') void startFight(); else openPanel(near); }
+});
 
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
@@ -116,7 +121,8 @@ function step(dt: number) {
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   place.textContent = atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
-  near = Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
+  near = Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
+    : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
     : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
   prompt.hidden = !near || !!open; if (near) prompt.textContent = NEAR[near]!;
@@ -128,15 +134,63 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
+const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   step(dt); arena.update(dt, [], camera); exchange.update(time);
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
-});
+};
+renderer.setAnimationLoop(walkLoop);
+
+// The Pit duel: the arena's real fight (pit-duel.ts, its own chunk, loaded on the first fight) over the walk, which stops drawing meanwhile.
+// The rules are origins/pit/pit.ts: the legend at the career level, and a win settled through the progression model's award(). All of it is
+// this page's memory: nothing here reads or writes the game's storage, account or fight results.
+let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
+let duel: typeof import('./pit-duel.ts') | null = null;
+const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('journal')!;
+function showCareer() {
+  const c = careerLine(session.career);
+  career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${last?.award?.cp ? ` · +${last.award.cp} CP` : ''}`;
+}
+showCareer();
+async function startFight(pick?: string): Promise<PitFight | null> {
+  const next = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins, pick);
+  if (!next) return null;
+  session = started(session); fight = next; last = null; showCareer();
+  openPanel(null); keys.clear(); stick = null; ring.style.display = 'none'; prompt.hidden = true; hint.hidden = true;
+  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = true; place.textContent = 'The Pit — a duel';
+  renderer.setAnimationLoop(null);
+  duel ??= await import('./pit-duel.ts');
+  if (!fighting || fight !== next) return next;   // left (or restarted) while the chunk loaded
+  duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() });
+  return next;
+}
+function settleFight(finish: Finished) {
+  const outcome = outcomeOf(finish);
+  if (!outcome || !fight) return;
+  last = settle(session, fight, outcome, Date.now() / 1000);
+  session = last.session; play.standAt(careerLine(session.career).level); showCareer();
+  const after = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins);
+  return { next: after?.legend && duel ? duel.legendName(after.opponent, after.level) : undefined };
+}
+function leaveFight() {
+  if (!fighting) return;
+  fighting = false; duel?.closeDuel();
+  duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; keys.clear();
+  clock.getDelta(); renderer.setAnimationLoop(walkLoop);
+}
+document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
   pos: state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,
+  // The Pit duel: fight() starts one (a legend id picks it, else the Pit's next); duel() is the fight now; career() the Origins career and
+  // the last settlement; leave() goes back to the walk; reset(level) starts the preview career over at a level (test setup, memory only).
+  fight: (pick?: string) => startFight(pick),
+  duel: () => duel?.duelState() ?? null,
+  career: () => ({ ...careerLine(session.career), pitWins: session.career.pitWins, beaten: [...session.career.beaten], fights: session.fights, fighting,
+    last: last && { outcome: last.outcome, cp: last.award?.cp ?? 0, reason: last.award?.reason ?? null, levelBefore: last.award?.levelBefore ?? null, levelAfter: last.award?.levelAfter ?? null } }),
+  leave: leaveFight,
+  reset: (level: number) => { session = newSession(level); last = null; play.standAt(careerLine(session.career).level); showCareer(); return careerLine(session.career); },
 };
