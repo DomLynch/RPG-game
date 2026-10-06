@@ -9,6 +9,8 @@ import console from 'node:console';
 import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { creditFromMarks } from '../origins/progression/model.ts';
+import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
+import { careerLine } from '../origins/pit/pit.ts';
 
 const dir = 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-writer-'));
@@ -85,6 +87,24 @@ try {
   eq(psql(`select count(*) from public.origins_pit_pending('${A}')`), '0', 'nothing left pending');
   // a client cannot name another account: the body is ignored, the token decides
   eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, creditFromMarks(0), 'the account comes from the token alone');
+  // The greybox preview's read (origins/preview/save.ts fetchOpen) against this real writer: the mapped career is the writer's derived total,
+  // the read writes nothing, and every refusal comes back offline instead of throwing.
+  const writer = base.slice(0, -1), events = () => psql(`select count(*) from public.origins_events where account = '${A}'`);
+  const before = events(), viaPreview = await fetchOpen('ta', { base: writer }), direct = (await call('open', 'ta')).json.result.career;
+  eq([viaPreview.career?.credit, careerLine(viaPreview.career).credit, viaPreview.career?.beaten, viaPreview.characters.map(c => c.name)],
+    [Number(direct.total_credit), Number(direct.total_credit), direct.beaten, ['Aldren']], 'preview: the mapped career is the derived total');
+  eq(events(), before, 'preview: open wrote nothing');
+  eq(await fetchOpen('nobody', { base: writer }), { offline: 'http-401' }, 'preview: a token Auth refuses -> offline');
+  eq(await fetchOpen('tc', { base: writer }), { offline: 'http-403' }, 'preview: not on the allowlist -> offline');
+  eq(await fetchOpen('ta', { base: writer.replace(/origins$/, 'nope') }), { offline: 'http-404' }, 'preview: no route -> offline');
+  eq(await fetchOpen(null, { base: writer }), { offline: 'no-session' }, 'preview: no session -> no call');
+  // prod today: the flag is off. An allowlisted account then gets 403 too, and the preview shows the offline line.
+  psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
+  eq(psql(`select count(*) from public.origins_access where account = '${A}'`), '1', 'A is still on the allowlist');
+  const flagOff = await fetchOpen('ta', { base: writer });
+  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Offline preview: progress is not saved'], 'preview: flag off + access row -> 403 -> the offline line');
+  psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
+  eq(isOffline(await fetchOpen('ta', { base: writer })), false, 'preview: flag back on -> the saved career again');
   console.log(`origins-writer-check: ${checks} checks passed`);
 } finally {
   server?.close();

@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test": "node --test --test-skip-pattern=\"\\[slow\\]\" tests/*.test.ts",
+    "fingerprint:update": "node scripts/rng-fingerprint.mjs --update",
     "test:slow": "node --test --test-name-pattern=\"\\[slow\\]\" tests/*.test.ts",
     "test:all": "node --test tests/*.test.ts",
     "quality:stop": "eslint src && npm run typecheck:tests && npm test",

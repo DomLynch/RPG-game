@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { clarityOf, initialPractice, stepPractice } from '../src/combat.ts';
-import { cuesFor } from '../src/audio/cues.ts';
+import { cuesFor, EFFORT_VOICE } from '../src/audio/cues.ts';
 import { idleIntent, timing, type CombatEvent, type Duel } from '../src/duel.ts';
 
 const base = (): Duel => initialPractice().duel;
@@ -27,11 +27,14 @@ test('recovery, a landed swing and a trade are not interruptions', () => {
 });
 
 test('a whiff is its own cue (a swish, no impact); an interruption adds a voice under the hit', () => {
-  const names = (events: CombatEvent[], clarity = [] as ReturnType<typeof clarityOf>) => cuesFor(events, undefined, undefined, clarity).map(c => c.name);
+  const names = (events: CombatEvent[], clarity = [] as ReturnType<typeof clarityOf>, voice?: boolean) => cuesFor(events, undefined, undefined, clarity, voice).map(c => c.name);
   assert.deepEqual(names([{ tick: 1, type: 'AttackMissed', actor: 0, move: 'light_right' }]), ['whoosh_light']);
   const before = swing(base(), 0, 2), cut = clarityOf(after(before, [hit(1)]), before);
-  assert.deepEqual(names([hit(1)], cut), ['hit_flesh', 'effort_voice']);
-  const foe = cuesFor([hit(0)], undefined, undefined, [{ tick: 1, type: 'AttackInterrupted', actor: 1, move: 'light_right' }]).find(c => c.name === 'effort_voice');
+  assert.equal(cut.length, 1, 'the event exists for Web and the audio lane');
+  assert.equal(EFFORT_VOICE, false, 'Dom has not signed off the voice');
+  assert.deepEqual(names([hit(1)], cut), ['hit_flesh'], 'silent by default');
+  assert.deepEqual(names([hit(1)], cut, true), ['hit_flesh', 'effort_voice'], 'the wired slot, once the constant is flipped');
+  const foe = cuesFor([hit(0)], undefined, undefined, [{ tick: 1, type: 'AttackInterrupted', actor: 1, move: 'light_right' }], true).find(c => c.name === 'effort_voice');
   assert.ok(foe && foe.rate! < 1, "the foe's grunt is the same cue, lower");
   assert.deepEqual(names([hit(1)]), ['hit_flesh'], 'no clarity event, no voice');
 });
