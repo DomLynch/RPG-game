@@ -67,8 +67,8 @@ test('specials: a release on the tick its caster falls still lands; lethal both 
 test('specials: a fight with them records the flag (the current version: a live fight), and the replay builds the same fight from it', async () => {
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
+  const rec = liveRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });   // first: it sets the live era (circle, late notice, stab) the fight is stepped in
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
-  const rec = liveRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });
   let landed = 0;
   for (let i = 0; i < 7200 && !p.finish; i++) {
     const f = p.duel.fighters[0], intent = rec.push(legal(f, 'skill') ? act('skill') : f.phase === 'sheathed' ? act('light') : STRATEGIES['light spam'](p.duel));   // the special whenever it is ready, else the battery's light spam

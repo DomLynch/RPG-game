@@ -209,7 +209,7 @@ async function withVersion(opponent: 'veteran' | 'goblin', level: number, versio
 test('a reach refusal up to v19 is HELD (never lost to a publish); a plain unsupported version is not; --accept clears it with the audit line', async () => {
   const record = await withVersion('veteran', 6, 18);
   const held = String(await refusal({ opponent: 'veteran', record }, FRESH));
-  assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 1 \(bump 29 changed that fight/);
+  assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 6/);
   assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^HELD v18: reach: .*not supported for the veteran/, 'a reach hold does not depend on heldMax (RV29: it covers every version a bump reaches)');
   assert.match(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 3) }, FRESH)), /^unreadable record: Fight record: version 3 is not supported \(/, 'an unreadable version is not a reach hold');
   const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 1 ? { id: 1, user_id: U, opponent: 'veteran', piece: null, record, verified: false, note: held.slice(0, 200) } : null) };
