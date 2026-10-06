@@ -1,5 +1,6 @@
 import { AddEquation, Color, CustomBlending, DstColorFactor, DynamicDrawUsage, OneMinusSrcAlphaFactor, SRGBColorSpace, TextureLoader, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
 import type { FinisherId } from './finishers.ts';
+import { HAMSTRUNG_BEATS } from './hamstrung.ts';
 
 // Blood on the floor multiplies onto the sand: dst × lerp(1, texture, alpha·opacity). Premultiplied output makes alpha and opacity
 // fade it toward "no change" — never toward white, which a plain MultiplyBlending ignores opacity for.
@@ -11,7 +12,7 @@ export function multiplyOnto(material: MeshBasicMaterial, map: Texture) {
 // The floor stain shapes (scripts/blood/floor-textures.py): two pools, four splashes, handed out in turn so no two neighbours match.
 export const FLOOR_POOLS = ['floor-pool.png', 'floor-pool-b.png'], FLOOR_SPLASHES = ['floor-splash.png', 'floor-splash-b.png', 'floor-splash-c.png', 'floor-splash-d.png'];
 
-export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number };
+export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number; delay?: number };   // delay: seconds after the finish begins before the wound opens (a later blow of a paired scene)
 
 // Which of a weapon's materials a kill bloodies. A sword bloodies its Blade only. A hafted weapon bloodies everything but its
 // handle: every shipped two-hander ships the haft, grip wrap and binding as their own materials (Haft/Ash/Leather/Cord/Wire), so
@@ -46,6 +47,14 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
       if (!cut.geometry.boundingBox) cut.geometry.computeBoundingBox();
       return [source(i ? 'waist-torso' : 'waist-legs', cut.localToWorld(cut.geometry.boundingBox!.getCenter(new Vector3())), new Vector3(0,i ? -1 : 1,0).transformDirection(cut.matrixWorld),1.4)];
     });
+  }
+  if (kind === 'hamstrung') {
+    // The knee is cut at the first blow, the back entered at the second (the second waits out the first blow's hit-stop).
+    const knee = at('calf_r');
+    return [
+      ...(knee ? [{...source('knee-cut',knee,forward.clone().negate(),.7),delay:HAMSTRUNG_BEATS.knee*HAMSTRUNG_BEATS.duration}] : []),
+      {...source('back-entry',chest.clone().addScaledVector(forward,-.13*size),forward.clone().negate(),.9),delay:HAMSTRUNG_BEATS.back*HAMSTRUNG_BEATS.duration+HAMSTRUNG_BEATS.hold},
+    ];
   }
   if (kind === 'decapitation') {
     const sites = [source('neck-stump',neck.clone().addScaledVector(up,.035*size),up.clone().addScaledVector(forward,.35),1.35)];
@@ -114,7 +123,8 @@ export function createFinisherBlood(map: Texture) {
       if(elapsed>=7 && !lateSeeded && stainCursor===0) { for(const s of sources)stain(s.position,.3,s.site);lateSeeded=sources.length>0; }
       const start=kind==='decapitation' ? .05 : kind==='opened' || kind==='splitCrown' ? .045 : .01;
       if(progress>=start && elapsed<7) sources.forEach((s,i)=>{
-        const burst=elapsed<1.7, rate=(burst ? 78 : elapsed<3.5 ? 32 : 14)*s.strength;
+        if(elapsed<(s.delay??0))return;
+        const age=elapsed-(s.delay??0), burst=age<1.7, rate=(burst ? 78 : age<3.5 ? 32 : 14)*s.strength;
         pending[i]=(pending[i]??0)+rate*dt;
         while(pending[i]>=1) {
           pending[i]--; const p=particles[cursor++%particles.length], a=++serial*2.399963;

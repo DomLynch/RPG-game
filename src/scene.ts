@@ -23,7 +23,8 @@ import { nextRungFiles } from './gate-light.ts';
 import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
-import { FINISHER_POSE, type FinisherId } from './finishers.ts';
+import { type FinisherId } from './finishers.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, poseOf, resolveHamstrung } from './hamstrung.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
@@ -351,6 +352,15 @@ export function createScene(
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
+      if (HAMSTRUNG_VICTIMS.includes(opponentId)) {
+        // The killer's half ships beside warrior.glb (src/hamstrung.ts), fetched only in a fight that can play the scene; if it fails the picker's pick plays nothing.
+        try {
+          const { default: killer } = await import('./assets/hamstrung-killer.json');
+          loaded.player.adoptClip('Fin_Hamstrung', THREE.AnimationClip.parse(killer as unknown as Parameters<typeof THREE.AnimationClip.parse>[0]));
+          loaded.opponent.prepareHamstrung();
+          hamstrungReady = true;
+        } catch (error) { captureException(error); }
+      }
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
           if (object instanceof THREE.Mesh) object.geometry.dispose();
@@ -469,6 +479,9 @@ export function createScene(
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
   let severHead: SeveredHead | null = null,
     killHeading = 0;
+  let hamstrungReady = false; // the killer's clip and the victim's weapon drop are installed
+  let finishHold = 0; // Hamstrung: seconds left of the hit-stop a blow holds the scene for (the clock and both rigs stand still, the camera and the blood run on)
+  let hamstrungSteps: { knee: THREE.Vector3; back: THREE.Vector3 } | null = null; // where the killer's anchor stands for each blow, solved once per finish
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
   // Finisher complete (Lead brief 2026-09-22, for Web's loot panel): has the ceremony FINISHED PLAYING, and at what finish
   // age did it first say so. Latched from the scene's own state in the frame loop below, never from a delay; cleared with
@@ -800,13 +813,15 @@ export function createScene(
       bloodEdge.render(events, practice.duel);
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
+      const fightWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
       const resolved = practice.finish
-        ? resolveFinisher(
+        ? resolveHamstrung(
             opponentId,
             practice.finish,
-            [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
-            finisherOverride,
+            fightWeapons,
+            hamstrungReady ? finisherOverride : finisherOverride === 'hamstrung' ? null : finisherOverride,
             lastFinisher,
+            resolveFinisher(opponentId, practice.finish, fightWeapons, finisherOverride === 'hamstrung' ? null : finisherOverride, lastFinisher),
           )
         : null;
       // Decided once per finish, on its first frame: an opened kill with his waist-cut bake still pending plays bakeSafeFinisher's pick (rank-look.ts).
@@ -829,7 +844,7 @@ export function createScene(
       }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
-      const posed = finisher ? FINISHER_POSE[finisher] : null, finisherPose = posed === 'quietOne' ? null : posed;
+      const posed = finisher ? poseOf(finisher) : null, finisherPose = posed === 'quietOne' ? null : posed;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
       if (
         practice.health === practice.enemyMaxHealth &&
@@ -855,6 +870,7 @@ export function createScene(
         warriors?.player.unsever();
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
+        if (hamstrungReady) warriors?.opponent.prepareHamstrung();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
@@ -1001,7 +1017,7 @@ export function createScene(
         severHead.group.visible = bloodMode !== 'off';
         stepSeveredHead(severHead, dt);
       }
-      const animationDt = frozen ? 0 : dt;
+      let animationDt = frozen ? 0 : dt;   // a Hamstrung blow's hit-stop zeroes it below
       if (theme.light?.flicker) {   // firelight: the key light breathes and sways a little, so the long shadows move
         const t = performance.now() / 1000, f = theme.light.flicker;
         sun.intensity = sunPower * (look?.key ?? 1) * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
@@ -1049,19 +1065,33 @@ export function createScene(
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
       const runThroughHold = !walking && finisher === 'runThrough' && practice.finish?.victim === 1;   // the walk lets go of the tableau
+      const hamstrungFinish = !walking && finisher === 'hamstrung' && practice.finish?.victim === 1;
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
-      if (!practice.finish) finishClock = -1;
+      // Hamstrung runs its own length (HAMSTRUNG_BEATS.duration) and stops the clock for `hold` seconds at each blow: the clock lands exactly on the beat, then waits.
+      if (!practice.finish) { finishClock = -1; finishHold = 0; hamstrungSteps = null; }
       else if (finishClock < 0) finishClock = 0;
-      else finishClock = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
+      else if (hamstrungFinish && finishHold > 0) { finishHold = Math.max(0, finishHold - dt); animationDt = 0; }
+      else {
+        let next = Math.min(1, finishClock + (hamstrungFinish ? dt / HAMSTRUNG_BEATS.duration : (dt * 0.75) / (RULES.death / 60)));
+        if (hamstrungFinish) for (const beat of [HAMSTRUNG_BEATS.knee, HAMSTRUNG_BEATS.back]) if (finishClock < beat && next >= beat) { next = beat; finishHold = HAMSTRUNG_BEATS.hold; break; }
+        finishClock = next;
+      }
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
-      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
+      if (hamstrungFinish && !hamstrungSteps && warriors) {
+        // Once, with both actors faced as they fell: the victim's knee and back at the two blows, then where the killer must stand for each.
+        player.rotation.y = state.heading;
+        opponent.rotation.y = practice.enemy.heading;
+        const contacts = warriors.opponent.hamstrungContacts();
+        hamstrungSteps = { knee: warriors.player.hamstrungStep(HAMSTRUNG_BEATS.knee, contacts.knee), back: warriors.player.hamstrungStep(HAMSTRUNG_BEATS.back, contacts.back) };
+      }
+      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : hamstrungFinish ? 'hamstrungStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : hamstrungFinish ? 'hamstrungStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
       warriors?.player.update(
         mineGait.travel,
         animationDt,
         mineGait.pose,
-        walking ? 0 : runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
+        walking ? 0 : runThroughHold || hamstrungFinish ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,
@@ -1150,6 +1180,16 @@ export function createScene(
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
+      if (hamstrungFinish && warriors && hamstrungSteps) {
+        // The killer steps in to the knee, then on to the back (the same two steps solved above), the blade held on each wound as the blow lands.
+        const smooth = (t: number) => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+        const first = finishClock < 0.4;
+        if (first) warriors.player.anchor.position.copy(hamstrungSteps.knee).multiplyScalar(smooth(finishClock / HAMSTRUNG_BEATS.knee));
+        else warriors.player.anchor.position.lerpVectors(hamstrungSteps.knee, hamstrungSteps.back, smooth((finishClock - 0.4) / (HAMSTRUNG_BEATS.back - 0.4)));
+        const target = warriors.opponent.boneWorld(first ? 'calf_r' : 'spine_02');
+        const weight = first ? smooth((finishClock - 0.12) / 0.1) * (1 - smooth((finishClock - HAMSTRUNG_BEATS.knee) / 0.13)) : smooth((finishClock - 0.54) / 0.1);
+        if (target) warriors.player.aimBladeAt(target, weight, false);
+      }
       // The marks ride the final poses; a cinematic finisher's own gore takes over the victim's body (the plain death keeps his wounds).
       bodyWounds.update(dt, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
         [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
