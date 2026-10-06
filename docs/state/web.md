@@ -1,5 +1,7 @@
 ## 2026-10-07 ~03:30 (+04) — HANDOFF before /clear (Dom). READ FIRST: #1529 cuts LIVE (e26a9f29), #1543 schools GO'd to Deploy, #1501 passed; ONLY #1540 (Miasma mark) waits on the Auditor
 
+**NEW ~05:00: #1556** `web/card-controls` @2c678581 (Lead's follow-up to #1549): `:root.card-up` (main.ts 1 line from match.stalled + stale banner) hides/disables the stick, hint, run toggle and every #actions button except #reset-button behind the old-link and dead-link refusal cards; before/after stills on branch stills/fifty-1475 folder card-controls; tests/input.test.ts 14/14, tsc, eslint clean; trunk's end-of-fight overlays NOT checked (stated in the body); needs the Auditor, sha sent to Lead only.
+
 **RECEIPTS (gh, 04:20, ~23:20Z):** #1540 MERGED 23:17:47Z @5e761f35; #1529 MERGED 22:33Z; #1501 MERGED 21:14Z; #1484 @d8c67c15, #1543 @3beeabc6 and #1550 @86fe453d are OPEN (Auditor PASS on each per its message; waiting on Lead's re-GO/Deploy). So the only Web PRs still to ship are those three.
 
 **CORRECTION ~04:15 (Auditor verdicts, all on the PRs):** #1484 @d8c67c15 PASS, #1543 @3beeabc6 PASS, #1550 @86fe453d PASS (note: the HUD skip key omits maxStamina, pre-existing), #1540 @5e761f35 PASS at 22:58Z with CI green at 23:11Z and is in Deploy's queue: it was NOT waiting on the Auditor (my text below and above says otherwise: ignore it). Nothing is owed by Web; the next move is Deploy's, then the VPS/scratchpad cleanup below.
