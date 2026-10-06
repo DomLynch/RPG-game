@@ -10,9 +10,10 @@
   tradeable), `origins/world` (zones as data; world group #16 `town` comes from `feuds.md` §11), `origins/progression`
   (`TYPE_WEIGHTS`, first-win-only bosses, `MIN_CONTRIBUTION_PERMILLE`) and `origins/boss` (the world boss state machine, #1448).
 - Standing rules, unchanged: **never gear loss**; every NPC strike is telegraphed and dodgeable; collect-N stays banned; travel stays
-  short; twists are Origins encounter flags that never move the live ladder. **One deliberate exception:** clan perks
-  reach the Pit too (Dom's override, §10), but only the no-damage sidegrades of `patron-perks-sim.md` (Strategy, 2026-10-07; the
-  §10.2 damage templates are Origins PvE only), with a `RECORD_VERSION` bump and a re-pinned RNG fingerprint.
+  short; twists are Origins encounter flags that never move the live ladder. **One deliberate exception:** clan and
+  patron perks apply in the Pit too (Dom's override, §10): the arena gets the no-damage sidegrade templates of `patron-perks-sim.md`
+  through Combat's patron hook, with a `RECORD_VERSION` bump and a re-pinned RNG fingerprint. The §10.2 damage perks are Origins PvE
+  only (Strategy, 2026-10-07).
 
 ## 1. The loop
 
@@ -545,10 +546,11 @@ A patron gives four things and **no raw stat power**:
 
 ### 10.2 Clans, perks and weaknesses (Dom's override; values PROVISIONAL)
 
-> **Ruled (Strategy, 2026-10-07): the templates below are ORIGINS PvE ONLY.** Every one of them moves damage, so none applies in
-> the arena (the Pit, arena duels) or in any PvP fight. In the arena only the no-damage sidegrades of `patron-perks-sim.md` apply:
-> Vitality, Wind, Thrift, Guard, Poise and Stride, at most 30‰ per side. Edge and every other damage perk stays out of the arena
-> until damage rounding is measured. No perk ever touches ticks, reach or AI. This narrows Dom's override 1 for damage perks only.
+> **Ruled (Strategy, 2026-10-07): the templates below are ORIGINS PvE ONLY.** Every one of them moves damage, so none of THESE
+> reaches the arena (the Pit, arena duels) or any PvP fight. Perks still apply in the arena (Dom's override 1), but only the
+> no-damage sidegrade templates of `patron-perks-sim.md`, through Combat's patron hook: Vitality, Wind, Thrift, Guard, Poise and
+> Stride, at most 30‰ per side, shown to both fighters. Edge and every other damage perk stays out of the arena until damage
+> rounding is measured. No perk ever touches ticks, reach or AI.
 
 Every clan has one **perk template**: a small gain paired with a matching cost.
 
@@ -712,8 +714,9 @@ Per player: `{ "kind": "allegiance", "character": "pc:…", "clan": "clan:… | 
 - **Player lords** may set their town's patron to their own clan's patron once per term (§11.2), if the clan has one. The strike
   changes with it, and the book records it. A legend-headed clan with no strike leaves the town's strike off.
 - **Phasing (Dom's override):** the **choice**, trials and marks ship **at graduation**, as part of the first Origins step.
-  **Arena sidegrades** (`patron-perks-sim.md`, no damage) ship when Combat's duel-sim hook, the `RECORD_VERSION` bump and Stats'
-  win-rate check are ready; the §10.2 damage templates are Origins PvE only. Until then a clan is identity only in the arena. **War-goal sides** and prestige ship with the war goals (phase d). **Patron defenders** ship with player
+  **In the arena**, the no-damage sidegrade templates (`patron-perks-sim.md`) apply through Combat's patron hook, shipping when that
+  hook, the `RECORD_VERSION` bump and Stats' win-rate check are ready; until then a clan is identity only in the arena. The §10.2
+  damage perks are Origins PvE only. **War-goal sides** and prestige ship with the war goals (phase d). **Patron defenders** ship with player
   lords after the PvP verifier (phase e). Strategy is re-sequencing.
 
 ## 11. The player rule (phase e: built after the PvP verifier)
@@ -887,7 +890,7 @@ Strategy's order (§2.4), re-sequenced by Strategy on 2026-10-06 to match the ta
 
 | Phase | Ships | Needs | Pre-verifier? |
 |---|---|---|---|
-| (0) Graduation (Dom) | clan and patron choice at Gladiator, entry trials, marks, the Exchange's book line; arena no-damage sidegrades when Combat's hook lands (damage templates Origins PvE only) | the trial encounter, the `clan` kind, a `RECORD_VERSION` bump for perks | yes |
+| (0) Graduation (Dom) | clan and patron choice at Gladiator, entry trials, marks, the Exchange's book line; the arena gets the no-damage sidegrade templates via Combat's patron hook when it lands; §10.2 damage perks are PvE-only | the trial encounter, the `clan` kind, a `RECORD_VERSION` bump for perks | yes |
 | (a) Rifts | scheduler, sites, warning, shared bar, personal loot, the `rift-boss` row, weekly cap | #1448 (merged, pure), the server's loot roll, a contracts row | yes |
 | (b) History book | server log, templates, the town lectern and web page, moderated names; plaques and donations | the deed ops of `feuds.md` (rival kill, bouncer, succession) | yes |
 | (c) NPCs remember | `book-has` barks, shop bans and pardons by NPC rulers and petition | (b) | yes |
