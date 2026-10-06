@@ -30,7 +30,7 @@ export const picker = {
     if (state.allegiance) {
       const t = templateOf(state.allegiance);
       return ui.panel('Allegiance', ui.heading(allegianceName(state.allegiance)), ui.text(t ? `${t.id}: ${templateText(t)}` : 'No perk: you stand alone.'),
-        ui.text('In the Pit: small, visible perks that never add damage. Damage perks only in Origins. Leaving a clan: joining another within 28 days costs 2,000 bronze (not in the preview).', true), ui.heading('The Exchange book'), ...state.log.map((e) => ui.text(bookLine(e, player), true)));
+        ui.text('In the Pit: small, visible perks that never add damage. Damage perks only in Origins. Leaving a clan is free, but you can\'t join another for 7 days. Joining within 28 days of leaving costs 2,000 bronze; after a switch, your next change waits 28 days. (not in the preview)', true), ui.heading('The Exchange book'), ...state.log.map((e) => ui.text(bookLine(e, player), true)));
     }
     if (view === 'top') {
       return ui.panel('Choose your allegiance', ui.text('You passed the outer gate. Stand Independent, found a company, or swear to a patron\'s clan. Your first choice is free.'),
