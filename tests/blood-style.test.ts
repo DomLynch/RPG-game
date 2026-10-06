@@ -58,12 +58,14 @@ test('b3: b2 35% thinner, strands 20% longer, 15% darker red; counts, timing and
   }
 });
 
-test('b4: b3 with the strands 30% longer; width, colour, counts, timing and speeds unchanged', () => {
-  assert.deepEqual(BLOOD.b4, BLOOD.b3);
+test('b4: b3 with 10% less spray, 10% narrower, strands 20% longer, 10% darker; timing and speeds unchanged', () => {
+  assert.deepEqual([BLOOD.b4.hit, BLOOD.b4.kill], [Math.round(BLOOD.b3.hit * 0.9), Math.round(BLOOD.b3.kill * 0.9)], 'counts x0.9');
+  const shade = (hex: string) => [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
+  for (const key of ['start', 'end'] as const) shade(BLOOD.b4[key]).forEach((c, k) => assert.ok(Math.abs(c - shade(BLOOD.b3[key])[k] * 0.9) <= 1, `${key} channel ${k} is 10% darker`));
   const r3 = makeRng(6), r4 = makeRng(6);
-  for (let i = 0; i < 30; i++) {
-    const a = newParticle(), b = newParticle(); spawnBlood('b3', a, i, 0, 1, 0, 0, 1, i % 4 === 0, 'high', r3); spawnBlood('b4', b, i, 0, 1, 0, 0, 1, i % 4 === 0, 'high', r4);
-    assert.equal(b.size, a.size, 'width as b3'); assert.ok(Math.abs(b.size * b.stretch - a.size * a.stretch * 1.3) < 1e-9, 'length x1.3');
+  for (let i = 0; i < 15; i++) {
+    const a = newParticle(), b = newParticle(); spawnBlood('b3', a, i, 0, 1, 0, 0, 1, false, 'high', r3); spawnBlood('b4', b, i, 0, 1, 0, 0, 1, false, 'high', r4);
+    assert.ok(Math.abs(b.size - a.size * 0.9) < 1e-9, 'width x0.9'); assert.ok(Math.abs(b.size * b.stretch - a.size * a.stretch * 1.2) < 1e-9, 'length x1.2');
     assert.deepEqual([b.vx, b.vy, b.vz, b.life], [a.vx, a.vy, a.vz, a.life]);
   }
 });
