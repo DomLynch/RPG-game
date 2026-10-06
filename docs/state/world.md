@@ -2,7 +2,7 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## 2026-10-06 ~00:55 (+04) — HANDOFF #13 before /clear. READ FIRST (supersedes #12 where it differs)
+## 2026-10-06 20:50 (+04, `date` on the Mac) — HANDOFF #13 before /clear. READ FIRST (supersedes #12 where it differs; #12 is stamped ~22:20 but the clock read 20:50 when #13 was written, so #12's stamp is wrong and #13 is the newer entry)
 
 ### Now
 - **Blood b2 (Dom's direct ask):** Dom: A is OUT, B is the direction but "a bit thick". `?blood=b2` (0.7x particles 17/28, drops 2/3, sizes x0.7, same colour/timing; opacity untouched, the burst material is opaque) is pushed on world/blood-options @c63cf765 and rendered: ~/Desktop/Business/frankendom-blood/v2/blood-b2.mp4 (17 s; the first 9.6 s match blood-b.mp4), sent to Strategy for Dom. **No PR until Dom says yes.** If he does (Lead's order): ONE PR making b2 the only blood (the default look), removing the old default burst and the a/b flags (blood-style.ts, armfeel-fx.ts createBurstPool param, scene.ts `?blood=` read, tests/blood-style.test.ts), with before/after stills at 375 for the Auditor, then Lead. Live preview of the earlier build: https://frankendom.com/preview/blood/?blood=a|b (Deploy published @84cdd59f; b2 is NOT published).
