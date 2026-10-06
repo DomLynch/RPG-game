@@ -17,7 +17,8 @@ Round 1, 2026-10-06. Goldens are hand-derived from the source and not yet captur
 | Crafting | [modernuo-crafting.md](modernuo-crafting.md) | O6 |
 | Trading (design, not a donor spec) | [trading.md](trading.md) | O3 Exchange: barter trade, trade limits, 0003 |
 | Public events | [modernuo-champion-spawns.md](modernuo-champion-spawns.md) | O2 staged boss event |
-| Region 1 content (ours, not donor) | [region1-ash-frontier.md](region1-ash-frontier.md) | Ash Frontier zones, chapter one *The Stolen Name* as a Feud (provisional), Bounties, bosses, loot, bundle files |
+| Region 1 content (ours, not donor) | [region1-ash-frontier.md](region1-ash-frontier.md) | Ash Frontier zones, Bounties, bosses, loot, bundle files (the scripted Feud is superseded) |
+| Feuds (ours, not donor) | [feuds.md](feuds.md) | systemic grudges: generator, succession, notoriety, town defence, guards and jail, hunters, deferred PvP bounty |
 | Offline formats | [gothic-zenkit-reference.md](gothic-zenkit-reference.md) | tooling reference only |
 
 Fixed spine: Frankendom's damage and weapon rules and gear scoring (Attack/RES caps 1.15 / 0.80, resolved before the fight, timing untouched) are not replaced by any donor rule.
