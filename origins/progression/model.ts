@@ -1,10 +1,12 @@
-// Frankendom: Origins — the ONE career (Dom's ruling 7), reference model. Pure, integer-only, no imports, not under src/.
+// Frankendom: Origins — the ONE career (Dom's ruling 7), reference model. Pure, integer-only, not under src/.
+// Its one import is the ladder itself (src/career.ts: MAX_LEVEL, RANK_STEPS), so the cap is never declared twice.
 //
 // Spec: docs/specs/origins/progression-proposal.md (this file is its executable half; the numbers below are the proposal's numbers
 // and every one is pinned in model.test.ts). Clean room (ruling 8): written from the specs in docs/specs/origins/ only.
 //
 // The whole idea in one line: the career is a single integer, CAREER CREDIT, counted in credit points (CP). One Pit win is exactly
-// 1000 CP, so `level = min(46, 1 + floor(credit / 1000))` is today's `level = min(46, 1 + wins)` for every existing account. World
+// 1000 CP, so `level = min(cap, 1 + floor(credit / 1000))` is today's `level = min(cap, 1 + wins)` for every existing account (cap = the
+// ladder cap, src/career.ts MAX_LEVEL: 46 today, 50 after Dom's 2026-10-05 ruling, with the top rank becoming Origin I–V). World
 // bosses pay up to 1000 CP; ordinary mobs pay tens of CP, less for creatures below you, less again on repeats, and only while the
 // character's rested allowance lasts. Credit only ever goes up.
 //
@@ -15,23 +17,27 @@
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Constants (the proposal's table; change them only with the doc).
 
+import { MAX_LEVEL, RANK_STEPS } from '../../src/career.ts';
+export { MAX_LEVEL };
+
 export const CP_PER_MARK = 1000; // one Pit win = one mark = one career level
-export const MAX_LEVEL = 46; // src/career.ts MAX_LEVEL
 export const ARENA_WIN_CP = 1000;
 export const BOSS_CP = 1000; // "a world boss kill counts like an arena win"; never more
 export const MOB_BASE_CP = { ordinary: 20, elite: 80, named: 200 } as const;
 export type MobClass = keyof typeof MOB_BASE_CP;
 export const PER_KILL_CAP_CP = 250; // no single non-boss kill pays more than a quarter level
 
-// Level-difference falloff, permille, by d = target level − reference level. Six bands on the 46-level ladder (five levels per
-// title): a creature more than a whole title below you is grey and pays nothing.
+// Level-difference falloff, permille, by d = target level − reference level. CAP-INDEPENDENT by construction: it reads only the
+// difference d, never an absolute level, so moving the cap from 46 to 50 changes no band. The one ladder fact it uses is the title
+// width (src/career.ts RANK_STEPS, five sub-ranks a title, unchanged by the 50-level ruling): exactly one title below you pays a fifth,
+// and a creature more than a whole title below you is grey and pays nothing.
 export function falloffPermille(d: number): number {
   if (d >= 3) return 1250;
   if (d >= 1) return 1100;
   if (d === 0) return 1000;
   if (d >= -2) return 900;
   if (d >= -4) return 500;
-  if (d === -5) return 200;
+  if (d >= -RANK_STEPS) return 200;
   return 0; // grey
 }
 export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
@@ -71,14 +77,16 @@ export const BOSS_LOCKOUT_S = 7 * DAY_S;
 export const BOSS_MIN_CONTRIBUTION_PERMILLE = 100; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Levels. Today's ladder, read from credit.
+// Levels. Today's ladder, read from credit. Every level function takes the ladder cap, defaulting to src/career.ts MAX_LEVEL, so the
+// model follows the arena's cap change (46 → 50) without an edit here and tests can run both ladders.
 
-export const levelOfCredit = (credit: number): number =>
-  Math.min(MAX_LEVEL, 1 + (Number.isFinite(credit) ? Math.max(0, Math.floor(credit / CP_PER_MARK)) : 0));
+export const levelOfCredit = (credit: number, cap: number = MAX_LEVEL): number =>
+  Math.min(cap, 1 + (Number.isFinite(credit) ? Math.max(0, Math.floor(credit / CP_PER_MARK)) : 0));
 // The migration: an account's server marks become credit 1:1000, so its level is unchanged.
 export const creditFromMarks = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0) * CP_PER_MARK;
 // The rank bar's partial fill (src/career.ts Rank.fill, kept at 0 today "so the bar code reads unchanged"), permille of a level.
-export const fillPermille = (credit: number): number => (levelOfCredit(credit) === MAX_LEVEL ? 0 : Math.floor(credit) % CP_PER_MARK);
+export const fillPermille = (credit: number, cap: number = MAX_LEVEL): number =>
+  (levelOfCredit(credit, cap) === cap ? 0 : Math.floor(credit) % CP_PER_MARK);
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // State and events.
@@ -142,11 +150,11 @@ export function heatAt(state: CareerState, mob: string, at: number): number {
   return h ? Math.max(0, h.units - clampElapsed(h.at, at)) : 0;
 }
 
-export function award(state: CareerState, event: CareerEvent): Award {
-  const levelBefore = levelOfCredit(state.credit);
+export function award(state: CareerState, event: CareerEvent, cap: number = MAX_LEVEL): Award {
+  const levelBefore = levelOfCredit(state.credit, cap);
   const done = (next: CareerState, cp: number, reason: Reason): Award => {
     const credit = next.credit + cp;
-    return { state: { ...next, credit }, cp, reason, levelBefore, levelAfter: levelOfCredit(credit) };
+    return { state: { ...next, credit }, cp, reason, levelBefore, levelAfter: levelOfCredit(credit, cap) };
   };
   if (!event || typeof event.id !== 'string' || !Number.isFinite(event.at)) return done(state, 0, 'bad-event');
 
@@ -206,17 +214,17 @@ export function award(state: CareerState, event: CareerEvent): Award {
 // Settle a list in order, with the server's one-settlement-per-event-id index modelled by `settled` (pass the same Set across calls
 // to model retries arriving later). A repeated id pays nothing and changes nothing.
 export function settleAll(
-  state: CareerState, events: readonly CareerEvent[], settled: Set<string> = new Set(),
+  state: CareerState, events: readonly CareerEvent[], settled: Set<string> = new Set(), cap: number = MAX_LEVEL,
 ): { state: CareerState; awards: Award[] } {
   const awards: Award[] = [];
   let s = state;
   for (const e of events) {
     if (settled.has(e.id)) {
-      const level = levelOfCredit(s.credit);
+      const level = levelOfCredit(s.credit, cap);
       awards.push({ state: s, cp: 0, reason: 'duplicate', levelBefore: level, levelAfter: level });
       continue;
     }
-    const a = award(s, e);
+    const a = award(s, e, cap);
     if (a.reason !== 'bad-event') settled.add(e.id);
     awards.push(a);
     s = a.state;

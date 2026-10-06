@@ -2,7 +2,7 @@
 // properties ruling 7 asks for — existing players' level unchanged, credit monotonic, farm yield bounded per hour, boss ≈ arena win.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { levelOf as careerLevelOf } from '../../src/career.ts';
+import { MAX_LEVEL as careerMaxLevel, levelOf as careerLevelOf } from '../../src/career.ts';
 import {
   ARENA_WIN_CP, BOSS_CP, DAY_S, MAX_LEVEL, PER_KILL_CAP_CP, RESTED_CAP_CP, RESTED_PER_DAY_CP,
   award, creditFromMarks, falloffPermille, fillPermille, heatAt, levelOfCredit, newCareer, partyEligible, partySharePermille,
@@ -55,12 +55,18 @@ test('existing players: the Pit ladder is untouched: each Pit win is exactly one
   }
   assert.equal(s.pitWins, 50);
 });
-test('existing players: the Pit ladder is untouched: Origin stays Origin; credit keeps counting and the bar shows no fill there', () => {
-  const s = settleAll(newCareer(45), [{ kind: 'arena-win', id: 'p', at: 0 }]).state;
-  assert.equal(levelOfCredit(s.credit), MAX_LEVEL);
-  assert.equal(s.credit, 46_000);
-  assert.equal(fillPermille(s.credit), 0);
-  assert.equal(fillPermille(10_250), 250);
+test('existing players: the Pit ladder is untouched: the top level stays the top; credit keeps counting and the bar shows no fill there', () => {
+  for (const cap of [MAX_LEVEL, 46, 50]) {
+    const s = settleAll(newCareer(cap - 1), [{ kind: 'arena-win', id: 'p', at: 0 }, { kind: 'arena-win', id: 'q', at: 1 }], new Set(), cap).state;
+    assert.equal(levelOfCredit(s.credit, cap), cap);
+    assert.equal(s.credit, (cap + 1) * 1000);
+    assert.equal(fillPermille(s.credit, cap), 0);
+    assert.equal(fillPermille(10_250, cap), 250);
+  }
+});
+test('ladder cap: the model reads src/career.ts MAX_LEVEL and declares no cap of its own', () => {
+  assert.equal(MAX_LEVEL, careerMaxLevel);
+  assert.equal(levelOfCredit(1e9), careerMaxLevel);
 });
 
 test('boss ≈ arena win: an even-level solo boss pays exactly one Pit win', () => {
@@ -241,4 +247,56 @@ test('properties: story steps pay once, and never more than one mark', () => {
 });
 test('properties: a party larger than four is refused', () => {
   assert.equal(award(newCareer(14), { kind: 'mob', id: 'p5', at: 0, mob: 'm', mobClass: 'ordinary', mobLevel: 15, partyLevels: [15, 15, 15, 15] }).reason, 'bad-event');
+});
+
+// Dom's 2026-10-05 ruling: 50 levels, the top rank becoming Origin I–V. Not live yet (the arena Combat track changes src/career.ts);
+// these hold the model to it ahead of time by passing the cap.
+const CAP50 = 50;
+test('ladder cap 50: existing players migrate to exactly 1 + wins, up to the cap', () => {
+  for (let m = 0; m <= 80; m++) assert.equal(levelOfCredit(creditFromMarks(m), CAP50), Math.min(CAP50, 1 + m));
+});
+test('ladder cap 50: the top level is reachable by Pit wins alone, one level per win, and by bosses', () => {
+  let s = newCareer(0);
+  for (let w = 1; w <= CAP50 - 1; w++) {
+    const a = award(s, { kind: 'arena-win', id: `w${w}`, at: w }, CAP50);
+    assert.equal(a.levelAfter, 1 + w);
+    s = a.state;
+  }
+  assert.equal(levelOfCredit(s.credit, CAP50), CAP50);
+  // A level-46 player under the old top keeps climbing under the new one, and a level-49 boss kill tops out the ladder.
+  assert.equal(award(newCareer(45), { kind: 'arena-win', id: 'x', at: 0 }, CAP50).levelAfter, 47);
+  assert.equal(award(newCareer(45), { kind: 'arena-win', id: 'x', at: 0 }, 46).levelAfter, 46);
+  const boss = award(newCareer(48), { kind: 'boss', id: 'b', at: 0, boss: 'b', bossLevel: 49, contributionPermille: 500 }, CAP50);
+  assert.deepEqual([boss.cp, boss.levelAfter], [1000, CAP50]);
+});
+test('ladder cap 50: no band breaks — falloff, boss and mob credit depend only on the level difference, at every level', () => {
+  for (let level = 1; level <= CAP50; level++) {
+    for (let d = -12; d <= 12; d++) {
+      const target = level + d;
+      if (target < 1) continue;
+      const boss = award(newCareer(level - 1), { kind: 'boss', id: 'b', at: 0, boss: 'b', bossLevel: target, contributionPermille: 500 }, CAP50).cp;
+      assert.equal(boss, Math.min(1000, falloffPermille(d)), `boss at level ${level}, d ${d}`);
+      const mob = award(newCareer(level - 1), { kind: 'mob', id: 'm', at: 0, mob: 'm', mobClass: 'named', mobLevel: target }, CAP50).cp;
+      assert.equal(mob, Math.min(PER_KILL_CAP_CP, Math.floor((200 * falloffPermille(d)) / 1000)), `mob at level ${level}, d ${d}`);
+    }
+    // the party gap rule is relative too: always eligible with yourself, and an exact-cap member can carry only the top half
+    assert.equal(partyEligible(level, level), true);
+  }
+  assert.equal(partyEligible(34, CAP50), true); // gap 16 ≤ 17
+  assert.equal(partyEligible(33, CAP50), false); // gap 17 > 16
+});
+test('ladder cap 50: credit and level never go down (random streams)', () => {
+  const rnd = lcg(50);
+  let s = newCareer(10);
+  let level = levelOfCredit(s.credit, CAP50);
+  for (let i = 0; i < 3000; i++) {
+    const e: CareerEvent = rnd() < 0.3
+      ? { kind: 'arena-win', id: `a${i}`, at: i * 30 }
+      : { kind: 'mob', id: `m${i}`, at: i * 30, mob: `k${Math.floor(rnd() * 8)}`, mobClass: 'elite', mobLevel: 1 + Math.floor(rnd() * 55) };
+    const a = award(s, e, CAP50);
+    assert.ok(a.state.credit >= s.credit && a.levelAfter >= level && a.levelAfter <= CAP50);
+    s = a.state;
+    level = a.levelAfter;
+  }
+  assert.equal(level, CAP50);
 });

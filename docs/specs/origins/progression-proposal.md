@@ -3,8 +3,10 @@
 - Author: impl-progression, 2026-10-06. For Strategy and Dom. Serves Dom's ruling 7; clean room under ruling 8 (written from this
   repo and the specs in this folder only).
 - Status: **proposal**. Nothing here ships or changes `src/`. The executable half is `origins/progression/model.ts`. Every number
-  and worked example below is pinned in `origins/progression/model.test.ts` (27 tests, Node's built-in runner, run on the VPS).
-- Scale used throughout: **career level 1–46** (`src/career.ts`). Gladiator I is level 11 (10 Pit wins); "Gladiator = rank 3"
+  and worked example below is pinned in `origins/progression/model.test.ts` (32 tests, Node's built-in runner, run on the VPS).
+- Scale used throughout: **career level 1 to the ladder cap (46 today, 50 after Dom's 2026-10-05 ruling)**, read from `src/career.ts` `MAX_LEVEL`; the model declares no cap of its own.
+  Under the 50-level ladder the top rank becomes Origin I–V; the arena Combat track makes that change in `src/career.ts`, not live yet.
+  Gladiator I is level 11 (10 Pit wins); "Gladiator = rank 3"
   in the rulings is the title tier, not the level.
 
 ---
@@ -55,7 +57,7 @@ They all break "wins never go down" or the fixed combat rules.
 
 | # | Number | Value |
 |---|---|---|
-| 1 | Pit win | **1,000 CP = one level**; `level = min(46, 1 + floor(credit / 1000))` |
+| 1 | Pit win | **1,000 CP = one level**; `level = min(cap, 1 + floor(credit / 1000))`, cap = the ladder cap (46 today, 50 after Dom's 2026-10-05 ruling) |
 | 2 | World boss | **1,000 CP, never more**; once per boss per rolling 7 days; ≥ 10% contribution |
 | 3 | Mob base | **ordinary 20, elite 80, named 200 CP**; no single non-boss kill above 250 |
 | 4 | Level falloff (d = mob − you) | **+3 and up ×1.25 · +1..+2 ×1.10 · 0 ×1 · −1..−2 ×0.90 · −3..−4 ×0.50 · −5 ×0.20 · −6 and below 0** |
@@ -70,7 +72,8 @@ inputs give the same award on every machine.
 ## 2. The career number and the migration
 
 - **State.** One integer per character, `credit`, in CP. Rank, title, sub-rank, gates and the Pit difficulty all read
-  `levelOfCredit(credit) = min(46, 1 + floor(credit / 1000))`, which is `src/career.ts levelOf` applied to `floor(credit / 1000)`.
+  `levelOfCredit(credit, cap) = min(cap, 1 + floor(credit / 1000))`, which is `src/career.ts levelOf` applied to `floor(credit / 1000)`.
+  `cap` defaults to `src/career.ts MAX_LEVEL`, the ladder cap (46 today, 50 after Dom's 2026-10-05 ruling); every level function in the model takes it as a parameter.
 - **Migration.** `credit := 1000 × server marks` (`account_seed.marks + verified claims`, as `standing_of()` computes today). The
   test `migrated marks give the same level as src/career.ts for every count` checks 0–120 marks against the real `levelOf`.
 - **Pit wins never change meaning.** The verifier still replays the record, applies the dial floor and the one-win-per-fight index;
@@ -80,8 +83,9 @@ inputs give the same award on every machine.
   credit lifts a player's rank, the Pit's dial lets them trail up to 5 levels below it, exactly as after a losing streak.
 - **Pit wins are still shown.** `pitWins` is kept as a separate count for the Pit board and the journal. It is never used for rank.
 - **The rank bar gets its fill back.** `Rank.fill` (held at 0 today "so the bar code reads unchanged") becomes
-  `credit mod 1000` in permille, so world credit visibly moves the bar between wins. At Origin the fill is 0.
-- **Beyond Origin.** Credit keeps counting past 45,000 (useful for a later season); the level stays 46.
+  `credit mod 1000` in permille, so world credit visibly moves the bar between wins. At the top level the fill is 0.
+- **Beyond the top.** Credit keeps counting past the cap (useful for a later season); the level stays at the ladder cap (46 today, 50 after Dom's 2026-10-05 ruling).
+  A level-46 Origin today simply keeps climbing when the cap moves to 50: nothing in the model changes.
 - **Monotonic.** No rule subtracts credit. Pinned by a property test over 20 random streams of 1,500 mixed events with retries and
   out-of-order timestamps: credit, level and every award are non-decreasing / non-negative.
 
@@ -128,7 +132,7 @@ ten kills (example B2).
 - `partyShare(n)`, n = 1..4: `floor((1000 + g/2) / n)` with `g = 1000 + 200(n − 1)` → **1000, 800, 566, 450**. More than four is
   refused.
 - `partyEligible(Lm, H) = H − Lm ≤ max(5, floor(Lm / 2))`. A level 20 with a level 30 is eligible; a level 19 is not. A level 5 with a
-  level 10 is eligible; a level 4 is not. An Origin cannot carry anyone below 31.
+  level 10 is eligible; a level 4 is not. A level 46 cannot carry anyone below 31; a level 50, nobody below 34.
 
 ### 3.6 Rested allowance
 `restedUnits` = CP × 86,400 so the refill is exact in integers. Before a mob award:
@@ -218,7 +222,7 @@ Levels 14, 15, 16 and 20; the Count of the Ruin is level 16; shares 30%, 25%, 35
 | 16 | 4, eligible | 0 | 1,000 |
 | 20 | 0 | −4 | 500 |
 
-- Swap the 14 for an Origin (46): the 15, 16 and 20 are ineligible (gap) and the Origin's boss is grey. **Everyone gets 0.**
+- Swap the 14 for a level-46 Origin: the 15, 16 and 20 are ineligible (gap) and the Origin's boss is grey. **Everyone gets 0.**
 - The same party's elite kills (court sentinel, 15): with the level 20 present the colour is his (−5 → ×0.2) and the share is 450‰:
   **7 CP each**. Without him (three of 14–16): **40 CP each**. Solo at 15: **80 CP**.
 - Party mob credit, like solo, comes out of each member's own allowance.
@@ -259,7 +263,8 @@ Levels 14, 15, 16 and 20; the Count of the Ruin is level 16; shares 30%, 25%, 35
    stays exactly one level.
 2. **No ExpMultiplier 0.5** (eqemu §4) or FinalExpMultiplier; base values are set directly.
 3. **Falloff bands by level difference only**, fixed for every level, instead of EverQuest's level-dependent grey/green thresholds
-   (eqemu §5.2); six bands sized for a 46-level ladder with five levels a title.
+   (eqemu §5.2); six bands sized for a title width of five levels (`RANK_STEPS`). They read only the level difference, so they are
+   the same under the ladder cap (46 today, 50 after Dom's 2026-10-05 ruling); a test runs every level 1–50 against every difference −12..+12.
 4. **Above-level bonus capped at ×1.25** (EverQuest Red is ×1.50, Yellow ×1.25), and **bosses get no above-level bonus at all**.
 5. **Grey at d ≤ −6** for every level (EverQuest: no grey below level 16 until d ≤ −6, then scaling).
 6. **Bosses are not split** among the party (EverQuest splits every kill); each eligible member gets a full award.
@@ -281,14 +286,14 @@ Levels 14, 15, 16 and 20; the Count of the Ruin is level 16; shares 30%, 25%, 35
     settles the award. The settle-then-show order is kept.
 19. **No attribute multipliers, training for gold or jail** (openmw §4.6, §4.9, §4.10).
 20. **No talent hit-chance or damage effects** (gothic §5.4), because of the fixed spine; mentors unlock techniques only.
-21. **Credit counts past the level cap** (EverQuest clamps XP at the cap, eqemu §5.7 step 6); the level stays 46.
+21. **Credit counts past the level cap** (EverQuest clamps XP at the cap, eqemu §5.7 step 6); the level stays at the ladder cap (46 today, 50 after Dom's 2026-10-05 ruling).
 22. **Integer permille arithmetic** with one floor at the end, rather than EverQuest's float32 steps truncated at each stage.
 
 ## 11. Files
 
 - `origins/progression/model.ts`: the pure reference model (`award`, `settleAll`, `levelOfCredit`, `creditFromMarks`,
   `fillPermille`, `falloffPermille`, `partySharePermille`, `partyEligible`, `repeatPermille`, `restedAvailable`, `heatAt`).
-  No imports, integer-only, no clock or randomness.
+  Its only import is `MAX_LEVEL` and `RANK_STEPS` from `src/career.ts`; integer-only, no clock or randomness.
 - `origins/progression/scenarios.ts`: the worked examples as event lists.
-- `origins/progression/model.test.ts`: 27 tests on Node's built-in runner (`node:test`, `node:assert/strict`), like `tests/*.test.ts`.
+- `origins/progression/model.test.ts`: 32 tests on Node's built-in runner (`node:test`, `node:assert/strict`), like `tests/*.test.ts`.
   Run on the VPS: `node --test origins/progression/model.test.ts`.
