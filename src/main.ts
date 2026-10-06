@@ -50,7 +50,7 @@ import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
-import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
+import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
@@ -803,8 +803,9 @@ function winFace(src: string | null) {
 }
 // The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
 const LESSON_MS = 4000;
-let lessonNow: LessonId | undefined, lessonTimer = 0;
-export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+const PACE_STILL = /[?&]pacestill=1(&|$)/.test(window.location?.search ?? '');   // stills only (PR #1484): shows the pace line at tick 120 without fatiguing a real fight; inert without the query
+let lessonNow: LessonLine | undefined, lessonTimer = 0;
+export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
@@ -1869,6 +1870,10 @@ function frame(now: number) {
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
       if (!quiet) hud.refused(practice.clarity);
+      if (!quiet && match.mode !== 'lesson' && (PACE_STILL ? practice.duel.tick === 120 : practice.clarity.some((c) => c.type === 'FatigueBand' && c.actor === 0 && (c.band ?? 0) >= 2))) {   // once ever: the first time the player is tired
+        let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
+        if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
+      }
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;
