@@ -74,7 +74,7 @@ test('what drives rank: levelOfCredit(creditFromMarks(m)) is today\'s levelOf(m)
   for (let m = 0; m <= 120; m++) {
     assert.equal(levelOfMarks(m), careerLevelOf(m));
     assert.equal(levelOfCredit(creditFromMarks(m)), careerLevelOf(m), `default cap, ${m} marks`);
-    assert.equal(levelOfCredit(creditFromMarks(m, 46), 46), careerLevelOf(m), `cap 46, ${m} marks`);
+    assert.equal(levelOfCredit(creditFromMarks(m, 46), 46), Math.min(46, careerLevelOf(m)), `cap 46, ${m} marks`);
     // src/career.ts levelOf is min(MAX_LEVEL, 1 + wins); at cap 50 that same rule reads min(50, 1 + m).
     assert.equal(levelOfCredit(creditFromMarks(m, 50), 50), Math.min(50, 1 + m), `cap 50, ${m} marks`);
   }

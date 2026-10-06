@@ -388,6 +388,17 @@ const RECIPES = {
   },
   // Human voices and organic contact, kept short and dry-forward. Two different recorded vocal performances.
   death_voice(r, v) { return biquad(recording(v % 2 ? 'grunt2' : 'grunt', v % 2 ? .16 : .008, v % 2 ? .62 : .44, v < 2 ? 1 : vary(r, .97, .015)), 'highpass', 120); },
+  // A short effort grunt, "hnh": a voiced puff (glottal pulses gliding down through an open-vowel formant pair) over a breath
+  // burst, ~.15 s, sharp onset. Synthesised, so it carries no recording and no licence. The two variants differ in pitch and
+  // vowel; the foe plays the same cue slower, which is its deeper chest. Absolute Hz (see abs()), not under PITCH.
+  effort_voice(r, v) {
+    const n = S(.15), f0 = [128, 112][v % 2], f1 = [560, 640][v % 2], f2 = [1050, 1150][v % 2], x = new Float32Array(n);
+    let phase = 0;
+    for (let i = 0; i < n; i++) { const t = i / n; phase += (f0 * (1.18 - .3 * t)) / RATE; phase -= Math.floor(phase); x[i] = 1 - 2 * phase; }
+    const body = mix(n, [biquad(x, 'bandpass', abs(f1), 4), 0, 1], [biquad(x, 'bandpass', abs(f2), 5), 0, .5]);
+    const breath = biquad(biquad(noise(n, r), 'highpass', abs(700), .5), 'lowpass', abs(3200), .5);
+    return fadeOut(normalize(mul(mix(n, [body, 0, 1], [breath, 0, .35]), envelope(n, [[0, 0], [.012, 1], [.05, .8], [.17, .12], [.2, 0]])), -6), .02);
+  },
   flesh_cut(r, v) { return biquad(recording('tear', .02 + v * .13, .18, vary(r, 1, .04)), 'lowpass', 4300); },
   flesh_stab(r, v) { return mul(biquad(recording('tear', v * .2, .16, 1.15), 'lowpass', 2200), decay(S(.16), .2, .002)); },
   flesh_tear(r, v) { return biquad(recording('tear', .02 + v * .29, .34, vary(r, .92, .025)), 'lowpass', 3800); },
@@ -423,7 +434,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 5, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3, charge_foe: 2 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 5, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3, charge_foe: 2, effort_voice: 2 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];

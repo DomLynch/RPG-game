@@ -40,7 +40,7 @@ async function check() {
   assert.ok(await page.locator('#sparring-row').isVisible(), 'the Sparring tab shows the Start sparring row');
   const levels = await page.locator('#difficulty-select option').evaluateAll((os) => os.map((o) => o.value));
   // Re-pinned (Sparring layout A, Dom 2026-09-29): the Opponent's ten ranks (a fresh fighter's rank 1 at its level 1, the others at their top) and the dummy.
-  assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
+  assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '50', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
   const matrix = {
     veteran: ['setfoot', 'standfast', 'shield', 'centurion', 'tithe'], nightborn: ['lunge', 'cuts', 'set', 'hades', 'nyx'],
     witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
@@ -60,10 +60,10 @@ async function check() {
     disabled += groups.flatMap(g => g.options).filter(o => o.disabled).length;
     receipt.catalog[opponent] = groups;
     assert.equal(await page.locator('#spar-special').inputValue(), expected[0] ?? 'none', `${opponent}: class change resets A`);
-    await page.selectOption('#difficulty-select', '46');
+    await page.selectOption('#difficulty-select', '50');
     assert.equal(await page.locator('#spar-special').inputValue(), expected[4], `${opponent}: L10 default`);
     await page.selectOption('#spar-special', expected[2]);
-    assert.equal(await page.locator('#difficulty-select').inputValue(), '46', 'manual preview preserves Difficulty');
+    assert.equal(await page.locator('#difficulty-select').inputValue(), '50', 'manual preview preserves Difficulty');
     await page.selectOption('#difficulty-select', '35');
     assert.equal(await page.locator('#spar-special').inputValue(), expected[1] ?? 'none', `${opponent}: Difficulty resets B`);
     await page.selectOption('#difficulty-select', 'dummy');
@@ -116,7 +116,7 @@ async function check() {
   const groups = await page.locator('#spar-special optgroup').evaluateAll(os => os.map(o => o.label));
   assert.deepEqual(groups, ['L1–3', 'L4–7', 'L8', 'L9', 'L10']);
   assert.equal(await page.locator('#spar-special').inputValue(), 'lunge', 'approved class A is the matching default');
-  await page.selectOption('#difficulty-select', '46');
+  await page.selectOption('#difficulty-select', '50');
   assert.equal(await page.locator('#spar-special').inputValue(), 'nyx', 'Nightborn10 auto-selects Nyx');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'nyx');
   await page.selectOption('#spar-weapon', 'estoc'); await page.selectOption('#spar-skill', 'none');
@@ -244,7 +244,7 @@ async function check() {
   assert.deepEqual(await storageSnapshot(), beforeStartStorage, 'legacy player-only cast writes nothing');
 
   await openForm(); await page.selectOption('#spar-skill', 'special:wake');
-  await page.selectOption('#difficulty-select', '46'); await page.selectOption('#opponent-select', 'witch');
+  await page.selectOption('#difficulty-select', '50'); await page.selectOption('#opponent-select', 'witch');
   assert.equal(await page.locator('#spar-skill').inputValue(), 'special:wake', 'foe class/rank preserve Your preset');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'none');
   await startForm(); await manualSkill();
