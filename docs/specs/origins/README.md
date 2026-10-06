@@ -15,7 +15,12 @@ Round 1, 2026-10-06. Goldens are hand-derived from the source and not yet captur
 | Loot | [eqemu-loot.md](eqemu-loot.md) | O2 staged boss event rewards |
 | Items and storage | [eqemu-inventory.md](eqemu-inventory.md), [modernuo-bank.md](modernuo-bank.md), [modernuo-secure-trade.md](modernuo-secure-trade.md) | O2 inventory transfer, O3 Exchange |
 | Crafting | [modernuo-crafting.md](modernuo-crafting.md) | O6 |
+| Trading (design, not a donor spec) | [trading.md](trading.md) | O3 Exchange: barter trade, trade limits, 0003 |
+| One shard (architecture, not a donor spec) | [one-shard.md](one-shard.md) | one world, interest management, town capacity, overflow layers, Supabase limits |
 | Public events | [modernuo-champion-spawns.md](modernuo-champion-spawns.md) | O2 staged boss event |
+| Living world (ours, not donor) | [living-world.md](living-world.md) | towns as data, NPC war goals, rifts, the town history book, fixtures, allegiance, player lords (after the PvP verifier) |
+| Region 1 content (ours, not donor) | [region1-ash-frontier.md](region1-ash-frontier.md) | Ash Frontier zones, Bounties, bosses, loot, bundle files (the scripted Feud is superseded) |
+| Feuds (ours, not donor) | [feuds.md](feuds.md) | systemic grudges: generator, succession, notoriety, town defence, guards and jail, hunters, deferred PvP bounty |
 | Offline formats | [gothic-zenkit-reference.md](gothic-zenkit-reference.md) | tooling reference only |
 
 Fixed spine: Frankendom's damage and weapon rules and gear scoring (Attack/RES caps 1.15 / 0.80, resolved before the fight, timing untouched) are not replaced by any donor rule.

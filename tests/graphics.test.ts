@@ -51,6 +51,7 @@ import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
+import * as tutorialUi from '../src/tutorial-ui.ts';
 import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
@@ -100,6 +101,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
+  modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports
   modules['./sparring-specials.ts'] = sparringSpecials;
   modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
@@ -523,7 +525,7 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
-  assert.deepEqual(devPick.children.map(o => o.value), ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'ten ranks (the current rank at its level, the others at their top) and the dummy (Dom\'s layout A)');
+  assert.deepEqual(devPick.children.map(o => o.value), ['1', '10', '15', '20', '25', '30', '35', '40', '45', '50', 'dummy'], 'ten ranks (the current rank at its level, the others at their top) and the dummy (Dom\'s layout A)');
   assert.equal(devPick.disabled, false);
   devPick.value = '46'; devPick.dispatchEvent(new Event('change')); dev.tick();
   assert.deepEqual([dev.replaced, dev.reloads], [[], 0], 'the pick waits for Start sparring: nothing reloads');
@@ -542,7 +544,7 @@ test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then t
   assert.equal(pick.value, '7', '6 wins: level 7, on the rank-2 line');
   opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change'));
   assert.deepEqual(pick.children.map((o) => o.textContent), [...Array.from({ length: 10 }, (_, i) => `${i + 1} – ${legends.legendAt('veteran', i + 1).name}`), 'Dummy']);
-  assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
+  assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '50', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
   assert.equal(pick.children[5]!.textContent, '6 – Hannibal'); assert.equal(pick.children[9]!.textContent, '10 – Mars');
   assert.equal(pick.children[1]!.textContent, '2 – Ragnar Lothbrok', 'the fight\'s own level rides the value only: the text never shows it');
   app.element('spar-start').click();
