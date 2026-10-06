@@ -402,7 +402,7 @@ test('deploy scope: a changed .quality-gate.json runs only the rows it adds or c
   assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), 51, 'an unreadable base: every row');
   assert.equal(kept(pick('HEAD', '.quality-gate.json')), 5, 'the same row list as the base: the core five only');
   const { deployRowsFor, rows } = await import('../scripts/release-rows-for.mjs');
-  const live = rows.map((r: { argv: string }) => JSON.parse(r.argv) as string[]);
+  const live: string[][] = rows.map((r: { argv: string }) => JSON.parse(r.argv) as string[]);
   const names = (picked: { index: number; name: string }[]) => picked.map(r => `${r.index} ${r.name}`);
   assert.equal(deployRowsFor(['.quality-gate.json'], live).length, 5, 'identical lists: the core five only');
   const added = names(deployRowsFor(['.quality-gate.json'], live.filter((_, i) => i !== 50)));
