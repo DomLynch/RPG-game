@@ -57,8 +57,8 @@ only in the arena (living-world.md, phasing).
 
 | ID | Gate | Owner | Proof that closes it | Status |
 |---|---|---|---|---|
-| P1 | No `src/` work on the patron hook starts until fatigue (#1483) and the 50 levels (#1470/#1475) are live (patron-perks-sim.md, top) | Combat | Both live, with the release receipts | open |
+| P1 | No `src/` work on the patron hook starts until fatigue (#1483) and the 50 levels (#1470/#1475) are live (patron-perks-sim.md, top) | Combat | Both live, with the release receipts | **closed** (Strategy, 2026-10-07): 50 levels live in `a928c586` (#1470 `5bdc87a2`, #1475 `6cbda3c0`), fatigue live in `5ef33243` (#1483 `e403f3f5`); merge-base checked |
 | P2 | Combat's patron hook ships with the `RECORD_VERSION` bump to 28 and its proofs: no-patron fights byte-identical, the #1402 fingerprint 0 changed cells (patron-perks-sim.md, "Proof that no-patron fights are unchanged") | Combat | The merged PR with the proofs green | open |
 | P3 | The verifier host carries the v28 decoder in a release before any client can write v28 (patron-perks-sim.md, "Release order") | Deploy | The verifier release receipt, dated before the client release | open |
 | P4 | Every template is measured on the battery before it ships; the ladder anchors stay in their bands with the worst-case template (patron-perks-sim.md, "Balance gate") | Combat | The battery report | open |
-| P5 | Stats runs the win-rate-by-patron check before and after release; a template drifting beyond 1 percentage point is retuned (living-world.md §10, "Checked") | Stats | The check's report before release | open |
+| P5 | Combat runs the win-rate-by-patron check before and after release, with its battery and ladder sweeps; a template drifting beyond 1 percentage point is retuned (living-world.md §10, "Checked"; Combat owns it as no Stats lane runs, Strategy, 2026-10-07) | Combat | The check's report before release | open |
