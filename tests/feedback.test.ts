@@ -146,10 +146,17 @@ test('the Pit gate\'s winch: silent until its file is decoded, then one source p
   } finally { g.fetch = priorFetch; delete (FakeContext.prototype as unknown as { decodeAudioData?: unknown }).decodeAudioData; }
 });
 
+// The winch is the file named gate.<codec> (src/audio/gate.ts), matched on its own name: a checkout folder with "gate" in its path
+// (an app worktree such as .../elastic-gates-c6edc0/) must not turn the sprite's fetch into the winch's.
+const isWinchUrl = (url: unknown): boolean => /^gate\.[a-z0-9]+$/.test(String(url).split(/[?#]/)[0].split('/').pop() ?? '');
+test('the winch stub matches the winch file by name, never a "gate" elsewhere in the path', () => {
+  assert.ok(isWinchUrl('file:///w/src/assets/gate-audio/gate.ogg') && isWinchUrl('file:///w/src/assets/gate-audio/gate.m4a'));
+  assert.equal(isWinchUrl('file:///Users/d/worktrees/elastic-gates-c6edc0/src/assets/audio/sprite.ogg'), false, 'a "gate" folder is not the winch');
+});
 test('the Pit gate\'s winch: a failed fetch is tried once more and gives the page its sound; a decoded winch is not fetched again', async () => {
   const g = globalThis as unknown as { fetch: unknown }, priorFetch = g.fetch;
   let calls = 0, failing = 2;   // the first load tries both codecs: both fail
-  const winch = (url: unknown) => String(url).includes('gate');   // the sprite's own load (unlock) shares the stub and must not use up the failures
+  const winch = isWinchUrl;   // the sprite's own load (unlock) shares the stub and must not use up the failures
   g.fetch = async (url: unknown) => { if (winch(url)) calls++; return winch(url) && failing-- > 0 ? { ok: false } : { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; };
   (FakeContext.prototype as unknown as { decodeAudioData: () => Promise<unknown> }).decodeAudioData = async () => ({ duration: 5 });
   try {
