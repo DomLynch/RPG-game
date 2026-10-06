@@ -274,7 +274,7 @@ row that a later ruling removes.
 
 ## Open items
 
-- **Founders rule:** Sundiata founded the Mali Empire. He is in because Dom named him; Strategy may want to confirm.
+- **Founders rule:** Sundiata founded the Mali Empire. Dom confirmed him (2026-10-07): the rule covers founders of religions, not of empires.
 - **Mwindo:** the only printed source is the 1969 transcription (in copyright); the row is our own summary.
 - **Sasquatch:** the name comes from the Halkomelem sasq'ets. The row uses only the 1929 Maclean's account and no sacred Sts'ailes lore.
 - **Black Shuck** is in as a cryptid, cited to the 19th-century folklore. Region 1 dropped it because Fleming's 1577 pamphlet casts the dog as the Devil; this list never uses that pamphlet.
