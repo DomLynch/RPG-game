@@ -2,6 +2,35 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-06 ~12:40 (+04) — HANDOFF #9 before /clear. READ FIRST (supersedes #8 where it differs)
+
+### LIVE / merged
+- Nothing of mine is live yet. #1408 (Arena 1 island) is Auditor-PASS at e0f33a80 and with Lead/Deploy for GO; #1413 special-reuse is live on trunk 6e92f920.
+
+### In flight (all pushed)
+- **#1408** `world/arena1-shrink` @ e0f33a80 = tree of d6099ee0 (circle 0.36; the 0.306 shrink was tried and reverted by Dom's word, stills in ~/Desktop/Business/frankendom-arena-scale/v9). Contains: rock cliff (cliffPixels 640x96, courses 13, tint #9db0c6), cone underside (LatheGeometry, 2.4 m lip then taper, 15 m), aerial abyss (public/arena/abyss.webp from scripts/arena-abyss.py, disc 36 m down that turns, vertex-coloured horizon bowl), backdrop + abyss loaded against `import.meta.env.BASE_URL`, flare-decay fix + test. Texture budget in tests/arena.test.ts raised 12 -> 13 MB (now 12.9) by Lead's ruling. Dom: "love it".
+- **#1417** `world/first-cast` @ 251b3e36: warms the first frame behind the versus card (src/first-frame.ts, 10 ms slices of initTexture, one draw, 4 s cap). Emulator before/after: post-lift long task 3253/3022 (veteran), 2215/2209 (pitborn), 2965/2948 (setfoot) ms -> none/none/379. Auditor passed it; VPS full suite 1887/1885 green. Open and waiting for Lead's merge order.
+- **Arena 2 preview** `world/arena2` @ 1292d96d (branched off world/arena1-shrink; NOT pushed to Deploy yet): Dom's own red-lava painting as the far world. Theme '2' (The Skull Gate) in arena-themes.ts = ARENA_1 + ember sky/fog/hemisphere/sun, `abyss: {map, haze, cream}` per-theme field (arena.ts reads theme.abyss ?? ABYSS_ONE), public/arena/backdrop-2.webp (scripts/arena-backdrop-2.py crops the PORTRAIT source to the band above his floor, 420x535, head fades to sky [44,24,24], foot to [52,26,20]), public/arena/abyss-2.webp (`arena-abyss.py ... hell`: lava seas, smoke), `?arena=2`, option in index.html Stage select, main.ts lists. Stills at fight camera: ~/Desktop/Business/frankendom-arena-scale/arena2/ (a2-ready, a2-fight, a2-edge): the look is good (ready still opened and judged). **OWED:** (1) tests/arena-themes.test.ts 'each new arena reads differently from Arena 1' fails for '2' (wall identical to Arena 1, deliberately): exempt key '2' there with the reason (the only test failing of arena/arena-themes/play-radius on the VPS, 26/27); (2) tell Deploy the sha for /preview/arena2/ (needs public/arena/{backdrop-2,abyss-2}.webp) and send Lead the link + stills (Dom is waiting); (3) Lead asked me to confirm in one line what aspect Dom's GPT backdrops should be: the ring is 8 mirrored copies of a ~420x535 (0.785 w:h) strip, so the best source is portrait-ish ~4:5 with NO floor/foreground, horizon low, head and foot that fade to mist; a 21:9 panorama works only if cropped (I crop to 0.785); left/right edges need no matching (mirrored). Not yet sent.
+
+### Queue (Lead's order: Arena 2 preview -> PR A -> arenas 3-5 -> circle bump)
+1. Finish the Arena 2 owed items above.
+2. **PR A, arena rotation** (logic only, off trunk, KEEP OPEN, ships with PR B + the circle bump in one release, NO flag): pure `nextArena(current, seen, key)` beside nextOpponent in ladder.ts (same FNV passKey, bag = arenas unseen this cycle, new cycle = all five minus the one just fought), Profile gets `arena?`, `arenaPass?` sanitised like `pass` (profile.ts), match.nextRung() returns the next arena, main.ts reload carries it; no stored arena = Arena 1 (first fight always 1); ?arena= stays the dev override. Tests: first=1, each arena once per 5-cycle, no repeat at the boundary, refresh-stable, bad values fall back. Arena keys: '1','2','a','b','c','d' (5 arenas = '1' + 4 of them; Lead decides whether '2' replaces 'a').
+3. **Arenas 3-5**: Dom approved my themes to start: Storm Reach (grey-green thunderhead, drowned sea-stack temples, lightning), Sun-Bleached Waste (noon white-blue, dunes like cloud, toppled statues, obelisks), Crystal Deep (cavern, glowing crystal spires, waterfalls, black lake). 3 candidates each, FLUX on Hugging Face via the hero-set skill, graded to 420x535 strips (use scripts/arena-backdrop-2.py as the grading template), stills at the fight camera to Lead. Each needs theme fields incl. `abyss` map via `arena-abyss.py` (palette arg: sky|hell, add more) and sky/fog retune.
+4. **Circle bump (after #1415/#1416 in version order):** playScaleFor(opponent, version) = version >= N ? 0.36 : (version >= 23 && ARENA_ONE.includes(opponent) ? 0.36 : 1) for every non-PvP fight (PvP pinned 1), old records replay in their old circle, SIM_DIGEST re-pin (play-radius.ts is in the digest), browser-replay fixture re-mint (`node scripts/browser-replay-check.mjs --write` on the VPS). Must not ship before arenas 2-5 wear the island look.
+
+### Rulings to keep
+- Lead 10-06: no ARENA_ROTATION flag; rotation + looks + circle go out in ONE release; Arena 2 is Dom's image (not generated); retune Arena 2 light/fog/haze to the painting; Arena 1 gradient/rock/abyss/backdrop approved by Dom, circle 0.36 final.
+- Never `git stash` (I did once by slip, restored by sha): use WIP commits.
+
+### Gotchas (new)
+- **Heavy jobs: VPS only.** While a Deploy is in flight the Mac PreToolUse hook blocks test suites/builds even single multi-file runs: use `capture world <script>` on the VPS. Scripts I left in /opt/frankendom-shadow/work: cliff-still.sh/.mjs (stills at the fight camera of an arena1-shrink head; `__lookDown` patch = debug camera, never shipped), cliff-base.sh (same under base=/preview/arena1-shrink/), a2-still.sh/.mjs (Arena 2 under base=/preview/arena2/ with ?arena=2), suite3.sh (fixture --write + full suite + kill-link), suite5/6.sh (full non-slow suite for arena1-shrink / first-cast), rows.sh (vite build + browser-replay + record-replay + kill-link), first-ab.sh + first-measure.mjs (before/after long-task rig). Results land in /opt/frankendom-shadow/work/world-blood/ (*_DONE flags, shots/*).
+- A previews lives under /preview/<name>/: every asset URL must go through `import.meta.env.BASE_URL` (the abyss 404 -> black bug).
+- A trailing `// comment` swallowed `flare = ...` once (B1): when appending to a line, check the tail; tests/arena.test.ts now pins the decay.
+- Arena texture budget 13 MB (12.9 used): each new arena loads ONE backdrop + ONE abyss map, so it does not stack, but any extra Arena 1 texture needs a ruling.
+- Backdrop strips are RGB (no alpha): the edges are painted into the sky/haze colours, so a new arena's painting head/foot colours must equal its theme sky/haze.
+- Camera/cone: a tapering underside is invisible from the fight camera (above the sand); only the 2.4 m lip shows.
+- Warm-up: first-frame uploads hold the card ~3.3 s at 4x/SwiftShader; real phones unmeasured.
+
 ## 2026-10-06 ~11:00 (+04) — HANDOFF #8 before /clear. READ FIRST
 
 ### Now (pick up in this order)
