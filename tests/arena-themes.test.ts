@@ -72,7 +72,8 @@ test('no theme moves the geometry: every arena builds the same meshes, vertex fo
   // Arena 1 as a level pit (Dom 2026-10-03, look test 10): no podium wall, gate or stands, and the sand runs on under where the crowd
   // stood, so its sand disc is wider. The play circle and camera clamp stay clear (the next test): that is what the fight touches.
   // Its braziers stand on the sand instead of the wall top and it hangs no wall chains, so the iron and coals move too.
-  const pit = (shape: string[]) => stands(shape).filter(s => !/^(sand|iron|coals):/.test(s));
+  // And the cliff (Dom 2026-10-06): its sand ends in a rock face (`cliff`) with no far ground and no gate light; the fight's own geometry (play circle, clamp) is untouched.
+  const pit = (shape: string[]) => stands(shape).filter(s => !/^(sand|iron|coals|cliff|gate-light):/.test(s));
   const ref = shape('a');
   for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) {
     const theme = ARENA_THEMES[key], got = shape(key);

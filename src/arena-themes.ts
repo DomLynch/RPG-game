@@ -36,6 +36,7 @@ export type ArenaTheme = {
   colonnade?: boolean;   // false: no columns on the top walkway either (they stood across the far world), so the stands end against the far world   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
   gate?: boolean;   // false: no gate, posts, arch or portcullis (a wall too low to hold one)
   wallTop?: number;   // podium wall height in metres (2.6 when absent); the gate scales with it
+  cliff?: boolean;   // true: no wall, rim or far ground: the sand ends in a sheer drop with a rock face under it, braziers and banners on the floor's last metre (Dom 2026-10-06, Arena 1)
   flatStands?: boolean;   // true: the crowd stands on trodden ground outside the border, no stone steps (Dom 2026-10-03 look test 4)
   standsDrop?: number;   // metres every stand tread (and its crowd) sits lower, so the far world shows over them (Dom 2026-10-03)
   backdropDrop?: number;   // metres the painted far world sits lower
@@ -56,7 +57,7 @@ const ARENA_1: ArenaTheme = {
   id: '1', name: 'The Ash Pit', textures: { floor: 'sand', patch: 'blood', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
   fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
   light: { sun: [-24, 12, -15] },
-  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, backdropDrop: 7, backdropTurn: 0.6, backdropScale: 0.45, backdropRepeat: 8.9, backdropTall: 0.9, spectators: false,
+  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, cliff: true, backdropDrop: 7, backdropTurn: 0.6, backdropScale: 0.45, backdropRepeat: 8.9, backdropTall: 0.9, spectators: false,
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,

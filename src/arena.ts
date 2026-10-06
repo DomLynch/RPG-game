@@ -158,7 +158,8 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;
   }
   // The sand: flat to the wall's foot (and under it, so the gateway floor is sand), darkening toward the wall and mottled at large scale.
-  const floor = mesh(disc(theme.flatStands ? 17 : wall.outer + 0.1, 36, (x, _y, z) => { const r = Math.hypot(x, z), k = (0.92 + 0.28 * (mottle(x / 26 + 0.5, z / 26 + 0.5) - 0.5)) * (1 - 0.42 * smooth(10.2, wall.inner, r)); return [k, k * 0.99, k * 0.97]; }), sand, 'sand', false);
+  const cliff = !!theme.cliff, edgeR = wall.inner + 0.75;   // the cliff's floor ends just past the play circle's edge (11.7 + 0.75): the braziers and banner poles stand on that last metre
+  const floor = mesh(disc(cliff ? edgeR : theme.flatStands ? 17 : wall.outer + 0.1, 36, (x, _y, z) => { const r = Math.hypot(x, z), k = (0.92 + 0.28 * (mottle(x / 26 + 0.5, z / 26 + 0.5) - 0.5)) * (1 - 0.42 * smooth(10.2, wall.inner, r)); return [k, k * 0.99, k * 0.97]; }), sand, 'sand', false);
   floor.userData.tile = SAND_TILE;
   // The boundary ring at the play radius: a dark inlay trodden flush with the sand (the simulation's wall, visible).
   const ring = mesh(new THREE.RingGeometry(PLAY_RADIUS - 0.05, PLAY_RADIUS + 0.05, 128), boundary, 'boundary', false); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.012;
@@ -179,7 +180,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     for (let i = 0; i < puv.count; i++) puv.setY(i, puv.getY(i) * 0.5);         // the pool: bottom half of the atlas
     pool.translate(1.55, 0.009, -10.1);
     gateLight.push(pool); }
-  mesh(mergeGeometries(gateLight), gateLightMaterial, 'gate-light', false);
+  if (!cliff) mesh(mergeGeometries(gateLight), gateLightMaterial, 'gate-light', false);
   // Light shafts (the cistern): daylight falling through grates in the vault, along the key light's direction, each landing in a
   // pool on the floor. The gate light's atlas and blend: crossed additive quads, no depth write, no shadow — light, not a solid,
   // so the play-circle and camera-clamp rules (tests) do not apply to it; a fighter walking through one is lit, never hidden.
@@ -315,7 +316,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, wall.top - 0.3, z), new THREE.Vector3(x - out.x * 0.09, 1.55, z - out.z * 0.09), new THREE.Vector3(x - out.x * 0.04, 0.85, z - out.z * 0.04)]);
     irons.push(prop(new THREE.TubeGeometry(curve, 10, 0.035, 5, false), 0, 0, 0, 0, 1, 1, IRON, -5), prop(new THREE.TorusGeometry(0.13, 0.03, 5, 12), x - out.x * 0.04, 0.72, z - out.z * 0.04, new THREE.Euler(0, a, 0), 1, 1, IRON, -5));
   }
-  const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = wall.outer - 0.15, bannerTop = wall.top + 3.4;
+  const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = cliff ? wall.inner + 0.55 : wall.outer - 0.15, bannerTop = wall.top + 3.4;
   for (const a of bannerAngles) { const [x, z] = polar(bannerR, a); irons.push(prop(cylinder(0.035, 0.045, 3.4, 6), x, wall.top + 1.7, z, 0, 1, 1, IRON, wall.top), prop(box(1.3, 0.06, 0.06), x, bannerTop, z, a, 1, 1, IRON, -5)); }
   const fallenStart = irons.length;
   // Dropped gear in the sand (iron, tinted): a fallen shield by the wall and a broken blade half-buried near the ring.
@@ -479,7 +480,18 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
   const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
-  mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
+  if (cliff) {   // the sand ends here: a rock face a few metres deep under its edge, narrowing and darkening, and nothing but the painted far world beyond (no far ground)
+    const depth = 3.2, face = new THREE.CylinderGeometry(edgeR, edgeR * 0.6, depth, 72, 5, true), pos = face.attributes.position, shade = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i), k = Math.min(1, Math.max(0, (depth / 2 - y) / depth)), a = Math.atan2(pos.getX(i), pos.getZ(i)), bite = k * (0.35 * (mottle(a * 1.3 + 3, k * 3 + 1) - 0.5) + 0.12 * Math.sin(a * 9 + y)), r = Math.hypot(pos.getX(i), pos.getZ(i)), rr = r + bite;
+      pos.setXYZ(i, pos.getX(i) * rr / r, y - 0.0, pos.getZ(i) * rr / r);
+      const tone = (0.62 - 0.5 * k) * (0.9 + 0.2 * mottle(a * 2.1 + 7, k * 5 + 2));
+      shade.set([tone * 1.1, tone * 0.9, tone * 0.76], i * 3);
+    }
+    face.setAttribute('color', new THREE.BufferAttribute(shade, 3)); face.translate(0, -depth / 2, 0); face.computeVertexNormals();
+    const rock = new THREE.MeshStandardMaterial({ name: 'cliff', color: '#8a7058', roughness: 1, vertexColors: true }); materials.push(rock);
+    mesh(face, rock, 'cliff', false);
+  } else mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
 
   // Motion. Only dt-driven: a hit-stop passes dt 0 and everything holds its pose with the fighters.
