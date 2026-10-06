@@ -18,18 +18,21 @@ const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the 
 // Snapshot the account's Pit credit once, then pay every verified Pit win the snapshot did not already count. Returns the fresh snapshot.
 export async function openAccount(ctx: Ctx): Promise<store.Snapshot> {
   const { db, account } = ctx;
-  let snap = await store.open(db, account);
+  let { snap, pending } = await store.openWithPending(db, account, MAX_PENDING);
   if (snap.career === null) {
     try { await store.snapshot(db, account, snap.marks, creditFromMarks(snap.marks)); }
     catch (e) { if (!(e instanceof DbError && e.code === 'O0002')) throw e; }   // marks moved under us: read them again below
-    snap = await store.open(db, account);
+    ({ snap, pending } = await store.openWithPending(db, account, MAX_PENDING));
     if (snap.career === null) throw new DbError('O0002', 'marks moved: open again');
   }
-  for (const claim of (await store.pitPending(db, account)).slice(0, MAX_PENDING)) {
+  // One spawn per claim (the commit and the re-read together), not two: an open costs 1 + pending psql processes, at most 1 + MAX_PENDING.
+  for (const claim of pending) {
     const { batch } = pitBatch(account, snap.career!, claim);
-    try { await store.commit(db, account, batch); }
-    catch (e) { if (!(e instanceof DbError && e.code === 'O0001')) throw e; }   // already paid by a concurrent open: the event id is the lock
-    snap = await store.open(db, account);
+    try { snap = await store.commitThenOpen(db, account, batch); }
+    catch (e) {
+      if (!(e instanceof DbError && e.code === 'O0001')) throw e;   // already paid by a concurrent open: the event id is the lock
+      snap = await store.open(db, account);
+    }
   }
   return snap;
 }
