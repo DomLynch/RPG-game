@@ -87,11 +87,11 @@ try {
       const at = hit === null ? Math.floor(shots.length / 2) : Math.min(shots.length - 1, Math.floor((hit + 3) / EVERY));
       if (block !== null) await fs.copyFile(shots[Math.min(shots.length - 1, Math.floor((block + 3) / EVERY))], `${OUT}/${name}-${feel}-block.jpg`);
       await fs.copyFile(shots[0], `${OUT}/${name}-${feel}-idle.jpg`); await fs.copyFile(shots[at], `${OUT}/${name}-${feel}-hit.jpg`);
-      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${OUT}/${name}-${feel}/%04d.jpg`, '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/${name}-${feel}.mp4`]);
+      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${OUT}/${name}-${feel}/%04d.jpg`, '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/${name}-${feel}.mp4`], { timeout: 300000 });
       meta.takes[`${name}-${feel}`] = { frames: shots.length, steps, firstBlowOnOpponent: hit, firstBlockOrParry: block };
       console.log(`${name}-${feel}: ${shots.length} frames, first blow at frame ${hit}`);
     }
-    if (FEELS.length === 2) execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', `${OUT}/${name}-${FEELS[0]}.mp4`, '-i', `${OUT}/${name}-${FEELS[1]}.mp4`, '-filter_complex', 'hstack=inputs=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/${name}-compare.mp4`]);
+    if (FEELS.length === 2) execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', `${OUT}/${name}-${FEELS[0]}.mp4`, '-i', `${OUT}/${name}-${FEELS[1]}.mp4`, '-filter_complex', 'hstack=inputs=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/${name}-compare.mp4`], { timeout: 300000 });
   }
   await fs.writeFile(`${OUT}/meta.json`, JSON.stringify(meta, null, 2));
 } finally { await browser.close(); await server.close(); }
