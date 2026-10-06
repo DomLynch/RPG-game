@@ -201,7 +201,7 @@ async function withVersion(opponent: 'veteran' | 'goblin', level: number, versio
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const packed = packRecord(rec.finish(outcome));
   let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then (v21) the specials byte
-  const bytes = version >= 21 ? packed : new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]);
+  const bytes = version >= 26 ? packed : version >= 21 ? new Uint8Array([...packed.subarray(0, o + 2), ...packed.subarray(o + 3)]) : new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 3)]);   // the arena byte is v26's, the specials byte v21's: an older stamp has neither
   bytes[2] = version;   // the version byte (record.ts: 'F', 'K', version)
   return toBase64Url(await gzip(bytes));
 }
@@ -209,7 +209,7 @@ async function withVersion(opponent: 'veteran' | 'goblin', level: number, versio
 test('a reach refusal up to v19 is HELD (never lost to a publish); a plain unsupported version is not; --accept clears it with the audit line', async () => {
   const record = await withVersion('veteran', 6, 18);
   const held = String(await refusal({ opponent: 'veteran', record }, FRESH));
-  assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 6/);
+  assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 1 \(bump 29 changed that fight/);
   assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^HELD v18: reach: .*not supported for the veteran/, 'a reach hold does not depend on heldMax (RV29: it covers every version a bump reaches)');
   assert.match(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 3) }, FRESH)), /^unreadable record: Fight record: version 3 is not supported \(/, 'an unreadable version is not a reach hold');
   const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 1 ? { id: 1, user_id: U, opponent: 'veteran', piece: null, record, verified: false, note: held.slice(0, 200) } : null) };
@@ -232,12 +232,13 @@ test('--accept on a reach hold still refuses a lost fight or another opponent fr
   for (const db of [lost, other, noHeader, gone]) assert.equal(db.settled.size, 0);
 });
 
-// Bump 21 (Special Moves behind the record's flag) reaches no fight: a v20 claim pending at the publish still verifies on the v21 build.
-test('a v20 win claim pending across bump 21 still verifies (REACH[21] is empty)', async () => {
+// Bump 21 (Special Moves behind the record's flag) reached no fight, so a v20 claim pending at that publish still verified; RV29's reach covers every fight, so a v20 claim pending
+// across it is HELD like any other (kept for the runbook, never lost).
+test('a v20 win claim pending across RV29 is HELD by the reach, not refused (REACH[29] lists every opponent)', async () => {
   const packed = packRecord(await decodeRecord(await goblinKill()));
-  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte
-  const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]); v20[2] = 20;
-  assert.equal(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH), null);
+  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte and the v26 arena byte
+  const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 3)]); v20[2] = 20;
+  assert.match(String(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH)), /^HELD v20: reach: .*bump 29 changed that fight/);
 });
 
 // F2 (Auditer on 0895d84c; Strategy's A+ 2026-10-01): one FIGHT is one claim, whatever its string.

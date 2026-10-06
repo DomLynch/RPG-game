@@ -171,7 +171,7 @@ test('a naked fight is unchanged: the v11 reference fights replay to the same ti
   const { records } = JSON.parse(readFileSync(new URL('./fixtures/fight-records.json', import.meta.url), 'utf8')) as { records: { name: string; encoded: string; expect: { ticks: number; outcome: string; killedTick: number } }[] };
   // Re-pinned 2026-09-28 (record v19, fix-forward): the reference fights are at level 18, where the Centurion now carries the gladius + scutum
   // (RV18 content), so the naked walk-in ends at 1407 (was 1677) and the scripted fight at 1584 (was 1452). The skill still changes nothing.
-  const V11 = { 'veteran-walk-in': { ticks: 1407, outcome: 'died', killedTick: 1407 }, 'veteran-scripted': { ticks: 1584, outcome: 'died', killedTick: 1584 } } as const;   // pinned from the v11 fixture before this change
+  const V11 = { 'veteran-walk-in': { ticks: 1287, outcome: 'died', killedTick: 1287 }, 'veteran-scripted': { ticks: 1422, outcome: 'died', killedTick: 1422 } } as const;   // re-pinned 2026-10-07 (RV29 rule batch; was 1407 / 1584 at v19)   // pinned from the v11 fixture before this change
   for (const [name, want] of Object.entries(V11)) {
     const entry = records.find(r => r.name === name);
     assert.ok(entry, `${name} is still a reference`);
