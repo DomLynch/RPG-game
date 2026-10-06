@@ -184,7 +184,7 @@ export function cleanProvenance(value: unknown): Provenance | null {
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
 // A loot record worth keeping on a profile: anything owned, refused, a move, or a beaten legend (a win with no take is still a skull).
 export const keepsLoot = (loot: Loot): boolean => !!(loot.owned.length || loot.declined?.length || loot.skill || loot.defeats?.length);
-// A career win over a legend at the fight's level (1..46): its skull, `<opponent>-<rank>` (legends.ts portraitKey). Any other opponent: unchanged.
+// A career win over a legend at the fight's level (1..50): its skull, `<opponent>-<rank>` (legends.ts portraitKey). Any other opponent: unchanged.
 export const defeat = (loot: Loot | undefined, id: OpponentId, level: number): Loot | undefined => {
   if (!isLegendOpponent(id)) return loot;
   const l = loot ?? emptyLoot(), key = portraitKey(id, level);
