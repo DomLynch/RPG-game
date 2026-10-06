@@ -19,14 +19,18 @@ function script(replies: { open: () => Snapshot[]; pending?: PitClaim[]; snapsho
   let n = 0;
   const db: Db = {
     async run(sql, vars = {}) {
-      const fn = /origins_\w+/.exec(sql)![0];
-      calls.push({ fn, vars });
-      if (fn === 'origins_open') return JSON.stringify(opens[Math.min(n++, opens.length - 1)]);
-      if (fn === 'origins_snapshot') return replies.snapshot ? replies.snapshot() : '';
-      if (fn === 'origins_pit_pending') return JSON.stringify(replies.pending ?? []);
-      if (fn === 'origins_commit') return JSON.stringify(replies.commit ? replies.commit(JSON.parse(vars.b)) : []);
-      if (fn === 'origins_create_character') return 'pc:abc';
-      throw Error(`unscripted ${fn}`);
+      // A statement pair is answered in order, like psql: the first refusal throws before the second runs.
+      const answers: string[] = [];
+      for (const fn of [...sql.matchAll(/public\.(origins_\w+)\(/g)].map(m => m[1])) {
+        calls.push({ fn, vars });
+        if (fn === 'origins_open') answers.push(JSON.stringify(opens[Math.min(n++, opens.length - 1)]));
+        else if (fn === 'origins_snapshot') answers.push(replies.snapshot ? replies.snapshot() : '');
+        else if (fn === 'origins_pit_pending') answers.push(JSON.stringify((replies.pending ?? []).slice(0, Number(vars.n ?? Infinity))));
+        else if (fn === 'origins_commit') answers.push(JSON.stringify(replies.commit ? replies.commit(JSON.parse(vars.b)) : []));
+        else if (fn === 'origins_create_character') answers.push('pc:abc');
+        else throw Error(`unscripted ${fn}`);
+      }
+      return answers.join('\n');
     },
   };
   return { db, calls };
@@ -134,4 +138,16 @@ test('openAccount pays at most 50 pending claims per open', async () => {
   const many = script({ open: () => [snap(row())], pending: Array.from({ length: 60 }, (_, i) => claim(i + 1)) });
   await openAccount({ db: many.db, account: A });
   assert.equal(many.calls.filter(c => c.fn === 'origins_commit').length, 50);
+});
+
+test('openAccount costs one psql spawn plus one per pending claim, never two per claim', async () => {
+  const three = script({ open: () => [snap(row())], pending: [claim(1), claim(2), claim(3)] });
+  let runs = 0;
+  const counted: Db = { run: (sql, vars) => { runs++; return three.db.run(sql, vars); } };
+  await openAccount({ db: counted, account: A });
+  assert.equal(runs, 1 + 3);
+  const none = script({ open: () => [snap(row())] });
+  runs = 0;
+  await openAccount({ db: { run: (sql, vars) => { runs++; return none.db.run(sql, vars); } }, account: A });
+  assert.equal(runs, 1);
 });
