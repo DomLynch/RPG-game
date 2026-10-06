@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { newParticle, type Feel } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
-import { BLOOD, bloodCount, bloodGrow, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { BLOOD, bloodCount, bloodGrow, foeBurstPull, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 // The one blood: Dom's b4 (thin spray + a few drops, stretched into strands, darker red). These pin its numbers.
 const batch = (kill: boolean, feel: Feel, seed = 2) => { const rnd = makeRng(seed); return Array.from({ length: bloodCount(feel, kill) }, (_, i) => { const p = newParticle(); spawnBlood(p, i, 0, 1, 0, 0, 1, kill, feel, rnd); return p; }); };
@@ -41,4 +41,12 @@ test('the far fighter\'s blood grows to the near one\'s screen size (1x to 3x), 
   const a = newParticle(), b = newParticle(); spawnBlood(a, 0, 0, 1, 0, 0, 1, false, 'high', makeRng(4)); spawnBlood(b, 0, 0, 1, 0, 0, 1, false, 'high', makeRng(4), 2.5);
   assert.ok(Math.abs(b.size - a.size * 2.5) < 1e-9); assert.deepEqual([b.vx, b.vy, b.vz, b.life, b.stretch], [a.vx, a.vy, a.vz, a.life, a.stretch]);
   assert.equal(bloodCount('high', false), 15, 'counts are the same on both bodies');
+});
+
+test('the foe burst is pulled toward the camera: in front of the hero, never at the lens, a small step when already in front', () => {
+  assert.equal(foeBurstPull(5, 5), 0.35);   // as near as the hero: just in front of his centre depth
+  assert.ok(Math.abs(foeBurstPull(8, 5) - 3.35) < 1e-9);   // a foe 3 m behind him: pulled to 0.35 m in front of his depth
+  assert.equal(foeBurstPull(4, 5), 0.35);   // a foe nearer than the hero: the same small step, never a push away from the camera
+  assert.ok(Math.abs(foeBurstPull(1.6, 1.5) - 0.1) < 1e-9);   // never within 1.5 m of the lens
+  assert.equal(foeBurstPull(1.2, 5), 0);
 });
