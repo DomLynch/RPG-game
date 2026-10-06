@@ -1063,6 +1063,8 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.player.opening(practice.opening?.side === 0 ? practice.opening : null);   // opening-pose.ts
+      warriors?.opponent.opening(practice.opening?.side === 1 ? practice.opening : null);
       warriors?.player.fatigue(practice.fatigue[0]);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
       warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
       warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
