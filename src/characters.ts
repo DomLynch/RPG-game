@@ -13,7 +13,8 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
 import { GUARD_DROP } from './fatigue-tune.ts';
-import { type Fatigue, type FatigueTune, breathe, fatigueLayer } from './fatigue.ts';
+import type { Fatigue } from './fatigue.ts';
+import { type FatigueTune, breathe, fatigueLayer } from './fatigue-layer.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from './grades.ts';
 

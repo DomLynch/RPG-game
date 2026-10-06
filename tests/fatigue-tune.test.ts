@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { breathe, fatigueLayer } from '../src/fatigue.ts';
+import { breathe, fatigueLayer } from '../src/fatigue-layer.ts';
 import { FOE_TUNE, GUARD_DROP } from '../src/fatigue-tune.ts';
 
 const tired = { level: .8, gassed: 0, second: 0 };
