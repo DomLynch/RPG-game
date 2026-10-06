@@ -20,6 +20,7 @@ try {
     page.setDefaultTimeout(90000);
     page.on('pageerror', e => receipt.errors.push(`${name}: ${e}`));
     await page.route('**/*sentry.io/**', route => route.abort());
+    await page.addInitScript(() => { try { localStorage.setItem('frankendom.firstloss.v1', '1'); } catch {} });   // a plain fresh visit is the scripted first loss now (#1396; row 51 covers it): the lesson is done, so this row meets the normal fresh fighter
     const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false');
     const options_ = async () => { await page.locator('#journal-button').click(); await page.waitForSelector('#journal[open]'); await page.evaluate(() => { const r = document.getElementById('journal-tab-arena'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }); };
     const label = () => page.locator('#difficulty-select').inputValue();   // the Sparring tab's control names the fight's level even while hidden
