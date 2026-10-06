@@ -27,6 +27,7 @@ const as = (role, user, sql) => {
 const W = sql => as('frankendom_origins', null, sql);
 const client = (user, sql) => as('authenticated', user, sql);
 
+const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', F = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', N = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const fail = message => { throw Error(message); };
 let checks = 0;
@@ -60,7 +61,7 @@ try {
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
-    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${N}');`);
+    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${N}'),('${E}'),('${F}');`);
   const files = readdirSync(dir).filter(n => n.endsWith('.sql')).sort();
   if (!files.includes(UP)) fail(`${UP} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
@@ -74,7 +75,7 @@ try {
   refused('flag off: creating a character', 'origins is not open', () => W(`select public.origins_create_character('${A}', 'Aldren');`));
   psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);   // on, but no account is on the allowlist yet
   refused('on but not on the allowlist', 'origins is not open', () => W(`select public.origins_create_character('${A}', 'Aldren');`));
-  psql(`insert into public.origins_access(account) values ('${A}'),('${B}'),('${C}');`);
+  psql(`insert into public.origins_access(account) values ('${A}'),('${B}'),('${C}'),('${E}'),('${F}');`);
 
   // ---- characters, the career snapshot -------------------------------------------------------------------------------------------
   const pcA1 = W(`select public.origins_create_character('${A}', 'Aldren');`), pcA2 = W(`select public.origins_create_character('${A}', 'Aldren II');`), pcB = W(`select public.origins_create_character('${B}', 'Bran');`);
@@ -120,7 +121,7 @@ try {
   iq(`where id = 'it:crown'`, ['it:crown|1|2|equipped:' + pcA1 + ':head'], 'equipped');
   refused('history only grows', 'append-only', () => psql(`update public.origins_items set history = '[]'::jsonb, version = version + 1 where id = 'it:crown';`));
   refused('provenance is fixed at mint', 'fixed at mint', () => psql(`update public.origins_items set provenance = '{"kind":"loot","mintKey":"mk:crown","at":"2030-01-01T00:00:00Z"}'::jsonb, version = version + 1 where id = 'it:crown';`));
-  refused('items are never deleted', 'never deleted', () => psql(`delete from public.origins_items where id = 'it:crown';`));
+  refused('items are never deleted', 'append-only', () => psql(`delete from public.origins_items where id = 'it:crown';`));
   refused('a batch is all or nothing (a good op, then a stale one)', 'stale or unknown', () => commit(A, [mintOp('it:z', 'wood', 1, loc('pack', pcA1, 7), 'mk:z'), { op: 'put', id: 'it:crown', expected_version: 1, loc: loc('pack', pcA1, 8) }]));
   iq(`where id = 'it:z'`, [], 'the good op of the failed batch is gone');
 
@@ -211,6 +212,68 @@ try {
 
   eq(acls(), aclsBefore, 'no grant, policy, trigger or RLS setting on any existing object changed (column-level ACLs and function ACLs included)');
   eq(aclsBefore.includes('fighter_profiles') && aclsBefore.includes('loot_claims'), true, 'the ACL snapshot does cover the live tables the functions read');
+
+  // ---- function hygiene: every origins definer function pins its search_path and answers only to the writer -------------------------------
+  const fns = psql(`select p.oid::regprocedure || '|' || p.prosecdef || '|' || coalesce(p.proconfig::text, '') || '|' || pg_get_function_result(p.oid) || '|' || pg_get_function_identity_arguments(p.oid) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'origins\\_%' order by 1;`).split('\n').map(l => l.split('|'));
+  eq(fns.length >= 20, true, 'the catalog lists the origins functions');
+  const clientHelpers = new Set(['origins_me_allowed()', 'origins_me_owns(text)']);   // the RLS policies call these as the reader; they answer only about auth.uid()
+  const argFor = type => ({ uuid: `'${A}'::uuid`, text: `'x'`, jsonb: `'[]'::jsonb`, bigint: '0', integer: '0', 'uuid[]': 'array[]::uuid[]' })[type] ?? fail(`no dummy argument for ${type}`);
+  for (const [sig, secdef, config, result, args] of fns) {
+    const bare = sig.replace('public.', '');
+    if (secdef === 'true') eq(/search_path=(\\?")\1/.test(config), true, `${bare} is SECURITY DEFINER with search_path = ''`);
+    for (const who of ['anon', 'authenticated']) {
+      const may = psql(`select has_function_privilege('${who}', '${sig}', 'execute')`) === 't';
+      eq(may, who === 'authenticated' && clientHelpers.has(bare), `${who} execute on ${bare}`);
+    }
+    const internal = ['origins_apply(jsonb,uuid[])', 'origins_allowed(uuid)', 'origins_owns(text,uuid)'].includes(bare.replace(/, /g, ','));
+    eq(psql(`select has_function_privilege('frankendom_origins', '${sig}', 'execute')`) === 't', !internal && result !== 'trigger' && !clientHelpers.has(bare), `the writer role can execute ${bare} exactly when it is a writer entry point`);
+    if (result !== 'trigger' && !clientHelpers.has(bare)) {
+      const call = `select * from ${sig.replace(/\(.*$/, '')}(${args === '' ? '' : args.split(', ').map(a => argFor(a.split(' ').slice(1).join(' '))).join(', ')});`;
+      for (const who of ['anon', 'authenticated']) refused(`${who} calling ${bare}`, 'permission denied', () => as(who, A, call));
+    }
+  }
+
+  // ---- erasure is never blocked ----------------------------------------------------------------------------------------------------
+  const seedE = pc => {
+    commit(E, [mintOp('it:e1', 'ore2', 5, loc('pack', pc, 0), 'mk:e1'), mintOp('it:e2', 'ore3', 4, loc('pack', pc, 1), 'mk:e2'), mintOp('it:e3', 'gem2', 1, loc('pack', pc, 2), 'mk:e3', { single_copy: true }),
+      { op: 'event', event_id: `quest:${pc}:q9:s1`, kind: 'quest-stage', account: E, character: pc, payload: {} },
+      { op: 'quest_set', character: pc, quest: 'q9', story_version: 1, stage: 's1', status: 'active', flags: {}, rewarded: ['s1'], journal_append: [{ stage: 's1', text: 'Erase me.', at: '2026-10-06T05:00:00Z' }] },
+      { op: 'talk_set', character: pc, told: ['x'], flags: {} }]);
+  };
+  const pcE = W(`select public.origins_create_character('${E}', 'Edda');`);
+  W(`select public.origins_snapshot('${E}', 0, 0);`);
+  seedE(pcE);
+  // E hands one of its ore3 to B through a settled trade (the root mk:e2 now lives on two accounts), and leaves a trade open with B holding escrow.
+  W(`select public.origins_open_trade('tr:e0', '${pcE}', '${pcB}');`);
+  W(`select public.origins_settle_trade('tr:e0', ${J([{ op: 'split', id: 'it:e2', expected_version: 1, count: 1, new_id: 'it:e2:s', loc: { kind: 'trade-escrow', container: 'tr:e0', from: pcE } }, { op: 'put', id: 'it:e2:s', expected_version: 1, loc: loc('pack', pcB, 30) }])});`);
+  commit(B, [mintOp('it:b9', 'ore4', 2, loc('pack', pcB, 31), 'mk:b9')]);
+  W(`select public.origins_open_trade('tr:e', '${pcE}', '${pcB}');`);
+  W(`select public.origins_commit('${B}', ${J([{ op: 'put', id: 'it:b9', expected_version: 1, loc: { kind: 'trade-escrow', container: 'tr:e', from: pcB } }])});`);
+  refused('direct deletes are still refused outside erasure (items)', 'append-only', () => psql(`delete from public.origins_items where id = 'it:e1';`));
+  refused('direct deletes are still refused outside erasure (events)', 'append-only', () => psql(`delete from public.origins_events;`));
+  refused('a client may not call the purge', 'permission denied', () => client(E, `select public.origins_purge_account('${E}');`));
+  const purged = JSON.parse(W(`select public.origins_purge_account('${E}')::text;`));
+  eq([purged.characters, purged.live_items], [1, 3], 'the purge reports what it removed');
+  for (const t of ['origins_characters', 'origins_career', 'origins_access', 'origins_events']) eq(psql(`select count(*) from public.${t} where account = '${E}'`), '0', `${t}: nothing of E is left`);
+  eq(psql(`select count(*) from public.origins_items where id in ('it:e1','it:e2','it:e3')`), '0', 'E\'s items are gone');
+  eq(psql(`select count(*) from public.origins_quest_state where character = '${pcE}'`) + psql(`select count(*) from public.origins_quest_journal where character = '${pcE}'`) + psql(`select count(*) from public.origins_talk where character = '${pcE}'`), '000', 'quests, journal and talk are gone');
+  iq(`where id = 'it:e2:s'`, ['it:e2:s|1|2|pack:' + pcB + ':30'], 'B keeps the ore3 it was traded');
+  eq(psql(`select state || ':' || coalesce(side_a, 'null') || ':' || side_b from public.origins_trades where container = 'tr:e'`), `open:null:${pcB}`, 'the open trade lost its side, kept the survivor');
+  refused('a trade that lost a side cannot settle', 'lost a side', () => W(`select public.origins_settle_trade('tr:e', '[]'::jsonb);`));
+  W(`select public.origins_cancel_trade('tr:e', ${J([{ op: 'put', id: 'it:b9', expected_version: 2, loc: loc('pack', pcB, 31) }])});`);
+  iq(`where id = 'it:b9'`, ['it:b9|2|3|pack:' + pcB + ':31'], 'the survivor\'s escrow is released by cancel');
+  commit(B, [{ op: 'burn', id: 'it:e2:s', expected_version: 2, count: 1 }]);   // conservation still holds for the root E minted and the purge burned
+  eq(psql(`select sum(delta) from public.origins_item_ledger where mint_root = 'mk:e2'`), '0', 'mk:e2 balances to zero after the purge and B\'s burn');
+  // Deleting the account itself (auth.users) cascades through everything with no help.
+  const pcF = W(`select public.origins_create_character('${F}', 'Fenn');`);
+  W(`select public.origins_snapshot('${F}', 0, 0);`);
+  commit(F, [mintOp('it:f1', 'ore5', 3, loc('pack', pcF, 0), 'mk:f1'), { op: 'event', event_id: `quest:${pcF}:q9:s1`, kind: 'quest-stage', account: F, character: pcF, payload: {} },
+    { op: 'quest_set', character: pcF, quest: 'q9', story_version: 1, stage: 's1', status: 'active', flags: {}, rewarded: [], journal_append: [{ stage: 's1', text: 'x', at: '2026-10-06T06:00:00Z' }] }]);
+  W(`select public.origins_issue_encounter('${F}', '${pcF}', 'tok0000000000000009', 5, 'rat', 1, 600);`);
+  psql(`delete from auth.users where id = '${F}';`);
+  for (const t of ['origins_characters', 'origins_career', 'origins_access', 'origins_events', 'origins_encounters']) eq(psql(`select count(*) from public.${t} where account = '${F}'`), '0', `deleting the account cleared ${t}`);
+  eq(psql(`select count(*) from public.origins_items where id = 'it:f1'`), '0', 'deleting the account cleared its items');
+  eq(psql(`select coalesce(sum(delta), 0) from public.origins_item_ledger where mint_root = 'mk:f1'`), '0', 'and booked them out of the ledger');
 
   // ---- the down-script drops exactly what the migration created ------------------------------------------------------------------
   const after = objects();

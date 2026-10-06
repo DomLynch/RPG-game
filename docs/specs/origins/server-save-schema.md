@@ -22,8 +22,10 @@ column is marked (PR).
    bosses wait for an authoritative room (phase 2). Quests, talk, inventory, trades and Pit wins are server-authoritative now.
 4. **Burns: yes.** The append-only mint/burn ledger stays; the `burn` op is the DB side of the `consume` op Expansion adds to #1443 as a follow-up (the ore handed to
    Orla, blacksmith materials). Conservation = live quantity equals the ledger sum, checked at commit.
-5. **Still open:** (a) account erasure: a row in `origins_items`/the ledger/events blocks deleting an `auth.users` row (items and the ledger are never deleted), so a
-   purge function is needed before Origins leaves the hidden route; (b) the writer service itself (runtime, auth, rate limits) is a separate PR after the migration is
+5. **Erasure (done in the migration):** deleting an `auth.users` row cascades through every `origins_*` table by itself (items, events, journal and the rest are
+   append-only against direct deletes only, not against cascades; each erased live item books a burn so the ledger still balances for every other holder), and
+   `origins_purge_account(p_account)` does the same for one account while keeping the login. A trade the erased account was in stays open with a null side for
+   the survivor to cancel (their escrow is released). **Still open:** (b) the writer service itself (runtime, auth, rate limits) is a separate PR after the migration is
    applied; (c) faction standing is not in this migration.
 
 ## 1. Tables (all in `public`, RLS on every one, `revoke all ... from public, anon, authenticated` then explicit column grants)

@@ -37,6 +37,15 @@ create function public.origins_owns(p_character text, p_account uuid) returns bo
   select exists (select 1 from public.origins_characters where id = p_character and account = p_account)
 $$;
 
+-- The two helpers the RLS policies call as the READER (a policy's functions run with the reader's own privileges): they take no account argument and
+-- answer only about the caller (auth.uid()), so they cannot be used to probe another account. The writer-side forms above stay writer-only.
+create function public.origins_me_allowed() returns boolean language sql stable security definer set search_path = '' as $$
+  select public.origins_allowed((select auth.uid()))
+$$;
+create function public.origins_me_owns(p_character text) returns boolean language sql stable security definer set search_path = '' as $$
+  select public.origins_owns(p_character, (select auth.uid()))
+$$;
+
 -- One career per account (world.ts). Total CP is DERIVED, never stored: seed_credit (the frozen snapshot of creditFromMarks(marks) taken once at the first
 -- open, never recomputed) + the CP of every verified Pit win AFTER the snapshot (priced by the #1428 weights, the cp in each 'pit' event) + world_credit.
 -- world_credit is the only credit this row accumulates; origins_total_credit() is the one place the sum is made.
@@ -85,13 +94,13 @@ create table public.origins_items (
   tier text,
   upgrade_level int not null default 0 check (upgrade_level between 0 and 9),
   loc_kind text check (loc_kind in ('equipped', 'pack', 'bank', 'account-vault', 'guild-vault', 'trade-escrow')),
-  loc_owner text references public.origins_characters (id),
-  loc_account uuid references auth.users (id),
+  loc_owner text references public.origins_characters (id) on delete cascade,
+  loc_account uuid references auth.users (id) on delete cascade,
   loc_container text,
   loc_index int check (loc_index between 0 and 999),
   loc_slot text,
-  loc_from text references public.origins_characters (id),
-  bound_to text references public.origins_characters (id),
+  loc_from text references public.origins_characters (id) on delete cascade,
+  bound_to text references public.origins_characters (id) on delete cascade,
   mint_key text not null unique,
   mint_root text generated always as (split_part(mint_key, '::s', 1)) stored,
   provenance jsonb not null,
@@ -136,8 +145,8 @@ create index origins_item_ledger_root on public.origins_item_ledger (mint_root);
 
 create table public.origins_trades (
   container text primary key check (char_length(container) between 3 and 120),
-  side_a text not null references public.origins_characters (id),
-  side_b text not null references public.origins_characters (id),
+  side_a text references public.origins_characters (id) on delete set null,   -- an erased character leaves the trade open with a null side: the survivor's escrow is released by origins_cancel_trade
+  side_b text references public.origins_characters (id) on delete set null,
   state text not null default 'open' check (state in ('open', 'settled', 'cancelled')),
   created_at timestamptz not null default now(),
   settled_at timestamptz,
@@ -176,8 +185,8 @@ create table public.origins_talk (
 
 create function public.origins_no_change() returns trigger language plpgsql set search_path = '' as $$
 begin raise exception '% is append-only', tg_table_name using errcode = 'O0003'; end $$;
-create trigger origins_events_append_only before update or delete on public.origins_events for each row when (pg_trigger_depth() = 0) execute function public.origins_no_change();
-create trigger origins_item_ledger_append_only before update or delete on public.origins_item_ledger for each row when (pg_trigger_depth() = 0) execute function public.origins_no_change();
+create trigger origins_events_append_only before update or delete on public.origins_events for each row when (pg_trigger_depth() = 0 and coalesce(current_setting('origins.purge', true), '') <> 'on') execute function public.origins_no_change();
+create trigger origins_item_ledger_append_only before update or delete on public.origins_item_ledger for each row when (pg_trigger_depth() = 0 and coalesce(current_setting('origins.purge', true), '') <> 'on') execute function public.origins_no_change();
 create trigger origins_quest_journal_append_only before update or delete on public.origins_quest_journal for each row
   when (pg_trigger_depth() = 0) execute function public.origins_no_change();   -- depth 0: a cascade from deleting the quest state's character is the account's own erasure
 
@@ -203,7 +212,6 @@ create trigger origins_talk_versioned before update on public.origins_talk for e
 create function public.origins_item_guard() returns trigger language plpgsql set search_path = '' as $$
 declare acct uuid; packs int; banks int; n int;
 begin
-  if tg_op = 'DELETE' then raise exception 'origins_items rows are retired, never deleted' using errcode = 'O0003'; end if;
   if tg_op = 'UPDATE' then
     if old.retired_at is not null then raise exception 'item % is retired' , old.id using errcode = 'O0003'; end if;
     if new.mint_key <> old.mint_key or new.item <> old.item or new.provenance <> old.provenance or new.id <> old.id then
@@ -234,7 +242,16 @@ begin
   end if;
   return new;
 end $$;
-create trigger origins_item_guard before insert or update or delete on public.origins_items for each row execute function public.origins_item_guard();
+create trigger origins_item_guard before insert or update on public.origins_items for each row execute function public.origins_item_guard();
+-- Items are retired, never deleted, EXCEPT by erasure: a cascade from deleting a character or an account (trigger depth above 0), or origins_purge_account (flag).
+-- The deletion books a burn for the live quantity it removes, so conservation still holds for every other holder of the same mint root.
+create trigger origins_item_no_delete before delete on public.origins_items for each row when (pg_trigger_depth() = 0 and coalesce(current_setting('origins.purge', true), '') <> 'on') execute function public.origins_no_change();
+create function public.origins_item_erased() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if old.retired_at is null then insert into public.origins_item_ledger (mint_root, delta, reason, item_id) values (old.mint_root, -old.quantity, 'burn', old.id); end if;
+  return null;
+end $$;
+create trigger origins_item_erased after delete on public.origins_items for each row execute function public.origins_item_erased();
 
 -- Conservation, per mint root, at COMMIT: live quantity of the root's rows = the ledger's sum for it. Deferred, so a batch may move
 -- quantity between rows (split, merge) in any order and only its end state is judged.
@@ -268,19 +285,19 @@ alter table public.origins_talk enable row level security;
 revoke all on public.origins_config, public.origins_access, public.origins_characters, public.origins_career, public.origins_events, public.origins_encounters,
   public.origins_items, public.origins_item_ledger, public.origins_trades, public.origins_quest_state, public.origins_quest_journal, public.origins_talk
   from public, anon, authenticated;
-revoke all on function public.origins_allowed(uuid), public.origins_owns(text, uuid), public.origins_no_change(), public.origins_career_credit_up(),
+revoke all on function public.origins_allowed(uuid), public.origins_owns(text, uuid), public.origins_me_allowed(), public.origins_me_owns(text), public.origins_no_change(), public.origins_career_credit_up(),
   public.origins_versioned(), public.origins_item_guard(), public.origins_conserved() from public, anon, authenticated;
-grant execute on function public.origins_allowed(uuid), public.origins_owns(text, uuid) to authenticated;   -- the policies below call them as the reader
+grant execute on function public.origins_me_allowed(), public.origins_me_owns(text) to authenticated;   -- the policies below call them as the reader; they answer only about the caller
 
 grant select on public.origins_characters, public.origins_career, public.origins_items, public.origins_quest_state, public.origins_quest_journal, public.origins_talk to authenticated;
 grant select (event_id, kind, at) on public.origins_events to authenticated;
-create policy "an account reads its own characters" on public.origins_characters for select to authenticated using (account = (select auth.uid()) and public.origins_allowed((select auth.uid())));
-create policy "an account reads its own career" on public.origins_career for select to authenticated using (account = (select auth.uid()) and public.origins_allowed((select auth.uid())));
-create policy "an account reads its own events" on public.origins_events for select to authenticated using (account = (select auth.uid()) and public.origins_allowed((select auth.uid())));
-create policy "an account reads its own items" on public.origins_items for select to authenticated using (holder_account = (select auth.uid()) and public.origins_allowed((select auth.uid())));
-create policy "an account reads its own quests" on public.origins_quest_state for select to authenticated using (public.origins_owns(character, (select auth.uid())) and public.origins_allowed((select auth.uid())));
-create policy "an account reads its own journal" on public.origins_quest_journal for select to authenticated using (public.origins_owns(character, (select auth.uid())) and public.origins_allowed((select auth.uid())));
-create policy "an account reads its own talk" on public.origins_talk for select to authenticated using (public.origins_owns(character, (select auth.uid())) and public.origins_allowed((select auth.uid())));
+create policy "an account reads its own characters" on public.origins_characters for select to authenticated using (account = (select auth.uid()) and public.origins_me_allowed());
+create policy "an account reads its own career" on public.origins_career for select to authenticated using (account = (select auth.uid()) and public.origins_me_allowed());
+create policy "an account reads its own events" on public.origins_events for select to authenticated using (account = (select auth.uid()) and public.origins_me_allowed());
+create policy "an account reads its own items" on public.origins_items for select to authenticated using (holder_account = (select auth.uid()) and public.origins_me_allowed());
+create policy "an account reads its own quests" on public.origins_quest_state for select to authenticated using (public.origins_me_owns(character) and public.origins_me_allowed());
+create policy "an account reads its own journal" on public.origins_quest_journal for select to authenticated using (public.origins_me_owns(character) and public.origins_me_allowed());
+create policy "an account reads its own talk" on public.origins_talk for select to authenticated using (public.origins_me_owns(character) and public.origins_me_allowed());
 -- config, access, encounters, the ledger and trades have no policy and no grant: only the definer functions below touch them.
 
 -- ---- the writer's functions (security definer; execute for frankendom_origins only) -------------------------------------------------
@@ -475,6 +492,7 @@ declare t public.origins_trades; accts uuid[]; out jsonb;
 begin
   select * into t from public.origins_trades where container = p_container and state = 'open' for update;
   if not found then raise exception 'trade % is not open', p_container using errcode = 'O0002'; end if;
+  if t.side_a is null or t.side_b is null then raise exception 'trade % lost a side: cancel it' , p_container using errcode = 'O0002'; end if;
   accts := array(select account from public.origins_characters where id in (t.side_a, t.side_b));
   out := public.origins_apply(p_batch, accts);
   update public.origins_trades set state = 'settled', settled_at = now() where container = p_container;
@@ -491,13 +509,32 @@ begin
   return out;
 end $$;
 
+-- Erasure must never be blocked. Deleting an account (auth.users) cascades through every origins_ table by itself. This function does the same for one
+-- account while keeping the login (a reset, or an erasure request handled before the account is deleted): characters (and with them items, quests,
+-- journal, talk, encounters), events, career and the allowlist row, in one transaction. Items booked out of the ledger as burns; trades the account was
+-- in stay open with a null side for the other party to cancel. Returns what it removed.
+create function public.origins_purge_account(p_account uuid) returns jsonb language plpgsql security definer set search_path = '' as $$
+declare chars int; evs int; its int;
+begin
+  perform set_config('origins.purge', 'on', true);
+  select count(*) into its from public.origins_items where holder_account = p_account and retired_at is null;
+  delete from public.origins_events where account = p_account;
+  get diagnostics evs = row_count;
+  delete from public.origins_characters where account = p_account;
+  get diagnostics chars = row_count;
+  delete from public.origins_career where account = p_account;
+  delete from public.origins_access where account = p_account;
+  perform set_config('origins.purge', 'off', true);
+  return jsonb_build_object('characters', chars, 'events', evs, 'live_items', its);
+end $$;
+
 revoke all on function public.origins_create_character(uuid, text), public.origins_open(uuid), public.origins_snapshot(uuid, int, bigint), public.origins_total_credit(uuid), public.origins_pit_pending(uuid),
   public.origins_issue_encounter(uuid, text, text, bigint, text, int, int), public.origins_consume_encounter(uuid, text), public.origins_apply(jsonb, uuid[]),
-  public.origins_commit(uuid, jsonb), public.origins_open_trade(text, text, text), public.origins_settle_trade(text, jsonb), public.origins_cancel_trade(text, jsonb)
+  public.origins_commit(uuid, jsonb), public.origins_open_trade(text, text, text), public.origins_settle_trade(text, jsonb), public.origins_cancel_trade(text, jsonb), public.origins_purge_account(uuid), public.origins_item_erased()
   from public, anon, authenticated;
 grant execute on function public.origins_create_character(uuid, text), public.origins_open(uuid), public.origins_snapshot(uuid, int, bigint), public.origins_total_credit(uuid), public.origins_pit_pending(uuid),
   public.origins_issue_encounter(uuid, text, text, bigint, text, int, int), public.origins_consume_encounter(uuid, text),
-  public.origins_commit(uuid, jsonb), public.origins_open_trade(text, text, text), public.origins_settle_trade(text, jsonb), public.origins_cancel_trade(text, jsonb)
+  public.origins_commit(uuid, jsonb), public.origins_open_trade(text, text, text), public.origins_settle_trade(text, jsonb), public.origins_cancel_trade(text, jsonb), public.origins_purge_account(uuid)
   to frankendom_origins;   -- origins_apply is internal: only the functions above call it
 grant usage on schema public to frankendom_origins;
 
