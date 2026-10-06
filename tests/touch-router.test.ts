@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { INTERACTIVE_SELECTORS, TouchOwnerLedger, getTouchOwner, isInteractiveHud, type TouchTarget } from '../src/touch-router.ts';
+import { INTERACTIVE_SELECTORS, getTouchOwner, isInteractiveHud, type TouchTarget } from '../src/touch-router.ts';
 
 // A fake element: it matches the selectors it (or an ancestor) carries.
 const el = (...selectors: string[]): TouchTarget => ({ closest: (s: string) => (selectors.includes(s) ? el(...selectors) : null) });
@@ -22,11 +22,8 @@ test('every HUD control the page has counts as interactive, and a descendant cou
   assert.equal(isInteractiveHud(el('canvas')), false); assert.equal(isInteractiveHud(null), false);
 });
 
-test('the ledger holds the owner decided at pointerdown for the life of the touch: a button touch never becomes a camera drag', () => {
-  const ledger = new TouchOwnerLedger();
-  ledger.set(1, getTouchOwner(el('#actions'), ctx())); ledger.set(2, getTouchOwner(canvas, ctx()));
-  assert.equal(ledger.isOwnedBy(1, 'camera'), false); assert.equal(ledger.isOwnedBy(2, 'camera'), true);
-  assert.equal(ledger.size, 2); ledger.release(1); assert.equal(ledger.get(1), undefined); ledger.releaseAll(); assert.equal(ledger.size, 0);
+test('a button touch is never the camera, an arena touch is: the owner is decided from where the finger lands', () => {
+  assert.notEqual(getTouchOwner(el('#actions'), ctx()), 'camera'); assert.equal(getTouchOwner(canvas, ctx()), 'camera');
 });
 
 test('main.ts keeps the zoom guards and routes only the camera drag; input.ts is untouched by the router', () => {

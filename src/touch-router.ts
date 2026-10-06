@@ -1,4 +1,4 @@
-// Touch ownership: which control a finger belongs to, decided once at pointerdown and held until it lifts, so a touch that starts on a
+// Touch ownership: which control a finger belongs to, decided at pointerdown, so a touch that starts on a
 // button, the joystick or a panel never turns into a camera drag when it drifts over the arena. Pure and DOM-free: the page hands in
 // what it knows about the target. Ported from levy-street/world-of-claudecraft src/game/touch_router.ts @f46f30f, MIT:
 //   Copyright (c) 2026 Levy Street. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
@@ -30,15 +30,4 @@ export function getTouchOwner(target: TouchTarget | null, ctx: TouchContext): To
   if (ctx.isMovementZone(target)) return 'movement';
   if (isInteractiveHud(target)) return 'combatButton';
   return ctx.isCameraSurface(target) ? 'camera' : 'ignored';
-}
-
-/** The owner decided at pointerdown, held for the life of that touch. */
-export class TouchOwnerLedger {
-  private owners = new Map<number, TouchOwner>();
-  set(pointerId: number, owner: TouchOwner): void { this.owners.set(pointerId, owner); }
-  get(pointerId: number): TouchOwner | undefined { return this.owners.get(pointerId); }
-  isOwnedBy(pointerId: number, owner: TouchOwner): boolean { return this.owners.get(pointerId) === owner; }
-  release(pointerId: number): void { this.owners.delete(pointerId); }
-  releaseAll(): void { this.owners.clear(); }   // window blur, the page hidden
-  get size(): number { return this.owners.size; }
 }

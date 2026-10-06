@@ -47,8 +47,8 @@ import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
-import { TouchOwnerLedger, getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { layoutTier } from './layout-tier.ts';
 import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
@@ -1647,11 +1647,9 @@ element('recenter-button').addEventListener('click', () => view.recenter());
 // Gated on the tour actually running: stopTour() only sets a flag, so a tap in the death animation or the settle window (mashing
 // after the kill, tapping Share) must not cancel a tour that has not started yet. A canvas drag below stays an explicit takeover.
 document.addEventListener('pointerdown', () => { if (match.practice.finish && view.finishPhase().touring) view.stopTour(); });
-// Who owns each finger (touch-router.ts): decided at pointerdown and kept until it lifts, so only a touch that began on the arena orbits the camera.
-const touches = new TouchOwnerLedger();
+// Who owns the finger (touch-router.ts): decided at pointerdown, so only a touch that began on the arena orbits the camera.
 canvas.addEventListener('pointerdown', (event) => {
   const owner = getTouchOwner(event.target as unknown as TouchTarget | null, { menuOpen: paused(), isMovementZone: (t) => !!t?.closest('#joystick'), isCameraSurface: (t) => (t as unknown) === canvas });
-  touches.set(event.pointerId, owner);
   if (owner !== 'camera' || orbitId !== null || event.button !== 0) return;
   canvas.focus();
   view.stopTour();   // after the kill the arena cam drifts on its own; a touch on the arena hands the camera back
@@ -1682,10 +1680,8 @@ canvas.addEventListener('pointerup', (event) => {
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
   canvas.addEventListener(name, (event) => {
-    touches.release((event as PointerEvent).pointerId);
     if ((event as PointerEvent).pointerId === orbitId) orbitId = null;
   });
-window.addEventListener('blur', () => touches.releaseAll());
 let last = performance.now(),
   reportAt = last,
   frames: number[] = [],
