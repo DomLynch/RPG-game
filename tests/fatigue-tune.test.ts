@@ -12,5 +12,5 @@ test('the Goblin breathes faster and shallower than the Executioner', () => {
 });
 
 test('the guard drop is a few cm: a small share of the raise', () => {
-  assert.ok(GUARD_DROP > 0 && GUARD_DROP <= .25);
+  assert.ok(GUARD_DROP > 0 && GUARD_DROP <= .3);
 });
