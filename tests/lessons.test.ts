@@ -36,7 +36,8 @@ test('"Fight for real" is a full page load, so the lesson kit, weapon and level 
   const { readFileSync } = await import('node:fs');
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), notice = readFileSync(new URL('../public/licenses/world-of-claudecraft.txt', import.meta.url), 'utf8');
   assert.match(main, /if \(match\.mode === 'lesson'\) \{ location\.assign\(`\$\{location\.pathname\}\?fight=1`\); return; \}/, 'a reload, not a Match restore (startLesson sets weapon/skill/level and nothing restores them), and to a non-empty search so a page that cannot store the flag never reloads into the lesson');
-  for (const file of ['src/net/backoff.ts', 'src/net/reconnect-policy.ts', 'src/first-loss.ts', 'src/lessons.ts', 'src/render-budget.ts', 'src/touch-router.ts', 'src/layout-tier.ts']) assert.ok(notice.includes(file), `${file} is listed`);
+  for (const file of ['src/net/backoff.ts', 'src/net/reconnect-policy.ts', 'src/first-loss.ts', 'src/lessons.ts', 'src/touch-router.ts', 'src/layout-tier.ts']) assert.ok(notice.includes(file), `${file} is listed`);
+  assert.ok(!notice.includes('render-budget'), 'Dom scrapped the render budget (Lead 2026-10-06): the notice lists only ports that ship');
   assert.match(notice, /MIT License/); assert.match(notice, /f46f30f/);
 });
 

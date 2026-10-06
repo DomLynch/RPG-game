@@ -5,7 +5,6 @@ MIT licence below. No art, sound, name or other asset is taken from that project
   src/net/reconnect-policy.ts     from src/net/reconnect_policy.ts
   src/first-loss.ts               idea ported from src/sim/tutorial/death_lesson.ts (the code is this game's own)
   src/lessons.ts                  pattern adapted from src/ui/bootcamp_view.ts
-  src/render-budget.ts            ported in shape from src/render/render_budget.ts
   src/touch-router.ts             ported from src/game/touch_router.ts
   src/layout-tier.ts              ported in shape from src/ui/mobile_hud_layout.ts
 
