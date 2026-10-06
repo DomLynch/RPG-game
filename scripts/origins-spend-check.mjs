@@ -86,6 +86,13 @@ try {
     refused(`${kind}: a replay aborts as already settled`, 'already settled', () => W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: `${kind}:${pc}:op1`, kind, account: A, character: pc, payload: {} }])});`));
     eq(W(`select public.origins_event('${B}', '${kind}:${pc}:op1') is null;`).split('\n').pop(), 't', `${kind}: another account reads null, same as an unknown id`);
   }
+  // unpaid quest rewards: listed until a paid:<event> is booked; account-scoped
+  W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: `quest:${pc}:q1:s2`, kind: 'quest-stage', account: A, character: pc, payload: { stage: 's2', unpaid: ['loot'] } }, { op: 'event', event_id: `quest:${pc}:q1:s3`, kind: 'quest-stage', account: A, character: pc, payload: { stage: 's3', unpaid: [] } }])});`);
+  eq(W(`select event_id from public.origins_unpaid('${A}');`).split('\n').filter(Boolean), [`quest:${pc}:q1:s2`], 'unpaid: only the stage with unpaid lines is listed');
+  eq(W(`select count(*) from public.origins_unpaid('${B}');`).split('\n').pop(), '0', 'unpaid: another account sees none');
+  refused('unpaid: not callable by a client', 'permission denied', () => client(A, `select * from public.origins_unpaid('${A}');`));
+  W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: `paid:quest:${pc}:q1:s2`, kind: 'paid', account: A, character: pc, payload: { lines: ['loot'] } }])});`);
+  eq(W(`select count(*) from public.origins_unpaid('${A}');`).split('\n').pop(), '0', 'unpaid: a paid:<event> takes it off the list');
   refused('an unknown kind is still refused', 'origins_events_kind_check', () => W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: 'coin:x', kind: 'coin', account: A, payload: {} }])});`));
   psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
   eq(W(`select public.origins_event('${A}', 'burn:${pc}:op1') is null;`).split('\n').pop(), 't', 'flag off: the read answers null');
