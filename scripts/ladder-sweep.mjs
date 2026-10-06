@@ -18,6 +18,8 @@ import { RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { mirror, movesOf, timing } from '../src/duel.ts';
 import { isHeld } from '../src/roster.ts';
 import { setLateNotice } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
+setStab(true);   // ... and the Goblin's stab (stab-rule.ts), likewise an era flag
 setLateNotice(true);   // the sweep fights live: this build's late notice is on (a headless run is otherwise the pre-ramp era, play-radius.ts)
 
 const mk = (z = 0, action = null, guard = false) => ({ move: { x: 0, z, yaw: 0, run: false }, action, guard, lock: true });

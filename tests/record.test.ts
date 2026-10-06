@@ -4,6 +4,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { setLateNotice } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
 
 const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {}): Intent => ({
@@ -23,9 +24,9 @@ test('record: quantization is idempotent, keeps every field, and maps the stick 
 });
 
 test('record: pack/unpack and encode/decode round-trip every intent shape, the seed and the metadata; the version comes first and an unknown one is refused', async () => {
-  setLateNotice(true);   // a live fight (the premise of RECORD_VERSION here); a headless recorder stamps FIRST_SCALED_VERSION
+  setLateNotice(true); setStab(true);   // a live fight (the premise of RECORD_VERSION here); a headless recorder stamps FIRST_SCALED_VERSION
   const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 46, seed: 0xdeadbeef });
-  setLateNotice(false);
+  setLateNotice(false); setStab(false);
   const shapes: Intent[] = [
     intent(), intent({ move: { x: 1, z: -1, yaw: -3.1, run: true } }), intent({ action: 'light_left', guardDirection: 'left' }),
     intent({ action: 'parry', guard: true, guardDirection: 'overhead' }), intent({ action: 'dodge', held: true }), intent({ action: 'kick', cancel: true, lock: false }),

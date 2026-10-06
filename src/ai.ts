@@ -1,3 +1,4 @@
+import { STAB_ON } from './stab-rule.ts';
 import { RULES, type AiProfile, type Direction, type MoveId, weaponOf } from './moves.ts';
 import { LATE_NOTICE } from './play-radius.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
@@ -276,7 +277,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     const scores: Record<string, number> = {
       critical: self.critical > 0 && inReach('heavy_overhead') ? 1.6 : 0,   // a broken posture is finished with the critical, not a riposte
       counter: self.counterWindow > 0 && inReach('heavy_overhead') ? 1.4 : 0,   // a block opens the guard counter: the designed answer to cut pressure
-      punish: opening && inReach('light_right') ? 1.5 : 0,
+      // A fast fighter's stab (profile.stab): the cut cannot reach the man who just whiffed, but the knife's 12-tick thrust can — the shortest tell in the
+      // game, so a reactive guard raised when the stab is seen is raised too late. Counted in the same draw as the rest (no roll of its own).
+      punish: opening && (inReach('light_right') || (STAB_ON && !!profile.stab && inReach('thrust') && r < profile.stab)) ? 1.5 : 0,
       // a follow-up the cut cannot reach goes as the thrust when the chain allows it
       chain: self.chain > 0 && (inReach('light_right') || (self.lastMove !== null && !!mine[self.lastMove].chain?.follow.includes('thrust') && inReach('thrust'))) && r < profile.aggression ? 1.2 : 0,
       kick: inReach('kick') && kickNow ? 1.1 + (reads.turtle ? READ.kickBoost : 0) : 0,
@@ -296,7 +299,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     if (score > 0) {
       const action: Action = best === 'kick' ? 'kick'
         : best === 'heavy' || best === 'critical' || best === 'counter' ? 'heavy'
-        : best === 'thrust' || (best === 'chain' && !inReach('light_right')) ? 'thrust' : 'light';
+        : best === 'thrust' || ((best === 'chain' || best === 'punish') && !inReach('light_right')) ? 'thrust' : 'light';
       next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); next.next = null;
       // A less aggressive warden sometimes baits instead: a visible guard the player must open with a heavy or a kick.
       // The stop-hit is never traded for a bait: the moment is now.
