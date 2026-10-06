@@ -148,6 +148,13 @@ try {
   refused('settle with a mint', 'not allowed in a settle', () => settle('tr:1', 2, [...swapOps, mintOp('it:x', 'x', 1, loc('pack', pcA, 9), 'mk:x')]));
   refused('settle with a burn', 'not allowed in a settle', () => settle('tr:1', 2, [...swapOps, { op: 'burn', id: 'it:sw', expected_version: 1, count: 1 }]));
   refused('settle with a put of a piece outside the offer', 'outside the accepted offer', () => settle('tr:1', 2, [...swapOps, put('it:sw', 1, loc('pack', pcB, 7))]));
+  // F1 (Auditor): a trade put moves a piece and nothing else; 0001's put also applies these fields, so each function refuses them
+  for (const [k, v] of [['upgrade_level', 9], ['tier', 'legendary'], ['bound_to', 'someone'], ['history_append', [{ kind: 'forged' }]]]) {
+    refused(`settle with a put carrying ${k}`, 'moves a piece only', () => settle('tr:1', 2, [{ ...swapOps[0], [k]: v }, ...swapOps.slice(1)]));
+    refused(`an offer carrying ${k}`, 'moves a piece only', () => change('tr:1', pcA, 2, [{ ...put('it:sw', 1, esc('tr:1', pcA)), [k]: v }]));
+    refused(`a withdraw carrying ${k}`, 'moves a piece only', () => change('tr:1', pcA, 2, [{ ...put('it:h0', 2, loc('pack', pcA, 0)), [k]: v }]));
+    refused(`cancel with a put carrying ${k}`, 'moves a piece only', () => cancel('tr:1', 'cancelled', [{ ...put('it:h0', 2, loc('pack', pcA, 0)), [k]: v }]));
+  }
   refused('settle moving only one of the two pieces', 'moves every accepted piece', () => settle('tr:1', 2, [swapOps[0], swapOps[2], swapOps[3]]));
   refused('settle with a piece at the wrong version', 'accepted version', () => settle('tr:1', 2, [put('it:h0', 1, loc('pack', pcB, 5)), swapOps[1]]));
   refused('settle with an event of another kind', 'trade events for the two sides only', () => settle('tr:1', 2, [...swapOps.slice(0, 2), ev('burn', A, 'x:1')]));

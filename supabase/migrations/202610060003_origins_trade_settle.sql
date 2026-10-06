@@ -80,6 +80,7 @@ begin
   if not public.origins_allowed(acct) then raise exception 'origins is not open for this account' using errcode = 'O0007'; end if;
   for op in select * from jsonb_array_elements(p_batch) loop
     if op ->> 'op' <> 'put' then raise exception 'a change of offer is puts only' using errcode = 'O0012'; end if;
+    if op ?| array['upgrade_level', 'tier', 'bound_to', 'history_append'] then raise exception 'a trade put moves a piece only: it carries no upgrade_level, tier, bound_to or history_append' using errcode = 'O0012'; end if;
     select * into it from public.origins_items where id = op ->> 'id';
     if not found or it.retired_at is not null or it.holder_account is distinct from acct then raise exception 'item % is not this side''s to offer', op ->> 'id' using errcode = 'O0012'; end if;
     if (op #>> '{loc,kind}') = 'trade-escrow' then   -- offer: from this character's pack or bank into this trade's escrow, from this character
@@ -139,6 +140,7 @@ begin
   accts := array(select account from public.origins_characters where id in (t.side_a, t.side_b));
   for op in select * from jsonb_array_elements(p_batch) loop
     if op ->> 'op' = 'put' then
+      if op ?| array['upgrade_level', 'tier', 'bound_to', 'history_append'] then raise exception 'a trade put moves a piece only: it carries no upgrade_level, tier, bound_to or history_append' using errcode = 'O0012'; end if;
       select e into row from jsonb_array_elements(escrow) e where e ->> 'id' = op ->> 'id';
       if row is null then raise exception 'put of % is outside the accepted offer', op ->> 'id' using errcode = 'O0012'; end if;
       if op ->> 'id' = any (moved) then raise exception 'item % is moved twice', op ->> 'id' using errcode = 'O0012'; end if;
@@ -173,6 +175,7 @@ begin
   accts := array(select account from public.origins_characters where id in (t.side_a, t.side_b));
   for op in select * from jsonb_array_elements(p_batch) loop
     if op ->> 'op' = 'put' then   -- an escrowed piece goes back to its offerer's pack or bank
+      if op ?| array['upgrade_level', 'tier', 'bound_to', 'history_append'] then raise exception 'a trade put moves a piece only: it carries no upgrade_level, tier, bound_to or history_append' using errcode = 'O0012'; end if;
       select * into it from public.origins_items where id = op ->> 'id';
       if not found or it.retired_at is not null or it.loc_kind <> 'trade-escrow' or it.loc_container <> p_container then raise exception 'put of % is not an escrowed piece of this trade', op ->> 'id' using errcode = 'O0012'; end if;
       if (op #>> '{loc,kind}') not in ('pack', 'bank') or (op #>> '{loc,owner}') is distinct from it.loc_from then raise exception 'item % goes back to its offerer''s pack or bank', it.id using errcode = 'O0012'; end if;
