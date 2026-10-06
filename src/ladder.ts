@@ -1,4 +1,5 @@
 import { OPPONENTS, type Opponent, type OpponentId } from './moves.ts';
+import { ARENA_ROTATION, type ArenaKey } from './arena-themes.ts';
 import type { Finish } from './duel.ts';
 
 import { ENCOUNTERS, isHeld, isOpponentId } from './roster.ts';
@@ -18,6 +19,15 @@ export function nextOpponent(current: OpponentId, beaten: readonly string[], key
   const pool = left.length ? left : LADDER.filter(o => o.id !== current);
   const { id, name } = pool[(key >>> 0) % pool.length];
   return { id, name, pass: left.length ? done : [] };
+}
+// The arena of the NEXT fight (Lead 2026-10-06): a shuffle-bag over ARENA_ROTATION, the same shape as nextOpponent. `seen` is the cycle so far (profile.arenaPass);
+// the arena just fought is always in it, so no arena comes twice in a row, and when the bag is empty a new cycle starts with everything but the one just fought.
+// Pure in (current, seen, key), so a refresh draws the same arena. A rematch never calls this: the arena changes only with the opponent.
+export function nextArena(current: ArenaKey, seen: readonly string[], key: number): { arena: ArenaKey; pass: ArenaKey[] } {
+  const done = ARENA_ROTATION.filter(a => a === current || seen.includes(a));   // unknown ids drop out here
+  const left = ARENA_ROTATION.filter(a => !done.includes(a));
+  const pool = left.length ? left : ARENA_ROTATION.filter(a => a !== current);
+  return { arena: pool[(key >>> 0) % pool.length], pass: left.length ? done : [current] };
 }
 // The pick's key: FNV-1a over the profile id and its win count, so each win draws afresh and a refresh draws the same.
 export const passKey = (profileId: string, marks: number): number => {

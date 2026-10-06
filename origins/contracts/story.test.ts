@@ -2,9 +2,12 @@
 // checked against content, migrated or refused).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Result } from './core.ts';
+import { Issues, type Result } from './core.ts';
 import * as F from './fixtures.ts';
-import { checkQuestState, grantStageRewards, migrateQuestState, parseQuestDefinition, parseQuestState, type QuestDefinition, type QuestState } from './story.ts';
+import {
+  checkQuestState, grantStageRewards, holdsCondition, migrateQuestState, parseQuestDefinition, parseQuestState, readCondition,
+  type Condition, type ConditionFacts, type QuestDefinition, type QuestState,
+} from './story.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {
@@ -133,4 +136,35 @@ test('quest state: stage rewards are recorded when granted and can never be gran
   refused(parseQuestState({ ...F.questState(), rewarded: ['ruin', 'ruin'] }), 'duplicate-id', 'rewarded[1]');
   refused(parseQuestState({ ...F.questState(), rewarded: ['Ruin'] }), 'wrong-type', 'rewarded[0]');
   assert.equal(checkQuestState(state({ rewarded: ['nowhere'] }), q)[0]!.code, 'unknown-id');
+});
+
+test('holdsCondition: every kind true and false, missing lookups fail closed, hostile ids are just unknown', () => {
+  const quests = new Map([['quest:a', { stage: 'two', rewarded: ['one', 'two'] }]]);
+  const f: ConditionFacts = {
+    standing: { source: 'server', careerLevel: 1 }, quest: (id) => quests.get(id), choice: 'smith', flag: (n) => n === 'met',
+    hasItem: (i) => String(i) === 'item:ore', standingWith: (x) => (String(x) === 'faction:guild' ? 50 : 0), cleared: (e) => String(e) === 'encounter:pit',
+  };
+  const read = (raw: unknown): Condition => { const c = readCondition(new Issues(), raw, ''); assert.ok(c, JSON.stringify(raw)); return c; };
+  const both = (yes: unknown, no: unknown): void => { assert.equal(holdsCondition(read(yes), f), true, JSON.stringify(yes)); assert.equal(holdsCondition(read(no), f), false, JSON.stringify(no)); };
+  both({ kind: 'choice', choice: 'smith' }, { kind: 'choice', choice: 'broker' });
+  both({ kind: 'flag', name: 'met', value: true }, { kind: 'flag', name: 'met', value: false });
+  both({ kind: 'flag', name: 'other', value: false }, { kind: 'flag', name: 'other', value: true });
+  both({ kind: 'stage-reached', quest: 'quest:a', stage: 'one' }, { kind: 'stage-reached', quest: 'quest:a', stage: 'three' });
+  both({ kind: 'quest-at', quest: 'quest:a', stage: 'two' }, { kind: 'quest-at', quest: 'quest:a', stage: 'one' }); // now, not ever
+  both({ kind: 'quest-at', quest: 'quest:b', stage: null }, { kind: 'quest-at', quest: 'quest:a', stage: null }); // null = not started
+  both({ kind: 'tier-at-least', tier: 'Recruit' }, { kind: 'tier-at-least', tier: 'Origin' });
+  both({ kind: 'has-item', item: 'item:ore' }, { kind: 'has-item', item: 'item:gem' });
+  both({ kind: 'standing-at-least', faction: 'faction:guild', value: 50 }, { kind: 'standing-at-least', faction: 'faction:guild', value: 51 });
+  both({ kind: 'encounter-cleared', encounter: 'encounter:pit' }, { kind: 'encounter-cleared', encounter: 'encounter:den' });
+  // A device standing never opens a tier; a missing lookup never holds.
+  assert.equal(holdsCondition(read({ kind: 'tier-at-least', tier: 'Recruit' }), { ...f, standing: { source: 'device', careerLevel: 1 } }), false);
+  const bare: ConditionFacts = { standing: f.standing, quest: () => undefined };
+  for (const raw of [{ kind: 'choice', choice: 'smith' }, { kind: 'flag', name: 'met', value: true }, { kind: 'has-item', item: 'item:ore' },
+    { kind: 'standing-at-least', faction: 'faction:guild', value: -100 }, { kind: 'encounter-cleared', encounter: 'encounter:pit' }]) assert.equal(holdsCondition(read(raw), bare), false, JSON.stringify(raw));
+  // Hostile ids are refused at read, and an id that reaches the evaluator only reads through the injected lookups.
+  for (const raw of [{ kind: 'quest-at', quest: '__proto__', stage: null }, { kind: 'flag', name: '__proto__', value: true }, { kind: 'quest-at', quest: 'quest:a' }]) {
+    assert.equal(readCondition(new Issues(), raw, ''), undefined, JSON.stringify(raw));
+  }
+  assert.equal(holdsCondition({ kind: 'quest-at', quest: 'quest:constructor' as QuestState['quest'], stage: null }, f), true);
+  assert.equal(holdsCondition({ kind: 'stage-reached', quest: 'quest:__proto__' as QuestState['quest'], stage: 'one' }, f), false);
 });

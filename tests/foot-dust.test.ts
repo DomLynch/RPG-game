@@ -37,5 +37,5 @@ test('stone and clay floors get a darker dust than sand', () => {
 });
 
 test('each arena gets its floor\'s dust: Night Pit clay, Rain Yard and Cistern stone, Ash Pit and Blood Sand sand', () => {
-  assert.deepEqual(Object.values(ARENA_THEMES).map(t => `${t.id}:${dustToneFor(t)}`), ['1:sand', '2:sand', '3:sand', 'a:clay', 'b:stone', 'c:sand', 'd:stone']);
+  assert.deepEqual(Object.values(ARENA_THEMES).map(t => `${t.id}:${dustToneFor(t)}`), ['1:sand', '2:sand', '3:sand', '4:sand', '5:sand', '6:sand', '7:sand', '8:sand', '9:sand', '10:sand', '11:sand', 'a:clay', 'b:stone', 'c:sand', 'd:stone']);
 });

@@ -13,8 +13,9 @@ FOOT = np.array([90, 64, 46], np.float32)       # and the mean of backdrop-1's f
 im = Image.open(SRC).convert('RGB'); w, h = im.size
 # Portrait source: castle and sky above the skull gate, stands and statues, then the front wall at y ~0.47-0.57 h and his floor below. Keep above the wall's grates.
 fx0, fx1, fy1 = (float(v) for v in sys.argv[3:6]) if len(sys.argv) > 5 else (0.13, 0.87, 0.52)
-x0, x1, y1 = int(w * fx0), int(w * fx1), int(h * fy1)
-crop = im.crop((x0, 0, x1, y1)).resize((420, 535), Image.LANCZOS)
+fy0 = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0   # optional top of the crop, for a painting whose landmarks sit mid-height (Arena 7)
+x0, x1, y0, y1 = int(w * fx0), int(w * fx1), int(h * fy0), int(h * fy1)
+crop = im.crop((x0, y0, x1, y1)).resize((420, 535), Image.LANCZOS)
 a = np.asarray(crop, np.float32)
 rows = np.linspace(0, 1, 535, dtype=np.float32)[:, None, None]
 top = np.clip(1 - rows / 0.10, 0, 1) ** 1.5      # head: first 10 %

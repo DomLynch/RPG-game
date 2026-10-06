@@ -11,7 +11,7 @@ import {
 import * as F from './fixtures.ts';
 import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
 import {
-  checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
+  PACK_SLOTS, checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
 } from './items.ts';
 
 type Raw = Record<string, unknown>;
@@ -28,6 +28,7 @@ const DEFS = new Map<ItemId, ItemDefinition>([F.helmetDef(), F.graveIronDef(), F
 const lookup = (id: ItemId): ItemDefinition | undefined => DEFS.get(id);
 const helmetDef = DEFS.get('item:loot.veteran.Helmet' as ItemId)!;
 const LATER = '2026-10-07T09:30:00Z';
+const packs = (): number => PACK_SLOTS;
 
 // ---- trade ------------------------------------------------------------------------------------------------------------------------
 
@@ -66,7 +67,7 @@ test('trade: any offer change clears both accepts and bumps the version; a stale
 
 test('trade: settles at the Exchange; provenance and upgrade level travel; history gains one trade entry', () => {
   const h = offeredHelmet(), i = offeredIron();
-  const moved = must(settleTrade(trade(), [h, i], lookup, accountOf, LATER));
+  const moved = must(settleTrade(trade(), [h, i], lookup, accountOf, LATER, packs));
   const newH = moved.find((m) => m.id === h.id)!, newI = moved.find((m) => m.id === i.id)!;
   assert.deepEqual(newH.location, { kind: 'pack', owner: OTHER, index: 0 });
   assert.deepEqual(newI.location, { kind: 'pack', owner: PC, index: 0 });
@@ -79,22 +80,22 @@ test('trade: settles at the Exchange; provenance and upgrade level travel; histo
 
 test('trade: a gift is a trade with one empty side', () => {
   const t = trade({ sides: [{ character: F.PC, account: F.ACCOUNT, offered: ['inst:h'], accepted: true }, { character: F.OTHER_PC, account: F.OTHER_ACCOUNT, offered: [], accepted: true }] });
-  const moved = must(settleTrade(t, [offeredHelmet()], lookup, accountOf, LATER));
+  const moved = must(settleTrade(t, [offeredHelmet()], lookup, accountOf, LATER, packs));
   assert.equal(moved.length, 1);
 });
 
 test('trade: refused anywhere but the Concord Exchange, unaccepted, or with a forged side', () => {
-  refused(settleTrade(trade({ region: 'region:ash-frontier' }), [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'region');
+  refused(settleTrade(trade({ region: 'region:ash-frontier' }), [offeredHelmet(), offeredIron()], lookup, accountOf, LATER, packs), 'rule-violation', 'region');
   const t = trade();
   const unaccepted: Trade = { ...t, sides: [t.sides[0], { ...t.sides[1], accepted: false }] };
-  refused(settleTrade(unaccepted, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[1].accepted');
+  refused(settleTrade(unaccepted, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[1].accepted');
   const forged: Trade = { ...t, sides: [{ ...t.sides[0], account: 'account:11111111-2222-4333-8444-555555555555' as AccountId }, t.sides[1]] };
-  refused(settleTrade(forged, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[0].account');
+  refused(settleTrade(forged, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].account');
 });
 
 test('trade: one of each — a trade that would give a player a second copy is invalid and moves nothing', () => {
   const theirs = must(parseItemInstance({ ...F.helmetInstance(), id: 'inst:theirs', location: { kind: 'bank', owner: F.OTHER_PC, index: 3 }, provenance: { ...F.helmetInstance().provenance, mintKey: 'claim:5555', wonBy: F.OTHER_PC } }));
-  const r = settleTrade(trade(), [offeredHelmet(), offeredIron(), theirs], lookup, accountOf, LATER);
+  const r = settleTrade(trade(), [offeredHelmet(), offeredIron(), theirs], lookup, accountOf, LATER, packs);
   refused(r, 'rule-violation');
   assert.ok(!r.ok && r.issues[0]!.message.includes('one of each'));
 });
@@ -102,16 +103,19 @@ test('trade: one of each — a trade that would give a player a second copy is i
 test('trade: escrow, binding and capacity rules', () => {
   // A piece in this trade's escrow that is not on the offer.
   const stray = must(parseItemInstance({ ...F.ironInstance(), id: 'inst:stray', location: escrow(F.OTHER_PC), provenance: { ...F.ironInstance().provenance, mintKey: 'loot:stray-0001' } }));
-  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), stray], lookup, accountOf, LATER), 'rule-violation', 'inst:stray');
+  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), stray], lookup, accountOf, LATER, packs), 'rule-violation', 'inst:stray');
   // An offered piece that is not in escrow, or not in the holdings at all.
-  refused(settleTrade(trade(), [offeredHelmet({ location: { kind: 'bank', owner: F.PC, index: 0 } }), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
-  refused(settleTrade(trade(), [offeredIron()], lookup, accountOf, LATER), 'unknown-id', 'sides[0].offered[0]');
+  refused(settleTrade(trade(), [offeredHelmet({ location: { kind: 'bank', owner: F.PC, index: 0 } }), offeredIron()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].offered[0]');
+  refused(settleTrade(trade(), [offeredIron()], lookup, accountOf, LATER, packs), 'unknown-id', 'sides[0].offered[0]');
   // A bound piece cannot change hands.
   const token = must(parseItemInstance({ ...F.ironInstance(), id: 'inst:h', item: 'item:ferry-token', quantity: 1, location: escrow(F.PC), boundTo: null }));
-  refused(settleTrade(trade(), [{ ...token, boundTo: PC }, offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
+  refused(settleTrade(trade(), [{ ...token, boundTo: PC }, offeredIron()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].offered[0]');
   // A full pack refuses the trade instead of dropping the piece on the floor.
-  const full: ItemInstance[] = Array.from({ length: 64 }, (_, k) => must(parseItemInstance({ ...F.ironInstance(), id: `inst:fill-${k}`, location: { kind: 'pack', owner: F.OTHER_PC, index: k }, provenance: { ...F.ironInstance().provenance, mintKey: `loot:fill-${String(k).padStart(4, '0')}` } })));
-  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), ...full], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
+  const full: ItemInstance[] = Array.from({ length: PACK_SLOTS }, (_, k) => must(parseItemInstance({ ...F.ironInstance(), id: `inst:fill-${k}`, location: { kind: 'pack', owner: F.OTHER_PC, index: k }, provenance: { ...F.ironInstance().provenance, mintKey: `loot:fill-${String(k).padStart(4, '0')}` } })));
+  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), ...full], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].offered[0]');
+  // The receiver's real pack size counts, never an assumed 64: one used slot in a 1-slot pack is full; a bad size is refused.
+  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), full[0]!], lookup, accountOf, LATER, () => 1), 'rule-violation', 'sides[0].offered[0]');
+  for (const bad of [0, PACK_SLOTS + 1, 1.5, Number.NaN]) refused(settleTrade(trade(), [offeredHelmet(), offeredIron()], lookup, accountOf, LATER, () => bad), 'out-of-range');
 });
 
 test('trade: a piece listed twice is refused (duplicate-id) wherever the list comes from, and never moves twice', () => {
@@ -121,11 +125,11 @@ test('trade: a piece listed twice is refused (duplicate-id) wherever the list co
   refused(changeOffer(t, OTHER, ids('inst:i', 'inst:h'), 2), 'duplicate-id', 'offered'); // already on the other side
   // A trade built without parseTrade (a server object, a bug elsewhere) is still refused at settlement.
   const doubled: Trade = { ...t, sides: [{ ...t.sides[0], offered: ids('inst:h', 'inst:h') }, t.sides[1]] };
-  refused(settleTrade(doubled, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'sides');
+  refused(settleTrade(doubled, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER, packs), 'duplicate-id', 'sides');
   const crossed: Trade = { ...t, sides: [t.sides[0], { ...t.sides[1], offered: ids('inst:i', 'inst:h') }] };
-  refused(settleTrade(crossed, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'sides');
+  refused(settleTrade(crossed, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER, packs), 'duplicate-id', 'sides');
   // The same holding passed twice (two rows for one id) is refused, not resolved by whichever copy wins.
-  refused(settleTrade(t, [offeredHelmet(), offeredHelmet({ version: 9 }), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'holdings');
+  refused(settleTrade(t, [offeredHelmet(), offeredHelmet({ version: 9 }), offeredIron()], lookup, accountOf, LATER, packs), 'duplicate-id', 'holdings');
 });
 
 // ---- service, cost table, request and receipt contracts ---------------------------------------------------------------------------
