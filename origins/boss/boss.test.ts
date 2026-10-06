@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MINT_KEY_PATTERN } from '../contracts/core.ts';
 import { award, newCareer } from '../progression/model.ts';
-import { dormant, parseBossDefinition, sharePermille, step, type Action, type BossDefinition, type BossState, type Step } from './boss.ts';
+import { MAX_BOSS_ID_LENGTH, dormant, parseBossDefinition, sharePermille, step, type Action, type BossEncounter, type BossState, type Step } from './boss.ts';
 import { matriarch } from './fixtures.ts';
 
 const parsed = parseBossDefinition(matriarch());
 assert.ok(parsed.ok, JSON.stringify(!parsed.ok && parsed.issues));
-const DEF: BossDefinition = parsed.value;
+const DEF: BossEncounter = parsed.value;
 
 const go = (state: BossState, action: Action, def = DEF): Step => {
   const r = step(def, state, action);
@@ -25,14 +25,26 @@ function bossUp(def = DEF): BossState {
   return s;
 }
 
-test('fixture: the Matriarch parses; a threshold that disagrees with the progression model is refused', () => {
-  assert.equal(DEF.encounter.name, 'The Ash Hound Matriarch');
-  assert.deepEqual([DEF.level, DEF.health, DEF.encounter.stages[0]!.killsToAdvance], [12, 12_000, 12]);
-  const bad = matriarch();
-  bad.encounter.rewards.minContributionPercent = 5;
-  const r = parseBossDefinition(bad);
-  assert.ok(!r.ok && r.issues.some(i => i.code === 'rule-violation'));
+test('fixture: the Matriarch parses; a threshold that disagrees, a missing level or health, or extra fields are refused', () => {
+  assert.equal(DEF.name, 'The Ash Hound Matriarch');
+  assert.deepEqual([DEF.boss.level, DEF.boss.health, DEF.stages[0]!.killsToAdvance], [12, 12_000, 12]);
+  const refusedAt = (raw: unknown, code: string, path: string): void => {
+    const r = parseBossDefinition(raw);
+    assert.ok(!r.ok && r.issues.some(i => i.code === code && i.path === path), JSON.stringify(r));
+  };
+  refusedAt({ ...matriarch(), rewards: { minContributionPercent: 5 } }, 'rule-violation', 'rewards.minContributionPercent');
+  refusedAt({ ...matriarch(), boss: { ...matriarch().boss, level: undefined } }, 'missing-field', 'boss.level');
+  refusedAt({ ...matriarch(), boss: { ...matriarch().boss, health: undefined } }, 'missing-field', 'boss.health');
   assert.ok(!parseBossDefinition({ ...matriarch(), extra: 1 }).ok);
+});
+
+test('key length: an id at the limit mints its longest key; one character more is refused at parse time', () => {
+  const at = 'encounter:' + 'a'.repeat(MAX_BOSS_ID_LENGTH - 'encounter:'.length);
+  assert.ok(parseBossDefinition({ ...matriarch(), id: at }).ok);
+  assert.ok(MINT_KEY_PATTERN.test(`${at}:999999:pc:${'z'.repeat(96)}`)); // the longest key a defeat can emit
+  assert.ok(!MINT_KEY_PATTERN.test(`${at}a:999999:pc:${'z'.repeat(96)}`));
+  const over = parseBossDefinition({ ...matriarch(), id: `${at}a` });
+  assert.ok(!over.ok && over.issues.some(i => i.code === 'out-of-range' && i.path === 'id'));
 });
 
 test('stage order: dormant → gathering → boss → defeated → dormant after the cooldown', () => {
@@ -50,7 +62,7 @@ test('stage order: dormant → gathering → boss → defeated → dormant after
 
 test('waves: a two-wave encounter advances through both bars before the boss', () => {
   const raw = matriarch();
-  raw.encounter.stages.push({ ...raw.encounter.stages[0]!, id: 'den', killsToAdvance: 2 });
+  raw.stages.push({ ...raw.stages[0]!, id: 'den', killsToAdvance: 2 });
   const two = parseBossDefinition(raw);
   assert.ok(two.ok);
   let s = go(dormant(two.value), { kind: 'wake', at: 0 }, two.value).state;
@@ -63,9 +75,11 @@ test('waves: a two-wave encounter advances through both bars before the boss', (
 test('illegal transitions and hostile input are refused with the state unchanged', () => {
   const asleep = dormant(DEF);
   const up = bossUp();
+  const down = go(up, hit('pc:dom-1', 12_000, 60)).state; // defeated: only 'damage' (a no-op, pinned below) and 'reset' are legal
   const cases: [BossState, Action][] = [
     [asleep, { kind: 'foe-killed', at: 1 }], [asleep, hit('pc:dom-1', 5)], [asleep, { kind: 'abandon', at: 1 }], [asleep, { kind: 'reset', at: 1 }],
     [up, { kind: 'wake', at: 50 }], [up, { kind: 'foe-killed', at: 50 }], [up, { kind: 'reset', at: 50 }],
+    [down, { kind: 'wake', at: 60 }], [down, { kind: 'foe-killed', at: 60 }], [down, { kind: 'abandon', at: 60 }],
     [up, { kind: 'wake', at: 5 }], // time running back
     [up, hit('pc:dom-1', 0)], [up, hit('pc:dom-1', 1.5)], [up, hit('pc:dom-1', 5, 100, null, 0)], [up, hit('pc:dom-1', 5, 100, '')],
     [up, hit('account:dom', 5)], [up, hit('__proto__', 5)], [up, hit('pc:__proto__', 5)], [up, hit('pc:dom-1', 5, Number.NaN)],
@@ -90,15 +104,15 @@ test('contribution: 9.9% is not eligible, 10.0% is; one event and one loot reque
   const done = go(s, hit('pc:top', 20_000, 200));
   assert.equal(sharePermille(DEF, done.state.contributors.get('pc:top' as never)!), 800); // overkill clipped to the health left
   assert.deepEqual(done.events.map(e => [e.target, e.contributionPermille]), [
-    ['encounter:ash-hound-matriarch', 100], ['encounter:ash-hound-matriarch', 800],
+    ['encounter:matriarch', 100], ['encounter:matriarch', 800],
   ]);
   const [edge] = done.events;
   assert.deepEqual(edge, {
-    kind: 'kill', id: 'encounter:ash-hound-matriarch:1:pc:edge', at: 200, type: 'world-boss', target: 'encounter:ash-hound-matriarch',
+    kind: 'kill', id: 'encounter:matriarch:1:pc:edge', at: 200, type: 'world-boss', target: 'encounter:matriarch',
     targetLevel: 12, contributionPermille: 100,
   });
   assert.deepEqual(done.loot.map(l => l.character), ['pc:edge', 'pc:top']);
-  assert.deepEqual(done.loot[0], { encounter: 'encounter:ash-hound-matriarch', lootTable: 'loottable:ash-hound-matriarch', character: 'pc:edge', mintKey: edge!.id });
+  assert.deepEqual(done.loot[0], { encounter: 'encounter:matriarch', lootTable: 'loottable:ash-hound-matriarch', character: 'pc:edge', mintKey: edge!.id });
   assert.ok(done.loot.every(l => MINT_KEY_PATTERN.test(l.mintKey)));
 });
 
@@ -130,7 +144,7 @@ test('cooldown: reset is refused before restartSeconds and allowed at it; the ne
   s = go(s, { kind: 'wake', at: 3700 }).state;
   for (let i = 0; i < 12; i++) s = go(s, { kind: 'foe-killed', at: 3701 }).state;
   const second = go(s, hit('pc:dom-1', 12_000, 3800));
-  assert.equal(second.events[0]!.id, 'encounter:ash-hound-matriarch:2:pc:dom-1');
+  assert.equal(second.events[0]!.id, 'encounter:matriarch:2:pc:dom-1');
   // The progression model, not this module, makes the second kill pay nothing.
   const paid = award(newCareer(10), first.events[0]!);
   assert.equal(paid.reason, 'ok');

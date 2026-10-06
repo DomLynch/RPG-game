@@ -11,26 +11,32 @@
 // one loot request per eligible character (the server rolls the table after verifying; nothing is rolled here). Both carry the same
 // deterministic key, so a retried settlement is caught by the server's unique index.
 import { MAX_LEVEL, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, type Kill } from '../progression/model.ts';
-import { Issues, fail, ok, readInt, readObject, type Result } from '../contracts/core.ts';
+import { Issues, fail, ok, type Result } from '../contracts/core.ts';
 import { parseId, type CharacterInstanceId, type EncounterId, type LootTableId } from '../contracts/ids.ts';
 import { parseEncounterDefinition, type EncounterDefinition } from '../contracts/world.ts';
 
-// The encounter contract plus the two numbers it does not carry yet: the boss's level (the progression event's targetLevel) and health
-// (the denominator of every contribution share).
-export type BossDefinition = { encounter: EncounterDefinition; level: number; health: number };
+// The contract's own type with the boss's optional level and health proven present (not a second content type).
+export type BossEncounter = EncounterDefinition & { boss: Required<EncounterDefinition['boss']> };
 
-export function parseBossDefinition(raw: unknown, path = ''): Result<BossDefinition> {
-  const issues = new Issues();
-  const obj = readObject(issues, raw, path, ['encounter', 'level', 'health']);
-  if (!obj) return issues.finish(undefined as never);
-  const encounter = issues.absorb(parseEncounterDefinition(obj.encounter, path ? `${path}.encounter` : 'encounter'));
-  const level = readInt(issues, obj, 'level', path, 1, MAX_LEVEL);
-  const health = readInt(issues, obj, 'health', path, 1, 10_000_000);
+// Every emitted key is `<encounter>:<defeat #>:<pc>`. With up to 6 defeat digits and the longest pc id ("pc:" + a 96-character local
+// part, contracts/ids.ts), the encounter id has this many characters left inside MINT_KEY_PATTERN's 128.
+const MINT_KEY_MAX = 128, LONGEST_PC_ID = 'pc:'.length + 96, DEFEAT_DIGITS = 6;
+export const MAX_BOSS_ID_LENGTH = MINT_KEY_MAX - LONGEST_PC_ID - DEFEAT_DIGITS - 2;
+
+// Parse an encounter and check it can run as a world boss: level and health present, the contract's percent equal to the progression
+// model's threshold, and an id short enough that no defeat can emit an unmintable key.
+export function parseBossDefinition(raw: unknown, path = ''): Result<BossEncounter> {
+  const r = parseEncounterDefinition(raw, path);
+  if (!r.ok) return r;
+  const def = r.value, issues = new Issues(), at = (key: string): string => (path ? `${path}.${key}` : key);
+  if (def.boss.level === undefined) issues.add('missing-field', at('boss.level'), 'a world boss needs its level (the event\'s targetLevel)');
+  if (def.boss.health === undefined) issues.add('missing-field', at('boss.health'), 'a world boss needs its health (the contribution denominator)');
   // One threshold: the contract's percent must say what the progression model enforces, or the two would disagree about who is paid.
-  if (encounter && encounter.rewards.minContributionPercent * 10 !== MIN_CONTRIBUTION_PERMILLE) {
-    issues.add('rule-violation', 'encounter.rewards.minContributionPercent', `a world boss pays at ${MIN_CONTRIBUTION_PERMILLE / 10}% of its health`);
+  if (def.rewards.minContributionPercent * 10 !== MIN_CONTRIBUTION_PERMILLE) {
+    issues.add('rule-violation', at('rewards.minContributionPercent'), `a world boss pays at ${MIN_CONTRIBUTION_PERMILLE / 10}% of its health`);
   }
-  return issues.finish({ encounter: encounter!, level: level!, health: health! });
+  if (def.id.length > MAX_BOSS_ID_LENGTH) issues.add('out-of-range', at('id'), `a world boss id is at most ${MAX_BOSS_ID_LENGTH} characters, so its mint keys fit`);
+  return issues.finish(def as BossEncounter);
 }
 
 export type Stage = 'dormant' | 'gathering' | 'boss' | 'defeated';
@@ -55,16 +61,16 @@ export type Action =
 export type LootRequest = { encounter: EncounterId; lootTable: LootTableId; character: CharacterInstanceId; mintKey: string };
 export type Step = { state: BossState; events: Kill[]; loot: LootRequest[] };
 
-export const dormant = (def: BossDefinition, at = 0): BossState =>
-  ({ stage: 'dormant', wave: 0, kills: 0, health: def.health, since: at, defeats: 0, contributors: new Map() });
+export const dormant = (def: BossEncounter, at = 0): BossState =>
+  ({ stage: 'dormant', wave: 0, kills: 0, health: def.boss.health, since: at, defeats: 0, contributors: new Map() });
 
-export const sharePermille = (def: BossDefinition, c: Contributor): number => Math.floor((c.dealt * 1000) / def.health);
-export const isEligible = (def: BossDefinition, c: Contributor): boolean => sharePermille(def, c) >= MIN_CONTRIBUTION_PERMILLE;
+export const sharePermille = (def: BossEncounter, c: Contributor): number => Math.floor((c.dealt * 1000) / def.boss.health);
+export const isEligible = (def: BossEncounter, c: Contributor): boolean => sharePermille(def, c) >= MIN_CONTRIBUTION_PERMILLE;
 
 const refuse = (path: string, message: string): Result<Step> => fail('rule-violation', path, message);
 const moved = (state: BossState): Result<Step> => ok({ state, events: [], loot: [] });
 
-export function step(def: BossDefinition, state: BossState, action: Action): Result<Step> {
+export function step(def: BossEncounter, state: BossState, action: Action): Result<Step> {
   const at: unknown = action.at;
   if (typeof at !== 'number' || !Number.isSafeInteger(at) || at < state.since) return refuse('at', 'a server time in whole seconds, never before the last stage change');
   const off = (): Result<Step> => refuse('kind', `"${String(action.kind)}" is not legal while ${state.stage}`);
@@ -77,9 +83,9 @@ export function step(def: BossDefinition, state: BossState, action: Action): Res
     case 'foe-killed': {
       if (state.stage !== 'gathering') return off(); // a minion killed beside the boss counts for nothing (spec §6)
       const kills = state.kills + 1;
-      if (kills < def.encounter.stages[state.wave]!.killsToAdvance) return moved({ ...state, kills });
+      if (kills < def.stages[state.wave]!.killsToAdvance) return moved({ ...state, kills });
       const wave = state.wave + 1;
-      return wave < def.encounter.stages.length ? moved({ ...state, wave, kills: 0, since: at }) : moved({ ...state, stage: 'boss', kills: 0, since: at });
+      return wave < def.stages.length ? moved({ ...state, wave, kills: 0, since: at }) : moved({ ...state, stage: 'boss', kills: 0, since: at });
     }
 
     case 'abandon':
@@ -87,7 +93,7 @@ export function step(def: BossDefinition, state: BossState, action: Action): Res
 
     case 'reset': {
       if (state.stage !== 'defeated') return off();
-      if (at - state.since < def.encounter.restartSeconds) return refuse('at', `the boss returns ${def.encounter.restartSeconds}s after its defeat`);
+      if (at - state.since < def.restartSeconds) return refuse('at', `the boss returns ${def.restartSeconds}s after its defeat`);
       return moved({ ...fresh, defeats: state.defeats });
     }
 
@@ -117,15 +123,15 @@ export function step(def: BossDefinition, state: BossState, action: Action): Res
 
 // The kill: one progression event and one loot request per eligible character, in engage order. Called once per defeat, from the
 // transition into 'defeated', so a replayed killing blow lands on a defeated boss and emits nothing.
-function defeat(def: BossDefinition, state: BossState, at: number): Step {
-  const { id, boss } = def.encounter;
+function defeat(def: BossEncounter, state: BossState, at: number): Step {
+  const { id, boss } = def;
   const events: Kill[] = [], loot: LootRequest[] = [];
   for (const [character, c] of state.contributors) {
     if (!isEligible(def, c)) continue;
     const key = `${id}:${state.defeats}:${character}`;
     const partyLevels = c.party === null ? [] : [...state.contributors].filter(([o, m]) => o !== character && m.party === c.party).map(([, m]) => m.level);
     events.push({
-      kind: 'kill', id: key, at, type: 'world-boss', target: id, targetLevel: def.level, contributionPermille: sharePermille(def, c),
+      kind: 'kill', id: key, at, type: 'world-boss', target: id, targetLevel: def.boss.level, contributionPermille: sharePermille(def, c),
       ...(partyLevels.length ? { partyLevels } : {}),
     });
     loot.push({ encounter: id, lootTable: boss.loot, character, mintKey: key });

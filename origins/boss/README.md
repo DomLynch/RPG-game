@@ -2,7 +2,7 @@
 
 A staged world boss as a pure state machine (`boss.ts`): **dormant → gathering** (kill a wave's lesser foes to fill the bar) **→ boss → defeated → dormant** once the encounter's `restartSeconds` cooldown has passed; a caller-signalled `abandon` (everyone left) drops gathering or a live boss back to dormant. Each participant's damage is clipped to the health left, so the shares never pass 100%. On defeat it emits, once, for every character at **≥ 10% of the boss's health** (progression's `MIN_CONTRIBUTION_PERMILLE`): one progression `Kill` event (`type: 'world-boss'`) and one loot request. Both carry the same key, `<encounter>:<defeat #>:<pc>`, so a retried settlement is caught by the server's unique index. First-win-only pay is the progression model's rule (`award` → `already-beaten`), not this module's.
 
-The content is the contracts' `EncounterDefinition` plus the boss's level and health (`BossDefinition`, read by `parseBossDefinition`). The sample is chapter one's **Ash Hound Matriarch** in `fixtures.ts`: the Ash Frontier, beyond the Concord Exchange's west gate, with 12 ash hounds and a level 12 boss.
+The content is the contracts' `EncounterDefinition` with its optional `boss.level` and `boss.health` set; `parseBossDefinition` refuses a boss encounter without both, with a threshold other than the progression model's, or with an id too long for its mint keys (`MAX_BOSS_ID_LENGTH`). The sample is chapter one's **Ash Hound Matriarch** in `fixtures.ts`: the Ash Frontier, beyond the Concord Exchange's west gate, with 12 ash hounds and a level 12 boss.
 
 **Status:** paper and prototype only. Nothing in `src/` imports it.
 
@@ -10,4 +10,4 @@ The content is the contracts' `EncounterDefinition` plus the boss's level and he
 
 **Checks** (VPS): `node --test tests/origins-boss.test.ts`, then strict `tsc` and `eslint origins/boss`.
 
-**Not done:** rendering, AI and combat (the greybox); the server's loot roll and its verification; persistence of the state; the encounter's time-based `decay` (only the caller-signalled abandon is modelled); spawn population and roster.
+**Not done:** rendering, AI and combat (the greybox); the server's loot roll and its verification; persistence of the state; public-encounter decay (only the caller-signalled abandon is modelled; decay stays out until content needs it); spawn population and roster.
