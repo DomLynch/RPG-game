@@ -28,7 +28,7 @@ export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE
 export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
 export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
-const ABYSS_HAZE = [176, 194, 214];   // the haze the abyss disc's rim and the horizon bowl meet in: equal to HAZE in scripts/arena-abyss.py
+const ABYSS_ONE = { map: 'arena/abyss.webp', haze: [176, 194, 214] as [number, number, number], cream: [227, 204, 189] as [number, number, number] };   // Arena 1's abyss: the haze its disc's rim and the horizon bowl meet in equals HAZE in scripts/arena-abyss.py
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const RAIN_PHONE_COUNT = 500;
 const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-fov (scene.ts): a point sprite's size in world terms at any depth
@@ -502,16 +502,16 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // for Dom 2026-10-06) on a disc, its rim faded into the haze; round it a bowl inside the sky dome that runs from the painted clouds' cream into the same haze. Unfogged; the clear colour never shows.
     // The map is fetched against the page's base (a preview lives under /preview/<name>/, where '/arena/abyss.webp' is a 404) and until it lands, or if it never does, the disc is the
     // haze colour, never the black an empty texture samples as.
-    const haze = new THREE.Color().setRGB(ABYSS_HAZE[0] / 255, ABYSS_HAZE[1] / 255, ABYSS_HAZE[2] / 255, THREE.SRGBColorSpace), size = 420;
+    const abyss = theme.abyss ?? ABYSS_ONE, haze = new THREE.Color().setRGB(abyss.haze[0] / 255, abyss.haze[1] / 255, abyss.haze[2] / 255, THREE.SRGBColorSpace), size = 420;
     const groundMaterial = new THREE.MeshBasicMaterial({ name: 'abyss ground', color: haze, fog: false, toneMapped: false }); materials.push(groundMaterial);
     const groundLanded = (map: THREE.Texture) => {
       map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping; map.generateMipmaps = true; map.minFilter = THREE.LinearMipmapLinearFilter; map.anisotropy = 4;
       groundMaterial.map = map; groundMaterial.color.set(0xffffff); groundMaterial.needsUpdate = true; groundMaterial.addEventListener('dispose', () => map.dispose());
     };
     if (typeof document === 'undefined') groundLanded(new THREE.DataTexture(new Uint8Array(size * size * 4), size, size));
-    else new THREE.TextureLoader().load(`${import.meta.env?.BASE_URL ?? '/'}arena/abyss.webp`, groundLanded);
+    else new THREE.TextureLoader().load(`${import.meta.env?.BASE_URL ?? '/'}${abyss.map}`, groundLanded);
     abyssGround = mesh(new THREE.CircleGeometry(80, 48).rotateX(-Math.PI / 2).translate(0, -36, 0), groundMaterial, 'abyss ground', false); abyssGround.receiveShadow = false;
-    const bowl = new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), cream = new THREE.Color().setRGB(0.89, 0.8, 0.74, THREE.SRGBColorSpace), bowlColors = new Float32Array(bowl.attributes.position.count * 3), tint = new THREE.Color();
+    const bowl = new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), cream = new THREE.Color().setRGB(abyss.cream[0] / 255, abyss.cream[1] / 255, abyss.cream[2] / 255, THREE.SRGBColorSpace), bowlColors = new Float32Array(bowl.attributes.position.count * 3), tint = new THREE.Color();
     for (let i = 0; i < bowl.attributes.position.count; i++) { const below = Math.asin(Math.min(1, -bowl.attributes.position.getY(i) / 148)); tint.copy(cream).lerp(haze, smooth(0, 0.42, below)); tint.toArray(bowlColors, i * 3); }
     bowl.setAttribute('color', new THREE.BufferAttribute(bowlColors, 3));
     const bowlMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', vertexColors: true, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(bowlMaterial);
