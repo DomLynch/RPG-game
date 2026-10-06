@@ -138,6 +138,8 @@ after all moves (`economy.ts:166-167`). In the database it fails: `origins_items
 Postgres checks per row, not at commit, so whichever helm moves first gives its receiver two for a moment and the batch aborts. There is no
 neutral parking location (a live row must have a `loc_kind`, `0001:125`). Recommendation (D10): accept the refusal for phase 1 and pre-check
 it at `change_offer` with a clear message. A deferrable form needs a unique constraint, which cannot be partial, so it is a redesign.
+**Update (Backend, 2026-10-07):** 0003 replaces the index with a deferred check at commit (§6.3, M17), after which the swap settles; D10 is
+then superseded, pending Strategy's confirmation.
 
 ### 2.8 Exchange only, and no same-device trade
 
@@ -330,7 +332,7 @@ packs filled mid-trade, pieces passed A → B → C → A). After every step:
 | D5 | Two trades offering the same piece | Second escrow `put` stale (O0002); with 0003 also refused as already in an open trade. |
 | D6 | Receiver full | Writer refuses first; a forced batch into a taken slot fails the place index (`0001:126`). Trade stays open. |
 | D7 | Receiver already holds the piece | `origins_items_one_of_each` refuses, nothing moves (exists: `:156-157`). |
-| D8 | Same-definition swap | Refused (§2.7); pinned so any change is deliberate. |
+| D8 | Same-definition swap | Before 0003: refused (§2.7). After M17: settles, and each account still holds one copy at commit; pinned so any change is deliberate. |
 | D9 | Cancel batch that leaves a piece in escrow | Refused by 0003; trade stays open. |
 | D10 | Settle without both accepts, or at a stale version | Refused by 0003 (today the DB allows it). |
 | D11 | Two characters of one account | Refused by 0003. |
@@ -370,7 +372,7 @@ buyers, and the second buyer cannot resell it.
 | Gate | Value | Why |
 |---|---|---|
 | Rank | Gladiator (career level 11+) | Implied by the Exchange (blueprint `:8`); levels 11-15 are Gladiator (`origins/contracts/world.ts:41-42`, `src/career.ts:8`). |
-| Verified contact | A verified email **and** a verified phone before trading unlocks | Raises the cost of each mule or resale account. **OPEN:** Supabase Auth phone verification is not configured today. |
+| Verified contact | A verified **email** before trading unlocks. Phone verification is an **optional later gate**, not for beta: SMS costs money per message, so it is Dom's purchase call (Strategy, 2026-10-07). | Raises the cost of each mule or resale account. |
 | Account age | **7 days** since the account was created | Throwaway accounts cost a week. |
 | Origins age | **48 hours** since `origins_access.granted_at` (`0001:17`) | Stops instant farms on new allowlist rows. |
 
@@ -442,7 +444,7 @@ Reasons:
 Account selling is where gold sellers go when there is no gold. **It cannot be removed completely.** Mitigations, each **PROPOSED**:
 
 - A **ToS ban** on selling, buying or sharing accounts, with the account frozen on proof.
-- **Verified email and phone** before trading unlocks (§5.3): a sold account carries the seller's phone, which makes resale awkward.
+- **Verified email** before trading unlocks (§5.3). A verified phone (an optional later gate, Dom's purchase call) would make resale more awkward still, because a sold account would carry the seller's phone.
 - **Trade cooldown after a new device or a password/email change** (§5.4): a bought account cannot be stripped of its tradeable pieces for
   72 hours, long enough for a report or a flag.
 - **Provenance trails** (§5.7): a farm that levels accounts and resells their pieces shows up as one winner's pieces spreading to many
@@ -464,20 +466,94 @@ Account selling is where gold sellers go when there is no gold. **It cannot be r
 Nothing in 0003 touches a live non-Origins table. Every item creates or replaces something under `origins_*`, with a down-script that
 restores exactly the 0001/0002 state, a branch-DB run of `scripts/origins-database-check.mjs` plus §4.3, and Auditor probes.
 
+**BLOCKER before any trading op ships and before the flag GO (Strategy and Backend, 2026-10-07).** Three gaps in the applied 0001 come
+first. Backend confirmed all three and fixes them in **one** 0003 (no 0002b; 0001 and 0002 are never edited), with tests (D8, D9, D10,
+§4.3), before any trade path is wired. No trading flag turns on without them.
+
+| Gap | In 0001 today | Fix in 0003 | Rows |
+|---|---|---|---|
+| 1. Settle does not check the accepts or the offer | `origins_settle_trade` checks only `state = 'open'` and both sides present, then runs any batch (`0001:490-500`) | The acceptance model, §6.1 | M1, M4, M5, M6, M8 |
+| 2. Escrow can outlive its trade | Nothing checks the container after settle or cancel (`0001:490-510`) | §6.2 | M6, M7 |
+| 3. Same-definition swap aborts | `origins_items_one_of_each` is a unique index, checked per row (`0001:132`) | §6.3 | M17 |
+
+**Honest scope (Backend).** These checks guard against **writer bugs**, not a compromised writer. The writer role can already open trades
+for any characters (`origins_open_trade` takes any two character ids, `0001:484-489`) and build any batch. So this is hardening of the one
+trusted writer, not a new trust boundary.
+
+### 6.1 Gap 1: the acceptance model
+
+**Columns on `origins_trades` (M1):**
+
+| Column | Type | Meaning |
+|---|---|---|
+| `offer_version` | `int not null default 0` | Bumps by 1 on every offer change on either side. Only `origins_change_offer` (M4) writes it, and the escrow guard (M8) makes M4 the only way into or out of escrow while a trade is open. |
+| `accepted_version_a`, `accepted_version_b` | `int` (null = not accepted) | The `offer_version` that side accepted. |
+| `accepted_at_a`, `accepted_at_b` | `timestamptz` | When. Audit only. |
+| `accepted_set_a`, `accepted_set_b` | `jsonb` | What that side accepted: every live escrow row of the container, **both sides**, as `[{id, version, from}]` sorted by id. |
+
+An offer change sets both `accepted_version_*` and `accepted_set_*` back to null in the same statement that bumps `offer_version` (the
+double-accept rule, `economy.ts:98-99`).
+
+**What a side accepts:** the offer version **and** the exact set of item ids and row versions on both sides at that version. The version alone
+would miss a row whose version moved without an offer change (a bug path); the set alone would miss a removed-then-re-added piece at the
+same version. Both together pin the offer on screen.
+
+**Who writes it:** the writer only, through a new `origins_accept_trade(p_container text, p_character text, p_offer_version int, p_accepted
+boolean)` (M5), executable by `frankendom_origins` only. It takes a **character**, not a side letter, and derives the side from
+`side_a`/`side_b`, so a call can never accept for the other side. Under `for update` on the trade row it: refuses unless the trade is open,
+not expired, `p_character` is a side and `p_offer_version = offer_version`; then **reads the set itself** from `origins_items` (live rows with
+`loc_kind = 'trade-escrow'` and `loc_container = p_container`) and stores it. The writer never supplies the set. `p_accepted = false` clears
+that side.
+
+**Settle's checks (M6),** in order, under `for update` on the trade row, all before any op runs:
+
+1. The trade is open, not expired, and both sides present (today's checks, `0001:493-495`).
+2. `accepted_version_a = accepted_version_b = offer_version`: both sides accepted the **current** offer.
+3. `accepted_set_a = accepted_set_b`, and both equal the escrow read now: every live escrow row of the container, by id and version, is
+   exactly the accepted set. A row that moved, changed version, or appeared since the accept refuses the settle.
+4. The batch holds only: one `put` per accepted row, with `expected_version` = its accepted version, moving it to a pack or bank slot of the
+   **other** side's character; and `event` ops of kind `trade` for the two sides' accounts. Any other op (`mint`, `burn`, `split`, `merge`,
+   `career_set`, a `put` of a row not in the set, a `put` back to its own offerer) refuses the whole settle.
+5. Then gap 2's check (§6.2), then `state = 'settled'`.
+
+### 6.2 Gap 2: no escrow outlives its trade
+
+At the end of `origins_settle_trade` and `origins_cancel_trade` (M6, M7), after the batch has run and before the state changes: if any live
+row still has `loc_kind = 'trade-escrow'` and `loc_container = p_container`, raise (O0002) and roll back. The trade stays open. A deferred
+constraint trigger on `origins_trades` (checking at commit that a non-open trade's container is empty) would do the same; the in-function
+check is recommended because it fails at the call with a clear message, and the escrow guard (M8) already stops rows entering a closed
+trade's container.
+
+### 6.3 Gap 3: one-of-each checked at commit
+
+A unique index cannot be deferred, and a same-definition swap is circular (each move makes a duplicate for a moment), so no op order helps.
+0003 **drops `origins_items_one_of_each`** and replaces it with a **deferred constraint trigger** (M17) on `origins_items` insert or update:
+at commit, for each touched `(holder_account, item)` with `single_copy` and `retired_at is null`, count the live rows; more than one raises
+(new code, or the existing 23505 class for continuity: Backend's call). Two cautions for Backend:
+
+- **Concurrency.** The index stopped two concurrent transactions each adding one copy for the same account. A count at commit does not by
+  itself: under READ COMMITTED each transaction can count 1. The trigger must take `pg_advisory_xact_lock` on a hash of
+  `(holder_account, item)` before counting, so the second commit waits for the first and then counts with a fresh snapshot.
+- **Erasure and guild vaults** keep today's behaviour: retired rows and rows with a null holder (guild vault) are not counted, as the index's
+  `where` clause does now (`0001:132`).
+
+It is Origins-only and class 1 (same class note as M1). The down-script restores the 0001 index.
+
 **Class note.** 0002 replaced the `origins_events` kind check with ALTER (`0002:8-10`) and was handled as an additive Origins-only file. This
 spec follows that: changing an **Origins** table that holds no player rows (the flag is OFF, `0001:16`) is class 1. If Strategy reads R7's
 "live table" to include applied Origins tables, the items marked 1* become class 2 or move to companion tables (D12).
 
 | # | Change | Kind | Class |
 |---|---|---|---|
-| M1 | `origins_trades` add `version int not null default 0`, `accepted_a`, `accepted_b` (bool, default false), `region text`, `expires_at`, `last_change_at` (timestamptz), `cancel_reason text` (check: cancelled, expired, timeout, side-erased, reversed) | ALTER ADD COLUMN, Origins table | 1* |
+| M1 | **BLOCKER.** `origins_trades` add the acceptance columns of §6.1 (`offer_version`, `accepted_version_a/b`, `accepted_at_a/b`, `accepted_set_a/b`), plus `region text`, `expires_at`, `last_change_at` (timestamptz), `cancel_reason text` (check: cancelled, expired, timeout, side-erased, reversed) | ALTER ADD COLUMN, Origins table | 1* |
+| M4 | **BLOCKER.** New `origins_change_offer(container, character, expected_version, batch)`: under the trade lock, check `offer_version`, apply that side's escrow in/out `put`s only, `offer_version`+1, clear both sides' `accepted_version_*` and `accepted_set_*` (§6.1) | function | 1 |
+| M5 | **BLOCKER.** New `origins_accept_trade(p_container, p_character, p_offer_version, p_accepted)` (§6.1): derives the side, reads and stores the accepted set itself | function | 1 |
+| M6 | **BLOCKER.** Replace `origins_settle_trade`: the five checks of §6.1 (current `offer_version` accepted by both, escrow equals the accepted set, only the two sides' escrow moves and `trade` events), then §6.2's empty-escrow check | function replace | 1 |
+| M7 | **BLOCKER.** Replace `origins_cancel_trade`: §6.2's empty-escrow check; record `cancel_reason` | function replace | 1 |
+| M8 | **BLOCKER.** Escrow guard trigger on `origins_items`: enter `trade-escrow` only for an open trade where `loc_from` is a side, only if `single_copy` and `bound_to is null`; leave escrow only inside M4, M6, M7 or M14 (a transaction-local setting, like `origins.purge`, `0001:519`) | trigger | 1 |
+| M17 | **BLOCKER.** Drop `origins_items_one_of_each` (`0001:132`); add a deferred constraint trigger that counts live single-copy rows per `(holder_account, item)` at commit, under an advisory lock (§6.3). Down-script restores the index. | index drop + trigger | 1* |
 | M2 | One open trade per character and per account: partial unique indexes on `side_a` / `side_b` where open, plus a cross-column check in `origins_open_trade`; index on `(state, expires_at)` where open | index | 1 |
 | M3 | Replace `origins_open_trade`: two different accounts; neither already trading; set `region`, `expires_at` | function replace | 1 |
-| M4 | New `origins_change_offer(container, character, expected_version, batch)`: under the trade lock, check the version, apply that side's escrow in/out `put`s only, version+1, clear both accepts | function | 1 |
-| M5 | New `origins_accept_trade(container, character, expected_version, accepted)` | function | 1 |
-| M6 | Replace `origins_settle_trade`: require both accepts, the expected version, not expired; allow only `put` and `event` ops; refuse if a live row is left in the container | function replace | 1 |
-| M7 | Replace `origins_cancel_trade`: refuse if a live row is left in the container; record `cancel_reason` | function replace | 1 |
-| M8 | Escrow guard trigger on `origins_items`: enter `trade-escrow` only for an open trade where `loc_from` is a side, only if `single_copy` and `bound_to is null`; leave escrow only inside M4, M6, M7 or M14 (a transaction-local setting, like `origins.purge`, `0001:519`) | trigger | 1 |
 | M9 | Trade-limit trigger on `origins_items`: when an update appends a `trade` history entry, count them; refuse above **2**; at 2 require `bound_to` = the new holder | trigger | 1 |
 | M10 | New `origins_expire_trades()` for the writer's sweep | function | 1 |
 | M11 | `origins_events` kind check gains `trade`, `trade-cancel`, `trade-reversal` (same form as `0002:8-10`; `tribute` too if M15 ships) | constraint replace | 1* |
@@ -497,25 +573,25 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 
 ## 7. Decisions for Strategy
 
-1. **Player currency:** none, barter only / tradeable coin. **Recommend none; coin considered and rejected (§3.1).**
-2. **Full receiver:** refuse the whole trade and keep it open (today's code) / move what fits, return the rest. **Recommend refuse whole; fix `server-save-schema.md:76`.**
-3. **Trade limit:** 2 hand changes then bind to the third owner / 1 / unlimited. **Recommend 2.**
-4. **Gifts (one empty side):** off at beta / on. **Recommend off at beta (one or more items each side), the contract allows them today (`economy.ts:68`).**
-5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **Recommend rare-and-up plus Pit pieces, so R1 holds.**
-6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **Recommend the character; no contract change.**
-7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **Recommend history.**
-8. **NPC costs:** bound tribute, ledger tables / column on `origins_career`; smith stays materials-only for now. **Recommend ledger tables when built; materials-only at beta.**
-9. **Tribute per Pit win:** 20 x payer tier, 20 paid wins a day / 20 x legend tier / flat. **Recommend 20 x payer tier as the placeholder; Stats sets it.**
-10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **Recommend refuse.**
-11. **Same-IP trades:** allow and flag / refuse. **Recommend allow and flag; refuse same session or device.**
-12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **Recommend class 1 while the flag is OFF and the tables are empty.**
-13. **Trade gates:** Gladiator only / plus verified email and phone, 7-day account, 48 h Origins age. **Recommend all.**
-14. **Cooldown after a new device or a password/email change:** 72 h / 24 h / none. **Recommend 72 h.**
-15. **Cash shop:** Dom only; cosmetics, transmog and membership convenience; always bound, never random, never stats / anything wider. **Recommend the narrow catalogue.**
-16. **Phase 2 discovery:** barter board with multi-item and "any of these" offers, no prices / priced market. **Recommend the barter board.**
-17. **Re-winnable once sold (R2):** adopt with a give cap / reject / defer. **Recommend defer until after beta (live award path).**
-18. **Who may reverse a trade:** Dom / Dom or Strategy on Dom's say / any admin. **Recommend Dom or Strategy on Dom's say; admins freeze only.**
-19. **Player trade before the hub runtime exists:** heartbeat only / wait for the hub to prove the Exchange position. **Recommend wait; heartbeat in the preview.**
+1. **Player currency:** none, barter only / tradeable coin. **Awaiting Dom. Recommend none; coin considered and rejected (§3.1).**
+2. **Full receiver:** refuse the whole trade and keep it open (today's code) / move what fits, return the rest. **RULED (Strategy 2026-10-07): refuse whole; fix `server-save-schema.md:76`.**
+3. **Trade limit:** 2 hand changes then bind to the third owner / 1 / unlimited. **Awaiting Dom. Recommend 2.**
+4. **Gifts (one empty side):** off at beta / on. **RULED (Strategy 2026-10-07): off at beta (one or more items each side), the contract allows them today (`economy.ts:68`).**
+5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-07): rare-and-up plus Pit pieces, so R1 holds.**
+6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-07): the character for beta; revisit account-bind after beta. No contract change.**
+7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-07): history.**
+8. **NPC costs:** bound tribute, ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-07): ledger tables when built; materials-only at beta.**
+9. **Tribute per Pit win:** 20 x payer tier, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-07): 20 x payer tier as the placeholder; Stats sets the number.**
+10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-07): refuse.** (Superseded once 0003's M17 lands: the swap then settles. Awaiting Strategy's confirmation.)
+11. **Same-IP trades:** allow and flag / refuse. **RULED (Strategy 2026-10-07): allow and flag; refuse same session or device.**
+12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **RULED (Strategy 2026-10-07): class 1 while the flag is OFF and the tables are empty; same path, joint GO.**
+13. **Trade gates:** Gladiator only / plus verified email, 7-day account, 48 h Origins age (phone dropped for beta). **CHANGED (Strategy 2026-10-07): Gladiator rank + verified email + 7-day-old account + 48 h in Origins. Phone verification is an optional later gate (SMS costs money per message; Dom's purchase call).**
+14. **Cooldown after a new device or a password/email change:** 72 h / 24 h / none. **RULED (Strategy 2026-10-07): 72 h.**
+15. **Cash shop:** Dom only; cosmetics, transmog and membership convenience; always bound, never random, never stats / anything wider. **Awaiting Dom. Recommend the narrow catalogue.**
+16. **Phase 2 discovery:** barter board with multi-item and "any of these" offers, no prices / priced market. **RULED (Strategy 2026-10-07): the barter board.**
+17. **Re-winnable once sold (R2):** adopt with a give cap / reject / defer. **RULED (Strategy 2026-10-07): defer until after beta (live award path).**
+18. **Who may reverse a trade:** Dom / Dom or Strategy on Dom's say / any admin. **RULED (Strategy 2026-10-07): Dom or Strategy on Dom's say; admins freeze only.**
+19. **Player trade before the hub runtime exists:** heartbeat only / wait for the hub to prove the Exchange position. **RULED (Strategy 2026-10-07): wait; heartbeat in the preview.**
 
 ---
 
@@ -528,7 +604,7 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 5. The rarity of each legacy Pit piece in live content (§2.10, D5).
 6. Which tier Pit tribute uses, and whether grey or already-beaten legends pay it (§3.3).
 7. A value measure for the lopsided-trade flag with no prices (§5.6).
-8. How the writer learns of a password or email change, and whether phone verification can be turned on in Supabase Auth (§5.3, §5.4).
+8. How the writer learns of a password or email change (§5.4); and, if Dom buys SMS later, whether phone verification can be turned on in Supabase Auth (§5.3).
 9. Whether a reversal follows a piece already passed on (§5.7).
 10. Whether a pre-check that says "the other player cannot receive this piece" is an acceptable leak of their inventory (§2.9).
 11. Whether 0001 is applied on the hosted project yet (decides M1/M11's class in practice).
