@@ -147,6 +147,13 @@ try {
   refused('a ledger line without a balance change', 'conservation', () => psql(`insert into public.origins_metal_ledger (account, delta_bronze, reason) values ('${A}', 7, 'award')`));
   refused('the ledger is append-only', 'append-only', () => psql(`update public.origins_metal_ledger set delta_bronze = 1 where account = '${A}'`));
   refused('and cannot be deleted', 'append-only', () => psql(`delete from public.origins_metal_ledger where account = '${A}'`));
+  // Strategy's condition (b): a COMMIT whose ledger does not sum is refused, even when it begins with a valid writer commit. Each transaction below runs a real
+  // origins_commit award and then breaks the books by hand; the whole transaction (the valid award included) must abort at commit and leave nothing behind.
+  const before3 = bal(A);
+  refused('a valid award followed by a balance edit with no ledger line aborts the whole transaction', 'conservation', () => psql(`begin; set role frankendom_origins; select public.origins_commit('${A}', ${J([metal(A, 10, 'award', { expected_version: 3 })])}); reset role; update public.origins_metal set bronze = bronze + 1 where account = '${A}'; commit;`));
+  refused('a valid award followed by an extra ledger line with no balance change aborts the whole transaction', 'conservation', () => psql(`begin; set role frankendom_origins; select public.origins_commit('${A}', ${J([metal(A, 10, 'award', { expected_version: 3 })])}); reset role; insert into public.origins_metal_ledger (account, delta_bronze, reason) values ('${A}', 3, 'award'); commit;`));
+  eq(bal(A), before3, 'neither transaction left anything behind (the valid award rolled back with them)');
+
   // one transaction with an item burn
   commit(A, [mintOp('it:ore', 'ore', 5, loc('pack', pcA, 0), 'mk:ore')]);
   refused('a batch whose metal op is invalid rolls the item burn back too', 'is not valid', () => commit(A, [{ op: 'burn', id: 'it:ore', expected_version: ver('it:ore'), count: 2 }, metal(A, 5, 'spend', { expected_version: 3 })]));
