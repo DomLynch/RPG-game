@@ -350,13 +350,13 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   // Dom 2026-10-05: "get the 50 checks down to 5"; the full 50 still run once every 24 h (deploy.sh --full-age).
   const pick = (...files: string[]) => execFileSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return 51 - skip.size; };
-  assert.equal(kept('src/main.ts'), 6, 'any code change: the five core rows plus the first-loss row (main.ts is in its trigger)');
-  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 7, 'the Pit adds pit-exit-check');
+  assert.equal(kept('src/main.ts'), 7, 'any code change: the five core rows plus the first-loss row and the Stage picker row (main.ts is in both triggers)');
+  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the Pit adds pit-exit-check');
   assert.equal(kept('src/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
   assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
   for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])
-    assert.equal(kept('src/main.ts', file), 51, `${file} changes the build or the gate: every row (Auditor B1 on #1381)`);
+    assert.equal(kept('src/main.ts', file), 51, `${file} changes the build or the gate (with no base to compare): every row (Auditor B1 on #1381)`);
   assert.equal(kept('src/lessons.ts'), 6, 'the first-loss row joins the core five for the lesson files');
   assert.equal(kept('src/first-loss.ts'), 6);
   assert.equal(kept('scripts/first-loss-browser-check.mjs'), 6, 'a changed check script runs its own row');
@@ -373,6 +373,50 @@ test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the t
     assert.match(picked(file), /\b51 first-loss-browser-check\b/, `${file} runs row 51 first-loss-browser-check`);
   }
   assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+});
+
+test('deploy scope: a public asset runs the rows of its folder, never all 51; the Stage picker row follows the arena, sparring and main files', () => {
+  // Lead 2026-10-06: every arena or versus .webp ran all 51 rows (15-21 min), and row 44 had no mapping, so 17ab81e9 skipped it.
+  const pick = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' });
+  const kept = (...files: string[]) => 51 - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
+  const picked = (...files: string[]) => pick(...files).stderr;
+  assert.equal(kept('public/versus/goblin.webp'), 5, 'a versus card: the core five only');
+  assert.equal(kept('public/licenses/OFL.txt'), 5, 'a licence file: the core five only');
+  assert.ok(kept('public/arena/3/floor.webp') < 51, 'an arena texture is not a full run');
+  assert.match(picked('public/arena/3/floor.webp'), /\b8 arena-preview\b/, 'an arena texture runs the arena preview');
+  assert.match(picked('public/arena/3/floor.webp'), /\b44 sparring-browser-check\b/, 'and the Stage picker row');
+  assert.match(picked('public/pit/gate.glb'), /\b50 pit-exit-check\b/, 'a Pit asset runs the Pit exit row');
+  assert.equal(kept('public/pit/gate.glb'), 6);
+  assert.equal(kept('public/weapons/estoc.glb'), 51, 'any other public folder (GLBs many rows load) still runs every row');
+  for (const file of ['src/arena-themes.ts', 'src/arena.ts', 'src/sparring.ts', 'src/stage-hide.ts', 'src/main.ts'])
+    assert.match(picked(file), /\b44 sparring-browser-check\b/, `${file} runs row 44, the Stage picker`);
+  assert.doesNotMatch(picked('src/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
+});
+
+test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', () => {
+  // Lead 2026-10-06: a row-list edit ran all 51 rows. 8d1a979a is a trunk revision whose gate had 50 rows (no first-loss row).
+  const pick = (base: string | null, ...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', ...(base ? ['--base', base] : [])], { input: files.join('\n'), encoding: 'utf8' });
+  const kept = (r: ReturnType<typeof pick>) => 51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
+  assert.equal(kept(pick(null, '.quality-gate.json')), 51, 'no base: every row');
+  assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), 51, 'an unreadable base: every row');
+  assert.equal(kept(pick('HEAD', '.quality-gate.json')), 5, 'the same row list as the base: the core five only');
+  const r = pick('8d1a979a', '.quality-gate.json');
+  assert.match(r.stderr, /\b51 first-loss-browser-check\b/, 'the row added since the base runs');
+  assert.doesNotMatch(r.stderr, /\b44 sparring-browser-check\b/, 'a row unchanged since the base does not');
+  assert.ok(kept(r) < 51 && kept(r) >= 6, `the core five plus the added or edited rows, not all 51: ${kept(r)}`);
+});
+
+test('deploy scope: a run of every row writes the full-run stamp even behind the fast unit gate; a scoped run never does', () => {
+  // Lead 2026-10-06: deploy.sh exports DEPLOY_FAST_GATE on every scoped release, so a 51/51 run was never stamped and the daily full stayed due.
+  const root = repo([['node', 'scripts/sleep.mjs', '10'], ['node', 'scripts/sleep.mjs', '10']]);
+  let result = run(root, { DEPLOY_FAST_GATE: '1', RELEASE_CHECKS_OUT_OF_SCOPE: '2' });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.ok(!existsSync(join(root, 'artifacts', 'last-full-release.json')), 'a row out of scope: not a full run');
+  result = run(root, { DEPLOY_FAST_GATE: '1' });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const stamp = JSON.parse(readFileSync(join(root, 'artifacts', 'last-full-release.json'), 'utf8'));
+  assert.equal(stamp.fast_gate, true, 'every row ran: stamped full, and the stamp says the fast unit gate was on');
+  assert.ok(Date.now() - Date.parse(stamp.at) < 60_000);
 });
 
 test('deploy scope: the last full run is read from the stamp, else from a receipt with every row run, else unknown (-1)', () => {
