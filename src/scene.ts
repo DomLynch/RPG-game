@@ -39,6 +39,7 @@ import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
+import { bloodFrom } from './blood-style.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -150,7 +151,7 @@ export function createScene(
   const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
   const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
-  const burstPool = flinches ? createBurstPool(scene) : null;
+  const burstPool = flinches ? createBurstPool(scene, typeof location === 'undefined' ? undefined : bloodFrom(location.search)) : null;
   const right = new THREE.Vector3();
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);

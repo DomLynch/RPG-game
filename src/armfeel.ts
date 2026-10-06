@@ -47,14 +47,14 @@ export const FLINCH_GAIN = { hero: 0.25, opponent: 1 } as const;
 // The burst (handoff main.js burst/tickParticles; the colour and the shape are Dom's change: blood, not cream cubes): 8 on a hit, 12 on a kill, 3 on Low, in one fixed 48-slot ring; each flies out on a circle at
 // 1.8 m/s plus the blow's direction, up at 1.3 + 0.7·(i mod 3) m/s, falls at 8 m/s², shrinks and dims over its life (0.3 s a hit, 0.42 s a kill).
 export const BURST = { slots: 48, hit: 8, kill: 12, low: 3, spread: 1.8, lift: 1.3, liftStep: 0.7, gravity: 8, size: { hit: 0.12, kill: 0.16, low: 0.055 }, life: { hit: 0.3, kill: 0.42 }, color: '#8b1010', endColor: '#6b0a0a', stretch: 1.8 } as const;   // body hits are BLOOD (Dom 2026-10-06): dark crimson droplets, slightly darker at the end of life, stretched along their flight
-export type Particle = { life: number; total: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; size: number };
-export const newParticle = (): Particle => ({ life: 0, total: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 0 });
+export type Particle = { life: number; total: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; size: number; stretch: number };   // stretch: the droplet's length over its width (BURST.stretch unless a ?blood= style sets it)
+export const newParticle = (): Particle => ({ life: 0, total: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 0, stretch: BURST.stretch });
 // Fills slot `p` for particle `i` of `count`; no allocation. (x, y, z): the contact point; (dx, dz): the blow's unit direction.
 export function spawn(p: Particle, i: number, count: number, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, feel: Feel): void {
   const a = (i / count) * Math.PI * 2;
   p.life = p.total = kill ? BURST.life.kill : BURST.life.hit; p.x = x; p.y = y; p.z = z;
   p.vx = Math.cos(a) * BURST.spread + dx; p.vz = Math.sin(a) * BURST.spread + dz; p.vy = BURST.lift + (i % 3) * BURST.liftStep;
-  p.size = feel === 'low' ? BURST.size.low : kill ? BURST.size.kill : BURST.size.hit;
+  p.size = feel === 'low' ? BURST.size.low : kill ? BURST.size.kill : BURST.size.hit; p.stretch = BURST.stretch;
 }
 // Only a blow that lands on the body bleeds: a Hit. A block, a parry and a guard break keep today's clash sparks and get none of this (Dom 2026-10-06).
 export const isFleshHit = (e: CombatEvent): boolean => e.type === 'Hit' && e.target !== undefined;
