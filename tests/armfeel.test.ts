@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { ARMFEEL, BURST, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, spawn, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
+import { BLOOD, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { ARMFEEL, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, packRecord } from '../src/record.ts';
@@ -64,27 +65,23 @@ test('the hero keeps a quarter of the flinch; the opponent all of it', () => {
   assert.ok(Math.abs(hero.update(0).lean - ARMFEEL.lean * 0.25) < 1e-9);
 });
 
-test('the burst: 8 on a hit, 12 on a kill, 3 on Low, at the handoff\'s speeds, sizes and lives, from one fixed 48-slot pool with nothing allocated per hit', () => {
+test('the burst: one fixed 112-slot pool of thin blood, nothing allocated per hit, 17 on a hit and 28 on a kill', () => {
   const p = newParticle();
-  spawn(p, 0, 8, 1, 1.25, 2, 0, 1, false, 'high');
-  assert.deepEqual([p.life, p.size, p.vx, p.vy, p.vz], [0.3, 0.12, BURST.spread + 0, BURST.lift, 1]);
-  spawn(p, 4, 12, 0, 0, 0, 0, 0, true, 'high');
-  assert.deepEqual([p.life, p.size, p.vy], [0.42, 0.16, BURST.lift + BURST.liftStep]);
-  spawn(p, 0, 3, 0, 0, 0, 0, 0, false, 'low'); assert.equal(p.size, 0.055);
-  assert.equal(tickParticle(p, 0.31), false, 'a hit particle is gone after 0.3 s');
+  spawnBlood(p, 0, 1, 1.25, 2, 0, 1, false, 'high', makeRng(1));
+  assert.ok(p.life >= 0.5 && p.life <= 0.72 && p.stretch > 1, 'the first particle of a hit is a heavy drop');
+  assert.equal(tickParticle(p, 1), false, 'a particle is gone after its life');
   const pool = createBurstPool(new THREE.Scene());
-  assert.equal(pool.capacity, 48);
+  assert.equal(pool.capacity, BLOOD.slots);
   const matrices = pool.mesh.instanceMatrix.array, colors = pool.mesh.instanceColor!.array;
-  pool.burst('high', 0, 1, 0, 0, 1, false); pool.update(0.016); assert.equal(pool.alive, 8);
-  pool.burst('high', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 20);
-  pool.update(0.5); assert.equal(pool.alive, 0); assert.equal(pool.mesh.visible, false);
+  pool.burst('high', 0, 1, 0, 0, 1, false); pool.update(0.016); assert.equal(pool.alive, 17);
+  pool.burst('high', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 45);
+  pool.update(0.8); assert.equal(pool.alive, 0); assert.equal(pool.mesh.visible, false);
   for (let i = 0; i < 1000; i++) { pool.burst('high', 0, 1, 0, 0, 1, i % 5 === 0); pool.update(0.016); }
-  assert.ok(pool.alive <= 48, 'the ring never holds more than its 48 slots');
+  assert.ok(pool.alive <= BLOOD.slots, 'the ring never holds more than its slots');
   assert.equal(pool.mesh.instanceMatrix.array, matrices); assert.equal(pool.mesh.instanceColor!.array, colors);
-  assert.equal(pool.mesh.castShadow, false); assert.equal(pool.mesh.count, 48);
+  assert.equal(pool.mesh.castShadow, false); assert.equal(pool.mesh.count, BLOOD.slots);
   assert.ok(pool.mesh.geometry instanceof THREE.SphereGeometry, 'round droplets, not cubes');
   assert.ok((pool.mesh.material as THREE.MeshBasicMaterial).isMeshBasicMaterial && (pool.mesh.material as THREE.MeshBasicMaterial).toneMapped, 'unlit, tone-mapped like the scene: the colour is the blood\'s own, no glow');
-  assert.ok(BURST.color === '#8b1010' && BURST.endColor === '#6b0a0a', 'dark crimson, a touch darker at the end of life');
   pool.burst('off', 0, 1, 0, 0, 1, false); pool.clear(); pool.burst('off', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 0, 'Off bursts nothing');
 });
 
