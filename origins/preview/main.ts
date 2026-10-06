@@ -64,7 +64,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(warriorUrl).then((g
 
 let heading = Math.PI, stick: { x0: number; y0: number; x: number; y: number } | null = null;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
-const place = document.getElementById('place')!, ring = document.getElementById('stick')!;
+const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('stick')!;
 canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { if (stick) { stick.x = e.clientX; stick.y = e.clientY; } });
 for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, () => { stick = null; ring.style.display = 'none'; });
@@ -96,6 +96,7 @@ function step(dt: number) {
     const sx = (stick.x - stick.x0) / 48, sy = (stick.y0 - stick.y) / 48;
     forward = Math.max(-0.6, Math.min(1, sy)); turn = -Math.max(-1, Math.min(1, sx));
   }
+  if (forward || turn) hint.hidden = true;   // the first-load hint goes once you move (Lead 2026-10-06)
   heading += turn * TURN * dt;
   const nx = state.x + Math.sin(heading) * forward * WALK * dt, nz = state.z + Math.cos(heading) * forward * WALK * dt;
   if (walkable(nx, nz)) { state.x = nx; state.z = nz; } else if (walkable(nx, state.z)) state.x = nx; else if (walkable(state.x, nz)) state.z = nz;
