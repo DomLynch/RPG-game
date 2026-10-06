@@ -5,16 +5,13 @@
 // condition must hold, AND; structured conditions, never script text; result scripts become a data-driven effect list).
 // Pure: no clock, randomness or I/O. Quest state comes in through `Facts.quest` and a quest step goes out through the caller's `advance`
 // (the O2 quest journal's advance, bound to the current journal), so this module never imports the journal. State in, new state out.
-import { Issues, LOCAL_KEY, fail, isPlainObject, join, ok, readArray, readBoolean, readInt, readObject, readSchemaVersion, readString, readText, type Result } from '../contracts/core.ts';
-import { readId, type CharacterId, type EncounterId, type FactionId, type ItemId, type QuestId } from '../contracts/ids.ts';
-import { readCondition, type Condition, type QuestState } from '../contracts/story.ts';
-import { verifiedTier, type CareerStanding } from '../contracts/world.ts';
-import { levelOf } from '../../src/grades.ts';
+import { Issues, LOCAL_KEY, fail, isPlainObject, join, ok, readArray, readBoolean, readInt, readKind, readObject, readSchemaVersion, readString, readText, type Result } from '../contracts/core.ts';
+import { readId, type CharacterId, type QuestId } from '../contracts/ids.ts';
+import { holdsCondition, readCondition, type Condition, type ConditionFacts } from '../contracts/story.ts';
 
 export const TALK_VERSION = 1;
-// The contracts' conditions minus 'choice' (here the pick is the choice), plus where a quest stands now (stage null = not started).
-// 'flag' reads this character's talk flags, which the 'set-flag' effect writes.
-export type TalkCondition = Exclude<Condition, { kind: 'choice' }> | { kind: 'quest-at'; quest: QuestId; stage: string | null };
+// The contracts' conditions minus 'choice' (here the pick is the choice). 'flag' reads this character's talk flags, which 'set-flag' writes.
+export type TalkCondition = Exclude<Condition, { kind: 'choice' }>;
 export type Effect =
   | { kind: 'quest'; quest: QuestId; stage: string; choice: string | null } // give a quest (its start stage) or advance it one step
   | { kind: 'set-flag'; name: string; value: boolean }
@@ -22,25 +19,13 @@ export type Effect =
 export type Line = { id: string; text: string; reply: string; priority: number; once: boolean; when: TalkCondition[]; effects: Effect[] };
 export type Talk = { npc: CharacterId; lines: readonly Line[] }; // priority ascending, ties in content order
 export type TalkState = { told: ReadonlySet<string>; flags: ReadonlyMap<string, boolean> }; // one per character, across every NPC
-export type Facts = {
-  standing: CareerStanding; // server-verified career level, for 'tier-at-least'
-  quest: (id: QuestId) => Pick<QuestState, 'stage' | 'rewarded'> | undefined; // e.g. (id) => journal.quests.get(id)
-  hasItem?: (item: ItemId) => boolean;
-  standingWith?: (faction: FactionId) => number;
-  cleared?: (encounter: EncounterId) => boolean;
-};
+export type Facts = Omit<ConditionFacts, 'choice' | 'flag'>; // quest: e.g. (id) => journal.quests.get(id); flags come from the talk state
 export type Advance<J> = (quest: QuestId, stage: string, choice: string | null) => Result<J>;
 export type Picked<J> = { reply: string; effects: readonly Effect[]; state: TalkState; journal: J | null };
 
 export const newTalkState = (): TalkState => ({ told: new Set(), flags: new Map() });
 
 function readTalkCondition(issues: Issues, raw: unknown, path: string): TalkCondition | undefined {
-  if (isPlainObject(raw) && raw.kind === 'quest-at') {
-    const o = readObject(issues, raw, path, ['kind', 'quest', 'stage']);
-    const quest = o && readId(issues, o, 'quest', path, 'quest');
-    const stage = o && (o.stage === null ? null : readString(issues, o, 'stage', path, { pattern: LOCAL_KEY }));
-    return quest && stage !== undefined ? { kind: 'quest-at', quest, stage } : undefined;
-  }
   const c = readCondition(issues, raw, path);
   if (c?.kind !== 'choice') return c;
   issues.add('content-rule', join(path, 'kind'), 'a talk line is itself the choice; "choice" conditions belong to quest transitions');
@@ -82,7 +67,7 @@ export function loadTalk(raw: unknown): Result<Talk> {
   const issues = new Issues();
   const obj = readObject(issues, raw, '', ['kind', 'schemaVersion', 'npc', 'lines']);
   if (!obj) return issues.finish(undefined as never);
-  if (obj.kind !== 'npc-talk') issues.add('unknown-kind', 'kind', `expected kind "npc-talk", got ${JSON.stringify(obj.kind)}`);
+  readKind(issues, obj, '', 'npc-talk');
   readSchemaVersion(issues, obj, '', [TALK_VERSION]);
   const npc = readId(issues, obj, 'npc', '', 'character');
   const lines = readArray(issues, obj, 'lines', '', (v, p) => readLine(issues, v, p), { min: 1, max: 200 });
@@ -95,27 +80,9 @@ export function loadTalk(raw: unknown): Result<Talk> {
   return ok({ npc, lines: [...lines].sort((a, b) => a.priority - b.priority) }); // sort is stable: ties keep content order
 }
 
-function holds(c: TalkCondition, state: TalkState, f: Facts): boolean {
-  switch (c.kind) {
-    case 'quest-at': return (f.quest(c.quest)?.stage ?? null) === c.stage;
-    case 'stage-reached': {
-      const q = f.quest(c.quest);
-      return q !== undefined && (q.stage === c.stage || q.rewarded.includes(c.stage));
-    }
-    case 'flag': return (state.flags.get(c.name) === true) === c.value;
-    case 'tier-at-least': {
-      const tier = verifiedTier(f.standing);
-      return tier.ok && levelOf(tier.value) >= levelOf(c.tier);
-    }
-    case 'has-item': return f.hasItem?.(c.item) === true;
-    case 'standing-at-least': return (f.standingWith?.(c.faction) ?? -Infinity) >= c.value;
-    case 'encounter-cleared': return f.cleared?.(c.encounter) === true;
-  }
-}
-
 const toldKey = (talk: Talk, line: Line): string => `${talk.npc} ${line.id}`;
 const said = (talk: Talk, state: TalkState, line: Line): boolean => line.once && state.told.has(toldKey(talk, line));
-const available = (talk: Talk, state: TalkState, line: Line, f: Facts): boolean => !said(talk, state, line) && line.when.every((c) => holds(c, state, f));
+const available = (talk: Talk, state: TalkState, line: Line, f: Facts): boolean => !said(talk, state, line) && line.when.every((c) => holdsCondition(c, { ...f, flag: (n) => state.flags.get(n) === true }));
 
 // What the player can say now, in menu order.
 export const choices = (talk: Talk, state: TalkState, f: Facts): Line[] => talk.lines.filter((l) => available(talk, state, l, f));

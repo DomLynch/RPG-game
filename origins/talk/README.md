@@ -1,6 +1,6 @@
 # Origins O2: NPC talk
 
-A pure TypeScript module: one NPC's lines offered as a choice list, filtered by conditions, with quest hooks. Built on the O1 contracts (`Result`/`Issue`, ids, the story `Condition` shapes and reader, `verifiedTier`). Nothing in `src/` imports it and nothing ships.
+A pure TypeScript module: one NPC's lines offered as a choice list, filtered by conditions, with quest hooks. Built on the O1 contracts (`Result`/`Issue`, ids, the story `Condition`, `readCondition` and `holdsCondition`, the `npc-talk` kind). Nothing in `src/` imports it and nothing ships.
 
 | File | Holds |
 |---|---|
@@ -11,7 +11,7 @@ A pure TypeScript module: one NPC's lines offered as a choice list, filtered by 
 ## What it does
 
 - **Content:** `{ kind: 'npc-talk', schemaVersion: 1, npc, lines }`. A line has `text` (what the player says), `reply`, `priority`, `once`, `when` (conditions) and `effects`. Checked whole at load.
-- **Conditions (all must hold):** the contracts' kinds (`tier-at-least` on the server-verified level, `stage-reached`, `flag` on this character's talk flags, `has-item`, `standing-at-least`, `encounter-cleared` through injected predicates) plus `quest-at` (a quest's current stage, `null` = not started). `choice` is refused: the pick is the choice.
+- **Conditions (all must hold):** the contracts' kinds, evaluated by the contracts' one `holdsCondition` (`tier-at-least` on the server-verified level, `stage-reached`, `quest-at` (a quest's current stage, `null` = not started), `flag` on this character's talk flags, `has-item`, `standing-at-least`, `encounter-cleared` through injected predicates). `choice` is refused: the pick is the choice.
 - **choices(talk, state, facts):** the lines available now, priority ascending, ties in content order; a `once` line is hidden after it is said.
 - **pick(talk, state, line, facts, advance):** the reply, the effects, a new talk state and the journal the caller's `advance` returned. Effects: `quest` (give a quest by advancing it to its start stage, or advance it one step, with the transition's choice), `set-flag`, `end`. A refusal (unknown line, not available, the journal refuses the step) returns issues and changes nothing.
 - **Plugging in the journal:** `facts.quest = (id) => journal.quests.get(id)` and `advance = (q, s, choice) => advance(journal, q, s, { ...ctx, choice: choice ?? undefined })`, keeping `result.journal`.
