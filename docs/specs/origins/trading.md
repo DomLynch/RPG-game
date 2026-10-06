@@ -137,11 +137,11 @@ A cancel or expiry writes **no** history entry, so it never counts as a hop and 
 3. **Holdings must be account-wide.** `settleTrade` asks for "every instance either player holds" (`economy.ts:111-112`), but the inventory
    wrapper passes only the two characters' items (`inventory.ts:441`). The DB one-of-each check catches what the pure check misses (0003's deferred count, §6.3), so this
    is safe, but the writer should pass the whole account so a refusal is a clear rule message, not a `23505`.
-4. **Gap on trunk today: the DB settle cannot write the trade history entry.** 0003's `origins_settle_trade` refuses any `put` that carries
+4. **Gap on trunk today: the DB settle cannot write the trade history entry** (opening gate G1, §6). 0003's `origins_settle_trade` refuses any `put` that carries
    `history_append` or `bound_to` (`202610060003_origins_trade_settle.sql:143`). The cooldown counts hops from `trade` history entries
    (§2.10), so a trade settled through the DB as it stands would leave the hop count at 0 and the cooldown would never escalate. Draft #1522
-   (`202610070005`, not applied) has the DB write the trade history itself and adds a DB cooldown guard. Player trade must not open before
-   that, or an equivalent, is applied.
+   (`202610070005`, not applied) has the DB write the trade history itself and adds a DB cooldown guard. Player trade does not open until
+   0005 is applied (Strategy, 2026-10-07; gates G1 and G2, §6).
 
 ### 2.7 Finding: a same-definition swap was refused by the database (fixed by 0003)
 
@@ -209,7 +209,7 @@ Instead each piece carries an **escalating cooldown**. The merged code is the so
 
 | Test | Source today |
 |---|---|
-| It is earned **gear** of rarity **rare or relic**, or a **Pit piece** (`arena-award` or `legacy-unlock` provenance), see D5 | `Category` (`items.ts:34`), `RARITIES` (`items.ts:37`), provenance kinds (`items.ts:142-148`). **Not in `tradeCooldown` today:** the code has no rarity test, so the writer must apply D5 (§7). |
+| It is earned **gear** of rarity **rare or relic**, or a **Pit piece** (`arena-award` or `legacy-unlock` provenance), see D5 | `Category` (`items.ts:34`), `RARITIES` (`items.ts:37`), provenance kinds (`items.ts:142-148`). **Not in `tradeCooldown` today:** the code has no rarity test. The writer applies D5 for now; it moves into the contract or DB check, with a test, before trade opens (Strategy, 2026-10-07; gate G3, §6). |
 | Or it is **shop gear** (provenance `shop`, category gear). Shop consumables and anything else a shop sells never trade. | `tradeCooldown`: `shop-not-gear` |
 | It is single-copy (stack 1). Every stackable (ore, materials, consumables) is untradeable. | `tradeCooldown`: `stackable` |
 | It is unbound and not story-critical | `tradeCooldown`: `bound`, `story-critical` |
@@ -236,6 +236,7 @@ never count as a hop.
 
 **DB enforcement: not on trunk yet.** The contracts enforce the cooldown; the database does not. The 0003 settle cannot even write the
 `trade` history entry (§2.6 step 4). Draft #1522 (`202610070005`, not applied) adds a DB cooldown guard and DB-written trade history.
+Player trade does not open until 0005 is applied (Strategy, 2026-10-07; gates G1 and G2, §6).
 
 **Why a cooldown and not a limit.** A hard limit bound good gear to its third owner forever. The cooldown keeps every piece in the
 economy but slows resale: a reseller holds each piece for weeks, which makes flipping farmed gear slow and visible.
@@ -437,7 +438,12 @@ These are per-account and separate from the per-item cooldown (§2.10).
 - **Password or email change:** **72 hours**, same rule. A bought account cannot be stripped quickly. **OPEN:** the writer needs this
   signal from Supabase Auth.
 
-### 5.5 Caps per account, rolling 24 h (PROPOSED)
+### 5.5 Caps per account, rolling 24 h (safety net, tunable, not a game rule)
+
+**(Strategy, 2026-10-07).** These caps are config, set so a normal player never meets them; 0005's **10** settled trades a day is the
+starting point. They are a safety net against farms and bugs, not a limit on play. Dom's "no hard limit" is about how often an **item**
+changes hands (§2.10), which these caps do not touch. Strategy has put a one-line confirm on Dom's morning list in case Dom wants the caps
+gone.
 
 | Cap | Value |
 |---|---|
@@ -448,7 +454,8 @@ These are per-account and separate from the per-item cooldown (§2.10).
 | Origin-tier pieces given | **2** |
 | Re-won pieces given (if R2 is adopted) | **1** per legend per 7 days |
 
-Caps are config rows (`origins_config`, `0001:15-16`), so Strategy moves them without a migration.
+Caps are config rows (`origins_config`, `0001:15-16`), so Strategy moves them without a migration. If a normal player ever hits one, it
+is set too low and gets raised (Strategy, 2026-10-07).
 
 ### 5.6 Flags (logged and queued for review, never blocking)
 
@@ -555,6 +562,15 @@ farm cannot learn which action tripped it.
 the 0004 escrow-guard fix. A later lock fix, `202610070003_origins_trade_open_lock.sql`, serialises `origins_open_trade` per account. The
 other rows below wait for later migrations (draft #1522).
 
+**Before player trade opens (Strategy, 2026-10-07).** Binding gates. Player trade does not open, and no trading flag turns on, until
+every item holds:
+
+| # | Gate | Why |
+|---|---|---|
+| G1 | Migration **0005** (draft #1522) is applied: every settle writes the `trade` history entry and so the hop count, in the database | 0003's settle refuses `history_append` (§2.6 step 4), so the hop count would never grow |
+| G2 | The cooldown is **checked in the database** (0005's cooldown guard), not only in the writer | A writer bug must not let a cooling piece move |
+| G3 | The tradeable scope ("rare and up, or a Pit piece", D5) is in the contract or DB check, **with a test** | Today the writer applies it alone (§2.10); that is a stopgap, not a permanent split |
+
 Nothing in 0003 touches a live non-Origins table. Every item creates or replaces something under `origins_*`, with a down-script that
 restores exactly the 0001/0002 state, a branch-DB run of `scripts/origins-database-check.mjs` plus §4.3, and Auditor probes.
 
@@ -659,7 +675,7 @@ Not in 0003: any change to `loot_claims`, `awards`, `fighter_profiles` or anothe
 award path and is class 2 if adopted); cash-shop tables; barter-board tables (phase 2).
 
 Contract changes that go with it (code, not migration): the tradeable predicate and cooldown (§2.10) used by `changeOffer`/`settleTrade`
-(**done**, #1479, `tradeCooldown`; it replaced the 2-trade bind); the D5 rarity test (not in `tradeCooldown` yet); a `reversal`
+(**done**, #1479, `tradeCooldown`; it replaced the 2-trade bind); the D5 rarity test, with a test (not in `tradeCooldown` yet; gate G3); a `reversal`
 `HistoryEntry` kind (`items.ts:152-155`); gifts off if D4 says so (`economy.ts:68`).
 
 ---
