@@ -46,7 +46,6 @@ export type ArenaTheme = {
   backdropTall?: number;   // the ring's height factor: <1 shrinks the painting vertically
   spectators?: boolean;   // false: no crowd
   abyss?: { map: string; haze: RGB; cream: RGB };   // the aerial map far below a cliff arena (public/<map>, scripts/arena-abyss.py), the haze its rim fades into, and the colour the horizon bowl starts from; unset = Arena 1's sky-blue abyss
-  backdropLift?: number;   // multiplies the painting's colour (1 = as painted): lifts a dark painting into the arena's light
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | '2' | 'a' | 'b' | 'c' | 'd';
@@ -64,12 +63,9 @@ const ARENA_1: ArenaTheme = {
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
   motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
 };
-// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1's template exactly (the island, its sand and floor, cliff, cone, torches, banners, camera, and its
-// daylight: sun, sky, fog, haze, exposure, weather) with only the far world swapped: the red-lava painting (lifted into daylight) and its lava abyss. Reached by ?arena=2; not on the ladder yet.
-const ARENA_2: ArenaTheme = {
-  ...ARENA_1, id: '2', name: 'The Skull Gate',
-  backdrop: '/arena/backdrop-2.webp', backdropLift: 1.5, abyss: { map: 'arena/abyss-2.webp', haze: [62, 30, 26], cream: [84, 36, 26] },
-};
+// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1 byte for byte (light, sky, fog, abyss, island, props) with only the painted far world swapped.
+// Reached by ?arena=2; not on the ladder yet. Every later arena follows the same rule: one backdrop URL.
+const ARENA_2: ArenaTheme = { ...ARENA_1, id: '2', name: 'The Skull Gate', backdrop: '/arena/backdrop-2.webp' };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
 const BRICK: WallStyle = { courses: 14, blocks: [6, 9], mortar: 0.62, hues: [[1.08, 0.94, 0.88], [1, 0.9, 0.84], [1.12, 0.98, 0.9], [0.94, 0.86, 0.82], [1.04, 0.96, 0.9], [0.9, 0.84, 0.8]] };
