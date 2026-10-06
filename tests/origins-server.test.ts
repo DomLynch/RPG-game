@@ -40,7 +40,7 @@ async function serve(db: Db) {
   const call = async (op: string, init: RequestInit & { token?: string | null } = {}) => {
     const { token = 'tok', ...rest } = init;
     const res = await fetch(url + op, { method: 'POST', ...rest, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}) } });
-    return { status: res.status, body: await res.json() as { ok: boolean; result?: unknown } };
+    return { status: res.status, body: await res.json() as { ok: boolean; result?: unknown; error?: string } };
   };
   return { call, close: () => server.close() };
 }
@@ -55,7 +55,8 @@ test('the writer routes: no or bad token is 401, an unknown op or a GET is 404, 
     assert.equal((await call('open', { method: 'GET' })).status, 404);
     assert.equal((await call('open', { body: 'not json' })).status, 400);
     assert.equal((await call('open', { body: '[1]' })).status, 400);
-    assert.equal((await call('open', { body: JSON.stringify({ pad: 'x'.repeat(70 * 1024) }) })).status, 400);
+    const big = await call('open', { body: JSON.stringify({ pad: 'x'.repeat(70 * 1024) }) });
+    assert.deepEqual([big.status, big.body.error], [400, 'body too large']);
     assert.equal((await call('open', { body: '{}' })).status, 200);
   } finally { close(); }
 });
