@@ -9,7 +9,9 @@ const dir = new URL('../public/pit/arena/', import.meta.url);
 
 test('every arena still is a 496 x 608 lossy WebP still under 60 KB, and nothing else is in the folder', () => {
   const files = readdirSync(dir).sort();
-  // Nothing in src loads these any more (the Pit is a live stage, scene.ts pitStage); arenas 4-11 ship without one (Lead 2026-10-06: no unused assets), so the rule is only: no still without an arena.
+  // Nothing in src loads these any more (the Pit is a live stage, scene.ts pitStage), so arenas 4-11 ship without one (Lead 2026-10-06: no unused assets). The shipped set is pinned
+  // exactly: adding or dropping a still is a deliberate change here, and a still with no arena fails.
+  assert.deepEqual(files, ['1', '2', '3', 'a', 'b', 'c', 'd'].map((k) => `${k}.webp`), 'the shipped stills');
   assert.deepEqual(files.filter((f) => !(f.slice(0, -5) in ARENA_THEMES)), [], 'a still with no arena');
   for (const file of files) {
     const b = readFileSync(new URL(file, dir));
