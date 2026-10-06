@@ -43,11 +43,12 @@ test('the far fighter\'s blood grows to the near one\'s screen size (1x to 3x), 
   assert.equal(bloodCount('high', false), 15, 'counts are the same on both bodies');
 });
 
-test('the foe burst: at range the first offset stands; up close it is pushed past the hero and lifted, capped', () => {
+test('the foe burst: at range the first offset stands; up close it is pushed toward the hero edge and lifted, capped at the foe shoulder', () => {
   const far = foeBurstSpot(1.2, 1, 2.5, 1), close = foeBurstSpot(0, -1, 1, 1);
   assert.deepEqual([far.side, far.open.toFixed(2), far.up.toFixed(2)], [1, '0.35', '0.10']);   // already clear of the hero: unchanged from the first fix
   assert.equal(close.side, -1);
-  assert.ok(close.open > 0.35 && close.open <= 1.4 && close.up > 0.1 && close.up <= 0.35);   // behind the hero: out to his edge, and up
+  assert.ok(close.open > 0.35 && close.open <= 0.5 && close.up > 0.1 && close.up <= 0.35);   // behind the hero: out toward his edge, never past the foe's own shoulder, and up
   assert.equal(foeBurstSpot(-0.6, 1, 1, 1).side, -1);   // the contact leans to the left of the hero: go left whatever side the blow named
-  assert.equal(foeBurstSpot(0, 1, 3, 1).open, 1.4);   // capped at 1.4 x scale
+  assert.equal(foeBurstSpot(0, 1, 3, 1).open, 0.5);   // capped at a body's reach (0.5 x scale), so the spray starts on the foe
+  assert.equal(foeBurstSpot(0, 1, 3, 2).open, 1);
 });

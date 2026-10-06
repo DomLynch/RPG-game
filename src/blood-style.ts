@@ -19,10 +19,11 @@ const between = (rnd: () => number, lo: number, hi: number) => lo + (hi - lo) * 
 export const bloodGrow = (far: number, near: number): number => Math.min(3, Math.max(1, far / (near || 1)));
 // Where the foe's burst starts, relative to the contact, along the camera's right axis (`open`, metres, in the direction of `side`) and up. Far away the foe is clear of the
 // hero on screen and the first offset (0.35 x scale) is enough; up close the hero's body covers the contact, so the spawn is pushed past the hero's silhouette at the foe's
-// depth (`lat`: the contact's offset from the hero along the camera's right; `ratio`: camera distance to the foe over camera distance to the hero), capped, and lifted a little more.
+// depth (`lat`: the contact's offset from the hero along the camera's right; `ratio`: camera distance to the foe over camera distance to the hero), capped at BODY_REACH so it never hangs clear of him, and lifted a little more.
+const BODY_REACH = 0.5;   // the most the spawn leaves the hit point, x scale: about a shoulder's width, so the spray starts ON his body (Lead 10-07: 1.4 x left it floating a body-width off)
 export function foeBurstSpot(lat: number, side: number, ratio: number, scale: number): { side: number; open: number; up: number } {
   const r = Math.min(3, Math.max(1, ratio)), lean = Math.abs(lat) > 0.05 ? Math.sign(lat) : side;
-  const open = Math.min(1.4 * scale, Math.max(0.35 * scale, 0.45 * r + 0.2 * scale - lean * lat));
+  const open = Math.min(BODY_REACH * scale, Math.max(0.35 * scale, 0.45 * r + 0.2 * scale - lean * lat));
   return { side: lean, open, up: 0.1 * scale + 0.25 * scale * Math.min(1, Math.max(0, 2 - r)) };
 }
 export function spawnBlood(p: Particle, i: number, x: number, y: number, z: number, dx: number, dz: number, kill: boolean, feel: Feel, rnd: () => number, grow = 1): void {
