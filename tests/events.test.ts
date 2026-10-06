@@ -36,3 +36,16 @@ test('events: blowsTaken counts the opponent\'s blows on one side only — the d
   assert.equal(blowsTaken(log.filter((x) => x.type !== 'Blocked' || x.actor === 0), 0), 3);
   assert.equal(log.filter((x) => x.type !== 'Blocked' || x.actor === 1).filter((x) => x.target === 0 && (x.type === 'Hit' || x.type === 'GuardBroken' || (x.type === 'Blocked' && (x.damage ?? 0) > 0))).length, 3, 'drop the player\'s own chip and the old count does not move: it never saw it');
 });
+
+test('battery: blows() reads chip against the blocker in both directions, counts a special\'s strike, never the wall, and a kill once (GPT audit 2026-10-06, finding A)', async () => {
+  const { blows } = await import('./strategies.ts');
+  const b = (...log: CombatEvent[]) => blows(log);
+  assert.deepEqual(b(e({ type: 'Blocked', actor: 0, target: 1, damage: 3 })), { taken: 1, landed: 0 }, 'the player blocked and took the chip: the old `e.target` read counted it as landed');
+  assert.deepEqual(b(e({ type: 'Blocked', actor: 1, target: 0, damage: 2 })), { taken: 0, landed: 1 }, 'the warden blocked and took the chip');
+  assert.deepEqual(b(e({ type: 'Blocked', actor: 0, target: 1, perfect: true })), { taken: 0, landed: 0 }, 'a perfect block lets nothing through');
+  assert.deepEqual(b(e({ type: 'Hit', actor: 1, target: 0, damage: 12 }), e({ type: 'Hit', actor: 0, target: 1, damage: 12 })), { taken: 1, landed: 1 });
+  assert.deepEqual(b(e({ type: 'SpecialLanded', actor: 1, target: 0, damage: 30 })), { taken: 1, landed: 0 }, 'a specials-only fight is not untouched');
+  assert.deepEqual(b(e({ type: 'SpecialLanded', actor: 0, target: 1, damage: 30 })), { taken: 0, landed: 1 });
+  assert.deepEqual(b(e({ type: 'Hit', actor: 0, target: 1, damage: 40 }), e({ type: 'Killed', actor: 0, target: 1 })), { taken: 0, landed: 1 }, 'a lethal blow is one contact: the kill marker carries no damage');
+  assert.deepEqual(b(e({ type: 'Whipped', actor: 0, target: 0, damage: 3 })), { taken: 0, landed: 0 }, 'the wall\'s whip is not the opponent\'s blow');
+});
