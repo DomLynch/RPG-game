@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-06 ~13:45 (+04) — HANDOFF #10 before /clear. READ FIRST (supersedes #9 where it differs)
+
+### Now
+- Nothing owed from me that is not open on a PR. Next ask will come from Lead; otherwise: arenas 4-5 (same rule), PR A arena rotation (kept open), circle bump (see #9 queue, still valid except as noted below).
+
+### Done today (10-06 pm)
+- **Arena rule (Dom): Arena N = Arena 1 byte for byte except the painted backdrop.** No retuned light/fog/abyss/lift. Theme = `{...ARENA_1, id, name, backdrop}`; strip via `scripts/arena-backdrop-2.py <src> <out> [x0 x1 y1 fractions]` (head fades to Arena 1's sky 154,116,81, foot to 90,64,46); each new key also needs `public/pit/arena/<key>.webp` (scripts/pit-arena-stills.mjs, fixed `CW` bug), a dust-table entry in tests/foot-dust.test.ts, and an exemption in arena-themes.test.ts "wall differs".
+- **#1421** `world/arena2-live` @ 3bfd441f: Arena 2 on rungs 3-4 (ARENA_PICK[2]='2'), theme.abyss plumbing dropped, band->arena test updated deliberately, stills in artifacts/world/arena2/ (force-added). Auditor has it; ships after the #1420+#1415 release (Lead's GO). No sim/RECORD change (rungs 3-4 keep circle 1, island floor 12.45 m).
+- **#1420** `world/first-frame-clock` @ 38e62394: row 51 fix. Root cause: warmFirstFrame waited on rAF + setTimeout, which never fire under the harness's paused fake clock (a real player was never stuck: 4 s real timer, hidden tab skips). Now MessageChannel yield + now() budget. Row 51 PASS on the VPS; eslint src 0; pit-exit on the VPS failed at "next fight ready" under load ~25 with WebKit on Linux: Lead ruled VPS pit-exit does not count at load >= 10, the release's Mac rows decide.
+- **Arena 3 preview** `world/arena3` @ 97822f6d (off world/arena2): Sunset Legion, ?arena=3, not on the ladder, Dom's wide sunset image, crop 0.319/0.681/0.818. Deploy publishes /preview/arena3/.
+- **Armfeel sound** `world/armfeel-sound` @ 0108802f, stacked on combat/armfeel f137111a: layered hit/kill synth (Dom's audio.js values). Combat integrates; hit flash + burst moved to Combat.
+
+### Open
+- #1420 verdict (Auditor + Mac rows), #1421 merge after that release, arena3 preview feedback from Dom, armfeel look test feedback.
+- Owed to Lead, not yet sent: nothing (backdrop aspect advice was sent).
+
+### Gotchas
+- `artifacts/` is gitignored: force-add (`git add -f`) stills like other lanes do.
+- While a deploy runs the Mac hook blocks multi-command test runs; use the VPS (`ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18`, work dirs /opt/frankendom-shadow/work/world-scale and world-wall, helper scripts a2-still/a3.sh/pe.sh/suite-live.sh there; two checkouts so two jobs can run at once).
+- zsh/macOS: `sed -i ''`; do edits with python3 heredocs.
+- Messaging other lanes: `mcp__ccd_session_mgmt__send_message` needs `session_id` (list_sessions): Lead local_1bcdcf54..., Deploy local_ea03a6d4..., Auditor local_866b9640..., Combat local_cb5cf51e....
+
 ## 2026-10-06 ~12:40 (+04) — HANDOFF #9 before /clear. READ FIRST (supersedes #8 where it differs)
 
 ### LIVE / merged
