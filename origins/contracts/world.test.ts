@@ -210,4 +210,7 @@ test('encounter definition: fixture parses; every rejection path', () => {
   refused(parseEncounterDefinition({ ...e, decay: { windowSeconds: 10, keepProgressPercent: 20 } }), 'out-of-range', 'decay.windowSeconds');
   refused(parseEncounterDefinition({ ...e, rewards: { minContributionPercent: 101 } }), 'out-of-range', 'rewards.minContributionPercent');
   refused(parseEncounterDefinition({ ...e, boss: { character: 'character:legend.nightborn-3' } }), 'missing-field', 'boss.loot');
+  assert.deepEqual(must(parseEncounterDefinition({ ...e, boss: { ...e.boss, level: 12, health: 9000 } })).boss, { ...e.boss, level: 12, health: 9000 });
+  refused(parseEncounterDefinition({ ...e, boss: { ...e.boss, level: MAX_LEVEL + 1 } }), 'out-of-range', 'boss.level');
+  refused(parseEncounterDefinition({ ...e, boss: { ...e.boss, health: 0 } }), 'out-of-range', 'boss.health');
 });
