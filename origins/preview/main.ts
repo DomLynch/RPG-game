@@ -9,6 +9,7 @@ import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
+import { CHECKING, fetchOpen, isOffline, previewCp, saveLine, storedToken, writerBase, type Source } from './save.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -145,15 +146,29 @@ renderer.setAnimationLoop(walkLoop);
 
 // The Pit duel: the arena's real fight (pit-duel.ts, its own chunk, loaded on the first fight) over the walk, which stops drawing meanwhile.
 // The rules are origins/pit/pit.ts: the legend at the career level, and a win settled through the progression model's award(). All of it is
-// this page's memory: nothing here reads or writes the game's storage, account or fight results.
+// this page's memory. The one thing read from outside is the player's saved career (save.ts: the writer's `open`, read-only, with the stored
+// session's token); nothing here writes the game's storage, account or fight results, and no duel result is ever sent anywhere.
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
+let source: Source = CHECKING;
 let duel: typeof import('./pit-duel.ts') | null = null;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('journal')!;
+const saveNote = document.getElementById('save')!;
 function showCareer() {
-  const c = careerLine(session.career);
-  career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${last?.award?.cp ? ` · +${last.award.cp} CP` : ''}`;
+  const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
+  career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${extra ? ` · +${extra} CP (preview)` : ''}`;
+  saveNote.textContent = saveLine(source);
 }
 showCareer();
+// The saved career, once, in the background: the walk and the Pit never wait on it. It is adopted only while no duel has started, so a
+// preview fight is never re-based under the player; otherwise (or on any failure) the in-memory preview career stands, marked offline.
+let storage: Storage | null = null;
+try { storage = localStorage; } catch { /* storage blocked: no session */ }
+void fetchOpen(storedToken(storage, Date.now()), { base: writerBase(location.search) }).then((opened) => {
+  if (isOffline(opened)) source = opened;
+  else if (session.fights > 0 || fighting) source = { offline: 'late' };
+  else { session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; play.standAt(careerLine(session.career).level); }
+  showCareer();
+});
 async function startFight(pick?: string): Promise<PitFight | null> {
   const next = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins, pick);
   if (!next) return null;
@@ -190,8 +205,8 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   // the last settlement; leave() goes back to the walk; reset(level) starts the preview career over at a level (test setup, memory only).
   fight: (pick?: string) => startFight(pick),
   duel: () => duel?.duelState() ?? null,
-  career: () => ({ ...careerLine(session.career), pitWins: session.career.pitWins, beaten: [...session.career.beaten], fights: session.fights, fighting,
+  career: () => ({ ...careerLine(session.career), source: 'saved' in source ? 'saved' : 'offline', offline: 'offline' in source ? source.offline : null, previewCp: previewCp(source, session.career), pitWins: session.career.pitWins, beaten: [...session.career.beaten], fights: session.fights, fighting,
     last: last && { outcome: last.outcome, cp: last.award?.cp ?? 0, reason: last.award?.reason ?? null, levelBefore: last.award?.levelBefore ?? null, levelAfter: last.award?.levelAfter ?? null } }),
   leave: leaveFight,
-  reset: (level: number) => { session = newSession(level); last = null; play.standAt(careerLine(session.career).level); showCareer(); return careerLine(session.career); },
+  reset: (level: number) => { session = newSession(level); source = { offline: 'reset' }; last = null; play.standAt(careerLine(session.career).level); showCareer(); return careerLine(session.career); },
 };
