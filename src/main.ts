@@ -46,6 +46,7 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
+import { resolveHamstrung } from './hamstrung.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
@@ -453,14 +454,15 @@ opponentSelect.value = opponent.id;
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened — plus Plain death as the
-// no-finisher control. The rest of the spec table (hamstrung/execution) has no clip yet and would silently
-// play the plain Death, which reads as a bug in a test menu. Add each back the day its clip ships.
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung — plus Plain death as the
+// no-finisher control. Execution has no clip yet and would silently play the plain Death, which reads as a bug in a test menu.
+// Add it back the day its clip ships. Hamstrung only plays on the Minotaur and the Wraith (src/hamstrung.ts); anyone else keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
   ['opened', 'Opened'],
+  ['hamstrung', 'Hamstrung'],
   ['plainDeath', 'Plain death'],
 ];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
@@ -1817,18 +1819,21 @@ function frame(now: number) {
           }),
         );
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
+      const deathWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
+      const deathPick = finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId);
       const deathAudio =
         practice.finish && practice.events.some((e) => e.type === 'Killed')
           ? {
               finish: practice.finish,
-              weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const,
+              weapons: deathWeapons,
               override:
-                resolveFinisher(
+                resolveHamstrung(
                   opponent.id,
                   practice.finish,
-                  [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
-                  finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
+                  deathWeapons,
+                  deathPick,
                   view.previousFinisher(),
+                  resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick, view.previousFinisher()),
                 ) ?? 'plainDeath',
               gore: true,
             }
