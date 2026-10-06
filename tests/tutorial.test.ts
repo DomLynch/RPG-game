@@ -157,3 +157,18 @@ test('a PLAIN guard (no side, the held button or Q) finishes the guard step; the
     assert.equal(run('overhead'), true, `seed ${seed}: the overhead side parries it`);
   }
 });
+
+test('the roll step is beatable: a roll whose intent is issued by foe swing age 27 completes it (a held E pressed by age 18, E + a direction by 27) and age 28 does not', () => {
+  const tries = (age: number, seed: number) => {
+    const { match, beats } = toStep(seed, 'roll');
+    let firedAt = -1;
+    for (let i = 0; i < 2000; i++) {
+      tick(match, (d) => (firedAt < 0 && W(d).phase === 'attack' && W(d).age === age && ready(d) ? (firedAt = i, act('dodge')) : idle()));
+      if (beats.some((b) => b.id === 'roll')) return true;
+      if (firedAt >= 0 && i - firedAt > 120) return false;   // the swing has landed or missed by now: one roll, one verdict
+    }
+    return false;
+  };
+  for (const age of [0, 9, 18, 27]) for (let seed = 1; seed <= 4; seed++) assert.ok(tries(age, seed), `seed ${seed}: a roll issued at swing age ${age} completes the step`);
+  for (let seed = 1; seed <= 4; seed++) assert.ok(!tries(28, seed), `seed ${seed}: a roll issued at swing age 28 is too late`);
+});

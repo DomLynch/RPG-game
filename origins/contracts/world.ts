@@ -10,7 +10,7 @@ import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
 import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
 import { isOpponentId, type OpponentId } from '../../src/roster.ts';
 import {
-  Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readSchemaVersion,
+  Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion,
   readString, readText, readTimestamp, type Issue, type Obj, type Result,
 } from './core.ts';
 import {
@@ -452,12 +452,15 @@ export type EncounterDefinition = {
   region: RegionId;
   scope: (typeof ENCOUNTER_SCOPES)[number];
   stages: EncounterStage[]; // fought in order; the boss appears after the last
-  boss: { character: CharacterId; loot: LootTableId };
+  // level and health are optional (a quest-step boss needs neither); a world boss needs both: level is the progression event's
+  // targetLevel, health the denominator of every contribution share (origins/boss checks both are present).
+  boss: { character: CharacterId; loot: LootTableId; level?: number; health?: number };
   // Decay: with no stage completed inside the window, progress below `keepProgressPercent` drops a stage; at or above it only the
   // partial progress is lost. null = no decay (a solo or party instance).
   decay: { windowSeconds: number; keepProgressPercent: number } | null;
   restartSeconds: number;
-  // Personal reward eligibility: a contributor qualifies with at least this share of the top contributor's credit.
+  // Personal reward eligibility: a contributor qualifies with at least this share of the boss's health, in percent here and enforced in
+  // permille by the progression model (MIN_CONTRIBUTION_PERMILLE); a world boss whose percent disagrees with it is refused.
   rewards: { minContributionPercent: number };
 };
 const ENCOUNTER_KEYS = ['kind', 'schemaVersion', 'id', 'name', 'region', 'scope', 'stages', 'boss', 'decay', 'restartSeconds', 'rewards'] as const;
@@ -487,10 +490,11 @@ export function parseEncounterDefinition(raw: unknown, path = ''): Result<Encoun
   }, { min: 1, max: 32 });
   uniqueIds(issues, stages, join(path, 'stages'));
   let boss: EncounterDefinition['boss'] | undefined;
-  const b = Object.hasOwn(obj, 'boss') ? readObject(issues, obj.boss, join(path, 'boss'), ['character', 'loot']) : (issues.add('missing-field', join(path, 'boss'), 'required field "boss" is missing'), undefined);
+  const b = Object.hasOwn(obj, 'boss') ? readObject(issues, obj.boss, join(path, 'boss'), ['character', 'loot', 'level', 'health']) : (issues.add('missing-field', join(path, 'boss'), 'required field "boss" is missing'), undefined);
   if (b) {
     const character = readId(issues, b, 'character', join(path, 'boss'), 'character'), loot = readId(issues, b, 'loot', join(path, 'boss'), 'loottable');
-    if (character && loot) boss = { character, loot };
+    const level = readOptionalInt(issues, b, 'level', join(path, 'boss'), 1, MAX_LEVEL), health = readOptionalInt(issues, b, 'health', join(path, 'boss'), 1, 10_000_000);
+    if (character && loot) boss = { character, loot, ...(level !== undefined ? { level } : {}), ...(health !== undefined ? { health } : {}) };
   }
   let decay: EncounterDefinition['decay'] | undefined = null;
   if (!Object.hasOwn(obj, 'decay')) issues.add('missing-field', join(path, 'decay'), 'required field "decay" is missing (null for none)');
