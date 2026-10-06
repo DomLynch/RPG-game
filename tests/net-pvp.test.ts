@@ -7,9 +7,10 @@ import { project } from '../src/combat.ts';
 import { idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../src/duel.ts';
 import { Match, type PvpDriver } from '../src/match.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
-import { MESSAGE_CAP, PvpDuel, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
+import { MESSAGE_CAP, PvpDuel, SILENCE, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent } from '../src/net/rollback.ts';
-import { metricsRow, reportBody, startBody } from '../src/net/lobby.ts';
+import { metricsRow, reportBody, startBody, closeLater, RETIRE_MS } from '../src/net/lobby.ts';
+import { readFileSync } from 'node:fs';
 import { viewAs } from '../src/net/view.ts';
 import { loadProfile } from '../src/profile.ts';
 import { quantizeIntent, RECORD_VERSION } from '../src/record.ts';
@@ -533,4 +534,20 @@ test('a winner whose tab was hidden after the finish settled is not marked left 
   skip(11000);
   step(1);
   for (const page of pages) { assert.equal(page.stage, 'fighting'); assert.equal(page.result, 'finished'); }
+});
+
+test('a settled duel retires its transport: closeLater closes it once after the grace, never at once', () => {
+  let closed = 0, wait = -1, run: (() => void) | null = null;
+  closeLater({ close: () => { closed++; } }, RETIRE_MS, (fn, ms) => { run = fn; wait = ms; });
+  assert.equal(closed, 0, 'not closed until the timer fires: the peer may still need this side\'s last acks');
+  assert.equal(wait, RETIRE_MS); assert.ok(RETIRE_MS > SILENCE.abandonMs && RETIRE_MS < 60_000, 'a grace past the peer\'s silence window, inside the relay\'s 60 s idle close');
+  run!();
+  assert.equal(closed, 1);
+});
+
+test('openDuel retires the transport on both ends of a duel, once', () => {
+  const src = readFileSync(new URL('../src/net/lobby.ts', import.meta.url), 'utf8');
+  assert.match(src, /if \(driver\.refused \|\| over\) \{ clearInterval\(watch\); retire\(\); \}/);
+  assert.match(src, /if \(driver\.settled && driver\.practice\.finish\) \{ report\(\); clearInterval\(watch\); retire\(\); \}/);
+  assert.match(src, /const retire = \(\): void => \{ if \(!retired\)/);
 });
