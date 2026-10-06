@@ -172,8 +172,8 @@ pays the rival's CP row, `named` (weight 200), like any named figure. No new row
 
 ## 4. Notoriety (ruling b)
 
-Notoriety is **per killer, per town**, an integer from `0` to `NOTORIETY_MAX` (**1000**). Ruling (b) said other towns are unaffected, but Dom's alert rule (§7.1)
-now spreads part of a grudge kill to the same trade's network towns. That conflict is flagged in §13. Notoriety is stored
+Notoriety is **per killer, per town**, an integer from `0` to `NOTORIETY_MAX` (**1000**). Towns of **other trades** are unaffected. Ruled: Dom's alert rule (§7.1) spreads
+part of a grudge kill to the **same trade's** towns only. Notoriety is stored
 with its last update time and decays lazily, the same refill pattern as rested credit, so no clock job is needed.
 
 | Act (in town T) | Change in T |
@@ -206,7 +206,8 @@ successor arrives, which is by design.
 | Successor arrives after death | **7–14 days**; the exact day is set by the succession event (§6) | `SUCCESSOR_MIN_S` 604800, `SUCCESSOR_MAX_S` 1209600 |
 | Stand-in buy price | **×1.5** of the normal price | `STANDIN_BUY_PERMILLE` 1500 |
 | Stand-in sell price (what the player gets) | **×0.67** of normal | `STANDIN_SELL_PERMILLE` 667 |
-| Services dropped | **`upgrade`** (the smith's upgrades) and any stock above `vendorTier − 1` | `STANDIN_DROPS: ['upgrade']` |
+| Stand-in upgrades (ruled) | **The stand-in still runs upgrades, worse:** cost ×1.5 (`STANDIN_UPGRADE_COST_PERMILLE` 1500), and no piece may be upgraded above **one tier below** the dead smith's maximum effective tier (`STANDIN_UPGRADE_TIER_CAP_OFFSET` 1; Origin becomes Primus). No new service kind | — |
+| Other stock | nothing above `vendorTier − 1` | — |
 | Vendor stock tier | `economy.vendorTier − 1`, minimum 1 | — |
 | The town's attitude to the killer | faction standing −100 (§3), on top of notoriety | — |
 
@@ -281,7 +282,7 @@ CP rows: hired blades and watchmen are `elite`. Nothing is collected or counted.
   The challenge is an NPC duel at level **max(25, your level + 5)**, capped at the ladder top (`GUARD_LEVEL_FLOOR` 25,
   `GUARD_LEVEL_OVER` 5), so it is far above low levels.
 - **Win.** You walk on, +50 notoriety. Another guard challenges after **120 s** (`GUARD_RECHALLENGE_S`) if you stay in the zone.
-  Guards pay **no CP**, through a new `guard` row with weight 0 (§11), so guards cannot be farmed.
+  **Ruled:** guards get a weight-0 `guard` progression row: no XP, no CP and no loot, ever. Beating a guard only clears your path.
 - **Loss = arrest.** **Never gear loss, never item loss.** Inventory, equipment and the bank are untouched. You get:
   - **Fine:** 2 bronze per notoriety point, minimum 100 (`FINE_BRONZE_PER_POINT`, `FINE_MIN_BRONZE`). It is taken from the metal
     balance, down to 0. An unpaid remainder becomes extra jail at 1 s per bronze.
@@ -290,7 +291,8 @@ CP rows: hired blades and watchmen are `elite`. Nothing is collected or counted.
 **What jail is.** Your world character is placed in the town's guardhouse cell, at the town's `jail` landmark (§9). It cannot move
 or fight in the world until released. Real time counts, including while you are logged out.
 
-- **The Pit stays open.** A jailed player can still fight in the arena. Jail blocks the world, never the game.
+- **The Pit stays open (ruled).** A jailed player can still fight in the Pit. Jail locks you out of the Origins world, never out of
+  fighting.
 - **Bail:** 1 bronze per remaining second (`BAIL_BRONZE_PER_S`), at any time.
 - **Release:** you go to the town's gate with notoriety −200. A release never re-triggers a challenge for 120 s.
 
@@ -312,7 +314,7 @@ when the killer's notoriety in that town falls below its band, whether by decay,
   "strike": { "windupTicks": 72, "radiusMetres": 2, "woundPermille": 350, "everySeconds": { "outer": 20, "middle": 10, "inner": 5 }, "arrestAfter": 3 } }
 ```
 
-**1. The alert spreads.** A grudge kill in town T adds notoriety in T (+600, §4). It also adds **50%** of that
+**1. The alert spreads (ruled: same trade only).** A grudge kill in town T adds notoriety in T (+600, §4). It also adds **50%** of that
 (`ALERT_SPREAD_PERMILLE` 500, so **+300**) in every **other town of the same region** that has an NPC of the dead rival's trade: the
 trade's guild network. +300 is exactly `WANTED`, so the network's guards attack on sight from the first kill.
 
@@ -328,8 +330,11 @@ distance bound from the centre. A Wanted player is challenged by that ring's gua
 |---|---|---|---|---|
 | outer | ≥ 30 m | Wanted | max(25, you + 5) | ×1.0 |
 | middle | 15–30 m | Wanted | max(30, you + 10) | ×1.5 |
-| inner | < 15 m | **Hunted** | max(40, you + 20), capped at the top | **×4.0**: one or two heavies end the duel |
+| inner | < 15 m | **Hunted** | max(40, you + 20), capped at the top | **×4.0** on a hit that **lands**: one or two undodged heavies end the duel |
 
+- **Hard rule (Strategy): telegraphed and dodgeable.** Every guard attack keeps its normal duel telegraph (the heavy's wind-up) and
+  can be rolled, parried or blocked inside the duel, as in the Pit. No guard has an untelegraphed or unblockable move. Nothing
+  one-shots a player who reacts correctly; the multiplier punishes only a hit that is not avoided.
 - `damagePermille` is an **Origins encounter flag** on the guard's fight, like the twists (Strategy ruling 10, region 1 §7). It must
   not move the live ladder: the RNG fingerprint and RV stay unchanged.
 - A guard loss is an arrest (§7): a fine and jail, **never gear loss**.
@@ -341,7 +346,7 @@ NPC's door until no player is Hunted in the network.
 |---|---|
 | Who | **Ascapart**, the giant of *Bevis of Hampton* (legend, §12), on the `knight` body at a large scale |
 | Level | **the ladder top** (`MAX_LEVEL`: 46 today, 50 after the cap ruling). Only a capped player meets him at even level; anyone lower fights uphill and the falloff caps the CP |
-| Fight | one duel; twist `one-health-bar` (his two phases share one bar); inner-ring guard damage does **not** apply to him |
+| Fight | one duel; twist `one-health-bar` (his two phases share one bar); inner-ring guard damage does **not** apply to him. Every attack is telegraphed and can be rolled, parried or blocked (the hard rule) |
 | Reward (first win only) | CP: the `world-boss` row, once per player (`world-boss:character:bouncer-ascapart`). Loot: a unique piece, *Ascapart's collar* (Crest cosmetic, relic, `quest-reward`-style provenance via the boss table, first win only). Metal: **1,000 bronze** (`BOUNCER_PURSE_BRONZE`) |
 | Notoriety cost | **+400 in every network town** (`NOTORIETY_BOUNCER_BEATEN`, spread at 100%) |
 | After a win | he leaves for the rest of the alert, and is hired again at the next Hunted alert. The inner ring stays |
@@ -350,17 +355,17 @@ NPC's door until no player is Hunted in the network.
 **4. Patron gods.** A town may name a `patron`. A **Wanted** player in a patron town is struck by the god, telegraphed, so it is a
 test of skill, never an unavoidable instant death.
 
-- **Telegraph:** a 2 m marker and a rising sound appear under the player, with a **1.2 s** wind-up (`windupTicks` 72 at 60 Hz).
-  Stepping or rolling out of the marker in time means no hit. Running speed (4.6 m/s) clears it in about 0.45 s.
+- **Telegraph (hard rule):** a 2 m marker and a rising sound appear under the player, with a **1.2 s** wind-up (`windupTicks` 72
+  at 60 Hz). Every strike is telegraphed and dodgeable. **The world walker has no roll** (it walks and runs), so dodging a strike
+  means **stepping out of the marker**. At run speed (4.6 m/s) that takes about 0.45 s, well inside the 1.2 s wind-up. A strike
+  never lands during a duel (strikes pause, below), so the in-duel roll is never needed for one.
 - **Effect of a hit:** no instant death and no gear loss. The player is **wounded**, starting their next duel at −35% health
   (`woundPermille` 350, stacking). **3 hits** (`arrestAfter`) leave the player dazed, and the guards arrest them with no duel
   (§7: fine and jail).
 - **Cadence** rises toward the shrine and the smith: every 20 s in the outer ring, 10 s in the middle ring, 5 s in the inner ring.
 - **Pauses** during any duel and while jailed. Wounds clear on release from jail, or after 10 minutes out of the town.
-- **Patrons for region 1** (PROPOSED): the Grey Ferry under **Zeus** (bolt).
-- **Flagged for Strategy:** whether Greek gods as **unseen patrons who strike**, never fought or beaten, pass the legends rule.
-  Ruling 4 names Hades as allowed. Zeus, Apollo and Hades come from a dead pantheon, but a small living Hellenic polytheist revival
-  exists. Apollo, Hades, Hermes, Athena and Hephaestus are already Pit legends.
+- **Patron for region 1 (ruled):** the Grey Ferry under **Zeus** (bolt), **only** as a telegraphed strike source: never a foe that
+  can be beaten, never a joke (§12).
 
 **Escalation by band, per town:**
 
@@ -369,7 +374,7 @@ test of skill, never an unavoidable instant death.
 | Clean (< 100) | nothing |
 | Suspect (100–299) | shuns: same-trade stalls are "Closed to you" (§5.1); shops charge ×1.25 |
 | Wanted (300–599) | shops refuse; outer and middle rings challenge; patron strikes |
-| Hunted (≥ 600) | adds the inner ring (×4) and the bouncer; NPC hunters roam outside towns (§8) |
+| Hunted (≥ 600) | adds the inner ring (×4 on an undodged hit) and the bouncer; NPC hunters roam outside towns (§8) |
 
 ## 8. NPC hunters
 
@@ -435,7 +440,7 @@ The Grey Ferry needs guards and a cell, so `ferry-landing` gains a `town` group 
 - On `CharacterDefinition`, a new optional field
   `rival: { town, standIn: CharacterId, successors: CharacterId[] (empty = the same character returns) }`. It is refused on an
   `essential: true` figure.
-- On `ServiceDefinition`, a new optional field `standIn: { npc, buyPermille, sellPermille, drops: ServiceKind[] }`.
+- On `ServiceDefinition`, a new optional field `standIn: { npc, buyPermille, sellPermille, upgradeCostPermille, upgradeTierCapOffset }`.
 - `town-defence` v1 (§7.1): rings, bouncer, patron and strike, all as data.
 - World schema group #16, `town`: `{ id: key, jail: ref, guards: bool }`, with defaults none, none and false. A zone with no
   `town` group has no guards and no notoriety.
@@ -490,27 +495,39 @@ No op moves an item, and every metal line is in the metal ledger (`trading.md` �
 
 | Name | Source | Allowed because | Pronoun |
 |---|---|---|---|
-| Mimir the Smith | *Þiðreks saga af Bern* (Old Norse, 13th century): the smith who fostered and taught the young Sigurd and Velent | medieval literature, author long dead; not scripture; no living people's folk hero. Distinct from the Pit's smith legends (Regin, Wayland and others) | he |
-| Ascapart | *Sir Bevis of Hampton*, Middle English verse romance (c. 1300), and the Anglo-Norman *Boeve de Haumtone*: the giant who serves Bevis as a squire and fights beside him | medieval romance, author long dead; not scripture; not a living people's folk hero. A hired giant, true to the source | he |
-| Herne the Hunter | Windsor Forest folklore, first in print in Shakespeare's *The Merry Wives of Windsor* (1602) | English folklore and pre-1929 literature | he |
+| Mimir the Smith | *Þiðreks saga af Bern*, Old Norse prose saga, c. 1250: the smith who fostered and taught the young Sigurd and Velent | medieval literature, author long dead; not scripture; no living people's folk hero. Distinct from the Pit's smith legends (Regin, Wayland and others). Passed by Strategy | he |
+| Ascapart | *Sir Bevis of Hampton*, Middle English verse romance, c. 1300, after the Anglo-Norman *Boeve de Haumtone*, late 12th century: the giant who serves Bevis as a squire and fights beside him | medieval romance, author long dead; not scripture; not a living people's folk hero. A hired giant, true to the source. Passed by Strategy | he |
+| Herne the Hunter | Windsor Forest folklore, first in print in William Shakespeare, *The Merry Wives of Windsor*, 1602 (Act 4) | English folklore and pre-1929 literature. Passed by Strategy | he |
+| Zeus | Greek myth: Hesiod, *Theogony*, c. 700 BC, and Homer, *Iliad*, the thunderbolt-wielder | Greek myth passes the legends rule (Strategy, 2026-10-07). Used **only** as a telegraphed strike source: never a beatable foe, never a joke | he |
 | Orla, Ebba, hired blades, the Ferry watch, guards, generic hunters | original (`lore.source: "original"`) | side NPCs and mooks | Orla she, Ebba she |
 
 The Exchange magistrate who takes notoriety pay-offs is Marrow the Recorder (original, `region1-ash-frontier.md` §2).
 
-## 13. Open questions
+## 13. Rulings and open questions
+
+### Ruled (Strategy, 2026-10-07)
+
+- **Alert spread (was Q10).** Dom's rule wins. The alert spreads to **same-trade towns only**; towns of other trades are unaffected.
+- **Patron gods (was Q11).** Greek myth passes the legends rule. **Zeus** is the Grey Ferry's patron, only as a telegraphed strike
+  source: never a beatable foe, never a joke. The world walker has no roll, so a strike is dodged by stepping out of its marker.
+- **Guard row (was Q5).** Guards get a weight-0 `guard` progression row: no XP, no CP and no loot, ever. Beating guards only clears
+  your path.
+- **Jail and the Pit (was Q6).** The Pit is playable from jail. Jail locks you out of the Origins world, not out of fighting.
+- **Stand-in upgrades (was Q2, corrected).** The stand-in **runs upgrades, worse**: cost +50%, capped one tier below the dead
+  smith's maximum. No new service kind.
+- **Names.** Mimir, Ascapart, Herne the Hunter and Zeus all pass; they are cited in §12.
+- **Hard rule.** Every guard attack and god strike is telegraphed and dodgeable, and nothing one-shots a player who reacts
+  correctly. The inner ring's ×4 and "one or two heavies" apply only to an **undodged** hit (§7.1).
+
+### Open
 
 1. **All numbers above** are PROVISIONAL until Dom rules: rival kill 600, decay 100 a day, pay-off 3 bronze a point, thresholds
    100/300/600, guard level max(25, you + 5), fine 2 bronze a point, jail 600–1800 s, stand-in ×1.5/×0.67, successor 7–14 days,
    event 30 minutes, reward 300 bronze.
-2. **A stand-in for a smith.** Today the smith's only `SERVICE_KINDS` entry is `upgrade`, and the stand-in drops it, so Ebba runs
-   nothing until a shop or repair kind exists. The alternative is that a stand-in offers upgrades capped at +1 at ×1.5 until then.
-3. **The successor**: the same legend returning (the default), or a named heir from `successors`? An heir who is a grudge target
+2. **The successor**: the same legend returning (the default), or a named heir from `successors`? An heir who is a grudge target
    must also pass the legends rule.
-4. **Retaliation grudges** (§3 source 3): in or out?
-5. **The guard row.** Weight 0 means a new `TYPE_WEIGHTS` row (`guard`). Is one row allowed for this, or should guards use `elite`
-   and accept that they can be farmed?
-6. **Jail and the Pit.** Can a jailed player still fight in the Pit? The spec says yes, so the game is never blocked.
-7. **Contract additions:**
+3. **Retaliation grudges** (§3 source 3): in or out?
+4. **Contract additions:**
    - the `grudge-definition` kind and the `grudge`, `town` and `event` id namespaces;
    - `rival` on `CharacterDefinition` and `standIn` on `ServiceDefinition`;
    - world group #16, `town`;
@@ -518,16 +535,12 @@ The Exchange magistrate who takes notoriety pay-offs is Marrow the Recorder (ori
    - the player-state rows and writer ops in §11.
 
    For Backend and the coordinator.
-8. **Town ids** (`town:`) vs zone ids. Is a town always exactly one zone?
-9. **Notoriety and faction standing** both move on a kill. Keep both (notoriety is per town and decays; standing is per faction and
+5. **Town ids** (`town:`) vs zone ids. Is a town always exactly one zone?
+6. **Notoriety and faction standing** both move on a kill. Keep both (notoriety is per town and decays; standing is per faction and
    permanent), or fold one into the other?
-10. **Alert spread vs ruling (b).** Ruling (b) said other towns are unaffected; Dom's alert rule spreads 50% to same-trade towns in
-    the region. Strategy, please confirm that Dom's rule supersedes (b) for network towns.
-11. **Patron gods.** Do Zeus, Apollo and Hades as unseen striking patrons pass the legends rule (§7.1)? Also, a world-movement
-    "roll" does not exist yet (the walker has walk and run), so is stepping out enough?
-12. **Inner-ring damage ×4** and the **bouncer at the ladder top**: confirm, plus his notoriety cost of +400 network-wide.
-13. **Generator tables.** Confirm the starting trades, motives, kits and weights, the 7-day rotation, the caps of 2 per town and 6
+7. **Inner-ring damage ×4** and the **bouncer at the ladder top**: confirm, plus his notoriety cost of +400 network-wide.
+8. **Generator tables.** Confirm the starting trades, motives, kits and weights, the 7-day rotation, the caps of 2 per town and 6
     per region, the 4-rotation variety window and 25 bronze per rival level.
-14. **Shun scope.** Per trade (as specified), or also per guild once guilds exist? Should a shunned killer also be refused by the
+9. **Shun scope.** Per trade (as specified), or also per guild once guilds exist? Should a shunned killer also be refused by the
     giver's own trade outside the giver?
-15. **The PvP bounty** stays parked until #1392/#1485/#1487 and open-world PvP land. Confirm the anti-collusion rules in §9.
+10. **The PvP bounty** stays parked until #1392/#1485/#1487 and open-world PvP land. Confirm the anti-collusion rules in §9.
