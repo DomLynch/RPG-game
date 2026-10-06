@@ -1,7 +1,8 @@
 """Arena 2's painted far world: Dom's own painting (2026-10-06, 'the skull gate'), cropped to the band above his drawn arena floor and graded
 into the strip format of public/arena/backdrop-1.webp (420 x 535, mirrored round the ring by arena.ts). The head fades into Arena 1's sky
 (SKY_TOP), the foot into its foot colour (FOOT), as backdrop-1's edges are painted, so the dome and the abyss meet the picture without a seam.
-Usage: python3 scripts/arena-backdrop-2.py dom-arena2-backdrop-portrait.webp public/arena/backdrop-2.webp"""
+Usage: python3 scripts/arena-backdrop-2.py dom-arena2-backdrop-portrait.webp public/arena/backdrop-2.webp
+  Arena 3 (wide 1672 x 941 sunset): python3 scripts/arena-backdrop-2.py dom-arena3-backdrop.webp public/arena/backdrop-3.webp 0.319 0.681 0.818   (x0, x1, y1 as fractions of the source, strip 0.785 w:h)"""
 import sys
 import numpy as np
 from PIL import Image
@@ -11,7 +12,8 @@ SKY_TOP = np.array([154, 116, 81], np.float32)  # Arena 1's sky colour at the he
 FOOT = np.array([90, 64, 46], np.float32)       # and the mean of backdrop-1's foot row
 im = Image.open(SRC).convert('RGB'); w, h = im.size
 # Portrait source: castle and sky above the skull gate, stands and statues, then the front wall at y ~0.47-0.57 h and his floor below. Keep above the wall's grates.
-x0, x1, y1 = int(w * 0.13), int(w * 0.87), int(h * 0.52)
+fx0, fx1, fy1 = (float(v) for v in sys.argv[3:6]) if len(sys.argv) > 5 else (0.13, 0.87, 0.52)
+x0, x1, y1 = int(w * fx0), int(w * fx1), int(h * fy1)
 crop = im.crop((x0, 0, x1, y1)).resize((420, 535), Image.LANCZOS)
 a = np.asarray(crop, np.float32)
 rows = np.linspace(0, 1, 535, dtype=np.float32)[:, None, None]
