@@ -647,7 +647,7 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
   app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
 });
 
-test('online clock ignores stored solo tempo and every contact pause while continuing input sampling', () => {
+test('online clock ignores stored solo tempo; a contact holds only the drawn frame while input sampling never pauses', () => {
   const Match = matchModule.Match;
   try {
     for (const tempo of ['50', '60']) {
@@ -663,8 +663,10 @@ test('online clock ignores stored solo tempo and every contact pause while conti
       for (const type of ['Hit', 'Blocked', 'Parried', 'GuardBroken', 'PostureBroken', 'Killed', 'SpecialLanded'] as const) {
         events = [{ type, tick: 1, actor: 0, target: 1, move: 'heavy_overhead', charged: true }];
         const before = samples;
-        for (let i = 0; i < 60; i++) { app.tick(1000 / 60); assert.equal(app.renderedFrozen, false, type); }
-        assert.ok(samples - before >= 59 && samples - before <= 61, `${tempo} Hz preference, ${type}: ${samples - before} online samples/sec`);
+        let frozen = 0;
+        for (let i = 0; i < 60; i++) { app.tick(1000 / 60); if (app.renderedFrozen) frozen++; }
+        assert.ok(samples - before >= 59 && samples - before <= 61, `${tempo} Hz preference, ${type}: ${samples - before} online samples/sec`);   // the net cadence never pauses...
+        assert.ok(frozen >= 1 && frozen <= 20, `${type}: the DRAWN frame holds for the contact (${frozen} frames), then the screen is live again`);   // ...only the picture is held (src/pvp-hold.ts), for the solo ms
       }
       // Even changing the solo preference during the duel cannot alter network cadence.
       app.element('tempo-mode').click();
