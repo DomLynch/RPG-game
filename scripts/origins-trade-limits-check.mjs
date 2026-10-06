@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const UP = '202610070005_origins_trade_limits.sql';
+const UP = '202610070005_origins_trade_limits.sql', UP6 = '202610070006_origins_trade_reversal.sql';
+import { TIERS } from '../src/grades.ts';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -82,9 +83,9 @@ try {
     grant usage on schema public,auth to anon,authenticated;
     insert into auth.users (id) values ('${A}'), ('${B}'), ('${C}'), ('${N}');`);
   const files = readdirSync(dir).filter(n => n.endsWith('.sql')).sort();
-  if (!files.includes(UP)) fail(`${UP} is missing from ${dir}`);
+  for (const f of [UP, UP6]) if (!files.includes(f)) fail(`${f} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
-  const down = () => psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
+  const down = (up = UP) => psql(readFileSync(join(dir, '..', 'down', up.replace('.sql', '_down.sql')), 'utf8'));
   apply(files.filter(n => n < UP));
   const before = { objects: objects(), acls: acls(), ri: riTriggers(), fns: fnDefs(), idx: oneIdx(), kinds: kindCheck(), cols: tradeCols() };
   const same = what => {
@@ -99,10 +100,12 @@ try {
     eq(psql(`select has_function_privilege('frankendom_origins', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${fn}'::regprocedure, 'execute')::int::text`), '000', `${fn} is nobody's to call`);
   }
   eq(psql(`select has_function_privilege('frankendom_origins', 'public.origins_expire_trades()', 'execute')::int::text || has_function_privilege('anon', 'public.origins_expire_trades()', 'execute')::int::text || has_function_privilege('authenticated', 'public.origins_expire_trades()', 'execute')::int::text`), '100', 'only the writer sweeps trades');
+  eq(kindCheck(), before.kinds, '0005 alone (class 1) leaves the event kinds as 0003 has them');
+  eq(psql(`select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'origins_reverse_trade'`), '0', '0005 alone has no reversal function (it is 0006)');
   down(); same('down #1');
 
   // ---- round 2: the cooldown, the DB-written history, the sweep -----------------------------------------------------------------------
-  apply([UP]);
+  apply([UP, UP6]);
   psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled'; insert into public.origins_access(account) values ('${A}'), ('${B}'), ('${C}');`);
   const pcA = W(`select public.origins_create_character('${A}', 'Aria');`).split('\n').pop(), pcB = W(`select public.origins_create_character('${B}', 'Bran');`).split('\n').pop();
   const pcC = W(`select public.origins_create_character('${C}', 'Cass');`).split('\n').pop();
@@ -201,13 +204,20 @@ try {
   eq(psql(`select count(*) from public.origins_trade_audit`), '1', 'and keeps the fresh one');
 
   // M13 + M14: the limits reader and the counts
-  rewrite(`update public.origins_items set tier = 'origin' where id = 'it:b1'`);
+  rewrite(`update public.origins_items set tier = '${TIERS[9]}' where id = 'it:b1'`);
   const lim = JSON.parse(W(`select public.origins_trade_limits('${B}')::text;`));
   eq([lim.gates.min_career_level, lim.gates.account_age_s, lim.caps.open, lim.caps.pieces, lim.caps.origin_tier], [11, 604800, 1, 20, 2], 'the limits carry the configured gates and caps');
   eq(lim.account_age_s >= 864000 && lim.account_age_s < 864100, true, 'account age comes from auth.users.created_at');
   eq(sorted(lim.counts), sorted({ open: 0, settled: 1, counterparties: 1, pieces: 1, origin_tier: 1 }), 'B settled one trade, gave one piece, and it was an origin-tier one');
   eq(sorted(JSON.parse(W(`select public.origins_trade_counts('${C}', now() - interval '24 hours')::text;`))), sorted({ open: 0, settled: 0, counterparties: 0, pieces: 0, origin_tier: 0 }), 'an account that never traded counts zero');
   eq(JSON.parse(W(`select public.origins_trade_counts('${A}', now() + interval '1 hour')::text;`)).settled, 0, 'a window in the future counts nothing');
+  // the origin-tier cap counts the CANONICAL title string (src/career.ts TITLES[9] = grades.ts TIERS[9], case-sensitive): Strategy 2026-10-07. The config
+  // list must be that constant (drift guard), and an item carrying it increments the cap while a lowercase twin does not.
+  eq(JSON.parse(psql(`select value::text from public.origins_config where key = 'trade_caps'`)).origin_tiers, [TIERS[9]], 'origin_tiers is the canonical TIERS[9] string');
+  rewrite(`update public.origins_items set tier = '${TIERS[9].toLowerCase()}' where id = 'it:b1'`);
+  eq(JSON.parse(W(`select public.origins_trade_counts('${B}', now() - interval '24 hours')::text;`)).origin_tier, 0, 'a lowercase tier does not count as origin-tier');
+  rewrite(`update public.origins_items set tier = '${TIERS[9]}' where id = 'it:b1'`);
+  eq(JSON.parse(W(`select public.origins_trade_counts('${B}', now() - interval '24 hours')::text;`)).origin_tier, 1, 'the canonical Origin tier counts');
   // a second settled trade with the SAME counterparty: settled and pieces grow, counterparties stays 1 (distinct)
   commit(A, [mintOp('it:x1', 'bracer', 1, loc('pack', pcA, 7), 'mk:x1', { ...one, ...at(old) })]);
   commit(B, [mintOp('it:y1', 'amulet', 1, loc('pack', pcB, 8), 'mk:y1', { ...one, ...at(old) })]);
@@ -239,11 +249,11 @@ try {
   for (const kind of ['trade-reversal', 'trade-hold', 'metal']) psql(`insert into public.origins_events (event_id, kind, account) values ('k:${kind}', '${kind}', '${A}')`);
   refused('an unknown kind is still refused', 'origins_events_kind_check', () => psql(`insert into public.origins_events (event_id, kind, account) values ('k:x', 'bogus', '${A}')`));
   // down: refused while a new-kind event exists (append-only), clean after the purge
-  refused('down is refused while a new-kind event exists', 'origins_events_kind_check', () => down());
+  refused('0006 down is refused while a new-kind event exists', 'origins_events_kind_check', () => down(UP6));
   eq(psql(`select count(*) from public.origins_trade_audit where account = '${A}'`), '1', 'A has an audit row before the purge');
   for (const a of [A, B, C]) W(`select public.origins_purge_account('${a}');`);
   eq(psql(`select count(*) from public.origins_trade_audit where account = '${A}'`), '0', 'the purge took the audit rows too');
-  down(); same('down #2');
+  down(UP6); down(UP); same('down #2');
   console.log(`origins-trade-limits-check: ${checks} checks passed`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }
