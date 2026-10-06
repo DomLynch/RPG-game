@@ -10,9 +10,9 @@ export function fatigueLayer(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, ph
   const depth = (t?.depth ?? 1) * calm, sag = (t?.sag ?? 1) * calm;
   const winded = Math.max(0, Math.min(1, (f.level - .25) / .5));   // breathing shows from a quarter, saturates by three quarters
   const ragged = Math.sin(phase * .37) * .35 * f.gassed;           // a gasp is never the same twice
-  const chest = (Math.sin(phase) * (1 + ragged) * .06 * winded + Math.sin(phase * 2) * .015 * f.gassed) * depth;
+  const chest = (Math.sin(phase) * (1 + ragged) * .1 * winded + Math.sin(phase * 2) * .02 * f.gassed) * depth;   // a visible heave on every breath at phone size (Strategy's look verdict: x1.6)
   const arch = f.second * .14 * depth;                              // the second wind: a deep lift of the chest as he straightens
-  const hunch = (f.level * .12 + f.gassed * .3) * depth - arch * .5;
-  const arm = (f.level * .16 + f.gassed * .3) * sag;
+  const hunch = (f.level * .2 + f.gassed * .3) * depth - arch * .5;   // grows with the band
+  const arm = (f.level * .26 + f.gassed * .3) * sag;
   return { hunch, chest: chest - arch, arm };
 }

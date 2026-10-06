@@ -12,4 +12,4 @@ export const FOE_TUNE: Partial<Record<OpponentId, FatigueTune>> = {
   pitborn: { rate: .9, depth: 1.2, sag: 1.1 },
 };
 // How far the raised guard / shield sinks at full tiredness: a share of the raise, applied to the shield carry (a few cm on screen).
-export const GUARD_DROP = .18;
+export const GUARD_DROP = .3;

@@ -3,7 +3,7 @@
 // from its record on a built dist one 16 ms frame at a time (scripts/lib/harness-clock.mjs). The record fixes every tick, so a BEFORE build and an AFTER build
 // show the same fight; pass --record <file> to replay the record a first run wrote. Runs on the VPS through `capture` (SwiftShader, no GPU).
 //   node scripts/fatigue-clip.mjs --dist dist --out artifacts/fatigue [--record file] [--opponent veteran] [--level 3] [--every 3] [--dpr 2] [--side 0]
-// Writes <out>/clip.mp4, <out>/<band>.jpg for the first tick of each band the hero reaches (+ --after ticks, default 40, so the blend has settled), <out>/record.txt and <out>/meta.json.
+// Stills are keyed by sim tick (meta.json `stills`: name -> tick). Writes <out>/clip.mp4, <out>/<band>.jpg for the first tick of each band the hero reaches (+ --after ticks, default 40, so the blend has settled), <out>/record.txt and <out>/meta.json.
 /* global process, console, document, URL, window */
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -67,14 +67,16 @@ try {
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   const clock = await harnessClock(page), shots = [];
-  const want = new Map(STILLS ? Object.entries(JSON.parse(await fs.readFile(STILLS, 'utf8')).stills).map(([name, n]) => [n, name]) : bands.map(([t, b]) => [t + AFTER, `band${b}-t${t}`]));
-  const stills = {};
-  for (let n = 0; n < (ticks || MAX) + 120; n++) {
-    const shoot = n % EVERY === 0, still = [...want.keys()].find((k) => k >= n && k < n + 1);
-    await skipDraws(page, !(shoot || still !== undefined));
+  // Stills are taken by the page's own sim tick (#debug data-tick), never by frame count, so the BEFORE and AFTER builds show the same tick whatever the load did to the harness.
+  const want = new Map(STILLS ? Object.entries(JSON.parse(await fs.readFile(STILLS, 'utf8')).stills).map(([name, t]) => [t, name]) : bands.map(([t, b]) => [t + AFTER, `band${b}-t${t}`]));
+  const stills = {}, pageTick = () => page.evaluate(() => Number(document.getElementById('debug')?.dataset.tick ?? 0));
+  for (let n = 0, tick = 0; n < (ticks || MAX) * 2 + 240; n++) {
+    const shoot = n % EVERY === 0;
+    await skipDraws(page, !(shoot || want.has(tick + 1) || want.has(tick + 2)));
     await clock.run(16);
+    tick = await pageTick();
     if (shoot) { const file = `${dir}/${String(shots.length).padStart(4, '0')}.jpg`; await page.screenshot({ path: file, type: 'jpeg', quality: 92, animations: 'disabled' }); shots.push(file); }
-    if (still !== undefined) { const name = want.get(still); await page.screenshot({ path: `${OUT}/${name}.jpg`, type: 'jpeg', quality: 92, animations: 'disabled' }); stills[name] = n; }
+    if (want.has(tick) && !Object.values(stills).includes(tick)) { const name = want.get(tick); await page.screenshot({ path: `${OUT}/${name}.jpg`, type: 'jpeg', quality: 92, animations: 'disabled' }); stills[name] = tick; }
     if (await page.evaluate(() => !!document.getElementById('debug')?.dataset.replay)) break;
   }
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${dir}/%04d.jpg`, '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/clip.mp4`], { timeout: 600000 });
