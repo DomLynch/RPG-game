@@ -21,3 +21,9 @@ test('after the last step the prompt is the ready card; before any fight state i
   assert.equal(TUTORIAL_READY.ready, true);
   assert.equal(tutorialPrompt(null, 0, false), null);
 });
+
+test('the slash how line follows the button shown: Fight to draw, then Slash; nothing shows before the card clears', () => {
+  assert.equal(tutorialPrompt('slash', 0, false, false)!.how, 'tap Fight to draw');
+  assert.equal(tutorialPrompt('slash', 0, false, true)!.how, 'tap Slash');
+  assert.equal(tutorialPrompt('stab', 1, false, false)!.how, 'tap Stab', 'only the slash step depends on drawing');
+});

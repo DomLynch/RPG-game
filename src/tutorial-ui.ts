@@ -6,7 +6,7 @@ import { TUTORIAL_STEPS, type TutorialStep } from './tutorial.ts';
 export type TutorialPrompt = { word: string; how: string; now?: boolean; ready?: boolean };
 
 const PROMPT: Record<TutorialStep, { word: string; how: string }> = {
-  slash: { word: 'SLASH', how: 'tap Fight' },
+  slash: { word: 'SLASH', how: 'tap Slash' },
   stab: { word: 'STAB', how: 'tap Stab' },
   heavy: { word: 'HEAVY', how: 'hold Heavy, then let go' },
   guard: { word: 'GUARD', how: 'hold Guard as his swing comes' },
@@ -17,9 +17,9 @@ const PROMPT: Record<TutorialStep, { word: string; how: string }> = {
 export const TUTORIAL_READY: TutorialPrompt = { word: "YOU'RE READY", how: 'tap Fight!', ready: true };
 
 /** The prompt for the step the foe waits on; the ready card once every step is done; null when there is nothing to show. `parryWindow` is the fight's own (tutorial.ts): true from the first tick a guard press would catch the heavy until contact. */
-export function tutorialPrompt(current: TutorialStep | null, done: number, parryWindow: boolean): TutorialPrompt | null {
+export function tutorialPrompt(current: TutorialStep | null, done: number, parryWindow: boolean, drawn = true): TutorialPrompt | null {
   if (current === null) return done === TUTORIAL_STEPS.length ? TUTORIAL_READY : null;
-  const base = PROMPT[current];
+  const base = current === 'slash' && !drawn ? { word: PROMPT.slash.word, how: 'tap Fight to draw' } : PROMPT[current];   // the button reads FIGHT until the sword is out, then SLASH
   return current === 'parry' && parryWindow ? { word: 'NOW!', how: base.how, now: true } : base;
 }
 
@@ -29,8 +29,8 @@ export function createTutorialUi(element: Lookup, onGo: () => void) {
   go.addEventListener('click', onGo);
   let last = '';
   return {
-    update(current: TutorialStep | null, done: number, parryWindow: boolean) {
-      const p = tutorialPrompt(current, done, parryWindow), key = p ? `${p.word}|${p.how}` : '';
+    update(current: TutorialStep | null, done: number, parryWindow: boolean, drawn: boolean, show: boolean) {
+      const p = show ? tutorialPrompt(current, done, parryWindow, drawn) : null, key = p ? `${p.word}|${p.how}` : '';
       if (key === last) return;
       last = key;
       box.hidden = !p;

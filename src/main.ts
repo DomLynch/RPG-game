@@ -802,7 +802,7 @@ let lessonNow: LessonId | undefined, lessonTimer = 0;
 export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
-  tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false);
+  tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
   hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
@@ -1251,6 +1251,7 @@ if (!sparKit && !replayText && !sharedId && !invalidSparringPreview && !lessonAs
   const done: string[] = [];
   // After the last step the prompt turns into "YOU'RE READY" with a Fight! button: it marks the lesson done and drops into a normal first fight (?fight=1, as the first loss does).
   tutorialUi = createTutorialUi(element, () => { try { storage.setItem(LESSON_DONE_KEY, '1'); } catch { /* unsaved: harmless */ } location.assign(`${location.pathname}?fight=1`); });
+  document.documentElement.dataset.tutorial = '1';   // style.css hides the old status line: one message only
   match.startTutorial((id) => { done.push(id); document.documentElement.dataset.tutorialDone = id; });
   Object.assign(globalThis, { __tutorial: () => ({ tick: match.practice.duel.tick, done: [...done], current: match.tutorial?.current ?? null, recorder: !!match.recorder, finish: match.practice.finish }) });
   began();
