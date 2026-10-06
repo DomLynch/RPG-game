@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, finaliseClaim, held, outbox, settleOutbox, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, finaliseClaim, held, outbox, settleOutbox, loadStanding, saveStanding, STANDING_KEY, type Claim, reloadAfter } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
@@ -279,4 +279,13 @@ test('F3: a load that cannot write the settled outbox still posts the entries a 
   assert.deepEqual(outbox(storage).map((c) => [c.record, c.final, c.piece]), [['A', true, null], ['B', true, 'goblin.Helmet']]);
   assert.equal(await flushClaims(db(async () => ({ error: null }), sent), 'u1', storage, () => {}), 2);
   assert.deepEqual(sent.map((row) => row.record), ['A', 'B']);
+});
+
+test('reloadAfter: the next rung reloads the page whether the settle resolved or threw, and a throw is logged, not swallowed', async () => {
+  const calls: string[] = [];
+  await reloadAfter(Promise.resolve(), () => calls.push('reload'), () => calls.push('warn'));
+  assert.deepEqual(calls, ['reload'], 'a clean settle reloads once and warns nothing');
+  calls.length = 0;
+  await reloadAfter(Promise.reject(new Error('quota')), () => calls.push('reload'), (error) => calls.push(`warn:${(error as Error).message}`));
+  assert.deepEqual(calls, ['warn:quota', 'reload'], 'a throwing settle is logged and the page still reloads (the kill screen never sticks)');
 });

@@ -12,7 +12,7 @@ const PROMPT: Record<TutorialStep, { word: string; how: string }> = {
   guard: { word: 'GUARD', how: 'hold Guard as his stab comes' },
   parry: { word: 'PARRY', how: 'slide Guard UP when it says NOW!' },
   kick: { word: 'KICK', how: 'he is guarding: tap Kick' },
-  roll: { word: 'ROLL', how: 'roll as his thrust comes' },
+  roll: { word: 'ROLL', how: 'hold Roll as his swing starts' },
 };
 export const TUTORIAL_CLOSER: TutorialPrompt = { word: 'STEP CLOSER', how: 'move toward him' };
 export const TUTORIAL_READY: TutorialPrompt = { word: "YOU'RE READY", how: 'tap Fight!', ready: true };

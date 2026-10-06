@@ -167,3 +167,8 @@ export function claimOnHide(storage: StoragePort, userId: string, piece: string 
 export async function flushThenStanding(db: SupabaseClient, userId: string, storage: StoragePort, report: (error: unknown) => void, current: Standing | null): Promise<Standing | null> {
   return (await flushClaims(db, userId, storage, report)) ? readStanding(db) : current;
 }
+
+// Leaving the kill screen for the next rung: the profile is already advanced and persisted, so the page MUST reload whether the settle
+// succeeded or threw (a storage write in finaliseClaim/bankClaim can throw in a private window); a failure is logged, never a stuck screen.
+export const reloadAfter = (settled: Promise<unknown>, reload: () => void, warn: (error: unknown) => void = (error) => console.warn('loot claim: settle failed before the reload', error)): Promise<void> =>
+  settled.then(undefined, warn).then(reload);

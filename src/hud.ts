@@ -1,7 +1,7 @@
 // The combat HUD: meters, labels, the combat buttons' enabled/hidden/label state, and the floating damage numbers. Pure DOM
 // binding over the practice state — it never decides anything about the fight. `element` is injected so the entry point's
 // own lookup (and the VM test harness's fake document) is what it binds to.
-import { accepts, counterLine, practiceHint, type CombatEvent, type Practice } from './combat.ts';
+import { accepts, counterLine, practiceHint, type ClarityEvent, type CombatEvent, type Practice } from './combat.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from './lessons.ts';
@@ -137,6 +137,16 @@ export function createHud(element: Lookup) {
     // The journal's damage-numbers toggle turning off: whatever is floating disappears.
     hideDamage() {
       for (const span of dmgPool) span.hidden = true;
+    },
+    // Clarity cue 3 (Lead's brief): a press the sim refused dims and shakes its button for a moment, no text. The CSS class restarts on each refusal.
+    refused(clarity: readonly ClarityEvent[]) {
+      for (const c of clarity) {
+        if (c.type !== 'PressRefused' || c.actor !== 0) continue;
+        const button = c.action === 'heavy' ? heavyButton : c.action === 'thrust' ? thrustButton : c.action === 'kick' ? kickButton : c.action === 'skill' ? skillButton
+          : c.action === 'dodge' || c.action === 'backstep' ? dodgeButton : c.action === 'parry' ? guardButton : attackButton;
+        button.classList.remove('refused'); void button.offsetWidth; button.classList.add('refused');
+        setTimeout(() => button.classList.remove('refused'), 260);
+      }
     },
     floatDamage(
       events: CombatEvent[],

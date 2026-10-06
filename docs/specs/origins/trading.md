@@ -138,8 +138,8 @@ after all moves (`economy.ts:166-167`). In the database it fails: `origins_items
 Postgres checks per row, not at commit, so whichever helm moves first gives its receiver two for a moment and the batch aborts. There is no
 neutral parking location (a live row must have a `loc_kind`, `0001:125`). Recommendation (D10): accept the refusal for phase 1 and pre-check
 it at `change_offer` with a clear message. A deferrable form needs a unique constraint, which cannot be partial, so it is a redesign.
-**Update (Backend, 2026-10-07):** 0003 replaces the index with a deferred check at commit (§6.3, M17), after which the swap settles; D10 is
-then superseded (Strategy confirmed 2026-10-07; conditions in decision 10).
+**Update (Backend, 2026-10-06):** 0003 replaces the index with a deferred check at commit (§6.3, M17), after which the swap settles; D10 is
+then superseded (Strategy confirmed 2026-10-06; conditions in decision 10).
 
 ### 2.8 Exchange only, and no same-device trade
 
@@ -251,7 +251,7 @@ balance (`economy.ts:340`, `:381`, `:413`). Those hooks serve bound metals below
 
 ### 3.2 Metals: the bound NPC currency (later)
 
-**Strategy's view (2026-10-07), replacing the working name "tribute":** the bound NPC currency is **metals**, in three denominations:
+**Strategy's view (2026-10-06), replacing the working name "tribute":** the bound NPC currency is **metals**, in three denominations:
 **100 bronze = 1 silver, 100 silver = 1 gold.** The balance is one integer in **bronze** (the smallest unit); silver and gold are display
 only, so there is no conversion step and no rounding. `MAX_COIN` (`economy.ts:210`, 1,000,000,000) caps it at 100,000 gold.
 
@@ -361,7 +361,7 @@ packs filled mid-trade, pieces passed A → B → C → A). After every step:
 | D5 | Two trades offering the same piece | Second escrow `put` stale (O0002); with 0003 also refused as already in an open trade. |
 | D6 | Receiver full | Writer refuses first; a forced batch into a taken slot fails the place index (`0001:126`). Trade stays open. |
 | D7 | Receiver already holds the piece | `origins_items_one_of_each` refuses, nothing moves (exists: `:156-157`). |
-| D8 | Same-definition swap | Before 0003: refused (§2.7). After M17: a +0↔+3 helm swap settles; a trade that would leave any account holding two copies still fails at commit; both items' hand-change counts go up and the 2-hand-change limit applies to each (Strategy 2026-10-07). |
+| D8 | Same-definition swap | Before 0003: refused (§2.7). After M17: a +0↔+3 helm swap settles; a trade that would leave any account holding two copies still fails at commit; both items' hand-change counts go up and the 2-hand-change limit applies to each (Strategy 2026-10-06). |
 | D9 | Cancel batch that leaves a piece in escrow | Refused by 0003; trade stays open. |
 | D10 | Settle without both accepts, or at a stale version | Refused by 0003 (today the DB allows it). |
 | D11 | Two characters of one account | Refused by 0003. |
@@ -401,7 +401,7 @@ buyers, and the second buyer cannot resell it.
 | Gate | Value | Why |
 |---|---|---|
 | Rank | Gladiator (career level 11+) | Implied by the Exchange (blueprint `:8`); levels 11-15 are Gladiator (`origins/contracts/world.ts:41-42`, `src/career.ts:8`). |
-| Verified contact | A verified **email** before trading unlocks. Phone verification is an **optional later gate**, not for beta: SMS costs money per message, so it is Dom's purchase call (Strategy, 2026-10-07). | Raises the cost of each mule or resale account. |
+| Verified contact | A verified **email** before trading unlocks. Phone verification is an **optional later gate**, not for beta: SMS costs money per message, so it is Dom's purchase call (Strategy, 2026-10-06). | Raises the cost of each mule or resale account. |
 | Account age | **7 days** since the account was created | Throwaway accounts cost a week. |
 | Origins age | **48 hours** since `origins_access.granted_at` (`0001:17`) | Stops instant farms on new allowlist rows. |
 
@@ -488,7 +488,7 @@ Account selling is where gold sellers go when there is no gold. **It cannot be r
 - The 20-a-day metal cap and the trade caps limit what a bot farm can move per account; the verified-contact gate limits accounts.
 - ToS bans automation; the farm-chain flag (§5.6) is the detection.
 
-### 5.11 Anti-bot (Strategy's view, 2026-10-07)
+### 5.11 Anti-bot (Strategy's view, 2026-10-06)
 
 **Auto-hold (Dom's idea).** When an account's wealth or velocity is anomalous (pieces arriving or leaving far faster than its play could
 explain, or a farm-chain pattern), the writer puts a **hold** on it:
@@ -526,7 +526,7 @@ farm cannot learn which action tripped it.
 Nothing in 0003 touches a live non-Origins table. Every item creates or replaces something under `origins_*`, with a down-script that
 restores exactly the 0001/0002 state, a branch-DB run of `scripts/origins-database-check.mjs` plus §4.3, and Auditor probes.
 
-**BLOCKER before any trading op ships and before the flag GO (Strategy and Backend, 2026-10-07).** Three gaps in the applied 0001 come
+**BLOCKER before any trading op ships and before the flag GO (Strategy and Backend, 2026-10-06).** Three gaps in the applied 0001 come
 first. Backend confirmed all three and fixes them in **one** 0003 (no 0002b; 0001 and 0002 are never edited), with tests (D8, D9, D10,
 §4.3), before any trade path is wired. No trading flag turns on without them.
 
@@ -634,24 +634,24 @@ in `settleTrade`; a `reversal` `HistoryEntry` kind (`items.ts:152-155`); gifts o
 ## 7. Decisions for Strategy
 
 1. **Player currency:** none, barter only / tradeable coin. **Awaiting Dom. Recommend none; coin considered and rejected (§3.1).**
-2. **Full receiver:** refuse the whole trade and keep it open (today's code) / move what fits, return the rest. **RULED (Strategy 2026-10-07): refuse whole; fix `server-save-schema.md:76`.**
+2. **Full receiver:** refuse the whole trade and keep it open (today's code) / move what fits, return the rest. **RULED (Strategy 2026-10-06): refuse whole; fix `server-save-schema.md:76`.**
 3. **Trade limit:** 2 hand changes then bind to the third owner / 1 / unlimited. **Awaiting Dom. Recommend 2.**
-4. **Gifts (one empty side):** off at beta / on. **RULED (Strategy 2026-10-07): off at beta (one or more items each side), the contract allows them today (`economy.ts:68`).**
-5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-07): rare-and-up plus Pit pieces, so R1 holds.**
-6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-07): the character for beta; revisit account-bind after beta. No contract change.**
-7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-07): history.**
-8. **NPC costs:** bound metals (bronze/silver/gold, 100:1, stored in bronze), ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-07): bound metals in ledger tables when built (replaces "tribute"); materials-only at beta.**
-9. **Metal per Pit win:** 20 x payer tier bronze, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-07): 20 x payer tier as the placeholder; Stats sets the number.**
-10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-07): refuse until 0003 lands; after that the swap settles through the deferred one-of-each trigger (M17).** Conditions: 0003 includes a test proving a +0↔+3 helm swap settles AND a test proving a trade that would leave anyone holding two copies still fails at commit; the 2-hand-change limit applies to both items.
-11. **Same-IP trades:** allow and flag / refuse. **RULED (Strategy 2026-10-07): allow and flag; refuse same session or device.**
-12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **RULED (Strategy 2026-10-07): class 1 while the flag is OFF and the tables are empty; same path, joint GO.**
-13. **Trade gates:** Gladiator only / plus verified email, 7-day account, 48 h Origins age (phone dropped for beta). **CHANGED (Strategy 2026-10-07): Gladiator rank + verified email + 7-day-old account + 48 h in Origins. Phone verification is an optional later gate (SMS costs money per message; Dom's purchase call).**
-14. **Cooldown after a new device or a password/email change:** 72 h / 24 h / none. **RULED (Strategy 2026-10-07): 72 h.**
+4. **Gifts (one empty side):** off at beta / on. **RULED (Strategy 2026-10-06): off at beta (one or more items each side), the contract allows them today (`economy.ts:68`).**
+5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-06): rare-and-up plus Pit pieces, so R1 holds.**
+6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-06): the character for beta; revisit account-bind after beta. No contract change.**
+7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-06): history.**
+8. **NPC costs:** bound metals (bronze/silver/gold, 100:1, stored in bronze), ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-06): bound metals in ledger tables when built (replaces "tribute"); materials-only at beta.**
+9. **Metal per Pit win:** 20 x payer tier bronze, 20 paid wins a day / 20 x legend tier / flat. **RULED (Strategy 2026-10-06): 20 x payer tier as the placeholder; Stats sets the number.**
+10. **Same-definition swap:** refuse with a clear message / redesign the one-of-each index. **RULED (Strategy 2026-10-06): refuse until 0003 lands; after that the swap settles through the deferred one-of-each trigger (M17).** Conditions: 0003 includes a test proving a +0↔+3 helm swap settles AND a test proving a trade that would leave anyone holding two copies still fails at commit; the 2-hand-change limit applies to both items.
+11. **Same-IP trades:** allow and flag / refuse. **RULED (Strategy 2026-10-06): allow and flag; refuse same session or device.**
+12. **0003 changes to existing Origins tables (M1, M11):** class 1 by the 0002 precedent / class 2 / companion tables. **RULED (Strategy 2026-10-06): class 1 while the flag is OFF and the tables are empty; same path, joint GO.**
+13. **Trade gates:** Gladiator only / plus verified email, 7-day account, 48 h Origins age (phone dropped for beta). **CHANGED (Strategy 2026-10-06): Gladiator rank + verified email + 7-day-old account + 48 h in Origins. Phone verification is an optional later gate (SMS costs money per message; Dom's purchase call).**
+14. **Cooldown after a new device or a password/email change:** 72 h / 24 h / none. **RULED (Strategy 2026-10-06): 72 h.**
 15. **Cash shop:** Dom only; cosmetics, transmog and membership convenience; always bound, never random, never stats / anything wider. **Awaiting Dom. Recommend the narrow catalogue.**
-16. **Phase 2 discovery:** barter board with multi-item and "any of these" offers, no prices / priced market. **RULED (Strategy 2026-10-07): the barter board.**
-17. **Re-winnable once sold (R2):** adopt with a give cap / reject / defer. **RULED (Strategy 2026-10-07): defer until after beta (live award path).**
-18. **Who may reverse a trade:** Dom / Dom or Strategy on Dom's say / any admin. **RULED (Strategy 2026-10-07): Dom or Strategy on Dom's say; admins freeze only.**
-19. **Player trade before the hub runtime exists:** heartbeat only / wait for the hub to prove the Exchange position. **RULED (Strategy 2026-10-07): wait; heartbeat in the preview.**
+16. **Phase 2 discovery:** barter board with multi-item and "any of these" offers, no prices / priced market. **RULED (Strategy 2026-10-06): the barter board.**
+17. **Re-winnable once sold (R2):** adopt with a give cap / reject / defer. **RULED (Strategy 2026-10-06): defer until after beta (live award path).**
+18. **Who may reverse a trade:** Dom / Dom or Strategy on Dom's say / any admin. **RULED (Strategy 2026-10-06): Dom or Strategy on Dom's say; admins freeze only.**
+19. **Player trade before the hub runtime exists:** heartbeat only / wait for the hub to prove the Exchange position. **RULED (Strategy 2026-10-06): wait; heartbeat in the preview.**
 20. **Tradeable metal:** none at beta / a capped sweetener inside a barter (at most 1 gold per trade, 3 such trades a day, same gates). **Awaiting Dom. Recommend none at beta; the sweetener only if Dom insists later.**
 21. **Gems:** bound crafting materials or unique named jewels under the 2-hand rule / a stackable tradeable gem. **Strategy's view: never a stackable tradeable gem (it would be gold by another name).**
 22. **Auto-holds:** wealth/velocity anomalies freeze trading only, expire after 72 h unless confirmed; Strategy/Lead review on written rules; Dom decides bans and reversals / no auto-holds. **Awaiting Dom (his idea). Recommend adopt, as the last beta layer after gates, rate limits and Turnstile.**

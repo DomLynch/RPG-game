@@ -108,5 +108,6 @@ test('careerLine reads the level, the CP into it and the level requirement', () 
   assert.equal(line.into, s.career.credit - cumulative(16));
   assert.equal(line.need, requirement(16));
   assert.ok(line.fillPermille > 0 && line.fillPermille < 1000);
-  assert.equal(careerLine(newSession(46).career).top, true);
+  assert.equal(careerLine(newSession(50).career).top, true, 'the ladder tops out at 50 (RV27)');
+  assert.equal(careerLine(newSession(46).career).top, false, '46 is Origin I now, no longer the top');
 });

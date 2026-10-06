@@ -58,7 +58,7 @@ test('record v26: the arena byte round-trips, and an unnamed arena stays unnamed
   const plain = createRecorder({ build: 'b', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 9 });
   setLateNotice(false); setStab(false);
   const r = named.finish('abandoned'), p = plain.finish('abandoned');
-  assert.equal(RECORD_VERSION, 26); assert.equal(r.v, 26);
+  assert.ok(RECORD_VERSION >= 26); assert.equal(r.v, RECORD_VERSION);
   assert.equal(unpackRecord(packRecord(r)).arena, '10'); assert.equal((await decodeRecord(await encodeRecord(r))).arena, '10');
   assert.equal('arena' in unpackRecord(packRecord(p)), false);
   assert.equal((await peekRecordHeader(await encodeRecord(r)))?.outcome, 'abandoned', 'the header peek skips the arena byte');

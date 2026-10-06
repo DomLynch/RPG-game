@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import { GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, guardSide } from '../src/input.ts';
+import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, guardSide } from '../src/input.ts';
 import type { Direction } from '../src/moves.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
@@ -214,4 +214,17 @@ test('the fighter card keeps Rename on the sheet: the rank row shrinks its bar, 
   assert.match(css, /#journal-rank \.rank-bar \{ min-width: 0; overflow: hidden; \}/, 'the bar takes the shrink');
   assert.match(css, /#journal-rank \.rank-seg \{ flex: 0 1 14px; min-width: 4px; \}/, 'its segments narrow to 4 px');
   assert.doesNotMatch(css, /#journal-rank[^{]*\{[^}]*text-overflow/, 'no ellipsis on a class name');
+});
+
+test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to a side cuts that side, neutral keeps the alternating light', () => {
+  assert.equal(cutAction(0), 'light'); assert.equal(cutAction(0.12), 'light'); assert.equal(cutAction(CUT_PUSH - 0.01), 'light', 'a wobble is not a cut');
+  assert.equal(cutAction(-CUT_PUSH), 'light_left'); assert.equal(cutAction(-1), 'light_left');
+  assert.equal(cutAction(CUT_PUSH), 'light_right'); assert.equal(cutAction(1.4), 'light_right');
+  const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(lateral\(\)\)\)/, 'the LIGHT press reads the held side');
+  assert.match(src, /const arrowKey = \(code: string\) => !keys\.has\('KeyQ'\)/, 'Q + an arrow is the guard side, never a cut');
+  assert.match(src, /attackButton\.dataset\.cut = cutSide/, 'the button shows the chosen side');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(css, /#attack-button\[data-cut\]::after\{[^}]*border-left-color: var\(--cut-arc\)/, 'v2: a solid arc marks the chosen edge');
+  assert.match(css, /#attack-button\[data-cut=right\]::after\{ clip-path: inset\(0 0 0 50%\)/, 'right cut keeps the right half');
 });

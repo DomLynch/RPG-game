@@ -20,6 +20,7 @@ export type DuelDecision = {
   counted: boolean;                // the win moves ratings and counts toward the day
   reason: 'ok' | 'unverified' | 'same-account' | 'draw' | 'repeat-opponent';
   winner: number; loser: number;   // the two ratings after
+  gain: number;                    // the rating points that moved from loser to winner (0 when not counted)
   wouldPay: number;                // what a counted win pays at today's taper (0 when not counted)
   pay: number;                     // what is actually paid: 0 while rewards are off
 };
@@ -39,7 +40,7 @@ export function decideDuelResult(input: {
 }): DuelDecision {
   const cfg = input.cfg ?? DUEL_ANTIFARM;
   const w = rating(input.winnerRating, cfg), l = rating(input.loserRating, cfg);
-  const none = (reason: DuelDecision['reason']): DuelDecision => ({ counted: false, reason, winner: w, loser: l, wouldPay: 0, pay: 0 });
+  const none = (reason: DuelDecision['reason']): DuelDecision => ({ counted: false, reason, winner: w, loser: l, gain: 0, wouldPay: 0, pay: 0 });
   if (!input.verified) return none('unverified');
   if (input.winnerId === input.loserId) return none('same-account');
   if (input.draw) return none('draw');
@@ -47,5 +48,5 @@ export function decideDuelResult(input: {
   if (today.some((x) => x.opponent === input.loserId)) return none('repeat-opponent');
   const gain = Math.round(cfg.elo.k * (1 - expectedScore(w, l)));
   const wouldPay = Math.round(cfg.reward.base * taper(today.length, cfg) * 100) / 100;
-  return { counted: true, reason: 'ok', winner: w + gain, loser: Math.max(cfg.elo.floor, l - gain), wouldPay, pay: PVP_REWARDS ? wouldPay : 0 };
+  return { counted: true, reason: 'ok', winner: w + gain, loser: Math.max(cfg.elo.floor, l - gain), gain, wouldPay, pay: PVP_REWARDS ? wouldPay : 0 };
 }
