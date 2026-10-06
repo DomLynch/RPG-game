@@ -47,7 +47,7 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
-import { resolveHamstrung } from './hamstrung.ts';
+import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
@@ -1827,7 +1827,7 @@ function frame(now: number) {
         );
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
       const deathWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
-      const deathPick = finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId);
+      const deathPick = hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
       const deathAudio =
         practice.finish && practice.events.some((e) => e.type === 'Killed')
           ? {

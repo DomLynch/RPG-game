@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Object3D, Texture, Vector3 } from 'three';
 import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/finishers.ts';
-import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, poseOf, resolveHamstrung } from '../src/hamstrung.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, hamstrungPick, poseOf, resolveHamstrung } from '../src/hamstrung.ts';
+import { createHamstrungAssets } from '../src/hamstrung-assets.ts';
+import { readFileSync } from 'node:fs';
 import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
 import { cuesFor, type DeathPresentation } from '../src/audio/cues.ts';
 import { createFinisherBlood, finisherBloodSources } from '../src/finisher-blood.ts';
@@ -62,4 +64,42 @@ test('Hamstrung bleeds at the knee first and the back second, each after its own
   for (let i = 0; i < 120; i++) blood.update(1 / 60, 'hamstrung', .5, sources, 'red');
   assert.ok(blood.inspect().emitted > 20, 'the knee bleeds once it is cut');
   blood.dispose();
+});
+
+// Lazy load (Auditor on 4faa85d4): a normal fight's ready never waits on, or fetches, the Hamstrung assets.
+test('the Hamstrung assets are fetched only on request, once, and a failure leaves the scene on the plain death', async () => {
+  let fetches = 0, installs = 0; const errors: unknown[] = [], rigs = { a: {}, b: {} };
+  const assets = createHamstrungAssets(async () => { fetches++; return 1; }, () => { installs++; }, (e) => errors.push(e));
+  assert.equal(fetches, 0, 'building the scene fetches nothing'); assert.equal(assets.ready(rigs.a), false);
+  await assets.request(rigs.a); await assets.request(rigs.a);
+  assert.deepEqual([fetches, installs, assets.ready(rigs.a), assets.ready(rigs.b)], [1, 1, true, false]);
+  await assets.request(rigs.b);   // a rebuilt pair of rigs reuses the fetched data
+  assert.deepEqual([fetches, installs, assets.ready(rigs.b)], [1, 2, true]);
+  const broken = createHamstrungAssets(async () => { throw new Error('offline'); }, () => { installs++; }, (e) => errors.push(e));
+  await broken.request(rigs.a); await broken.request(rigs.a);
+  assert.equal(broken.ready(rigs.a), false); assert.equal(errors.length, 1, 'reported once');
+  const bad = createHamstrungAssets(async () => 1, () => { throw new Error('bake'); }, (e) => errors.push(e));
+  await bad.request(rigs.a); assert.equal(bad.ready(rigs.a), false, 'a failed install is not ready');
+});
+
+test('an uninstalled Hamstrung pick is the plain death for the picture and the cues alike', () => {
+  assert.equal(hamstrungPick('hamstrung', false), 'plainDeath');
+  assert.equal(hamstrungPick('hamstrung', true), 'hamstrung');
+  for (const pick of [null, 'opened', 'splitCrown', 'plainDeath'] as const) assert.equal(hamstrungPick(pick, false), pick);
+  const weapons = ['longsword', ROSTER.veteran.weapon] as const, plain = hamstrungPick('hamstrung', false);
+  assert.equal(resolveHamstrung('veteran', finish, weapons, plain, null, resolveFinisher('veteran', finish, weapons, plain)), 'plainDeath');
+  // scene.ts and main.ts both take their pick from hamstrungPick, so the render and cues.ts see one id.
+  const source = (file: string) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
+  assert.match(source('scene.ts'), /hamstrungPick\(finisherOverride, hamstrungLatch === true\)/);
+  assert.match(source('main.ts'), /hamstrungPick\([^\n]*view\.hamstrungInstalled\(\)\)/);
+});
+
+test('a normal fight\'s ready path never fetches or awaits the Hamstrung assets', () => {
+  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  assert.equal([...scene.matchAll(/assets\/hamstrung-/g)].length, 2, 'both clips are imported in one place only');
+  const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
+  assert.doesNotMatch(load, /import\('\.\/assets\/hamstrung|await[^\n]*hamstrung|prepareHamstrung/i, 'loadFighters neither imports nor awaits them');
+  assert.match(load, /\n\s*wantHamstrung\(\);/, 'it only asks when the picker already chose Hamstrung, unawaited');
+  assert.match(scene, /const wantHamstrung = \(\) => \{ if \(finisherOverride === 'hamstrung' && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
+  assert.match(scene, /setFinisherOverride\(id: FinisherId \| null\) \{\n\s*finisherOverride = id;\n\s*wantHamstrung\(\);/, 'the picker choosing it starts the fetch');
 });

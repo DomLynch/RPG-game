@@ -24,7 +24,8 @@ import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { type FinisherId } from './finishers.ts';
-import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, poseOf, resolveHamstrung } from './hamstrung.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, poseOf, resolveHamstrung } from './hamstrung.ts';
+import { createHamstrungAssets } from './hamstrung-assets.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
@@ -352,17 +353,7 @@ export function createScene(
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
-      if (HAMSTRUNG_VICTIMS.includes(opponentId)) {
-        // Both halves ship beside warrior.glb (src/hamstrung.ts), fetched only in a fight that can play the scene; if either fails the picker's pick plays nothing.
-        try {
-          const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]);
-          const parse = (clip: unknown) => THREE.AnimationClip.parse(clip as Parameters<typeof THREE.AnimationClip.parse>[0]);
-          loaded.player.adoptClip('Fin_Hamstrung', parse(killer));
-          loaded.opponent.adoptClip('Death_Hamstrung', parse(victim), HAMSTRUNG_SOURCE_PELVIS);
-          loaded.opponent.prepareHamstrung();
-          hamstrungReady = true;
-        } catch (error) { captureException(error); }
-      }
+      wantHamstrung();   // only if the picker already chose it: a normal fight fetches nothing and does not wait
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
           if (object instanceof THREE.Mesh) object.geometry.dispose();
@@ -481,7 +472,20 @@ export function createScene(
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
   let severHead: SeveredHead | null = null,
     killHeading = 0;
-  let hamstrungReady = false; // the killer's clip and the victim's weapon drop are installed
+  // Fetched on demand (src/hamstrung-assets.ts), never in loadFighters: the killer's clip, the victim's clip and his weapon-drop bake.
+  const hamstrungAssets = createHamstrungAssets(
+    async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]); return { killer, victim }; },
+    (loaded: NonNullable<typeof warriors>, { killer, victim }) => {
+      const parse = (clip: unknown) => THREE.AnimationClip.parse(clip as Parameters<typeof THREE.AnimationClip.parse>[0]);
+      loaded.player.adoptClip('Fin_Hamstrung', parse(killer));
+      loaded.opponent.adoptClip('Death_Hamstrung', parse(victim), HAMSTRUNG_SOURCE_PELVIS);
+      loaded.opponent.prepareHamstrung();
+    },
+    (error) => { captureException(error); },
+  );
+  const hamstrungOk = () => hamstrungAssets.ready(warriors);
+  let hamstrungLatch: boolean | null = null;   // hamstrungOk() as it stood on the first frame of this finish: the picture and the audio keep one answer for the whole kill
+  const wantHamstrung = () => { if (finisherOverride === 'hamstrung' && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
   let finishHold = 0; // Hamstrung: seconds left of the hit-stop a blow holds the scene for (the clock and both rigs stand still, the camera and the blood run on)
   let hamstrungSteps: { knee: THREE.Vector3; back: THREE.Vector3 } | null = null; // where the killer's anchor stands for each blow, solved once per finish
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
@@ -694,8 +698,10 @@ export function createScene(
       lastFinisher = id;
       fightFinisher = null;
     },
+    hamstrungInstalled() { return hamstrungLatch ?? hamstrungOk(); },   // main.ts feeds this to hamstrungPick for the audio
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
+      wantHamstrung();
     },
     setSignature(search: string, selected: string | null, toolsOpen: boolean) {
       signatures.setMode(resolveSignature(search, selected, toolsOpen));   // the ruled variant unless the test tools are open (signature.ts)
@@ -816,14 +822,15 @@ export function createScene(
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const fightWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
+      if (!practice.finish) hamstrungLatch = null; else hamstrungLatch ??= hamstrungOk();
       const resolved = practice.finish
         ? resolveHamstrung(
             opponentId,
             practice.finish,
             fightWeapons,
-            hamstrungReady ? finisherOverride : finisherOverride === 'hamstrung' ? null : finisherOverride,
+            hamstrungPick(finisherOverride, hamstrungLatch === true),
             lastFinisher,
-            resolveFinisher(opponentId, practice.finish, fightWeapons, finisherOverride === 'hamstrung' ? null : finisherOverride, lastFinisher),
+            resolveFinisher(opponentId, practice.finish, fightWeapons, hamstrungPick(finisherOverride, hamstrungLatch === true) === 'hamstrung' ? null : hamstrungPick(finisherOverride, hamstrungLatch === true), lastFinisher),
           )
         : null;
       // Decided once per finish, on its first frame: an opened kill with his waist-cut bake still pending plays bakeSafeFinisher's pick (rank-look.ts).
@@ -872,7 +879,7 @@ export function createScene(
         warriors?.player.unsever();
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
-        if (hamstrungReady) warriors?.opponent.prepareHamstrung();
+        if (hamstrungOk()) warriors?.opponent.prepareHamstrung();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).

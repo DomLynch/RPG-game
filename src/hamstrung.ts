@@ -30,3 +30,7 @@ export function resolveHamstrung(id: OpponentId, finish: Finish, weapons: readon
 
 // FINISHER_POSE[id] with Hamstrung's pose word added (the table itself stays as it was, for the same reason as above).
 export const poseOf = (id: FinisherId): NonNullable<(typeof FINISHER_POSE)[FinisherId]> | 'hamstrung' | null => id === 'hamstrung' ? 'hamstrung' : FINISHER_POSE[id];
+
+// The picker's Hamstrung pick as the scene AND the audio must both read it, decided once per finish: if the clips are not installed by the kill, the
+// pick becomes the plain death for the picture and for the cues (src/audio/cues.ts keys on this id), so no knee or back sound plays over a plain fall.
+export const hamstrungPick = (pick: FinisherId | null, installed: boolean): FinisherId | null => pick === 'hamstrung' && !installed ? 'plainDeath' : pick;
