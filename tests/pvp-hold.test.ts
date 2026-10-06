@@ -111,3 +111,17 @@ test('visible(): while the screen is behind the sim the HUD and the end banner r
   for (let i = 0; i < 40 && h.shown; i++) onFrame(h, FRAME, [], stopOf, eventsOf);
   assert.equal(visible(h, live), live, 'after the queue drains the finish is visible');
 });
+
+test('the cap holds on EVERY frame, including slow frames that queue two ticks or more (a frame that overran the hold, CI frame timing)', () => {
+  for (const pattern of [[1], [1, 1, 2], [2], [1, 2, 3], [3, 1, 1, 4]]) {
+    const h = newHold<Snap>(); let tick = 0, worst = 0;
+    for (let f = 0; f < 200; f++) {
+      const n = f < 150 ? pattern[f % pattern.length] : 0;   // ticks the sim steps before this frame draws
+      for (let i = 0; i < n; i++) { tick++; const s = snap(tick, tick % 4 === 2 ? 90 : 0); onTick(h, s, h.shown ? 0 : s.stop, 1); }
+      onFrame(h, FRAME * Math.max(1, n), [], stopOf, eventsOf);   // a slow frame also lasts longer
+      worst = Math.max(worst, h.queue.length);
+    }
+    assert.ok(worst <= MAX_LAG_TICKS, `ticks per frame ${JSON.stringify(pattern)}: the queue reached ${worst} at a frame's end`);
+    assert.equal(h.shown, null, `${JSON.stringify(pattern)}: the screen is live again once the sim stops`);
+  }
+});
