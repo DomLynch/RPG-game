@@ -544,9 +544,14 @@ A patron gives four things and **no raw stat power**:
 
 ### 10.2 Clans, perks and weaknesses (Dom's override; values PROVISIONAL)
 
+> **Ruled (Strategy, 2026-10-07): the templates below are ORIGINS PvE ONLY.** Every one of them moves damage, so none applies in
+> the arena (the Pit, arena duels) or in any PvP fight. In the arena only the no-damage sidegrades of `patron-perks-sim.md` apply:
+> Vitality, Wind, Thrift, Guard, Poise and Stride, at most 30‰ per side. Edge and every other damage perk stays out of the arena
+> until damage rounding is measured. No perk ever touches ticks, reach or AI. This narrows Dom's override 1 for damage perks only.
+
 Every clan has one **perk template**: a small gain paired with a matching cost.
 
-- **Everywhere** (Dom's override): the Pit, duels, Origins fights. Resolved before the fight from the clan, the world clock at engage
+- **Where:** Origins PvE fights only (ruling above). Resolved before the fight from the clan, the world clock at engage
   (§10.3) and the fight's own state, then clamped inside the fixed spine (Attack ≤ 1.15, RES ≤ 0.80). Timing is never touched.
 - **Equal by construction.** A template pairs **+3%** and **−3%** (or +3% and +3% on opposite stats) over **complementary conditions
   of equal measure** that exist in every fight, Pit included: the halves of the clock, the halves of the moon, the two halves of a
@@ -636,6 +641,11 @@ Joining is **one duel with a twist** against the clan's trial champion at the Ex
 A clan's trial champion is an original character in the clan's look, never the patron or legend itself (no beatable Zeus, no
 become-the-boss).
 
+> **TODO (spec, not modelled; Strategy, 2026-10-07, not a merge blocker):** the trial duel is not in `origins/patrons` yet. Joining
+> there is the choice alone, with no trial, twist, retry wait or `trialRetrySeconds`, and the book says "swore to", not "passed the
+> trial of". Still to specify: the trial champion encounters, how each twist and its `only` window is checked, and how a won trial
+> hands over to the allegiance change.
+
 ### 10.5 Prestige
 
 A clan's **prestige** is the seasonal sum of its members' war points, rifts closed and raids held. It sets the clan's place on the
@@ -649,6 +659,10 @@ winner is written in the Exchange's book.
 | First choice | free | — | "{player} passed the trial of {clan} on {date}." |
 | Leave to Independent | free | 7 days before joining another | "{player} left {clan} on {date}." |
 | Switch clan | **2,000 bronze** (a sink) and the new clan's trial | **28 days** | "{player} forsook {old} for {new} on {date}." |
+
+**Ruled (Strategy, 2026-10-07): no way round the switch cost.** The 2,000 bronze and the 28-day wait apply to joining **any** clan
+within 28 days of leaving one. Going Independent is free but does not reset the clock: leave clan A, stand Independent, join clan B
+on day 10 and it costs 2,000 bronze and starts the 28-day wait; on day 29 it is free.
 
 Entries go in the Exchange's book, and also in the home town's book if the player is its ruler. A live war enlistment must close
 first. A lord's town patron changes only at their next term.
