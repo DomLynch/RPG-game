@@ -107,7 +107,7 @@ test('fight identity — read the feint: the goblin passes the fairness battery 
 // The reach fix (2026-09-21) holds a guardless warden a hand inside a read poker's/kicker's reach rather than on its edge, so a handful of
 // seeds against the Goblin (guardless) resolve slightly later; 9000 ticks (150 s) gives that margin without weakening what is asserted —
 // the fight must still finish, and the length/win-rate assertions below are unchanged.
-test('AI vs AI at normal: the Veteran\'s brain in the hero body against the goblin finishes every fight, median 25–45 s', () => {
+test('AI vs AI at normal: the Veteran\'s brain in the hero body against the goblin finishes every fight, median 25–60 s', () => {
   const lengths: number[] = [];
   for (let s = 1; s <= 24; s++) {
     let d = ring(G, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
@@ -115,7 +115,8 @@ test('AI vs AI at normal: the Veteran\'s brain in the hero body against the gobl
     assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
   }
   const median = lengths.sort((a, b) => a - b)[12] / 60;
-  assert.ok(median >= 25 && median <= 45, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
+  // Ceiling 45 -> 60 s, 2026-10-06 (#1416, the Goblin's stab): Dom, via Strategy and Lead: "ok sure can add it to 60 seconds"..
+  assert.ok(median >= 25 && median <= 60, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
   console.log(`goblin AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
 });
 
