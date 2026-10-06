@@ -2455,7 +2455,6 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
   :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #duel-button { display: none !important; }
   :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #share-link { left: calc(50% - 40px); }
   :root.look-loot2:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #clip-button { left: calc(50% + 30px); }
-  :root.look-loot2 .actions[data-gestures=cluster] #reset-button { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 676px); width: min(300px, calc(100vw - 32px)); height: 48px; margin-left: calc(min(300px, calc(100vw - 32px)) / -2); font-size: 15px; }
-  :root.look-loot2:has(#reset-button:not([hidden])) #joystick { visibility: hidden; }   /* the fight is over: the pad is dead and sat under Next */
+  :root.look-loot2 .actions[data-gestures=cluster] #reset-button { position: fixed; left: auto; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 676px); width: min(228px, calc(100vw - 156px)); height: 48px; margin-left: 0; font-size: 15px; }   /* right of the walking pad (joystick x 16..124), which stays live after the fight */
   :root.look-loot2 .actions[data-gestures=cluster] #pit-button { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 620px); width: min(300px, calc(100vw - 32px)); margin-left: calc(min(300px, calc(100vw - 32px)) / -2); height: 44px; font-size: 15px; }
 }
