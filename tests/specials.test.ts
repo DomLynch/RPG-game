@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/moves.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { decodeRecord, encodeRecord } from '../src/record.ts';
+import { RECORD_VERSION, decodeRecord, encodeRecord } from '../src/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { recordSpecials, verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
@@ -64,7 +64,7 @@ test('specials: a release on the tick its caster falls still lands; lethal both 
   assert.deepEqual([next.fighters[0].health, next.fighters[1].health, next.finish?.draw], [0, 0, true]);
 });
 
-test('specials: a fight with them records the flag (v22: a headless fight in the old circle), and the replay builds the same fight from it', async () => {
+test('specials: a fight with them records the flag (this build's version: a live fight), and the replay builds the same fight from it', async () => {
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
@@ -77,7 +77,7 @@ test('specials: a fight with them records the flag (v22: a headless fight in the
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
-  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [22, true, { level: 12, aiSkill: 'shove' }]);
+  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [RECORD_VERSION, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });

@@ -136,7 +136,7 @@ function witchfireFight(seed = 731, ticks = 6000) {
 
 test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/decode, and replays to the identical fight', async () => {
   const { record, practice, casts, log } = witchfireFight();
-  assert.ok(casts >= 2, `the player cast ${casts} times`);
+  assert.ok(casts >= 1, `the player cast ${casts} times`);   // 2 before RV29: his rear and downed hits end this scripted walk-in sooner
   assert.ok(log.some(e => e.actor !== undefined && e.move === 'skill_witchfire' && (e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' || e.type === 'AttackMissed')), 'a cast resolved');
   assert.equal(record.skill, 'witchfire');
   const encoded = await encodeRecord(record), decoded = await decodeRecord(encoded);
