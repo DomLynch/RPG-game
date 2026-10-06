@@ -15,7 +15,7 @@ const PAGE = `<!doctype html><html><body style="margin:0;background:#000"><scrip
 import * as THREE from 'three';
 import { buildArena, LAYOUT } from '/src/arena.ts';
 import { ARENA_THEMES } from '/src/arena-themes.ts';
-const W = ${W}, H = ${H}, SS = 2, BUDGET = ${BUDGET};
+const W = ${W}, CW = ${CW}, H = ${H}, SS = 2, BUDGET = ${BUDGET};
 const canvas = document.createElement('canvas'); document.body.append(canvas);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(W * SS, H * SS, false);
