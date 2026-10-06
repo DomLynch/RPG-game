@@ -54,10 +54,19 @@ test('damage sources count guard break once and keep arena damage separate', () 
     { tick: 40, type: 'Hit', actor: 1, target: 0, damage: 8 },
   ];
   assert.deepEqual(damageSources(events), {
-    player: { hits: 12, guardBreaks: 27, blockedChip: 2, total: 41 },
-    opponent: { hits: 8, guardBreaks: 0, blockedChip: 0, total: 8 },
+    player: { hits: 12, guardBreaks: 27, blockedChip: 2, specials: 0, total: 41 },
+    opponent: { hits: 8, guardBreaks: 0, blockedChip: 0, specials: 0, total: 8 },
     arena: { toPlayer: 0, toOpponent: 3 },
   });
+});
+
+test('damage sources count a Special Move\'s strike for its caster, and blocked chip for the blocker in both directions (GPT audit 2026-10-06, finding A)', () => {
+  const special = [{ tick: 50, type: 'SpecialLanded', actor: 1, target: 0, move: 'witchfire', damage: 30 }];
+  assert.equal(damageSources(special).opponent.total, 30, 'an opponent special dealing 30 was reported as zero opponent damage');
+  assert.equal(damageSources(special).opponent.specials, 30);
+  assert.equal(damageSources(special).player.total, 0);
+  const chip = [{ tick: 5, type: 'Blocked', actor: 0, target: 1, damage: 3 }, { tick: 6, type: 'Blocked', actor: 1, target: 0, damage: 2 }];
+  assert.deepEqual([damageSources(chip).opponent.blockedChip, damageSources(chip).player.blockedChip], [3, 2], 'the player blocked and took 3; the opponent blocked and took 2');
 });
 
 test('each defence reports what it earned: damage avoided, window opened and used, distance', async () => {

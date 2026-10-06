@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { newParticle, type Feel } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
-import { BLOOD, bloodCount, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { BLOOD, bloodCount, bloodGrow, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 // The one blood: Dom's b4 (thin spray + a few drops, stretched into strands, darker red). These pin its numbers.
 const batch = (kill: boolean, feel: Feel, seed = 2) => { const rnd = makeRng(seed); return Array.from({ length: bloodCount(feel, kill) }, (_, i) => { const p = newParticle(); spawnBlood(p, i, 0, 1, 0, 0, 1, kill, feel, rnd); return p; }); };
@@ -34,4 +34,11 @@ test('the pool is one mesh and a thousand hits never grow it', () => {
   const before = scene.children.length;
   for (let i = 0; i < 1000; i++) { pool.burst('high', 0, 1, 0, 0, 1, i % 5 === 0); pool.update(0.016); }
   assert.equal(scene.children.length, before); assert.ok(pool.alive <= pool.capacity);
+});
+
+test('the far fighter\'s blood grows to the near one\'s screen size (1x to 3x), and a grown burst changes only size', () => {
+  assert.deepEqual([bloodGrow(9, 3), bloodGrow(2, 3), bloodGrow(30, 3), bloodGrow(5, 0)], [3, 1, 3, 3]);
+  const a = newParticle(), b = newParticle(); spawnBlood(a, 0, 0, 1, 0, 0, 1, false, 'high', makeRng(4)); spawnBlood(b, 0, 0, 1, 0, 0, 1, false, 'high', makeRng(4), 2.5);
+  assert.ok(Math.abs(b.size - a.size * 2.5) < 1e-9); assert.deepEqual([b.vx, b.vy, b.vz, b.life, b.stretch], [a.vx, a.vy, a.vz, a.life, a.stretch]);
+  assert.equal(bloodCount('high', false), 15, 'counts are the same on both bodies');
 });

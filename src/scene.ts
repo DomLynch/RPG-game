@@ -40,6 +40,7 @@ import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fatigue-tune.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
+import { bloodGrow } from './blood-style.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -903,7 +904,17 @@ export function createScene(
           }
           flinches[victim].hit(px, pz, dead, victim === 0 ? FLINCH_GAIN.hero : FLINCH_GAIN.opponent);
           const scale = victim === 1 ? OPPONENTS[opponentId].scale : 1, y = (blow.location === 'head' ? 1.5 : blow.location === 'legs' ? 0.55 : 1.15) * scale;
-          burstPool.burst(feel, target.x - bx * 0.3, y, target.z - bz * 0.3, bx, bz, dead);
+          // The same blood on both bodies (Dom: it showed when he was hit, rarely when he hit): the foe is 2-3x further from the camera, so its drops are scaled up
+          // to cover about the hero burst's screen size, and the spawn moves to the camera's open side and up, clear of the hero's torso that covers the contact.
+          const cam = rig.camera.position, reach = (px: number, pz: number, py: number) => Math.hypot(cam.x - px, cam.y - py, cam.z - pz);
+          let sx = target.x - bx * 0.3, sz = target.z - bz * 0.3, sy = y, grow = 1;
+          if (victim === 1) {
+            right.setFromMatrixColumn(rig.camera.matrixWorld, 0);
+            const side = along === 'left' ? -1 : 1, open = 0.35 * scale;
+            sx += right.x * side * open; sz += right.z * side * open; sy += 0.1 * scale;
+            grow = bloodGrow(reach(target.x, target.z, y), reach(state.x, state.z, 1.15));
+          }
+          burstPool.burst(feel, sx, sy, sz, bx, bz, dead, grow);
         }
         // A landed blade blow marks the struck body where the simulation says it landed, from the side the move came from.
         if (blow?.type === 'Hit' && blow.location && blow.move && !kick && (!enemyHurt || hasBlood(opponentId)) && warriors)
@@ -1052,6 +1063,8 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.player.opening(practice.opening?.side === 0 ? practice.opening : null);   // opening-pose.ts
+      warriors?.opponent.opening(practice.opening?.side === 1 ? practice.opening : null);
       warriors?.player.fatigue(practice.fatigue[0]);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
       warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
       warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
