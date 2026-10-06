@@ -69,6 +69,7 @@ export function createHud(element: Lookup) {
       ] as const)
         meter.style.setProperty('--fill', `${(value / max) * 100}%`);
       stamina.style.setProperty('--max', `${practice.maxStamina}%`);
+      stamina.dataset.capped = String(practice.maxStamina < 100);   // a wound has lowered the ceiling: the bar draws a solid cap and a notch at --max (style.css)
       stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
       stamina.value = practice.stamina;
       element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
