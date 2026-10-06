@@ -500,11 +500,18 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const rock = new THREE.MeshStandardMaterial({ name: 'cliff', map: rockMap, color: '#9db0c6', roughness: 1, side: THREE.DoubleSide }); materials.push(rock); rock.addEventListener('dispose', () => rockMap.dispose());
     // Far below: an aerial photograph of ranges, snow, a lake and drifting clouds (scripts/arena-abyss.py, ~9 KB webp; the arena's one extra texture, ruled by Lead
     // for Dom 2026-10-06) on a disc, its rim faded into the haze; round it a bowl inside the sky dome that runs from the painted clouds' cream into the same haze. Unfogged; the clear colour never shows.
-    const size = 420, groundMap = typeof document === 'undefined' ? new THREE.DataTexture(new Uint8Array(size * size * 4), size, size) : new THREE.TextureLoader().load('/arena/abyss.webp');
-    groundMap.colorSpace = THREE.SRGBColorSpace; groundMap.wrapS = groundMap.wrapT = THREE.ClampToEdgeWrapping; groundMap.generateMipmaps = true; groundMap.minFilter = THREE.LinearMipmapLinearFilter; groundMap.anisotropy = 4;
-    const groundMaterial = new THREE.MeshBasicMaterial({ name: 'abyss ground', map: groundMap, fog: false, toneMapped: false }); materials.push(groundMaterial); groundMaterial.addEventListener('dispose', () => groundMap.dispose());
+    // The map is fetched against the page's base (a preview lives under /preview/<name>/, where '/arena/abyss.webp' is a 404) and until it lands, or if it never does, the disc is the
+    // haze colour, never the black an empty texture samples as.
+    const haze = new THREE.Color().setRGB(ABYSS_HAZE[0] / 255, ABYSS_HAZE[1] / 255, ABYSS_HAZE[2] / 255, THREE.SRGBColorSpace), size = 420;
+    const groundMaterial = new THREE.MeshBasicMaterial({ name: 'abyss ground', color: haze, fog: false, toneMapped: false }); materials.push(groundMaterial);
+    const groundLanded = (map: THREE.Texture) => {
+      map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping; map.generateMipmaps = true; map.minFilter = THREE.LinearMipmapLinearFilter; map.anisotropy = 4;
+      groundMaterial.map = map; groundMaterial.color.set(0xffffff); groundMaterial.needsUpdate = true; groundMaterial.addEventListener('dispose', () => map.dispose());
+    };
+    if (typeof document === 'undefined') groundLanded(new THREE.DataTexture(new Uint8Array(size * size * 4), size, size));
+    else new THREE.TextureLoader().load(`${import.meta.env?.BASE_URL ?? '/'}arena/abyss.webp`, groundLanded);
     abyssGround = mesh(new THREE.CircleGeometry(80, 48).rotateX(-Math.PI / 2).translate(0, -36, 0), groundMaterial, 'abyss ground', false); abyssGround.receiveShadow = false;
-    const bowl = new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), cream = new THREE.Color().setRGB(0.89, 0.8, 0.74, THREE.SRGBColorSpace), haze = new THREE.Color().setRGB(ABYSS_HAZE[0] / 255, ABYSS_HAZE[1] / 255, ABYSS_HAZE[2] / 255, THREE.SRGBColorSpace), bowlColors = new Float32Array(bowl.attributes.position.count * 3), tint = new THREE.Color();
+    const bowl = new THREE.SphereGeometry(148, 48, 12, 0, TAU, Math.PI / 2, Math.PI / 2), cream = new THREE.Color().setRGB(0.89, 0.8, 0.74, THREE.SRGBColorSpace), bowlColors = new Float32Array(bowl.attributes.position.count * 3), tint = new THREE.Color();
     for (let i = 0; i < bowl.attributes.position.count; i++) { const below = Math.asin(Math.min(1, -bowl.attributes.position.getY(i) / 148)); tint.copy(cream).lerp(haze, smooth(0, 0.42, below)); tint.toArray(bowlColors, i * 3); }
     bowl.setAttribute('color', new THREE.BufferAttribute(bowlColors, 3));
     const bowlMaterial = new THREE.MeshBasicMaterial({ name: 'abyss', vertexColors: true, side: THREE.BackSide, fog: false, toneMapped: false }); materials.push(bowlMaterial);
