@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/play-radius.ts';
 import { underRecord } from '../src/detmath.ts';
+import { initialState, initialTarget } from '../src/sim.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
 import { RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
@@ -13,7 +14,7 @@ test('the scaled opponents are exactly the ladder rungs that fight in Arena 1', 
   for (const o of LADDER) assert.equal(arenaFor(o.id) === ARENA_THEMES['1'], playScaleFor(o.id, RECORD_VERSION) !== 1, `${o.id}: the circle comes inward exactly where the arena is Arena 1`);
 });
 
-test('only a version-23 fight in Arena 1 is fought in the smaller circle (0.36); every older record keeps the old one', () => {
+test('only a version-23 fight in Arena 1 is fought in the smaller circle (0.306); every older record keeps the old one', () => {
   assert.equal(FIRST_SCALED_VERSION, 23);
   assert.equal(playScaleFor('veteran', 23), ARENA_ONE_SCALE);
   assert.equal(playScaleFor('pitborn', 23), ARENA_ONE_SCALE);
@@ -63,4 +64,13 @@ test('the version is stamped when the recorder is born, in the circle the fight 
   const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   setPlayScale(1);   // the page moved on before the record was finished
   assert.equal(rec.finish('abandoned').v, RECORD_VERSION);
+});
+
+test('both fighters start inside the Arena 1 circle with a margin of at least a metre (the circle is 3.155 m at 0.306)', () => {
+  setPlayScale(ARENA_ONE_SCALE);
+  try {
+    const hero = initialState(), foe = initialTarget();
+    assert.ok(RADIUS > 3.1 && RADIUS < 3.2, `radius ${RADIUS}`);
+    for (const [who, p] of [['hero', hero], ['opponent', foe]] as const) assert.ok(RADIUS - Math.hypot(p.x, p.z) >= 1, `${who} starts ${Math.hypot(p.x, p.z).toFixed(2)} m out in a ${RADIUS.toFixed(3)} m circle`);
+  } finally { setPlayScale(1); }
 });

@@ -8,7 +8,7 @@ import type { FinisherId } from './finishers.ts';
 
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 
-const AIM_PER_SHRINK = 1.4;   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36)
+const AIM_PER_SHRINK = 1.4;   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36, 1.0 m at 0.306)
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
   SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
   SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
