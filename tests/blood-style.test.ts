@@ -7,7 +7,7 @@ import { createBurstPool } from '../src/armfeel-fx.ts';
 import { BLOOD, bloodCount, bloodFrom, makeRng, spawnBlood } from '../src/blood-style.ts';
 
 test('the flag: only a and b select a style; anything else is today\'s burst', () => {
-  assert.deepEqual(['?blood=a', '?blood=b', '?blood=c', '', '?blood='].map(bloodFrom), ['a', 'b', undefined, undefined, undefined]);
+  assert.deepEqual(['?blood=a', '?blood=b', '?blood=b2', '?blood=c', '', '?blood='].map(bloodFrom), ['a', 'b', 'b2', undefined, undefined, undefined]);
 });
 
 test('no style: the default burst is untouched (same slots, same spawn numbers, stretch 1.8)', () => {
@@ -36,10 +36,20 @@ test('b: a fine mist of tiny specks plus 3 heavier drops (4 on a kill) that arc,
   assert.ok(new Set(hit.map((p) => p.life.toFixed(4))).size > hit.length / 2, 'lives are randomised');
 });
 
+test('b2: b made 30% less thick: 0.7x the particles, 0.7x the size, same colour and timing', () => {
+  assert.equal(BLOOD.b2.start, BLOOD.b.start); assert.equal(BLOOD.b2.end, BLOOD.b.end);
+  for (const kill of [false, true]) assert.equal(bloodCount('b2', 'high', kill), Math.round(bloodCount('b', 'high', kill) * 0.7));
+  const rnd = makeRng(2), hit = Array.from({ length: bloodCount('b2', 'high', false) }, () => newParticle());
+  hit.forEach((p, i) => spawnBlood('b2', p, i, 0, 1, 0, 0, 1, false, 'high', rnd));
+  const drops = hit.filter((p) => p.size >= 0.049), specks = hit.filter((p) => p.size < 0.049);
+  assert.equal(drops.length, 2); assert.ok(specks.every((p) => p.size <= 0.05 * 0.7 + 1e-9));
+  assert.ok(hit.every((p) => p.life >= 0.14 && p.life <= 0.72), 'life windows unchanged');
+});
+
 test('the same seed draws the same blood; the pool is one mesh and a thousand hits never grow it; Off draws nothing', () => {
   const run = () => { const rnd = makeRng(7), p = newParticle(); spawnBlood('b', p, 5, 0, 1, 0, 0, 1, true, 'high', rnd); return [p.vx, p.vy, p.vz, p.size, p.life]; };
   assert.deepEqual(run(), run());
-  for (const style of ['a', 'b'] as const) {
+  for (const style of ['a', 'b', 'b2'] as const) {
     const scene = new THREE.Scene(), pool = createBurstPool(scene, style);
     assert.equal(pool.capacity, BLOOD[style].slots); assert.equal(scene.children.filter((c) => c.name === 'armfeel burst').length, 1);
     const before = scene.children.length;

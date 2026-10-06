@@ -1,18 +1,21 @@
 // Dom 2026-10-06 (via Lead): the combat-feel burst reads "thick and square, cartoony". Two PREVIEW options behind a flag, nothing changes by default:
 //   ?blood=a  STREAKS: thin droplets stretched along their flight (length 3-5x width), random sizes, fewer, darker red fading to near-black.
 //   ?blood=b  SPRAY + DROPS: a fine mist of many tiny specks plus a few heavier drops that arc down; sizes, speeds and lives random per particle.
+//   ?blood=b2 the same spray, 30% less thick (Dom 2026-10-06: "a bit thick"): 0.7x the particles, 0.7x the size, same colour, timing and speeds.
 // Presentation only (nothing here is read by the simulation) and allocation-free per hit: it fills the same pooled slots armfeel-fx.ts already owns,
 // with a seeded generator, so the same fight draws the same blood on every run (the preview clips compare like with like).
 import type { Feel, Particle } from './armfeel.ts';
 
-export type Blood = 'a' | 'b';
-export const bloodFrom = (search: string): Blood | undefined => { const v = new URLSearchParams(search).get('blood'); return v === 'a' || v === 'b' ? v : undefined; };
+export type Blood = 'a' | 'b' | 'b2';
+export const bloodFrom = (search: string): Blood | undefined => { const v = new URLSearchParams(search).get('blood'); return v === 'a' || v === 'b' || v === 'b2' ? v : undefined; };
 
 // slots: the pool's size; hit/kill: how many particles a hit/kill takes (Low takes a third, at least 2); start/end: the blood's colour over a life.
 export const BLOOD = {
   a: { slots: 48, hit: 6, kill: 10, start: '#74100f', end: '#120303' },
   b: { slots: 112, hit: 24, kill: 40, start: '#8a1411', end: '#2a0706' },
+  b2: { slots: 112, hit: 17, kill: 28, start: '#8a1411', end: '#2a0706' },   // 0.7x of b's particles; drops 3/4 -> 2/3, sizes x0.7 (THIN)
 } as const;
+const THIN = { b: 1, b2: 0.7 } as const, DROPS = { b: { hit: 3, kill: 4 }, b2: { hit: 2, kill: 3 } } as const;
 export const bloodCount = (style: Blood, feel: Feel, kill: boolean): number =>
   feel === 'off' ? 0 : Math.max(feel === 'low' ? 2 : 0, Math.round(BLOOD[style][kill ? 'kill' : 'hit'] * (feel === 'low' ? 0.35 : 1)));
 
@@ -31,12 +34,12 @@ export function spawnBlood(style: Blood, p: Particle, i: number, x: number, y: n
     p.size = size; p.stretch = between(rnd, 3, 5);
     return;
   }
-  const drop = i < (kill ? 4 : 3);   // the first few are the heavy drops, the rest the mist
+  const thin = THIN[style], drop = i < DROPS[style][kill ? 'kill' : 'hit'];   // the first few are the heavy drops, the rest the mist
   if (drop) {
-    p.life = p.total = between(rnd, 0.5, 0.72); p.size = between(rnd, 0.07, 0.12) * low; p.stretch = between(rnd, 1.1, 1.5);
+    p.life = p.total = between(rnd, 0.5, 0.72); p.size = between(rnd, 0.07, 0.12) * low * thin; p.stretch = between(rnd, 1.1, 1.5);
     p.vx = Math.cos(a) * between(rnd, 0.3, 1.1) + dx * between(rnd, 0.3, 1.0); p.vz = Math.sin(a) * between(rnd, 0.3, 1.1) + dz * between(rnd, 0.3, 1.0); p.vy = between(rnd, 1.6, 3.0);
   } else {
-    p.life = p.total = between(rnd, 0.14, 0.4); p.size = between(rnd, 0.018, 0.05) * low; p.stretch = between(rnd, 1.3, 2.4);
+    p.life = p.total = between(rnd, 0.14, 0.4); p.size = between(rnd, 0.018, 0.05) * low * thin; p.stretch = between(rnd, 1.3, 2.4);
     const speed = between(rnd, 1.2, 3.6);
     p.vx = Math.cos(a) * speed * 0.6 + dx * between(rnd, 0.5, 2.4); p.vz = Math.sin(a) * speed * 0.6 + dz * between(rnd, 0.5, 2.4); p.vy = between(rnd, 0.2, 2.6);
   }
