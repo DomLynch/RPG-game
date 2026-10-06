@@ -762,13 +762,19 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/network cadence never inherits the solo preference
 let hitStop = 0;
+// PvP presentation hold: the contact tick's picture stays on screen for stopFor() ms while the sim keeps stepping (those ticks queue as snapshots), then
+// the queue plays out PVP_CATCHUP ticks a frame until the screen is live again. Never read by the sim, the driver or a record.
+type Snap = { state: typeof state; practice: typeof match.practice };
+const PVP_CATCHUP = 3;
+let pvpShown: Snap | null = null, pvpHoldMs = 0, pvpCut = 0;
+const pvpQ: Snap[] = [];
+function clearPvpHold() { pvpShown = null; pvpHoldMs = 0; pvpCut = 0; pvpQ.length = 0; }
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
-// presentation clock; every tick still runs, in order. NOT in a live duel: there the hit-stop would
-// hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
+// presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
+// DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
 function stopFor(events: CombatEvent[]): number {
-  if (match.mode === 'pvp') return 0;   // all contact pauses are offline-only, not just the added impact tier
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
@@ -842,7 +848,7 @@ let orbitX = 0,
   orbitY = 0;
 function clearInput() {
   controls.clear();
-  hitStop = 0;
+  hitStop = 0; clearPvpHold();
   orbitId = null;
   accumulator = 0;
 }
@@ -1057,7 +1063,7 @@ clipButton.addEventListener('click', () => {
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
-  state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
+  state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
 });
 // After each render: the frame into the recording, the countdown, and the stop once the finish has played (clip.ts clipEnded).
@@ -1074,7 +1080,7 @@ function endClip(keep: boolean) {
   if (!current) return;
   clip = null; feedback.untap();
   match.endClip(current.saved);
-  state = previous = match.practice.fighter; hitStop = 0; accumulator = 0;
+  state = previous = match.practice.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;
   clipState('idle'); updateHud();
   if (!keep) { current.recording.cancel(); return; }
   say('Making the clip…');
@@ -1863,6 +1869,11 @@ function frame(now: number) {
       controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();
+      if (match.mode === 'pvp' && !quiet) {   // the drawn hold: the sim above has already stepped; only what the next draw shows is delayed
+        const snap = { state, practice };
+        if (pvpShown) pvpQ.push(snap);
+        else { const ms = stopFor(practice.events); if (ms) { pvpShown = snap; pvpHoldMs = ms; pvpCut = match.frameEvents.length; } }
+      }
       if (result === 'ended') {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
@@ -1901,7 +1912,7 @@ function frame(now: number) {
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
-      let stop = quiet ? 0 : stopFor(practice.events);
+      let stop = quiet || match.mode === 'pvp' ? 0 : stopFor(practice.events);
       if (armfeel && stop) {   // ?look=armfeel: the blade holds a beat longer at contact, never past the heaviest stop a hit has today (armfeel.ts)
         const landed = practice.events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'), tier = landed ? impactTier(landed) : null;
         stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'full' || tier === 'half' ? tier : null);
@@ -1923,9 +1934,24 @@ function frame(now: number) {
     if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
   }
   const alpha = accumulator / step();
+  let shownEvents = match.frameEvents, held = false;
+  if (pvpShown) {   // behind the sim: draw the snapshot, not the live tick
+    const contact = pvpCut >= 0;   // the first drawn frame of a hold: it delivers what happened up to the contact tick, once, and spends none of the hold
+    if (contact) { shownEvents = match.frameEvents.slice(0, pvpCut); pvpCut = -1; } else shownEvents = [];
+    if (pvpHoldMs > 0) { if (!contact) pvpHoldMs = Math.max(0, pvpHoldMs - elapsed * 1000); held = pvpHoldMs > 0 || contact; }
+    if (!held) {
+      for (let k = 0; k < PVP_CATCHUP && pvpQ.length; k++) {
+        pvpShown = pvpQ.shift()!;
+        shownEvents = shownEvents.concat(pvpShown.practice.events);
+        const ms = stopFor(pvpShown.practice.events);
+        if (ms) { pvpHoldMs = ms; held = true; break; }   // another contact while catching up holds again
+      }
+    }
+  }
+  const lagging = pvpShown !== null;
   try {
     view.render(
-      walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
+      pvpShown ? pvpShown.state : walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
         ...state,
         x: previous.x + (state.x - previous.x) * alpha,
         z: previous.z + (state.z - previous.z) * alpha,
@@ -1933,13 +1959,14 @@ function frame(now: number) {
       },
       locked,
       paused() ? 0 : dt,
-      clip?.fresh ?? match.practice,
-      match.frameEvents,
-      hitStop > 0,
+      pvpShown ? pvpShown.practice : clip?.fresh ?? match.practice,
+      shownEvents,
+      hitStop > 0 || held,
       match.epoch,
       match.specialIdentity,
     );
     match.frameEvents = [];
+    if (lagging && !held && !pvpQ.length) pvpShown = null;   // drawn the live tick: next frame is live
     if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
     clipFrame(now);
   } catch (error) {
