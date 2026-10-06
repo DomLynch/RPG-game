@@ -5,7 +5,7 @@ import { BURST, FLASH, burstCount, newParticle, spawn, tickParticle, type Feel, 
 
 // One shared 48-slot InstancedMesh, no shadows, one draw call. `burst` fills the next slots of the ring; `update` moves, shrinks and dims them.
 export function createBurstPool(scene: THREE.Scene) {
-  const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshLambertMaterial({ color: '#ffffff' }), BURST.slots);   // unit-diameter droplets: lit and dark, no glow
+  const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff' }), BURST.slots);   // unit-diameter droplets, unlit: the colour is the blood's own (a lit material came out bright red under the arena's sun), no glow
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; mesh.visible = false; mesh.castShadow = false; mesh.receiveShadow = false; mesh.name = 'armfeel burst';
   mesh.setColorAt(0, new THREE.Color(BURST.color));   // allocates the instance colour buffer once, up front
   scene.add(mesh);

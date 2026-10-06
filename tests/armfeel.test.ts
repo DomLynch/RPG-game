@@ -83,7 +83,7 @@ test('the burst: 8 on a hit, 12 on a kill, 3 on Low, at the handoff\'s speeds, s
   assert.equal(pool.mesh.instanceMatrix.array, matrices); assert.equal(pool.mesh.instanceColor!.array, colors);
   assert.equal(pool.mesh.castShadow, false); assert.equal(pool.mesh.count, 48);
   assert.ok(pool.mesh.geometry instanceof THREE.SphereGeometry, 'round droplets, not cubes');
-  assert.ok((pool.mesh.material as THREE.MeshLambertMaterial).isMeshLambertMaterial && (pool.mesh.material as THREE.MeshLambertMaterial).emissive.getHex() === 0, 'lit and dark, no glow');
+  assert.ok((pool.mesh.material as THREE.MeshBasicMaterial).isMeshBasicMaterial && (pool.mesh.material as THREE.MeshBasicMaterial).toneMapped, 'unlit, tone-mapped like the scene: the colour is the blood\'s own, no glow');
   assert.ok(BURST.color === '#8b1010' && BURST.endColor === '#6b0a0a', 'dark crimson, a touch darker at the end of life');
   pool.burst('off', 0, 1, 0, 0, 1, false); pool.clear(); pool.burst('off', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 0, 'Off bursts nothing');
 });
