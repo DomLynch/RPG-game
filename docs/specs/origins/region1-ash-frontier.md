@@ -205,10 +205,10 @@ Taunts on a loss live in the twist table (section 3). They play as the retry pro
 
 ## 3. Chapter one: *The Stolen Name* (a Feud)
 
-> **SUPERSEDED (Dom, 2026-10-07):** Dom rejected this scripted Feud chain. Feuds are now systemic: see [feuds.md](feuds.md). It is
+> **SUPERSEDED (Dom, 2026-10-06):** Dom rejected this scripted Feud chain. Feuds are now systemic: see [feuds.md](feuds.md). It is
 > kept below for the record. **The Bounties subsection at the end of this section stays in force.**
 
-> **PROVISIONAL, pending Dom.** "Feud" and "Bounty" are working names that Dom may rename. Strategy ruled on 2026-10-07 that Feuds and
+> **PROVISIONAL, pending Dom.** "Feud" and "Bounty" are working names that Dom may rename. Strategy ruled on 2026-10-06 that Feuds and
 > Bounties **replace** classic quests, and the quest journal stays as the Feud log. No fetch, collect-N, kill-N or errand appears
 > anywhere in this region.
 
@@ -500,7 +500,7 @@ A duplicate id anywhere in the combined bundle is refused. Example record:
 
 ## 7. Rulings and open questions
 
-### Ruled (Strategy, 2026-10-07)
+### Ruled (Strategy, 2026-10-06)
 
 1. **Names.** Bosses and named climax targets are legends: Grendel's Mother, Varney, and the Bounty targets Hrungnir and Peg Powler.
    Mooks and side NPCs may be original (`lore.source: "original"`).

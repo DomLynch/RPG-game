@@ -5,6 +5,7 @@ import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfi
 import type { State } from './sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 import { specialStage } from './special-look.ts';
+import { stepFatigue, type Fatigue } from './fatigue.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
 export type { Intent, Action, CombatEvent, Duel, Fighter } from './duel.ts';
@@ -41,8 +42,21 @@ type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged
 // not sim events (duel.ts is untouched, so no RECORD_VERSION, digest or RNG change) and no rule reads them; sound and the HUD do.
 //   AttackInterrupted: this fighter's own swing was cut (hit or guard-broken) before it could land, in wind-up or active frames: the opposite of a whiff.
 //   PressRefused: the player pressed an action the sim would drop (not legal now, outside the buffer tail); reason names why, for the button's dim or shake.
-export type ClarityEvent = { tick: number; type: 'AttackInterrupted' | 'PressRefused'; actor: Side; move?: MoveId; action?: Action; reason?: 'hurt' | 'exhausted' | 'recovering' };
-export function clarityOf(duel: Duel, before: Duel, intent?: Intent): ClarityEvent[] {
+export type ClarityEvent = { tick: number; type: 'AttackInterrupted' | 'PressRefused' | 'FatigueBand'; actor: Side; move?: MoveId; action?: Action; reason?: 'hurt' | 'exhausted' | 'recovering'; band?: 0 | 1 | 2 | 3 };   // FatigueBand: this fighter's band just rose to `band` (fatigue.ts); the HUD's once-only "Pace yourself" line keys on the player's 2
+// The OPENING (item 2, defence -> punish): a fighter is open while he is staggered and his foe holds the punish window (a parry's `parryStun`, a broken
+// posture's `posture.stun`). `left` ticks of `of` remain, so the pose and any glint last exactly as long as the sim's opening does. Derived, never fed back.
+export type Opening = { side: Side; kind: 'parry' | 'posture'; left: number; of: number };
+export function openingOf(duel: Duel, previous?: Opening | null): Opening | null {
+  for (const side of [0, 1] as const) {
+    const f = duel.fighters[side], o = duel.fighters[1 - side as Side];
+    if (f.phase !== 'hurt' || o.punish <= 0 || f.stun <= 0) continue;
+    const start = duel.events.find(e => e.target === side && (e.type === 'Parried' || e.type === 'PostureBroken'));
+    const kind = start ? (start.type === 'Parried' ? 'parry' : 'posture') : previous?.side === side ? previous.kind : 'parry';
+    return { side, kind, left: Math.max(0, f.stun - f.age), of: f.stun };
+  }
+  return null;
+}
+export function clarityOf(duel: Duel, before: Duel, intent?: Intent, fatigue?: readonly [Fatigue, Fatigue], was?: readonly [Fatigue, Fatigue]): ClarityEvent[] {
   const out: ClarityEvent[] = [], { tick, events } = duel;
   for (const e of events) {
     if ((e.type !== 'Hit' && e.type !== 'GuardBroken') || e.target === undefined) continue;
@@ -51,6 +65,7 @@ export function clarityOf(duel: Duel, before: Duel, intent?: Intent): ClarityEve
     if (events.some(o => o.type === 'Hit' && o.actor === e.target)) continue;   // a trade: his blow landed too
     out.push({ tick, type: 'AttackInterrupted', actor: e.target, move: f.move });
   }
+  for (const side of [0, 1] as const) if (fatigue && was && fatigue[side].band > was[side].band) out.push({ tick, type: 'FatigueBand', actor: side, band: fatigue[side].band });
   const me = before.fighters[0];
   if (intent?.action && me.health && !legal(me, intent.action) && !inBufferWindow(me))
     out.push({ tick, type: 'PressRefused', actor: 0, action: intent.action, reason: me.phase === 'hurt' || me.phase === 'dead' ? 'hurt' : me.phase === 'ready' || me.phase === 'guard' ? 'exhausted' : 'recovering' });   // standing and still refused: no stamina (or a spent skill)
@@ -58,6 +73,8 @@ export function clarityOf(duel: Duel, before: Duel, intent?: Intent): ClarityEve
 }
 export type Practice = {
   duel: Duel; ai: AiState; events: CombatEvent[]; clarity: ClarityEvent[];
+  opening: Opening | null;   // who is open right now and for how long (openingOf); null when nobody is
+  fatigue: [Fatigue, Fatigue];   // per fighter, smoothed (fatigue.ts): the one driver for breathing, posture and the mix (presentation only)
   result: Result; resultAge: number; resultDamage: number; resultStamina: number; resultDealt: number;   // resultDealt: a trade's own blow
   resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
   resultBreak: 'charged' | 'kick' | null;   // what broke a guard, for the event line's words (presentation only; the sim is untouched)
@@ -114,9 +131,10 @@ export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: I
   // and the line read only "Countered · −25", a plain loss; it names both.
   const dealt = duel.events.find(e => e.type === 'Hit' && e.actor === 0), taken = duel.events.find(e => e.type === 'Hit' && e.actor === 1);
   if (dealt && taken) { result = 'traded'; resultAge = 0; resultDealt = dealt.damage ?? 0; resultDamage = taken.damage ?? 0; }
+  const fatigue: [Fatigue, Fatigue] = [stepFatigue(p, previous?.fatigue[0]), stepFatigue(w, previous?.fatigue[1])];
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, clarity: previous ? clarityOf(duel, previous.duel, intent) : [], result, resultAge, resultDamage, resultDealt, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
+    duel, ai, events: duel.events, clarity: previous ? clarityOf(duel, previous.duel, intent, fatigue, previous.fatigue) : [], fatigue, opening: openingOf(duel, previous?.opening), result, resultAge, resultDamage, resultDealt, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
     maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth,
     fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
