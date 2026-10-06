@@ -18,7 +18,7 @@ type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: numbe
 export const GATE_RETRY_MS = 800;   // the winch's second fetch, after a failed first
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
-const breathing = true;   // the breathing layer's one switch
+const breathing = false;   // the breathing layer's one switch: OFF until Dom signs the sound off (2026-10-06, he had just rejected a synth voice). His OK is flipping this to true.
 const RISE = 1.6, RISE_FLOOR = .35, CUT = .035;   // the opponent's charge: rate ×1.6 and level from 35 % over the hold; a 35 ms fade when it ends
 // Owner phone mix (2026-09-19): half ordinary FX, +50 % for the fatal sequence. Owner 2026-09-20, phone at 20 % volume still loud:
 // everything but the bell at 40 % (−8 dB): the first cut to 70 % was −3 dB, inaudible on the phone and swallowed by the output guard on the
