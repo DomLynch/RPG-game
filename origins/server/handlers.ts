@@ -2,12 +2,16 @@
 // (inventory, quest journal, talk) plug their ops into `handlers`; nothing here lets a client name an account, a reward or an amount.
 import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
+import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
+import type { Content } from './holdings.ts';
 import * as store from './store.ts';
 
 export type Ctx = { db: Db; account: string };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
 export class BadRequest extends Error {}
+// The same op id already stands for a different request (Strategy, 2026-10-06): never applied, answered 409.
+export class Conflict extends Error {}
 
 const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the rest wait for the next open
 
@@ -39,3 +43,6 @@ const createCharacter: Handler = async (ctx, body) => {
 };
 
 export const handlers: Record<string, Handler> = { open, create_character: createCharacter };
+
+// The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
+export const withContent = (content: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(content) });
