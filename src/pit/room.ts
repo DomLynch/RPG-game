@@ -13,7 +13,7 @@ import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
-import { PANEL, buildWall, type Wall } from './wall.ts';
+import { BOARD_PX, PANEL, buildWall, paintTimber, type Wall } from './wall.ts';
 import { killsFromLoot } from './skulls.ts';
 import { buildBoard, type Board } from './board.ts';
 import { buildChampions, type Champions } from './champions-board.ts';
@@ -250,7 +250,14 @@ export function buildRoom(stage: Stage): Room {
     const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
     materials.push(bone);
     // In the cage the skulls hang on a timber board against the far fence, right of the arch (Dom 10-05); in the walled room they keep their niches in the stone.
-    if (C) woodParts.push(box(6 * PANEL.colPitch + 0.3, PANEL.top - PANEL.bottom + 0.3, 0.04, 2, { x: PANEL.inner + 3 * PANEL.colPitch, y: (PANEL.top + PANEL.bottom) / 2, z: -hd + 0.06 }));
+    if (C) {   // its own draw: a painted timber map (wall.ts paintTimber), not the room's flat wood
+      const canvas = document.createElement('canvas'); canvas.width = BOARD_PX.w; canvas.height = BOARD_PX.h; paintTimber(canvas.getContext('2d')!);
+      const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+      const timber = new THREE.MeshStandardMaterial({ map, roughness: 0.9, envMapIntensity: 0.1 });
+      const geometry = new THREE.BoxGeometry(6 * PANEL.colPitch + 0.3, PANEL.top - PANEL.bottom + 0.3, 0.04).translate(PANEL.inner + 3 * PANEL.colPitch, (PANEL.top + PANEL.bottom) / 2, -hd + 0.06);
+      const mesh = new THREE.Mesh(geometry, timber); mesh.castShadow = mesh.receiveShadow = true; mesh.name = 'skull-board';
+      group.add(mesh); textures.push(map); materials.push(timber); geometries.push(geometry);
+    }
     wall = buildWall(stage, group, C ? -hd + 0.08 : -hd, bone);
     champions = buildChampions(group, hd);   // today's champions, burned into a timber board on the back fence, facing the gate
     board = buildBoard(group, -hd);   // the record, carved left of the arch where the niches were
