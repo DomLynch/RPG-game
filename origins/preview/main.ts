@@ -3,7 +3,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena } from '../../src/arena.ts';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
 import { phoneTier, pixelCap } from '../../src/quality.ts';
-import { BANK_STEP_Z, buildExchange, PASSAGE, walkable } from './exchange.ts';
+import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. A tour walks it by itself; a drag takes over (up walks, sideways turns).
@@ -30,6 +30,7 @@ function environment(sky?: THREE.Texture) {
   scene.environmentIntensity = room ? 0.45 : 1; room?.dispose(); pmrem.dispose();
 }
 environment(); void arena.ready.then(() => environment(arena.sky));
+const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
 
 // The walker: a capsule in the hero's place (no rig in a greybox), bronze cap so it reads from behind.
@@ -39,7 +40,7 @@ body.position.y = 0.88; body.castShadow = true;
 const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.45 }));
 cap.position.y = 1.62; hero.add(body, cap); scene.add(hero);
 
-const TOUR: [number, number][] = [[0, 3], [0, -6], [0, -24], [0, -36], [-5.5, -44], [-2, -54], [0, -62], [0, BANK_STEP_Z + 1.2]];
+const TOUR: [number, number][] = [[0, 3], [0, -6], [0, -24], [0, -36], [-5.5, -44], [-2, -54], [-6.2, -59.5], [-3, -62.5], [0, -63.5], [0, BANK_STEP_Z + 1.2]];
 let heading = Math.PI, leg = 1, touring = true, stick: { x0: number; y0: number; x: number; y: number } | null = null;
 const state = { x: TOUR[0][0], z: TOUR[0][1] };
 const place = document.getElementById('place')!, tourButton = document.getElementById('tour') as HTMLButtonElement, ring = document.getElementById('stick')!;
@@ -74,7 +75,8 @@ function step(dt: number) {
   camAt.lerp(eye, 1 - Math.exp(-dt * 4));
   look.set(state.x + Math.sin(heading) * 3, 1.5, state.z + Math.cos(heading) * 3);
   camera.position.copy(camAt); camera.lookAt(look);
-  place.textContent = state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
+  const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
+  place.textContent = atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
 }
 
@@ -86,6 +88,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   step(dt); arena.update(dt, [], camera); exchange.update(time);
+  forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
 });

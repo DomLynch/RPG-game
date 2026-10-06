@@ -10,6 +10,7 @@ export const PASSAGE = { halfWidth: 1.25, from: -15.4, to: -25 };
 export const PLAZA = { halfWidth: 16, near: -25, far: -66.5 };
 export const STONE_CENTRE = { x: 0, z: -45, radius: 2.6 };
 export const BANK_STEP_Z = -67;
+export const FORGE = { x: -10.5, z: -60.5, halfX: 2.2, halfZ: 2.6 };   // the blacksmith (Dom 2026-10-06: NPC upgrade service), open toward the plaza
 
 type Tint = [number, number, number];
 const SANDSTONE: Tint = [1.05, 1, 0.92], DARKSTONE: Tint = [0.62, 0.6, 0.57], PAVING: Tint = [0.86, 0.83, 0.78], SOOT: Tint = [0.1, 0.09, 0.08];
@@ -51,7 +52,7 @@ function inscription(text: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ map, roughness: 0.95 });
 }
 
-export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; update(time: number): void };
+export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3; update(time: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
@@ -110,9 +111,20 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
   for (const side of [-1, 1]) irons.push(piece(box(2.1, 5.8, 0.18), side * 1.1, deck + 2.9, front - 1.85, [1.6, 1.2, 0.75]));   // bronze-faced iron leaves
   for (let i = 0; i < 24; i++) irons.push(piece(new THREE.SphereGeometry(0.07, 6, 4), (i % 2 ? 1 : -1) * (0.4 + (i % 4 < 2 ? 0 : 1.3)), deck + 0.8 + Math.floor(i / 4) * 0.9, front - 1.74, [2.2, 1.6, 0.9]));
 
+  // The blacksmith: an open-fronted smithy beside the bank, its mouth to the plaza. Back and side walls, a timber roof, a tall chimney,
+  // the hearth's coals, an anvil and a quench trough; a hanging sign. Greybox massing only.
+  const F = FORGE, TIMBER: Tint = [0.42, 0.3, 0.2];
+  stones.push(piece(box(0.6, 4, F.halfZ * 2), F.x - F.halfX, 2, F.z, DARKSTONE, 0, 0));
+  for (const side of [-1, 1]) stones.push(piece(box(F.halfX * 2, 4, 0.5), F.x, 2, F.z + side * F.halfZ, DARKSTONE, 0, 0));
+  stones.push(piece(box(F.halfX * 2 + 1.2, 0.3, F.halfZ * 2 + 0.8), F.x + 0.3, 4.15, F.z, TIMBER));
+  stones.push(piece(box(1.3, 7.5, 1.3), F.x - F.halfX + 0.5, 3.75, F.z - 1.2, DARKSTONE, 0, 0));
+  stones.push(piece(box(1.6, 0.9, 1.6), F.x - F.halfX + 1.1, 0.45, F.z - 1.2, DARKSTONE, 0, 0));
+  irons.push(piece(box(0.9, 0.5, 0.35), F.x + 0.4, 0.75, F.z + 0.3, SOOT), piece(box(0.4, 0.5, 0.3), F.x + 0.4, 0.25, F.z + 0.3, SOOT));
+  stones.push(piece(box(0.6, 0.55, 1.6), F.x + 0.6, 0.28, F.z + 1.7, TIMBER, 0, 0));
+  stones.push(piece(box(0.12, 0.9, 1.8), F.x + F.halfX + 0.7, 3.2, F.z - F.halfZ - 0.4, TIMBER));
   // Braziers: the light language of the Pit carried out here (coal glow; the flames are the arena's own flicker in main.ts).
   const braziers = [new THREE.Vector3(-4, 0, B - 1.2), new THREE.Vector3(4, 0, B - 1.2), new THREE.Vector3(-3.4, 0, P.to - 2), new THREE.Vector3(3.4, 0, P.to - 2), new THREE.Vector3(-4.2, 0, S.z), new THREE.Vector3(4.2, 0, S.z)];
-  const coal: THREE.BufferGeometry[] = [];
+  const coal: THREE.BufferGeometry[] = [piece(new THREE.BoxGeometry(1.3, 0.08, 1.3), FORGE.x - FORGE.halfX + 1.1, 0.94, FORGE.z - 1.2, [1, 1, 1])];
   for (const b of braziers) {
     irons.push(piece(new THREE.CylinderGeometry(0.08, 0.14, 1.2, 8), b.x, 0.6, b.z, SOOT, 0, 0), piece(new THREE.CylinderGeometry(0.5, 0.28, 0.35, 12), b.x, 1.3, b.z, [0.6, 0.5, 0.4]));
     coal.push(piece(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 12), b.x, 1.46, b.z, [1, 1, 1]));
@@ -148,7 +160,7 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
   frieze.position.set(0, deck + 9.75, front + 1.12); group.add(frieze);
 
   return {
-    group, braziers,
+    group, braziers, hearth: new THREE.Vector3(FORGE.x - FORGE.halfX + 1.1, 1.3, FORGE.z - 1.2),
     update(time: number) { awnings.forEach((a, i) => { a.rotation.x = -Math.PI / 2 + 0.18 + Math.sin(time * 1.3 + i) * 0.015; }); },
   };
 }
@@ -157,6 +169,7 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials): Exchange {
 export function walkable(x: number, z: number): boolean {
   if (Math.hypot(x, z) < 8.3) return true;
   if (Math.abs(x) < PASSAGE.halfWidth - 0.35 && z < -6 && z > PASSAGE.to - 0.5) return true;
+  if (Math.abs(x - FORGE.x) < FORGE.halfX + 0.3 && Math.abs(z - FORGE.z) < FORGE.halfZ + 0.3) return x > FORGE.x - FORGE.halfX + 2;   // inside the smithy, short of the hearth
   if (Math.abs(x) < PLAZA.halfWidth + 2.5 && z <= PLAZA.near && z > BANK_STEP_Z + 0.6) return Math.hypot(x - STONE_CENTRE.x, z - STONE_CENTRE.z) > STONE_CENTRE.radius + 0.4;
   return false;
 }
