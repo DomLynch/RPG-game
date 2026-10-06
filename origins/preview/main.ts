@@ -6,7 +6,7 @@ import warriorUrl from '../../src/assets/warrior.glb?url';
 import { buildArena } from '../../src/arena.ts';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../src/quality.ts';
-import { buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
+import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -71,10 +71,28 @@ for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListen
 addEventListener('keydown', (e) => keys.add(e.code)); addEventListener('keyup', (e) => keys.delete(e.code)); addEventListener('blur', () => keys.clear());
 const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
+// Tap-to-open: the blacksmith and the bank. Placeholder panels; real items come from origins/inventory later.
+type Kind = 'blacksmith' | 'bank';
+const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
+const slots = (n: number) => `<div class="grid">${'<i></i>'.repeat(n)}</div>`;
+const PANELS: Record<Kind, string> = {
+  blacksmith: `<h2>Blacksmith</h2><h3>Upgrade a piece</h3>${['Helm', 'Breastplate', 'Sword'].map((p) => `<div class="piece"><span>${p}</span><span>+0</span></div>`).join('')}<button class="act" disabled>Upgrade</button><p>coming next: real items</p>`,
+  bank: `<h2>Bank — Concord Exchange</h2>${slots(8)}<h3>Backpack</h3>${slots(8)}<p>coming next: your items</p>`,
+};
+let near: Kind | null = null, open: Kind | null = null;
+function openPanel(kind: Kind | null) {
+  open = kind; shade.hidden = !kind; if (kind) { card.innerHTML = PANELS[kind]; keys.clear(); stick = null; ring.style.display = 'none'; }
+}
+for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
+prompt.addEventListener('click', () => openPanel(near));
+shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
+addEventListener('keydown', (e) => { if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) openPanel(near); });
+
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let forward = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');
-  if (stick) {
+  if (open) forward = turn = 0;
+  else if (stick) {
     const sx = (stick.x - stick.x0) / 48, sy = (stick.y0 - stick.y) / 48;
     forward = Math.max(-0.6, Math.min(1, sy)); turn = -Math.max(-1, Math.min(1, sx));
   }
@@ -93,6 +111,8 @@ function step(dt: number) {
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   place.textContent = atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
+  near = Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < 3 ? 'blacksmith' : state.z < BANK_STEP_Z + 3.6 && Math.abs(state.x) < 13 ? 'bank' : null;
+  prompt.hidden = !near || !!open; if (near) prompt.textContent = near === 'bank' ? 'Bank — tap to open' : 'Blacksmith — tap to open';
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
 }
 
@@ -108,4 +128,4 @@ renderer.setAnimationLoop(() => {
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
 });
-(window as unknown as { originsPreview: unknown }).originsPreview = { state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; } };
+(window as unknown as { originsPreview: unknown }).originsPreview = { state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel };
