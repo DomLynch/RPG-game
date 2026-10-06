@@ -24,6 +24,14 @@ Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, n
 scene.add(sun, sun.target);
 
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials);
+// Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
+// so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
+const GAP = 0.62;   // radians either side of the gate
+arena.group.traverse((o) => {
+  if (o.name !== 'backdrop' || !(o instanceof THREE.Mesh)) return;
+  o.geometry.dispose();
+  o.geometry = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true, Math.PI - o.rotation.y + GAP, Math.PI * 2 - GAP * 2);   // local angle: the ring is turned by theme.backdropTurn
+});
 function environment(sky?: THREE.Texture) {
   const pmrem = new THREE.PMREMGenerator(renderer), room = sky ? null : new RoomEnvironment();
   scene.environment = (room ? pmrem.fromScene(room, 0.04) : pmrem.fromEquirectangular(sky!)).texture;
