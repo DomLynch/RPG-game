@@ -93,12 +93,19 @@ try {
   refused('unpaid: not callable by a client', 'permission denied', () => client(A, `select * from public.origins_unpaid('${A}');`));
   W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: `paid:quest:${pc}:q1:s2`, kind: 'paid', account: A, character: pc, payload: { lines: ['loot'] } }])});`);
   eq(W(`select count(*) from public.origins_unpaid('${A}');`).split('\n').pop(), '0', 'unpaid: a paid:<event> takes it off the list');
+  // the paid marker must be the SAME account's and kind 'paid': a trade batch carries two accounts, and another kind under paid:<id> is not a settlement
+  W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: `quest:${pc}:q1:s9`, kind: 'quest-stage', account: A, character: pc, payload: { stage: 's9', unpaid: ['standing'] } }])});`);
+  W(`select public.origins_commit('${B}', ${J([{ op: 'event', event_id: `paid:quest:${pc}:q1:s9`, kind: 'paid', account: B, payload: {} }])});`);
+  eq(W(`select event_id from public.origins_unpaid('${A}');`).split('\n').filter(Boolean), [`quest:${pc}:q1:s9`], "unpaid: another account's paid:<id> row does not clear it");
+  W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: `quest:${pc}:q1:s8`, kind: 'quest-stage', account: A, character: pc, payload: { stage: 's8', unpaid: ['loot'] } }, { op: 'event', event_id: `paid:quest:${pc}:q1:s8`, kind: 'burn', account: A, character: pc, payload: {} }])});`);
+  eq(W(`select event_id from public.origins_unpaid('${A}');`).split('\n').filter(Boolean), [`quest:${pc}:q1:s9`, `quest:${pc}:q1:s8`], 'unpaid: a paid:<id> row of another kind does not clear it');
   refused('an unknown kind is still refused', 'origins_events_kind_check', () => W(`select public.origins_commit('${A}', ${J([{ op: 'event', event_id: 'coin:x', kind: 'coin', account: A, payload: {} }])});`));
   psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
   eq(W(`select public.origins_event('${A}', 'burn:${pc}:op1') is null;`).split('\n').pop(), 't', 'flag off: the read answers null');
   refused('down is refused while a spend event exists (append-only, loud)', 'origins_events_kind_check', () => down());
   psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
   W(`select public.origins_purge_account('${A}');`);
+  W(`select public.origins_purge_account('${B}');`);
   psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled'; delete from public.origins_config where false;`);
   down(); psql(`delete from public.origins_access;`);
   eq(psql(`select pg_get_constraintdef(oid) from pg_constraint where conname = 'origins_events_kind_check'`), before.kinds, 'down #2: the kind check is the original');
