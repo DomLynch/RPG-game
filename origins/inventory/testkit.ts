@@ -27,6 +27,7 @@ export const DEFS: readonly ItemDefinition[] = [
   gear('witch.Helmet', 'Helmet', "The Witch's hood"),
   mustDef(F.graveIronDef()), // stackable material, stack 50
   mustDef(F.recordDef()), // story-critical quest item, binds on acquire
+  mustDef(F.exchangeOreDef()), // stackable material, stack 50: quest hand-ins
 ];
 const DEF_MAP: ReadonlyMap<string, ItemDefinition> = new Map(DEFS.map((d) => [d.id, d]));
 export const lookup: Lookup = (id: ItemId) => DEF_MAP.get(id);
@@ -45,6 +46,7 @@ export function pitPiece(id: string, lootId: string, claimId: number, rung: numb
 export function ironStack(id: string, quantity: number, mint: string): ItemInstance {
   return mustInst({ ...F.ironInstance(), id, quantity, location: MINT, provenance: { ...F.ironInstance().provenance, mintKey: `loot:ruin-vigil:${mint}` } });
 }
+export const oreStack = (id: string, quantity: number, mint: string): ItemInstance => mustInst({ ...ironStack(id, quantity, mint), item: 'item:exchange-ore' });
 export const record = (): ItemInstance => mustInst({ ...F.recordInstance(), location: MINT, boundTo: null });
 
 export const helm = (): ItemInstance => pitPiece('inst:helm-0001', 'veteran.Helmet', 1001, 3, 'Gladiator');
