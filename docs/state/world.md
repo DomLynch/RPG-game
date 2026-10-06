@@ -2,6 +2,24 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-06 ~00:55 (+04) — HANDOFF #13 before /clear. READ FIRST (supersedes #12 where it differs)
+
+### Now
+- **Blood b2 (Dom's direct ask):** Dom: A is OUT, B is the direction but "a bit thick". `?blood=b2` (0.7x particles 17/28, drops 2/3, sizes x0.7, same colour/timing; opacity untouched, the burst material is opaque) is pushed on world/blood-options @c63cf765 and rendered: ~/Desktop/Business/frankendom-blood/v2/blood-b2.mp4 (17 s; the first 9.6 s match blood-b.mp4), sent to Strategy for Dom. **No PR until Dom says yes.** If he does (Lead's order): ONE PR making b2 the only blood (the default look), removing the old default burst and the a/b flags (blood-style.ts, armfeel-fx.ts createBurstPool param, scene.ts `?blood=` read, tests/blood-style.test.ts), with before/after stills at 375 for the Auditor, then Lead. Live preview of the earlier build: https://frankendom.com/preview/blood/?blood=a|b (Deploy published @84cdd59f; b2 is NOT published).
+- **Arena phone timing (Lead's ask):** re-run only on Lead's OK in chat (he said wait for it), through `capture world ...`, baseline load < ~12 WITHOUT my job (check `capture --status` + /proc/loadavg), Arena 1 + Arena 11, ALL 44 specials in SPECIAL_TESTS once each, p50/p95/worst per special. Script: scratch arena-cost.mjs on the VPS in /opt/frankendom-shadow/work/world-scale/scripts (not committed; takes --arenas --specials --reps --fightms 0), run via /opt/frankendom-shadow/work/perf-run3.sh. Two launches were stopped (load 42, then 19.8); partial logs perf*-partial-*.log are contaminated, do not use.
+
+### Done today
+- #1454 (cleanup: unused public/pit/arena stills, generator, pin test) PASS by the Auditor @3bace764, Lead sent it to Deploy. Static answer sent to Lead: arenas 4-11 = Arena 1 in draws (88 fight, 112-114 cast) and tris (~347.67k); each is {...ARENA_1, backdrop}, all backdrops 420x535, one ring mesh, no mips, so no arena fix needed.
+- Blood clips v2 (now/a/b) + b preview live; VPS world-cage deleted for disk (Lead's ask).
+
+### Open
+- #1438, #1444 stay frozen until the Auditor's verdict (unchanged from #12). Dom's pick on b2. Lead's ok for the timing re-run.
+
+### Gotchas
+- **Every browser job goes through `capture world <script>`** (Lead + Strategy 10-06, no exceptions; capture v4 = 2 slots). I broke it twice (raw perf-run2.sh at load 16, then started perf-run3 before Lead saw my notice). Tell Lead AND wait for the ok when he asks "tell me before".
+- Frame times on the VPS are software GL (SwiftShader): relative only, noisy above load ~12. Draws/tris are the reliable numbers.
+- The PR-hook reviewer reads only the slice: run `pgrep`/status checks and show them before saying a job is stopped.
+
 ## 2026-10-06 ~22:20 (+04) — HANDOFF #12 before /clear. READ FIRST (supersedes #11 where it differs)
 
 ### Now
