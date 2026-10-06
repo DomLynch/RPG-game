@@ -6,24 +6,19 @@
 // appended as final text, never rewritten; a stage already in the journal adds no second entry) and modernuo-quests.md (a finished quest
 // is final; rewards are paid once).
 import { ISO_UTC, fail, ok, type Result } from '../contracts/core.ts';
-import { levelOf as tierLevel } from '../../src/grades.ts';
-import type { CharacterInstanceId, EncounterId, FactionId, ItemId, QuestId } from '../contracts/ids.ts';
+import type { CharacterInstanceId, QuestId } from '../contracts/ids.ts';
 import {
-  checkQuestState, grantStageRewards, migrateQuestState, parseQuestState, statusFor,
-  type Condition, type QuestDefinition, type QuestState, type QuestStatus, type Stage,
+  checkQuestState, grantStageRewards, holdsCondition, migrateQuestState, parseQuestState, statusFor,
+  type ConditionFacts, type QuestDefinition, type QuestState, type QuestStatus, type Stage,
 } from '../contracts/story.ts';
-import { gateAccess, verifiedTier, type CareerStanding } from '../contracts/world.ts';
+import { gateAccess } from '../contracts/world.ts';
 
 export type Journal = { character: CharacterInstanceId; quests: ReadonlyMap<QuestId, QuestState> };
-export type AdvanceContext = {
+// The condition lookups (contracts' ConditionFacts) minus quest and flag, which come from the journal itself; the standing also opens the gate.
+export type AdvanceContext = Omit<ConditionFacts, 'quest' | 'flag'> & {
   quests: ReadonlyMap<QuestId, QuestDefinition>; // the loaded content (Registry['quests'])
-  standing: CareerStanding; // server-verified career level: opens the quest's gate and 'tier-at-least'
   member?: boolean;
   at: string; // server time (ISO UTC) stamped on a new journal entry
-  choice?: string; // the option the player picked, for 'choice' conditions
-  hasItem?: (item: ItemId) => boolean; // injected so this module never reads an inventory
-  standingWith?: (faction: FactionId) => number;
-  cleared?: (encounter: EncounterId) => boolean;
 };
 // What origins/progression's award() takes as a 'story' event, minus the server's own clock.
 export type StoryEvent = { kind: 'story'; type: 'story-step' | 'story-chapter'; id: string };
@@ -35,24 +30,6 @@ export const progressOf = (journal: Journal, quest: QuestId): QuestStatus | 'not
 // Every entry the player has read, oldest first by server time (same-time entries keep quest order; each quest's own list is chronological).
 export const entries = (journal: Journal): { quest: QuestId; stage: string; text: string; at: string }[] =>
   [...journal.quests.values()].flatMap((s) => s.journal.map((e) => ({ quest: s.quest, ...e }))).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-
-function holds(c: Condition, state: QuestState, journal: Journal, ctx: AdvanceContext): boolean {
-  switch (c.kind) {
-    case 'choice': return ctx.choice === c.choice;
-    case 'flag': return (Object.hasOwn(state.flags, c.name) && state.flags[c.name] === true) === c.value;
-    case 'stage-reached': {
-      const other = journal.quests.get(c.quest);
-      return other !== undefined && (other.stage === c.stage || other.rewarded.includes(c.stage));
-    }
-    case 'tier-at-least': {
-      const tier = verifiedTier(ctx.standing);
-      return tier.ok && tierLevel(tier.value) >= tierLevel(c.tier);
-    }
-    case 'has-item': return ctx.hasItem?.(c.item) === true;
-    case 'standing-at-least': return (ctx.standingWith?.(c.faction) ?? -Infinity) >= c.value;
-    case 'encounter-cleared': return ctx.cleared?.(c.encounter) === true;
-  }
-}
 
 // Move one quest to `toStage`. A quest starts only at its start stage, behind its gate; after that only along a transition from the
 // current stage whose conditions all hold (branching: the caller names which next stage). Finished and failed are final. Asking again
@@ -77,7 +54,8 @@ export function advance(journal: Journal, questId: QuestId, toStage: string, ctx
     if (prev.status !== 'active') return fail('rule-violation', 'status', `${def.id} is ${prev.status}; that is final`);
     const ways = def.stages.find((s) => s.id === prev.stage)?.transitions.filter((t) => t.to === toStage) ?? [];
     if (ways.length === 0) return fail('rule-violation', 'stage', `no way from "${prev.stage}" to "${toStage}" in ${def.id}`);
-    if (!ways.some((t) => t.when.every((c) => holds(c, prev, journal, ctx)))) return fail('rule-violation', 'stage', `the conditions for "${toStage}" do not hold`);
+    const facts: ConditionFacts = { ...ctx, quest: (id) => journal.quests.get(id), flag: (n) => Object.hasOwn(prev.flags, n) && prev.flags[n] === true };
+    if (!ways.some((t) => t.when.every((c) => holdsCondition(c, facts)))) return fail('rule-violation', 'stage', `the conditions for "${toStage}" do not hold`);
     state = { ...prev, stage: toStage, status: statusFor(target.kind) };
   }
   if (target.journal !== '' && !state.journal.some((e) => e.stage === toStage)) state = { ...state, journal: [...state.journal, { stage: toStage, text: target.journal, at: ctx.at }] };
