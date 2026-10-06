@@ -74,9 +74,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (self.specialShare !== undefined && gap <= RULES.special.reach && legal(self, 'skill')) return { intent: { ...intent, action: 'skill' }, ai: next };
   const guardShare = profile.guard ?? 1;   // fight-identity knobs (moves.ts AiProfile): absent = the warden as it always was
   // Hit and run: a blow that landed this tick earns a hop back out of range (profile.disengage), taken as soon as the swing has recovered.
-  // EXPERIMENT (Goblin scaling): a blow that was BLOCKED earns the same hop back, out of the guard-counter's reach.
-  const outOfBlock = (globalThis as { __DISENGAGE_BLOCKED?: number }).__DISENGAGE_BLOCKED ? duel.events.some(e => e.type === 'Blocked' && e.target === me) : false;
-  if (profile.disengage && (outOfBlock || duel.events.some(e => e.type === 'Hit' && e.actor === me)) && roll() < profile.disengage) next.disengageUntil = tick + 40;
+  if (profile.disengage && duel.events.some(e => e.type === 'Hit' && e.actor === me) && roll() < profile.disengage) next.disengageUntil = tick + 40;
   // Observe the opponent's habits from state edges (age 0 = this tick's start) and read them.
   const h = next.habits = { ...ai.habits, ticks: ai.habits.ticks + 1 };
   if (opponent.phase === 'guard') h.guard++;
@@ -165,12 +163,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
         : r < parryChance + profile.dodge && self.stamina >= RULES.rollCost ? 'dodge'
         : unblockable ? (self.stamina >= RULES.rollCost && !(profile.step && clears && roll() < profile.step) ? 'dodge' : !self.parryCooldown && guardShare > 0 ? 'parry' : 'evade')
         : affordable && (guardShare >= 1 || roll() < guardShare) ? 'block' : 'evade';
-      // EXPERIMENT (COMBAT-001): a late notice is a late answer. Spare = ticks between noticing and contact; under W the answer is in time
-      // only spare / W of the time (linear), so the step from "never in time" to "always in time" spreads over W ticks of reaction.
-      const W = (globalThis as { __NOTICE_W?: number }).__NOTICE_W ?? 0, spare = timing(opponent).windup - reaction;
-      if (W > 0 && next.plan !== 'ignore' && spare > 0 && spare < W && roll() >= (spare / W) ** ((globalThis as { __NOTICE_K?: number }).__NOTICE_K ?? 1)) next.plan = 'ignore';
       next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
-      (globalThis as { __PLAN_LOG?: (p: string, m: string, w: number, r: number) => void }).__PLAN_LOG?.(next.plan!, opponent.move!, timing(opponent).windup, reaction);
     }
   } else if (noticed && next.plan === 'block' && charging(opponent) && !next.brace) {   // a heavy seen to be charging will break the guard: change the answer
     next.plan = self.stamina >= RULES.rollCost ? 'dodge' : !self.parryCooldown && guardShare > 0 ? 'parry' : 'evade';

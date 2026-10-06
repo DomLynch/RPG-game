@@ -1,6 +1,6 @@
 # COMBAT-001 reopened (Dom, 2026-10-06): late notice fixes most of the ladder cliff; the Goblin needs an offence change
 
-Strategy prototype, sim only. **Dom overruled "leave the cliff"**: fix it. The code on this branch is EXPERIMENT hooks (`globalThis.__NOTICE_W` etc. in `src/ai.ts`), not shippable; Combat turns the winner into a real rule.
+Strategy prototype, sim only. **Dom overruled "leave the cliff"**: fix it. The experiment hooks are in `combat-001-late-notice-experiment.patch` beside this brief (`git apply` it to run the sweeps; globalThis knobs, default off; the k-curve variant dropped since detmath bans `**`), not shippable; Combat turns the winner into a real rule.
 
 ## Tools (on this branch)
 - `scripts/ladder-sweep.mjs`: #1373's sweep (closed, never merged), now importable (`import.meta.main` guard).
