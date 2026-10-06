@@ -12,6 +12,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
+import { GUARD_DROP } from './fatigue-tune.ts';
 import { type Fatigue, type FatigueTune, breathe, fatigueLayer } from './fatigue.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from './grades.ts';
@@ -662,7 +663,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
         }
         const shieldHeld = shieldArm && armed && !dead, guardUp = shieldHeld && (pose === 'guard' || pose === 'block' || pose === 'parry'), cutting = shieldHeld && (pose === 'attack' || pose === 'kick' || pose === 'deflected' || pose === 'roll');   // a deflect throws the arm open; a roll tucks it
-        carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) - raise) * ease; strike += (Number(cutting) - strike) * ease;
+        carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;
         if (carry < .001) carry = 0;
         carryShield(carry, raise, strike);
         spectralLife = spectral?.(step, dead, progress, pose === 'opened') ?? 1;
