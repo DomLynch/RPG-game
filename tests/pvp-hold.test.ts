@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CATCHUP, clearHold, newHold, onFrame, onTick } from '../src/pvp-hold.ts';
+import { CATCHUP, MAX_LAG_TICKS, clearHold, newHold, onFrame, onTick, visible } from '../src/pvp-hold.ts';
 
 type Snap = { tick: number; events: string[]; stop: number };
 const stopOf = (s: Snap) => s.stop, eventsOf = (s: Snap) => s.events;
@@ -83,4 +83,31 @@ test('a rollback drops the queued predicted ticks: their events are still delive
   assert.ok(shown.every((t) => t === 2 || t === null), `only the contact tick is drawn, then live: ${JSON.stringify(shown)}`);
   assert.deepEqual(got, ['e3', 'e4', 'e5'], 'the confirmed events of the dropped ticks are delivered once');
   assert.equal(h.shown, null); assert.equal(h.queue.length, 0);
+});
+
+test('the picture is never more than MAX_LAG_TICKS behind the sim, whatever the contact burst: a long hold is shortened, a contact with no room does not hold', () => {
+  assert.equal(MAX_LAG_TICKS, 6);
+  // A kill (220 ms = 13 ticks) holds 100 ms at most.
+  const kill = run(new Array(30).fill(1), { 2: 220 });
+  assert.ok(kill.held.filter(Boolean).length * FRAME <= 100 + FRAME, `the kill hold was ${kill.held.filter(Boolean).length} frames`);
+  // A burst: a 90 ms contact every 3 ticks for 120 ticks, one tick a frame. The queue (ticks the screen has not shown) never passes the cap at a frame's end.
+  const stops: Record<number, number> = {}; for (let t = 2; t <= 120; t += 3) stops[t] = 90;
+  const h = newHold<Snap>(); let tick = 0, maxQueue = 0, holds = 0, wasHeld = false; const frames = 160;
+  for (let f = 0; f < frames; f++) {
+    if (f < 120) { tick++; const s = snap(tick, stops[tick] ?? 0); onTick(h, s, h.shown ? 0 : s.stop, 1); }
+    const d = onFrame(h, FRAME, [], stopOf, eventsOf); if (d.held && !wasHeld) holds++; wasHeld = d.held; maxQueue = Math.max(maxQueue, h.queue.length);
+  }
+  assert.ok(maxQueue <= MAX_LAG_TICKS, `the queue reached ${maxQueue} ticks`);
+  assert.ok(holds >= 2, `contacts still hold (${holds} holds)`);
+  assert.equal(h.shown, null, 'the burst drains and the screen is live again');
+});
+
+test('visible(): while the screen is behind the sim the HUD and the end banner read the drawn snapshot, so a finish is announced when its last blow is drawn', () => {
+  const live = { tick: 9, events: ['Killed'], stop: 0 }, h = newHold<Snap>();
+  assert.equal(visible(h, live), live, 'live when not behind');
+  onTick(h, { tick: 2, events: ['hit2'], stop: 220 }, 220, 1);   // the contact; the kill is ticks away and queued behind the hold
+  onTick(h, live, 0, 1);
+  assert.equal(visible(h, live).tick, 2, 'the held picture, not the live finish');
+  for (let i = 0; i < 40 && h.shown; i++) onFrame(h, FRAME, [], stopOf, eventsOf);
+  assert.equal(visible(h, live), live, 'after the queue drains the finish is visible');
 });
