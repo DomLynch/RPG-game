@@ -57,3 +57,10 @@ test('in Arena 1 the wall is the boundary: the play circle ends at the wall\'s i
   assert.ok(RADIUS > BASE_RADIUS * ARENA_ONE_SCALE && RADIUS < LAYOUT.wall.inner * ARENA_ONE_SCALE, `${RADIUS.toFixed(3)} m: past the old inner ring, short of the wall`);
   setPlayScale(1); assert.equal(RADIUS, BASE_RADIUS);
 });
+
+test('the version is stamped when the recorder is born, in the circle the fight began in, not when it ends', () => {
+  setPlayScale(ARENA_ONE_SCALE);
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  setPlayScale(1);   // the page moved on before the record was finished
+  assert.equal(rec.finish('abandoned').v, RECORD_VERSION);
+});

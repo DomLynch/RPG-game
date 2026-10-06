@@ -114,6 +114,7 @@ export function quantizeIntent(intent: Intent): Intent {
 
 // Records one fight from its first tick. push() returns the quantized intent the caller must step with.
 export function createRecorder(meta: RecordMeta) {
+  const version = stampedVersion(meta.opponent);   // the circle in force when the fight BEGINS names the record, not whatever is set when it ends
   const intents: Intent[] = [];
   let done: FightRecord | null = null;
   return {
@@ -127,7 +128,7 @@ export function createRecorder(meta: RecordMeta) {
       return q;
     },
     finish(outcome: Outcome): FightRecord {
-      done ??= { v: stampedVersion(meta.opponent) as RecordVersion, ...meta, ticks: intents.length, outcome, intents: intents.slice() };
+      done ??= { v: version as RecordVersion, ...meta, ticks: intents.length, outcome, intents: intents.slice() };
       return done;
     },
   };
