@@ -29,6 +29,7 @@ import type { RecordArena } from './record.ts';
 import { defeat, type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import { createFirstLoss, type LessonId } from './first-loss.ts';
+import { createTutorial, type TutorialStep } from './tutorial.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
 import { FIRST_STAB_VERSION, STAB_ON, setStab } from './stab-rule.ts';
@@ -40,7 +41,7 @@ import type { SpecialTest } from './special-look.ts';
 
 const CLASS_B_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');   // rank 4, level 16 in the canonical career ladder
 
-export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp' | 'lesson';
+export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp' | 'lesson' | 'tutorial';
 export type SpecialIdentity = Readonly<{ opponent: Opponent['id']; level: number; presets?: readonly [SpecialTest | null, SpecialTest | null] }>;
 // The live duel's driver (src/net/pvp.ts PvpDuel), by shape only: this file imports nothing from src/net. `settled`: the finish is in the
 // state stepped on both players' real intents, so no rollback can take it back.
@@ -88,7 +89,9 @@ export class Match {
   // testing never moves his own progress, and never sends the server a claim its verifier would refuse.
   tested = false;
   lesson: ReturnType<typeof createFirstLoss> | null = null;   // the scripted first loss (src/first-loss.ts, mode 'lesson'): its script, which owns the foe
+  tutorial: ReturnType<typeof createTutorial> | null = null;   // the tutorial start scene's slow foe (src/tutorial.ts, mode 'tutorial')
   private onLesson: (id: LessonId) => void = () => {};
+  private onTutorial: (id: TutorialStep) => void = () => {};
   dummy = false;   // a sparring fight against the no-attack dummy (src/sparring.ts stepSparring); `level` then holds easy's, the dummy's base
   // Counts every start. A loader that was asked before a start (a kill link's fetch) hands its epoch back
   // with the record; a stale epoch is refused, so a late response never overwrites a newer match.
@@ -115,6 +118,7 @@ export class Match {
     if (mode !== 'sparring') { this.dummy = false; if (this.sparSelection && mode !== 'replay') this.skill = this.sparLegacySkill; this.sparSelection = undefined; }
     if (mode !== 'pvp') this.pvp = null;
     this.lesson = mode === 'lesson' ? createFirstLoss(this.onLesson) : null;
+    this.tutorial = mode === 'tutorial' ? createTutorial(this.onTutorial) : null;
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
     const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= CLASS_B_FROM && this.level <= LEVELS;
@@ -127,7 +131,7 @@ export class Match {
       this.skill = this.practice.duel.fighters[0].skill;
       this.specials = this.practice.duel.fighters.some(f => f.specialShare !== undefined);
     }
-    this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' || mode === 'lesson' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.ports.arena?.() ? { arena: this.ports.arena() } : {}), ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
+    this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' || mode === 'lesson' || mode === 'tutorial' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.ports.arena?.() ? { arena: this.ports.arena() } : {}), ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
@@ -136,6 +140,7 @@ export class Match {
   // Rematch: the same warden, differently seeded. A career fight stays career; a practice fight stays practice.
   rematch() {
     if (this.mode === 'pvp') return;   // a new duel is a new challenge link (the peer has to agree to it)
+    if (this.mode === 'tutorial') { this.seed = nextSeed(this.seed); this.begin('tutorial'); return; }   // the tutorial writes nothing, rematches included
     if (this.mode === 'lesson') { this.seed = nextSeed(this.seed); this.begin('lesson'); return; }   // the first loss writes nothing, rematches included
     if (this.mode === 'sparring') { this.seed = nextSeed(this.seed); this.begin('sparring'); return; }   // sparring writes nothing, rematches included
     recordRematch(this.ports.trial); saveTrial(this.ports.storage, this.ports.trial);
@@ -216,6 +221,12 @@ export class Match {
     this.onLesson = onLesson; this.weapon = 'longsword'; this.skill = null; this.dummy = false; this.level = PRESET_LEVEL.easy;
     this.begin('lesson');
   }
+  // The tutorial start scene (src/tutorial.ts): the longsword against a slow warden who waits on each step. `onDone` fires once per step, in order.
+  // Nothing is recorded or awarded; the fight never ends by itself.
+  startTutorial(onDone: (id: TutorialStep) => void): void {
+    this.onTutorial = onDone; this.weapon = 'longsword'; this.skill = null; this.dummy = false; this.level = PRESET_LEVEL.easy;
+    this.begin('tutorial');
+  }
   // A live duel (src/net/pvp.ts): the driver owns the fight from here; the page reloads to leave it.
   startPvp(driver: PvpDriver): void {
     this.begin('pvp');
@@ -254,7 +265,7 @@ export class Match {
     if (over && !((this.mode === 'replay' || this.clipLevel !== null) && this.practice.finish)) { this.stalled = true; return 'stalled'; }
     const stepped = over ? idleIntent() : this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
     const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level));
-    this.practice = this.lesson ? this.lesson.step(this.practice, stepped) : this.dummy ? stepSparring(this.practice, stepped) : this.replay ? underRecord(this.replay.record, step) : step();   // a replay or clip steps on its record's math
+    this.practice = this.tutorial ? this.tutorial.step(this.practice, stepped) : this.lesson ? this.lesson.step(this.practice, stepped) : this.dummy ? stepSparring(this.practice, stepped) : this.replay ? underRecord(this.replay.record, step) : step();   // a replay or clip steps on its record's math
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
   }

@@ -158,6 +158,9 @@ test('item instance: provenance kinds parse, and each refuses its bad forms', ()
     { kind: 'creator-mint', mintKey: 'mint:abc-12345', at, creator: F.OTHER_ACCOUNT },
     legacy,
     { ...legacy, fromLegend: 'veteran-2', atRank: 'Legionary' },
+    // Dom, 2026-10-07: bought from an NPC shop (bound metal), or from the cash shop (real money). Tradeability is economy.ts tradeCooldown.
+    { kind: 'shop', mintKey: 'shop:armourer:0001', at, boughtBy: F.PC, shop: 'service:armourer-vell' },
+    { kind: 'cash-shop', mintKey: 'cash:order-0001', at, account: F.ACCOUNT, sku: 'ember-crest' },
   ];
   for (const provenance of good) inst({ ...F.helmetInstance(), provenance });
   const p = 'provenance';
@@ -168,6 +171,11 @@ test('item instance: provenance kinds parse, and each refuses its bad forms', ()
   refused(parseItemInstance({ ...F.helmetInstance(), provenance: pitProvenance({ lootId: 'veteran.Sword' }) }), 'legacy-unknown', `${p}.lootId`);
   refused(parseItemInstance({ ...F.helmetInstance(), provenance: pitProvenance({ claimId: 0 }) }), 'out-of-range', `${p}.claimId`);
   refused(parseItemInstance({ ...F.helmetInstance(), provenance: pitProvenance({ table: 'loottable:x' }) }), 'unknown-field', `${p}.table`);
+  const shop = { kind: 'shop', mintKey: 'shop:armourer:0001', at, boughtBy: F.PC, shop: 'service:armourer-vell' };
+  refused(parseItemInstance({ ...F.helmetInstance(), provenance: { ...shop, shop: 'region:concord-exchange' } }), 'wrong-namespace', `${p}.shop`);
+  refused(parseItemInstance({ ...F.helmetInstance(), provenance: { ...shop, boughtBy: undefined } }), 'missing-field', `${p}.boughtBy`);
+  refused(parseItemInstance({ ...F.helmetInstance(), provenance: { ...shop, wonBy: F.PC } }), 'unknown-field', `${p}.wonBy`);
+  refused(parseItemInstance({ ...F.helmetInstance(), provenance: { kind: 'cash-shop', mintKey: 'cash:order-0001', at, account: F.ACCOUNT, sku: 'Ember Crest!' } }), 'wrong-type', `${p}.sku`);
   // A legacy migration copy has a derived mint key, so a re-run collides instead of minting a second copy.
   refused(parseItemInstance({ ...F.helmetInstance(), provenance: { ...legacy, mintKey: 'legacy:other-key-1' } }), 'rule-violation', `${p}.mintKey`);
   refused(parseItemInstance({ ...F.helmetInstance(), provenance: { ...legacy, fromLegend: 'veteran-2' } }), 'rule-violation', p);

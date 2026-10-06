@@ -51,6 +51,7 @@ import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
+import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
@@ -799,7 +800,9 @@ function winFace(src: string | null) {
 const LESSON_MS = 4000;
 let lessonNow: LessonId | undefined, lessonTimer = 0;
 export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
   hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
@@ -1240,6 +1243,18 @@ if (lessonAsked) {
   match.startLesson((id) => { heard.push(id); document.documentElement.dataset.lesson = id; onLesson(id); });
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
   began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
+}
+// The tutorial start scene (src/tutorial.ts, Match 'tutorial'): `?tutorial=1` only, until Dom approves the preview. The slow warden waits on each step;
+// the step ids land on <html data-tutorial-done> and __tutorial for the Web lane's instructions and the stills harness.
+if (!sparKit && !replayText && !sharedId && !invalidSparringPreview && !lessonAsked && new URLSearchParams(window.location?.search ?? '').get('tutorial') === '1') {
+  welcome.hidden = true; watching = false;
+  const done: string[] = [];
+  // After the last step the prompt turns into "YOU'RE READY" with a Fight! button: it marks the lesson done and drops into a normal first fight (?fight=1, as the first loss does).
+  tutorialUi = createTutorialUi(element, () => { try { storage.setItem(LESSON_DONE_KEY, '1'); } catch { /* unsaved: harmless */ } location.assign(`${location.pathname}?fight=1`); });
+  document.documentElement.dataset.tutorial = '1';   // style.css hides the old status line: one message only
+  match.startTutorial((id) => { done.push(id); document.documentElement.dataset.tutorialDone = id; });
+  Object.assign(globalThis, { __tutorial: () => ({ tick: match.practice.duel.tick, done: [...done], current: match.tutorial?.current ?? null, recorder: !!match.recorder, finish: match.practice.finish }) });
+  began();
 }
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
@@ -1776,7 +1791,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson' && match.mode !== 'tutorial') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {
