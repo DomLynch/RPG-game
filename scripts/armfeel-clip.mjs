@@ -5,7 +5,7 @@
 // The fight is recorded here in Node (the Ladder's human-like blocker bot against the opponent). Two replays per feel: the OPENING (a record cut at --opening ticks, so
 // the page replays it from its first tick: the ready idle, then the first exchanges) and the KILL (the whole record, replayed from the page's tail window).
 // Writes <out>/<take>-<feel>.mp4, <take>-<feel>-idle.jpg, <take>-<feel>-hit.jpg (3 frames after the first blow on the opponent), <take>-compare.mp4 (feels side by side).
-/* global process, console, document, URL */
+/* global process, console, document, URL, window */
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -58,7 +58,7 @@ async function take(text, feel, name, frames) {
   try {
     await page.goto(`${server.origin}/?replay=${text}&look=armfeel&feel=${feel}&debug`);
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
-    await page.evaluate(() => { globalThis.__hits = []; globalThis.__frame = 0; window.addEventListener('frankendom:combat', (e) => { for (const ev of e.detail.events) if (ev.type === 'Hit' && ev.target === 1) globalThis.__hits.push(globalThis.__frame); }); });
+    await page.evaluate(() => { globalThis.__hits = []; globalThis.__blocks = []; globalThis.__frame = 0; window.addEventListener('frankendom:combat', (e) => { for (const ev of e.detail.events) { if (ev.type === 'Hit' && ev.target === 1) globalThis.__hits.push(globalThis.__frame); else if (ev.type === 'Blocked' || ev.type === 'Parried') globalThis.__blocks.push(globalThis.__frame); } }); });
     await page.addStyleTag({ content: '#debug{display:none!important}' });
     const clock = await harnessClock(page);
     const shots = []; let n = 0;
@@ -70,8 +70,8 @@ async function take(text, feel, name, frames) {
       if (shoot) { const file = `${dir}/${String(shots.length).padStart(4, '0')}.jpg`; await page.screenshot({ path: file, type: 'jpeg', quality: 92, animations: 'disabled' }); shots.push(file); }
       if (await page.evaluate(() => !!document.getElementById('debug')?.dataset.replay)) break;
     }
-    const hit = await page.evaluate(() => globalThis.__hits[0] ?? null);
-    return { shots, hit, steps: n };
+    const hit = await page.evaluate(() => globalThis.__hits[0] ?? null), block = await page.evaluate(() => (globalThis.__blocks ?? [])[0] ?? null);
+    return { shots, hit, block, steps: n };
   } finally { await context.close(); }
 }
 
@@ -83,11 +83,12 @@ try {
   const meta = { seed: fight.seed, ticks: fight.ticks, opponent: OPPONENT, level: LEVEL, viewport: '375x812', dpr: DPR, feels: FEELS, takes: {} };
   for (const [name, text] of Object.entries(takes)) {
     for (const feel of FEELS) {
-      const { shots, hit, steps } = await take(text, feel, name, name === 'opening' ? OPENING + 60 : 7 * 60 + 120);
+      const { shots, hit, block, steps } = await take(text, feel, name, name === 'opening' ? OPENING + 60 : 7 * 60 + 120);
       const at = hit === null ? Math.floor(shots.length / 2) : Math.min(shots.length - 1, Math.floor((hit + 3) / EVERY));
+      if (block !== null) await fs.copyFile(shots[Math.min(shots.length - 1, Math.floor((block + 3) / EVERY))], `${OUT}/${name}-${feel}-block.jpg`);
       await fs.copyFile(shots[0], `${OUT}/${name}-${feel}-idle.jpg`); await fs.copyFile(shots[at], `${OUT}/${name}-${feel}-hit.jpg`);
       execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${OUT}/${name}-${feel}/%04d.jpg`, '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/${name}-${feel}.mp4`]);
-      meta.takes[`${name}-${feel}`] = { frames: shots.length, steps, firstBlowOnOpponent: hit };
+      meta.takes[`${name}-${feel}`] = { frames: shots.length, steps, firstBlowOnOpponent: hit, firstBlockOrParry: block };
       console.log(`${name}-${feel}: ${shots.length} frames, first blow at frame ${hit}`);
     }
     if (FEELS.length === 2) execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', `${OUT}/${name}-${FEELS[0]}.mp4`, '-i', `${OUT}/${name}-${FEELS[1]}.mp4`, '-filter_complex', 'hstack=inputs=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', `${OUT}/${name}-compare.mp4`]);

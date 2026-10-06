@@ -37,7 +37,7 @@ import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
-import { armfeelFrom, Flinch, FLINCH_GAIN } from './armfeel.ts';
+import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { BodyFlash, createBurstPool, separateMaterials } from './armfeel-fx.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
@@ -892,7 +892,7 @@ export function createScene(
         const target = enemyHurt ? practice.enemy : state;
         // ?look=armfeel (armfeel.ts): the struck body flinches, flashes and bursts at the contact. The hero keeps FLINCH_GAIN.hero of the flinch (it is the biggest
         // thing on the screen); the opponent, seen end-on, is pushed to the side the blow arrives from so the lean is seen.
-        if (flinches && flashes && burstPool && blow?.type === 'Hit' && blow.target !== undefined && feel) {
+        if (flinches && flashes && burstPool && blow && isFleshHit(blow) && blow.target !== undefined && feel) {
           const victim = blow.target, heading = blow.heading ?? state.heading, bx = Math.sin(heading), bz = Math.cos(heading), dead = !!killed && killed.target === victim;
           let px = bx, pz = bz;
           const along = blowDirection(blow);

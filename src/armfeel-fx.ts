@@ -5,11 +5,11 @@ import { BURST, FLASH, burstCount, newParticle, spawn, tickParticle, type Feel, 
 
 // One shared 48-slot InstancedMesh, no shadows, one draw call. `burst` fills the next slots of the ring; `update` moves, shrinks and dims them.
 export function createBurstPool(scene: THREE.Scene) {
-  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: '#ffffff', fog: false }), BURST.slots);
+  const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshLambertMaterial({ color: '#ffffff' }), BURST.slots);   // unit-diameter droplets: lit and dark, no glow
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; mesh.visible = false; mesh.castShadow = false; mesh.receiveShadow = false; mesh.name = 'armfeel burst';
   mesh.setColorAt(0, new THREE.Color(BURST.color));   // allocates the instance colour buffer once, up front
   scene.add(mesh);
-  const slots: Particle[] = Array.from({ length: BURST.slots }, newParticle), pose = new THREE.Object3D(), color = new THREE.Color(), base = new THREE.Color(BURST.color);
+  const slots: Particle[] = Array.from({ length: BURST.slots }, newParticle), pose = new THREE.Object3D(), color = new THREE.Color(), start = new THREE.Color(BURST.color), end = new THREE.Color(BURST.endColor), up = new THREE.Vector3(0, 1, 0), heading = new THREE.Vector3();
   let next = 0, live = 0;
   return {
     mesh,
@@ -24,8 +24,11 @@ export function createBurstPool(scene: THREE.Scene) {
       for (let i = 0; i < slots.length; i++) {
         const p = slots[i];
         if (tickParticle(p, dt)) {
-          live++; pose.position.set(p.x, p.y, p.z); pose.scale.setScalar((p.size * p.life) / p.total);
-          color.copy(base).multiplyScalar(0.6 + (0.4 * p.life) / p.total); mesh.setColorAt(i, color);
+          live++; const k = p.life / p.total, s = p.size * k;
+          pose.position.set(p.x, p.y, p.z);
+          if (heading.set(p.vx, p.vy, p.vz).lengthSq() > 1e-6) pose.quaternion.setFromUnitVectors(up, heading.normalize());   // the droplet's long axis follows its flight
+          pose.scale.set(s, s * BURST.stretch, s);
+          color.copy(end).lerp(start, k); mesh.setColorAt(i, color);
         } else pose.scale.setScalar(0);
         pose.updateMatrix(); mesh.setMatrixAt(i, pose.matrix);
       }

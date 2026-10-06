@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { ARMFEEL, BURST, FLASH, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, newParticle, spawn, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
+import { ARMFEEL, BURST, FLASH, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, spawn, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
 import { BodyFlash, createBurstPool, separateMaterials } from '../src/armfeel-fx.ts';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, packRecord } from '../src/record.ts';
@@ -82,7 +82,15 @@ test('the burst: 8 on a hit, 12 on a kill, 3 on Low, at the handoff\'s speeds, s
   assert.ok(pool.alive <= 48, 'the ring never holds more than its 48 slots');
   assert.equal(pool.mesh.instanceMatrix.array, matrices); assert.equal(pool.mesh.instanceColor!.array, colors);
   assert.equal(pool.mesh.castShadow, false); assert.equal(pool.mesh.count, 48);
+  assert.ok(pool.mesh.geometry instanceof THREE.SphereGeometry, 'round droplets, not cubes');
+  assert.ok((pool.mesh.material as THREE.MeshLambertMaterial).isMeshLambertMaterial && (pool.mesh.material as THREE.MeshLambertMaterial).emissive.getHex() === 0, 'lit and dark, no glow');
+  assert.ok(BURST.color === '#8b1010' && BURST.endColor === '#6b0a0a', 'dark crimson, a touch darker at the end of life');
   pool.burst('off', 0, 1, 0, 0, 1, false); pool.clear(); pool.burst('off', 0, 1, 0, 0, 1, true); pool.update(0.016); assert.equal(pool.alive, 0, 'Off bursts nothing');
+});
+
+test('only a landed blow on the body bleeds: not a block, a parry or a guard break', () => {
+  assert.equal(isFleshHit(hit('light_right')), true);
+  for (const type of ['Blocked', 'Parried', 'GuardBroken'] as const) assert.equal(isFleshHit({ ...hit('light_right'), type } as CombatEvent), false, type);
 });
 
 test('the flash: 100 ms near-white emissive on the struck body, put back exactly; two rigs sharing a material flash apart', () => {
