@@ -16,7 +16,7 @@ const STEPS: Record<TutorialStep, { swing: Action | null; guard: boolean; cue: (
   slash: { swing: null, guard: false, cue: (e) => e.type === 'Hit' && e.actor === 0 && (e.move === 'light_right' || e.move === 'light_left') },
   stab: { swing: null, guard: false, cue: (e) => e.type === 'Hit' && e.actor === 0 && e.move === 'thrust' },
   heavy: { swing: null, guard: false, cue: (e) => e.type === 'Hit' && e.actor === 0 && e.move === 'heavy_overhead' },
-  guard: { swing: 'light', guard: false, cue: (e) => (e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0 },   // a guard raised on time is a Parry (duel.ts checks it first), later a Block: both are a guard
+  guard: { swing: 'thrust', guard: false, cue: (e) => (e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0 },   // a THRUST, because the straight guard (held Q / the button, no side) covers only a thrust (duel.ts guardSide), so a plain hold finishes the step; a guard raised on time is a Parry (duel.ts checks it first), later a Block: both count
   parry: { swing: 'heavy', guard: false, cue: (e) => e.type === 'Parried' && e.actor === 0 },
   kick: { swing: null, guard: true, cue: (e) => e.actor === 0 && e.move === 'kick' && (e.type === 'Hit' || e.type === 'GuardBroken') },
   roll: { swing: 'thrust', guard: false, cue: (e) => e.type === 'Dodged' && e.actor === 0 },   // (plus a roll that takes him out of reach so the swing whiffs: rolledOut below)
@@ -35,6 +35,8 @@ export function createTutorial(onDone: (id: TutorialStep) => void = () => {}) {
     get current(): TutorialStep | null { return TUTORIAL_STEPS[index] ?? null; },
     // True while the parry step's heavy is inside the ticks in which pressing guard now would catch it (the player's own parry window before contact): the Web lane's "now!".
     get parryWindow(): boolean { return parryNow; },
+    // The guard side the current step needs: null = the plain guard (no side), 'overhead' = slide up / Q + Up (the parry step's heavy comes from above); null when no guard step is waiting.
+    get guardWith(): 'overhead' | null { return TUTORIAL_STEPS[index] === 'parry' ? 'overhead' : null; },
     // True while the player stands outside the foe's reach, so the foe will not swing (guard, parry, roll) and a cut may not land: the Web lane's "step closer".
     get tooFar(): boolean { return farAway; },
     step(current: Practice, intent: Intent): Practice {

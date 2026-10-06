@@ -138,3 +138,22 @@ test('tooFar is true while the player stands outside the foe\'s reach and false 
   for (let i = 0; i < 400 && match.tutorial!.tooFar; i++) tick(match, () => ({ ...idle(), move: { x: 0, z: 1, yaw: 0, run: false }, lock: true }));
   assert.equal(match.tutorial!.tooFar, false);
 });
+
+test('a PLAIN guard (no side, the held button or Q) finishes the guard step; the parry step needs the overhead side', () => {
+  const plain = (): Intent => ({ ...idle(), guard: true });
+  for (let seed = 1; seed <= 6; seed++) {
+    const { match, beats } = toStep(seed, 'guard');
+    for (let i = 0; i < 3000 && !beats.some((b) => b.id === 'guard'); i++) tick(match, plain);
+    assert.ok(beats.some((b) => b.id === 'guard'), `seed ${seed}: a plain held guard blocks the thrust`);
+    assert.equal(match.tutorial!.guardWith, 'overhead', 'the next step (parry) needs the overhead side');
+  }
+  for (let seed = 1; seed <= 4; seed++) {   // the parry step: a plain guard pulsed at the window does NOT parry the heavy; the overhead side does
+    const run = (side: Intent['guardDirection']) => {
+      const { match, beats } = toStep(seed, 'parry');
+      for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'parry'); i++) tick(match, (d) => (match.tutorial!.parryWindow ? { ...guard(d, { action: 'parry' }), guardDirection: side } : idle()));
+      return beats.some((b) => b.id === 'parry');
+    };
+    assert.equal(run(undefined), false, `seed ${seed}: a straight parry does not cover the overhead heavy`);
+    assert.equal(run('overhead'), true, `seed ${seed}: the overhead side parries it`);
+  }
+});
