@@ -353,7 +353,6 @@ export function createScene(
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
-      wantHamstrung();   // only if the picker already chose it: a normal fight fetches nothing and does not wait
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
           if (object instanceof THREE.Mesh) object.geometry.dispose();
@@ -379,6 +378,7 @@ export function createScene(
         performance.mark('first-frame-' + how);
       }
       assetStatus('', 'ready');
+      prefetchHamstrung();   // after ready, never before and never awaited: the loading card does not wait on a finisher that may not play
     })
     .catch((error) => {
       // A bare fighter after every retry (FRANKENDOM-5) names its file, the missing map and the tries, so the next event says which art failed.
@@ -485,7 +485,9 @@ export function createScene(
   );
   const hamstrungOk = () => hamstrungAssets.ready(warriors);
   let hamstrungLatch: boolean | null = null;   // hamstrungOk() as it stood on the first frame of this finish: the picture and the audio keep one answer for the whole kill
-  const wantHamstrung = () => { if (finisherOverride === 'hamstrung' && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
+  // The kill picks its finisher (once Hamstrung is in the rotation), so the clips are fetched in the background once the fight is ready, on idle. Silent on failure: hamstrungPick keeps the plain death.
+  const prefetchHamstrung = () => { const start = () => wantHamstrung(true); if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 4000 }); else setTimeout(start, 1500); };
+  const wantHamstrung = (prefetch = false) => { if ((prefetch || finisherOverride === 'hamstrung') && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
   let finishHold = 0; // Hamstrung: seconds left of the hit-stop a blow holds the scene for (the clock and both rigs stand still, the camera and the blood run on)
   let hamstrungSteps: { knee: THREE.Vector3; back: THREE.Vector3 } | null = null; // where the killer's anchor stands for each blow, solved once per finish
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks

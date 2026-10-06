@@ -99,7 +99,16 @@ test('a normal fight\'s ready path never fetches or awaits the Hamstrung assets'
   assert.equal([...scene.matchAll(/assets\/hamstrung-/g)].length, 2, 'both clips are imported in one place only');
   const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
   assert.doesNotMatch(load, /import\('\.\/assets\/hamstrung|await[^\n]*hamstrung|prepareHamstrung/i, 'loadFighters neither imports nor awaits them');
-  assert.match(load, /\n\s*wantHamstrung\(\);/, 'it only asks when the picker already chose Hamstrung, unawaited');
-  assert.match(scene, /const wantHamstrung = \(\) => \{ if \(finisherOverride === 'hamstrung' && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
+  assert.doesNotMatch(load, /wantHamstrung|prefetchHamstrung/, 'ready neither asks for nor awaits the clips');
+  assert.match(scene, /const wantHamstrung = \(prefetch = false\) => \{ if \(\(prefetch \|\| finisherOverride === 'hamstrung'\) && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
   assert.match(scene, /setFinisherOverride\(id: FinisherId \| null\) \{\n\s*finisherOverride = id;\n\s*wantHamstrung\(\);/, 'the picker choosing it starts the fetch');
+});
+
+test('the Hamstrung prefetch starts only after ready, unawaited, on idle, and its failure stays silent', () => {
+  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const ready = scene.indexOf("assetStatus('', 'ready');"), calls = [...scene.matchAll(/\bprefetchHamstrung\(\)/g)].map((m) => m.index!);
+  assert.equal(calls.length, 1, 'one call site');
+  assert.match(scene.slice(ready, ready + 400), /^assetStatus\('', 'ready'\);\n\s*prefetchHamstrung\(\);/, 'immediately after ready, not awaited');
+  assert.match(scene, /const prefetchHamstrung = \(\) => \{[^\n]*requestIdleCallback\(start, \{ timeout: 4000 \}\)[^\n]*setTimeout\(start, 1500\)/, 'on idle with a timer fallback');
+  assert.match(scene, /\(error\) => \{ captureException\(error\); \},\n\s*\);/, 'a failure is reported to Sentry only, never thrown');
 });
