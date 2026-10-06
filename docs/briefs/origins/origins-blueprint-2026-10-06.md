@@ -12,11 +12,12 @@ Prepared 6 October 2026. Proposal for an expansion of the existing mobile-first 
 7. **One progression, two places to earn it.** Characters can go back into the Pit and fight at any rank, as today, and they also level in the world. Killing a world boss raises skill and rank the same way an arena win does; ordinary mobs and low-level creatures give much less, and less again for repeats or for creatures far below your level. Levelling borrows the best of EverQuest, Ultima Online, World of Warcraft, Morrowind and Gothic II. There is still one career, one rank and one set of stats, all server-verified. World of ClaudeCraft (MIT, about 1M LOC) is the parts bin: pick and take what fits.
 6. **Kept from review.** One shared-world server only (Lead picks: a lean Node server on ClaudeCraft's hardening patterns, or Colyseus). The Book of Enoch stays with Armagedom. Add Elden Ring-style ghosts from real players' fight records. Add creator-minted cosmetics as an item source.
 
-8. **Deep ports, not loose ideas.** For every system we take from Morrowind/OpenMW, Gothic II/OpenGothic, Ultima Online/ModernUO or EverQuest/EQEmu, do three things:
-   - write a source analysis from the actual C++/C# code: files, call graph, data structures, every formula and constant with file:line, edge cases;
-   - port the logic faithfully to TypeScript, with only the engine plumbing removed and every deliberate change listed;
-   - write parity tests from golden cases, captured from the running emulators where possible.
-   Translated GPL code (OpenMW, ModernUO, EQEmu) runs server-side only and never ships in the browser bundle.
+8. **Deep analysis, then our own better code (clean room).** For every system taken from Morrowind/OpenMW, Gothic II/OpenGothic, Ultima Online/ModernUO or EverQuest/EQEmu, it runs in four steps:
+   - **Analyst agents** read the actual C++/C# code and write a full specification: behaviour, every formula and constant with file:line, edge cases, order of operations.
+   - **Separate implementer agents**, who never see the donor source, write Frankendom's own TypeScript from that specification.
+   - They modernise and improve freely, and every deliberate change is listed.
+   - Parity tests come from golden cases, captured from the running emulators where possible.
+   Result: the code is wholly ours (no GPL inherited), so it can run on the server or in the browser.
 
 ## Status and decision
 
