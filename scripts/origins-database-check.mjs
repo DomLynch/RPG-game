@@ -72,7 +72,6 @@ try {
   const before = objects(), aclsBefore = acls(), riBefore = riTriggers();
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${C}','Cass',0,'{"owned":[],"equipped":{}}');`);
   apply([UP]);
-  apply(files.filter(n => n > UP));
 
   // ---- the flag is OFF: nothing works, nothing shows -----------------------------------------------------------------------------
   refused('flag off: creating a character', 'origins is not open', () => W(`select public.origins_create_character('${A}', 'Aldren');`));
@@ -313,6 +312,9 @@ try {
   const after = objects();
   eq(after.split('\n').filter(l => !before.split('\n').includes(l)).every(l => /origins/.test(l)), true, 'the migration only adds origins_* objects and its role');
   eq(before.split('\n').every(l => after.split('\n').includes(l)), true, 'the migration removed nothing that existed');
+  const followUps = files.filter(n => n > UP && n.includes('_origins_'));   // the Origins follow-ups only: other series (duel_*, with or without a down-script) are not this harness's to undo
+  apply(followUps);   // the follow-up migrations go on after every 0001 check: they replace 0001's trade functions
+  for (const n of followUps.reverse()) psql(readFileSync(join(dir, '..', 'down', n.replace('.sql', '_down.sql')), 'utf8'));   // follow-up migrations come off first, newest first
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(riTriggers(), riBefore, 'after the down-script the internal triggers on auth.users are exactly as before the migration');
   eq(objects(), before, 'after the down-script the public schema and roles are exactly as before the migration');

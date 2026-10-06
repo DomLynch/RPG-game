@@ -19,6 +19,15 @@ on:
       - 'docs/**'
   pull_request:
     branches: [codex/01a09a76/task-1]
+    # `edited` joins the default set so a retarget (base branch changed) re-runs the gate: `base` judges the base
+    # branch, and a PR retargeted onto trunk after its stack merged kept a stale verdict (2026-10-06). Title and body
+    # edits also arrive as `edited`; every job skips those (see NOT_RETARGET below) and the concurrency group keeps them
+    # out of the real run's group so a body edit never cancels a running gate. Not `ready_for_review`: drafts already
+    # run on opened/synchronize, so promotion would only repeat a finished run. The `base` job itself is not slow: on
+    # every 2026-10-06 run where it ran it finished in 43-67 s (fetch-depth 0 + blob:none is what pr-base-check's
+    # merge-base needs); its CANCELLED verdicts are the concurrency group cancelling a superseded run, and its long
+    # "queued" waits are the runner pool.
+    types: [opened, synchronize, reopened, edited]
     # Repeated rather than a YAML anchor: the Actions workflow parser does not support anchors or aliases.
     paths-ignore:
       - '**.md'
@@ -26,10 +35,13 @@ on:
 # One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
 # cancel-on-close.yml cancels a closed PR's runs.
 concurrency:
-  group: quality-${{ github.event.pull_request.number || github.ref }}
+  # A non-retarget `edited` run (title/body) gets its own group: it skips every job and must not cancel the real run.
+  group: quality-${{ github.event.pull_request.number || github.ref }}${{ (github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) && '-edit' || '' }}
   cancel-in-progress: true
 jobs:
   quality:
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -51,9 +63,12 @@ jobs:
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
       - name: Server awards database
         run: PG_BIN="$(pg_config --bindir)" node scripts/awards-database-check.mjs
+      # The Origins save/verify invariants on real PostgreSQL (GPT audit 2026-10-06, finding B: the harness existed but no required job ran it).
+      - name: Origins database
+        run: PG_BIN="$(pg_config --bindir)" node scripts/origins-database-check.mjs
   base:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -68,6 +83,8 @@ jobs:
     # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 30 s (the absolute tripwire; Lead 2026-09-28: trunk measured 16.9 s and
     # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -114,6 +131,8 @@ jobs:
           if-no-files-found: ignore
   browser:
     # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
     strategy:
       fail-fast: false
       matrix:
@@ -167,6 +186,8 @@ jobs:
   net-engines:
     # Live PvP rollback needs bit-identical state on every phone (docs/duel-architecture.md §2.3): the PvP fixture's fingerprint chains in
     # Node 22 (the verifier's engine), Chromium (Android Chrome's) and WebKit (iOS Safari's) must match fight for fight. CPU only, no GPU.
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -194,6 +215,8 @@ jobs:
   duel-two-page:
     # A live duel between two real pages over the real path (challenge link, relay, WebRTC when it opens, lobby, rollback): both must settle
     # on the same finish with the same confirmed fingerprints and 0 desyncs (scripts/duel-two-page-check.mjs). CPU only, draws skipped.
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
