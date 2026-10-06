@@ -10,7 +10,8 @@
   tradeable), `origins/world` (zones as data; world group #16 `town` comes from `feuds.md` §11), `origins/progression`
   (`TYPE_WEIGHTS`, first-win-only bosses, `MIN_CONTRIBUTION_PERMILLE`) and `origins/boss` (the world boss state machine, #1448).
 - Standing rules, unchanged: **never gear loss**; every NPC strike is telegraphed and dodgeable; collect-N stays banned; travel stays
-  short; twists are Origins encounter flags that never move the live ladder.
+  short; twists are Origins encounter flags that never move the live ladder. **One deliberate exception:** clan perk templates
+  apply in the Pit too (Dom's override, §10), with a `RECORD_VERSION` bump and a re-pinned RNG fingerprint.
 
 ## 1. The loop
 
@@ -211,8 +212,8 @@ no friend-patron pair; no target below `tier(A) − 1`; no hamlet as a hostile t
   bark, a banner at the Exchange's war board, a map marker, and the **stakes** (what each outcome changes, in numbers). It runs for
   `durationSeconds` (**72 h**).
 - **Enlisting.** At either town's war table (an NPC, templated talk). A player may enlist if they have passed the outer gate
-  (Gladiator), are below `SUSPECT` in the town whose side they join, have standing ≥ neutral with it, and their patron is not the
-  other town's patron (§10). One side per goal per player; no switching; at most **one live enlistment** at a time.
+  (Gladiator), are below `SUSPECT` in the town whose side they join, have standing ≥ neutral with it, and the other town's patron does
+  not head their own clan (§10.8). One side per goal per player; no switching; at most **one live enlistment** at a time.
 - **Fighting.** Each post is an NPC duel at the post's level (the town's band top + post weight). A loss costs nothing and can be
   retried after 60 s. Enlisted raiders are not challenged by the defending town's guard rings **at the war's posts** while the goal
   is live; anywhere else in the town the normal `feuds.md` rules apply.
@@ -445,84 +446,236 @@ Stats watches faucet and sink totals from the ledger before any number here goes
 over. A season brings a new page in every book ("Season 3 begins"), the donors' and defenders' season boards, an ambience preset
 (winter fog, summer ash), and one festival week where rifts run at the top of their range. A season name is data.
 
-## 10. Allegiance (Dom, PROVISIONAL; Strategy is ruling on the legends points)
+## 10. Allegiance: patrons and clans
 
-On passing the outer gate (Gladiator) and entering the Concord Exchange for the first time, a player chooses an allegiance:
-**Independent**, a **player clan** (when clans exist), or a **patron**: a god or a dark lord.
+### Ruled (Strategy, 2026-10-07)
 
-### 10.1 What a patron gives, and what it never gives
+> **Any lore, but living faiths' gods and holy figures aren't for players to worship or fight.**
 
-| Gives | Detail |
-|---|---|
-| (a) A defender roster | the minion kinds a player lord can station to defend their town (§11.4). Unused until player lords ship |
-| (b) A strike type | the patron strike in a town whose patron this is (`feuds.md` §7.1): always a 2 m marker with a 1.2 s wind-up, stepped out of on foot |
-| (c) Friend and foe relations | feed the war generator (§4.3): friends never go to war; foes ×1.5 grievance |
-| (d) Cosmetic marks | a crest, a banner, a cloak trim |
-| **Never** | a stat, a damage or defence bonus, a CP multiplier, a loot bonus or anything that changes a duel. Identity, not min-maxing |
+1. **Clan perks are sidegrades** (a gain plus a matching weakness). Strategy ruled them Origins-only; **superseded by Dom's override
+   below** on where they apply. The sidegrade rule stands.
+2. **Worshipped patrons** come only from dead pantheons and literature: Greek and Roman, Norse, Egyptian, Mesopotamian, Celtic,
+   Arthurian (King Arthur), Gothic novels (Dracula, Frankenstein) and werewolf folklore.
+3. **Asia and Latin America** come in through folklore and literature (Sun Wukong of *Journey to the West*, jiangshi, oni, yokai,
+   ronin, La Llorona, the Chupacabra) as **monsters or clans, never as gods**.
+4. **Excluded:** Hindu gods, Satan worship, the archangel Gabriel, the Book of Enoch, **any Abrahamic figure as a patron**, and
+   **Aztec and Maya gods** as patrons, with their monsters also out for now.
+5. **The literary dark side**, allowed as inspiration with **original names**: a **Fallen** clan of rebel angels in Milton's spirit
+   (never named Satan or Lucifer, never presented as worship of a real faith's devil); a Faustian **Pact** clan (the Faust legend,
+   Marlowe and Goethe; Mephistopheles is fine as a literary character); **Dante's circles as a place**, never a patron.
+6. **No angel-based "holy" clan.** The light side is the Arthurian knights and the Grail.
 
-Independent players get the town garrison's generic defenders and a plain crest. A clan's defenders are the generic roster with the
-clan's banner; clans are a later spec.
+### Dom's overrides (Dom, 2026-10-07; supersede Strategy's ruling 1 and the earlier phasing; Strategy re-sequencing pending)
 
-### 10.2 Candidate patrons (PROVISIONAL, legends rule, pending Strategy)
+1. **Perks apply everywhere**, including the Pit, the arena and duels. They stay **small**: matched sidegrades inside a **±3%**
+   budget, mostly cosmetic, built only from a fixed set of **perk templates** (§10.2), so every patron is equal power by
+   construction.
+2. **The clan and patron choice ships at graduation**: on reaching Gladiator and leaving the Pit into the bank town (the Concord
+   Exchange). It is part of the first Origins step, not after Region 1. Minion defenders still ship with player lords.
 
-| Patron | Source | Strike (telegraphed) | Defender roster (body) | Friends / foes |
-|---|---|---|---|---|
-| **Zeus** | Greek myth (Hesiod, *Theogony*) | bolt: 2 m circle | storm-sworn hoplite (`knight`), bolt-priest (`veteran`) | Poseidon / Hades |
-| **Poseidon** | Greek myth (Homer, *Odyssey*) | breaking wave: 2 m circle, from the water side | tide-guard (`shieldmaiden`), net-caster (`pitborn`) | Zeus / Odin |
-| **Hades** | Greek myth (Hesiod, *Theogony*) | grasping shades: 2 m circle | shade-warden (`executioner`), barrow-hound keeper (`goblin`) | Hel / Zeus |
-| **Odin** | Norse myth (Snorri, *Prose Edda*) | ravens' dive: 2 m circle | einherjar (`veteran`), shield-wall (`shieldmaiden`) | — / Poseidon, Set |
-| **Hel** | Norse myth (Snorri, *Prose Edda*) | grave frost: 2 m circle | draugr (`nightborn`), half-dead thrall (`pitborn`) | Hades / Anubis |
-| **Anubis** | Egyptian myth (Pyramid Texts; the *Book of the Dead*) | the scales fall: 2 m circle | tomb-guard (`executioner`), jackal (`goblin`) | — / Set, Hel |
-| **Set** | Egyptian myth (Plutarch, *On Isis and Osiris*) | red sandstorm: 2 m circle | desert raider (`pitborn`), storm-bearer (`knight`) | Dracula / Anubis, Odin |
-| **Count Dracula** | Bram Stoker, *Dracula*, 1897 (literary; author died 1912) | bat swarm: 2 m circle | castle thrall (`nightborn`), wolf (`goblin`) | Set / Zeus |
+**The cost of override 1, stated plainly:** a duel-sim hook owned by Combat; a `RECORD_VERSION` bump; replays carry the patron or
+clan id; the RNG fingerprint re-pinned deliberately (the #1402 test updated on purpose, by the fix-forward rule, not reverted); and a
+**win-rate-by-patron** balance check by Stats before and after release.
 
-Every strike has the same rule: a marker, a 1.2 s wind-up, a dodge by stepping out, never in a duel, never an instant death
-(`feuds.md` §7.1, hard rule). Minion names are original.
+**Data source.** The full patron and legend candidate list with its perk templates is built in a separate PR,
+`expansion/legends-500` (about 500 entries). The tables below are a **sample** to show the shape; the patron table is that PR's
+data, not a copy here.
 
-**Excluded under the legends rule (pending Strategy):** any deity of a living religion, for example the Hindu gods. **Count
-Dracula is Stoker's character, never Vlad III**, who is a real person and already the ladder's `Vlad` (sourced to Chalkokondyles).
-Art briefs cite the novel, never a film.
+On passing the outer gate (Gladiator) and entering the Concord Exchange for the first time, a player chooses **Independent** or a
+**clan**. A clan is an order with a head figure: a **patron** (a god or a dark lord) or a **legend** (a band from literature or
+folklore). Clans earn **prestige**. Player-made groups are a separate later spec; this spec calls them **companies** so the two are
+not confused.
 
-**Conflict for Strategy:** Hades, Set (nightborn rungs), Hel, Anubis and Odin (executioner rungs) are already **beatable Pit
-legends** in `src/legends.ts`. `feuds.md` ruled Zeus a patron "never a beatable foe". Either (1) patrons and Pit legends may share a
-name (the Pit fights the legend's avatar; the patron is the god's favour), or (2) patrons must be names not on the ladder: Zeus,
-Poseidon and Dracula pass today, and the rest are swapped (candidates: Thor is on the ladder too; Freyja, Isis, Persephone,
-Morpheus need checking). Recommendation: (2), because a god you beat in the Pit on Tuesday is a strange patron on Wednesday.
+### 10.1 Patrons (Strategy, 2026-10-07, PROVISIONAL list)
 
-### 10.3 Data
+A patron gives four things and **no raw stat power**:
+
+1. a **defender roster** a player lord can station (§11.4); ships with player lords;
+2. the **strike type** in a town whose patron it is (`feuds.md` §7.1): always a 2 m marker, a 1.2 s wind-up, dodged by stepping out,
+   never during a duel, never an instant death;
+3. **friend and foe** relations that feed the war generator (§4.3): friends never go to war, foes ×1.5 grievance;
+4. **cosmetic marks**: crest, banner, cloak trim.
+
+| Patron | Pantheon / source | Strike | Friends / foes (PROVISIONAL) |
+|---|---|---|---|
+| Zeus | Greek; Hesiod, *Theogony* | bolt | Poseidon / Hades, Tiamat |
+| Poseidon | Greek; Homer, *Odyssey* | breaking wave | Zeus / Set |
+| Hades | Greek; Hesiod, *Theogony* | grasping shades | Hel, Ereshkigal / Zeus |
+| Thor | Norse; Snorri, *Prose Edda* | hammer-fall | — / Tiamat, Hel |
+| Hel | Norse; Snorri, *Prose Edda* | grave frost | Hades / Thor |
+| Set | Egyptian; Plutarch, *On Isis and Osiris* | red sandstorm | Count Dracula / Poseidon, Sekhmet |
+| Sekhmet | Egyptian; the *Book of the Heavenly Cow* (New Kingdom tomb texts) | sun-flare | — / Set |
+| Tiamat | Mesopotamian; *Enûma Eliš* | brine surge | — / Zeus, Thor |
+| Ereshkigal | Mesopotamian; *Inanna's Descent* | the seventh gate (a closing ring) | Hades / — |
+| The Morrígan | Irish; *Táin Bó Cúailnge*, *Cath Maige Tuired* | crow-dive | — / Count Dracula |
+| Count Dracula | Bram Stoker, *Dracula*, 1897 (Stoker died 1912) | bat swarm | Set / the Morrígan, Zeus |
+
+- **Count Dracula is Stoker's character, never Vlad III** (a real person, already the ladder's `Vlad`, sourced to Chalkokondyles).
+  "The Impaler" is never used as a name or an epithet. Art briefs cite the novel, never a film.
+- **Out (legends rule: living religion):** Hindu deities, any Abrahamic figure, Aztec and Maya gods. Allowed equivalents are the list above.
+- **Ladder overlap, accepted by Strategy's list:** Set, Hades, Hel, Ereshkigal, the Morrígan, Sekhmet and Thor are also beatable Pit
+  legends. Wording rule proposed: the Pit fights *the legend*; a clan serves *the patron*. Zeus and Poseidon stay never-beatable
+  (`feuds.md` §12).
+- Switching costs metal and is written in the history book (§10.6).
+
+### 10.2 Clans, perks and weaknesses (Dom's override; values PROVISIONAL)
+
+Every clan has one **perk template**: a small gain paired with a matching cost.
+
+- **Everywhere** (Dom's override): the Pit, duels, Origins fights. Resolved before the fight from the clan, the world clock at engage
+  (§10.3) and the fight's own state, then clamped inside the fixed spine (Attack ≤ 1.15, RES ≤ 0.80). Timing is never touched.
+- **Equal by construction.** A template pairs **+3%** and **−3%** (or +3% and +3% on opposite stats) over **complementary conditions
+  of equal measure** that exist in every fight, Pit included: the halves of the clock, the halves of the moon, the two halves of a
+  fight, the two halves of a health bar, higher versus lower level. Zone, weather and material conditions are **flavour only**
+  (barks, marks, effects), because the Pit has none of them and a perk that only works outside it would not be equal.
+- **Checked.** Stats runs the win-rate-by-patron check in the progression scenarios and on live records; a template whose win rate
+  drifts beyond ±1 percentage point is retuned as data.
+- **Shown.** The pre-fight card shows both fighters' clans and active templates. Nothing is hidden.
+
+| Template | Gain | Matching cost |
+|---|---|---|
+| `day-half` | +3% damage in the day half of the clock | −3% damage in the night half |
+| `night-half` | +3% damage in the night half | −3% in the day half |
+| `waxing` | +3% damage while the moon waxes (phases 0–3) | −3% while it wanes (4–7) |
+| `opener` | +3% damage in a fight's first 20 s | −3% after |
+| `closer` | +3% damage after 20 s | −3% before |
+| `underdog` | +3% damage against a higher-level foe | −3% against a lower-level foe |
+| `finisher` | +3% damage against a foe under half health | −3% against a foe above half |
+| `last-stand` | +3% damage while you are under half health | −3% while above half |
+| `iron-hide` | −3% damage taken | −3% damage dealt |
+| `glass` | +3% damage dealt | +3% damage taken |
+| `tireless` | −3% stamina cost | −3% damage dealt |
+
+Sample clans (the canonical list is `expansion/legends-500`):
+
+| Clan | Head (source) | Template | Flavour only |
+|---|---|---|---|
+| Sworn of Zeus | Zeus (Hesiod, *Theogony*) | `opener` | storm barks |
+| Tide-sworn | Poseidon (Homer, *Odyssey*) | `closer` | water-side marks |
+| Hades' Host | Hades (Hesiod) | `iron-hide` | shades |
+| Thunder-kin | Thor (Snorri, *Prose Edda*) | `glass` | giant-slayer barks |
+| Hel's Thralls | Hel (Snorri) | `tireless` | grave frost |
+| Red Sand | Set (Plutarch, *On Isis and Osiris*) | `underdog` | sandstorm |
+| Lion's Eye | Sekhmet (the *Book of the Heavenly Cow*) | `day-half` | sun-flare |
+| Brood of Tiamat | Tiamat (*Enûma Eliš*) | `closer` | brine |
+| The Seven Gates | Ereshkigal (*Inanna's Descent*) | `iron-hide` | the closing gate |
+| Crows of the Ford | the Morrígan (*Táin Bó Cúailnge*) | `finisher` | crows |
+| House of Dracula (vampire) | Count Dracula (Stoker, 1897) | `night-half` | bats; "silver" barks |
+| The Wolf-kin (werewolf) | werewolf folklore (Marie de France, *Bisclavret*, 12th c.; Gervase of Tilbury, *Otia Imperialia*, c. 1211) | `waxing` | the full moon |
+| The Stitched (undead) | Mary Shelley, *Frankenstein*, 1818 | `tireless` | fear of fire |
+| Knights of the Grail (the light side) | King Arthur; Malory, *Le Morte d'Arthur*, 1485 | `day-half` (Gawain's strength to noon) | the Grail |
+| Legion of Mars | Mars (Roman myth) | `iron-hide` | shield-wall |
+| Monkey King's Band | Sun Wukong, *Journey to the West*, 1592 (a clan head, never a god) | `opener` | the headband |
+| Jiangshi | Qing folklore; Yuan Mei, *Zi Bu Yu*, 1788 | `night-half` | the hopping dead |
+| Oni-kin | Japanese folklore; Toriyama Sekien, *Gazu Hyakki Yagyō*, 1776 | `glass` | iron clubs |
+| Ronin | Japanese history (a class, no named person) | `opener` | the lone road |
+| The Weeping | La Llorona, Mexican folklore (a clan, never a god) | `night-half` | the river |
+| Goat-sucker Pack | the Chupacabra, Latin American folklore, 1995 on (a clan, never a god) | `finisher` | — |
+| The Fallen (original name) | inspired by Milton, *Paradise Lost*, 1667; never Satan or Lucifer, never worship | `underdog` | broken wings |
+| The Pact (original name) | the Faust legend: Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust*; Mephistopheles as a literary character | `glass` | the signed page |
+
+Clan heads that are not patrons (legends and folklore) are **not worshipped**: they give no town strike and no defender roster of
+their own (a lord in such a clan uses the garrison roster). **Dante's circles** (*Inferno*, c. 1314) are reserved as a later region
+or rift theme, never a clan head.
+
+Remaining flags: the **Chupacabra** has no pre-1929 source (ruled in; its art brief must not draw on film or TV); werewolf **silver
+and wolfsbane** are 20th-century film motifs, so they stay out of the flavour unless a pre-1929 source is found; jiangshi
+**peach-wood** and oni **beans and holly** are living rites, so they are not used even as flavour.
+
+### 10.3 The world clock: day, night and moon
+
+The clock is one pure function of server time and the shared seed, as `one-shard.md` §1 requires. Every client and server layer
+computes the same value, so nobody stores it.
 
 ```json
+{ "kind": "world-clock", "schemaVersion": 1, "dayLengthSeconds": 14400, "nightFraction": 333,
+  "dawnFraction": 0, "noonFraction": 250, "moonCycleDays": 8, "fullMoonDays": 1, "epochOffsetSeconds": 0 }
+```
+
+- An Origins day is **4 h** of real time, so every time zone sees every phase daily. Night is the last third (about 80 minutes).
+- The moon cycle is **8** Origins days (32 h); one night in eight is the full moon.
+- `worldTimeAt(serverMs) → { day, phase: dawn | day | dusk | night, moon: 0..7, fullMoon }`. A perk reads it at engage, and it holds
+  for the whole fight.
+- The zone's `ambience.dayNightSpeed` presets follow it; ambience never sets rules.
+
+### 10.4 Joining: a feat of arms
+
+Joining is **one duel with a twist** against the clan's trial champion at the Exchange's trial ground. It is never an errand chain.
+
+| Rule | Value |
+|---|---|
+| Gate | Gladiator (outer gate) |
+| Trial | one duel at your level + 2, with the clan's twist (Dracula's house: `heal-on-hit`, at night only; the Wolf-kin: `flee-at` 30%, at full moon only; the Stitched: `one-health-bar`) |
+| Loss | nothing; retry after 10 minutes |
+| Win | membership, the marks, and a book entry |
+
+A clan's trial champion is an original character in the clan's look, never the patron or legend itself (no beatable Zeus, no
+become-the-boss).
+
+### 10.5 Prestige
+
+A clan's **prestige** is the seasonal sum of its members' war points, rifts closed and raids held. It sets the clan's place on the
+Exchange's clan board and unlocks cosmetic tiers of its marks. It never gives power. It resets each season (§9); the season's
+winner is written in the Exchange's book.
+
+### 10.6 Leaving and switching
+
+| Action | Cost | Cooldown | Book |
+|---|---|---|---|
+| First choice | free | — | "{player} passed the trial of {clan} on {date}." |
+| Leave to Independent | free | 7 days before joining another | "{player} left {clan} on {date}." |
+| Switch clan | **2,000 bronze** (a sink) and the new clan's trial | **28 days** | "{player} forsook {old} for {new} on {date}." |
+
+Entries go in the Exchange's book, and also in the home town's book if the player is its ruler. A live war enlistment must close
+first. A lord's town patron changes only at their next term.
+
+### 10.7 Data
+
+```json
+{ "kind": "clan", "schemaVersion": 1, "id": "clan:house-dracula", "name": "House of Dracula",
+  "head": { "kind": "patron", "id": "patron:dracula" }, "lore": { "source": "Bram Stoker, Dracula, 1897" },
+  "template": "night-half",
+  "trial": { "encounter": "encounter:trial-house-dracula", "twist": "heal-on-hit", "only": "night" },
+  "marks": ["crest:dracula", "banner:dracula", "trim:dracula"] }
 { "kind": "patron", "schemaVersion": 1, "id": "patron:zeus", "name": "Zeus", "pronoun": "he",
   "lore": { "source": "Greek myth", "citation": "Hesiod, Theogony" },
-  "strike": { "kind": "bolt", "windupTicks": 72, "radiusMetres": 2, "woundPermille": 350 },
-  "roster": "roster:zeus", "marks": ["crest:zeus-bolt", "banner:zeus", "trim:zeus"] }
+  "strike": { "kind": "bolt", "windupTicks": 72, "radiusMetres": 2, "woundPermille": 350 }, "roster": "roster:zeus" }
 { "kind": "defender-roster", "schemaVersion": 1, "id": "roster:zeus",
   "defenders": [ { "id": "storm-hoplite", "body": "knight", "role": "gate", "twists": ["no-block"] },
                  { "id": "bolt-priest", "body": "veteran", "role": "wall", "twists": ["heal-on-hit"] } ] }
 { "kind": "patron-relation", "schemaVersion": 1, "a": "patron:zeus", "b": "patron:hades", "relation": "foe" }
 { "kind": "allegiance-rules", "schemaVersion": 1, "gate": "outer", "switchBronze": 2000, "switchCooldownSeconds": 2419200,
-  "firstChoiceFree": true }
+  "leaveCooldownSeconds": 604800, "trialRetrySeconds": 600 }
 ```
 
-Per player: `{ "kind": "allegiance", "character": "pc:…", "choice": "independent | clan | patron", "patron": "patron:zeus | null",
-"clan": "clan:… | null", "since": "ISO", "nextSwitchAt": "ISO", "version": 3 }`.
+- A clan names one `perk-template` by id. Templates are their own content kind, and a clan cannot carry raw modifiers:
 
-### 10.4 How allegiance feeds the world
+```json
+{ "kind": "perk-template", "schemaVersion": 1, "id": "night-half",
+  "gain": { "when": "clock-half:night", "stat": "damageDealtPermille", "value": 30 },
+  "cost": { "when": "clock-half:day", "stat": "damageDealtPermille", "value": -30 } }
+```
+
+- `when` is one of `clock-half:day|night`, `moon:waxing|waning`, `fight-time:before-20s|after-20s`, `foe-level:higher|lower`,
+  `foe-health:below-half|above-half`, `self-health:below-half|above-half`, `always`. Each gain and cost pair must use complementary
+  conditions, or `always` on both. The parser refuses anything else.
+- `stat` is one of `damageDealtPermille`, `damageTakenPermille`, `staminaCostPermille`, and `|value| ≤ 30`.
+- The fight record carries the clan id and the template id, so a replay recomputes the same modifiers.
+
+Per player: `{ "kind": "allegiance", "character": "pc:…", "clan": "clan:… | null", "since": "ISO", "nextJoinAt": "ISO",
+"nextSwitchAt": "ISO", "version": 3 }`. Per clan per season: `{ "kind": "clan-prestige", "clan": "clan:…", "season": 3,
+"points": 18240 }`.
+
+### 10.8 How allegiance feeds the world, and phasing
 
 - **Towns** have a patron (content). Friend and foe relations between town patrons weight the war generator (§4.3).
-- **Players** may not enlist against a town whose patron is their own (§4.5). Independents may enlist anywhere.
-- **Player lords** set their town's patron to their own once per term (§11.2); the strike type changes with it, and the book records
-  it.
-
-### 10.5 Switching
-
-The first choice is free. A switch costs **2,000 bronze** (a sink) and is allowed once per **28 days**. It is written into the
-Exchange's book. A live enlistment must close first. A lord who switches changes their town's patron only at their next term.
-
-### 10.6 Phasing
-
-The **choice, marks and NPC war-goal sides** ship with phase (d). **Defender rosters** ship with player lords in phase (e).
-Clans wait for their own spec.
+- **Players** may not enlist against a town whose patron heads their own clan (§4.5). Independents may enlist anywhere.
+- **Player lords** may set their town's patron to their own clan's patron once per term (§11.2), if the clan has one. The strike
+  changes with it, and the book records it. A legend-headed clan with no strike leaves the town's strike off.
+- **Phasing (Dom's override):** the **choice**, trials and marks ship **at graduation**, as part of the first Origins step.
+  **Perk templates** ship when Combat's duel-sim hook, the `RECORD_VERSION` bump and Stats' win-rate check are ready; until then a
+  clan is identity only. **War-goal sides** and prestige ship with the war goals (phase d). **Patron defenders** ship with player
+  lords after the PvP verifier (phase e). Strategy is re-sequencing.
 
 ## 11. The player rule (phase e: built after the PvP verifier)
 
@@ -547,7 +700,7 @@ Clans wait for their own spec.
   upkeep relief. Every spend is a book entry.
 - Pardon up to 5 bans a week (§6.3).
 - Configure defenders and set raid windows (§11.4).
-- Set the town's patron to their own once per term.
+- Set the town's patron to their clan's patron once per term (§10.8).
 - A ruler's stipend: **minted** by rule, 2 bronze per prosperity point per term, never drawn from the treasury.
 
 ### 11.3 What a lord can never do
@@ -568,7 +721,7 @@ The lord configures a **defence plan**: three stages, each a duel post with an N
 
 | Stage | Post | Defender drawn from | Level |
 |---|---|---|---|
-| 1 | gate | the lord's patron roster or the garrison | band top + 1 |
+| 1 | gate | the lord's patron roster (§10.7) or the garrison | band top + 1 |
 | 2 | wall | as above | band top + 2 |
 | 3 | keep | the town's bouncer or the patron's champion | band top + 4 |
 
@@ -605,30 +758,39 @@ until the World lane adds two settlements. PROPOSED:
 
 Rifts need no towns and can ship first, with the five sites in §8.4.
 
-## 13. One shard: questions for Backend
+## 13. One shard: alignment with `one-shard.md` (#1490) and questions for Backend
 
-Strategy ruled the shape (§2.2). These are the questions this spec raises for Backend's architecture note:
+Backend's note assumes (a) NPC routines and the world clock are deterministic and shared, and (b) world events and the history book
+are global, written once, not per layer. **This spec agrees with both.** Town state, war goals, rifts, books, bans, fixtures,
+elections and the world clock (§10.3) are single global rows or pure functions of server time and the shared seed. Nothing in this
+spec is stored per layer. Two notes:
 
-1. **Town capacity.** What is the player cap per town zone before overflow layers open, and how does a war goal's post queue work
-   when 200 players enlist?
-2. **Overflow layers.** They share world state, books and the economy. Is a war post or a rift boss bar one object across layers
-   (it must be, for one score and one shared health bar)? How are writes ordered?
-3. **Interest management.** What radius of players does a client see and hear? Does a rift's light column and banner bypass it?
-4. **Duel instances.** Each duel is its own server-authoritative instance. How are hundreds of concurrent instances against one
-   shared rift bar settled without double-counting (the #1448 per-participant clip, under concurrency)?
-5. **Lazy state.** Prosperity, grievance, notoriety and hold all decay lazily on read. Is read-time mutation acceptable under the
-   writer's version locks, or do we need a single daily writer?
-6. **The rotations.** War rolls, grudge rolls and rift schedules are seeded and written once. Who runs the write at rotation start,
-   and what happens when two servers race?
-7. **Book volume.** Expected entries a day at 10,000 players, the page query, and the season archive.
-8. **Moderated names at render.** One lookup per entry, or a denormalised name with a rewrite on moderation?
+- `one-shard.md` §1 lists "an NPC's mood" as an event. In this spec no NPC has a personal mood about a player (the Nemesis line,
+  §2); what travels is town-level state (a ruler's death, a stand-in, a ban, a book entry).
+- Every fight in this spec is a duel against an NPC, settled by the writer. Only §11's live lord-vs-raider duels and `feuds.md` §9
+  need the PvP verifier; those need both fighters in one layer, as `one-shard.md` §3 says.
+
+Questions for Backend:
+
+1. **War posts and rift bars across layers.** One global score and one shared health bar, written by many concurrent duel
+   settlements. How are writes ordered and clipped (the #1448 per-participant clip) without double-counting?
+2. **Rift announcements.** The banner and the light column must reach every player in the region, beyond the 40 m interest radius.
+   Is that a low-rate Realtime push (`one-shard.md` §6), sent once per rift?
+3. **Post queues.** At 80 players a layer, how are a war post's or a rift's duel slots queued when hundreds enlist?
+4. **Lazy state.** Prosperity, grievance, notoriety and hold decay lazily on read. Is read-time mutation fine under the writer's
+   version locks, or does one daily writer op tick them?
+5. **Rotation writes.** War rolls, grudge rolls and rift schedules are written once at rotation start. Who runs that write, and what
+   stops two servers racing?
+6. **Book volume.** Expected entries a day at 10,000 players, the per-town page query, and the season archive.
+7. **Moderated names at render.** One lookup per entry, or a denormalised name with a rewrite on moderation?
+8. **Clan tags** in presence: `one-shard.md` §2 already syncs a guild tag; does it carry the clan mark too?
 
 ## 14. Server state and content shapes (for the contracts and the writer)
 
 **Content (bundle):** `town-definition`; `goal-kind`, `grievance-source`, `war-generator`; `rift-site`, `rift-boss`,
-`rift-scheduler`; `patron`, `defender-roster`, `patron-relation`, `allegiance-rules`; `plots:<town>` and `statues:<town>` landmark
+`rift-scheduler`; `patron`, `clan`, `perk-template`, `defender-roster`, `patron-relation`, `allegiance-rules`, `world-clock`; `plots:<town>` and `statues:<town>` landmark
 lists on the world's `town` group; `fixture-template` (statue poses, plaque and book templates). On `CharacterDefinition`, an
-optional `ruler: { town, title, temperament, standIn }` (refused on `essential: true`). New talk condition `book-has`. New
+optional `ruler: { town, title, temperament, standIn }` (refused on `essential: true`). New talk condition `book-has`. Fight records gain the clan and perk-template ids (§10.7). New
 progression row `rift-boss` (§8.4). New id namespaces: `town`, `patron`, `roster`, `rift`, `riftboss`, `war`, `fixture`, `clan`.
 
 **Shared world state:**
@@ -659,12 +821,12 @@ progression row `rift-boss` (§8.4). New id namespaces: `town`, `patron`, `roste
 
 **Per player:** `town-ban { character, town, since, cause: book ref, pardonedBy, pardonedAt }`; `enlistment { character, goal,
 side, points, pointsToday, day }`; `rift-claim { character, rift, sharePermille, rolled }`; `rift-week { character, week, rolls }`;
-`allegiance` (§10.3); `vote { account, election }`; `raid-attempt { character, town, day, count, stars }`.
+`allegiance` and `clan-prestige` (§10.7); `vote { account, election }`; `raid-attempt { character, town, day, count, stars }`.
 
 **Writer ops** (one transaction each, idempotency key, server time, append-only event; no op moves an item; every metal line is on
 the metal ledger with a reason): `war_roll_write`, `enlist`, `war_post_win`, `war_close`; `rift_schedule_write`, `rift_hit`,
 `rift_close`, `rift_loot`; `book_append` (called inside every deed op, never alone); `ban_write`, `pardon`, `petition`;
-`donate`, `rent_pay`, `house_close`, `fixture_commission`; `prosperity_tick` (lazy); `ruler_succeed`; `allegiance_set`;
+`donate`, `rent_pay`, `house_close`, `fixture_commission`; `prosperity_tick` (lazy); `ruler_succeed`; `clan_trial_win`, `clan_leave`, `clan_switch`;
 `nominate`, `vote`, `election_close`; `defence_set`, `raid_stage_win`, `raid_close`, `shield_set`.
 
 ## 15. Phasing
@@ -673,12 +835,13 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
 
 | Phase | Ships | Needs | Pre-verifier? |
 |---|---|---|---|
+| (0) Graduation (Dom) | clan and patron choice at Gladiator, entry trials, marks, the Exchange's book line; perk templates when Combat's hook lands | the trial encounter, the `clan` kind, a `RECORD_VERSION` bump for perks | yes |
 | (a) Rifts | scheduler, sites, warning, shared bar, personal loot, the `rift-boss` row, weekly cap | #1448 (merged, pure), the server's loot roll, a contracts row | yes |
 | (b) History book | server log, templates, the town lectern and web page, moderated names; plaques and donations | the deed ops of `feuds.md` (rival kill, bouncer, succession) | yes |
 | (c) NPCs remember | `book-has` barks, shop bans and pardons by NPC rulers and petition | (b) | yes |
-| (d) NPC war goals | towns as data, prosperity, tiers, death and resettlement, rulers, the war generator, enlisting, statues; **allegiance choice, marks and war sides** | (b), (c), two more Region 1 towns | yes |
+| (d) NPC war goals | towns as data, prosperity, tiers, death and resettlement, rulers, the war generator, enlisting, statues; clan **prestige and war sides** | (b), (c), two more Region 1 towns | yes |
 | (d+) Housing | plots, rent, the house door and chest | (d), plot art | yes |
-| (e) Player rule | elections, powers, defence plans, raid windows, shields, hold, patron defender rosters | the PvP verifier #1392 / #1485 / #1487 and open-world PvP (Strategy) | **no** |
+| (e) Player rule | elections, powers, defence plans, raid windows, shields, hold, **patron defender rosters** | the PvP verifier #1392 / #1485 / #1487 and open-world PvP (Strategy) | **no** |
 | (e+) PvP bounty | `feuds.md` §9 | as (e) | **no** |
 
 ## 16. Names (legends rule)
@@ -686,11 +849,11 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
 | Name | Source | Allowed because | Pronoun |
 |---|---|---|---|
 | The Lambton Worm (rift boss, PROPOSED) | County Durham folklore; recorded in Robert Surtees, *The History and Antiquities of the County Palatine of Durham*, vol. 2, 1820 | English folklore, PD source, no living-religion scripture, not a living people's folk hero; not on the ladder. Text is original prose | it |
-| Zeus, Poseidon, Hades | Greek myth: Hesiod, *Theogony*, c. 700 BC; Homer, *Iliad* and *Odyssey* | Greek myth passes (Strategy, 2026-10-07). Hades is a ladder legend (conflict, §10.2) | he |
-| Odin, Hel | Snorri Sturluson, *Prose Edda*, c. 1220 | Norse myth is on the ladder already; both are ladder legends (conflict, §10.2) | he; she |
-| Anubis, Set | Egyptian myth: the Pyramid Texts; Plutarch, *On Isis and Osiris*, 1st–2nd century | Egyptian myth passes; both are ladder legends (conflict, §10.2) | he |
-| Count Dracula | Bram Stoker, *Dracula*, 1897; Stoker died 1912 | pre-1929 literature. Stoker's character only, never Vlad III (a real person, the ladder's Vlad) and never a film depiction | he |
-| Reeve Tamsin, Warden Brannoc, Reeve Osk, the stewards, minions, post guards | original (`lore.source: "original"`) | side NPCs and mooks | Tamsin she, Brannoc he, Osk she |
+| Patrons and clan heads | as cited in §10.1 and §10.2 | Strategy's rulings (2026-10-07): dead pantheons and literature as patrons; Asian and Latin American folklore as clans or monsters, never gods | Zeus, Poseidon, Hades, Thor, Set, Mars, Sun Wukong, Dracula, Arthur he; Hel, Sekhmet, Tiamat, Ereshkigal, the Morrígan, La Llorona she |
+| Mephistopheles (literary, the Pact) | Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust* | literature by authors dead 70+ years; a character, not a faith's devil (Strategy) | he |
+| Count Dracula | Bram Stoker, *Dracula*, 1897; Stoker died 1912 | pre-1929 literature. Stoker's character only, never Vlad III and never "the Impaler"; never a film depiction | he |
+| The Stitched | Mary Shelley, *Frankenstein*, 1818 | pre-1929 literature. The clan is named for the creature's kind, not for Victor; no film depiction (no bolts, no flat head) | — |
+| Reeve Tamsin, Warden Brannoc, Reeve Osk, the stewards, minions, post guards, trial champions | original (`lore.source: "original"`) | side NPCs and mooks | Tamsin she, Brannoc he, Osk she |
 
 ## 17. Rulings needed and open questions
 
@@ -698,8 +861,9 @@ Strategy's order (§2.4), after Region 1. The beta is the duel game; none of thi
    resettlement, war caps (2 a region, 1 a town), the 21-day target cooldown, 24 h warning and 72 h run, war pay 8/4 bronze a point,
    +100 raid notoriety, ruler kill +700, rift 2–4 a day and 30 minutes, 5 rift rolls a week, rent, statue and plaque costs, the
    2,000 switch, terms of 28 days, 3 hold points and the shields.
-2. **Allegiance names** (§10.2): may a patron share a name with a beatable Pit legend (Hades, Set, Hel, Anubis, Odin)? Recommended:
-   no, keep Zeus, Poseidon and Dracula and swap the rest. Confirm living-religion deities are out.
+2. **Clan perks** (§10.2): Strategy to re-sequence after Dom's override; Combat to own the duel-sim hook; confirm the ±3% templates,
+   the ±1 point win-rate drift rule, and the `RECORD_VERSION` bump. Patron and Pit-legend name overlap: confirm the wording "the Pit fights the
+   legend; a clan serves the patron". The original names for the Fallen and the Pact clans.
 3. **Lambton Worm** as the first rift boss: Strategy to pass the name.
 4. **Rift contribution threshold**: the crowd-scaled `min(100, 500 / participants)` permille, or a fixed 10%? It interacts with
    `region1-ash-frontier.md` open question 7 (two contribution measures).
