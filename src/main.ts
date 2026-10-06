@@ -55,6 +55,7 @@ import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
+import { clearHold, newHold, onFrame, onTick } from './pvp-hold.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
@@ -763,12 +764,9 @@ let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/network cadence never inherits the solo preference
 let hitStop = 0;
 // PvP presentation hold: the contact tick's picture stays on screen for stopFor() ms while the sim keeps stepping (those ticks queue as snapshots), then
-// the queue plays out PVP_CATCHUP ticks a frame until the screen is live again. Never read by the sim, the driver or a record.
-type Snap = { state: typeof state; practice: typeof match.practice };
-const PVP_CATCHUP = 3;
-let pvpShown: Snap | null = null, pvpHoldMs = 0, pvpCut = 0;
-const pvpQ: Snap[] = [];
-function clearPvpHold() { pvpShown = null; pvpHoldMs = 0; pvpCut = 0; pvpQ.length = 0; }
+// the queue plays out CATCHUP (pvp-hold.ts) ticks a frame until the screen is live again. Never read by the sim, the driver or a record.
+const pvpHold = newHold<{ state: typeof state; practice: typeof match.practice }>();
+function clearPvpHold() { clearHold(pvpHold); }
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
@@ -1870,9 +1868,7 @@ function frame(now: number) {
       state = practice.fighter;
       accumulator -= step();
       if (match.mode === 'pvp' && !quiet) {   // the drawn hold: the sim above has already stepped; only what the next draw shows is delayed
-        const snap = { state, practice };
-        if (pvpShown) pvpQ.push(snap);
-        else { const ms = stopFor(practice.events); if (ms) { pvpShown = snap; pvpHoldMs = ms; pvpCut = match.frameEvents.length; } }
+        onTick(pvpHold, { state, practice }, pvpHold.shown ? 0 : stopFor(practice.events), match.frameEvents.length);
       }
       if (result === 'ended') {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
@@ -1934,21 +1930,8 @@ function frame(now: number) {
     if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
   }
   const alpha = accumulator / step();
-  let shownEvents = match.frameEvents, held = false;
-  if (pvpShown) {   // behind the sim: draw the snapshot, not the live tick
-    const contact = pvpCut >= 0;   // the first drawn frame of a hold: it delivers what happened up to the contact tick, once, and spends none of the hold
-    if (contact) { shownEvents = match.frameEvents.slice(0, pvpCut); pvpCut = -1; } else shownEvents = [];
-    if (pvpHoldMs > 0) { if (!contact) pvpHoldMs = Math.max(0, pvpHoldMs - elapsed * 1000); held = pvpHoldMs > 0 || contact; }
-    if (!held) {
-      for (let k = 0; k < PVP_CATCHUP && pvpQ.length; k++) {
-        pvpShown = pvpQ.shift()!;
-        shownEvents = shownEvents.concat(pvpShown.practice.events);
-        const ms = stopFor(pvpShown.practice.events);
-        if (ms) { pvpHoldMs = ms; held = true; break; }   // another contact while catching up holds again
-      }
-    }
-  }
-  const lagging = pvpShown !== null;
+  const drawn = match.mode === 'pvp' ? onFrame(pvpHold, elapsed * 1000, match.frameEvents, (v) => stopFor(v.practice.events), (v) => v.practice.events) : { shown: null, events: match.frameEvents, held: false };
+  const pvpShown = drawn.shown, shownEvents = drawn.events, held = drawn.held;   // behind the sim: the snapshot is drawn, not the live tick
   try {
     view.render(
       pvpShown ? pvpShown.state : walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
@@ -1966,7 +1949,6 @@ function frame(now: number) {
       match.specialIdentity,
     );
     match.frameEvents = [];
-    if (lagging && !held && !pvpQ.length) pvpShown = null;   // drawn the live tick: next frame is live
     if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
     clipFrame(now);
   } catch (error) {
