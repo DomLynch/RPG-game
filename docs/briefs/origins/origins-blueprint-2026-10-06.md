@@ -17,6 +17,7 @@ Prepared 6 October 2026. Proposal for an expansion of the existing mobile-first 
    - **Separate implementer agents**, who never see the donor source, write Frankendom's own TypeScript from that specification.
    - They modernise and improve freely, and every deliberate change is listed.
    - Parity tests come from golden cases, captured from the running emulators where possible.
+   - **Completeness audit after each build.** An auditor agent (an analyst, never an implementer) compares the finished system against the original source and the spec, looking for missed behaviour, edge cases or ideas worth adding. Findings go back as written spec amendments (never code), and the implementers update from the spec. Repeat until the auditor finds nothing material.
    Result: the code is wholly ours (no GPL inherited), so it can run on the server or in the browser.
 
 ## Status and decision
