@@ -157,3 +157,15 @@ test('a PLAIN guard (no side, the held button or Q) finishes the guard step; the
     assert.equal(run('overhead'), true, `seed ${seed}: the overhead side parries it`);
   }
 });
+
+test('the roll step is beatable by a held E: a roll starting at any swing age up to 18 completes it (a hold of 9 ticks pressed by age 9; the measured limit is about 26)', () => {
+  for (const age of [0, 6, 12, 18]) for (let seed = 1; seed <= 4; seed++) {
+    const { match, beats } = toStep(seed, 'roll');
+    let fired = false;
+    for (let i = 0; i < 4000 && !beats.some((b) => b.id === 'roll'); i++) {
+      tick(match, (d) => (!fired && W(d).phase === 'attack' && W(d).age === age && ready(d) ? (fired = true, act('dodge')) : idle()));
+      if (fired && !beats.some((b) => b.id === 'roll') && i > 4000) break;
+    }
+    assert.ok(beats.some((b) => b.id === 'roll') && fired, `seed ${seed}: a roll pressed at the foe's swing age ${age} completes the step`);
+  }
+});
