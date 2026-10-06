@@ -103,18 +103,17 @@ const message = element('message');
 // The rank row (Dom 2026-09-23: "a progress bar, with future visibility to what's next"): ONE component for the account panel, the
 // journal's fighter card and the fight-end panel, so they never drift. Left the class + numeral, then one segment per numeral of the
 // class (done numerals full, the current one filled by its pips), then the class it climbs toward. The bar is the information: no counts
-// in prose; the full label (with the pips) stays as the row's accessible name. Origin has no bar.
+// in prose; the full label (with the pips) stays as the row's accessible name. Origin is five sub-ranks now (I–V, the 50-level ladder), so it has its bar too, with no class after it.
 function renderRank(host: HTMLElement, rank: Rank) {
   const make = (tag: string, className: string, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };
   host.setAttribute('aria-label', rank.label);
-  if (!rank.next) { host.replaceChildren(make('span', 'rank-now', rank.title)); return; }
   const bar = make('span', 'rank-bar');
   bar.replaceChildren(...Array.from({ length: RANK_STEPS }, (_, i) => {
     const segment = make('i', 'rank-seg');
     segment.style.setProperty('--fill', `${i < rank.step ? 100 : i === rank.step ? Math.round(rank.fill * 100) : 0}%`);
     return segment;
   }));
-  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
+  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, ...(rank.next ? [make('span', 'rank-next', rank.next)] : []));
 }
 // The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
@@ -530,7 +529,7 @@ const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
-// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
+// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 50; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
@@ -549,11 +548,11 @@ const shownTier = (met: Tier = metAt): Tier => lookTier ?? (match.mode === 'spar
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
-// The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
+// The Sparring tab's Difficulty: any of the 50 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
 // (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 // Difficulty is the Opponent's ten legends, one per rank, "6 – Hannibal" (Dom 2026-09-29, layout A: rank number – legendAt), then the
-// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 46); the line of the rank the
+// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 50); the line of the rank the
 // current level sits in carries that level as its value (its text stays "2 – Ragnar Lothbrok"; Strategy 2026-09-29), so the control still
 // names the fight's level (the release rows read it) and Start sparring without a new pick fights where it stands. Any pick rebuilds the
 // list on the picked top, so every fresh pick fights at its rank's top. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
