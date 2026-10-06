@@ -4,7 +4,7 @@
   code, no JSON.
 - Replaces: the scripted Feud *The Stolen Name* (`region1-ash-frontier.md` §3, now superseded). Dom rejected it as "scripted space
   and time filling content". **Bounties are unchanged** (`region1-ash-frontier.md` §3, Bounties).
-- Binding: Strategy's rulings (a) to (d) of 2026-10-07, quoted where they apply. The legends rule covers every named target.
+- Binding: Strategy's rulings (a) to (d) of 2026-10-06, quoted where they apply. The legends rule covers every named target.
 - Built on: `origins/contracts` (`CharacterDefinition`, `ServiceDefinition`, `FactionStanding`, `EncounterDefinition`), and
   `origins/progression` (`TYPE_WEIGHTS`, `basePay`, the lazy refill pattern used for rested credit). Metals are in bronze
   (`trading.md` §3.2: 100 bronze = 1 silver, 100 silver = 1 gold, one bound balance). Collect-N stays banned. Twists stay as one way
@@ -46,7 +46,7 @@ No step is scripted, and the next grudge comes from the world's state, not from 
    that cycle. It is offered by the town's own service NPC to players who are not wanted there. If the giver is `essential`, no
    retaliation exists. Orla, for example, is essential.
 
-### 3.1 The grudge generator (Dom, 2026-10-07, PROVISIONAL numbers)
+### 3.1 The grudge generator (Dom, 2026-10-06, PROVISIONAL numbers)
 
 Grudges are **generated**: scalable, random, and shared. Every player in a rotation sees the same live grudges, and can talk to the
 same givers about them. The next rotation rolls new pairs.
@@ -215,7 +215,7 @@ successor arrives, which is by design.
 character id. A `successors` list in the rival data can name a different heir instead (§9). Either way, when the successor arrives
 the grudge reopens and the stand-in steps down.
 
-### 5.1 Trade shunning (Dom, 2026-10-07): the mild early stage
+### 5.1 Trade shunning (Dom, 2026-10-06): the mild early stage
 
 Dom's town-defence rules (§7.1) **replace** shunning as the main response. Shunning stays as the mild first stage: what a
 network town does while the killer is only **Suspect** there, before its guards act.
@@ -296,7 +296,7 @@ or fight in the world until released. Real time counts, including while you are 
 - **Bail:** 1 bronze per remaining second (`BAIL_BRONZE_PER_S`), at any time.
 - **Release:** you go to the town's gate with notoriety −200. A release never re-triggers a challenge for 120 s.
 
-### 7.1 How towns defend after a grudge kill (Dom, 2026-10-07, PROVISIONAL)
+### 7.1 How towns defend after a grudge kill (Dom, 2026-10-06, PROVISIONAL)
 
 This is the main response to a killer. Every value here is data on a `town-defence` record (§11). Every stage steps down **at once**
 when the killer's notoriety in that town falls below its band, whether by decay, pay-off or a jail release.
@@ -498,14 +498,14 @@ No op moves an item, and every metal line is in the metal ledger (`trading.md` �
 | Mimir the Smith | *Þiðreks saga af Bern*, Old Norse prose saga, c. 1250: the smith who fostered and taught the young Sigurd and Velent | medieval literature, author long dead; not scripture; no living people's folk hero. Distinct from the Pit's smith legends (Regin, Wayland and others). Passed by Strategy | he |
 | Ascapart | *Sir Bevis of Hampton*, Middle English verse romance, c. 1300, after the Anglo-Norman *Boeve de Haumtone*, late 12th century: the giant who serves Bevis as a squire and fights beside him | medieval romance, author long dead; not scripture; not a living people's folk hero. A hired giant, true to the source. Passed by Strategy | he |
 | Herne the Hunter | Windsor Forest folklore, first in print in William Shakespeare, *The Merry Wives of Windsor*, 1602 (Act 4) | English folklore and pre-1929 literature. Passed by Strategy | he |
-| Zeus | Greek myth: Hesiod, *Theogony*, c. 700 BC, and Homer, *Iliad*, the thunderbolt-wielder | Greek myth passes the legends rule (Strategy, 2026-10-07). Used **only** as a telegraphed strike source: never a beatable foe, never a joke | he |
+| Zeus | Greek myth: Hesiod, *Theogony*, c. 700 BC, and Homer, *Iliad*, the thunderbolt-wielder | Greek myth passes the legends rule (Strategy, 2026-10-06). Used **only** as a telegraphed strike source: never a beatable foe, never a joke | he |
 | Orla, Ebba, hired blades, the Ferry watch, guards, generic hunters | original (`lore.source: "original"`) | side NPCs and mooks | Orla she, Ebba she |
 
 The Exchange magistrate who takes notoriety pay-offs is Marrow the Recorder (original, `region1-ash-frontier.md` §2).
 
 ## 13. Rulings and open questions
 
-### Ruled (Strategy, 2026-10-07)
+### Ruled (Strategy, 2026-10-06)
 
 - **Alert spread (was Q10).** Dom's rule wins. The alert spreads to **same-trade towns only**; towns of other trades are unaffected.
 - **Patron gods (was Q11).** Greek myth passes the legends rule. **Zeus** is the Grey Ferry's patron, only as a telegraphed strike
