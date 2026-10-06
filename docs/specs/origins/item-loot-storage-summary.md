@@ -15,7 +15,7 @@ None of them changes how fights work or what gear is worth. That is still Attack
 | Backpack | ClaudeCraft | Fixed slots, not weight; armour never stacks; tap-to-act menus already built for phones; free to reuse. |
 | Bank | ClaudeCraft's shape, Ultima Online's rules | The bank is the same slot grid as the backpack, opened at a place in town (the Concord Exchange). A deposit goes through whole or not at all, never half. ClaudeCraft's bank is the one that has been hardened against real duplication bugs. |
 | Trading and gifts | ClaudeCraft's shape, EverQuest's rule | Both players must tick again after any change. The server checks there is room before the swap, so nothing gets lost on the floor. A trade is refused if it would give someone a second copy of a piece. |
-| Crafting (later) | EverQuest's rules, ClaudeCraft's checks | A recipe always makes the same thing, never a lucky "better" copy, so gear values stay fixed. We would probably use it to upgrade a piece you own rather than to make new pieces. |
+| Crafting | Out for now (Dom, 2026-10-06) | Nothing is designed or built. The item records leave room for an upgrade level later without moving anyone's items. |
 
 ## The hybrid in short
 
@@ -27,7 +27,7 @@ Ultima Online gives us the way items are held: one number per copy and one owner
 2. **The backpack**: a slot grid using ClaudeCraft's move logic, so moving a piece either fully happens or doesn't happen at all.
 3. **The bank at the Concord Exchange**, using the same grid and the same move.
 4. **Drop tables on the server**, only when the world needs drops beyond "take one piece from the man you beat". The server rolls them after it has checked the fight, never the phone.
-5. **Trading and gifting after that.** Crafting comes last.
+5. **Trading and gifting after that.** Crafting is out for now.
 
 ## Dom's decisions (2026-10-06)
 
