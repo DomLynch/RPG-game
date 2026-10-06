@@ -21,3 +21,7 @@ test('the mark lasts MARK.seconds and eases out over the last MARK.fade', () => 
   assert.equal(markAlpha(MARK.seconds), 1); assert.equal(markAlpha(MARK.fade), 1); assert.equal(markAlpha(MARK.fade / 2), 0.5); assert.equal(markAlpha(0), 0);
   assert.equal(MARK.seconds, 2);
 });
+
+test('the wash stays on his own silhouette: about a body wide, centred on the torso, lower alpha than v1 (Lead on #1540: it must never reach the player)', () => {
+  assert.ok(MARK.glowSize <= 1.2 && MARK.glowSize >= 0.9); assert.ok(MARK.glowAlpha <= 0.4);
+});

@@ -4,7 +4,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 // LOOK TEST behind `?look=marks` (Lead's ruling 2026-10-07, Strategy brief #1507 item 7): v1 is MIASMA ONLY. A landed Plague Doctor skill_miasma blow leaves a small poison
 // icon over the victim's head and a soft green wash on his body for MARK.seconds. Presentation only, driven by the Hit event alone (the skill-impact.ts pattern): the sim has no
 // status state, so there is no bleed/sunder/slow mark (it would lie), no numbers, and nothing persists past MARK.seconds. The body "tint" is a billboard glow, not a material change.
-export const MARK = { seconds: 2, fade: 0.4, iconSize: 0.32, glowSize: 1.9, headRise: 0.38, torso: 1.1 } as const;   // seconds, metres (scale-1 body)
+export const MARK = { seconds: 2, fade: 0.4, iconSize: 0.32, glowSize: 1.1, headRise: 0.38, glowAlpha: 0.35, torso: 1.1 } as const;   // seconds, metres (scale-1 body)
 export const marksFlag = (search: string) => (new URLSearchParams(search).get('look') ?? '').split(',').includes('marks');
 
 // The fighter the blow poisoned, or null: a landed skill_miasma Hit (a guarded one marks at half strength).
@@ -50,8 +50,8 @@ export function createMiasmaMark(scene: THREE.Scene) {
         left[i] = Math.max(0, left[i]! - dt); const alpha = markAlpha(left[i]!) * power[i]!, on = alpha > 0 && !!fighters[i];
         icon[i]!.visible = glow[i]!.visible = on; if (!on) continue;
         const { x, z } = fighters[i]!.body, s = scale[i] ?? 1, head = heads[i];
-        icon[i]!.position.set(head?.x ?? x, (head?.y ?? 1.7 * s) + MARK.headRise * s, head?.z ?? z); glow[i]!.position.set(x, MARK.torso * s, z);
-        (icon[i]!.material as THREE.SpriteMaterial).opacity = alpha; (glow[i]!.material as THREE.SpriteMaterial).opacity = alpha * 0.55;
+        icon[i]!.position.set(head?.x ?? x, (head?.y ?? 1.7 * s) + MARK.headRise * s, head?.z ?? z); glow[i]!.position.set(x, MARK.torso * s, z); glow[i]!.scale.setScalar(MARK.glowSize * s);
+        (icon[i]!.material as THREE.SpriteMaterial).opacity = alpha; (glow[i]!.material as THREE.SpriteMaterial).opacity = alpha * MARK.glowAlpha;
       }
     },
     alive: () => left.filter((l) => l > 0).length,
