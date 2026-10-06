@@ -42,6 +42,12 @@ const mintOp = (id, item, quantity, location, key, extra = {}) => ({ op: 'mint',
 const objects = () => psql(`select 'T ' || table_name from information_schema.tables where table_schema = 'public'
   union all select 'F ' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
   union all select 'R ' || rolname from pg_roles where rolname like 'frankendom_%' order by 1;`);
+// Every privilege on every NON-origins object (tables, columns, functions, schema): the migration must leave all of them byte-identical.
+const acls = () => psql(`select 'rel ' || c.relname || ' ' || coalesce(c.relacl::text, '-') || ' rls=' || c.relrowsecurity || ' trg=' || c.relhastriggers from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'auth') and c.relkind in ('r', 'v', 'S') and c.relname not like 'origins\\_%'
+  union all select 'col ' || attrelid::regclass || '.' || attname || ' ' || attacl::text from pg_attribute where attacl is not null and attrelid::regclass::text not like '%origins\\_%' and attrelid::regclass::text not like 'pg_%'
+  union all select 'fn ' || p.oid::regprocedure || ' ' || coalesce(p.proacl::text, '-') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname not like 'origins\\_%'
+  union all select 'pol ' || tablename || ' ' || policyname || ' ' || coalesce(qual, '') from pg_policies where tablename not like 'origins\\_%'
+  union all select 'trg ' || tgrelid::regclass || ' ' || tgname from pg_trigger where not tgisinternal and tgrelid::regclass::text not like '%origins\\_%' order by 1;`);
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -59,7 +65,7 @@ try {
   if (!files.includes(UP)) fail(`${UP} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   apply(files.filter(n => n !== UP && n < UP));
-  const before = objects();
+  const before = objects(), aclsBefore = acls();
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${C}','Cass',0,'{"owned":[],"equipped":{}}');`);
   apply([UP]);
   apply(files.filter(n => n > UP));
@@ -202,6 +208,9 @@ try {
   const finalTotal = Number(JSON.parse(W(`select public.origins_open('${C}')::text;`)).career.total_credit);
   eq([wins, finalTotal, levelOfCredit(finalTotal)], [60, cumulative(11) + 2000, 11], 'a Pit-only account stalls at level 11 through the server pipeline');
   eq(early !== undefined, true, 'the early claim existed');
+
+  eq(acls(), aclsBefore, 'no grant, policy, trigger or RLS setting on any existing object changed (column-level ACLs and function ACLs included)');
+  eq(aclsBefore.includes('fighter_profiles') && aclsBefore.includes('loot_claims'), true, 'the ACL snapshot does cover the live tables the functions read');
 
   // ---- the down-script drops exactly what the migration created ------------------------------------------------------------------
   const after = objects();
