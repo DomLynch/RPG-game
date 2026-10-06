@@ -18,9 +18,10 @@ Source: [trading.md](trading.md) §6, "Before player trade opens".
 |---|---|---|---|---|
 | G1 | Migration 0005 (`202610070005_origins_trade_limits.sql`, draft #1522) is applied: every settle writes the `trade` history entry, and so the hop count, in the database | Backend | The applied migration's prod version, read back, plus `scripts/origins-trade-limits-check.mjs` green on the applied sha | open |
 | G2 | The per-item cooldown is checked in the database (0005's cooldown guard), not only in the writer | Backend | A cooling piece refused at escrow entry by the DB guard, on the applied sha | open |
-| G3 | The tradeable scope ("rare and up, or a Pit piece", trading.md D5) is in the contract or DB check, with a test. The writer applies it alone today | Expansion | A merged PR with the check and its test | open |
+| G3 | The tradeable scope ("rare and up, or a Pit piece", trading.md D5) is in the contract or DB check, with a test. The writer applies it alone today | Expansion | A merged PR with the check and its test | open: the DB half is in 0005 (#1522 @fe7773b1, rare/relic ids from config or provenance arena-award/legacy-unlock; a missing row cools every piece), awaiting the Auditor; the contract half (Expansion) still to do |
 | G4 | Dom confirms the per-account rate caps (trading.md §5.5: config, a safety net, 10 settled trades a day to start) or says to remove them. On Dom's morning list via Strategy | Dom | Dom's answer recorded with its date | open |
 | G5 | 0008 (`202610070008_origins_trade_reversal.sql`, draft #1522) is class 2: it alters the live `origins_events` kind check (adds `trade-reversal`, `trade-hold`, `metal`) and adds `origins_reverse_trade`. It applies only on Dom's yes at the exact sha. Trade reversals (trading.md §5.7) and auto-hold events (§5.11) cannot run before it | Dom | Dom's yes naming the sha, then the applied prod version | open |
+| G6 | `trade_cooldown_scope.items` (in 0005) is generated from the real rare/relic gear catalog and drift-guarded against it, before trade opens (Backend, 2026-10-07) | Backend | The generated list merged with its drift-guard check green, on the applied sha | open |
 
 ## Writer route
 
