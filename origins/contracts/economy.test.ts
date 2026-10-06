@@ -145,7 +145,7 @@ test('service and cost table: fixtures parse; costs are data with a revision', (
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), currency: 'gold' }), 'wrong-type', 'currency');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [...rows, rows[0]] }), 'duplicate-id', 'rows[3]');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [rows[1]] }), 'rule-violation', 'rows'); // level 2 with no level 1
-  refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], coin: 0 }] }), 'out-of-range', 'rows[0].coin');
+  refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], coin: -1 }] }), 'out-of-range', 'rows[0].coin');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], level: 10 }] }), 'out-of-range', 'rows[0].level');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], materials: [{ item: 'item:grave-iron', quantity: 1 }, { item: 'item:grave-iron', quantity: 2 }] }] }), 'duplicate-id', 'rows[0].materials');
 });
@@ -182,6 +182,14 @@ test('upgrade: one level, charged from the table, stamped with a receipt and a h
   assert.ok(piecePoints(out.instance, helmetDef) > piecePoints(before, helmetDef));
   assert.deepEqual([out.receipt.fromLevel, out.receipt.toLevel, out.receipt.coin, out.receipt.costTable, out.receipt.costRevision, out.receipt.smith], [0, 1, 100, 'costtable:forge', 1, 'character:smith-orla']);
   assert.deepEqual(must(parseUpgradeReceipt(out.receipt)), out.receipt, 'the receipt round-trips through its own contract');
+});
+
+test('upgrade: a materials-only table (coin 0) upgrades with no coin and charges none', () => {
+  const free = must(parseUpgradeCostTable({ ...F.forgeCosts(), rows: F.forgeCosts().rows.map(r => ({ ...r, coin: 0 })) }));
+  const out = must(performUpgrade(input({ costs: free, balance: 0 })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([out.instance.upgradeLevel, out.balance, out.receipt.coin], [1, 0, 0]);
+  assert.deepEqual(must(parseUpgradeReceipt(out.receipt)), out.receipt);
 });
 
 test('upgrade: idempotent — a repeated request returns the same receipt and changes nothing; a reused key for another request is refused', () => {
@@ -261,7 +269,7 @@ test('upgrade receipt: contract rejections', () => {
   const raw = { ...receipt.receipt } as Raw;
   refused(parseUpgradeReceipt({ ...raw, toLevel: 3 }), 'rule-violation', 'toLevel');
   refused(parseUpgradeReceipt({ ...raw, schemaVersion: 2 }), 'unsupported-version');
-  refused(parseUpgradeReceipt({ ...raw, coin: 0 }), 'out-of-range', 'coin');
+  refused(parseUpgradeReceipt({ ...raw, coin: -1 }), 'out-of-range', 'coin');
   const req: UpgradeRequest = must(parseUpgradeRequest(requestRaw()));
   assert.equal(req.kind, 'upgrade-request');
 });

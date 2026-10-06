@@ -224,7 +224,7 @@ export function parseUpgradeCostTable(raw: unknown, path = ''): Result<UpgradeCo
     const r = readObject(issues, v, p, ['level', 'rarity', 'coin', 'materials']);
     if (!r) return undefined;
     const level = readInt(issues, r, 'level', p, 1, MAX_UPGRADE_LEVEL), rarity = readEnum(issues, r, 'rarity', p, RARITIES);
-    const coin = readInt(issues, r, 'coin', p, 1, MAX_COIN);
+    const coin = readInt(issues, r, 'coin', p, 0, MAX_COIN); // 0 = materials only (Strategy 2026-10-06: no coin until the trading track)
     const materials = readArray(issues, r, 'materials', p, (mv, mp) => {
       const m = readObject(issues, mv, mp, ['item', 'quantity']);
       const item = m && readId(issues, m, 'item', mp, 'item'), quantity = m && readInt(issues, m, 'quantity', mp, 1, 999);
@@ -315,7 +315,7 @@ export function parseUpgradeReceipt(raw: unknown, path = ''): Result<UpgradeRece
   const instance = readId(issues, obj, 'instance', path, 'inst');
   const fromLevel = readInt(issues, obj, 'fromLevel', path, 0, MAX_UPGRADE_LEVEL - 1);
   const toLevel = readInt(issues, obj, 'toLevel', path, 1, MAX_UPGRADE_LEVEL);
-  const coin = readInt(issues, obj, 'coin', path, 1, MAX_COIN);
+  const coin = readInt(issues, obj, 'coin', path, 0, MAX_COIN);
   const materials = readArray(issues, obj, 'materials', path, (v, p) => {
     const m = readObject(issues, v, p, ['instance', 'item', 'quantity']);
     const inst = m && readId(issues, m, 'instance', p, 'inst'), item = m && readId(issues, m, 'item', p, 'item'), quantity = m && readInt(issues, m, 'quantity', p, 1, 999);
