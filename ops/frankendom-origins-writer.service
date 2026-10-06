@@ -9,6 +9,25 @@ EnvironmentFile=/etc/frankendom/origins-writer.env
 ExecStart=/usr/bin/env node scripts/origins-writer.mjs
 Restart=on-failure
 RestartSec=3
+# Network-facing and holding DATABASE_URL: its own ephemeral user, a read-only filesystem apart from its private /tmp, no capabilities (as the duel relay).
+# Unlike the relay it needs the outside world (Postgres, Supabase Auth), so no IPAddressDeny; nginx is its only way in because it binds 127.0.0.1.
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+UMask=0077
 StandardOutput=append:/var/log/frankendom-origins-writer.log
 StandardError=append:/var/log/frankendom-origins-writer.log
 

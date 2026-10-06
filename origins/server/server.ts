@@ -8,10 +8,11 @@ import { BadRequest, handlers as defaults, type Handler } from './handlers.ts';
 const MAX_BODY = 64 * 1024;
 const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, '23505': 409 };
 
+// Past the cap the rest of the body is read and dropped (never buffered), then refused: the client still gets its 400 on the open socket.
 const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve, reject) => {
   let size = 0; const parts: Buffer[] = [];
-  req.on('data', (c: Buffer) => { size += c.length; if (size > MAX_BODY) { reject(new BadRequest('body too large')); req.destroy(); } else parts.push(c); });
-  req.on('end', () => resolve(Buffer.concat(parts).toString('utf8')));
+  req.on('data', (c: Buffer) => { size += c.length; if (size <= MAX_BODY) parts.push(c); });
+  req.on('end', () => (size > MAX_BODY ? reject(new BadRequest('body too large')) : resolve(Buffer.concat(parts).toString('utf8'))));
   req.on('error', reject);
 });
 
@@ -31,7 +32,7 @@ export function createWriter({ db, verify, handlers = defaults }: { db: Db; veri
       send(200, { ok: true, result: await handlers[op]({ db, account }, body as Record<string, unknown>) });
     } catch (e) {
       if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
-      if (e instanceof DbError && STATUS[e.code]) return send(STATUS[e.code], { ok: false, error: e.message, code: e.code });
+      if (e instanceof DbError && STATUS[e.code]) return send(STATUS[e.code], { ok: false, error: e.code === '23505' ? 'already exists' : e.message, code: e.code });
       console.error('origins-writer:', e instanceof Error ? e.message : e);
       send(500, { ok: false, error: 'server error' });
     }
