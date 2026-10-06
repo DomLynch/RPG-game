@@ -18,6 +18,8 @@ Round 1, 2026-10-06. Goldens are hand-derived from the source and not yet captur
 | Trading (design, not a donor spec) | [trading.md](trading.md) | O3 Exchange: barter trade, trade limits, 0003 |
 | One shard (architecture, not a donor spec) | [one-shard.md](one-shard.md) | one world, interest management, town capacity, overflow layers, Supabase limits |
 | Public events | [modernuo-champion-spawns.md](modernuo-champion-spawns.md) | O2 staged boss event |
+| Living world (ours, not donor) | [living-world.md](living-world.md) | towns as data, NPC war goals, rifts, the town history book, fixtures, allegiance, player lords (after the PvP verifier) |
+| Patrons and legends (ours, not donor) | [legends-500.md](legends-500.md), [legends-500.csv](legends-500.csv) | clans, patrons, town patrons, Bounty and boss names (living-world §10) |
 | Region 1 content (ours, not donor) | [region1-ash-frontier.md](region1-ash-frontier.md) | Ash Frontier zones, Bounties, bosses, loot, bundle files (the scripted Feud is superseded) |
 | Feuds (ours, not donor) | [feuds.md](feuds.md) | systemic grudges: generator, succession, notoriety, town defence, guards and jail, hunters, deferred PvP bounty |
 | Offline formats | [gothic-zenkit-reference.md](gothic-zenkit-reference.md) | tooling reference only |

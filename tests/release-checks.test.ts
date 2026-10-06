@@ -12,7 +12,10 @@ const runner = join(process.cwd(), 'scripts', 'release-checks.mjs');
 // The knobs a real deploy exports (deploy.sh: RELEASE_CHECKS_TRUST_CI=0 for the whole run, RELEASE_CHECKS_SKIP*) must not reach the
 // children here: run G c97ce967 (2026-09-28) failed two ci-trusted-checks tests inside test:all with "disabled by RELEASE_CHECKS_TRUST_CI=0".
 // Scrubbed from the env each child gets (tests/deploy-trust.test.ts does the same for DEPLOY_TRUST_*), never from process.env itself.
-const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('RELEASE_CHECKS_')));
+// DEPLOY_* too: deploy.sh exports DEPLOY_TRUST_ROWS / DEPLOY_FAST_GATE for a ci-trust-run and then runs this file as its unit gate, and
+// an inherited DEPLOY_TRUST_ROWS made release-checks.mjs skip the full-run stamp the test below expects (Lead 2026-10-07, Deploy's 00:10 abort).
+// Read at each spawn, not at load, so a test can set the variable on process.env and prove it never reaches the child.
+const clean = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('RELEASE_CHECKS_') && !k.startsWith('DEPLOY_')));
 
 function repo(commands: string[][]) {
   const root = mkdtempSync(join(tmpdir(), 'release-checks-'));
@@ -38,7 +41,7 @@ const alive = (root: string) => { const all = spans(root); return all.map(s => (
 const maxOverlap = (root: string) => Math.max(...alive(root).map(s => s.n));
 
 const run = (root: string, env: Record<string, string> = {}) =>
-  spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...clean, ...env } });
+  spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...clean(), ...env } });
 
 test('independent checks run concurrently; fixed-port checks run alone; receipt written', () => {
   const root = repo([
@@ -185,7 +188,7 @@ esac
 `);
   execFileSync('chmod', ['+x', fake]);
   const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
-  const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: fake, ...env } });
+  const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake, ...env } });
   let r = call([m]);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, '1,4', 'merge commit M: queued branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
@@ -203,7 +206,7 @@ esac
   assert.equal(r.stdout, '', 'kill switch');
   r = call(['abc']);
   assert.equal(r.stdout, '', 'short sha rejected');
-  r = spawnSync(process.execPath, [resolver, m], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: '/nonexistent/gh' } });
+  r = spawnSync(process.execPath, [resolver, m], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: '/nonexistent/gh' } });
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '', 'gh failure -> nothing trusted, exit 0');
 });
@@ -246,7 +249,7 @@ esac
 `);
   execFileSync('chmod', ['+x', fake]);
   const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
-  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: fake } });
+  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake } });
   let r = call(docsOnly);
   assert.equal(r.stdout, '23', 'trunk moved by docs, *.md and a non-fixture test only -> the branch receipt vouches: ' + r.stderr);
   assert.match(r.stderr, /\(23:docs\/tests-only delta\)/);
@@ -334,7 +337,7 @@ esac
 `);
   execFileSync('chmod', ['+x', fake]);
   const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
-  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: fake } });
+  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake } });
   let r = call(t0);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, '5,7', 'identical tree on a branch trunk never contains (local head 11, API-only head 13) -> trusted; 8 failed: ' + r.stderr);
@@ -411,6 +414,18 @@ test('deploy scope: a changed .quality-gate.json runs only the rows it adds or c
   const edited = live.map((command, i) => (i === 43 ? [...command, '--changed'] : command));
   assert.ok(names(deployRowsFor(['.quality-gate.json'], edited)).includes('44 sparring-browser-check'), 'a row whose argv changed runs');
   assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, 51, 'no previous list: every row');
+});
+
+test('the unit gate ignores the deploy shell\'s own DEPLOY_* exports: a ci-trust-run still stamps a run of every row', () => {
+  // Regression (Lead 2026-10-07): with DEPLOY_TRUST_ROWS inherited from deploy.sh, release-checks.mjs:159 skipped artifacts/last-full-release.json
+  // and the stamp test below failed ENOENT before any row ran. The child env is built from process.env minus DEPLOY_*, so these never reach it.
+  process.env.DEPLOY_TRUST_ROWS = '47'; process.env.DEPLOY_TRUST_REASON = 'test'; process.env.DEPLOY_FAST_GATE = '1';
+  try {
+    const root = repo([['node', 'scripts/sleep.mjs', '10']]);
+    const result = run(root);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.ok(existsSync(join(root, 'artifacts', 'last-full-release.json')), 'every row ran: the full-run stamp is written although the parent exported DEPLOY_TRUST_ROWS');
+  } finally { delete process.env.DEPLOY_TRUST_ROWS; delete process.env.DEPLOY_TRUST_REASON; delete process.env.DEPLOY_FAST_GATE; }
 });
 
 test('deploy scope: a run of every row writes the full-run stamp even behind the fast unit gate; a scoped run never does', () => {

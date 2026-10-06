@@ -42,14 +42,18 @@ jobs:
   plan:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     outputs:
       checks: ${{ steps.list.outputs.checks }}
       ref: ${{ steps.list.outputs.ref }}
     steps:
+      # The plan reads .quality-gate.json and scripts/ only; a full depth-1 checkout of the 1 GB tree (the .glb assets) took over
+      # 5 minutes on two runners on 2026-10-06 (#1475 run 37515314746, #1493 run 37517529347: checkout cancelled at the timeout),
+      # so this checkout is sparse (cone mode keeps the root files) and the budget has room for a slow runner.
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: scripts
       - id: list
         # One matrix entry per release_commands row: index, a short name for the job title, the argv as one string.
         # A pull request without the `ci:release-checks` label runs no rows (the job budget above). A labelled one sends its
