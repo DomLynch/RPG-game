@@ -37,6 +37,7 @@ import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
+import { armfeelFrom, Flinch } from './armfeel.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -142,6 +143,11 @@ export function createScene(
   // Look test links (souls-look.ts): `?look=souls`, `?look=shade` or both. No flag fetches, builds and compiles nothing and draws
   // today's frame; with one, the module (and its post chain) is its own chunk, fetched beside the fight's art.
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
+  // `?look=armfeel&feel=high|low|off` (armfeel.ts): the victim's flinch on a visual pivot between the fighter's root and its rig. Absent or `off`: no pivot, today's frame.
+  const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
+  const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
+  const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
   const bloodEdge = createBloodEdge(canvas);   // the player's hits: a crimson streak on the edge the blow came from (blood-edge.ts)
@@ -342,8 +348,8 @@ export function createScene(
         });
         proxy.clear();
       }
-      player.add(loaded.player.anchor);
-      opponent.add(loaded.opponent.anchor);
+      if (flinches) { pivots[0].clear(); pivots[1].clear(); pivots[0].add(loaded.player.anchor); pivots[1].add(loaded.opponent.anchor); player.add(pivots[0]); opponent.add(pivots[1]); }
+      else { player.add(loaded.player.anchor); opponent.add(loaded.opponent.anchor); }
       player.visible = opponent.visible = true;
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
@@ -870,6 +876,7 @@ export function createScene(
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
           hurt = !!blow;
+        if (flinches && blow?.type === 'Hit' && blow.target !== undefined) flinches[blow.target].hit(blow.heading ?? state.heading, !!killed && killed.target === blow.target);
         const kick = blow?.move === 'kick';
         flesh = hurt && (!enemyHurt || hasBlood(opponentId)) && !kick && bloodMode !== 'off';
         impactDuration = flesh && killed ? 0.55 : flesh ? 0.34 : 0.18;
@@ -1086,6 +1093,20 @@ export function createScene(
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase))
         heading = state.heading;
       player.rotation.y = heading;
+      // The victims' flinch (armfeel.ts): frozen frames hold the pose, a finisher's own body takes over from the first frame it plays. The root group
+      // and the collider never move; the pose is the rig's pivot, a lean about the hip and a nudge along the blow, in the root's own frame.
+      if (flinches) for (const side of [0, 1] as const) {
+        const root = side ? opponent : player, pivot = pivots[side], flinch = flinches[side];
+        if (practice.finish && finisher !== null && finisher !== 'plainDeath') flinch.clear();
+        const pose = flinch.update(frozen ? 0 : dt);
+        if (!flinch.active) { pivot.position.set(0, 0, 0); pivot.quaternion.identity(); continue; }
+        const r = root.rotation.y, c = Math.cos(r), s = Math.sin(r), mag = Math.hypot(pose.dx, pose.dz) || 1;
+        const dx = (pose.dx * c - pose.dz * s) / mag, dz = (pose.dx * s + pose.dz * c) / mag;   // the blow's direction in the root's frame (unit)
+        lean.setFromAxisAngle(axis.set(dz, 0, -dx), pose.lean);
+        hip.set(0, 0.9 * (side ? OPPONENTS[opponentId].scale : 1), 0);
+        pivot.quaternion.copy(lean);
+        pivot.position.copy(hip).sub(swing.copy(hip).applyQuaternion(lean)).add(swing.set(dx * mag, 0, dz * mag));
+      }
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
