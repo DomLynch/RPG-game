@@ -34,7 +34,7 @@ const open: Handler = async ctx => openAccount(ctx);
 
 const createCharacter: Handler = async (ctx, body) => {
   const name = body.name;
-  if (typeof name !== 'string' || [...name].length < 1 || [...name].length > 32 || name !== name.trim() || /[\u0000-\u001f\u007f]/.test(name)) throw new BadRequest('name: 1 to 32 characters, trimmed, no control characters');
+  if (typeof name !== 'string' || [...name].length < 1 || [...name].length > 32 || name !== name.trim() || /\p{Cc}/u.test(name)) throw new BadRequest('name: 1 to 32 characters, trimmed, no control characters');
   return { id: await store.createCharacter(ctx.db, ctx.account, name) };
 };
 

@@ -1,4 +1,6 @@
 // The Origins writer service (origins/server). Env: DATABASE_URL (the frankendom_origins role), SUPABASE_URL, SUPABASE_ANON_KEY, PORT (default 8788).
+import process from 'node:process';
+import console from 'node:console';
 import { supabaseVerify } from '../origins/server/auth.ts';
 import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
