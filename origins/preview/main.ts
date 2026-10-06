@@ -161,6 +161,7 @@ async function startFight(pick?: string): Promise<PitFight | null> {
   openPanel(null); keys.clear(); stick = null; ring.style.display = 'none'; prompt.hidden = true; hint.hidden = true;
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
+  duelLayer.querySelector('[data-ctl="art-status"]')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
   duel ??= await import('./pit-duel.ts');
   if (!fighting || fight !== next) return next;   // left (or restarted) while the chunk loaded
   duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() });
