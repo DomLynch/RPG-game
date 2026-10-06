@@ -23,7 +23,7 @@ import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { type FinisherId } from './finishers.ts';
-import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, poseOf, resolveHamstrung } from './hamstrung.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, poseOf, resolveHamstrung } from './hamstrung.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
@@ -349,10 +349,12 @@ export function createScene(
       playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       if (HAMSTRUNG_VICTIMS.includes(opponentId)) {
-        // The killer's half ships beside warrior.glb (src/hamstrung.ts), fetched only in a fight that can play the scene; if it fails the picker's pick plays nothing.
+        // Both halves ship beside warrior.glb (src/hamstrung.ts), fetched only in a fight that can play the scene; if either fails the picker's pick plays nothing.
         try {
-          const { default: killer } = await import('./assets/hamstrung-killer.json');
-          loaded.player.adoptClip('Fin_Hamstrung', THREE.AnimationClip.parse(killer as unknown as Parameters<typeof THREE.AnimationClip.parse>[0]));
+          const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]);
+          const parse = (clip: unknown) => THREE.AnimationClip.parse(clip as Parameters<typeof THREE.AnimationClip.parse>[0]);
+          loaded.player.adoptClip('Fin_Hamstrung', parse(killer));
+          loaded.opponent.adoptClip('Death_Hamstrung', parse(victim), HAMSTRUNG_SOURCE_PELVIS);
           loaded.opponent.prepareHamstrung();
           hamstrungReady = true;
         } catch (error) { captureException(error); }

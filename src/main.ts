@@ -456,7 +456,7 @@ opponentSelect.value = opponent.id;
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
 // Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung — plus Plain death as the
 // no-finisher control. Execution has no clip yet and would silently play the plain Death, which reads as a bug in a test menu.
-// Add it back the day its clip ships. Hamstrung only plays on the Minotaur and the Wraith (src/hamstrung.ts); anyone else keeps what he played.
+// Add it back the day its clip ships. Hamstrung plays on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS); any other body keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],

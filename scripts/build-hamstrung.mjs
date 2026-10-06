@@ -20,26 +20,32 @@ export function hamstrungClips(scene,clips) {
  rig.restore();return[victim,killer];
 }
 
-// Death_Hamstrung is appended to the GLBs of the creatures that fall to it (minotaur, wraith). The killer's Fin_Hamstrung is always the player's, so it
-// ships beside warrior.glb as plain clip JSON (src/assets/hamstrung-killer.json, adopted at runtime by characters.ts adoptClip) and warrior.glb stays untouched.
+// Both halves ship as plain clip JSON beside warrior.glb, adopted at runtime by characters.ts adoptClip, so warrior.glb stays untouched: the killer's
+// Fin_Hamstrung (always the player's) and the victim's Death_Hamstrung for every body on the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS). minotaur.glb
+// and wraith.glb also carry a Death_Hamstrung appended to them, fitted to the creatures' feet.
 export const KILLER_JSON=new URL('../src/assets/hamstrung-killer.json',import.meta.url);
+export const VICTIM_JSON=new URL('../src/assets/hamstrung-victim-hero.json',import.meta.url);
 const round=a=>Array.from(a,v=>Math.round(v*1e5)/1e5);
-export async function writeHamstrungKiller(file=new URL('../src/assets/warrior.glb',import.meta.url),out=KILLER_JSON) {
+async function writeHamstrungJson(index,file,out) {
  const fs=await import('node:fs/promises'),{GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
  const bytes=await fs.readFile(file),size=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+size));
  json.images=[];json.textures=[];json.materials=json.materials.map(m=>({name:m.name}));json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');
  globalThis.ProgressEvent ??= class {constructor(_,fields){Object.assign(this,fields);}};
  const asset=await new GLTFLoader().parseAsync(JSON.stringify(json),'');
- const clip=hamstrungClips(asset.scene,asset.animations)[1].optimize(),data=clip.toJSON();
+ const clip=hamstrungClips(asset.scene,asset.animations)[index].optimize(),data=clip.toJSON();
  delete data.uuid;   // random per call: the build must be byte-stable
  for(const t of data.tracks){t.times=round(t.times);t.values=round(t.values);}
- const text=JSON.stringify(data)+'\n';await fs.writeFile(out,text);return {file:out,bytes:text.length,tracks:data.tracks.length};
+ const text=JSON.stringify(data)+'\n';await fs.writeFile(out,text);return {file:out.pathname,bytes:text.length,tracks:data.tracks.length};
 }
+const WARRIOR=new URL('../src/assets/warrior.glb',import.meta.url);
+export const writeHamstrungVictim=(file=WARRIOR,out=VICTIM_JSON)=>writeHamstrungJson(0,file,out);
+export const writeHamstrungKiller=(file=WARRIOR,out=KILLER_JSON)=>writeHamstrungJson(1,file,out);
 // Victim clip on each creature that falls to it; `names` picks the clip an appended rig carries.
 export const appendHamstrung=(file,names=['Death_Hamstrung'])=>appendFinisher(file,'Hamstrung',(scene,clips)=>hamstrungClips(scene,clips).filter(c=>names.includes(c.name)),names);
 if(process.argv[1]===new URL(import.meta.url).pathname){
  // node scripts/build-hamstrung.mjs: rebuild every Hamstrung asset (re-running an unchanged build is byte-identical)
  const assets=new URL('../src/assets/',import.meta.url);
  for(const rig of ['minotaur','wraith'])console.log(await appendHamstrung(new URL(rig+'.glb',assets).pathname));
+ console.log(await writeHamstrungVictim());
  console.log(await writeHamstrungKiller());
 }
