@@ -48,7 +48,7 @@ fight as duels while the ruler is offline.
 
 ### Ruled (Strategy, 2026-10-06, on the open list)
 
-6. **Region 1 gets three towns:** the Exchange town, Cinder Hold and Mere End. War goals and the same-trade alert spread both need
+6. **Region 1 gets three towns:** the Exchange quarter (ruling 11), Cinder Hold and Mere End. War goals and the same-trade alert spread both need
    them (§12).
 7. **Rulers are never grudge targets.** An ordinary grudge never targets a mayor or lord (a griefing guard). A ruler dies only at
    the climax of a **war goal or an avenge goal**, behind the town's strongest defence (rings, bouncer and patron strike). The death
@@ -56,6 +56,10 @@ fight as duels while the ruler is offline.
 8. **The Lambton Worm** (Surtees, 1820) is approved as a rift boss (§8, §16).
 9. **Pit legend and patron overlap is approved:** "the Pit fights the legend; a clan serves the patron" (§10.1).
 10. **Phasing 0 to e** (§15) matches Strategy's re-sequencing. It waits on Lead confirming the order.
+11. **The Exchange square and the Exchange quarter (Strategy, 2026-10-06).** The Concord Exchange **square** stays neutral forever:
+    never at war, never ruined, safe for trades and pay-offs, and no guards hunt there. The **town quarter** outside the square is
+    the war-capable third Region 1 town. The Grey Ferry stays only as the `feuds.md` example and is **not** a Region 1 town. The
+    square's boundary is **visible** in the world (a gate or arch), so players always know when they are safe (§12).
 
 ### Design lines this spec adds
 
@@ -71,8 +75,9 @@ fight as duels while the ruler is offline.
 ## 3. Towns as data
 
 A **town** is a zone with a `town` group (`feuds.md` §11, world group #16), plus a content record that sets its starting values and a
-shared state row that changes. The Concord Exchange is `safe`: fixed tier, never at war, never ruined, never ruled by a player. It is
-the neutral ground for pay-offs, trading and allegiance.
+shared state row that changes. The Concord Exchange **square** is `safe` forever (Strategy, 2026-10-06): fixed tier, never at
+war, never ruined, never ruled by a player, and no guards hunt there. It is the neutral ground for pay-offs, trading and
+allegiance. The **Exchange quarter** outside it is an ordinary town (§12).
 
 ### 3.1 Content: `town-definition`
 
@@ -764,21 +769,29 @@ lord's own level or gear, and they keep every telegraph. The lord's own characte
 - **Lord-vs-player duels** (the lord fighting raiders live) need the PvP verifier (#1392, #1485, #1487) and open-world PvP. Until
   then everything above is PvE against configured NPCs; Strategy still parks the whole phase until the verifier exists.
 
-## 12. Region 1 (ruled, Strategy, 2026-10-06: three towns)
+## 12. Region 1 (Strategy, 2026-10-06: three towns)
 
-Region 1 gets **three towns**: the Exchange town, Cinder Hold and Mere End. War goals (`minTownsForWar` 3) and the same-trade alert
-spread (`feuds.md` §7.1) both need them.
+Region 1 gets **three war-capable towns**: the Exchange quarter, Cinder Hold and Mere End. War goals (`minTownsForWar` 3) and the
+same-trade alert spread (`feuds.md` §7.1) both need them. The Grey Ferry stays only as the `feuds.md` example and is **not** a
+Region 1 town.
 
 | Town | Zone | Tier at start | Ruler | Temperament | Patron |
 |---|---|---|---|---|---|
-| the Exchange town | the town around the Concord Exchange | town (500) | Mayor (original, PROPOSED) | mercantile | Zeus |
+| the Exchange quarter | the town quarter outside the Concord Exchange square | town (500) | Mayor (original, PROPOSED) | mercantile | Zeus |
 | Cinder Hold | a new zone beside `cinder-fields` | village (260) | Warden Brannoc (original, he) | ambitious | Hel |
 | Mere End | a new zone at the `black-mere` causeway | hamlet (180) | Reeve Osk (original, she) | cautious | Poseidon |
 
-**To confirm (Lead/Strategy):** §3 keeps the Concord Exchange itself **safe** (never at war, never ruined, the neutral ground for
-pay-offs and trades). Two readings fit the ruling: (a) the Exchange town is a non-safe town quarter outside the safe Exchange
-square, which can go to war while the square stays neutral; or (b) "the Exchange town" means the **Grey Ferry** (`ferry-landing`,
-Reeve Tamsin, Zeus, as in `feuds.md`). This spec assumes (a) and keeps the Grey Ferry as the grudge town of `feuds.md`.
+**The square and the quarter (Strategy, 2026-10-06).**
+
+- **The square** (`exchange` zone) keeps `rules.safe: true` forever: no war goal, raid post, guard ring, patron strike, hunter or
+  rift may touch it. Pay-offs (the magistrate), trades, the bank, the clan trial ground and the war board live there.
+- **The quarter** is its own zone with a `town` group (`feuds.md` §11), `rules.safe: false`, and the normal guard rings, war posts
+  and patron strike. Its duel posts and ring centre sit at least 30 m from the square's gate, so no guard ring overlaps it.
+- **The boundary is visible (world-param and art note).** The square and the quarter meet only at a **gate or arch** landmark,
+  for example `square-arch`, joined by a `connections` entry of `kind: gate` (world group #11). Art: a lit arch with the Exchange
+  banner on the square side, a distinct ground (paved inside the square, the town's ground outside), and a short on-screen line on
+  crossing ("Safe: the Exchange square" / "Leaving the square"). No safe edge is ever invisible, and the square has no other way in
+  from the quarter. The arch is a World-lane data PR; `concord.test.ts` pins must still hold, so it is added, not moved.
 
 Rifts need no towns and can ship first, with the five sites in §8.4.
 
@@ -888,7 +901,7 @@ Strategy's order (§2.4), re-sequenced by Strategy on 2026-10-06 to match the ta
    2,000 switch, terms of 28 days, 3 hold points and the shields.
 2. **Clan perks** (§10.2): Strategy to re-sequence after Dom's override; Combat to own the duel-sim hook; confirm the ±3% templates,
    the ±1 point win-rate drift rule, and the `RECORD_VERSION` bump. The original names for the Pact clan.
-3. **The Exchange town** (§12): a non-safe quarter outside the safe Exchange square, or the Grey Ferry?
+3. **The Exchange quarter's zone** (§12): its size, its ruler's name and the arch's position, for the World lane.
 4. **Rift contribution threshold**: the crowd-scaled `min(100, 500 / participants)` permille, or a fixed 10%? It interacts with
    `region1-ash-frontier.md` open question 7 (two contribution measures).
 5. **The `rift-boss` progression row** (weight 150, repeatable, rested): a contracts change. Confirm.
