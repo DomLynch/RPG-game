@@ -7,6 +7,9 @@ import type { Profile } from './profile.ts';
 // the HUD, in the journal, in tests and on the loot verifier (deploy.sh ships src/ to it, so client and server switch together).
 export const TITLES = ['Recruit', 'Legionary', 'Gladiator', 'Veteran', 'Champion', 'Praetorian', 'Master', 'Primus', 'Invictus', 'Origin'] as const;
 export const MAX_LEVEL = 50;
+// A fight recorded before the 50-level ladder (record version < FIRST_FIFTY_VERSION) was fought under a top of 46: the server judges it by the rank
+// that ladder gave (awards.ts levelRefusal), so a claim already in the queue at the deploy is not refused for a floor that did not exist when it was played.
+export const FIRST_FIFTY_VERSION = 27, OLD_MAX_LEVEL = 46;
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
 // step/fill: the class-progress bar (Dom 2026-09-23; 2026-09-27: one whole segment per win, no partial fill) — one segment per numeral,
 // `step` of them lit, `fill` always 0 now (kept so the bar code reads unchanged); next: the class the bar climbs toward ('' at Origin, no bar).
