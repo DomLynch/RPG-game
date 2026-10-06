@@ -46,12 +46,13 @@ const own = <T>(rec: Readonly<Record<string, T>>, key: string): T | undefined =>
 //   party    — 'split': EverQuest group shape, highest member's colour; 'each': every eligible member gets their own award, given a real
 //              share of the fight; 'solo': one character (the Pit, story).
 //   atOwn    — no target: priced at your own level with no falloff (story).
+//   early    — a different weight while the priced level is below `below` (the Pit's taper, Dom 2026-10-06: a fifth of a level to L10).
 export type TypeRow = {
-  weight: number; once: boolean; rested: boolean; party: 'split' | 'each' | 'solo'; atOwn?: boolean;
+  weight: number; once: boolean; rested: boolean; party: 'split' | 'each' | 'solo'; atOwn?: boolean; early?: { below: number; weight: number };
 };
 export type TypeTable = Readonly<Record<string, TypeRow>>;
 export const TYPE_WEIGHTS: TypeTable = {
-  legend: { weight: 100, once: true, rested: false, party: 'solo' }, // a Pit legend: a tenth of a level at even level, to Gladiator I
+  legend: { weight: 100, early: { below: 11, weight: 200 }, once: true, rested: false, party: 'solo' }, // a Pit legend: a fifth of a level to L10, a tenth from Gladiator I
   'world-boss': { weight: 500, once: true, rested: false, party: 'each' }, // half a level to 10; a fifth at 24; an eighth at 41
   named: { weight: 200, once: false, rested: true, party: 'split' },
   elite: { weight: 80, once: false, rested: true, party: 'split' },
@@ -155,9 +156,11 @@ export const tierOf = (level: number): number => Math.min(10, Math.floor((wholeL
 export const allBossesOpen = (level: number, cap: number = MAX_LEVEL): boolean => wholeLevel(level) >= cap;
 
 // The one pay rule. target = the target's level (ignored for atOwn rows); you = your level before the event.
+export const weightAt = (row: TypeRow, level: number): number => row.early && wholeLevel(level) < row.early.below ? row.early.weight : row.weight;
 export function basePay(row: TypeRow, target: number, you: number): number {
-  if (row.atOwn) return Math.floor((killValue(you) * row.weight) / 1000);
-  return Math.floor((killValue(Math.min(target, you)) * falloffPermille(target - you) * row.weight) / 1e6);
+  if (row.atOwn) return Math.floor((killValue(you) * weightAt(row, you)) / 1000);
+  const at = Math.min(target, you);
+  return Math.floor((killValue(at) * falloffPermille(target - you) * weightAt(row, at)) / 1e6);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------

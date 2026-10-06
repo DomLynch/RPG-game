@@ -7,7 +7,7 @@ import { MAX_LEVEL as careerMaxLevel, levelOf as careerLevelOf } from '../../src
 import { LEGEND_OPPONENTS, rungOf } from '../../src/legends.ts';
 import {
   DAY_S, HEAT_UNIT_S, MAX_LEVEL, RESTED_CAP_CP, RESTED_PER_DAY_CP, TYPE_WEIGHTS,
-  allBossesOpen, award, basePay, creditFromMarks, cumulative, falloffPermille, fillPermille, heatAt, heatKills, killValue, legendKey,
+  allBossesOpen, award, basePay, weightAt, creditFromMarks, cumulative, falloffPermille, fillPermille, heatAt, heatKills, killValue, legendKey,
   levelOfCredit, levelOfMarks, newCareer, nextLegend, partyEligible, partySharePermille, repeatPermille, requirement, restedAvailable,
   settleAll, tierOf, type CareerEvent, type CareerState, type TypeTable,
 } from './model.ts';
@@ -116,7 +116,7 @@ test('one pay rule: every row pays killValue(min(target, you)) × falloff × wei
       for (const [type, row] of Object.entries(TYPE_WEIGHTS)) {
         if (row.atOwn) continue;
         const a = award(newCareer(you - 1, 0, 50), kill('k', type, 'x', you + d), 50);
-        const want = Math.floor((killValue(Math.min(you + d, you)) * falloffPermille(d) * row.weight) / 1e6);
+        const want = Math.floor((killValue(Math.min(you + d, you)) * falloffPermille(d) * weightAt(row, Math.min(you + d, you))) / 1e6);
         assert.equal(a.cp, want, `${type} at level ${you}, d ${d}`);
       }
     }
@@ -124,7 +124,7 @@ test('one pay rule: every row pays killValue(min(target, you)) × falloff × wei
 });
 test('shares shrink from Gladiator I: each row\'s even-level pay is a fixed part of a level to 10 and a smaller part every level from 11', () => {
   for (const [type, row] of Object.entries(TYPE_WEIGHTS)) {
-    for (let l = 1; l <= 10; l++) assert.equal((basePay(row, l, l) * 1000) / requirement(l), row.weight, `${type} at ${l}`);
+    for (let l = 1; l <= 10; l++) assert.equal((basePay(row, l, l) * 1000) / requirement(l), weightAt(row, l), `${type} at ${l}`);
     for (let l = 10; l < 50; l++) {
       assert.ok(basePay(row, l + 1, l + 1) * requirement(l) < basePay(row, l, l) * requirement(l + 1), `${type}: share at ${l + 1} not below ${l}`);
     }
@@ -144,22 +144,25 @@ test('a new content type plugs in with ONE row and no curve change: a minotaur, 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // The Pit.
 
-test('Pit: a legend pays a tenth of a level at even level, its first win only; the second win says already-beaten and pays 0', () => {
+test('Pit: a legend pays a fifth of a level to L10 and a tenth from Gladiator I (Dom 2026-10-06), its first win only; a second win pays 0', () => {
   const r = settleAll(newCareer(4), [win('a', 0, 'goblin'), win('b', 1, 'goblin'), win('c', 2, 'knight')]);
-  assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[140, 'ok'], [0, 'already-beaten'], [140, 'ok']]);
-  assert.equal(140 * 10, requirement(5));
+  assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[280, 'ok'], [0, 'already-beaten'], [280, 'ok']]);
+  assert.equal(280 * 5, requirement(5));
+  assert.deepEqual([basePay(TYPE_WEIGHTS.legend, 10, 10) * 5, basePay(TYPE_WEIGHTS.legend, 11, 11)], [requirement(10), 200]); // the taper at Gladiator I
   assert.deepEqual(r.state.beaten, [legendKey('goblin', 5), legendKey('knight', 5)]);
   assert.equal(r.state.pitWins, 6); // 4 migrated + 2 paid wins
 });
-test('Pit alone: levels 1 to 10 are reachable on the Pit alone — each level\'s ten opponents pay exactly that level', () => {
+test('Pit alone: levels 1 to 10 are reachable on the Pit alone — five first wins at each level pay exactly that level', () => {
   let s = newCareer(0);
   for (let level = 1; level <= 10; level++) {
-    for (let w = 0; w < OPP.length; w++) {
+    let w = 0;
+    while (levelOfCredit(s.credit) === level) {
       const opponent = nextLegend(s, OPP, w * 31 + level);
       assert.ok(opponent !== null);
       s = award(s, win(`w${level}-${w}`, 0, opponent)).state;
+      w++;
     }
-    assert.deepEqual([levelOfCredit(s.credit), s.credit], [level + 1, cumulative(level + 1)], `after level ${level}`);
+    assert.deepEqual([w, levelOfCredit(s.credit), s.credit], [5, level + 1, cumulative(level + 1)], `after level ${level}`);
   }
 });
 test('Pit alone stalls at Gladiator I, below Origin V at caps 46 and 50: it falls out of the weights, there is no cap on the Pit', () => {
@@ -171,7 +174,7 @@ test('Pit alone stalls at Gladiator I, below Origin V at caps 46 and 50: it fall
       wins++;
     }
     // Ten legends at level 11 pay 10 × 200 = 2,000 of the 2,025 that level needs: the Pit has paid all it has at your level.
-    assert.deepEqual([wins, s.credit, levelOfCredit(s.credit, cap)], [110, cumulative(11) + 2000, 11]);
+    assert.deepEqual([wins, s.credit, levelOfCredit(s.credit, cap)], [60, cumulative(11) + 2000, 11]); // 5 a level to L10, then all ten at L11
     assert.ok(levelOfCredit(s.credit, cap) < cap);
     // A sliver of world credit and the Pit opens again at level 12.
     const w = award(s, story('st', 0, 'any/1'), cap).state;
@@ -328,7 +331,7 @@ test('worked example C: their elite kills split EverQuest-style and take the hig
 
 test('worked example D: days to Gladiator I and to Origin, casual (30 min) and heavy (3 h), at cap 46 and 50', () => {
   const titles = [6, 11, 16, 21, 26, 31, 36, 41, 46];
-  const runs = [[CASUAL, [16, 33, 38, 47, 60, 79, 105, 142, 193], 247], [HEAVY, [4, 7, 8, 10, 13, 18, 26, 38, 55], 73]] as const;
+  const runs = [[CASUAL, [8, 17, 22, 31, 44, 62, 88, 125, 177], 231], [HEAVY, [2, 4, 5, 7, 10, 15, 23, 35, 52], 70]] as const;
   for (const [p, days, origin5] of runs) {
     const run = playerDays(p, OPP, 3000);
     assert.deepEqual(titles.map(l => run.dayReached[l]), days, p.name);

@@ -25,7 +25,7 @@ weight table; the curve never changes** (a test adds a minotaur to prove it).
 
 | Type | Weight (part of a kill value) | At level 1 | At 11 | At 30 | At 49 | Rule |
 |---|---|---|---|---|---|---|
-| Pit legend | 1/10 | 100 | 200 | 390 | 580 | first win only |
+| Pit legend | 1/5 to L10, then 1/10 | 200 | 200 | 390 | 580 | first win only |
 | World boss | 1/2 | 500 | 1,000 | 1,950 | 2,900 | first kill only; ≥ 10% of the fight |
 | Named / elite / mob | 1/5 · 2/25 · 1/50 | 200 / 80 / 20 | 400 / 160 / 40 | 780 / 312 / 78 | 1,160 / 464 / 116 | from the daily allowance; repeat heat |
 | Story step / chapter | 1/10 · 1/2 | 100 / 500 | 200 / 1,000 | 390 / 1,950 | 580 / 2,900 | once ever |
@@ -36,16 +36,17 @@ weight table; the curve never changes** (a test adds a minotaur to prove it).
 beaten flags, so every legend and world boss can be fought again (the level cannot move past the top).
 
 **The Pit carries you to Gladiator I, then becomes one part among many.** Today's Pit has ten opponents, each a legend once at each
-level. Up to level 10 the ten wins at a level pay exactly that level, so a new player climbs on the Pit alone, as today. At Gladiator I
-the ten pay 2,000 of the 2,025 the level needs, and the gap widens every level after: the Pit alone stops at Gladiator I and the rest
+level. Up to level 10 a legend pays a fifth of a level, so five first wins pay exactly that level and a new player climbs on the Pit
+alone (Dom, 2026-10-06). From Gladiator I a legend pays a tenth: the ten at a level pay 2,000 of the 2,025 it needs, and the gap widens
+every level after: the Pit alone stops at Gladiator I and the rest
 comes from the world. **Nobody reaches Origin V on the Pit alone, and no rule says so: it falls out of the weights.** Over a climb
 from Gladiator I to Origin V the Pit is about a fifth of the credit.
 
 **Creatures are bounded by an allowance** of up to 3,000 points that refills by 1,500 a day; a bot can never take more. A creature
 well beneath you pays nothing, and the same kind over and over pays less after the third.
 
-**What it feels like** (section 2.2): a heavy player (3 h a day) reaches Gladiator I on day 7 and Origin V on day 73; a casual player
-(30 min a day) on days 33 and 247. **Decided (Dom, 2026-10-06):** 50 levels; bosses pay once and reopen at Origin V; the Pit alone
+**What it feels like** (section 2.2): a heavy player (3 h a day) reaches Gladiator I on day 4 and Origin V on day 70; a casual player
+(30 min a day) on days 17 and 231. **Decided (Dom, 2026-10-06):** 50 levels; bosses pay once and reopen at Origin V; the Pit alone
 carries to Gladiator I; story once; the allowance 1,500 a day holding 3,000. **Still open:** section 9.
 
 ---
@@ -137,13 +138,13 @@ first day of play. Assumptions, all in the scenario:
 
 | Level | Legionary 6 | **Gladiator I 11** | Veteran 16 | Champion 21 | Praetorian 26 | Master 31 | Primus 36 | Invictus 41 | Origin I 46 | **Origin V 50** |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Casual | day 16 | **33** | 38 | 47 | 60 | 79 | 105 | 142 | 193 | **247** |
-| Heavy | day 4 | **7** | 8 | 10 | 13 | 18 | 26 | 38 | 55 | **73** |
+| Casual | day 8 | **17** | 22 | 31 | 44 | 62 | 88 | 125 | 177 | **231** |
+| Heavy | day 2 | **4** | 5 | 7 | 10 | 15 | 23 | 35 | 52 | **70** |
 
-Where the credit came from on the way to Origin V: casual creatures 43.7%, world bosses 32.0%, Pit 20.8%, story 3.4%; heavy world
-bosses 60.0%, Pit 21.7%, creatures 15.0%, story 3.3%. The casual player beats 97 world bosses on the way, the heavy one 178: "enough world content" means a fresh boss at every level for those players, which is a content target, not a rule here.
-**Read this honestly:** the days to Gladiator I are now set by the Pit at a tenth of a level a win (100 wins), slower than today's
-"one win, one level" (casual day 5 under the old rule); a legend at a fifth would halve them but let the Pit alone carry to level 22.
+Where the credit came from on the way to Origin V: casual creatures 43.5%, world bosses 32.1%, Pit 20.8%, story 3.6%; heavy world
+bosses 60.2%, Pit 21.7%, creatures 14.8%, story 3.3%. The casual player beats about 2.5 world bosses a level from Gladiator I, the heavy one about 4.5: "enough world content" means a fresh boss at every level for those players, which is a content target, not a rule here.
+**Read this honestly:** the days to Gladiator I are set by the Pit at a fifth of a level a win (50 wins), slower than today's
+"one win, one level" (casual day 5 under the old rule). The taper to a tenth at Gladiator I is what stops the Pit alone there.
 
 ## 3. The career number, the Pit, bosses and the migration
 
@@ -296,11 +297,9 @@ Levels 14, 15, 16 and 20; the Count of the Ruin is level 16; shares 30%, 25%, 35
 5. **Story** once ever; **allowance** 1,500 CP a day, holding 3,000, fixed in CP.
 
 **Open, for Strategy and Dom:**
-6. **The legend weight.** 1/10 of a kill value makes today's ten opponents a level exactly carry to Gladiator I (casual day 33, heavy
-   day 7). The suggested 1/5 halves that (casual day 17, heavy day 4) but lets the Pit alone carry to level 22. One number, no curve
-   change.
-7. **What counts as one legend.** The model keys a legend by opponent and level (ten a level, the live dial). If a legend is one per
-   title (the 100 faces in `src/legends.ts`), the Pit alone stalls at level 2 and the legend weight would need to be 1/2.
+6. **Decided (Dom via Strategy, 2026-10-06, a draft Dom can overrule): the legend weight is split by level**, 1/5 of a level to L10
+   and 1/10 from Gladiator I: one row with an `early` weight, no boss counts, no curve change.
+7. **Decided (same): a legend is opponent × level**, as the live dial: the Goblin at L5 and the Goblin at L6 are two once-only wins.
 8. **Legends beaten once** (POST-BETA, arena Lead): ship with the Pit, or keep re-offering opponents.
 9. **World content volume.** The days in 2.2 assume a fresh world boss is always there; the players beat 97 (casual) and 178
    (heavy) on the way to Origin V, about 2.5 and 4.5 a level.
