@@ -1856,9 +1856,11 @@ function frame(now: number) {
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
         holding: foeHolding(practice.duel.fighters[1]),
+        fatigue: practice.fatigue,
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
+      if (!quiet) hud.refused(practice.clarity);
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;

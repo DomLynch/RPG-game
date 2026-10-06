@@ -22,3 +22,6 @@ export const pitPending = async (db: Db, account: string): Promise<PitClaim[]> =
   JSON.parse(await db.run(`select coalesce(json_agg(p), '[]')::text from public.origins_pit_pending(:'a'::uuid) p;`, { a: acct(account) }));
 export const commit = async (db: Db, account: string, batch: readonly Json[]): Promise<Json[]> =>
   JSON.parse(await db.run(`select public.origins_commit(:'a'::uuid, :'b'::jsonb)::text;`, { a: acct(account), b: JSON.stringify(batch) }));
+// One stored event of this account, or null (another account's id, an unknown id, an account that is not open: migration 202610060002).
+export const event = async (db: Db, account: string, id: string): Promise<Json | null> =>
+  JSON.parse((await db.run(`select coalesce(public.origins_event(:'a'::uuid, :'e')::text, 'null');`, { a: acct(account), e: id })) || 'null');

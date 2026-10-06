@@ -9,6 +9,7 @@ class FakeElement {
   hidden = false; value: string | number = ''; max: number | string = ''; textContent = ''; className = '';
   attributes = new Map<string, string>(); dataset: Record<string, string> = {}; children: FakeElement[] = [];
   writes = 0;
+  classes = new Set<string>(); classList = { add: (c: string) => this.classes.add(c), remove: (c: string) => this.classes.delete(c) };
   style = { props: new Map<string, string>(), left: '', top: '', setProperty(k: string, v: string) { this.props.set(k, v); } };
   setAttribute(k: string, v: string) { this.attributes.set(k, v); this.writes++; }
 }
@@ -153,4 +154,14 @@ test('a lesson the fight sets wins the combat-status line, and the line returns 
   assert.equal(get('combat-status').textContent, 'Roll sideways, then step back in.');
   hud.update(practice, view());
   assert.equal(get('combat-status').textContent, plain);
+});
+
+test('refused presses dim the matching button only for the player, and mark nothing else', () => {
+  const { element, get } = dom(), hud = createHud(element as never);
+  const press = (action: 'heavy' | 'parry' | 'light' | 'dodge', actor: 0 | 1 = 0) => ({ tick: 1, type: 'PressRefused' as const, actor, action, reason: 'hurt' as const });
+  hud.refused([press('heavy'), press('parry'), press('dodge'), press('light', 1)]);
+  assert.ok(get('heavy-button').classes.has('refused') && get('guard-button').classes.has('refused') && get('dodge-button').classes.has('refused'));
+  assert.ok(!get('attack-button').classes.has('refused'));   // the foe's refusal (actor 1) is not shown
+  hud.refused([{ tick: 2, type: 'AttackInterrupted', actor: 0 }]);   // other clarity events do nothing here
+  assert.ok(!get('attack-button').classes.has('refused'));
 });

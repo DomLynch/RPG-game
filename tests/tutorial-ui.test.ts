@@ -28,11 +28,11 @@ test('the slash how line follows the button shown: Fight to draw, then Slash; no
   assert.equal(tutorialPrompt('stab', 1, false, false)!.how, 'tap Stab', 'only the slash step depends on drawing');
 });
 
-test('STEP CLOSER replaces the step prompt while he is out of range, never the ready card; the roll line names his thrust', () => {
+test('STEP CLOSER replaces the step prompt while he is out of range, never the ready card; the roll line says to hold Roll as his swing starts', () => {
   assert.equal(tutorialPrompt('heavy', 2, false, true, true), TUTORIAL_CLOSER);
   assert.equal(tutorialPrompt('heavy', 2, false, true, false)!.word, 'HEAVY');
   assert.equal(tutorialPrompt(null, TUTORIAL_STEPS.length, false, true, true), TUTORIAL_READY, 'the ready card stays');
-  assert.equal(tutorialPrompt('roll', 6, false, true, false)!.how, 'roll as his thrust comes');
+  assert.equal(tutorialPrompt('roll', 6, false, true, false)!.how, 'hold Roll as his swing starts');
 });
 
 test('GUARD is a plain hold (it covers his stab) and PARRY is a guard slid UP (his heavy comes from above, tutorial.guardWith): the how lines say so', () => {

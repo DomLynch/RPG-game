@@ -3,9 +3,11 @@
 import process from 'node:process';
 import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
+import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
 import { readStoryContent } from './content.ts';
-import { BadRequest } from './errors.ts';
+import { BadRequest, Conflict } from './errors.ts';
+import type { Content } from './holdings.ts';
 import { questAdvance } from './quest-advance.ts';
 import type { StoryContent } from './story.ts';
 import * as store from './store.ts';
@@ -13,7 +15,7 @@ import { talkPick } from './talk-pick.ts';
 
 export type Ctx = { db: Db; account: string };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
-export { BadRequest };
+export { BadRequest, Conflict };
 
 const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the rest wait for the next open
 
@@ -49,3 +51,6 @@ const createCharacter: Handler = async (ctx, body) => {
 export const storyOps = (content: StoryContent | null): Record<string, Handler> => ({ quest_advance: questAdvance(content), talk_pick: talkPick(content) });
 export const content: StoryContent | null = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGINS_CONTENT) : null;
 export const handlers: Record<string, Handler> = { open, create_character: createCharacter, ...storyOps(content) };
+
+// The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
+export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items) });

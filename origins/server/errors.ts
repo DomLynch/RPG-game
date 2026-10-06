@@ -8,3 +8,6 @@ export class Refused extends Error {
   status: 501 | 503;
   constructor(status: 501 | 503, message: string) { super(message); this.status = status; }
 }
+
+// The same op id already stands for a different request (Strategy, 2026-10-06): never applied, answered 409.
+export class Conflict extends Error {}
