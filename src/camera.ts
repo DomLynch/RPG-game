@@ -131,7 +131,7 @@ export type CameraFinish = {
 
 // Reduced motion: no finisher push-in, no side-view reveal. The camera kick stays ON (owner ruling 2026-09-29, always on: every hit's
 // feedback behaves the same on every phone).
-export const prefersStillCamera = (): boolean =>
+const prefersStillCamera = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Arena cam after the kill (owner 2026-09-20; retimed 2026-09-22 to Strategy's decision: the player always gets at least
@@ -168,7 +168,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
   const lastDrawn = new THREE.Vector3();
   const desired = new THREE.Vector3(),
     look = new THREE.Vector3(),
-    aim = new THREE.Vector3(0, 1, 0);
+    aim = new THREE.Vector3(0, 1, 0),
+    eyeTarget = new THREE.Vector3(),
+    lookTarget = new THREE.Vector3();   // scratch for the finisher-side, tour and gate-walk targets: set and consumed within the frame, never kept
   let yaw = 0,
     pitch = 0.45,
     started = false;
@@ -313,8 +315,8 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
           finish.big ? 1.5 : 1,
           finish.reach ?? 0,
         );
-        desired.lerp(new THREE.Vector3(side.x, side.y, side.z), reveal);
-        look.lerp(new THREE.Vector3(side.lookX, side.lookY, side.lookZ), reveal);
+        desired.lerp(eyeTarget.set(side.x, side.y, side.z), reveal);
+        look.lerp(lookTarget.set(side.lookX, side.lookY, side.lookZ), reveal);
         const radius = Math.hypot(desired.x, desired.z);
         if (radius > 11.5) {
           desired.x *= 11.5 / radius;
@@ -335,22 +337,22 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         tourAngle ??= Math.atan2(camera.position.x - focusX, camera.position.z - focusZ);
         const angle = tourAngle + (t * 2 * Math.PI) / TOUR.lap, radius = TOUR.radius + TOUR.breath * Math.sin((t * 2 * Math.PI) / TOUR.breathe);
         const height = (low ? 1.2 : 1.6) + (low ? 1 : 1.6) * (1 - Math.cos((t * 2 * Math.PI) / TOUR.rise)) / 2;
-        const tour = new THREE.Vector3(focusX + Math.sin(angle) * radius, height, focusZ + Math.cos(angle) * radius), r = Math.hypot(tour.x, tour.z);
+        const tour = eyeTarget.set(focusX + Math.sin(angle) * radius, height, focusZ + Math.cos(angle) * radius), r = Math.hypot(tour.x, tour.z);
         if (r > 11.5) { tour.x *= 11.5 / r; tour.z *= 11.5 / r; }
         const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.lerp(tour, blendIn);
-        look.lerp(new THREE.Vector3(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
+        look.lerp(lookTarget.set(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
       if (finish && gatePoint) {
         if (gateBegan === null) { gateBegan = finishAge; gateFrom.copy(camera.position); gateLookFrom.copy(aim); }
         const tx = gatePoint.x - state.x, tz = gatePoint.z - state.z, left = Math.hypot(tx, tz);
         if (left > GATE_CAM.near) yaw = Math.atan2(-tx, -tz);   // at the gate itself the line has no direction: hold the last one
-        const ahead = Math.min(GATE_CAM.ahead, left), eye = new THREE.Vector3(state.x + Math.sin(yaw) * GATE_CAM.back, GATE_CAM.height, state.z + Math.cos(yaw) * GATE_CAM.back);
+        const ahead = Math.min(GATE_CAM.ahead, left), eye = eyeTarget.set(state.x + Math.sin(yaw) * GATE_CAM.back, GATE_CAM.height, state.z + Math.cos(yaw) * GATE_CAM.back);
         const r = Math.hypot(eye.x, eye.z);
         if (r > 11.5) { eye.x *= 11.5 / r; eye.z *= 11.5 / r; }
         const s = Math.min(1, (finishAge - gateBegan) / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.copy(gateFrom).lerp(eye, blendIn);
-        look.copy(gateLookFrom).lerp(new THREE.Vector3(state.x - Math.sin(yaw) * ahead, GATE_CAM.lookY, state.z - Math.cos(yaw) * ahead), blendIn);
+        look.copy(gateLookFrom).lerp(lookTarget.set(state.x - Math.sin(yaw) * ahead, GATE_CAM.lookY, state.z - Math.cos(yaw) * ahead), blendIn);
       }
       if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
         const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;

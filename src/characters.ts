@@ -70,7 +70,7 @@ export function gaitWeights(speed: number): number[] {
 
 // Every Deflected clip opens on the attack's contact pose — identical to a blocked blow — and is thrown widest by its .35 key (build-warrior.mjs,
 // build-weapon.mjs). Starting there puts the lost line on the impact frame; the clip's tail still recovers to the rest grip.
-export const DEFLECT_FROM = .35;
+const DEFLECT_FROM = .35;
 // Presentation follows confirmed contact; a new action or defeat immediately takes precedence.
 export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'parry'|'deflected';progress:number} | undefined {
   if (!s.health || !s.playerHealth) return;
@@ -87,7 +87,7 @@ type FighterAsset = { scene: Group; animations: AnimationClip[] };
 import { MissingTextures, retryTransient } from './retry.ts';
 export { MissingTextures, retryTransient, transientLoadError } from './retry.ts';
 // The skin map a parsed fighter lacks ('' when it has them all): a creature's body needs map + roughnessMap, a warrior's Steel map + normalMap.
-export function missingMap(scene: Group): string {
+function missingMap(scene: Group): string {
   const creature = scene.getObjectByName('CreatureBody');
   const mesh = creature ?? scene.getObjectByName('Steel');
   const name = creature ? 'CreatureBody' : 'Steel';
@@ -135,7 +135,7 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
 // A live duel's peer drawn on the HERO rig (Strategy 2026-10-01, Option A): the page's second fighter is the hero's own warrior.glb, loaded a
 // second time under another cache key, with the peer's weapon grafted exactly as the player's is (equipWeapon, no shield carry), so he reads
 // as a player and not as the page's roster opponent. Only a ?duel= page reaches this, and only once both kits are known (scene.ts `peerKit`).
-export const PEER_RIG_KEY = '#peer';
+const PEER_RIG_KEY = '#peer';
 export async function loadPeerWarriors(url: string, weapons: [WeaponId, WeaponId], equipUrl?: string, peerEquipUrl?: string, equipFailed: (error: unknown) => void = () => {}) {
   const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
   const [hero, foe, part, foePart] = await Promise.all([loadFighter(url), loadFighter(url + PEER_RIG_KEY), equip(equipUrl), equip(peerEquipUrl)]);
