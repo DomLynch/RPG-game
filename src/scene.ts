@@ -478,6 +478,7 @@ export function createScene(
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
   const DIP_FRAMES = 4, DIP_DEPTH = 0.06;
   const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
+  let renderScale = 1;   // render-budget.ts: scales the ratio below, never the layout
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
   // The canvas box is the LAYOUT viewport, read from the root element, never innerWidth / innerHeight: iOS Safari reports the zoomed
   // VISUAL viewport there, so a pinch that slipped past main.ts's guard shrank the canvas to the zoomed area (the top half of the
@@ -682,9 +683,16 @@ export function createScene(
     lowerResolution() {
       if (ratio > 1) {
         ratio = 1;
-        renderer.setPixelRatio(ratio);
+        renderer.setPixelRatio(ratio * renderScale);
         resize();
       }
+    },
+    // The render budget's rung (render-budget.ts): the canvas resolution as a share of the ratio the page chose. 1 = untouched.
+    setRenderScale(scale: number) {
+      if (scale === renderScale) return;
+      renderScale = scale;
+      renderer.setPixelRatio(ratio * renderScale);
+      resize();
     },
     restoreGraphics() {
       this.lowerResolution();
