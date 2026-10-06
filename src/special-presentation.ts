@@ -76,7 +76,10 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
           if (yielding || event.tick <= slot.start) continue;
           const id = fight?.presets ? fight.presets[side] : bossSpecialId(event.name ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
           if (!id) continue;
-          if (slot.id !== id || slot.ended) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);
+          // The same effect again (a repeat cast): its textures, meshes and materials are built once per fight and kept; only its cast state is reset. A different
+          // special is a different effect and is built (select). Re-creating a landed effect cost 200-700 ms at 4x CPU throttle on the cast's first frame.
+          if (slot.id !== id || (slot.ended && !slot.fx)) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);   // (a load that failed or never landed is tried again)
+          else if (slot.ended) slot.fx!.clear();
           slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];
         } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled') && event.tick >= slot.start && !slot.ended) {
           slot.ended = true;

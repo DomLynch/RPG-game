@@ -218,3 +218,39 @@ test('manager Tithe matches authored solo arena transform and composes with real
   const frame = capture(managed); presentation.render(0, pair, 205, bones, bones, undefined, false); assert.deepEqual(capture(managed), frame, 'frozen draws do not compound transformations');
   presentation.clear(); assert.deepEqual(capture(managed), base);
 });
+
+test('a repeat cast of the same special creates nothing new: the effect is built once per fight, only its cast state is reset', async () => {
+  const scene = new THREE.Scene(), pair = fighters(), built: string[] = [], cleared: number[] = [];
+  const fight = { opponent: 'nightborn' as const, level: 46 };
+  const land = (actor: 0 | 1, tick: number): CombatEvent => ({ type: 'SpecialLanded', actor, tick, name: 'hadesshadow' } as CombatEvent);
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (id, group) => {
+    built.push(id); const mark = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()); group.add(mark);
+    return { render() {}, clear() { cleared.push(built.length); } };
+  });
+  presentation.prepare(1, [], pair, 1, false, fight); await flush();
+  const atFightStart = built.length, children = scene.children.length, groups = [...scene.children];
+  presentation.prepare(1, [start(1, 100)], pair, 100, false, fight); await flush();
+  presentation.prepare(1, [land(1, 220)], pair, 220, false, fight); await flush();
+  assert.equal(built.length, atFightStart, 'the first cast builds nothing: it was built at the fight start');
+  for (const second of [900, 1700]) {
+    presentation.prepare(1, [start(1, second)], pair, second, false, fight); await flush();
+    presentation.prepare(1, [land(1, second + 120)], pair, second + 120, false, fight); await flush();
+  }
+  assert.equal(built.length, atFightStart, 'a second and a third cast build nothing new');
+  assert.equal(scene.children.length, children, 'and the arena gained no group');
+  assert.deepEqual(scene.children, groups, 'the same groups stay in the scene (none disposed and replaced)');
+  assert.ok(cleared.length >= 2, 'each repeat resets the effect\'s cast state');
+  presentation.clear();
+});
+
+test('a load that failed is tried again on the next cast', async () => {
+  const scene = new THREE.Scene(), pair = fighters(), built: string[] = [];
+  const fight = { opponent: 'nightborn' as const, level: 46 };
+  let fail = true;
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (id) => { built.push(id); if (fail) { fail = false; throw Error('load failed'); } return { render() {}, clear() {} }; });
+  presentation.prepare(1, [], pair, 1, false, fight); await flush(); await flush();
+  const first = built.length;
+  presentation.prepare(1, [start(0, 100)], pair, 100, false, fight); await flush();   // side 0's first load was the one that failed
+  assert.ok(built.length > first, 'the failed load is tried again on the next cast');
+  presentation.clear();
+});
