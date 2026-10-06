@@ -37,6 +37,7 @@ import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
+import { FOE_TUNE } from './fatigue-tune.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
 import { createBloodEdge } from './blood-edge.ts';
@@ -1051,8 +1052,10 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.player.fatigue(practice.fatigue[0]);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
       warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
       warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
+      warriors?.opponent.fatigue(practice.fatigue[1], FOE_TUNE[opponentId]);   // fatigue-tune.ts: this body's own breathing
       const theirGait = runtimeSpecial ? runtimeSpecial.gait(1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose)) : gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
       warriors?.opponent.update(
         theirGait.travel,
