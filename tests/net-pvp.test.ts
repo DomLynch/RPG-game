@@ -244,7 +244,8 @@ function finishingPair(diverge = false, loseNotice = false) {
       for (const page of pages) page.frame(idleIntent());
     }
   };
-  return { pages, step };
+  const skip = (ms: number) => { now += ms; };
+  return { pages, step, skip };
 }
 
 test('desync settlement: a short confirmed finish waits for the peer fingerprint before declaring a result', () => {
@@ -522,4 +523,14 @@ test('desync settlement: a reordered legacy go cannot bypass the protocol handsh
   page.receive({ k: 'go', r: 'room0000', delay: 2, kits: [kit, kit] });
   assert.equal(page.session, null);
   assert.equal(page.stage, 'refused');
+});
+
+test('a winner whose tab was hidden after the finish settled is not marked left on its first frame back', () => {
+  const { pages, step, skip } = finishingPair();
+  for (const page of pages) page.setLink(true);
+  step(70);
+  for (const page of pages) assert.equal(page.settled, true);
+  skip(11000);
+  step(1);
+  for (const page of pages) { assert.equal(page.stage, 'fighting'); assert.equal(page.result, 'finished'); }
 });
