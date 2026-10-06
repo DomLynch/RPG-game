@@ -1,4 +1,5 @@
 import { RULES, type AiProfile, type Direction, type MoveId, weaponOf } from './moves.ts';
+import { LATE_NOTICE } from './play-radius.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
@@ -167,7 +168,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       // in time; one noticed with a tick to spare is answered only (spare - 1) / (lateNotice - 1) of the time, so the step from "never in time" to "always in
       // time" spreads over lateNotice - 1 levels of reaction instead of one. No draw is made at spare <= 0, so a warden slower than the cut keeps its stream.
       const spare = timing(opponent).windup - reaction;
-      if (next.plan !== 'ignore' && profile.softNotice && !TELLS.has(opponent.move ?? '') && !opponent.chained && spare > 0 && spare < READ.lateNotice && roll() >= (spare - 1) / (READ.lateNotice - 1)) next.plan = 'ignore';
+      if (next.plan !== 'ignore' && profile.softNotice && LATE_NOTICE && !TELLS.has(opponent.move ?? '') && !opponent.chained && spare > 0 && spare < READ.lateNotice && roll() >= (spare - 1) / (READ.lateNotice - 1)) next.plan = 'ignore';
       next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
     }
   } else if (noticed && next.plan === 'block' && charging(opponent) && !next.brace) {   // a heavy seen to be charging will break the guard: change the answer

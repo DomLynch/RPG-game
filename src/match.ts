@@ -29,7 +29,7 @@ import { stepSparring, type SparringKit } from './sparring.ts';
 import { createFirstLoss, type LessonId } from './first-loss.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
-import { PLAY_SCALE, playScaleFor, setPlayScale } from './play-radius.ts';
+import { FIRST_LATE_NOTICE_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor, setLateNotice, setPlayScale } from './play-radius.ts';
 import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
 import { bossSpecialFor } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
@@ -108,7 +108,7 @@ export class Match {
   // The one reset. Everything a fight owns starts here; `seed`, `weapon` and `level` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
-    if (mode !== 'replay') setPlayScale(mode === 'pvp' ? 1 : playScaleFor(this.opponent.id, Infinity));   // a live fight is fought in this build's circle for its warden (PvP is not Arena 1: the original); a replay's is set by startReplay, before begin (play-radius.ts)
+    if (mode !== 'replay') { setPlayScale(mode === 'pvp' ? 1 : playScaleFor(this.opponent.id, Infinity)); setLateNotice(true); }   // a live fight is fought in this build's circle for its warden (PvP is not Arena 1: the original); a replay's is set by startReplay, before begin (play-radius.ts)
     if (mode !== 'sparring') { this.dummy = false; if (this.sparSelection && mode !== 'replay') this.skill = this.sparLegacySkill; this.sparSelection = undefined; }
     if (mode !== 'pvp') this.pvp = null;
     this.lesson = mode === 'lesson' ? createFirstLoss(this.onLesson) : null;
@@ -160,7 +160,7 @@ export class Match {
       for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], profileAt(this.opponent, this.level));
     });
     this.replay = { record, cursor: fromTick };
-    setPlayScale(playScaleFor(record.opponent, record.v));   // the circle the record was fought in stays for as long as it plays (the scene and camera read it)
+    setPlayScale(playScaleFor(record.opponent, record.v));   // the circle the record was fought in stays for as long as it plays (the scene and camera read it); setLateNotice(record.v >= FIRST_LATE_NOTICE_VERSION);   // and so does its era's late notice (play-radius.ts)
     return true;
   }
   // Export clip (src/clip.ts): the ended fight's own record re-played from fromTick on the page as it stands, without a start: the
@@ -168,7 +168,7 @@ export class Match {
   // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; past it the clip plays on (step).
   // Returns what endClip() puts back.
   startClip(record: FightRecord, fromTick: number) {
-    const saved = { scale: PLAY_SCALE, practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog, specials: this.specials };
+    const saved = { scale: PLAY_SCALE, notice: LATE_NOTICE, practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog, specials: this.specials };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
     const practice = underRecord(record, () => {
       let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
@@ -176,11 +176,11 @@ export class Match {
       return p;
     });
     this.practice = practice; this.specials = !!record.specials; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
-    setPlayScale(playScaleFor(record.opponent, record.v));
+    setPlayScale(playScaleFor(record.opponent, record.v)); setLateNotice(record.v >= FIRST_LATE_NOTICE_VERSION);
     return saved;
   }
   endClip(saved: ReturnType<Match['startClip']>) {
-    setPlayScale(saved.scale); this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.clipLevel = null; this.fightLog = saved.fightLog; this.specials = saved.specials;
+    setPlayScale(saved.scale); setLateNotice(saved.notice); this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.clipLevel = null; this.fightLog = saved.fightLog; this.specials = saved.specials;
     this.frameEvents = [];
   }
   // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
