@@ -118,6 +118,7 @@ export class PvpDuel {
   private peerKit: Kit | null = null;
   get peer(): Kit | null { return this.peerKit; }   // the peer's kit as cleaned here, once his hello has arrived
   private frames = 0; private measureFrom = 0;
+  rollbacks = 0;   // frames on which the session re-stepped history (depth > 0): the page's presentation hold drops the predicted ticks it queued before one (main.ts, pvp-hold.ts)
   // Ready (Strategy 2026-10-01, Option A): the page loads its rigs only once the kits are known, which takes seconds on a phone. Neither side
   // starts the duel, so no silence rule runs against a peer that is only loading, until both pages say their rigs are in. A driver nobody
   // gates (the tests') is ready from the start, and a hello that names no `rdy` is from a peer that does not gate.
@@ -226,6 +227,7 @@ export class PvpDuel {
     if (!session) return this.quiet();
     if (this.side === 0 && !this.heard) this.send({ k: 'go', sync: SYNC_VERSION, delay: this.goDelay, kits: [this.kit, this.peerKit!] });
     const { advanced, depth } = session.frame(intent);
+    if (depth) this.rollbacks++;
     if (session.stats.desyncs.length) { this.disagree(); return this.quiet(); }
     this.send({ k: 'net', p: toWire(session.outgoing()) });
     // Silence (the rules at SILENCE): ended only once nothing is left to confirm here (a finish the peer's intents already decide still settles first).
