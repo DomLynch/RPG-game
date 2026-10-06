@@ -3,6 +3,7 @@ import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, withSpecials, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
+import { beginLiveFight } from './play-radius.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 import { specialStage } from './special-look.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
@@ -109,8 +110,10 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   };
 }
 // `specials`: the fight has Special Moves (duel.ts withSpecials: the ladder level picks the opponent's share, `aiSkill` names his special).
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }): Practice =>
-  project(specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill), initialAi(seed));
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }): Practice => {
+  beginLiveFight(opponent.id);   // the play circle of this build's fight (play-radius.ts); a replay's own circle is set by underRecord
+  return project(specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill), initialAi(seed));
+};
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
   return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);

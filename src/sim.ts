@@ -1,6 +1,7 @@
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 export const STEP = 1 / 60;
-export const RADIUS = 8.55;
+import { PLAY_SCALE, RADIUS } from './play-radius.ts';
+export { PLAY_SCALE, RADIUS };   // the play circle (play-radius.ts): 8.55 m, 0.6 of it in Arena 1 from record version 23
 export const TARGET = { x: 0, z: -2.5 };
 export type State = { x: number; z: number; heading: number; distance: number };
 export type Input = { x: number; z: number; yaw: number; run: boolean };

@@ -2,7 +2,8 @@
 // state across frames — yaw/pitch, the settle lerp, the camera kick, the authorized finisher push-in and the side-view reveal.
 // The rig reads simulation positions and the scene's finisher facts as plain data; it never reaches into rigs, blood or wounds.
 import * as THREE from 'three';
-import { TARGET, wrapAngle, type State } from './sim.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
+const CLAMP = (): number => 11.5 * PLAY_SCALE;   // the camera stays inside the arena wall (arena.ts CAMERA_CLAMP), which comes inward with the play circle (play-radius.ts)
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
@@ -37,9 +38,9 @@ export function cameraPose(
   }
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
   const radius = Math.hypot(x, z);
-  if (radius > 11.5) {
-    x *= 11.5 / radius;
-    z *= 11.5 / radius;
+  if (radius > CLAMP()) {
+    x *= CLAMP() / radius;
+    z *= CLAMP() / radius;
   }
   // ...and lift it until the same share of him clears the shoulders as would of a man at this gap.
   if (short) {
@@ -102,9 +103,9 @@ export function finisherSidePose(
       : [side(1), side(-1)];
   const pose = candidates.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
   const radius = Math.hypot(pose.x, pose.z);
-  if (radius > 11.5) {
-    pose.x *= 11.5 / radius;
-    pose.z *= 11.5 / radius;
+  if (radius > CLAMP()) {
+    pose.x *= CLAMP() / radius;
+    pose.z *= CLAMP() / radius;
   }
   return pose;
 }
@@ -313,9 +314,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.lerp(new THREE.Vector3(side.x, side.y, side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX, side.lookY, side.lookZ), reveal);
         const radius = Math.hypot(desired.x, desired.z);
-        if (radius > 11.5) {
-          desired.x *= 11.5 / radius;
-          desired.z *= 11.5 / radius;
+        if (radius > CLAMP()) {
+          desired.x *= CLAMP() / radius;
+          desired.z *= CLAMP() / radius;
         }
       }
       // The arena cam, on top of whatever the finisher's own moves settled on: TOUR.afterSettle seconds after the settle
@@ -333,7 +334,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         const angle = tourAngle + (t * 2 * Math.PI) / TOUR.lap, radius = TOUR.radius + TOUR.breath * Math.sin((t * 2 * Math.PI) / TOUR.breathe);
         const height = (low ? 1.2 : 1.6) + (low ? 1 : 1.6) * (1 - Math.cos((t * 2 * Math.PI) / TOUR.rise)) / 2;
         const tour = new THREE.Vector3(focusX + Math.sin(angle) * radius, height, focusZ + Math.cos(angle) * radius), r = Math.hypot(tour.x, tour.z);
-        if (r > 11.5) { tour.x *= 11.5 / r; tour.z *= 11.5 / r; }
+        if (r > CLAMP()) { tour.x *= CLAMP() / r; tour.z *= CLAMP() / r; }
         const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.lerp(tour, blendIn);
         look.lerp(new THREE.Vector3(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
@@ -344,7 +345,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         if (left > GATE_CAM.near) yaw = Math.atan2(-tx, -tz);   // at the gate itself the line has no direction: hold the last one
         const ahead = Math.min(GATE_CAM.ahead, left), eye = new THREE.Vector3(state.x + Math.sin(yaw) * GATE_CAM.back, GATE_CAM.height, state.z + Math.cos(yaw) * GATE_CAM.back);
         const r = Math.hypot(eye.x, eye.z);
-        if (r > 11.5) { eye.x *= 11.5 / r; eye.z *= 11.5 / r; }
+        if (r > CLAMP()) { eye.x *= CLAMP() / r; eye.z *= CLAMP() / r; }
         const s = Math.min(1, (finishAge - gateBegan) / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.copy(gateFrom).lerp(eye, blendIn);
         look.copy(gateLookFrom).lerp(new THREE.Vector3(state.x - Math.sin(yaw) * ahead, GATE_CAM.lookY, state.z - Math.cos(yaw) * ahead), blendIn);

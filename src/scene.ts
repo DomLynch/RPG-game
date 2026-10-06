@@ -22,7 +22,7 @@ import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
-import { TARGET, wrapAngle, type State } from './sim.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
 import { arenaFor, hasArena1Sand } from './arena-themes.ts';
@@ -176,6 +176,7 @@ export function createScene(
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene);
+  arena.group.scale.setScalar(PLAY_SCALE);   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
@@ -760,6 +761,7 @@ export function createScene(
       specialEpoch = 0,
       specialFight?: SpecialFightIdentity,
     ) {
+      if (arena.group.scale.x !== PLAY_SCALE) arena.group.scale.setScalar(PLAY_SCALE);   // the floor, ring, backdrop and props come inward with the play circle of the fight on screen (play-radius.ts; Match sets it)
       if (specialId && (previewEpoch !== specialEpoch || practice.duel.tick < previewTick)) {
         previewGeneration++; specialFx?.clear(); previewBlocked = false; if (!specialFx) { specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }
