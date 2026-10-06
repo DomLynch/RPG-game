@@ -20,7 +20,7 @@ const EXPECTED = {
 
 test('all ten opponents select their approved identities across every rank boundary', () => {
   for (const opponent of Object.keys(EXPECTED) as (keyof typeof EXPECTED)[]) {
-    for (let level = 1; level <= 46; level++) {
+    for (let level = 1; level <= 50; level++) {   // Origin I–V (46–50) all cast the third special
       const expected = level < 36 ? null : EXPECTED[opponent][level < 41 ? 0 : level < 46 ? 1 : 2];
       assert.equal(bossSpecialFor(opponent, level), expected, `${opponent}:${level}`);
     }
@@ -45,7 +45,7 @@ test('unmapped names, opponents and invalid levels never fall back to another bo
   for (const opponent of Object.keys(ROSTER) as OpponentId[]) {
     if (!Object.hasOwn(EXPECTED, opponent)) for (const level of [1, 16, 36, 41, 46]) assert.equal(bossSpecialFor(opponent, level), null);
   }
-  for (const level of [0, -1, 35.5, 36.5, 47, NaN, Infinity]) assert.equal(bossSpecialFor('veteran', level), null);
+  for (const level of [0, -1, 35.5, 36.5, 51, NaN, Infinity]) assert.equal(bossSpecialFor('veteran', level), null);
 });
 
 test('actor order and later selections cannot change the accepted cast identity', () => {

@@ -2172,7 +2172,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 /* The admin Sparring tab (Dom 2026-09-29, via Strategy): the one tab of test picks (Opponent, Difficulty level, Stage, Move, Weapon,
    Finisher) wrapping as the journal's chips, then Start sparring. Players never see it (main.ts / account.ts hide #sparring-tab). */
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
-/* Every Sparring select shrinks to the line (the Difficulty labels "46 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
+/* Every Sparring select shrinks to the line (the Difficulty labels "50 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
 .sparring-row .menu-select { max-width: 100%; min-width: 0; }
 .sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; background: var(--jp); color: var(--jf); color-scheme: dark; }
 .sparring-row .menu-select select:disabled { opacity: 1; color: var(--jm); }
@@ -2465,3 +2465,6 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #tutorial-prompt[data-now='1'] #tutorial-word { color: #ffd45a; }
 #tutorial-go { pointer-events: auto; margin-top: 8px; padding: 12px 28px; font: 800 22px/1 Arial, sans-serif; color: #1a1208; background: #e8c46a; border: 0; border-radius: 10px; }
 html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is the one message; the row keeps its height so the HUD below never jumps */
+
+/* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
+#fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
