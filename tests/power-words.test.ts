@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POWER_WORD_GAIN, POWER_WORDS, powerWordFor } from '../src/power-words.ts';
+import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor } from '../src/power-words.ts';
 
 test('muted, like the other voices', () => assert.equal(POWER_WORD_GAIN, 0));
 
@@ -20,4 +20,11 @@ test('the word is picked by the cast tick for the Witch and the Plague Doctor on
   assert.equal(powerWordFor('plaguedoctor', 5), 'Thaniveck');
   assert.equal(powerWordFor('witch', 4), powerWordFor('witch', 4));
   assert.equal(powerWordFor('goblin', 3), undefined);
+});
+
+test('the wind-up announces the word as a muted event, and nothing for other casters', () => {
+  const seen: { word: string; actor: number; tick: number; gain: number }[] = [];
+  const target = { dispatchEvent: (e: Event) => { seen.push((e as CustomEvent).detail); return true; } };
+  announcePowerWord('witch', 4, target); announcePowerWord('goblin', 4, target);
+  assert.deepEqual(seen, [{ word: 'Ixoreth', actor: 1, tick: 4, gain: 0 }]);
 });
