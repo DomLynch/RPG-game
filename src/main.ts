@@ -30,6 +30,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { POWER_WORD_GAIN, powerWordFor } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -1847,6 +1848,8 @@ function frame(now: number) {
           const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
+          const word = !quiet && e.actor === 1 ? powerWordFor(opponent, e.tick) : undefined;   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, announced as an event only
+          if (word) window.dispatchEvent(new CustomEvent('frankendom:powerword', { detail: { word, actor: e.actor, tick: e.tick, gain: POWER_WORD_GAIN } }));
         } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
