@@ -23,7 +23,9 @@ import { awardMark, levelOf, marksOf, turnDial, RANK_STEPS, TITLES } from './car
 import { autopsy } from './autopsy.ts';
 import { readOpponent } from './ai.ts';
 import { idleIntent } from './duel.ts';
-import { nextOpponent, passKey, won } from './ladder.ts';
+import { nextArena, nextOpponent, passKey, won } from './ladder.ts';
+import type { ArenaKey } from './arena-themes.ts';
+import type { RecordArena } from './record.ts';
 import { defeat, type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import { createFirstLoss, type LessonId } from './first-loss.ts';
@@ -49,7 +51,7 @@ export const DAILY_LEVEL = PRESET_LEVEL.normal;   // the server's daily verifier
 type Recorder = ReturnType<typeof createRecorder>;
 // What the page keeps and the match writes: the device's trial tally, scorecard and fighter profile, and the storage they save to.
 // `rank`: the career's rank level (main.ts: levelOf(careerMarks()), the server figure once there); absent, the device count's.
-export type MatchPorts = { storage: StoragePort; trial: Trial; scorecard: Scorecard; profile: Profile; rank?: () => number };
+export type MatchPorts = { storage: StoragePort; trial: Trial; scorecard: Scorecard; profile: Profile; rank?: () => number; arena?: () => RecordArena | undefined };   // arena: the arena this page built, named in a live fight's record (record.ts version 26)
 // The end of a fight, for the page to show: the record (null in a replay, or when a mid-fight difficulty change dropped the
 // recorder), the autopsy lines, whether the player won and whether the fight counted (career only).
 export type Ended = { record: FightRecord | null; lines: string[]; won: boolean; rewarded: boolean };
@@ -125,7 +127,7 @@ export class Match {
       this.skill = this.practice.duel.fighters[0].skill;
       this.specials = this.practice.duel.fighters.some(f => f.specialShare !== undefined);
     }
-    this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' || mode === 'lesson' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
+    this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' || mode === 'lesson' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.ports.arena?.() ? { arena: this.ports.arena() } : {}), ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
@@ -147,9 +149,11 @@ export class Match {
   }
   // After a career win the ladder moves on; the next fighter is another rig, so the page reloads on that rung (main.ts).
   // After a career win: the next opponent, a random pick from the pass's unbeaten (ladder.ts nextOpponent), and the pass to store with it.
-  nextRung(): { id: Opponent['id']; name: string; pass: Opponent['id'][] } | undefined {
+  nextRung(): { id: Opponent['id']; name: string; pass: Opponent['id'][]; arena: ArenaKey; arenaPass: ArenaKey[] } | undefined {
     const { profile } = this.ports;
-    return !this.practiceOnly && won(this.practice.finish) ? nextOpponent(this.opponent.id, profile.pass ?? [], passKey(profile.id, marksOf(profile))) : undefined;
+    if (this.practiceOnly || !won(this.practice.finish)) return undefined;
+    const key = passKey(profile.id, marksOf(profile)), next = nextOpponent(this.opponent.id, profile.pass ?? [], key), a = nextArena(profile.arena ?? '1', profile.arenaPass ?? [], key);   // the arena draws with the opponent: a win moves both, a rematch neither
+    return { ...next, arena: a.arena, arenaPass: a.pass };
   }
   // A kill link: the fight on the record's seed, weapon and warden profile, stepped silently to fromTick and played from there.
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.

@@ -109,10 +109,14 @@ export function acceptTrade(trade: Trade, character: CharacterInstanceId, expect
 }
 
 // Settle a trade both sides accepted. `holdings` is every instance either player holds (worn, pack, bank, vault, escrow), so the
-// one-of-each rule and the free pack slots are checked against the whole picture. Returns the moved instances: each lands in the first
-// free pack slot of its new owner, at version + 1, with a trade entry appended to its history and its provenance and upgrade level
-// untouched. Refused outright, with nothing moved, if any rule fails (no partial trade, no spill onto the floor).
-export function settleTrade(trade: Trade, holdings: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined, accountOf: AccountOf, now: string): Result<ItemInstance[]> {
+// one-of-each rule and the free pack slots are checked against the whole picture. `packSizeOf` is each character's real pack size
+// (1..PACK_SLOTS; a starter pack is smaller), never assumed. Returns the moved instances: each lands in the first free slot of its new
+// owner's pack, at version + 1, with a trade entry appended to its history and its provenance and upgrade level untouched. Refused
+// outright, with nothing moved, if any rule fails (no partial trade, no spill onto the floor).
+export function settleTrade(
+  trade: Trade, holdings: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined, accountOf: AccountOf, now: string,
+  packSizeOf: (pc: CharacterInstanceId) => number,
+): Result<ItemInstance[]> {
   const issues = new Issues();
   if (trade.region !== CONCORD_EXCHANGE) issues.add('rule-violation', 'region', `trades settle only at the Concord Exchange, not ${trade.region}`);
   trade.sides.forEach((side, i) => {
@@ -136,7 +140,8 @@ export function settleTrade(trade: Trade, holdings: readonly ItemInstance[], loo
 
   const moved: ItemInstance[] = [];
   trade.sides.forEach((side, i) => {
-    const recipient = trade.sides[1 - i]!.character;
+    const recipient = trade.sides[1 - i]!.character, size = packSizeOf(recipient);
+    if (!Number.isInteger(size) || size < 1 || size > PACK_SLOTS) return issues.add('out-of-range', `sides[${1 - i}].character`, `${recipient}'s pack size must be 1..${PACK_SLOTS}`);
     const used = new Set(holdings.filter((h) => h.location.kind === 'pack' && h.location.owner === recipient).map((h) => (h.location as { index: number }).index));
     side.offered.forEach((id, j) => {
       const path = `sides[${i}].offered[${j}]`;
@@ -150,7 +155,7 @@ export function settleTrade(trade: Trade, holdings: readonly ItemInstance[], loo
       if (inst.boundTo !== null || def.story === 'story-critical') return issues.add('rule-violation', path, `${id} is bound and cannot change hands`);
       let index = 0;
       while (used.has(index)) index++;
-      if (index >= PACK_SLOTS) return issues.add('rule-violation', path, `${recipient}'s pack is full`);
+      if (index >= size) return issues.add('rule-violation', path, `${recipient}'s pack is full (${size} slots)`);
       used.add(index);
       const placed = placeWithHistory(inst, def, { kind: 'pack', owner: recipient, index }, { kind: 'trade', trade: trade.id, from: side.character, to: recipient, at: now });
       const value = issues.absorb(placed);
