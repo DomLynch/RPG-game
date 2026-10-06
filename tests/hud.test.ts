@@ -144,3 +144,13 @@ test('update: SKILL shows whether the equipped cone skill is in reach (data-reac
   assert.equal(at('lunge', 2.3), 'true', 'Lunge reads its own 2.4 m, not the Jab\'s');
   assert.equal(at(undefined, 0.9), undefined, 'no skill held: no reach flag, SKILL as before');
 });
+
+test('a lesson the fight sets wins the combat-status line, and the line returns when it is cleared (lessons.ts)', () => {
+  const { element, get } = dom(), hud = createHud(element as never), practice = initialPractice();
+  hud.update(practice, view());
+  const plain = get('combat-status').textContent;
+  hud.update(practice, view({ lesson: 'rollSideways' }));
+  assert.equal(get('combat-status').textContent, 'Roll sideways, then step back in.');
+  hud.update(practice, view());
+  assert.equal(get('combat-status').textContent, plain);
+});

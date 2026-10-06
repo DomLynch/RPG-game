@@ -4,13 +4,14 @@
 import { accepts, counterLine, practiceHint, type CombatEvent, type Practice } from './combat.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
+import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonId } from './lessons.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonId; lessonFight?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -40,7 +41,7 @@ export function createHud(element: Lookup) {
     update(practice: Practice, view: HudView) {
       // The sparring dummy never attacks (src/sparring.ts), so the sheathed line's "will counterattack" is false there (Strategy 2026-09-26).
       const foe = bareName(view.opponentId), line = practiceHint(practice, foe, view.legend),
-        hint = view.dummy ? line.replace(counterLine(foe, view.legend), 'The dummy never attacks.') : line,
+        hint = view.lesson ? lessonText(view.lesson) : view.lessonFight && !practice.playerHealth ? LESSON_FELL : view.dummy ? line.replace(counterLine(foe, view.legend), 'The dummy never attacks.') : line,   // lesson: a teaching beat the fight set (lessons.ts) wins the line while it is up
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
         (a) => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')),
@@ -124,7 +125,7 @@ export function createHud(element: Lookup) {
       resetButton.hidden = !ended && !view.stalled;
       const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? view.next : undefined;   // the page's own pick (match.ts nextRung): label and button agree
       // "PLAY NOW" on a shared link, not "Avenge him" (owner 2026-09-22): a stranger does not know whose death they are avenging.
-      resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : next ? `Next: ${next.name}` : 'Rematch';
+      resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : view.lessonFight ? LESSON_NEXT : next ? `Next: ${next.name}` : 'Rematch';
       // On a viewer page PLAY NOW is the only live control on the screen (every combat button beside it is asleep), so it wears the
       // kill screen's primary rather than the dark glass it shares with Rematch — style.css `#reset-button[data-play='1']`.
       resetButton.dataset.play = view.replay || view.stalled ? '1' : '0';
