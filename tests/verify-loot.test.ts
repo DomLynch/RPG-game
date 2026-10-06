@@ -331,3 +331,10 @@ test('RV29: a pending v28 claim is HELD by the reach (kept, no award), --accept 
   assert.match(outcome.note!, /^HELD v28: reach: .* \| ACCEPTED 2026-10-08T09:00:00.000Z by runbook: chromium\+webkit @10 on 0d2d9996$/);
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');
 });
+
+test('--accept still refuses a non-reach hold on a v20+ record (its replay is engine-independent); only a reach hold is accepted past heldMax', async () => {
+  const win = await goblinKill();
+  const db = { ...fakeDb([], FRESH), claim: async () => ({ id: 9, user_id: U, opponent: 'goblin', piece: null, record: win, verified: false, note: 'HELD v29: the replay ends in "died", the record says "killed"' }) };
+  await assert.rejects(acceptHeld(db, 9, 'chromium @10 on 0d2d9996'), /is a v29 record: its replay is engine-independent/);
+  assert.equal(db.settled.size, 0);
+});

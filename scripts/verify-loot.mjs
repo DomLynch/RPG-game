@@ -19,14 +19,14 @@
 // DATABASE_URL only: the flip and the award are one transaction, which PostgREST cannot give. Exit 0 with a JSON receipt; exit 1 only
 // when the database cannot be reached. `node scripts/verify-loot.mjs --dry` checks without writing.
 //
-// HELD (Strategy/Lead 2026-09-29, until every claim is v20+). Two refusals of a record up to v19 are HELD, never lost:
+// HELD (Strategy/Lead 2026-09-29, until every claim is v20+). Two refusals are HELD, never lost (a divergence only on a record up to v19; a reach at ANY version since RV29, 2026-10-07):
 //   - divergence: a v≤19 record steps the sim with the engine's own Math.*, which differs by an ulp between the player's browser and
 //     this Node, so its replay can diverge from a win the browser really played;
-//   - reach: a later bump changed that opponent's fight (record.ts "version N is not supported for the <opponent> from level L"), so
+//   - reach (any version; RV29's REACH[29] covers every opponent, so every claim still pending at v<=28 when it ships is one): a later bump changed that opponent's fight (record.ts "version N is not supported for the <opponent> from level L"), so
 //     a claim still pending when that bump publishes can no longer be read here at all.
 // Such a refusal is settled as today but its note starts `HELD v<n>:` (`HELD v<n>: reach:` for the second), it is reported to Sentry
 // (SENTRY_DSN in verifier.env; silent without it), and it is cleared by hand only. RUNBOOK: Backend replays the record headless in
-// Chromium and WebKit on the LAST build that reads it (for divergence the deployed build; for reach the revision before the bump,
+// Chromium and WebKit on the LAST build that reads it (for divergence the deployed build; for reach the revision before the bump (for a held v<=28 claim: the build before RV29, i.e. the last trunk revision that still reads it),
 // e.g. fc2254aa for bump 20), and on that same checkout runs its own `refusal(row, standing)` with the account's standing_of: it must
 // be null or a divergence. If a browser reaches the recorded win at the recorded tick, Deploy runs
 // `node scripts/verify-loot.mjs --accept <id> --engines "<engines> @<tick> on <rev>"`, which re-runs every check this build can
@@ -136,7 +136,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
 
 // Why a claim is not a verified win, or null when the replay proves it. Never throws: a throw is a refusal. `standing`: the account's
 // server standing before this claim; the level the win was fought at must clear its dial floor (src/awards.ts levelRefusal).
-// A replay that diverges on a record up to HELD_MAX_VERSION is HELD (header); every other reason stays plain. `replay: false` is
+// A replay that diverges on a record up to HELD_MAX_VERSION is HELD (header); a reach refusal is HELD at any version (RV29); every other reason stays plain. `replay: false` is
 // --accept's path: every check but the replay.
 export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION } = {}) {
   try {
@@ -157,7 +157,7 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
 }
 
 // The runbook's manual grant for a HELD claim that a real browser engine replayed to its win (header). Refuses anything not HELD and
-// anything past HELD_MAX_VERSION (a v20+ miss is a real refusal); re-runs every check but the replay; settles it as a sweep settles a
+// a divergence hold past HELD_MAX_VERSION (a v20+ miss is a real refusal; a reach hold is accepted at any version); re-runs every check but the replay; settles it as a sweep settles a
 // win, with the audit line appended to its note. Returns the settle, or throws with the reason nothing was written.
 export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = HELD_MAX_VERSION } = {}) {
   if (!ENGINES.test(engines ?? '')) throw Error('--accept needs --engines "<engines that reached the win> @<tick> on <rev>", e.g. "chromium+webkit @1800 on fc2254aa"');
