@@ -3,7 +3,8 @@ import { walk, walkerFrom, type Walker } from './post-walk.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
-import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
+import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './record.ts';
+import { arenaFor } from './arena-themes.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
@@ -50,6 +51,7 @@ import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
+import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
@@ -487,9 +489,14 @@ const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY)
 const arenaSelect = element<HTMLSelectElement>('arena-select');
 const rawArena = sparParams.get('arena');
 const requestedArena = sparPreview.kit && rawArena !== null
-  ? ['1', '2', '3', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
+// The career's own arena (Lead + Dom 2026-10-06, rotation): the first fight is Arena 1, then ladder.ts nextArena. A kill link is NOT a career fight: it replays in its
+// record's arena (version 26, re-opened below) or, for an older record, in the ladder band it always had.
+const careerArena = !replayText && !sharedId ? profile.arena ?? '1' : undefined;
+const arenaPick = requestedArena ?? (storedArena || careerArena);   // what the scene is built with (createScene); 'ladder' and unknown keys fall to the band
+const builtArena = arenaFor(opponent.id, arenaPick).id as RecordArena;   // the key the scene really builds: a live fight's record names it
 arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
 if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
 // Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
@@ -527,7 +534,7 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -793,7 +800,9 @@ function winFace(src: string | null) {
 const LESSON_MS = 4000;
 let lessonNow: LessonId | undefined, lessonTimer = 0;
 export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
   hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
@@ -994,7 +1003,7 @@ function nextFight(): void {
   const settled = settleClaim(match.lastDrop);   // leaving the kill screen is the last word: a take still in its Undo line stands
   const next = match.nextRung();
   if (next) {
-    profile.encounter = next.id; profile.pass = next.pass;
+    profile.encounter = next.id; profile.pass = next.pass; profile.arena = next.arena; profile.arenaPass = next.arenaPass;
     persist();
     void settled.then(() => location.reload());
     return;
@@ -1166,6 +1175,9 @@ if (replayText || sharedId) {
       if (urlOpponent) throw Error('the link names another opponent');
       const target = new URL(location.href); target.searchParams.set('opponent', record.opponent); location.replace(target.href); return;   // once: the re-opened page boots that rig
     }
+    if (record.arena && record.arena !== builtArena && !requestedArena && !storedArena) {   // a v26 link names its arena; the scene is built at boot, so re-open once with ?arena= (as ?opponent= above). A v<=25 link names none: the band it always had
+      const target = new URL(location.href); target.searchParams.set('arena', record.arena); location.replace(target.href); return;
+    }
     startReplay(record, Math.max(0, record.ticks - Math.round(REPLAY_TAIL / STEP)), epoch);
   }).catch((error: unknown) => {
     if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the link loaded: the failure is not its
@@ -1232,6 +1244,18 @@ if (lessonAsked) {
   Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
   began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
 }
+// The tutorial start scene (src/tutorial.ts, Match 'tutorial'): `?tutorial=1` only, until Dom approves the preview. The slow warden waits on each step;
+// the step ids land on <html data-tutorial-done> and __tutorial for the Web lane's instructions and the stills harness.
+if (!sparKit && !replayText && !sharedId && !invalidSparringPreview && !lessonAsked && new URLSearchParams(window.location?.search ?? '').get('tutorial') === '1') {
+  welcome.hidden = true; watching = false;
+  const done: string[] = [];
+  // After the last step the prompt turns into "YOU'RE READY" with a Fight! button: it marks the lesson done and drops into a normal first fight (?fight=1, as the first loss does).
+  tutorialUi = createTutorialUi(element, () => { try { storage.setItem(LESSON_DONE_KEY, '1'); } catch { /* unsaved: harmless */ } location.assign(`${location.pathname}?fight=1`); });
+  document.documentElement.dataset.tutorial = '1';   // style.css hides the old status line: one message only
+  match.startTutorial((id) => { done.push(id); document.documentElement.dataset.tutorialDone = id; });
+  Object.assign(globalThis, { __tutorial: () => ({ tick: match.practice.duel.tick, done: [...done], current: match.tutorial?.current ?? null, recorder: !!match.recorder, finish: match.practice.finish }) });
+  began();
+}
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
@@ -1297,7 +1321,7 @@ if (duelAsked) {
     if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
       banner('Choose a valid Sparring kit before Start sparring.', true); return;
     }
-    link.searchParams.set('arena', ['1', '2', '3', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    link.searchParams.set('arena', ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
   });
@@ -1523,7 +1547,7 @@ try {
       if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
-    requestedArena ?? (storedArena || undefined),   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
+    arenaPick,   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
     weaponSettled.then(() => match.weapon, () => match.weapon),
     (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
       const replay = !!match.replay, asked = match.weapon;
@@ -1767,7 +1791,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson' && match.mode !== 'tutorial') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {

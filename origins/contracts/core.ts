@@ -216,6 +216,7 @@ export const KINDS = [
   'upgrade-cost-table',
   'upgrade-request',
   'upgrade-receipt',
+  'npc-talk',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
