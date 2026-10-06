@@ -9,7 +9,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
-// Concord Exchange and the bank's front in greybox. A tour walks it by itself; a drag takes over (up walks, sideways turns).
+// Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
 const theme = ARENA_THEMES['1'], PHONE = phoneTier();
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -62,26 +62,19 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(warriorUrl).then((g
   hero.remove(body, cap); hero.add(gltf.scene);
 }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
-const TOUR: [number, number][] = [[0, 3], [0, -6], [0, -24], [0, -36], [-5.5, -44], [-2, -54], [-6.2, -59.5], [-3, -62.5], [0, -63.5], [0, BANK_STEP_Z + 1.2]];
-let heading = Math.PI, leg = 1, touring = true, stick: { x0: number; y0: number; x: number; y: number } | null = null;
-const state = { x: TOUR[0][0], z: TOUR[0][1] };
-const place = document.getElementById('place')!, tourButton = document.getElementById('tour') as HTMLButtonElement, ring = document.getElementById('stick')!;
-function restart() { state.x = TOUR[0][0]; state.z = TOUR[0][1]; heading = Math.PI; leg = 1; touring = true; arena.raiseGate(false); tourButton.textContent = 'Pause tour'; }
-tourButton.onclick = () => { touring = !touring; tourButton.textContent = touring ? 'Pause tour' : 'Resume tour'; };
-document.getElementById('restart')!.onclick = restart;
-canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; touring = false; tourButton.textContent = 'Resume tour'; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
+let heading = Math.PI, stick: { x0: number; y0: number; x: number; y: number } | null = null;
+const state = { x: 0, z: 3 }, keys = new Set<string>();
+const place = document.getElementById('place')!, ring = document.getElementById('stick')!;
+canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { if (stick) { stick.x = e.clientX; stick.y = e.clientY; } });
 for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, () => { stick = null; ring.style.display = 'none'; });
+addEventListener('keydown', (e) => keys.add(e.code)); addEventListener('keyup', (e) => keys.delete(e.code)); addEventListener('blur', () => keys.clear());
+const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
-  let forward = 0, turn = 0;
-  if (touring && leg < TOUR.length) {
-    const [tx, tz] = TOUR[leg], dx = tx - state.x, dz = tz - state.z, want = Math.atan2(dx, dz);
-    turn = Math.max(-1, Math.min(1, Math.atan2(Math.sin(want - heading), Math.cos(want - heading)) * 2.5)); forward = 1;
-    if (Math.hypot(dx, dz) < 0.8) leg++;
-    if (leg >= TOUR.length) { touring = false; tourButton.textContent = 'Resume tour'; leg = 1; }
-  } else if (stick) {
+  let forward = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');
+  if (stick) {
     const sx = (stick.x - stick.x0) / 48, sy = (stick.y0 - stick.y) / 48;
     forward = Math.max(-0.6, Math.min(1, sy)); turn = -Math.max(-1, Math.min(1, sx));
   }
@@ -115,4 +108,4 @@ renderer.setAnimationLoop(() => {
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
 });
-(window as unknown as { originsPreview: unknown }).originsPreview = { state, restart, setTouring: (on: boolean) => { touring = on; }, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; touring = false; } };
+(window as unknown as { originsPreview: unknown }).originsPreview = { state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; } };
