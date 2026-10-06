@@ -10,21 +10,21 @@
 // event per eligible character (the `Kill` the progression model settles; first-win-only is the MODEL's rule, not this module's) and
 // one loot request per eligible character (the server rolls the table after verifying; nothing is rolled here). Both carry the same
 // deterministic key, so a retried settlement is caught by the server's unique index.
+//
+// The key is `<hash>:<defeat #>:<pc>`, where <hash> is the encounter id's short hash (hash.ts): the first 12 RFC 4648 base32 characters
+// (lowercase a-z2-7, no padding) of sha-256 of the id's UTF-8 bytes. 12 + ':' + defeat digits + ':' + the longest pc id ("pc:" + 96)
+// stays inside MINT_KEY_PATTERN's 128 for any defeat count below 10^15, so a boss id needs only the contracts' id rules, no length cap.
 import { MAX_LEVEL, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, type Kill } from '../progression/model.ts';
 import { Issues, fail, ok, type Result } from '../contracts/core.ts';
 import { parseId, type CharacterInstanceId, type EncounterId, type LootTableId } from '../contracts/ids.ts';
 import { parseEncounterDefinition, type EncounterDefinition } from '../contracts/world.ts';
+import { shortHash } from './hash.ts';
 
 // The contract's own type with the boss's optional level and health proven present (not a second content type).
 export type BossEncounter = EncounterDefinition & { boss: Required<EncounterDefinition['boss']> };
 
-// Every emitted key is `<encounter>:<defeat #>:<pc>`. With up to 6 defeat digits and the longest pc id ("pc:" + a 96-character local
-// part, contracts/ids.ts), the encounter id has this many characters left inside MINT_KEY_PATTERN's 128.
-const MINT_KEY_MAX = 128, LONGEST_PC_ID = 'pc:'.length + 96, DEFEAT_DIGITS = 6;
-export const MAX_BOSS_ID_LENGTH = MINT_KEY_MAX - LONGEST_PC_ID - DEFEAT_DIGITS - 2;
-
 // Parse an encounter and check it can run as a world boss: level and health present, the contract's percent equal to the progression
-// model's threshold, and an id short enough that no defeat can emit an unmintable key.
+// model's threshold.
 export function parseBossDefinition(raw: unknown, path = ''): Result<BossEncounter> {
   const r = parseEncounterDefinition(raw, path);
   if (!r.ok) return r;
@@ -35,7 +35,6 @@ export function parseBossDefinition(raw: unknown, path = ''): Result<BossEncount
   if (def.rewards.minContributionPercent * 10 !== MIN_CONTRIBUTION_PERMILLE) {
     issues.add('rule-violation', at('rewards.minContributionPercent'), `a world boss pays at ${MIN_CONTRIBUTION_PERMILLE / 10}% of its health`);
   }
-  if (def.id.length > MAX_BOSS_ID_LENGTH) issues.add('out-of-range', at('id'), `a world boss id is at most ${MAX_BOSS_ID_LENGTH} characters, so its mint keys fit`);
   return issues.finish(def as BossEncounter);
 }
 
@@ -125,10 +124,10 @@ export function step(def: BossEncounter, state: BossState, action: Action): Resu
 // transition into 'defeated', so a replayed killing blow lands on a defeated boss and emits nothing.
 function defeat(def: BossEncounter, state: BossState, at: number): Step {
   const { id, boss } = def;
-  const events: Kill[] = [], loot: LootRequest[] = [];
+  const events: Kill[] = [], loot: LootRequest[] = [], hash = shortHash(id);
   for (const [character, c] of state.contributors) {
     if (!isEligible(def, c)) continue;
-    const key = `${id}:${state.defeats}:${character}`;
+    const key = `${hash}:${state.defeats}:${character}`;
     const partyLevels = c.party === null ? [] : [...state.contributors].filter(([o, m]) => o !== character && m.party === c.party).map(([, m]) => m.level);
     events.push({
       kind: 'kill', id: key, at, type: 'world-boss', target: id, targetLevel: def.boss.level, contributionPermille: sharePermille(def, c),
