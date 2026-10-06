@@ -64,8 +64,8 @@ test('in Arena 1 the wall is the boundary: the play circle ends at the wall\'s i
 });
 
 test('the version is stamped when the recorder is born, in the circle the fight began in, not when it ends', () => {
-  setPlayScale(ARENA_ONE_SCALE);
+  setPlayScale(ARENA_ONE_SCALE); setLateNotice(true);   // a live fight: the page has the late notice on (a headless recorder stamps FIRST_SCALED_VERSION, tested below)
   const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
-  setPlayScale(1);   // the page moved on before the record was finished
+  setPlayScale(1); setLateNotice(false);   // the page moved on before the record was finished
   assert.equal(rec.finish('abandoned').v, RECORD_VERSION);
 });

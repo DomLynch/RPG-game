@@ -160,7 +160,7 @@ export class Match {
       for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], profileAt(this.opponent, this.level));
     });
     this.replay = { record, cursor: fromTick };
-    setPlayScale(playScaleFor(record.opponent, record.v));   // the circle the record was fought in stays for as long as it plays (the scene and camera read it); setLateNotice(record.v >= FIRST_LATE_NOTICE_VERSION);   // and so does its era's late notice (play-radius.ts)
+    setPlayScale(playScaleFor(record.opponent, record.v));   // the circle the record was fought in stays for as long as it plays (the scene and camera read it)
     return true;
   }
   // Export clip (src/clip.ts): the ended fight's own record re-played from fromTick on the page as it stands, without a start: the
