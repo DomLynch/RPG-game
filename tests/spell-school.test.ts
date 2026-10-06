@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { SCHOOLS, SCHOOL_OF, schoolTinter, schoolsFlag } from '../src/spell-school.ts';
+import { SCHOOLS, SCHOOL_OF, schoolTinter, schoolsFlag, schoolsSoft } from '../src/spell-school.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 
 test('the flag is ?look=schools only, alone or in a list', () => {
   assert.equal(schoolsFlag(''), false);
   assert.equal(schoolsFlag('?look=souls'), false);
   assert.equal(schoolsFlag('?look=schools'), true);
+  assert.equal(schoolsFlag('?look=schools2'), true); assert.equal(schoolsSoft('?look=schools2'), true); assert.equal(schoolsSoft('?look=schools'), false);
   assert.equal(schoolsFlag('?special=hades&look=pit,schools'), true);
 });
 
@@ -29,4 +30,10 @@ test('the tinter recolours a mapped material\'s pixels (alpha kept) and sets an 
   assert.ok(px[4] > px[0], 'the brighter source pixel stays brighter');
   const snapshot = [...px]; flat.color.set('#ffffff'); tint();
   assert.deepEqual([...px], snapshot); assert.equal(flat.color.getHexString(), 'ffffff', 'tinted once, not every frame');
+});
+
+test('schools2 keeps the school\'s hue but is half as saturated and darker than the plain flag', () => {
+  const colour = (soft: boolean) => { const m = new THREE.MeshBasicMaterial(), g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.BufferGeometry(), m)); schoolTinter(g, 'shadow', soft)(); const hsl = { h: 0, s: 0, l: 0 }; m.color.getHSL(hsl); return hsl; };
+  const loud = colour(false), soft = colour(true);
+  assert.ok(Math.abs(soft.h - loud.h) < 0.01, 'same hue'); assert.ok(soft.s < loud.s * 0.6, 'desaturated'); assert.ok(soft.l < loud.l * 0.8, 'darker');
 });

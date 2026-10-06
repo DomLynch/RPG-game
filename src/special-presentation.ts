@@ -5,7 +5,7 @@ import { classSpecialFor, type ClassSpecialId } from './class-special-identity.t
 import type { OpponentId } from './roster.ts';
 import { bossSpecialId, type BossSpecialId } from './special-identity.ts';
 import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
-import { SCHOOL_OF, schoolTinter, schoolsFlag } from './spell-school.ts';
+import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsSoft } from './spell-school.ts';
 import { SPECIAL_MODES, type Pose, type SpecialFx, type SpecialMode } from './special-modes.ts';
 
 type Pair<T> = readonly [T, T];
@@ -52,7 +52,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
     void loader(slot.id, slot.group, slot.opponent, lighting.forGroup(slot.group)).then((fx) => {
       if (slot.generation !== token) { fx.clear(); disposeSpecialGroup(slot.group); return; }
       const school = schoolsFlag(globalThis.location?.search ?? '') ? SCHOOL_OF[slot.id] : undefined;   // ?look=schools: the spell-school colour test (spell-school.ts)
-      if (school) { const tint = schoolTinter(slot.group, school), draw = fx.render.bind(fx); fx.render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; }   // in place: a getter such as `exposure` stays live
+      if (school) { const tint = schoolTinter(slot.group, school, schoolsSoft(globalThis.location?.search ?? '')), draw = fx.render.bind(fx); fx.render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; }   // in place: a getter such as `exposure` stays live
       slot.fx = fx;
     }).catch(() => { if (slot.generation === token) { discard(slot); slot.ended = true; } });
   };
