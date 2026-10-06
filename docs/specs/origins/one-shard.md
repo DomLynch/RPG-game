@@ -87,11 +87,11 @@ A **layer** is another presence instance of the same zone, in the same world. It
 - **Clear hits are blocked before display.** Borderline hits and reported lines go to a cheap LLM check (not every message), which also clears false positives (the "Scunthorpe" problem).
 - **Auto-report, per-player mute and block, and a report button from day one.** Strikes: warning, 10 minute mute, 24 hours, chat ban.
 - **No links.** Rate limit about 1 message per 2 s with a burst cap.
-- **Player names:** real English words; the JOINED name is filtered too (two clean words can form a slur). Open detail for Dom: strictly English words, or letters, spaces and hyphens plus the filter and the LLM check (non-English names such as Brokkr or Takeshi).
+- **Player names (ruled):** letters, spaces and hyphens only, not limited to English words (Brokkr, Ragnhild and Takeshi are fine). Names go through the same server-side filter (raw, normalised and the JOINED name, since two clean words can form a slur), plus an AI check on every new name.
 - **Backend owns the list and its updates and logs every catch.** A daily new-word report (terms suddenly spreading across many players) feeds additions.
 
 ## 7. Decisions needed and the first build step
 
-- **Ruled by Dom 2026-10-06 (Strategy agrees):** (1) free text chat, filtered as in §6a; (2) buy capacity with an 80% add-a-host trigger from the load test, a queue only as a spike safety net (§5); (3) game-assigned layers plus join-friend only (§5). **Still open for Dom:** the player-name rule (strictly English words, or letters, spaces and hyphens with the filter and LLM check).
+- **Ruled by Dom 2026-10-06 (Strategy agrees on 1-3):** (1) free text chat, filtered as in §6a; (2) buy capacity with an 80% add-a-host trigger from the load test, a queue only as a spike safety net (§5); (3) game-assigned layers plus join-friend only (§5). (4) player names: letters, spaces and hyphens, same filter, AI check on every new name (§6a). No Dom question is open in this note.
 - **Expansion/Lead:** confirm the Living World spec keeps the history book, world events and NPC state global (§1, §5).
 - **First build (small, measure-first, no player-facing change):** a presence service skeleton behind a flag that is off, a 100-bot synthetic load test on the VPS reporting CPU, packets/s and bytes/s per layer, and the 40-character render test on the slowest phone. Those two measurements replace every *est.* in §4.
