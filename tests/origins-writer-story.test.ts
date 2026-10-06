@@ -77,16 +77,20 @@ function fakeDb(o: { items?: Row[] } = {}) {
   const db: Db = {
     async run(sql, vars = {}) {
       await new Promise(r => setImmediate(r));   // every call yields, so two requests can interleave like two connections
-      const fn = /origins_\w+/.exec(sql)![0];
-      if (fn === 'origins_open') {
-        return JSON.stringify({
-          marks: MARKS, career: { ...w.career, total_credit: SEED + Number(w.career.world_credit) },
-          characters: [{ id: PA, account: A, name: 'Aldren' }], items: w.items, quests: w.quests, journal: w.journal, talk: w.talk,
-        });
+      // A statement pair (store.ts openWithPending / commitThenOpen) is answered in order, joined by a newline, like psql: a refusal in the
+      // first throws before the second runs.
+      const answers: string[] = [];
+      for (const fn of [...sql.matchAll(/public\.(origins_\w+)\(/g)].map(m => m[1])) {
+        if (fn === 'origins_open') {
+          answers.push(JSON.stringify({
+            marks: MARKS, career: { ...w.career, total_credit: SEED + Number(w.career.world_credit) },
+            characters: [{ id: PA, account: A, name: 'Aldren' }], items: w.items, quests: w.quests, journal: w.journal, talk: w.talk,
+          }));
+        } else if (fn === 'origins_pit_pending') answers.push('[]');
+        else if (fn === 'origins_commit') { const batch = JSON.parse(vars.b) as Row[]; commits.push({ account: vars.a, batch }); apply(vars.a, batch); answers.push('[]'); }
+        else throw Error(`unscripted ${fn}`);
       }
-      if (fn === 'origins_pit_pending') return '[]';
-      if (fn === 'origins_commit') { const batch = JSON.parse(vars.b) as Row[]; commits.push({ account: vars.a, batch }); apply(vars.a, batch); return '[]'; }
-      throw Error(`unscripted ${fn}`);
+      return answers.join('\n');
     },
   };
   return { db, commits, world: () => w, ctx: { db, account: A } as Ctx };
@@ -179,7 +183,8 @@ test('quest_advance: illegal moves are refused with nothing written', async () =
   await assert.rejects(step(g, 'forge', 'smith'), BadRequest);
   // below the outer gate's tier the quest cannot be taken: the level is the server's, from the career row
   const low = fakeDb();
-  const lowDb: Db = { run: async (sql, vars) => { const out = await low.db.run(sql, vars); return /origins_open/.test(sql) ? JSON.stringify({ ...JSON.parse(out), career: { ...JSON.parse(out).career, total_credit: 0 } }) : out; } };
+  const zeroCredit = (line: string) => { const j = JSON.parse(line); return j && typeof j === 'object' && 'career' in j ? JSON.stringify({ ...j, career: { ...j.career, total_credit: 0 } }) : line; };
+  const lowDb: Db = { run: async (sql, vars) => (await low.db.run(sql, vars)).split('\n').map(zeroCredit).join('\n') };
   await assert.rejects(advanceOp({ db: lowDb, account: A }, { character: PA, quest: CQ, stage: 'smith' }), BadRequest);
 });
 
