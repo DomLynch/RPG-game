@@ -29,7 +29,8 @@ const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as read
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
 type View = ReturnType<typeof createScene>;
-let stage: { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean } | null = null;
+type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean };
+let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
 let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
@@ -59,7 +60,7 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number) {
   canvas.dataset.ctl = 'world';
   host.prepend(canvas);
   const status = host.querySelector<HTMLElement>('[data-ctl="art-status"]');
-  const made: NonNullable<typeof stage> = { opponent, level, canvas, ready: false, view: undefined as unknown as View };
+  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View };
   made.view = createScene(canvas, (line, kind) => {
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
