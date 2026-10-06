@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, finaliseClaim, held, outbox, settleOutbox, loadStanding, saveStanding, STANDING_KEY, type Claim , reloadAfter } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, finaliseClaim, held, outbox, settleOutbox, loadStanding, saveStanding, STANDING_KEY, type Claim, reloadAfter } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
