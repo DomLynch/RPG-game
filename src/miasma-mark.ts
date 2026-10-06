@@ -32,15 +32,16 @@ const glowMap = () => texture((g, n) => {
 });
 
 export function createMiasmaMark(scene: THREE.Scene) {
-  const left = [0, 0], power = [1, 1], icon: THREE.Sprite[] = [], glow: THREE.Sprite[] = [], iconTex = iconMap(), glowTex = glowMap();
+  let hits = 0; const left = [0, 0], power = [1, 1], icon: THREE.Sprite[] = [], glow: THREE.Sprite[] = [], iconTex = iconMap(), glowTex = glowMap();
   for (let i = 0; i < 2; i++) {
     const a = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTex, transparent: true, depthTest: false, depthWrite: false })), b = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     a.name = b.name = 'miasma mark'; a.renderOrder = 10; a.visible = b.visible = false; a.scale.setScalar(MARK.iconSize); b.scale.setScalar(MARK.glowSize); scene.add(a, b); icon.push(a); glow.push(b);
   }
+  Object.assign(globalThis, { __marks: () => ({ hits, alive: left.filter((l) => l > 0).length }) });   // the stills harness proves a Miasma hit landed before it judges the frame
   return {
     fire(events: readonly CombatEvent[]): number {
       let fired = 0;
-      for (const event of events) { const m = miasmaOf(event); if (m) { left[m.target] = MARK.seconds; power[m.target] = m.strength; fired++; } }
+      for (const event of events) { const m = miasmaOf(event); if (m) { left[m.target] = MARK.seconds; power[m.target] = m.strength; fired++; hits++; } }
       return fired;
     },
     // heads: the head bone's world point if the rig has it; the mark follows the man, not the blow.
