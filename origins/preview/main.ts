@@ -72,7 +72,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
 
 let heading = Math.PI, stick: { x0: number; y0: number; x: number; y: number } | null = null;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
-const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('stick')!;
+const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('walk-stick')!;
 canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { if (stick) { stick.x = e.clientX; stick.y = e.clientY; } });
 for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, () => { stick = null; ring.style.display = 'none'; });
@@ -89,7 +89,7 @@ function openPanel(kind: Kind | null) {
   show(kind); if (kind) { keys.clear(); stick = null; ring.style.display = 'none'; }
 }
 card.addEventListener('click', (e) => { if (open) show(play.act((e.target as Element).closest<HTMLElement>('[data-say],[data-item],[data-do],[data-go]'), open)); });
-document.getElementById('journal')!.addEventListener('click', () => openPanel('journal'));
+document.getElementById('walk-journal')!.addEventListener('click', () => openPanel('journal'));
 for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
 prompt.addEventListener('click', () => { if (near === 'fight') void startFight(); else openPanel(near); });
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
@@ -151,7 +151,7 @@ renderer.setAnimationLoop(walkLoop);
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
 let source: Source = CHECKING;
 let duel: typeof import('./pit-duel.ts') | null = null;
-const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('journal')!;
+const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
 const saveNote = document.getElementById('save')!;
 function showCareer() {
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
@@ -176,10 +176,10 @@ async function startFight(pick?: string): Promise<PitFight | null> {
   openPanel(null); keys.clear(); stick = null; ring.style.display = 'none'; prompt.hidden = true; hint.hidden = true;
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
-  duelLayer.querySelector('[data-ctl="art-status"]')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
+  document.getElementById('art-status')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
   duel ??= await import('./pit-duel.ts');
   if (!fighting || fight !== next) return next;   // left (or restarted) while the chunk loaded
-  duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() });
+  duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() }, leaveFight);
   return next;
 }
 function settleFight(finish: Finished) {
