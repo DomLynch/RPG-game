@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Group, Object3D, Texture, Vector3 } from 'three';
 import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, poseOf, resolveHamstrung } from '../src/hamstrung.ts';
-import { resolveFinisher, ROSTER, supportsFinishers, type OpponentId } from '../src/roster.ts';
+import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
 import { cuesFor, type DeathPresentation } from '../src/audio/cues.ts';
 import { createFinisherBlood, finisherBloodSources } from '../src/finisher-blood.ts';
 import type { CombatEvent } from '../src/combat.ts';
@@ -19,7 +19,11 @@ test('Hamstrung is not in the rotation and the automatic pick never reaches it: 
   assert.equal(FINISHER_POSE.hamstrung, null, 'the kill-link-guarded table is not edited');
 });
 
-test('the picker plays Hamstrung only on the Minotaur and the Wraith, and never overrides kill eligibility', () => {
+test('the picker plays Hamstrung only on playable hero-rig bodies (never a held one), and never overrides kill eligibility', () => {
+  for (const id of HAMSTRUNG_VICTIMS) assert.equal(isHeld(id), false, `${id} is held: it is out of the bundle and cannot play Hamstrung`);
+  assert.deepEqual([...HAMSTRUNG_VICTIMS].sort(), (Object.keys(ROSTER) as OpponentId[]).filter(id => ROSTER[id].rig === 'hero' && !isHeld(id)).sort());
+  for (const id of ['veteran', 'pitborn', 'executioner', 'dwarf'] as const) assert.ok(HAMSTRUNG_VICTIMS.includes(id), id);
+  for (const id of ['goblin', 'nightborn', 'minotaur', 'wraith', 'werewolf', 'skeleton'] as const) assert.ok(!HAMSTRUNG_VICTIMS.includes(id), `${id} keeps a plain death`);
   for (const id of Object.keys(ROSTER) as OpponentId[]) {
     const weapons = ['longsword', ROSTER[id].weapon] as const, resolved = resolveFinisher(id, finish, weapons, 'hamstrung');
     const got = resolveHamstrung(id, finish, weapons, 'hamstrung', null, resolved);
@@ -28,7 +32,6 @@ test('the picker plays Hamstrung only on the Minotaur and the Wraith, and never 
     // Any other pick, or Auto, is exactly what resolveFinisher said.
     for (const pick of [null, 'opened', 'splitCrown', 'plainDeath'] as const) assert.equal(resolveHamstrung(id, finish, weapons, pick, null, resolveFinisher(id, finish, weapons, pick)), resolveFinisher(id, finish, weapons, pick));
   }
-  for (const id of HAMSTRUNG_VICTIMS) assert.equal(supportsFinishers(id, 'hamstrung'), false, 'roster.ts (kill-link guarded) is unchanged');
 });
 
 const ev = (type: CombatEvent['type'], extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, actor: 0, ...extra, type });
