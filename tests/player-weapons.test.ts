@@ -10,7 +10,8 @@ import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
 import { setLateNotice } from '../src/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
-import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, arena, battery, k, kt } from './strategies.ts';
 
@@ -52,7 +53,7 @@ test('the opponent waits while the player is sheathed, whatever the weapon: no a
 test('weapon flip: the record carries the weapon; an older record version is refused; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
   // A knife fight against the Goblin, recorded the way main.ts records: the quantized intent is what the sim steps.
   setLateNotice(true); setStab(true);   // recorded the way main.ts records: a live fight, so the record is stamped with this build's version (a headless recorder stamps the version before the eras)
-  const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', level: 18, seed: 5 });
+  const rec = liveRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', level: 18, seed: 5 });
   // Every weapon starts SHEATHED (2026-09-25): the first press draws the knife, and the Goblin waits for it (ai.ts), as a player does.
   let p = initialPractice(5, OPPONENTS.goblin, 'knife');
   assert.equal(p.duel.fighters[0].phase, 'sheathed');

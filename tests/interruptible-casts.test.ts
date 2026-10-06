@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { stepDuel, withSpecials, type Action, type CombatEvent, type Duel } from '../src/duel.ts';
 import { OPPONENTS, RULES, SPECIAL_ROWS } from '../src/moves.ts';
 import { clarityOf } from '../src/combat.ts';
-import { RECORD_VERSION, READABLE_VERSIONS, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { RECORD_VERSION, READABLE_VERSIONS, packRecord, unpackRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { act, arena, idle } from './strategies.ts';
 
 const S = RULES.special;
@@ -109,7 +110,7 @@ test('clarityOf derives AttackInterrupted from SpecialInterrupted', () => {
 });
 
 test('record: a specials fight packs and unpacks at the bumped version', () => {
-  const rec = createRecorder({ build: 'interrupt', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 6, seed: 3, specials: true });
+  const rec = liveRecorder({ build: 'interrupt', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 6, seed: 3, specials: true });
   rec.push(idle());
   const back = unpackRecord(packRecord(rec.finish('abandoned')));
   assert.equal(back.specials, true);

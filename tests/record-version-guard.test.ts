@@ -9,7 +9,8 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { READABLE_VERSIONS, REACH, RECORD_VERSION, packRecord, unpackRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import type { OpponentId } from '../src/roster.ts';
 
 // Every file whose content changes what a recorded fight does when it is stepped again: the duel rules, the move tables, the
@@ -64,7 +65,7 @@ test('the closure walk skips type-only imports and follows every value form', ()
 // Mutation receipts (the PRs): dropping the reach loop in unpackRecord, or turning `>=` into `>`, fails this test.
 test('an older record decodes only where no later bump reached its fight', () => {
   // A pre-21 header has no specials byte (it follows the skill byte, after the three strings): drop it, then stamp the old version.
-  const at = (v: number, opponent: OpponentId, level: number) => { const p = packRecord(createRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); let o = 3; for (let k = 0; k < 3; k++) o += 1 + p[o]; const b = v >= 21 ? new Uint8Array(p) : new Uint8Array([...p.subarray(0, o + 1), ...p.subarray(o + 2)]); b[2] = v; return b; };   // v21 on has the specials byte (and later the arena byte): only an older stamp drops it
+  const at = (v: number, opponent: OpponentId, level: number) => { const p = packRecord(liveRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); let o = 3; for (let k = 0; k < 3; k++) o += 1 + p[o]; const b = v >= 21 ? new Uint8Array(p) : new Uint8Array([...p.subarray(0, o + 1), ...p.subarray(o + 2)]); b[2] = v; return b; };   // v21 on has the specials byte (and later the arena byte): only an older stamp drops it
   for (const [v, opponent, level] of [[29, 'goblin', 18], [29, 'witch', 10], [29, 'skeleton', 18], [29, 'veteran', 5], [29, 'plaguedoctor', 46]] as const)
     assert.equal(unpackRecord(at(v, opponent, level)).v, v, `a v${v} ${opponent} L${level} fight is this build's own, so its link must keep working`);
   for (const [v, opponent, level] of [[28, 'goblin', 1], [27, 'veteran', 46], [26, 'witch', 10], [19, 'plaguedoctor', 1], [18, 'veteran', 6], [18, 'knight', 18]] as const)

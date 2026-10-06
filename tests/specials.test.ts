@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/moves.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
+import { decodeRecord, encodeRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { recordSpecials, verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
@@ -67,7 +68,7 @@ test('specials: a fight with them records the flag (v22: a headless fight in the
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
-  const rec = createRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });
+  const rec = liveRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });
   let landed = 0;
   for (let i = 0; i < 7200 && !p.finish; i++) {
     const f = p.duel.fighters[0], intent = rec.push(legal(f, 'skill') ? act('skill') : f.phase === 'sheathed' ? act('light') : STRATEGIES['light spam'](p.duel));   // the special whenever it is ready, else the battery's light spam

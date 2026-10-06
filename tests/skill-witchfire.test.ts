@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, opponentAt, profileAt, type SkillId } from '../src/moves.ts';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
@@ -118,7 +119,7 @@ test('skill_witchfire: refused with no skill equipped; every default fighter and
 
 // A live fight with Witch-fire equipped against the Veteran on his own profile: walk in, draw, cast whenever SKILL is lit.
 function witchfireFight(seed = 731, ticks = 6000) {
-  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', skill: 'witchfire', build: 'skill', opponent: 'veteran', level: 18, seed });
+  const opponent = OPPONENTS.veteran, rec = liveRecorder({ weapon: 'longsword', skill: 'witchfire', build: 'skill', opponent: 'veteran', level: 18, seed });
   // The level-18 body and table, as the game and the verifier build them (replay.ts opponentAt): from level 6 he carries the gladius + scutum.
   const body = opponentAt(opponent, 18), table = profileAt(opponent, 18);
   let practice = initialPractice(seed, body, 'longsword', 'witchfire'), casts = 0;
@@ -153,7 +154,7 @@ test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/
 });
 
 test('record v12: the header carries the skill; none is absent, an unknown skill byte is refused', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = liveRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   rec.push({ ...idleIntent(), action: 'skill' });
   const naked = rec.finish('abandoned'), bytes = packRecord(naked);
   assert.deepEqual(unpackRecord(bytes), naked, 'no skill: the key stays absent');

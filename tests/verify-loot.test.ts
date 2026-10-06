@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,7 +14,7 @@ import { acceptHeld, fightHash, HELD_MAX_VERSION, psqlAdapter, refusal, report, 
 // A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); every 44 is a
 // second, different win (1,265 ticks). `build` is only a label: two builds of one fight are ONE fight to the verifier (F2).
 async function goblinKill(build = 'test', every = 45): Promise<string> {
-  const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
+  const rec = liveRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
   let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6));   // the level's body, as the game builds it
   for (let t = 0; t < 20000 && !practice.finish; t++) {
@@ -196,7 +197,7 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
 // build's instance of it (V18_REACH). HELD `reach` up to v19, cleared by --accept after the hand check on the last build that reads it.
 const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
 async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
-  const rec = createRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
+  const rec = liveRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const packed = packRecord(rec.finish(outcome));
   let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then (v21) the specials byte
