@@ -4,6 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { OPPONENTS, type Opponent } from '../src/moves.ts';
 import { battery } from './strategies.ts';
+import { setStab } from '../src/stab-rule.ts';
+setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an era flag, off in a headless run): the shipped warden is the one these rows judge
 // The Veteran as shipped (the trident since slice V) and the same man with the longsword: the sword warden is the AI every other opponent starts from, so it stays gated.
 const WARDENS: [string, Opponent][] = [[`${OPPONENTS.veteran.id} (${OPPONENTS.veteran.weapon})`, OPPONENTS.veteran], ...(OPPONENTS.veteran.weapon === 'longsword' ? [] : [['veteran (longsword)', { ...OPPONENTS.veteran, weapon: 'longsword' as const }] as [string, Opponent]])];
 for (const [who, opponent] of WARDENS) test(`no simple strategy dominates the ${who} warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit [slow]`, () => {

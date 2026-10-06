@@ -6,12 +6,13 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { decodeRecord, RECORD_VERSION } from '../src/record.ts';
 import { replayInNode } from '../scripts/browser-replay-check.mjs';
-import { STAB_ON } from '../src/stab-rule.ts';
+import { STAB_ON, setStab } from '../src/stab-rule.ts';
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/v24-goblin.json', import.meta.url), 'utf8')) as { records: { opponent: string; seed: number; level: number; encoded: string; expect: { victim: number; draw: boolean; tick: number; hashes: Record<string, string> } }[] };
 
 test('a v24 Goblin record replays to the outcome and state hashes trunk recorded, at every level the stab reaches', async () => {
   assert.equal(fixture.records.length, 6);
+  setStab(true);   // a live page: the stab is on, and a replay at a version below FIRST_STAB_VERSION must turn it off for the run and put it back
   for (const f of fixture.records) {
     const record = await decodeRecord(f.encoded);
     assert.equal(record.v, 24); assert.equal(record.opponent, 'goblin');
@@ -21,6 +22,7 @@ test('a v24 Goblin record replays to the outcome and state hashes trunk recorded
     assert.deepEqual(node.hashes, f.expect.hashes, `L${f.level} s${f.seed}: the state hash at every sampled tick is the pre-stab fight's (pinned from trunk before the change)`);
     assert.equal(STAB_ON, true, 'the live setting is put back after the replay');
   }
+  setStab(false);
 });
 
 test('the control: the same intents under the current version are a different fight (the stab is real from level 12 up), so a leak into old records would fail the test above', async () => {

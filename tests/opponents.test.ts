@@ -9,6 +9,8 @@ import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, oppone
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { RADIUS, TARGET, type State } from '../src/sim.ts';
 import { STRATEGIES, battery, side } from './strategies.ts';
+import { setStab } from '../src/stab-rule.ts';
+setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an era flag, off in a headless run): the shipped warden is the one these rows judge
 
 const P = OPPONENTS.pitborn;
 const idle = (): Intent => ({ ...idleIntent(), lock: true }), act = (action: Intent['action']): Intent => ({ ...idle(), action });

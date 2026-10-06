@@ -8,6 +8,8 @@ import { idleIntent, initialDuel } from '../src/duel.ts';
 import { NO_HIP_DRAW, clipFor, drawRole } from '../src/characters.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
+import { setLateNotice } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, arena, battery, k, kt } from './strategies.ts';
@@ -49,6 +51,7 @@ test('the opponent waits while the player is sheathed, whatever the weapon: no a
 
 test('weapon flip: the record carries the weapon; an older record version is refused; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
   // A knife fight against the Goblin, recorded the way main.ts records: the quantized intent is what the sim steps.
+  setLateNotice(true); setStab(true);   // recorded the way main.ts records: a live fight, so the record is stamped with this build's version (a headless recorder stamps the version before the eras)
   const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', level: 18, seed: 5 });
   // Every weapon starts SHEATHED (2026-09-25): the first press draws the knife, and the Goblin waits for it (ai.ts), as a player does.
   let p = initialPractice(5, OPPONENTS.goblin, 'knife');
@@ -125,7 +128,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // Version 20 joins them (2026-09-29, bump 21: Special Moves behind the record's own flag; REACH[21] is empty). A v20 stream has no flag byte.
   const old = before21(20);
   assert.deepEqual([unpackRecord(old).v, unpackRecord(old).specials], [20, undefined], 'a v20 stream (no specials byte) decodes, with no specials');
-  assert.equal(RECORD_VERSION, 25);
+  assert.equal(RECORD_VERSION, 25); setLateNotice(false); setStab(false);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
