@@ -30,35 +30,37 @@ S1 settles the **server side** numbers: per-layer CPU, memory, tick time, packet
 - chat load and filtering (**S4**; chat adds traffic that S1 must leave headroom for, see §5);
 - real-internet latency and loss (the bots are on loopback). Latency is a separate far-test.
 
-## 3. The runs (all on the VPS, never the Mac, never against production Supabase; `nice`d, one at a time, outside a deploy)
+## 3. The runs (all on the VPS, never the Mac, never against production Supabase; `nice`d, one at a time)
+
+**Quiet window only (Strategy 2026-10-08).** S1 runs in a booked quiet window: Deploy's lock is held for the whole run, and the VPS load average is **below 2 at the start**; otherwise the run is repeated. A run started on a busy box (the box showed load 18 to 34 tonight) measures the neighbours, not presence.
 
 | # | Command shape | Question it answers |
 |---|---|---|
-| R1 | `--bots=100 --crowd-m=60 --layer-cap=100 --seconds=300` | Worst crowd (everyone sees everyone), one full layer, five minutes: repeats the 8.6% figure and checks it does not drift (memory growth, tick creep). |
+| R1 | `--bots=100 --crowd-m=60 --layer-cap=100 --seconds=300`, plus a **30-minute soak** (`--seconds=1800`) | Worst crowd (everyone sees everyone), one full layer: repeats the 8.6% figure; the soak judges drift (memory growth, tick creep). |
 | R2 | same with `--crowd-m=300` | The spread case: how far below R1 a normal town sits. |
 | R3 | `--bots=80 --layer-cap=80`, then `--bots=100 --layer-cap=100` | The soft and hard caps themselves. |
-| R4 | `--bots=300` with the default caps (80/100) | The **beta target**: 3 layers, about 300 concurrent. Reports per layer and the host total. Checks that the layer split at 80 behaves (no layer over the hard cap, new joins land on the next layer). |
+| R4 | `--bots=300` with the default caps (80/100), plus a **30-minute soak** (`--seconds=1800`) | The **beta target**: 3 layers, about 300 concurrent. Reports per layer and the host total. Checks that the layer split at 80 behaves (no layer over the hard cap, new joins land on the next layer). |
 | R5 | `--bots=500`, `--bots=800`, `--bots=1000` (default caps, `--max-layers` raised to fit) | The host ceiling and the 800 trigger. The first bot count at which a limit in §4 trips is the measured cap; 80% of it is the add-a-host trigger. |
-| R6 | R4 with the writer, verifier and duel relay doing realistic work beside it (their own load scripts, or their normal idle plus one duel) | The cost of sharing the box. This is the number the 300-concurrent beta claim rests on. |
-| R7 | R4 through nginx + TLS on the real route, bots on a second VPS or the Mac over the internet | What the proxy and real sockets add (connection count, TLS CPU, bytes out). Optional for the gate; required before the cap is quoted to Dom as a hosting number. |
+| R6 | R4 **plus** `scripts/duel-two-page-check.mjs` looped over N pairs (the relay) **plus** `scripts/origins-writer-check.mjs` looped against a disposable PostgreSQL (the writer) | The cost of sharing the box. This is the number the 300-concurrent beta claim rests on. The report states the rates it ran at: duel pairs per minute (N), writer commits per second, and the presence bot count. |
+| R7 | R4 through nginx + TLS on the real route, the bots' client on a **second VPS or a cloud shell, never the Mac on home broadband** | What the proxy and real sockets add (connection count, TLS CPU, bytes out). Optional for the gate; required before the cap is quoted to Dom as a hosting number. |
 
-Every run records the commit sha, node version, box load average before it starts, and the full JSON the script prints. A run with box load above 2 at the start is repeated.
+Every run records the commit sha, node version, the box load average at the start and the full JSON the script prints. The script has no p99 tick figure today (it reports the longest tick); adding a p99 to its output is part of the S1 build, and §4 criterion 2 cannot be judged without it.
 
 ## 4. Pass criteria (proposed; Strategy rules the thresholds)
 
 A host cap is the highest bot count at which **all** hold for the whole measuring window:
 
-1. Server CPU at most **70% of one core** (a spike is allowed to 85%).
-2. Longest tick at most **50 ms** of the 100 ms budget, and no tick over 90 ms.
-3. RSS grows by less than 10% between the end of warm-up and the end of the run (no leak).
+1. Server CPU at most **70% of one core** (a spike is allowed to 85%). The bar is 70% of ONE core because presence is one Node process; a worker split (several processes per host) re-derives this number and the whole table.
+2. Longest tick at most **50 ms** of the 100 ms budget with no tick over 90 ms, **and p99 tick below 25 ms**.
+3. RSS grows by less than 10% between the end of warm-up and the end of the **30-minute soak** (R1 and R4); the short runs do not judge it.
 4. Every bot stays connected and receives a packet every tick it should (the script's `connected` equals `bots`).
-5. Down bandwidth per host stays inside the VPS plan's included traffic at full load (one-shard.md §4 puts a full layer at about 930 GB a month; the plan's allowance is checked against the measured figure).
+5. **Projected monthly egress at the R6 rate is below 50% of the plan's included traffic.** Included traffic of the VPS plan: **TO FILL before S1 runs (GB/month, from the provider panel; it is not readable from the box and Backend has not guessed it)**. Projection: measured down bytes/s from R6 x 2.6 million s (one-shard.md §4 gives a full layer around the clock as about 930 GB a month).
 
 The numbers in #1510's first runs already say criterion 2 trips before criterion 1 near 1,000 (tick 82 ms at 60% CPU), so the cap is more likely set by tick time than by CPU.
 
 ## 5. What gates launch
 
-- **Beta (about 300 concurrent, 3 layers, one VPS): R1, R3, R4 and R6 must pass the §4 criteria**, with a documented margin: the measured host cap is at least **2x** the beta target. R6 is the one that matters: a number measured with the service alone does not count for a shared box.
+- **Beta (about 300 concurrent, 3 layers, one VPS): R1 (with its soak), R3, R4 (with its soak) and R6 must pass the §4 criteria**, with a documented margin: the measured host cap is at least **2x** the beta target. R6 is the one that matters: a number measured with the service alone does not count for a shared box.
 - **The layer caps 80 soft / 100 hard stay as ruled** unless R3 shows a layer already breaches §4 at 80 or 100; then the caps are lowered, not the criteria.
 - **The add-a-host trigger is set from R5 at 80% of the measured cap**, not from the 800 above, and is written into one-shard.md §5 and the runbook, with the metric to watch (CPU percent and longest tick).
 - **Chat headroom:** S4's chat adds down traffic per message. Until S4 is built, S1 reserves **20%** of the cap for it; S4's own test re-checks that reserve.
@@ -71,6 +73,7 @@ A report file `docs/state/s1-load-test-report.md` (or the gate row's link): the 
 
 ## 7. Open points for Strategy / Lead
 
-- The thresholds in §4 (70% CPU, 50 ms tick, 2x margin, 20% chat reserve) are Backend's proposal, not a ruling.
+- The thresholds in §4 were reviewed by the Auditor and ruled by Strategy 2026-10-08 (70% of one core, longest tick < 50 ms and p99 < 25 ms, soak-judged RSS < 10%, egress < 50% of the allowance); the 2x margin and the 20% chat reserve remain Backend's proposal.
+- The plan's included traffic (GB/month) is still to be filled in §4 criterion 5 by whoever can read the provider panel (Dom or Deploy).
 - The bots are simple wanderers. A town crowd that clumps at a market square is what `--crowd-m=60` approximates; if Strategy expects hot spots, R2 gains a third variant with a moving cluster.
-- R6 needs the writer and relay load recipes from their owners; until those exist R6 can only be "their idle plus one duel", which understates a busy evening.
+- R6's N (duel pairs) and the writer's commit rate need a stated realistic evening figure from Strategy; the report records whatever it ran at.
