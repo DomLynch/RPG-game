@@ -2,6 +2,31 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-04 ~22:xx (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
+
+### Now
+- **Camera A/B/C clips for Dom (Strategy request 10-05, look only, NO PR):** the same fight filmed at 375 wide with A = camera.ts from 196ee4df^ (locked: back max(4.2,d*0.62+2.8), y max(3.2,d*1.3)), B = trunk 4056467a camera, C = halfway (back max(4.4,d*0.685+2.9), y = average of A's and B's y). Scenes: Veteran full exchange, Goblin knife close strike, Executioner slash close strike; only src/camera.ts differs, the arena stays current. A background agent (a4efc8348597f04e6, scratch worktree /private/tmp/claude-501/camera-angles/wt, VPS work dir /opt/frankendom-shadow/work/camera-angles via `capture world`) was filming when I was cleared. **First act of the next session:** look in ~/Desktop/Business/frankendom-camera-angles/ (scene-*-sidebyside.mp4, stills-A/B/C.jpg, clips/); if the files are there and the agent's report says what it saw, send Strategy (name 'Frankendom - Strategy (advisor)') the paths plus one line per option: backdrop visible yes/no, enemy blade visible yes/no (judge from frames you open yourself). If nothing is there, check `capture --status` and /opt/frankendom-shadow/work/camera-angles on the VPS, rerun, then clean up the VPS worktree.
+- PR #1372 (Pit walls) is the other open item: see the entry below.
+
+- **PR #1372 is OPEN: the Pit walls** (`world/skull-wall` @f19bd17e, base trunk 4056467a; CI was pending when I left). Lead's brief: docs/briefs/pit-walls/BRIEF.md (on lead/pit-ship). It has: skull wall right of the arch (6x5, latest 30 kills), carved record board left of the arch, trophy rack = best 4 pieces (tier, then ladder place), wall of champions on the back fence (daily_board_summary), clay-floor fix (glow/cage always Arena 1 sand), `&skulls=demo` seed, `__pit.tap(id)`/`__pit.sheet()` debug hooks. Stills: evidence/world-pit-walls (stills/pit-walls) and ~/Desktop/Business/frankendom-pit-walls/. Next: watch #1372 CI (Auto-fix offered to Dom), Lead/Auditor review, Lead asks Deploy for /preview/pit-cage/ from my head (4fbea1c7 was published earlier; the polish needs a republish).
+- Data layer reads Backend's RPCs (#1366 @69b5c29d, NOT applied to production yet): `pit_recent_kills()`, `pit_record()`; loot fallback for guests/pre-migration (every taken/declined/defeats entry is a kill, newest by day). Dom's real profile therefore shows his ~30 loot-derived kills until the migration is applied.
+
+### Done today (10-04)
+- Pit wall blood in #1370 (merged 4056467a): generated decals (scripts/pit-blood-decals.py, numpy+PIL on the VPS) after Dynamic Paint baked blank; GPT strip crops lost the side-by-side.
+- Skull wall rework x3 (two panels -> one wall of kills), record board, rack, champions, clay floor, polish (contrast helper, nails), all in #1372. Built mostly by subagents inside this worktree, reviewed by me.
+
+### Open
+- Tap raycast itself is covered by tests/pit-picker, not by the browser tap test (the debug hook skips the ray). Phone `?perf=1` not measured. Known nit: one knot ring grazes 'Vale' on the champions board. The rack still shows nothing in the look stills (no loot).
+- Old branches left alone: world/pit-blood, world/pit-blood-cage, lead/pit-look (cell comparison link only).
+
+### Gotchas
+- **Dynamic Paint in headless Blender 5.2.2 baked blank** (mesh, vertex, particle brushes): do not retry.
+- Render on the VPS: work copy `/opt/frankendom-shadow/work/world-cage` is a git worktree of /opt/frankendom-shadow/repo (`git -c safe.directory='*' fetch origin <branch>; checkout --detach`), node_modules symlinked; scripts in /opt/frankendom-shadow/work/world-blood (run3.sh/run4.sh, shot-skulls.mjs for poses, tap.mjs for the tap test), submitted with `CAPTURE_WAIT_S=28800 setsid -f /opt/frankendom-shadow/bin/capture world ./run4.sh`, poll a DONE file. NEVER rsync src/ or public/ from the Mac (754 MB). The Mac is shared and was at load ~50: local SwiftShader times out.
+- zsh: `$VAR` ssh options do not word-split (use wrapper scripts); macOS `sed -i ''`; a failing `rm -f glob` aborts a `&&` chain.
+- At the cage gate pose the camera sees only ~1.5 m of wall each side of the arch: use `&pose=wall|board|champions` stills (look stills have no GameStage; the demo hooks are added in showPitLook only for `&skulls=demo`).
+- The Stop hook runs the targeted gate and the sparring browser check on whatever is in the tree: a subagent editing src/ concurrently breaks it (page reload mid-check); run the check in an isolated `git worktree` of the committed head (node_modules symlinked) instead.
+- main.ts must not import src/pit/ (pit-boundary test): reach pit code through src/pit-coordinator.ts.
+
 ## 2026-10-03 — Owner rejected both image arena trials; restore default
 - Removed both trial modules, two image assets/provenance, Stage options, scene/camera adapters, and trial-only tests/browser workflow/gate rows. Production main/scene/index and original50 release rows restored byte-for-byte to pre-trial950db85c; native arena/camera/characters/combat/sim unchanged.
 - Existing Sparring workflow gains no-write checks for original Stage choices and retired trial URL/tab-storage fallback to the default camera. No new production framework or runtime dependency.
