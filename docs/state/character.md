@@ -1,5 +1,7 @@
 # Character — project state
 
+## 2026-10-06 UPDATE (read first): Dom ruled the see-through hero (#1382) confuses more than it helps and had it reverted: PR #1406 `char/revert-see-through` @ 09713b40 (clean `git revert -m 1 366c0c81` off trunk 0362c7c5; characters/graphics 149/0, scene-warmup 2/0, tsc clean, quality-stop-targeted 451/0 on the VPS; 375 stills in orphan branch `stills/char-revert-see-through`). Until #1406 merges and deploys, #1382 is still in trunk and live. Where the entry below says #1382 is live and done, read it as: shipped, then reverted per Dom. The fade code is gone, `seeThrough` / `restore` no longer exist.
+
 ## 2026-10-06 — HANDOFF (Characters & Art lane, before /clear). Facts below are from commands run 2026-10-06 (gh pr view, release.json)
 **Now (what the next session picks up).** Nothing of mine is waiting on me. #1394 (scripted first loss) is with the Auditor; no pushes to it unless the Auditor asks (Lead). If it asks for a change: the checkout is `~/Developer/frankendom-char`, branch `char/first-loss` (head 400773de); run tests on the VPS clone `/opt/frankendom-shadow/work/char-loss` (fetch the branch via `../camera-angles`, `node scripts/quality-stop-targeted.mjs`, `tsc --noEmit`), never on the Mac while a deploy runs. Hero (`warrior.glb`) work only if Dom asks.
 **Done.**
