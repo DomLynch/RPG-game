@@ -486,7 +486,7 @@ over. A season brings a new page in every book ("Season 3 begins"), the donors' 
 6. **No angel-based "holy" clan.** The light side is the Arthurian knights and the Grail.
 7. **Owner override (Dom, 2026-10-06; Strategy accepted):** the named **Watchers of 1 Enoch** (Shemihaza, Armaros, Baraqel,
    Kokabiel, Penemue and others) are **allowed** as the Fallen clan's figures, as legend, not worship. Cite 1 Enoch in R. H.
-   Charles's translation, 1917. **Azazel stays out** (Leviticus) unless Dom names him. The Fallen clan uses these names instead of
+   Charles's translation, 1917. **Azazel is in** (Dom, 2026-10-06, despite Leviticus 16: a deliberate override for him only). The Fallen clan uses these names instead of
    original ones; the Pact clan keeps original names. This overrides ruling 5's "original names" for the Fallen only.
 
 ### Dom's overrides (Dom, 2026-10-06; supersede Strategy's ruling 1 and the earlier phasing; Strategy re-sequencing pending)
@@ -595,7 +595,7 @@ Sample clans (the canonical list is `expansion/legends-500`):
 | Ronin | Japanese history (a class, no named person) | `opener` | the lone road |
 | The Weeping | La Llorona, Mexican folklore (a clan, never a god) | `night-half` | the river |
 | Goat-sucker Pack | the Chupacabra, Latin American folklore, 1995 on (a clan, never a god) | `finisher` | — |
-| The Fallen | the Watchers of 1 Enoch (R. H. Charles translation, 1917): Shemihaza, Armaros, Baraqel, Kokabiel, Penemue; in Milton's spirit (*Paradise Lost*, 1667). Legend, not worship; never Satan, Lucifer or Azazel | `underdog` | broken wings |
+| The Fallen | the Watchers of 1 Enoch (R. H. Charles translation, 1917): Shemihaza, Azazel, Armaros, Baraqel, Kokabiel, Penemue; in Milton's spirit (*Paradise Lost*, 1667). Legend, not worship; never Satan or Lucifer | `underdog` | broken wings |
 | The Pact (original name) | the Faust legend: Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust*; Mephistopheles as a literary character | `glass` | the signed page |
 
 Clan heads that are not patrons (legends and folklore) are **not worshipped**: they give no town strike and no defender roster of
@@ -887,7 +887,7 @@ Strategy's order (§2.4), re-sequenced by Strategy on 2026-10-06 to match the ta
 |---|---|---|---|
 | The Lambton Worm (rift boss, approved by Strategy, 2026-10-06) | County Durham folklore; recorded in Robert Surtees, *The History and Antiquities of the County Palatine of Durham*, vol. 2, 1820 | English folklore, PD source, no living-religion scripture, not a living people's folk hero; not on the ladder. Text is original prose | it |
 | Patrons and clan heads | as cited in §10.1 and §10.2 | Strategy's rulings (2026-10-06): dead pantheons and literature as patrons; Asian and Latin American folklore as clans or monsters, never gods | Zeus, Poseidon, Hades, Thor, Set, Mars, Sun Wukong, Dracula, Arthur he; Hel, Sekhmet, Tiamat, Ereshkigal, the Morrígan, La Llorona she |
-| Shemihaza, Armaros, Baraqel, Kokabiel, Penemue (the Fallen) | 1 Enoch (the Book of the Watchers), R. H. Charles translation, 1917 | owner override (Dom, 2026-10-06; Strategy accepted): legend, not worship; Azazel excluded (Leviticus) | he |
+| Shemihaza, Azazel, Armaros, Baraqel, Kokabiel, Penemue (the Fallen) | 1 Enoch (the Book of the Watchers), R. H. Charles translation, 1917 | owner override (Dom, 2026-10-06; Strategy accepted): legend, not worship; Azazel included by Dom's further override (2026-10-06) although he also appears in Leviticus 16 | he |
 | Mephistopheles (literary, the Pact) | Marlowe, *Doctor Faustus*, c. 1592; Goethe, *Faust* | literature by authors dead 70+ years; a character, not a faith's devil (Strategy) | he |
 | Count Dracula | Bram Stoker, *Dracula*, 1897; Stoker died 1912 | pre-1929 literature. Stoker's character only, never Vlad III and never "the Impaler"; never a film depiction | he |
 | The Stitched | Mary Shelley, *Frankenstein*, 1818 | pre-1929 literature. The clan is named for the creature's kind, not for Victor; no film depiction (no bolts, no flat head) | — |
