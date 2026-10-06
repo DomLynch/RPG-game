@@ -312,7 +312,7 @@ try {
     }
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened', hamstrung: 'hamstrung' };
   const ORDER = order, cameraChecks = [], bloodChecks = [];
   const first = await open(VIEW);
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
