@@ -8,7 +8,7 @@ import { parseServiceDefinition, parseUpgradeCostTable, performUpgrade, type Upg
 import type { AccountId, CharacterInstanceId, ItemId } from '../contracts/ids.ts';
 import { parseItemDefinition, parseItemInstance, upgradeLevelOf, type ItemDefinition, type ItemInstance } from '../contracts/items.ts';
 import { parseQuestDefinition } from '../contracts/story.ts';
-import { parseCharacterDefinition } from '../contracts/world.ts';
+import { parseCharacterDefinition, type CareerStanding } from '../contracts/world.ts';
 import { BANK_PLACE, deposit, find, gridView, openInventory, receive, remove, unequip, withdraw, type Grid } from '../inventory/inventory.ts';
 import { concordCommission } from '../quests/fixtures.ts';
 import { advance, entries, newJournal, type Journal } from '../quests/journal.ts';
@@ -21,7 +21,7 @@ import { ui, type Cell } from './ui.ts';
 export const WORLD_TUNING = {
   orla: { x: FORGE.x - 0.6, z: FORGE.z + 0.3, radius: 0.29, length: 1.15 },   // behind the anvil, facing the plaza (envoy-sized capsule)
   orePile: { x: -FORGE.halfX * 2, z: BANK_STEP_Z + 38, radius: 0.55 },         // "the quarry carts past the gate": inside the plaza, left of the passage
-  reach: { forge: 3, bank: 3.6, bankHalfWidth: 13, ore: 2.5 },
+  reach: { forge: 3, bank: 3.6, bankHalfWidth: 13, ore: 2.5, pit: 5 },   // pit: from the Pit's centre, where the duel is offered
 };
 // Every model the preview loads, id → URL; null = a greybox stand-in built in main.ts. Swapping art is a one-line change here.
 export const ASSETS: Record<'hero' | 'orla' | 'ore', string | null> = { hero: warriorUrl, orla: null, ore: null };
@@ -38,7 +38,10 @@ const DEFS = new Map([helmetDef(), recordDef(), graveIronDef(), { ...graveIronDe
 const lookup = (id: ItemId): ItemDefinition | undefined => DEFS.get(id);
 const SERVICE = must(parseServiceDefinition(blacksmith())), COSTS = must(parseUpgradeCostTable(forgeCosts()));
 export const SMITH_NAME = must(parseCharacterDefinition(smith())).name;
-const STANDING = { source: 'server', careerLevel: 16 } as const; // a Champion: past the outer gate, and may wear a +1 Gladiator piece
+// The career level the gates read: the Origins career's (origins/pit, the Pit duel settles it through award()), starting a Champion: past
+// the outer gate, and may wear a +1 Gladiator piece. The page moves it with play.standAt after a duel pays.
+export const START_LEVEL = 16;
+let STANDING: CareerStanding = { source: 'server', careerLevel: START_LEVEL };
 
 // The character: the contracts' stored instances (helmet worn, record in the pack, grave iron in the bank), helmet taken off to the pack.
 const helm = helmetInstance(), packSize = 8, bankSize = 8;
@@ -57,6 +60,7 @@ const nameOf = (i: ItemInstance) => `${lookup(i.item)?.name ?? i.item}${i.quanti
 const cells = (grid: Grid): Cell[] => must(gridView(inv, grid, BANK_PLACE)).map((i) => i && { id: i.id, label: nameOf(i), on: i.id === picked });
 
 export const play = {
+  standAt(level: number) { STANDING = { source: 'server', careerLevel: level }; },
   fresh() { reply = msg = ''; picked = null; ended = false; },
   oreWanted: () => journal.quests.get(QUEST.id)?.stage === 'fetch' && !hasItem(ORE),
   takeOre() {
