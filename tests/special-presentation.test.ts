@@ -218,3 +218,10 @@ test('manager Tithe matches authored solo arena transform and composes with real
   const frame = capture(managed); presentation.render(0, pair, 205, bones, bones, undefined, false); assert.deepEqual(capture(managed), frame, 'frozen draws do not compound transformations');
   presentation.clear(); assert.deepEqual(capture(managed), base);
 });
+
+test('each loaded effect group is handed to onReady once, so its shaders compile before the wind-up', async () => {
+  const scene = new THREE.Scene(), pair = fighters(), ready: THREE.Scene[] = [];
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async () => ({ render() {}, clear() {} }), (group) => ready.push(group));
+  presentation.prepare(1, [start(1)], pair, 100, false, { opponent: 'nightborn', level: 16 }); await flush();
+  assert.equal(ready.length, scene.children.length); assert.ok(ready.length > 0 && ready.every(group => group.parent === scene)); presentation.clear();
+});

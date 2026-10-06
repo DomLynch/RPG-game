@@ -462,7 +462,7 @@ export function createScene(
   let previewGroup: THREE.Scene | undefined;
   const previewLighting = createTitheLighting(scene);
   const previewBackground = scene.background instanceof THREE.Color ? scene.background.clone() : null;
-  const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
+  const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera, undefined, (group) => { if (!renderer.getContext().isContextLost()) renderer.compileAsync(group, camera, scene).catch(() => undefined); });
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();

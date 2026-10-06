@@ -37,7 +37,7 @@ export function disposeSpecialGroup(group: THREE.Scene) {
 export function createSpecialPresentation(scene: THREE.Scene, exposure: number, camera: THREE.Camera, loader: Loader = (id, group, opponent, lighting) => {
   const mode = modes[id];
   return mode ? mode.load(group, opponent, exposure, camera, lighting) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponent));
-}) {
+}, onReady?: (group: THREE.Scene) => void) {
   const lighting = createTitheLighting(scene);
   const background = scene.background instanceof THREE.Color ? scene.background.clone() : null;
   const slots: [Slot | undefined, Slot | undefined] = [undefined, undefined];
@@ -50,7 +50,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
     const token = slot.generation;
     void loader(slot.id, slot.group, slot.opponent, lighting.forGroup(slot.group)).then((fx) => {
       if (slot.generation !== token) { fx.clear(); disposeSpecialGroup(slot.group); return; }
-      slot.fx = fx;
+      slot.fx = fx; onReady?.(slot.group);   // the group joined the scene after the fight-start compile: let the caller compile it before the wind-up
     }).catch(() => { if (slot.generation === token) { discard(slot); slot.ended = true; } });
   };
   const select = (side: Side, id: SpecialId, opponent: OpponentId) => {
