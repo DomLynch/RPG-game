@@ -12,15 +12,15 @@ import { LADDER } from '../src/ladder.ts';
 // Arenas 2 and 3: a theme is colour and light only. The rotation follows the ladder band; the geometry never moves.
 const SKIN_SAMPLE = 0.166;   // tests/arena.test.ts: the hero's skin albedo, which every floor must stay below
 
-test('the ladder band picks the arena: two rungs each, 1 → A → B → C → D, all five arenas on the ladder; an override wins; unknown is Arena 1', () => {
+test('the ladder band picks the arena: two rungs each, 1 → Skull Gate → B → C → D, five arenas on the ladder (the Night Pit left it for Arena 2, Dom 2026-10-06); an override wins; unknown is Arena 1', () => {
   assert.equal(LADDER.length, 10, 'ten rungs: five bands of two');
   assert.deepEqual(LADDER.map((_, i) => arenaBand(i + 1)), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
-  assert.deepEqual(Object.values(ARENA_PICK), ['1', 'a', 'b', 'c', 'd'], 'every built arena is picked exactly once');
+  assert.deepEqual(Object.values(ARENA_PICK), ['1', '2', 'b', 'c', 'd'], 'every picked arena is picked exactly once');
   LADDER.forEach((o, i) => {
     const rung = i + 1, want = ARENA_PICK[arenaBand(rung)];
     assert.equal(arenaFor(o.id).id, want, `${o.id} (rung ${rung})`);
   });
-  assert.equal(arenaFor('goblin').id, 'a'); assert.equal(arenaFor('shieldmaiden').id, 'd');
+  assert.equal(arenaFor('goblin').id, '2'); assert.equal(arenaFor('shieldmaiden').id, 'd');
   assert.equal(arenaFor('veteran').id, '1');
   assert.equal(arenaFor('veteran', 'd').id, 'd');
   assert.equal(arenaFor('veteran', 'nonsense').id, '1');
@@ -49,6 +49,8 @@ test('every arena\'s floor stays darker than the hero\'s skin, and each new aren
     const base = luminance(one.sand) * shade;
     assert.ok(Math.abs(floor / base - 1) < 0.15, `${theme.id}: floor luminance ${floor.toFixed(3)} is more than 15 % from Arena 1's ${base.toFixed(3)}`);
     if (theme.id === '1') continue;
+    // Arena 2 (The Skull Gate) keeps Arena 1's masonry on purpose: its difference is the painted far world, not the wall.
+    if (theme.id === '2') continue;
     // A different wall, not a recoloured one: the masonry's luminance pattern barely correlates with Arena 1's.
     const lum = (p: { data: Uint8Array }) => Float64Array.from({ length: p.data.length / 4 }, (_, i) => 0.3 * p.data[i * 4] + 0.59 * p.data[i * 4 + 1] + 0.11 * p.data[i * 4 + 2]);
     const a = lum(maps.stone), b = lum(one.stone), ma = a.reduce((x, y) => x + y) / a.length, mb = b.reduce((x, y) => x + y) / b.length;

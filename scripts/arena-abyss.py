@@ -1,14 +1,16 @@
 """Arena 1's abyss: an aerial view looking straight down from far above (Dom 2026-10-06; refs: hazy blue mountain ranges, a lake, puffy
 clouds in front). Seeded and deterministic; numpy + PIL. Writes public/arena/abyss.webp: a square disc map (centre = straight below the
 island, the rim fades into the haze colour the arena's horizon bowl is painted, ABYSS_HAZE in src/arena.ts).
-Usage: python3 scripts/arena-abyss.py [out.webp] [size]"""
+Usage: python3 scripts/arena-abyss.py [out.webp] [size] [sky|hell]   (sky: the aerial photograph of Arena 1; hell: Arena 2, charred ranges, lava seas, smoke lit red from below)"""
 import sys
 import numpy as np
 from PIL import Image
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'public/arena/abyss.webp'
 N = int(sys.argv[2]) if len(sys.argv) > 2 else 420
-HAZE = np.array([176, 194, 214], dtype=np.float32)   # keep equal to ABYSS_HAZE in src/arena.ts
+PALETTE = sys.argv[3] if len(sys.argv) > 3 else 'sky'
+HELL = PALETTE == 'hell'
+HAZE = np.array([62, 30, 26] if HELL else [176, 194, 214], dtype=np.float32)   # keep equal to the theme's abyss haze in src/arena-themes.ts
 rng = np.random.default_rng(1006)
 
 def noise(period, octaves=5, gain=0.5, size=N, ridged=False, seed=0):
@@ -37,12 +39,17 @@ gy, gx = np.gradient(h * 22.0)
 shade = np.clip(0.62 + 1.5 * (-gx * 0.6 + gy * 0.8) / (1 + np.hypot(gx, gy)), 0.15, 1.35)
 snow = np.clip((h - 0.56 - 0.1 * noise(16, 3, seed=5)) / 0.07, 0, 1) * np.clip(0.55 + 0.6 * (shade - 0.4), 0, 1)
 forest = noise(30, 3, seed=6)
-low = np.stack([62 + 22 * forest, 78 + 22 * forest, 66 + 14 * forest], -1)      # dark conifer green-grey valleys
-high = np.stack([118 + 20 * h, 110 + 18 * h, 104 + 16 * h], -1)                  # bare grey-brown rock
+if HELL:
+    low = np.stack([34 + 14 * forest, 24 + 8 * forest, 22 + 6 * forest], -1)        # charred valleys
+    high = np.stack([78 + 24 * h, 52 + 14 * h, 44 + 10 * h], -1)                    # red-brown scorched rock
+else:
+    low = np.stack([62 + 22 * forest, 78 + 22 * forest, 66 + 14 * forest], -1)      # dark conifer green-grey valleys
+    high = np.stack([118 + 20 * h, 110 + 18 * h, 104 + 16 * h], -1)                  # bare grey-brown rock
 t = np.clip((h - 0.42) / 0.3, 0, 1)[..., None]
 col = (low * (1 - t) + high * t) * shade[..., None]
-col = col * (1 - snow[..., None]) + np.array([232, 238, 246], np.float32) * (0.55 + 0.5 * shade[..., None]) * snow[..., None]
-water = np.array([44, 78, 112], np.float32) * (0.8 + 0.4 * noise(40, 2, seed=7))[..., None]
+peak = np.array([120, 84, 76] if HELL else [232, 238, 246], np.float32)   # snow, or ash on the high ground
+col = col * (1 - snow[..., None]) + peak * (0.55 + 0.5 * shade[..., None]) * snow[..., None]
+water = (np.array([255, 96, 24], np.float32) * (0.55 + 0.9 * noise(40, 3, seed=7))[..., None] if HELL else np.array([44, 78, 112], np.float32) * (0.8 + 0.4 * noise(40, 2, seed=7))[..., None])   # lava, or lake
 col = col * (1 - lake[..., None]) + water * lake[..., None] + 14 * np.clip(1 - np.abs(h - sea) / 0.012, 0, 1)[..., None] * (1 - lake[..., None])  # pale shore
 
 # Clouds drifting between: puffy tops, rose-grey bellies, their shadow dropped on the land.
@@ -52,7 +59,7 @@ dx, dy = int(N * 0.03), int(N * 0.045)
 sh = np.roll(np.roll(cloud, dy, 0), dx, 1)
 col = col * (1 - 0.35 * sh[..., None])
 lit = np.clip(0.8 + 1.6 * (np.roll(c, -3, 0) - c), 0.55, 1.15)
-top = np.stack([250 * lit, 244 * lit, 240 * lit], -1); belly = np.array([170, 166, 182], np.float32)
+top = np.stack([(120 if HELL else 250) * lit, (96 if HELL else 244) * lit, (92 if HELL else 240) * lit], -1); belly = np.array([150, 54, 36] if HELL else [170, 166, 182], np.float32)   # smoke lit red from below, or white cloud
 body = belly + (top - belly) * np.clip((cloud * 1.5)[..., None], 0, 1)
 col = col * (1 - cloud[..., None]) + body * cloud[..., None]
 
