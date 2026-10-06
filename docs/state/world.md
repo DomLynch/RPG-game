@@ -2,6 +2,33 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-06 23:05 (+04, `date` on the Mac) — HANDOFF #14 before /clear. READ FIRST (supersedes #13 where it differs)
+
+### Now
+- **Blood, the one live job (Dom's direct asks via Lead; Audio is STOPPED, see Gotchas).** Dom's chain: b2 -> b3 ("good thickness and width now") -> **revised b4 = b3 with spray x0.9 (counts 17/28 -> 15/25), width x0.9, strand LENGTH x1.2 (stretch 1.85 -> 2.46, Lead agreed), both colours x0.9 (#690f0d -> #200504)**; timing/speeds untouched.
+  - Preview branch `world/blood-options` @ **0aa53af5** (`?blood=b4`; b2/b3/a/b also on it). Sha sent to Deploy for /preview/blood-b4/ (check `curl -s -o /dev/null -w %{http_code} https://frankendom.com/preview/blood-b4/`; b3 was verified live with its bundle holding #75110e). Worktree /private/tmp/claude-501/blood-b3.
+  - **b4 CLIP (required, Dom judges from clips): running on the VPS under `capture world /opt/frankendom-shadow/work/blood-film-b4.sh`** (workdir /opt/frankendom-shadow/work/blood2 @0aa53af5, output /tmp/bg4/b4/{blood-b4.mp4,sheet-b4.png}, /tmp/bg4.done when finished). Copy to `~/Desktop/Business/frankendom-blood/v4/` and send Lead + Strategy the paths. sheet = 24 frames, 8x3, 250 px wide (ffmpeg tile).
+  - **Default PR (not opened yet):** branch `world/blood-default` @ **aa65857a** off trunk (b4's numbers are the ONLY blood: old burst, a/b/b2/b3 flags removed; src/blood-style.ts rewritten; armfeel.ts keeps Particle/GRAVITY/tickParticle; tests/blood-style.test.ts + armfeel.test.ts updated; dc7498ac = numbers only, aa65857a = foe fix). Worktree /private/tmp/claude-501/blood-default. blood-style + armfeel 14/14 and graphics + scene-warmup + blood-edge 125/125 on the VPS at dc7498ac; aa65857a only re-checked by tsc/eslint + the new unit test (re-run `node --test tests/blood-style.test.ts tests/armfeel.test.ts` on the VPS before opening).
+  - **Foe-blood fix (Dom: "blood appears when I get hit, rarely when I hit"; Lead/Strategy guards: camera frozen, hero-hit blood EXACTLY b4, foe only):** in scene.ts for victim 1, drop size x bloodGrow(camDist foe / camDist hero, clamp 1..3), spawn moved 0.35*scale along the camera `right` toward the arrival side and +0.1*scale up; counts identical. **PROOF still owed:** visible-blood pixel counts for slash/stab/heavy, hero->foe and foe->hero, before (dc7498ac) vs after (aa65857a) at 375, equal within +-25%; plus a 375 clip with a foe hit and a hero hit back to back; both go in the PR body with before/after stills (skill visual-pr-stills), then Auditor, then Lead. **No merge before Dom OKs b4.**
+  - Measuring run submitted: `capture world /opt/frankendom-shadow/work/blood-sides-run.sh` (queued behind the b4 clip). Scratch harness (not committed): /private/tmp/claude-501/bloodside/{blood-sides.mjs,blood-sides.patch.py,setup-sides.sh,submit.sh}; VPS worktrees /opt/frankendom-shadow/work/blood-before (dc7498ac) and blood-after (aa65857a), each patched locally with a `__bloodShot` hook (renders the frame with and without the burst mesh, counts differing pixels = exact visible blood, occlusion included). Output /tmp/bs/{before,after}.json + /tmp/bs/stills/*.png, /tmp/bs.done when both finish; per-run logs /tmp/bs/*.log. Group rows by victim and cls (slash/stab/heavy), median px per cell, ratio foe/hero per class. If a cell is empty (the foe never lands that move) say so; if after is outside +-25%, tune bloodGrow / the open-side offset (constants in scene.ts + blood-style.ts) and re-run.
+- Order Lead set: b4 sha -> b4 clip -> foe-blood fix + proof -> default PR.
+
+### Done today (since #13)
+- Interrupt grunt `effort_voice` built, then **REJECTED by Dom**; breathing (`audio/breath` f59e6c88, in Combat's #1483 as ec5e366f) and interrupt options A/B/C and the breath audition were built, heard by Dom: "all shit, I will choose manually closer to beta launch". **Lead: STOP all synth vocal/breath work; both ship MUTED (constants false in #1481/#1483); keep the wired code, a later pick is a one-file swap.** Files for the record: ~/Desktop/Business/frankendom-audio/{effort-grunt,interrupt-A,B,C,breath-audition}.m4a; scratch generators /private/tmp/claude-501/effort-ref/{options.py,breath-render.py,breath-events.mjs,measure.py}.
+- b2/b3/b4 branch + previews (b3 live and verified), the b3 clip cancelled (b4 supersedes).
+
+### Open
+- #1454 (pit-arena cleanup) merge-ready, waiting on Lead's GO + Deploy (unchanged). #1438/#1444 frozen until the Auditor's verdict (unchanged). Arena frame-time rerun needs Lead's OK + load (unchanged).
+- Waiting on: b4 preview publish (Deploy), the two VPS jobs, Dom's OK on b4.
+
+### Gotchas
+- **`capture` queue is FIFO; a running job cannot be re-ordered.** Kill my own queued job by its pid only. **`pkill -f` / `pgrep -f` with the pattern text inside the same ssh command line kills/matches your own shell** (it did again today): put the commands in a script, `scp` it, run it, and use `[b]` bracket patterns.
+- **The sprite is built with `aac_at` (Apple AudioToolbox): only a Mac can rebuild it** (VPS ffmpeg has no aac_at); source mp3s download slowly from freesound on the VPS (one is 3.7 MB; copy the Mac's cache instead). Audio gzip cap 1,000,000 B; baseline without the stand-in grunt 985,766.
+- **A `git reset --soft origin/<branch>` after a fetch moves HEAD to the NEWER ref and silently reverts your base's newer commits in the commit** (cost me a bad commit once): cherry-pick onto the fresh ref instead.
+- `scripts/blood-clip2.mjs` and `blood-clip.mjs` are untracked scratch in /opt/frankendom-shadow/work/blood2 (do not lose them); the Mac blocks test suites and builds while a deploy is in flight (single-file node --test is sometimes blocked too): run suites on the VPS.
+- sim-boundary test fails on audio/breath's OLD base (78ad305f, fatigue.ts not in SIM); fixed upstream (Combat afcb2c77); ignore, superseded by Combat's ec5e366f.
+- Foe-blood measurement idea worth remembering: toggle the burst mesh and diff two renders from the same frame (needs a scratch hook; never commit it).
+
 ## 2026-10-06 20:50 (+04, `date` on the Mac) — HANDOFF #13 before /clear. READ FIRST (supersedes #12 where it differs; #12 is stamped ~22:20 but the clock read 20:50 when #13 was written, so #12's stamp is wrong and #13 is the newer entry)
 
 ### Now
