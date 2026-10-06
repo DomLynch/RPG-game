@@ -98,3 +98,27 @@ export function buildWall(stage: SceneStage, group: THREE.Group, wallZ: number, 
     dispose() { if (disposed) return; disposed = true; niche.dispose(); marker.dispose(); dark.dispose(); niches.dispose(); skulls?.dispose(); },
   };
 }
+
+// The timber the skulls hang on in the cage (Dom 10-05; the Auditor: flat brown, pasted in front of the bars): weathered planks across, a tone each, wandering grain,
+// knots, dark seams, a charred frame worn pale at the corners, iron nails in the margins. Pure drawing, deterministic; the Stage's lights do the rest.
+export const BOARD_PX = { w: 256, h: 512, planks: 6 };
+export function paintTimber(ctx: CanvasRenderingContext2D): void {
+  const { w: W, h: H, planks } = BOARD_PX, plank = H / planks;
+  let seed = 23;
+  const rand = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  for (let p = 0; p < planks; p++) {
+    const y0 = p * plank, tone = 0.8 + rand() * 0.3;
+    ctx.fillStyle = `rgb(${Math.round(118 * tone)},${Math.round(82 * tone)},${Math.round(52 * tone)})`; ctx.fillRect(0, y0, W, plank);
+    for (let i = 0; i < 26; i++) {
+      const y = y0 + 3 + rand() * (plank - 6), x0 = rand() * W, len = 60 + rand() * 200, bend = (rand() - 0.5) * 4;
+      ctx.strokeStyle = rand() < 0.65 ? `rgba(16,10,5,${0.14 + rand() * 0.2})` : `rgba(170,125,80,${0.06 + rand() * 0.1})`; ctx.lineWidth = 0.5 + rand() * 1.4;
+      ctx.beginPath(); ctx.moveTo(x0, y); ctx.bezierCurveTo(x0 + len * 0.3, y + bend, x0 + len * 0.7, y - bend, x0 + len, y + bend * 0.4); ctx.stroke();
+    }
+    if (rand() < 0.7) { const x = 20 + rand() * (W - 40), y = y0 + plank * (0.3 + rand() * 0.4), r = 3 + rand() * 3; ctx.fillStyle = 'rgba(12,7,3,0.6)'; ctx.beginPath(); ctx.ellipse(x, y, r * 1.6, r, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(12,7,3,0.3)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(x, y, r * 2.6, r * 1.8, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(5,3,1,0.85)'; ctx.fillRect(0, y0, W, 3); ctx.fillStyle = 'rgba(200,150,95,0.12)'; ctx.fillRect(0, y0 + 3, W, 1.5);
+  }
+  ctx.fillStyle = 'rgba(8,4,2,0.6)'; ctx.fillRect(0, 0, W, 8); ctx.fillRect(0, H - 8, W, 8); ctx.fillRect(0, 0, 8, H); ctx.fillRect(W - 8, 0, 8, H);   // the charred frame
+  for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]] as const) { const g = ctx.createRadialGradient(x, y, 0, x, y, 46); g.addColorStop(0, 'rgba(190,150,105,0.5)'); g.addColorStop(1, 'rgba(190,150,105,0)'); ctx.fillStyle = g; ctx.fillRect(x - 46, y - 46, 92, 92); }   // worn pale corners
+  ctx.fillStyle = '#16100a';
+  for (let p = 0; p < planks; p++) for (const x of [14, W - 14]) { ctx.beginPath(); ctx.arc(x, p * plank + plank / 2, 3, 0, Math.PI * 2); ctx.fill(); }
+}

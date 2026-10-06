@@ -10,6 +10,7 @@ type Noise = NonNullable<Stage['noise']>;
 export const GLOW = { fog: '#8a5a30', fogDensity: 0.035, light: '#ffd08a', stone: '#d9a86e', sand: '#f2c58a', fill: '#ffbf7a', arch: '#a8875f', cageFog: '#c9a47a', cageFogDensity: 0.02 };
 
 // A canvas texture: `draw` paints a w × h 2D context.
+const base = (): string => import.meta.env?.BASE_URL ?? '/';   // vite sets it; node tests have no import.meta.env
 function painted(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void): THREE.Texture {
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
@@ -79,7 +80,7 @@ export function addGlow(group: THREE.Group, gate: { width: number; height: numbe
 // The arena seen through the gate: Arena 1's painted far world, its lower half (the stands in the sun), washed toward the haze.
 export function arenaBeyond(material: THREE.MeshBasicMaterial, textures: THREE.Texture[]) {
   material.color.set('#f0dab2');   // daylight out there (Dom 10-04: "behind the bars should be daytime arena")   // dimmed so the stands read through the bars, not a white glare
-  new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}arena/backdrop-1.webp`, (map) => {
+  new THREE.TextureLoader().load(`${base()}arena/backdrop-1.webp`, (map) => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.repeat.set(1, 0.55); map.offset.set(0, 0.2);
     textures.push(map);
@@ -113,7 +114,7 @@ const GROUND: readonly Ground[] = [
 export function addGroundBlood(group: THREE.Group) {
   const textures: THREE.Texture[] = [], materials: THREE.MeshStandardMaterial[] = [], geometries: THREE.BufferGeometry[] = [];
   for (const m of GROUND) {
-    const map = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}pit/blood/${m.img}.webp`);
+    const map = new THREE.TextureLoader().load(`${base()}pit/blood/${m.img}.webp`);
     map.colorSpace = THREE.SRGBColorSpace;
     const material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
     const geometry = new THREE.PlaneGeometry(m.w, m.h).rotateX(-Math.PI / 2).rotateY(m.turn).translate(m.x, 0.012, m.z);
@@ -142,7 +143,7 @@ function loadBlood(names: readonly Blood[]): Promise<Record<string, HTMLImageEle
     const img = new Image();
     img.onload = () => resolve([name, img]);
     img.onerror = () => reject(new Error(`blood decal ${name}`));
-    img.src = `${import.meta.env.BASE_URL}pit/blood/${name}.webp`;
+    img.src = `${base()}pit/blood/${name}.webp`;
   }))).then((pairs) => Object.fromEntries(pairs));
 }
 
@@ -239,7 +240,7 @@ export function addFence(group: THREE.Group, width: number, depth: number, iron:
   const geometry = mergeGeometries(bars.map((g) => g.toNonIndexed()));
   for (const g of bars) g.dispose();
   const mesh = new THREE.Mesh(geometry, iron);
-  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.receiveShadow = true;   // the bars do not cast: their shadow made strong regular stripes on the sand (Auditor 10-05) while the hero's own stays full
   group.add(mesh);
   return geometry;
 }
@@ -252,13 +253,13 @@ export function addOpenSky(group: THREE.Group) {
   const textures: THREE.Texture[] = [], materials: THREE.Material[] = [], geometries: THREE.BufferGeometry[] = [];
   const skyMap = painted(4, 256, (g) => {
     const v = g.createLinearGradient(0, 0, 0, 256);
-    v.addColorStop(0, '#5f6f8c'); v.addColorStop(0.55, '#b59a86'); v.addColorStop(0.8, '#e9b47c'); v.addColorStop(1, '#c9a47a');
+    v.addColorStop(0, '#5f6f8c'); v.addColorStop(0.35, '#66606a'); v.addColorStop(0.55, '#5a4b4a'); v.addColorStop(0.72, '#b59a86'); v.addColorStop(0.88, '#e9b47c'); v.addColorStop(1, '#c9a47a');   // the dome's mid band matches the painted ring's cloud tone at its top edge, so the ring does not end on a hard pale cap
     g.fillStyle = v; g.fillRect(0, 0, 4, 256);
   });
   const sky = new THREE.MeshBasicMaterial({ map: skyMap, side: THREE.BackSide, fog: false, depthWrite: false });
   const dome = new THREE.SphereGeometry(150, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.56);
   const NEAR = 0.45;
-  const map = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}arena/backdrop-1.webp`);
+  const map = new THREE.TextureLoader().load(`${base()}arena/backdrop-1.webp`);
   map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 8.9; map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;
   const paint = new THREE.MeshBasicMaterial({ map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
   const ring = new THREE.CylinderGeometry(40, 40, 40, 64, 1, true);
@@ -268,7 +269,8 @@ export function addOpenSky(group: THREE.Group) {
   ringMesh.scale.set(NEAR, NEAR * 0.9, NEAR); ringMesh.position.y = (17 - 7) * NEAR; ringMesh.rotation.y = 0.6;
   const sun = new THREE.DirectionalLight('#ffb46a', 4.2);
   sun.position.set(-24, 12, -15); sun.target.position.set(0, 0, 0);
-  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
   Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 60 }); sun.shadow.camera.updateProjectionMatrix();
   const fill = new THREE.HemisphereLight('#9fb2d4', '#4a3426', 1.1);
   group.add(domeMesh, ringMesh, sun, sun.target, fill);
