@@ -242,9 +242,9 @@ test('[property] 500 random hop sequences: the until-time only grows, each wait 
 });
 
 // ---- Cooldown scope (Strategy, 2026-10-08; trading.md D5, launch gate G3): rare-and-up gear or a Pit piece, as 0005's trade_cooldown_scope.
-const rareDef = { ...F.helmetDef(), id: 'item:loot.rare.Helmet', name: 'Rare helm', rarity: 'rare' };
-const relicDef = { ...F.helmetDef(), id: 'item:loot.relic.Helmet', name: 'Relic helm', rarity: 'relic' };
-const fineDef = { ...F.helmetDef(), id: 'item:loot.fine.Helmet', name: 'Fine helm', rarity: 'fine' };
+const rareDef = { ...F.helmetDef(), id: 'item:gear.rare-helm', name: 'Rare helm', rarity: 'rare' };
+const relicDef = { ...F.helmetDef(), id: 'item:gear.relic-helm', name: 'Relic helm', rarity: 'relic' };
+const fineDef = { ...F.helmetDef(), id: 'item:gear.fine-helm', name: 'Fine helm', rarity: 'fine' };
 const SCOPE_DEFS = new Map<ItemId, ItemDefinition>([...DEFS, ...[rareDef, relicDef, fineDef].map((raw) => {
   const d = must(parseItemDefinition(raw));
   return [d.id, d] as const;
@@ -263,7 +263,7 @@ test('cooldown scope: the constants are data and the generated scope is rare and
   assert.deepEqual([...COOLDOWN_SCOPE_PROVENANCE], ['arena-award', 'legacy-unlock']);
   assert.ok(Object.isFrozen(COOLDOWN_SCOPE_RARITIES) && Object.isFrozen(COOLDOWN_SCOPE_PROVENANCE));
   // The rare cosmetic token and the relic quest record are not gear, so they are not listed; common and fine gear is not listed.
-  assert.deepEqual(SCOPE, { items: ['item:loot.rare.Helmet', 'item:loot.relic.Helmet'], provenance: ['arena-award', 'legacy-unlock'] });
+  assert.deepEqual(SCOPE, { items: ['item:gear.rare-helm', 'item:gear.relic-helm'], provenance: ['arena-award', 'legacy-unlock'] });
 });
 
 test('cooldown scope: a common or fine non-Pit piece is out of scope and trades at once; rare and relic gear is cooled', () => {
