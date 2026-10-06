@@ -11,9 +11,10 @@
 import type { Action, Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
-import { FIRST_SCALED_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor } from './play-radius.ts';
+import { FIRST_LATE_NOTICE_VERSION, FIRST_SCALED_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor } from './play-radius.ts';
+import { STAB_ON } from './stab-rule.ts';
 
-export const RECORD_VERSION = 24;   // 24: bump 24 (2026-10-07, Lead; Backend, COMBAT-001) — late notice (ai.ts READ.lateNotice): on the in-between ladder levels from L12 up (moves.ts softNotice) a cut noticed with 1–5 ticks to spare is answered only (spare − 1) / 5 of the time. A record's version says whether its fight had the ramp (play-radius.ts LATE_NOTICE: v23 and older replay without it, detmath.ts underRecord, match.ts), so REACH[24] is empty and every shared link still replays its own fight. 23: bump 23 (2026-10-06, Dom via Lead) — Arena 1's play circle comes inward to 0.6 of 8.55 m (play-radius.ts; the veteran and the pitborn, every level). A record's version picks its circle: v22 and older replay in the old 8.55 m (detmath.ts underRecord, match.ts), so REACH[23] is empty and every shared link still replays its own fight. 22: bump 22 (2026-10-02; Combat, #1280, with #1114 not live) — Dom's final special rule in the sim (RULES.special: boss share .25, the cooldown re-arms from the release, a 45-tick no-attack recovery; duel.ts specialRecover). Only a fight with the specials flag steps differently, so a v21 specials record would replay another fight: 21 stays readable beside 22 (Lead: v21 is the writer on the specials base); a flag-off fight is bit for bit as v20, so v18–v20 stay readable and REACH[22] is empty.
+export const RECORD_VERSION = 25;   // 25: bump 25 (2026-10-07; Combat, COMBAT-001 3/3) — the Goblin's stab (AiProfile.stab: an opening he cannot cut is answered with the knife's 12-tick thrust; easy absent, normal .6, hard 1). A record's version picks it, as it picks the circle and the late notice: below FIRST_STAB_VERSION (stab-rule.ts, set by underRecord) the stab is off, so every older Goblin link replays its own fight and REACH[25] is empty. 24: bump 24 (2026-10-07, Lead; Backend, COMBAT-001) — late notice (ai.ts READ.lateNotice): on the in-between ladder levels from L12 up (moves.ts softNotice) a cut noticed with 1–5 ticks to spare is answered only (spare − 1) / 5 of the time. A record's version says whether its fight had the ramp (play-radius.ts LATE_NOTICE: v23 and older replay without it, detmath.ts underRecord, match.ts), so REACH[24] is empty and every shared link still replays its own fight. 23: bump 23 (2026-10-06, Dom via Lead) — Arena 1's play circle comes inward to 0.6 of 8.55 m (play-radius.ts; the veteran and the pitborn, every level). A record's version picks its circle: v22 and older replay in the old 8.55 m (detmath.ts underRecord, match.ts), so REACH[23] is empty and every shared link still replays its own fight. 22: bump 22 (2026-10-02; Combat, #1280, with #1114 not live) — Dom's final special rule in the sim (RULES.special: boss share .25, the cooldown re-arms from the release, a 45-tick no-attack recovery; duel.ts specialRecover). Only a fight with the specials flag steps differently, so a v21 specials record would replay another fight: 21 stays readable beside 22 (Lead: v21 is the writer on the specials base); a flag-off fight is bit for bit as v20, so v18–v20 stay readable and REACH[22] is empty.
 // 21: bump 21 (2026-09-29, Dom's GO via Lead; Combat) — Special Moves on the SKILL slot (duel.ts withSpecials, RULES.special), behind a per-fight flag the header now carries (one byte after the skill). With the flag off a v21 fight steps bit for bit as v20 (every new branch reads a field only withSpecials sets), so v20 stays readable (REACH[21] is empty).
 // 20: bump 20 (2026-09-28, Dom via Strategy / Lead) — the Plague Doctor fights with the estoc, not the longsword (roster.ts; his archetype row is the Nightborn's, who fights with it). REACH[20]: the Plague Doctor at every level. Inside the same unreleased bump (2026-09-29): his easy tellReaction 15 (moves.ts), closing the estoc's L6 thrust-from-range hole. And the sim's math (2026-09-29, Strategy ruling (b)): v20 on steps on src/detmath.ts (sin/cos/atan2/hypot on + − * / sqrt, the same bits in every engine; Node's V8 and Chromium's had split a Dwarf link on a 1-ulp atan2); v18/v19 records replay on the engine's own Math, frozen, picked by this version field through detmath.underRecord, so no shared link becomes a fresh fight.
 // 19: bump 19 (2026-09-28, RV18 content rebased on RV19; SCOPE shield line, Lead split from RV17) — the Centurion carries gladius + scutum from Legionary (moves.ts LOADOUT_FROM, level 6 on; the Recruit keeps the trident); the scutum is a guard profile only (wide: both flanks, stops heavies, costScale .75, posture drains ×1.5).
@@ -66,7 +67,8 @@ export const RECORD_VERSION = 24;   // 24: bump 24 (2026-10-07, Lead; Backend, C
 // [18, 19, 20, 21] -> [18, 19, 20, 21, 22] with the writer bump to 22: widened, REACH[22] is empty (Lead's ruling after the Auditer, 2026-10-02: v21 is the writer on the specials base, which may reach trunk before #1280, so it stays readable).
 // [.., 22] -> [.., 22, 23] with the writer bump to 23: widened, REACH[23] is empty (the play circle is keyed on the record's version, so an older record steps in the circle it was fought in).
 // [.., 23] -> [.., 23, 24] with the writer bump to 24: widened, REACH[24] is empty (late notice is keyed on the record's version, so an older record steps without the ramp).
-export const READABLE_VERSIONS = [18, 19, 20, 21, 22, 23, 24] as const;
+// [.., 24] -> [.., 24, 25] with the writer bump to 25: widened, REACH[25] is empty (the stab is keyed on the record's version, so an older Goblin record steps without it).
+export const READABLE_VERSIONS = [18, 19, 20, 21, 22, 23, 24, 25] as const;
 // Each bump's REACH (the standing rule, Strategy 2026-09-28): the fights bump N can change, as (opponent, from level). A record of version
 // k is refused when any bump after k reaches its opponent at its level; everything else is read. Literals on purpose, not the data they
 // describe (LOADOUT_FROM, ROSTER): a reach records what that bump changed and must not move when the data moves later (that change bumps
@@ -78,13 +80,14 @@ export const REACH: Readonly<Record<number, readonly { opponent: OpponentId; fro
   22: [],   // the final special rule (#1280): only a fight with the flag moves, and v21 is not readable
   23: [],   // Arena 1's smaller play circle: a record below 23 replays in the old circle (underRecord), so no older fight is reached
   24: [],   // late notice: a record below 24 replays without the ramp (underRecord), so no older fight is reached
+  25: [],   // the Goblin's stab: a record below 25 replays without it (underRecord, stab-rule.ts), so no older fight is reached
 };
 // A record states the era its fight was fought in (play-radius.ts): this build's version when the circle in force is the one this build fights `opponent` in AND late
 // notice is on (a live fight); the version before the ramp when the circle is right but the ramp was never turned on; the version before the circle when neither is
 // (a headless run that never set them, a script). Each replays to the fight it recorded, because the version picks both (detmath.ts underRecord). (N4: the pre-circle
 // version is a constant; the old circle WITH the ramp has no version, and no live fight or shared link is that: only a script that turns the ramp on without the circle.)
 const OLD_CIRCLE_VERSION = FIRST_SCALED_VERSION - 1;
-const stampedVersion = (opponent: string): number => PLAY_SCALE !== playScaleFor(opponent, RECORD_VERSION) ? OLD_CIRCLE_VERSION : LATE_NOTICE ? RECORD_VERSION : FIRST_SCALED_VERSION;
+const stampedVersion = (opponent: string): number => PLAY_SCALE !== playScaleFor(opponent, RECORD_VERSION) ? OLD_CIRCLE_VERSION : !LATE_NOTICE ? FIRST_SCALED_VERSION : STAB_ON ? RECORD_VERSION : FIRST_LATE_NOTICE_VERSION;   // the Goblin's stab is the newest era flag: late notice without it is the version before
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
@@ -143,7 +146,7 @@ export function createRecorder(meta: RecordMeta) {
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
 export function packRecord(r: FightRecord): Uint8Array {
-  if (r.v !== RECORD_VERSION && r.v !== FIRST_SCALED_VERSION && r.v !== OLD_CIRCLE_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
+  if (r.v !== RECORD_VERSION && r.v !== FIRST_LATE_NOTICE_VERSION && r.v !== FIRST_SCALED_VERSION && r.v !== OLD_CIRCLE_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
   if (r.intents.length !== r.ticks) throw Error('Fight record: ticks does not match the intent count');
   const build = ascii(r.build), opp = ascii(r.opponent), wpn = ascii(r.weapon);
   if (build.length > 255 || opp.length > 255 || wpn.length > 255) throw Error('Fight record: build, opponent or weapon id too long');
