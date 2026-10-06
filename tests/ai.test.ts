@@ -129,7 +129,7 @@ test('the warden punishes a whiff with a light and kicks or breaks a standing gu
   assert.ok(wardenAttacks(guarded).some(e => e.move === 'kick') || guarded.some(e => e.type === 'Charged' && e.actor === 1), 'a standing guard is kicked or charged through');
   assert.ok(guarded.some(e => e.type === 'GuardBroken' && e.actor === 1 && e.target === 0), 'and it does get opened');
   const lights = wardenAttacks(guarded).filter(e => e.move === 'light_right' || e.move === 'light_left');
-  for (const e of lights) assert.ok(guarded.some(o => o.tick < e.tick && o.tick > e.tick - 60 && ((o.type === 'Hit' && o.actor === 1) || (o.type === 'AttackStarted' && o.actor === 1 && o.move !== 'kick'))), 'a light against a guarding player only punishes a fresh opening or chains');
+  for (const e of lights) assert.ok(guarded.some(o => o.tick < e.tick && o.tick > e.tick - 60 && (((o.type === 'Hit' || o.type === 'GuardBroken') && o.actor === 1) || (o.type === 'AttackStarted' && o.actor === 1 && o.move !== 'kick'))), 'a light against a guarding player only punishes a fresh opening (a hit, or a broken guard: an exhausted fighter stays down 36 ticks longer, RV29 3B) or chains');
 });
 
 test('parry frequency follows the profile: a light-spamming player is parried at hard and never by a profile without parries', () => {
