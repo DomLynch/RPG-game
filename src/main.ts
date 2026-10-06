@@ -1205,6 +1205,17 @@ if (sparKit) {
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
 else if (invalidSparringPreview) banner('That special move test link is invalid. Choose valid Sparring picks and press Start sparring.', true);   // paused until a corrected link starts; never silently becomes a career fight
 else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // legacy ordinary Sparring link behavior
+// The scripted first loss (src/first-loss.ts, Match 'lesson'): `?lesson=1` boots it on the loaded warden. It records and awards nothing and the
+// page skips the AFK mark and the loot offer. Each beat lands on <html data-lesson> (the Web lane's prompts read it or take match.startLesson's
+// callback) and on __lesson for the stills harness; the callback is the one hook, so the prompts never need to know the script.
+const lessonAsked = !sparKit && !replayText && !sharedId && !invalidSparringPreview && new URLSearchParams(window.location?.search ?? '').get('lesson') === '1';
+if (lessonAsked) {
+  welcome.hidden = true; watching = false;
+  const heard: string[] = [];
+  match.startLesson((id) => { heard.push(id); document.documentElement.dataset.lesson = id; });
+  Object.assign(globalThis, { __lesson: () => ({ tick: match.practice.duel.tick, heard: [...heard], recorder: !!match.recorder, practiceOnly: match.practiceOnly, finish: match.practice.finish }) });
+  began();   // no banner: the lesson's status line is the Web lane's (lessons.ts), and a banner would sit on it
+}
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
@@ -1737,7 +1748,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {
