@@ -15,7 +15,7 @@ import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { recordSpecials } from './replay.ts';
 // Phase two: class B from Veteran and all boss tiers are enabled in valid PvE fights. A record carries its own flag
 // (version 21), so links made either way replay as they were fought.
-export const LIVE_SPECIALS = true;
+const LIVE_SPECIALS = true;
 import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
