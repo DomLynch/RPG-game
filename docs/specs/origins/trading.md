@@ -15,7 +15,7 @@ Since this spec was written, three things landed on trunk: the per-item trade co
 (`202610070004_origins_escrow_guard_null.sql`, prod version 20261006205219). No writer trade op exists yet (`origins/server/handlers.ts`).
 
 **The design in one paragraph.** Players trade by **barter only**: items for items, through the existing escrow and double-accept flow.
-**No currency changes hands in a player trade** (Dom, 2026-10-07). Earned gear and shop gear trade under an **escalating per-item cooldown**
+**No currency changes hands in a player trade** (Dom, 2026-10-07). Every piece except the bound list (cash-shop items, metal, shop consumables and stackables) trades under an **escalating per-item cooldown**
 with **no hard trade limit**: a fresh piece waits 72 hours, then each change of hands makes the new owner wait 7, 14, then 30 days, and 30
 days for every later trade (Dom, 2026-10-07; §2.10). Materials, stackables and consumables are bound, so no item can work as money. NPCs
 charge **metals** (bronze, silver, gold, 100:1), a bound balance earned by play that can never be traded; NPC shops sell base gear for metal.
@@ -208,16 +208,26 @@ The client never sends: an account, a region, a receiver slot, a binding, a hist
 
 **Rule (Dom, 2026-10-07; replaces "2 hand changes, then bound").** There is **no hard trade limit** and a trade never binds a piece.
 Instead each piece carries an **escalating cooldown**. The merged code is the source (`origins/contracts/economy.ts`, `tradeCooldown`,
-#1479). A piece is tradeable only if all hold:
+#1479).
 
-| Test | Source today |
+**The binding model (Strategy, correcting 2026-10-07, per Dom's 21:0x/21:1x decisions):**
+
+- **Tradeability:** every piece trades except the bound list: cash-shop items, metal, and shop consumables and stackables. Commons and
+  shop gear trade. There is **no rarity or Pit-piece scope**: Strategy's 2026-10-06 "rare and up, or a Pit piece" rule (D5) is superseded.
+- **Cooldown:** **every** tradeable piece cools. No rarity or Pit exemption.
+
+Trunk's `tradeCooldown` already works this way (it has no rarity test and cools every piece it does not refuse), so nothing is owed in
+code. Its never-tradeable list, which this spec keeps:
+
+| A piece never trades if | Source today |
 |---|---|
-| It is earned **gear** of rarity **rare or relic**, or a **Pit piece** (`arena-award` or `legacy-unlock` provenance), see D5 | `CATEGORIES`, `RARITIES` and `Provenance` (items.ts). **Not in `tradeCooldown` today:** the code has no rarity test. The writer applies D5 for now; it moves into the contract or DB check, with a test, before trade opens (Strategy, 2026-10-07; gate G3, §6). |
-| Or it is **shop gear** (provenance `shop`, category gear). Shop consumables and anything else a shop sells never trade. | `tradeCooldown`: `shop-not-gear` |
-| It is single-copy (stack 1). Every stackable (ore, materials, consumables) is untradeable. | `tradeCooldown`: `stackable` |
-| It is unbound and not story-critical | `tradeCooldown`: `bound`, `story-critical` |
-| It is not a cash-shop item | `tradeCooldown`: `cash-shop` (§5.8). `creator-mint` is cosmetics only (`checkInstance`, items.ts). |
-| Its cooldown has run out | `tradeCooldown`: `cooling`, below |
+| It was bought from a shop and is not gear (shop consumables and anything else a shop sells). Shop **gear** trades. | `tradeCooldown`: `shop-not-gear` |
+| It is a stackable (ore, materials, consumables) | `tradeCooldown`: `stackable` |
+| It is bound or story-critical | `tradeCooldown`: `bound`, `story-critical` |
+| It is a cash-shop item | `tradeCooldown`: `cash-shop` (§5.8). `creator-mint` is cosmetics only (`checkInstance`, items.ts). |
+
+Metal is not an item at all (§3.2), so no trade can carry it. Every other piece can be offered once its cooldown has run out
+(`tradeCooldown`: `cooling`, below).
 
 **The cooldown, as the code has it.** `FIRST_TRADE_DELAY_S` = **72 hours**. `COOLDOWN_STEPS_S` = **7, 14, 30 days**.
 
@@ -351,7 +361,7 @@ amount in the `Trade` contract, and the RMT case against coin (§3.1) applies in
 | I9 | **Idempotent op ids.** | Event pk aborts a replay with O0001 (`origins_events`, the `event` branch of `origins_apply`, 0001); stored payload read back (`origins_event`, 0002). | `trade` was not an event kind in 0002 (`origins_events_kind_check`). 0003 adds it. |
 | I10 | **Provenance fixed, history append-only.** | Trigger (`origins_item_guard`, 0001); `placeWithHistory` (items.ts). | None. |
 | I11 | **Cooldown (Dom, 2026-10-07):** a piece is offered and settled only after its cooldown (72 h fresh, then 7, 14, 30 days per hop, 30 forever after). Every settled trade appends exactly one `trade` entry, so the hop count survives split (history copied by the `split` branch of `origins_apply`, 0001), escrow and cancel (no entry written). | Pure: `tradeCooldown` in `changeOffer` and `settleTrade`. | DB: 0003's settle refuses `history_append` (§2.6 step 4) and has no cooldown guard. Draft #1522 adds both. |
-| I12 | **Only tradeable pieces enter escrow:** never a stackable (`single_copy = false`), never a bound row. | Pure: `tradeCooldown` (economy.ts). DB: 0003's escrow guard (`origins_escrow_guard`). | 0003 guard (M8) refuses `single_copy = false` or `bound_to is not null` into escrow. Rarity and provenance rules stay in the writer (the DB does not store rarity). |
+| I12 | **Only tradeable pieces enter escrow:** never a stackable (`single_copy = false`), never a bound row. | Pure: `tradeCooldown` (economy.ts). DB: 0003's escrow guard (`origins_escrow_guard`). | 0003 guard (M8) refuses `single_copy = false` or `bound_to is not null` into escrow. No rarity or provenance scope exists (Strategy, correcting 2026-10-07, per Dom's 21:0x/21:1x decisions). |
 | I13 | **Bound and story-critical never move between accounts.** | `tradeCooldown` (economy.ts), `remove` (inventory.ts), `checkInstance` (items.ts); story-critical binds on acquire (`parseItemDefinition`, items.ts). | Covered by I12 for the bound column. |
 | I14 | **Metal is never transferred** (when built): its ledger has no transfer reason, balance = sum of ledger, 0..`MAX_COIN`. | Nothing yet. | Option B (§3.2). |
 
@@ -565,12 +575,12 @@ farm cannot learn which action tripped it.
 the 0004 escrow-guard fix. A later lock fix, `202610070003_origins_trade_open_lock.sql`, serialises `origins_open_trade` per account. The
 other rows below wait for later migrations (draft #1522).
 
-**Before player trade opens (Strategy, 2026-10-07).** Binding gates; no trading flag turns on until all three are closed. Tracked in
+**Before player trade opens (Strategy, 2026-10-07).** Binding gates; no trading flag turns on until G1 and G2 are closed. Tracked in
 [launch-gates.md](launch-gates.md) (the one home for opening gates), with owners, proofs and status.
 
 - **G1:** 0005 (draft #1522) applied, so every settle writes the `trade` history and the hop count in the database (§2.6 step 4).
 - **G2:** the cooldown checked in the database, not only in the writer.
-- **G3:** the tradeable scope (D5) in the contract or DB check, with a test (§2.10).
+- **G3:** closed, superseded: there is no tradeable scope, every tradeable piece cools (Strategy, correcting 2026-10-07, per Dom's 21:0x/21:1x decisions).
 
 Nothing in 0003 touches a live non-Origins table. Every item creates or replaces something under `origins_*`, with a down-script that
 restores exactly the 0001/0002 state, a branch-DB run of `scripts/origins-database-check.mjs` plus §4.3, and Auditor probes.
@@ -676,7 +686,7 @@ Not in 0003: any change to `loot_claims`, `awards`, `fighter_profiles` or anothe
 award path and is class 2 if adopted); cash-shop tables; barter-board tables (phase 2).
 
 Contract changes that go with it (code, not migration): the tradeable predicate and cooldown (§2.10) used by `changeOffer`/`settleTrade`
-(**done**, #1479, `tradeCooldown`; it replaced the 2-trade bind); the D5 rarity test, with a test (not in `tradeCooldown` yet; gate G3); a `reversal`
+(**done**, #1479, `tradeCooldown`; it replaced the 2-trade bind); a `reversal`
 `HistoryEntry` kind (items.ts); gifts off if D4 says so (`parseTrade`, economy.ts).
 
 ---
@@ -687,7 +697,7 @@ Contract changes that go with it (code, not migration): the tradeable predicate 
 2. **Full receiver:** refuse the whole trade and keep it open (today's code) / move what fits, return the rest. **RULED (Strategy 2026-10-06): refuse whole; fix `server-save-schema.md` (§2, `origins_settle_trade`).**
 3. **Trade limit:** 2 hand changes then bind to the third owner / 1 / unlimited. **REPLACED (Dom, 2026-10-07): no hard trade limit. An escalating per-item cooldown instead: 72 h for a fresh piece, then 7, 14 and 30 days per hop, capped at 30 days for every later trade; hop count from the piece's `trade` history entries; a trade never binds (§2.10, `economy.ts` `tradeCooldown`).**
 4. **Gifts (one empty side):** off at beta / on. **RULED (Strategy 2026-10-06): off at beta (one or more items each side), the contract allows them today (`parseTrade`, economy.ts).**
-5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-06): rare-and-up plus Pit pieces, so R1 holds.**
+5. **Tradeable set vs R1:** rare-and-up gear plus every Pit piece / rare-and-up only (common Pit pieces untradeable). **RULED (Strategy 2026-10-06): rare-and-up plus Pit pieces, so R1 holds.** **SUPERSEDED (Strategy, correcting 2026-10-07, per Dom's 21:0x/21:1x decisions):** no scope. Every piece except the bound list trades, commons and shop gear included, and every tradeable piece cools (§2.10). R1 holds.
 6. **Bind the third owner to:** the character (existing `boundTo`) / the account. **RULED (Strategy 2026-10-06): the character for beta; revisit account-bind after beta. No contract change.** Moot since decision 3: a trade no longer binds (Dom, 2026-10-07).
 7. **Trade count lives in:** history, derived and enforced by trigger / a counter column. **RULED (Strategy 2026-10-06): history.**
 8. **NPC costs:** bound metals (bronze/silver/gold, 100:1, stored in bronze), ledger tables / column on `origins_career`; smith stays materials-only for now. **RULED (Strategy 2026-10-06): bound metals in ledger tables when built (replaces "tribute"); materials-only at beta. Approved (Dom, 2026-10-07): metals are a bound NPC currency and never tradeable.**
@@ -715,7 +725,7 @@ Contract changes that go with it (code, not migration): the tradeable predicate 
 2. Whether Supabase access tokens give the writer a session id claim, and which client-IP header nginx forwards (§2.8).
 3. What the Pit does today when a player who once owned a piece beats its legend again (§2.11). Read the award path with its owner.
 4. Where cancelled pieces go when both the offerer's pack and bank are full (§2.5).
-5. The rarity of each legacy Pit piece in live content (§2.10, D5).
+5. Closed: the rarity of legacy Pit pieces no longer matters, since there is no rarity scope (§2.10, D5).
 6. Which tier Pit metal uses, and whether grey or already-beaten legends pay it (§3.3).
 7. A value measure for the lopsided-trade flag with no prices (§5.6).
 8. How the writer learns of a password or email change (§5.4); and, if Dom buys SMS later, whether phone verification can be turned on in Supabase Auth (§5.3).
