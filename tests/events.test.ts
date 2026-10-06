@@ -15,6 +15,7 @@ test('events: a landed blow hurts its target; a block hurts its ACTOR (the defen
   assert.equal(struck(e({ type: 'Blocked', actor: 1, target: 0, damage: 3 })), 1, 'the warden blocked and took the chip: not the player\'s');
   assert.equal(struck(e({ type: 'Blocked', actor: 0, target: 1, perfect: true })), null, 'a perfect block lets nothing through');
   assert.equal(struck(e({ type: 'Whipped', actor: 0, target: 0, damage: 3 })), 0);
+  assert.equal(struck(e({ type: 'SpecialLanded', actor: 1, target: 0, damage: 30 })), 0, 'a Special Move\'s strike hurts its target (GPT audit 2026-10-06, finding A2)');
   for (const type of ['Parried', 'Dodged', 'Staggered', 'AttackStarted', 'PostureBroken'] as const) assert.equal(struck(e({ type, actor: 0, target: 1, damage: 5 })), null, type);
 });
 

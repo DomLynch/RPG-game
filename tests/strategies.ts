@@ -2,6 +2,7 @@
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
 import { decide, initialAi } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { struck } from '../src/events.ts';
 import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, opponentAt, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
@@ -62,7 +63,7 @@ export function battery(level: keyof typeof PROFILES | number, seeds = 24, ticks
         const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
         if (!broke && d.events.some(e => e.type === 'GuardBroken' && e.target === 0)) { broke = true; row.firstBreak.push(d.tick); }   // the tick the player's guard first broke this fight
         // Damage taken: a hit, a broken guard, or chip through a block — a turtle that dies to chip was touched.
-        for (const e of d.events) { const hurt = e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0); if (hurt && e.target === 0) taken++; if (hurt && e.target === 1) landed++; }
+        for (const e of d.events) { const who = e.type === 'Whipped' ? null : struck(e); if (who === 0) taken++; else if (who === 1) landed++; }   // struck(): a Blocked event's chip hurts its ACTOR, the blocker; the old `e.target` read counted the player's own chip as a landed blow (GPT audit 2026-10-06, finding A1)
       }
       if (!d.finish) row.stalls++; else if (d.finish.draw) row.losses++; else if (d.finish.victim === 1) row.wins++; else row.losses++;
       if (taken === 0) row.untouched++; row.taken += taken; row.landed += landed;
