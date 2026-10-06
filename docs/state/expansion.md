@@ -1,5 +1,27 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-06 18:35 (+04) — HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (every ruling today, in order). Session folder is still the app worktree `.../worktrees/elastic-gates-c6edc0` (change_directory refused); Dom to reopen on `~/Developer/frankendom-expansion`, worktree switch off.
+
+**Standing rules (Dom/Strategy/Lead, today):** Lead + Strategy have Dom's full authority (questions → Strategy); never stop working; function first, graphics later; MODULAR (rules = pure origins/* modules; content = data; one theme-token set + one UI kit; one asset map; world numbers in one place); camera FROZEN; Auditor full pass (quality, bloat, purity, real tests, CI entry < 2 s) on every Origins PR; order = 1 combat, 2 server saves, 3 trading, 4 region; live target = hidden `/origins` route (signed-in, flag OFF) once save+verify exists. Migrations: additive Origins-only = Strategy+Lead GO (down-script, branch DB, Auditor probes, one-line notice to Dom naming file/sha/down-script); anything ALTER/DROP/backfill of a live table = Dom's yes at the sha.
+
+**1. LIVE:** arena `6fb21b34` (includes #1428 universal levelling). Preview https://frankendom.com/preview/origins/ = PLAYABLE greybox `85db715` (branch `expansion/origins-greybox-play`, VPS build folder `/opt/frankendom-shadow/work/expansion/greybox-play`): real hero, walk (drag/WASD), walk hint, Orla talk → quest "The Concord Commission" → journal → ore → hand-in → +1 upgrade at the smith → real bank/backpack. Checked live at 375x812 (talk, quest active with 2 entries, bank) 0 errors. Lead checking it, then Dom.
+
+**2. PRs**
+- MERGED: #1428 levelling (type weights; legend 1/5 to L10, 1/10 from L11; first-win-only bosses), #1430 contracts, #1436 winch test.
+- GO'd to Deploy as one Origins release (after two arena releases; DON'T push): #1443 bag+bank @cadc8ab1 → #1446 quest journal @85f899e7 → #1447 NPC talk @c980f91c (stacked on #1446; needs a fresh green CI run).
+- Auditor PASS, waiting for Lead GO: #1448 world boss @95ac541e (MAX_BOSS_ID_LENGTH 21; I asked the Auditor whether to hash the key so ids can be long).
+- With the Auditor: #1450 world params @0cd94937 (15 groups Dom approved; layering, derive, seeded zones, schemaVersion). My VPS run 98/98.
+- Backend: #1449 DRAFT save/verify schema (doc only). Strategy rulings passed to Backend: store WORLD CP only; seed = frozen creditFromMarks snapshot at first open; post-snapshot verified Pit wins priced by #1428; server runs the pure modules as authority for quests/talk/inventory/trades/Pit; world-boss/mob CP preview-only until an encounter-token + replay record (next, on the Pit verifier).
+- #1432 (this branch): baseline re-pin + these handoff entries.
+
+**3. In flight at clear:** COMBAT agent on branch `expansion/origins-combat` (worktree `/private/tmp/claude-501/expansion-origins-combat`, VPS folder `greybox-combat`). Brief: real Pit duel from the greybox via READ-ONLY src/ import as a separate Vite entry; prove live dist sizes identical before/after; camera frozen; win → progression award() legend event, HUD shows CP; `originsPreview.fight()` hook; never write live storage (if src change needed: stop, report → Combat via Lead). If its work is not pushed, restart it with that brief.
+
+**4. QUEUE:** (1) combat result → VPS build → Deploy preview swap → 375 check → Lead → Dom; (2) inventory `consume`/burn op + ledger (ore hand-in, upgrade costs) after #1443 merges; add `item:exchange-ore` fixture; inventory call to apply an upgrade result; (3) switch the greybox to origins/world params after #1450 merges; (4) boss encounter-token + replay record on the Pit verifier; (5) server saves with Backend (#1449) → hidden /origins route; (6) trading on the server; (7) first region (Ash Frontier: matriarch, mobs, chapter one).
+
+**5. Gotchas:** VPS archives for contracts tests must include `docs/specs/origins`; use `git archive` (not tar of the worktree) or macOS `._` files break eslint; greybox-build.sh stills step often times out at high VPS load (stills never touch the published folder — verify in the browser instead); browser-pane JS checks run while the pane is hidden do not animate (front the tab first); `[hidden]` must win over `display` rules in the preview CSS.
+
 ## 2026-10-06 15:45 (+04) — HANDOFF before /clear. READ FIRST, then memory
 
 Lane: "Frankendom - Lead Dev (Expansion)". Reports to "Frankendom - Strategy (advisor)". Shared code goes to "Frankendom - Lead Dev". Previews go to "Frankendom - Deploy" (cc Lead). Review of #1428, #1430 and #1432 is owned by "Frankendom - Auditor" (send it heads, cc Lead).
