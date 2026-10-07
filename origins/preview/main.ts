@@ -13,6 +13,7 @@ import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, type Fro
 import { buildFrontier } from './frontier.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { demoCamps } from './frontier-camp.ts';
+import { campMobs } from './camp-mobs.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
@@ -50,6 +51,7 @@ const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), fr
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 if (frontier && frontierParts) {
   buildFrontier(scene, arena.materials, frontierParts, dress, camps);
+  if (camps.length && /[?&]campmobs\b/.test(location.search)) campMobs(scene, camps);
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
