@@ -54,6 +54,7 @@ export type Mobs = {
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
   nearest(x: number, z: number, within: number): MobPick | null;   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
+  freeze(hero: { x: number; z: number }, radius: number, hideId: string | null): void;   // a world duel is up: the creatures stand where they are; those past `radius` metres, and `hideId` (the duel's foe is drawn by the duel), are hidden
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
 };
 const RESPAWN = 90;   // s
@@ -154,6 +155,12 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       return best;
     },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
+    freeze(hero, radius, hideId) {
+      for (const [i, v] of views) {
+        const m = mobs[i]!, hide = specs[i]!.id === hideId || Math.hypot(m.x - hero.x, m.z - hero.z) > radius;
+        if (hide) { v.group.visible = false; v.ring.visible = false; }
+      }
+    },
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),

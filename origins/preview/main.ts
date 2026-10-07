@@ -439,11 +439,23 @@ function pressEngage() {   // STAB / SLASH / HEAVY / KICK / SKILL near a creatur
   const t = mobs?.nearest(state.x, state.z, REACH);
   if (t) engage(t.spec, t.x, t.z); else say('Nothing in reach: walk up to a creature, then press STAB, SLASH or HEAVY.');
 }
+// ?worldfight (Dom 2026-10-07: fight where you stand, no ring): the duel runs inside THIS scene. The world is moved into a holder the duel's scene mounts (src/scene.ts WorldMount),
+// the walker and the engaged creature are not drawn (the duel draws its own pair), the other creatures stand frozen and those past 20 m are hidden. Off by default: without the flag
+// the fight is the Pit's, as it was.
+const WORLDFIGHT = /[?&]worldfight\b/.test(location.search), FREEZE_RADIUS = 20;
+function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
+  const holder = new THREE.Group(); let moved: THREE.Object3D[] = [];
+  return {
+    renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
+    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); },
+    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; duelLayer.classList.remove('infight'); },
+  };
+}
 async function startMobFight(spec: MobSpec) {
   if (fighting || !frontier) { say(frontier ? 'A fight is already starting.' : 'There is nothing to fight here.'); return; }
-  fighting = true; kit = false; duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
+  fighting = true; kit = false; if (!WORLDFIGHT) duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
-  duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name}: a duel`;
+  duelLayer.hidden = false; journalButton.hidden = allegianceButton.hidden = true; if (!WORLDFIGHT) canvas.hidden = true; place.textContent = `${spec.name}: a duel`;
   renderer.setAnimationLoop(null);
   document.getElementById('art-status')!.textContent = 'Loading…';
   try {   // a chunk that never arrives must not leave `fighting` set for good: 20 s and the catch below hands the hero back
@@ -461,7 +473,7 @@ async function startMobFight(spec: MobSpec) {
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
     showResult(out.text);
-  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
+  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } }, WORLDFIGHT ? worldMount(spec, { x: state.x, z: state.z }, mobs?.find(spec.id) ?? { x: state.x, z: state.z - 4 }) : undefined);   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
   const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
