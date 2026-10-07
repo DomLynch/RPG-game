@@ -495,7 +495,7 @@ export function createScene(
   // The kill picks its finisher (once Hamstrung is in the rotation), so the clips are fetched in the background once the fight is ready, on idle. Silent on failure: hamstrungPick keeps the plain death.
   const prefetchHamstrung = () => { const start = () => { wantHamstrung(true); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 4000 }); else setTimeout(start, 1500); };
   const wantHamstrung = (prefetch = false) => { if ((prefetch || finisherOverride === 'hamstrung') && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
-  // Execution (src/execution.ts) loads exactly as Hamstrung does: on the picker's choice or on idle after ready, never as part of ready, and a failure is the plain death.
+  // Execution (src/execution.ts) loads on the picker's choice only (no idle prefetch: it re-skins 12 poses), never as part of ready, and a failure is the plain death.
   const executionAssets = createHamstrungAssets(
     async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/execution-killer.json'), import('./assets/execution-victim-hero.json')]); return { killer, victim }; },
     (loaded: NonNullable<typeof warriors>, { killer, victim }) => {
