@@ -64,6 +64,15 @@ export function lookAlong(at: number, stops: readonly { at: number; preset: stri
   for (let i = 1; i < s.length; i++) if (at <= s[i]!.at) { const u = (at - s[i - 1]!.at) / (s[i]!.at - s[i - 1]!.at); return blendLook(lookOf(s[i - 1]!.preset), lookOf(s[i]!.preset), u * u * (3 - 2 * u)); }
   return lookOf(s[s.length - 1]!.preset);
 }
+// The eased look between zones: call it every frame with the zone's key (any string) and the look that zone wants; when the key changes it blends from the look it last returned to the new one over `seconds`. The first call returns the target as is.
+export function zoneEaser(seconds = 1.5): (dt: number, key: string, target: Look) => Look {
+  let from: Look | null = null, shown: Look | null = null, k = 1, last: string | null = null;
+  return (dt, key, target) => {
+    if (key !== last) { last = key; from = shown ?? target; k = shown ? 0 : 1; }
+    k = Math.min(1, k + dt / seconds);
+    return (shown = blendLook(from!, target, k * k * (3 - 2 * k)));
+  };
+}
 // A zone's own look from its resolved params: the preset row with the fog density scaled to the zone's view.fogFar (default = unchanged; a longer view = thinner fog).
 export const zoneLook = (p: LookParams): Look => { const l = lookOf(p.ambience.preset); return { ...l, fogDensity: l.fogDensity * (DEFAULT_FOG_FAR / p.view.fogFar) }; };
 

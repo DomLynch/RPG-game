@@ -29,7 +29,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/sim.ts';
-import { applyLook, blendLook, lookAlong, lookOf, zonePreset, type Look } from './look.ts';
+import { applyLook, lookAlong, lookOf, zoneEaser, zonePreset, type Look } from './look.ts';
 import { creaturesLook } from '../../src/audio/creature.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
@@ -281,13 +281,9 @@ function step(dt: number) {
 let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
 // ?look=zonepreset (default off, with ?region=1): each zone is lit with its own preset (look.ts zonePreset), eased over 1.5 s from the look on screen when the zone changes; off, the base look passes through untouched.
 const ZONEPRESET = REGION && /[?&]look=(?:[^&]*,)?zonepreset\b/.test(location.search);
-let zlA: Look | null = null, zlShown: Look | null = null, zlK = 1, zlKey = '';
+const zoneEasing = zoneEaser();
 function zoneEase(dt: number, base: Look): Look {
-  if (!ZONEPRESET) return base;
-  const key = zoneNow ? zoneNow.zone : '', target = zoneNow ? lookOf(zonePreset(zoneNow.zone, zoneNow.preset)) : base;
-  if (key !== zlKey) { zlKey = key; zlA = zlShown ?? target; zlK = zlShown ? 0 : 1; }
-  zlK = Math.min(1, zlK + dt / 1.5);
-  return (zlShown = blendLook(zlA!, target, zlK * zlK * (3 - 2 * zlK)));
+  return ZONEPRESET ? zoneEasing(dt, zoneNow ? zoneNow.zone : '', zoneNow ? lookOf(zonePreset(zoneNow.zone, zoneNow.preset)) : base) : base;
 }
 function showZone(id: string | null) {
   if (!frontier) return;

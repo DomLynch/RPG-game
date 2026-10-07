@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
-import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneLook, zonePreset } from './look.ts';
+import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneEaser, zoneLook, zonePreset } from './look.ts';
 
 test('ash-pit is Arena 1 exactly (today\'s Pit does not change)', () => {
   const t = ARENA_THEMES['1'], l = PRESETS['ash-pit']!;
@@ -60,4 +60,13 @@ test('zonePreset: a generic frontier-haze zone gets its own row, any other prese
   assert.equal(zonePreset('black-mere', 'frontier-night'), 'frontier-night');
   assert.equal(zonePreset('exchange', 'exchange-dusk'), 'exchange-dusk');
   assert.deepEqual(PRESETS['cinder-fields'], PRESETS['cinder-haze']);
+});
+
+test('zoneEaser: the first call (no zone yet) returns its target, a key change blends over the time, and it settles exactly', () => {
+  const a = PRESETS['ash-pit']!, b = PRESETS['black-mere']!, ease = zoneEaser(1);
+  assert.equal(ease(0.016, '', a), a);
+  assert.equal(ease(0.016, '', a), a);
+  const mid = ease(0.5, 'black-mere', b);
+  assert.notEqual(mid, a); assert.notEqual(mid, b); assert.ok(mid.fogDensity > Math.min(a.fogDensity, b.fogDensity) && mid.fogDensity < Math.max(a.fogDensity, b.fogDensity));
+  assert.equal(ease(1, 'black-mere', b), b);
 });
