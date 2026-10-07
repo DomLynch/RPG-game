@@ -1,3 +1,16 @@
+## 2026-10-07 (morning) — RV30: three own rows, backstep B (no change), no whiff tax
+
+**Identities (the spec for the next lane; AI profile numbers only, never move timings, one commit per row so one can be dropped alone):**
+- **Shieldmaiden (shield wall):** the Pitborn's body and stamina game with a guard-first brain: parry .1 (she blocks), aggression .65 normal / .85 hard, `braceHeavy` .6. `guard` stays absent (= 1; a share cannot go higher). `kick` was tried and dropped (it fires only against a roller or backstepper). Open design question, not RV30: "a kick should open a raised guard" needs a rule change.
+- **Knight (armoured, methodical):** the Executioner's archetype and cut-spam answer (anticipate 3, lapse .2, read .75) with a slower eye (reaction 16 normal) and a steadier hand (aggression .7 / .8), heavy-first hard (pressure .3 against the shared .5). Poise 12 and the iron-rush special are his identity.
+- **Plague Doctor (duelist-poisoner):** the Nightborn's parry-first core, aggression .45 normal / .55 hard (a poisoner waits). The poison special carries the identity.
+
+**Rulings:** backstep vs the Executioner heavy = B, FINAL (Lead, Strategy): no rule change; the roll is the answer at close gap. Evidence `scripts/backstep-probe.mjs`: a backstep (0.6 m) escapes only from 2.0 m or more at today's 12 ticks, and even 48 ticks escapes from 0.85 m only if the player reacts within ~6 ticks (bots react at 12). Whiff stamina tax: NONE (it hits careful skilled bots, not the spam; ladder-human 40 seeds at taxes 0/6/12/18 in the PR). If L6 light spam is over the 80% cap it is targeted directly later: at the RV29 head it is 57% pooled, over 80% on veteran 23/24, pitborn 24, knight 24, shieldmaiden 24, dwarf 20 (`scripts/light-spam-l6.mjs`).
+
+**Next: RV31 L6 anti-spam** (Strategy ruling, 2026-10-07, not a blocker for RV29/RV30): light spam wins L6 against veteran 23/24, pitborn 24, knight 24, shieldmaiden 24, dwarf 20 (pooled 57%). Targeted fix with the existing spammer read (reads.spammer -> parry/anticipate on lights) for those five at the easy/normal blend; goal: no opponent above 80% at L6 for light spam while the pooled skilled-bot caps hold.
+
+**Heads:** combat/rv30 on top of #1549 (rows d10540ed, 744f3461, 316cc189; bump + REACH[30] = the three from level 1; digest re-pin).
+
 ## 2026-10-07 (morning) — HANDOFF: #1548 RV28 casts, #1549 RV29 batch, PvP hit-stop #1542 live + cap fix #1553 are all with the Auditor
 
 **Now (what the next session picks up):**
