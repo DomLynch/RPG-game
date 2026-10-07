@@ -36,7 +36,8 @@ export const ZONE_NAMES: Record<string, string> = {
   'east-road': 'The East Road', 'ferry-landing': 'The Grey Ferry', 'cinder-fields': 'The Cinder Fields', 'black-mere': 'The Black Mere',
   'blood-ruin': 'The Blood Ruin', 'cinder-hold': 'Cinder Hold', 'mere-end': 'Mere End',
 };
-const FRONTIER = 'region:ash-frontier' as RegionId, EXCHANGE = CONCORD_REGION as RegionId;
+export const FRONTIER = 'region:ash-frontier' as RegionId;   // the branded id: compare against this, never the plain literal (TS2367)
+const EXCHANGE = CONCORD_REGION as RegionId;
 // The Bounty this slice offers, and who posts it: the warden of the town beside the Bounty's ground.
 export const SLICE_BOUNTY = 'bounty:hrungnir';
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
