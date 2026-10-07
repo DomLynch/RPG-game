@@ -306,7 +306,8 @@ if SHEET:
     sc = bpy.context.scene
     sc.render.engine = "BLENDER_WORKBENCH"
     sc.display.shading.light = "STUDIO"
-    sc.display.shading.color_type = "TEXTURE"
+    sc.display.shading.color_type = "SINGLE"   # the wolf is near-black: read the pose on a plain grey body
+    sc.display.shading.single_color = (.7, .7, .7)
     sc.render.resolution_x, sc.render.resolution_y = 600, 420
     cam = bpy.data.objects.new("Cam", bpy.data.cameras.new("Cam"))
     bpy.context.collection.objects.link(cam)
