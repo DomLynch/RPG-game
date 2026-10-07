@@ -7,7 +7,7 @@
 import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
 import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
-import { DEFAULTS, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from './row.ts';
+import { DEFAULTS, RARE_DEFAULT, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from './row.ts';
 
 export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
@@ -34,8 +34,11 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   const sites = Object.entries(zone.layout).filter(([k]) => !k.startsWith('to-') && k !== 'entry' && k !== zone.spawns.boss);
   const entry = zone.layout.entry, door = entry ? { x: entry.u * width, z: entry.v * depth } : { x: width / 2, z: 0 }, reach = Math.min(width, depth) * 0.3;
   const rand = prng((seed ^ MOBS) >>> 0), weights = rungWeights(eligible, zone.difficulty), total = weights.reduce((n, w) => n + w, 0);
+  if (!(total > 0)) return finish();   // only rares (or nothing drawable): a rare never stands alone
   const inside = (x: number, z: number) => x >= 0 && x <= width && z >= 0 && z <= depth;
-  const pickRow = () => { let p = rand() * total, row = eligible[0]!; for (const [i, r] of eligible.entries()) { p -= weights[i]!; if (p <= 0) { row = r; break; } } return row; };
+  const pickRow = () => { let p = rand() * total, row = eligible[weights.findIndex((w) => w > 0)]!; for (const [i, r] of eligible.entries()) { if (weights[i]! > 0 && (p -= weights[i]!) <= 0) { row = r; break; } }
+    const rare = eligible.find((r) => r.replaces === row.id);   // a placeholder's camp may be its rare's instead (the stream is only touched when a rare exists)
+    return rare && rand() < (rare.chance ?? RARE_DEFAULT) ? rare : row; };
   const apart = (c: { x: number; z: number }) => !camps.some((k) => Math.hypot(k.members[0]!.x - c.x, k.members[0]!.z - c.z) < CAMP_GAP);
   // One camp of `row` round `centre`, `size` members (default: the row's own draw); null when no member found room.
   const camp = (row: MobRow, at: string, centre: { x: number; z: number }, size?: number): Camp | null => {

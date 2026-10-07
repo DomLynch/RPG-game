@@ -134,3 +134,33 @@ test('rungWeights: the zone window picks the home rung; a row with no ladder kee
   assert.deepEqual(w(15, 16), [0, 0, 10 * 2 / 3], 'only the top rung sits in 15..16');
   assert.deepEqual(rungWeights(FRONTIER_ROWS, { levelMin: 11, levelMax: 13 }), FRONTIER_ROWS.map((r) => r.weight ?? 10), 'Zone 1 rows have no ladder: unchanged');
 });
+
+// ---- rarity: uncommon curve, rares that take over a placeholder's camp ----
+
+const common = { ...FRONTIER_ROWS[0]!, source: cited }, rare: MobRow = { ...FRONTIER_ROWS[1]!, source: cited, rarity: 'rare', replaces: common.id, chance: 0.2, level: [11, 13] };
+
+test('rarity rules: each failing row yields exactly its code', () => {
+  const rc = (rows: MobRow[]) => validateRows(rows, ctx).map((i) => i.code);
+  assert.deepEqual(rc([common, rare]), []);
+  assert.deepEqual(codes({ ...good, rarity: 'mythic' as never }), ['rarity-field']);
+  assert.deepEqual(codes({ ...rare, replaces: undefined }), ['rarity-field'], 'a rare names its placeholder');
+  assert.deepEqual(codes({ ...good, replaces: 'character:x' }), ['rarity-field'], 'only a rare replaces');
+  assert.deepEqual(codes({ ...rare, chance: 0.9 }), ['rarity-field']);
+  assert.deepEqual(codes({ ...good, chance: 0.1 }), ['rarity-field'], 'only a rare has a chance');
+  assert.deepEqual(rc([rare]), ['rare-placeholder'], 'its placeholder is not in the set');
+  assert.deepEqual(rc([common, { ...rare, replaces: rare.id }]), ['rare-placeholder'], 'not itself');
+  assert.deepEqual(rungWeights([common, { ...common, id: 'character:ruin-ghoul', rarity: 'uncommon' }, rare], { levelMin: 11, levelMax: 13 }), [10, 3, 0], 'uncommon is x0.3, a rare is never drawn');
+});
+
+test('populateZone: a rare takes some placeholder camps, never stands alone, and a zone with no rare draws as before', () => {
+  let rares = 0, camps = 0;
+  for (let seed = 1; seed <= 60; seed++) {
+    const zone = generateZone(WILDS, seed);
+    assert.ok(zone.ok);
+    const withRare = populateZone(zone.value, [common, rare], seed, ctx), again = populateZone(zone.value, [common, rare], seed, ctx);
+    assert.deepEqual(withRare, again, 'seeded');
+    for (const c of withRare.camps) { camps++; if (c.row === rare.id) rares++; else assert.equal(c.row, common.id); }
+    assert.equal(populateZone(zone.value, [rare], seed, ctx).camps.length, 0, 'a rare alone makes nothing');
+  }
+  assert.ok(rares > 0 && rares < camps * 0.5, `${rares} rare camps of ${camps}: some, not most (chance 0.2)`);
+});
