@@ -610,14 +610,13 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     normal: { reaction: 14, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .1, read: .6 },
     hard: { reaction: 12, accuracy: .9, parry: .4, dodge: .3, aggression: .95, pressure: .75, discipline: 24, lapse: .08, read: .75 },   // parry .3 → .4, dodge .2 → .3 (owner, 2026-09-20): hard was 15/24 for the hero's brain; more answers, 17/24 (sweep). discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
   } },
-  // The Shieldmaiden (Brief 15, 2026-09-23): a PLACEHOLDER — the Pitborn's profile verbatim, only `scale` her measured standing ratio
-  // (tests/characters.test.ts), so her body can land before Combat's retune. Combat replaces this row in the same commit as the digest re-pin.
+  // The Shieldmaiden (shield wall; her own row, RV30, 2026-10-07, Strategy's identity line): the Pitborn's body and stamina game with a
+  // guard-first brain — a low parry (she blocks), less aggression and the brace against a charging heavy. `guard` stays absent (= 1, the most a guard share can be). AI profile only:
+  // no move timing changes. (A shield bash through the `kick` knob was dropped, Strategy 2026-10-07: it fires only against a roller or backstepper, and no profile knob opens a raised guard.)
   shieldmaiden: { scale: 1, health: 190, poise: 16, profiles: {
     easy: { reaction: 28, accuracy: .5, parry: .05, dodge: .05, aggression: .6, pressure: .6, discipline: 30, lapse: .45, read: .45 },
-    // Reaction 14 and lapse .1: he notices the stab in time to block it and answers what he sees, so stop-hitting him as he walks in no
-    // longer wins on its own; the whiff punisher stays the answer (the probe that set these: docs/state/combat.md).
-    normal: { reaction: 14, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .1, read: .6 },
-    hard: { reaction: 12, accuracy: .9, parry: .4, dodge: .3, aggression: .95, pressure: .75, discipline: 24, lapse: .08, read: .75 },   // parry .3 → .4, dodge .2 → .3 (owner, 2026-09-20): hard was 15/24 for the hero's brain; more answers, 17/24 (sweep). discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
+    normal: { reaction: 14, accuracy: .85, parry: .1, dodge: .1, aggression: .65, pressure: .7, discipline: 25, lapse: .1, read: .6, braceHeavy: .6 },
+    hard: { reaction: 12, accuracy: .9, parry: .3, dodge: .3, aggression: .85, pressure: .75, discipline: 24, lapse: .08, read: .75, braceHeavy: .6 },
   } },
   // The Nightborn (opponent 5, the vampire duelist): the parry is his whole game — the highest parry share on the roster, the fastest
   // reaction, thrusts over cuts (pressure), a low dodge share, a man's health and no poise (a duelist is staggered like anyone; his
@@ -642,8 +641,8 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     // Easy: a human reaction, a quarter parry and more lapses put him with the other rungs' easy (an 8-tick reaction and a .45 parry had
     // made easy as hard as hard; docs/state/combat.md); the commit is still there to learn.
     easy: { reaction: 16, accuracy: .7, parry: .25, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .4, read: .7, tellReaction: 15 },   // tellReaction 15 (bump 20, 2026-09-29; Lead ruling (a), Strategy confirmed): with the estoc, L6 'thrust from range' won 87 % (trunk longsword 71). His own easy anchor only, so the ladder's blend toward ABSENT (99) leaves L7+ on the reaction (identical fights) and L5 unchanged; 15 is the mildest that closes it (any tell under the 16 reaction does: 4 %)
-    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .55, pressure: .45, discipline: 45, lapse: .2, read: .85 },   // Combat retune at bump 8 (2026-09-23), the placeholder's one forced change: lapse .3 → .2. With the Nightborn's .3 he failed to touch a charger in 3/24 fights with the trident and the scythe (limit 2); .2 → at most 1, worst wins row 6/24
-    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .65, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4. aggression .75 → .65 (2026-09-23): the estoc's +0.30 m reach took the feint-and-punish to 0/24 again; .65 → 7/24.
+    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .45, pressure: .45, discipline: 45, lapse: .2, read: .85 },   // RV30: aggression .55 -> .45 (her own row, a poisoner waits; the Nightborn's .52). Combat retune at bump 8 (2026-09-23), the placeholder's one forced change: lapse .3 → .2. With the Nightborn's .3 he failed to touch a charger in 3/24 fights with the trident and the scythe (limit 2); .2 → at most 1, worst wins row 6/24
+    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .55, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4. aggression .75 → .65 (2026-09-23): the estoc's +0.30 m reach took the feint-and-punish to 0/24 again; .65 → 7/24.
   } },
   // The goblin (opponent 4, the pit-runner): small, fast, mean — 0.78× a man (his measured standing height; the rig is re-proportioned, not
   // shrunk: build-warrior.mjs BUILD.goblin), 100 health, poise 0 (anything staggers him). Reaction fast, parry 0 (he never parries), the dodge
@@ -665,9 +664,15 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // The value lives here, keyed by (opponent, level), because that is all a fight record carries: src/replay.ts rebuilds the profile
   // from OPPONENTS[opponent].profiles[level], so a value merged in from outside the sim would replay a different fight.
   executioner: { scale: 1.36, health: 160, poise: 12, profiles: { easy: PROFILES.easy, normal: { ...PROFILES.normal, anticipate: 3, lapse: .2, read: .75 }, hard: PROFILES.hard } },
-  // The Knight: PLACEHOLDER — a verbatim copy of the Executioner's archetype with only `scale` changed, to BUILD.knight's 1.18 (the
-  // provisional tie-break on his measured 0.367 shoulder ratio, Brief 17). His own tuning is the combat lane's (re-pin, 2026-09-23).
-  knight: { scale: 1.18, health: 160, poise: 12, profiles: PROFILES },
+  // The Knight (armoured, methodical; his own row, RV30, 2026-10-07, Strategy's identity line): the Executioner's archetype and cut-spam
+  // answer (anticipate 3, lapse .2, read .75: the same reasons) with a slower eye on cuts (reaction 16 at normal, tellReaction 10 on a thrust) and a steadier hand (aggression
+  // .7 / .8), a heavy-first hard tier (pressure .3 against the shared .5). Poise 12 and the iron-rush special are his identity already.
+  // AI profile only: no move timing changes.
+  knight: { scale: 1.18, health: 160, poise: 12, profiles: {
+    easy: PROFILES.easy,
+    normal: { ...PROFILES.normal, reaction: 16, tellReaction: 10, aggression: .7, anticipate: 3, lapse: .2, read: .75 },   // tellReaction 10: at reaction 16 alone the estoc / gladius 'thrust from range' won 21 / 16 of 24 (cap 12); a slow eye on cuts, a quick one on the point
+    hard: { ...PROFILES.hard, aggression: .8, pressure: .3, anticipate: 3 },
+  } },
 };
 
 // Knobs one opponent carries on top of an archetype he shares (the Skeleton is the Centurion's archetype and stays as he was).

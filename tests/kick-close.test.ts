@@ -76,5 +76,5 @@ test('wiring pins: the HUD ANDs the window onto the plain 1.5 m rule only when t
   assert.match(hud, /inKickReach = gap <= KICK_LANDS && !\(view\.kickClose && gaps\.retreating\(practice\.duel\.tick, gap\)\)/);
   assert.match(hud, /gaps\.record\(practice\.duel\.tick, gap, practice\.duel\.fighters\[0\]\.phase === 'hurt'\);/);
   assert.match(main, /const KICK_CLOSE = kickCloseFlag\(window\.location\?\.search \?\? ''\)/);
-  assert.match(main, /hud\.update\(shown, \{ kickClose: KICK_CLOSE,/);
+  assert.match(main, /hud\.update\(shown, \{[^}]*kickClose: KICK_CLOSE,/);
 });

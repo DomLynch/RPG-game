@@ -7,6 +7,7 @@ import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from '
 import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './defence-grade.ts';
 import { kickCloseFlag } from './kick-close.ts';
+import { fatiguePreviewFrom, previewPractice } from './fatigue-preview.ts';
 import { headlineFlag, victoryHeadline } from './victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
@@ -34,6 +35,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
 import { breakBeatFrom } from './break-beat.ts';
+import { breathLook } from './audio/breath.ts';
 import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
@@ -780,10 +782,14 @@ const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia ===
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
 feedback.breakThud(!!breakBeat?.thud);
+const FATIGUE_PREVIEW = fatiguePreviewFrom(window.location?.search ?? '');
+const fatigueForce = (): number | undefined => (FATIGUE_PREVIEW?.force != null && match.dummy && match.practiceOnly && !match.recorder ? FATIGUE_PREVIEW.force : undefined);   // the dummy-spar gate, one place
+const fatigueShown = <P extends Parameters<typeof previewPractice>[0]>(p: P): P => { const force = fatigueForce(); return force === undefined ? p : previewPractice(p, force); };   // ?stamina=N: the bar, the tired body and the breath read N; the sim's stamina stays real so every button works (dummy spar only)   // ?look=fatigue-preview[&stamina=8]: the red pulsing bar, and a stamina held low in a dummy spar (fatigue-preview.ts); absent = today's game
 const KICK_CLOSE = kickCloseFlag(window.location?.search ?? '');   // ?look=kickclose: the KICK light also goes out while the foe opens the gap (kick-close.ts); absent = today's game
 const HEADLINE = headlineFlag(window.location?.search ?? '');   // ?look=headline: one earned line on a win (victory-headline.ts); absent = today's game
 const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
 feedback.defenceGrades(DEFENCE_GRADES);
+feedback.breathing(breathLook(window.location?.search ?? ''));   // ?look=fatigue-preview: the winded/tired/gassed breath on, a look test; absent = silent
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
@@ -824,7 +830,7 @@ function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(shown, { kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(shown, { fatiguePreview: !!FATIGUE_PREVIEW, staminaShown: fatigueForce(), kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = shown.finish ? view.finishPhase() : null;
@@ -1565,6 +1571,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
+      if (kind === 'ready') view?.startStandoff();
       if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
@@ -1882,7 +1889,7 @@ function frame(now: number) {
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
         holding: foeHolding(practice.duel.fighters[1]),
-        fatigue: practice.fatigue,
+        fatigue: fatigueShown(practice).fatigue,
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
@@ -1976,7 +1983,7 @@ function frame(now: number) {
       },
       locked,
       paused() ? 0 : dt,
-      pvpShown ? pvpShown.practice : clip?.fresh ?? match.practice,
+      pvpShown ? pvpShown.practice : clip?.fresh ?? fatigueShown(match.practice),
       shownEvents,
       hitStop > 0 || held,
       match.epoch,
