@@ -2,6 +2,30 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 ~10:15 (+04, Mac clock) — HANDOFF #21 (PENCILS DOWN: credits out ~5 days; supersedes #20; the VPS clock labels local time "Z": real UTC = Mac -4 h)
+
+### Now: nothing running for me on the VPS (my worktrees world-fd-before/after may remain in /opt/frankendom-shadow/work: delete them, `git worktree remove --force`, they hold ~2 GB). Pick up in this order:
+1. **#1604 @3d76ee14, #1613 @1e1b769a, #1535 @5ae2592d (all OPEN):** trunk merged in (live 7a6ff569), VPS gates green (tsc 0, eslint 0, tests 137/142 pass). Auditor delta was SENT, no verdict seen. Lead GOs on Auditor PASS + fully green CI; #1604 merges before #1613. Do not push to them until the verdict. #1535 was force-reset to Combat's combat/standoff-final @5ae2592d (my branch, one owner).
+2. **Ash Frontier dressing (Lead's SPRINT, Dom: Frontier "quite disappointing", a flat plane), branch `world/frontier-dress` @30a92bed, NO PR yet:** origins/preview/frontier-dress.ts (pure: worn roads + ruts, scorch/ash patches, rock clusters, broken ruins, burnt posts/fences, dead trees, a cart/barrels; `ground` pieces on the Frontier's own canvas dirt material, `pieces` on the arena stone) + frontier-dress.test.ts (4 tests: deterministic, budget, solids off landmarks/west road, walker can still stand on every landmark) + frontier.ts (optional 4th param `dress`, `dirtMaterial()`) + main.ts (+4 lines after frontierBuild). VPS @30a92bed: origins-preview + graphics tests 152/152 (148 before the new file), tsc 0, eslint 0, build ok. **Stills not yet judged**: before/after at 375 are in /tmp/wfd/out on the VPS (before-*/after-*: a-exit, b-road, c-mid, d-mid-south, e-fields; before = trunk 7a6ff569). v1 (brick-looking ground, outline-ring patches) was too weak; v2 added the dirt material, which I did not see. Next: look at the after frames, tune density/contrast, open the PR (base trunk, 375 stills on an orphan stills/world-frontier branch), tell Lead; Deploy republishes /preview/origins/ per bite. Expansion's PR #1634 (two sticks) and its mobs touch main.ts too: merge cleanly (mine is +4 lines).
+3. **Bite 2, haze/fog depth on the Frontier:** #1625/#1630 are MERGED (look.ts + `?look=zone1` live in trunk). Wire per-zone preset on ?region=1 (Expansion publishes `origins:zone` / body.dataset.ambience; frontier-haze is heavy per Expansion's agent, tuning is mine); blend with blendLook, hoist allocations (flag-limited per-frame).
+4. Per-zone ground by ambience.preset (Expansion's data now on trunk via #1629): ground/stone split exists (exchange-plan 'paving' layer, exchange.ts {ground, stone}); remaining is the zone data.
+
+### Done today
+- #1625 look.ts (zone look, ?look=zones) MERGED; #1630 ?look=zone1 + paving layer split MERGED (Zone 1 grade for Dom's phone: /preview/origins/?look=zone1). Stills on origin/stills/world-zone1.
+- VPS cleanup for Strategy (17 GB freed); /opt ~55-64 GB free when I left.
+
+### Open
+- Auditor verdicts on #1604/#1613/#1535; Lead's GO. Lead's one-line stills verdict on #1630 was requested (now merged).
+
+### Gotchas (new)
+- **Node's test summary lines start with `ℹ`, not `#`**: grep '^ℹ (tests|pass|fail)'. The Mac blocks `node --test` while a deploy runs (even single files): use `capture world bash <script>` on the VPS.
+- **A Bash call blocked by the deploy PreToolUse hook runs NOTHING, including earlier `cat >` heredocs in it**: my frontier-dress.test.ts silently never existed for one commit. Write files with the Write tool and check `ls` before committing.
+- **Do not background a poll with a trailing `&` inside a subshell** (the task "completes" immediately): run `until ... test -f /tmp/x.done; do sleep 30; done` as the backgrounded command itself.
+- eslint list for a PR: `git diff --name-only --diff-filter=d <live trunk> HEAD`, never the 3-dot diff against a stale VPS trunk ref, and test files under origins/preview are not in the eslint config (it errors "No files matching").
+- Merge, never rebase, when Lead says merge trunk in (and cherry-pick onto a PR's final head when told); conflicts in src/main.ts/feedback.ts/tests/graphics.test.ts were import and flag lines only.
+- Scratch (not committed): /private/tmp/claude-501/z1/{fd-run.sh,fd-stills.mjs,gate.sh,z1-run.sh}; fd-run.sh takes the branch, builds trunk-before and branch-after, shoots ?region=1 at 375.
+- Peer ids: Lead local_1bcdcf54-b8b3-4ee1-9597-f3c06d9e74d9, Expansion local_9d0bafed-cc7d-4b05-ae00-21830e9270ec, Auditor local_866b9640-bb94-4aa0-b8fc-df2bfc00e271, Strategy local_50f50a99-9831-4024-9533-13d91a1220f3.
+
 ## 2026-10-07 ~08:30 (+04, Mac clock) — HANDOFF #20 (supersedes #19; the VPS clock labels local time "Z": real UTC = Mac -4 h)
 
 ### Now: nothing running on the VPS (checked this turn: `capture --status` shows none of mine, no `world-*` dir in /opt/frankendom-shadow/work, disk 38 GB free). Idle; Lead has nothing queued for me. Next pickups, in order:
