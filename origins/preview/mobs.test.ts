@@ -154,15 +154,21 @@ test("every creature on the Frontier has a look in Characters' mob-looks table, 
   }
 });
 
-test('the hero spawns among the creatures: on his feet in a Frontier zone, inside the crowd, but outside every notice ring', () => {
+test('the hero spawns in sight of the creatures but outside their reach: 25-35 m from the nearest, never inside a notice ring; under ?wolf 15-25 m from the nearest wolf, facing it', () => {
   const at = spawnAmong(F, B, SPECS)!;
   assert.ok(at, 'a spawn exists');
-  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 30)!.zone)!;
+  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 45)!.zone)!;
   assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
-  const nearest = Math.min(...SPECS.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
-  assert.ok(nearest >= TUNING.aggro, `no creature already has him (${nearest.toFixed(1)} m)`);
-  assert.ok(SPECS.filter((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 20).length >= 4, 'at least four creatures within 20 m');
+  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), nearest = Math.min(...SPECS.map(dist));
+  assert.ok(nearest >= 25 && nearest <= 35, `the nearest creature is ${nearest.toFixed(1)} m: past the 14 m tap reach, in sight`);
+  assert.ok(SPECS.filter((s) => dist(s) < 45).length >= 4, 'at least four creatures within sight (45 m)');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
+  const wolfSpecs = mobSpecs(F, B, previewRows('?wolf')), w = spawnAmong(F, B, wolfSpecs)!, wolves = wolfSpecs.filter((s) => s.body === 'wolf');
+  const wd = Math.min(...wolves.map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z))), others = Math.min(...wolfSpecs.filter((s) => s.body !== 'wolf').map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z)));
+  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m`);
+  assert.ok(others >= 25, `the goblins stay ${others.toFixed(1)} m off`);
+  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = w.facing - headingTo(w, c);
+  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
 });
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
