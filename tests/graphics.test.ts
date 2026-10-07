@@ -58,6 +58,7 @@ import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
 import * as breathAudio from '../src/audio/breath.ts';
 import * as powerWords from '../src/power-words.ts';
+import * as powerWordSynth from '../src/audio/power-word.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
 import * as tutorialUi from '../src/tutorial-ui.ts';
@@ -118,6 +119,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
+  modules['./audio/power-word.ts'] = powerWordSynth;
   modules['./audio/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
