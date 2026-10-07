@@ -2,10 +2,11 @@
 // (origin/expansion/origins-greybox origins/preview/exchange.ts and main.ts) so the greybox can read them from here with no visible change;
 // concord.test.ts pins every one to 1 cm. Region-wide: the Covenant makes the walk out a safe, trading, creature-free place.
 import { fail, ok, type Result } from '../contracts/core.ts';
+import { CONCORD_EXCHANGE } from '../contracts/economy.ts';
 import { toMetres, toWorld, type Mount } from './derive.ts';
 import { resolveZone, SCHEMA_VERSION, type WorldData } from './resolve.ts';
 
-export const CONCORD_REGION = 'region:concord-exchange'; // the contracts' and Trade's id (economy.ts CONCORD_EXCHANGE; region1 spec ruling 7)
+export const CONCORD_REGION: string = CONCORD_EXCHANGE; // one id for the world, the contracts and Trade (region1 spec ruling 7)
 
 export const CONCORD: WorldData = {
   schemaVersion: SCHEMA_VERSION,
