@@ -1,0 +1,20 @@
+[
+ [
+  "kill+16ms",
+  {
+   "status": "You beat Ragnar Lothbrok. You never took a hit. Ready for a rematch?",
+   "hp": 150,
+   "resetHidden": false,
+   "fade": true
+  }
+ ],
+ [
+  "reset visible",
+  {
+   "status": "You beat Ragnar Lothbrok. You never took a hit. Ready for a rematch?",
+   "hp": 150,
+   "resetHidden": false,
+   "fade": true
+  }
+ ]
+]

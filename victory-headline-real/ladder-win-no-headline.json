@@ -1,0 +1,20 @@
+[
+ [
+  "kill+16ms",
+  {
+   "status": "You beat Ragnar Lothbrok. Ready for a rematch?",
+   "hp": 86,
+   "resetHidden": false,
+   "fade": true
+  }
+ ],
+ [
+  "reset visible",
+  {
+   "status": "You beat Ragnar Lothbrok. Ready for a rematch?",
+   "hp": 86,
+   "resetHidden": false,
+   "fade": true
+  }
+ ]
+]
