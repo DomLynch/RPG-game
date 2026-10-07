@@ -11,7 +11,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
-import { TUNING, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
+import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
@@ -161,7 +161,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     freeze(hero, radius, hideId) {
       for (const [i, v] of views) {
-        const m = mobs[i]!, hide = specs[i]!.id === hideId || Math.hypot(m.x - hero.x, m.z - hero.z) > radius;
+        const m = mobs[i]!, hide = hiddenInFight(specs[i]!.id, hideId, Math.hypot(m.x - hero.x, m.z - hero.z), radius);
         if (hide) { v.group.visible = false; v.ring.visible = false; }
       }
     },

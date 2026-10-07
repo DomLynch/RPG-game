@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { FIGHT_CLEAR, TUNING, aggroTest, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -181,4 +181,13 @@ test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: with
   const wolves = mobSpecs(F, B, previewRows('?region=1&wolf')).filter((s) => s.character === 'character:ash-wolf');
   assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
+});
+
+test('a world fight shows exactly one foe: the engaged creature and every creature inside the clearing are hidden (Dom, 2026-10-07 23:40: two wolves)', () => {
+  assert.equal(hiddenInFight('wolves-1', 'wolves-1', 3, 20), true, 'the duel draws the foe');
+  assert.equal(hiddenInFight('wolves-2', 'wolves-1', 2.5, 20), true, 'a packmate beside the hero is hidden');
+  assert.equal(hiddenInFight('wolves-3', 'wolves-1', FIGHT_CLEAR - .01, 20), true);
+  assert.equal(hiddenInFight('wolves-3', 'wolves-1', FIGHT_CLEAR, 20), false, 'outside the clearing a creature stands frozen in view');
+  assert.equal(hiddenInFight('goblin-1', 'wolves-1', 25, 20), true, 'past the freeze radius: hidden');
+  assert.equal(hiddenInFight('goblin-1', null, 12, 20), false);
 });
