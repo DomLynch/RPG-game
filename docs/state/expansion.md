@@ -1,5 +1,9 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~11:30 (+04): CORRECTION — real saving is NOT coming next
+
+There is no origins writer on the box (checked over ssh: /etc/frankendom holds only duel-relay.env, presence.env, verifier.env; no origins or writer systemd unit). #1596 is live as code only, so "then the writer restarts" in the entries below is wrong. Saving is blocked on Dom's W3 step from #1455 (set the frankendom_origins password in the Supabase SQL editor; create /etc/frankendom/origins-writer.env as root). After that: the #1463 installer (draft @2bc9db54) on an Auditor PASS plus the joint GO (Lead and Strategy gave it conditionally), then flag ON + --link-writer, then #1593 X1. Until then the preview HUD stays "Offline preview: progress is not saved". Never tell Dom his progress saves.
+
 ## 2026-10-07 ~10:45 (+04): HANDOFF. READ FIRST, then memory, then the ~10:00 entry below
 
 Lane "Frankendom - Lead Dev (Expansion)". The restart hook calls it lead-catalogue; it IS expansion. Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom).
