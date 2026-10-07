@@ -87,9 +87,16 @@ tm = nt.nodes.new("ShaderNodeTexImage")
 tm.image = mr_img
 sep = nt.nodes.new("ShaderNodeSeparateColor")
 nt.links.new(tc.outputs["Color"], bsdf.inputs["Base Color"])
-nt.links.new(tm.outputs["Color"], sep.inputs["Color"])
-nt.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])   # glTF packing: G roughness, B metallic
-nt.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
+# BAKE_FLAT_MR=<roughness>: no metal/rough map, constant roughness and metallic 0. The giant's baked MR map speckled the body white (metal/low-rough
+# pixels where the cage rays hit other shells; ray distance, UV angle, weld and voxel remesh did not fix it); with the map removed the colour is clean.
+flat = os.environ.get("BAKE_FLAT_MR")
+if flat:
+    bsdf.inputs["Roughness"].default_value = float(flat)
+    bsdf.inputs["Metallic"].default_value = 0.0
+else:
+    nt.links.new(tm.outputs["Color"], sep.inputs["Color"])
+    nt.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])   # glTF packing: G roughness, B metallic
+    nt.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
 low.data.materials.clear()
 low.data.materials.append(mat)
 
@@ -123,7 +130,7 @@ bpy.ops.object.select_all(action="DESELECT")
 hi.select_set(True)
 low.select_set(True)
 bpy.context.view_layer.objects.active = low
-for src, img in ((hi_colour, colour_img), (hi_mr, mr_img)):
+for src, img in ((hi_colour, colour_img),) if flat else ((hi_colour, colour_img), (hi_mr, mr_img)):
     hm.links.new(src.outputs["Color"], emit.inputs["Color"])
     hm.links.new(emit.outputs["Emission"], out.inputs["Surface"])
     for n in nt.nodes:
