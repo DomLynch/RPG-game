@@ -8,6 +8,7 @@ import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './defence-grade.ts';
 import { kickCloseFlag } from './kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fatigue-preview.ts';
+import { guardCueFrom } from './guard-cue.ts';
 import { headlineFlag, victoryHeadline } from './victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
@@ -783,6 +784,7 @@ const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 const FATIGUE_PREVIEW = fatiguePreviewFrom(window.location?.search ?? '');
+const GUARD_CUE = guardCueFrom(window.location?.search ?? '');   // ?look=guard-cue: the foe's guard side by his health bar; absent = today's HUD
 const fatigueForce = (): number | undefined => (FATIGUE_PREVIEW?.force != null && match.dummy && match.practiceOnly && !match.recorder ? FATIGUE_PREVIEW.force : undefined);   // the dummy-spar gate, one place
 const fatigueShown = <P extends Parameters<typeof previewPractice>[0]>(p: P): P => { const force = fatigueForce(); return force === undefined ? p : previewPractice(p, force); };   // ?stamina=N: the bar, the tired body and the breath read N; the sim's stamina stays real so every button works (dummy spar only)   // ?look=fatigue-preview[&stamina=8]: the red pulsing bar, and a stamina held low in a dummy spar (fatigue-preview.ts); absent = today's game
 const KICK_CLOSE = kickCloseFlag(window.location?.search ?? '');   // ?look=kickclose: the KICK light also goes out while the foe opens the gap (kick-close.ts); absent = today's game
@@ -830,7 +832,7 @@ function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(shown, { fatiguePreview: !!FATIGUE_PREVIEW, staminaShown: fatigueForce(), kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(shown, { guardCue: GUARD_CUE, fatiguePreview: !!FATIGUE_PREVIEW, staminaShown: fatigueForce(), kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = shown.finish ? view.finishPhase() : null;

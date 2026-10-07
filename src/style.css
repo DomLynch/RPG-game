@@ -777,6 +777,8 @@ dialog>p {
 #health-value {
   letter-spacing: 0;
 }
+/* ?look=guard-cue (guard-cue.ts): the foe's held guard side, a thin tick beside his health number. */
+.guard-cue { margin-left: 6px; font-size: 10px; letter-spacing: 0.5px; color: #e8d9a6; opacity: 0.9; }
 #target-health {
   display: block;
   width: 100%;
