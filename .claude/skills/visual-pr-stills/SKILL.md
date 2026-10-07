@@ -12,6 +12,7 @@ description: A PR that changes what the player sees does not merge without befor
 - For a rank look: the in-game sheet front and back at 375, plus the gz size and the built-app delta.
 - One line from the lane on what changed and what to look for.
 - Lead's verdict on the stills, or Dom's word when he judged them.
+- Every NEW body (opponent, creature, mob): its measured on-screen height against its hit capsule, in metres, from the browser. The Ash Wolf passed stills review at 0.64 m on a ~1.3 m capsule because nobody measured it (Dom, 2026-10-07).
 
 ## Where the stills come from
 - The repo's harness scripts (arena-preview, character-preview, armour-contact-sheet), not a screenshot of a dev server.
@@ -22,3 +23,6 @@ description: A PR that changes what the player sees does not merge without befor
 - Lead does not mark READY without them.
 - Deploy does not merge a look PR whose body has none, even when CI is green.
 - "It is a small tweak" is not an exemption; the rim chip was a small tweak.
+
+## Stills gate READY, not the PR (COO, 2026-10-07)
+Three lanes held finished code for an hour waiting on VPS stills before opening any PR. Wrong reading of this skill. The draft PR opens the moment the code is done, with "stills pending (VPS queue)" in the body. Stills, gates and the Auditor attach afterwards and gate READY and merge. A lane with done code and no PR is breaking `no-idle-lane`.

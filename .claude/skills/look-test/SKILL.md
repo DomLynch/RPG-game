@@ -18,3 +18,10 @@ Dom's Shadow-Fight silhouette idea: World added `?look=silhouette` to the existi
 - A flag that survives becomes a real PR through the normal gate; the preview folder is never the ship path.
 - Deploy may drop the preview folder with the next release.
 - If the look needs the world to change too (a stylised cut-out in a photoreal arena), say so in the brief before the test: fighters alone cannot carry a style.
+
+## Experiments are preview-only (Dom, 2026-10-07, after the Ash Wolf)
+Dom asked for a wolf as a FAST experiment; it took an evening. It went through the full release path (record version bump, blade bake, DB migration + joint GO, a fold release, every gate), and the model came out half size (0.64 m against a ~1.3 m hit capsule) because it skipped the root-scale step every other foe gets and nobody measured it on screen.
+- An experiment (a new creature, prop, mechanic look) is a preview only, by this skill's path. No RV bump, no migration, no fold release, no full stills/battery.
+- Use a ready-made rigged and animated asset (CC0 or properly licensed) dropped in as-is. No custom generate-and-rig pipeline for a try-out.
+- Before anyone says "done", measure it in the browser at the phone camera: on-screen height against the hit capsule, and its distance and placement from the hero. Put the numbers in the message.
+- The real build (own rig, RV, migration, release) starts only when Dom says the experiment graduates into the game.
