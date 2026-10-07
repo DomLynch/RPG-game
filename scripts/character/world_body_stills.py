@@ -25,6 +25,12 @@ def load(path, dx):
 
 
 a, b = load(duel, -0.6), load(world, 0.6)
+for o in a + b:   # both on the same pose: the Idle clip at frame 0 (the importer otherwise leaves whichever action it applied last)
+    if o.type == "ARMATURE":
+        idle = next((x for x in bpy.data.actions if x.name.split(".")[0] == "Idle" or x.name.startswith("Idle")), None)
+        if idle and o.animation_data:
+            o.animation_data.action = idle
+bpy.context.scene.frame_set(1)
 sc = bpy.context.scene
 sc.render.engine = "CYCLES"
 sc.cycles.device = "CPU"

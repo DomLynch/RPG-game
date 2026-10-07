@@ -78,3 +78,18 @@ test('against the hero\'s brain the wolf is neither a pushover nor a wall (the G
   console.log(`wolf vs goblin wins of 24 (the warden's side): hero easy brain ${rows.easy}, hero normal brain ${rows.normal}`);
   for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 3, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
 });
+
+// The baked blade tables of every rig that was live before the wolf are byte-identical to trunk (the Auditor's RV35 delta, 2026-10-07: a re-bake had moved all nine Goblin knife
+// paths by up to 1e-5 m, and v34 Goblin links must stay readable): the wolf's rig is the only addition. Hashes of each rig's table as trunk (RV34) shipped it.
+test('every rig baked before the wolf keeps its blade table byte for byte; the wolf is the only new rig', async () => {
+  const { createHash } = await import('node:crypto');
+  const trunk: Record<string, string> = {
+  hero: 'b26205feed4331978618942ed24ff1492ab2ecc1427594be1b9be8c9e8e9df43',
+  goblin: '05bf915261f02ad51664744e02d6f298ee36cb129a93c0a5f7992f08b038985e',
+  nightborn: '876d0fac041c36714970b32903d4ce1c747797f902ae7ad8927e301050f6d6a3',
+  minotaur: '943a7378e25f5a1be6f82b080b7b3057425ad2e380bbc1874adde7fae41e2a8b',
+  wraith: 'bcfee62bc3a70d6c9a07d531e7b6fbf217b0a86bea78da976206c702216dc8af',
+  };
+  for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(bladePathsByRig[rig])).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
+  assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf']);
+});
