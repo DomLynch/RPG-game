@@ -15,6 +15,7 @@ import { buildFrontier } from './frontier.ts';
 import { mobSpecs, spawnAmong } from './mobs.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { demoCamps } from './frontier-camp.ts';
+import { campFires } from './camp-fire.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
@@ -75,6 +76,7 @@ function environment(sky?: THREE.Texture) {
 environment(); void arena.ready.then(() => environment(arena.sky));
 const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
+const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
 
 // The walker: the game's own hero (src/assets/warrior.glb, Dom 2026-10-06 "use our real char"), Idle and Walk from his rig. The capsule
 // holds his place until the file lands, and stays if it never does.
@@ -247,6 +249,7 @@ const clock = new THREE.Clock();
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   step(dt); arena.update(dt, [], camera); exchange.update(time);
+  fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
