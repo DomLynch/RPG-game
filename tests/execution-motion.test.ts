@@ -28,7 +28,7 @@ test('Execution authored motion: kneel turned away, a held half-second with both
  }
  const mixer=new AnimationMixer(asset.scene),play=(clip:typeof victim,p:number)=>{mixer.stopAllAction();const action=mixer.clipAction(clip);action.setLoop(LoopOnce,1);action.clampWhenFinished=true;action.play();mixer.setTime(clip.duration*p);asset.scene.updateMatrixWorld(true);};
  const point=(name:string)=>asset.scene.getObjectByName(name)!.getWorldPosition(new Vector3());
- const pose=(clip:typeof victim,p:number)=>{play(clip,p);const out:{q:Quaternion,p:Vector3}[]=[];asset.scene.traverse(o=>{if(o.isBone)out.push({q:o.quaternion.clone(),p:o.position.clone()});});return out;};
+ const pose=(clip:typeof victim,p:number)=>{play(clip,p);const out:{q:Quaternion,p:Vector3}[]=[];asset.scene.traverse(o=>{if((o as {isBone?:boolean}).isBone)out.push({q:o.quaternion.clone(),p:o.position.clone()});});return out;};
  const apart=(a:ReturnType<typeof pose>,b:ReturnType<typeof pose>)=>Math.max(...a.map((x,i)=>Math.max(x.q.angleTo(b[i].q),x.p.distanceTo(b[i].p))));
  const {raise,release}=EXECUTION_BEATS;
  for(const clip of [victim,killer])for(const p of [(raise+release)/2,release]){const worst=apart(pose(clip,raise),pose(clip,p));assert.ok(worst<2e-3,`${clip.name} holds one pose through the half-second (${worst} at ${p})`);}
