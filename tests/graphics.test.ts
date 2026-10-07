@@ -54,7 +54,6 @@ import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
-import * as breakBeat from '../src/break-beat.ts';
 import * as powerWords from '../src/power-words.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
@@ -114,7 +113,6 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
   modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
-  modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports

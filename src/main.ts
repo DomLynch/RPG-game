@@ -32,7 +32,6 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
-import { breakBeatFrom } from './break-beat.ts';
 import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
@@ -755,7 +754,7 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
   Hit: 50,
   Parried: 70,
   GuardBroken: 90,
-  PostureBroken: 120,
+  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
   Killed: 220,
 };
 const HEAVY_HIT = 90,
@@ -777,8 +776,6 @@ function clearPvpHold() { clearHold(pvpHold); }
 const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
-const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
-feedback.breakThud(!!breakBeat?.thud);
 const HEADLINE = headlineFlag(window.location?.search ?? '');   // ?look=headline: one earned line on a win (victory-headline.ts); absent = today's game
 const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
 feedback.defenceGrades(DEFENCE_GRADES);
@@ -789,7 +786,7 @@ function stopFor(events: CombatEvent[]): number {
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
-    const base = e.type === 'PostureBroken' && breakBeat ? breakBeat.holdMs : HIT_STOP[e.type] ?? 0;
+    const base = HIT_STOP[e.type] ?? 0;
     if (!base) continue;
     const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
     ms = Math.max(
