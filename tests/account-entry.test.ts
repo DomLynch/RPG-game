@@ -8,8 +8,8 @@ test('the account chunk failing to load offers a reload, not a dead retry; a mou
   const src = readFileSync(new URL('../src/account-entry.ts', import.meta.url), 'utf8');
   const imp = src.match(/try \{ \(\{ mountAccount \} = await import\('\.\/account\.ts'\)\); \}\s*catch \{([^}]*)\}/);
   assert.ok(imp, 'the dynamic import has its own catch');
-  assert.match(imp![1], /stale = true/); assert.match(imp![1], /tapped && !fightOn\(\) && autoReload\(/, 'only a tap, and never while a fight is in progress (frankendom.fight.v1), may reload by itself'); assert.match(imp![1], /A new version is ready\. Tap to reload/); assert.match(imp![1], /retry\.textContent = 'Reload'/); assert.match(imp![1], /getElementById\('account-login'\)!\.hidden = true/, 'no greyed Google button');
-  assert.match(src, /frankendom\.fight\.v1/, 'the fight-in-progress key is main.ts AFK_KEY');
+  assert.match(imp![1], /stale = true/); assert.match(imp![1], /tapped && !fightOn\(\) && autoReload\(/, 'only a tap, and never while a fight is on screen (welcome card hidden), may reload by itself'); assert.match(imp![1], /A new version is ready\. Tap to reload/); assert.match(imp![1], /retry\.textContent = 'Reload'/); assert.match(imp![1], /getElementById\('account-login'\)!\.hidden = true/, 'no greyed Google button');
+  assert.match(src, /getElementById\('welcome'\)\?\.hidden === true/, 'a fight is on screen while main.ts keeps the welcome card hidden');
   assert.match(src, /retry\.addEventListener\('click', \(\) => \{ if \(stale\) location\.reload\(\); else if \(!started\) void start\(true\); \}\)/, 'stale: the button reloads');
   assert.match(src, /try \{ await mountAccount\(url, key\); \}\s*catch \{ started = false; status\.textContent = 'Account unavailable\./, 'a mount failure keeps the ordinary retry');
   assert.doesNotMatch(src, /location\.reload\(\);\s*\n\s*(const|let)/, 'never an automatic reload (it could land mid-fight)');

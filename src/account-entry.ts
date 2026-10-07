@@ -1,8 +1,8 @@
 // Guest startup never waits for an account request or downloads the account SDK.
 import { api } from './api.ts';
 import { autoReload } from './chunk-recover.ts';
-// main.ts AFK_KEY: set on a career fight's first stepped tick, cleared when it ends; non-empty = a fight is in progress, and a reload would lose it.
-const fightOn = () => { try { return !!localStorage.getItem('frankendom.fight.v1'); } catch { return false; } };
+// main.ts hides the welcome card whenever a fight is on screen (paused() reads !welcome.hidden): only with the card up may a stale chunk reload the page by itself.
+const fightOn = () => document.getElementById('welcome')?.hidden === true;
 const safeStorage = () => { try { return sessionStorage; } catch { return null; } };
 if (api) {
   const { url, key } = api;
