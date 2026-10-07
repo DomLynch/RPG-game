@@ -5,6 +5,7 @@ import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './record.ts';
 import { arenaFor } from './arena-themes.ts';
+import { defenceFlag } from './defence-grade.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
@@ -776,6 +777,8 @@ const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia ===
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
 feedback.breakThud(!!breakBeat?.thud);
+const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
+feedback.defenceGrades(DEFENCE_GRADES);
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
@@ -1879,6 +1882,7 @@ function frame(now: number) {
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
       if (!quiet) hud.refused(practice.clarity);
+      if (!quiet && DEFENCE_GRADES) hud.defended(practice.events);   // ?look=defence (defence-grade.ts)
       if (!quiet && match.mode !== 'lesson' && (PACE_STILL ? practice.duel.tick === 120 : practice.clarity.some((c) => c.type === 'FatigueBand' && c.actor === 0 && (c.band ?? 0) >= 2))) {   // once ever: the first time the player is tired
         let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
         if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }

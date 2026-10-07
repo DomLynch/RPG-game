@@ -2,6 +2,7 @@
 // binding over the practice state — it never decides anything about the fight. `element` is injected so the entry point's
 // own lookup (and the VM test harness's fake document) is what it binds to.
 import { accepts, counterLine, practiceHint, type ClarityEvent, type CombatEvent, type Practice } from './combat.ts';
+import { defenceGrade, GRADE_LABEL } from './defence-grade.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from './lessons.ts';
@@ -27,6 +28,7 @@ export function createHud(element: Lookup) {
   const stamina = element<HTMLMeterElement>('stamina');
   const health = element<HTMLMeterElement>('target-health');
   const combatStatus = element('combat-status');
+  let defendedTimer: ReturnType<typeof setTimeout> | undefined;
   // Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
   // bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
   // positions come from the scene's world→screen projection. Presentation-only.
@@ -147,6 +149,15 @@ export function createHud(element: Lookup) {
           : c.action === 'dodge' || c.action === 'backstep' ? dodgeButton : c.action === 'parry' ? guardButton : attackButton;
         button.classList.remove('refused'); void button.offsetWidth; button.classList.add('refused');
         setTimeout(() => button.classList.remove('refused'), 260);
+      }
+    },
+    // ?look=defence (defence-grade.ts): the GUARD button rings once in the colour of the grade the player's own defence just earned, and names it. Transform/ring only, nothing over the fighters.
+    defended(events: readonly CombatEvent[]) {
+      for (const e of events) {
+        const grade = defenceGrade(e); if (!grade) continue;
+        guardButton.dataset.defence = grade; guardButton.dataset.defenceLabel = GRADE_LABEL[grade];
+        guardButton.classList.remove('defended'); void guardButton.offsetWidth; guardButton.classList.add('defended');
+        clearTimeout(defendedTimer); defendedTimer = setTimeout(() => { guardButton.classList.remove('defended'); delete guardButton.dataset.defence; delete guardButton.dataset.defenceLabel; }, 520);
       }
     },
     floatDamage(
