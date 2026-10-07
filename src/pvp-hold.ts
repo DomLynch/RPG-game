@@ -24,11 +24,13 @@ export function onFrame<S, E>(h: Hold<S>, elapsedMs: number, frameEvents: E[], s
   const dropped = h.queue.some(stale) ? h.queue.splice(0).flatMap(eventsOf) : [];
   const contact = h.cut >= 0;   // the first drawn frame of a hold: delivers what happened up to the contact tick, once, and spends none of the hold
   let events: E[] = (contact ? frameEvents.slice(0, h.cut) : []).concat(dropped);
+  if (!contact && h.queue.length >= MAX_LAG_TICKS) h.holdMs = 0;   // the cap is a queue length, not a clock: a slow frame that queued two ticks (or a frame that overran the hold) ends the hold now, so the picture is never more than MAX_LAG_TICKS behind at any frame's end
   h.cut = -1;
   if (h.holdMs > 0 && !contact) h.holdMs = Math.max(0, h.holdMs - elapsedMs);
   let held = h.holdMs > 0 || contact;
   if (!held) {
-    for (let k = 0; k < CATCHUP && h.queue.length; k++) {
+    const catchup = Math.max(CATCHUP, h.queue.length - MAX_LAG_TICKS);   // a frame that queued several ticks drains down to the cap in that one frame
+    for (let k = 0; k < catchup && h.queue.length; k++) {
       h.shown = h.queue.shift()!;
       events = events.concat(eventsOf(h.shown));
       const ms = stopOf(h.shown);
