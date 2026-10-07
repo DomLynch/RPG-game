@@ -2941,9 +2941,9 @@
   },
   "knight:18:731:walkin": {
    "ticks": 600,
-   "draws": 405,
-   "rng": "7d456b32fe99c426",
-   "state": "20c47b5a3b6e845a"
+   "draws": 474,
+   "rng": "142b1720427e28ab",
+   "state": "9881848557d192d1"
   },
   "knight:18:20260922:idle": {
    "ticks": 600,
@@ -2953,9 +2953,9 @@
   },
   "knight:18:20260922:walkin": {
    "ticks": 600,
-   "draws": 386,
-   "rng": "779f7e2fc6f941da",
-   "state": "6b121ef0a4472910"
+   "draws": 390,
+   "rng": "4954d9a7063d760d",
+   "state": "a056ab73db3d9443"
   },
   "knight:18:4242424242:idle": {
    "ticks": 600,
@@ -2965,9 +2965,9 @@
   },
   "knight:18:4242424242:walkin": {
    "ticks": 600,
-   "draws": 362,
-   "rng": "ba0852056da9f117",
-   "state": "4b08064b71acb37b"
+   "draws": 390,
+   "rng": "9f6b8ad547dda04a",
+   "state": "5b41d25db3495f59"
   },
   "knight:30:731:idle": {
    "ticks": 600,
