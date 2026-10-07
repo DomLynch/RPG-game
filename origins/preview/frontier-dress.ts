@@ -57,7 +57,7 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       && !onRoad(f, x, zz) && !sight(x, zz, r) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
       && !keep.some((k) => Math.hypot(k.x - x, k.z - zz) < r + 6) && !b.solids.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 1.5)
       && !placed.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 0.6);
-    const spot = (r: number, want = (_x: number, _z: number) => true) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r) && want(p.x, p.z)) return p; } return null; };
+    const spot = (r: number, want?: (x: number, z: number) => boolean) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r) && (!want || want(p.x, p.z))) return p; } return null; };
     const solid = (x: number, zz: number, r: number) => { const s = { x, z: zz, r }; solids.push(s); placed.push(s); };
     const area = z.width * z.depth, nearTown = (x: number, zz: number) => { const c = z.town && z.landmarks[z.town.centre]; return !!c && Math.hypot(c.x - x, c.z - zz) < 24; };
 
@@ -95,9 +95,9 @@ export function frontierDress(f: Frontier, b: Build): Dress {
     }
 
     // Mid-distance fill: 18 to 70 m off the road's line the ground was bare. Low rubble heaps, wall stubs, a few tall spires and dead scrub, reusing the same free() and sight rule.
-    const lateral = (x: number, zz: number) => Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux), mid = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 70;
+    const lateral = (x: number, zz: number) => Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux), farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 70;
     for (let c = 0; c < Math.round(area / 230); c++) {
-      const o = spot(1.6, mid); if (!o) continue;
+      const o = spot(1.6, farOff); if (!o) continue;
       const kind = R(), rot = R() * 3.14;
       if (kind < 0.45) { for (let i = 0; i < 4 + Math.floor(R() * 3); i++) { const r = between(0.25, 0.7); put(['cylinder', r * 0.6, r, r * between(0.6, 1.2), 5], o.x + between(-1.4, 1.4), r * 0.3, o.z + between(-1.4, 1.4), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
       else if (kind < 0.7) { const len = between(2.4, 5), h = between(0.5, 1.6); put(['box', len, h, 0.6], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
