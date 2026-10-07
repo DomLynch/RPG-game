@@ -77,6 +77,10 @@
     ],
     [
       "node",
+      "scripts/stance-panel-check.mjs"
+    ],
+    [
+      "node",
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
