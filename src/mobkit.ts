@@ -3,7 +3,7 @@
 // Outside SIM_FILES on purpose: it reads a Duel and returns an Intent, writes nothing back, and never runs in the ladder, so every Pit fight and every record is unchanged by construction.
 // Deterministic: a trigger is a condition on the duel (no dice, no chance), a cooldown is ticks. Nothing here resolves a blow; the swapped move goes through the same legal() and the same stepDuel.
 import { legal, movesOf, type Action, type Duel, type Intent, type Side } from './duel.ts';
-import type { MoveId } from './moves.ts';
+import type { MoveId, WeaponId } from './moves.ts';
 import { rollUnit } from './roll.ts';
 
 export type KitTrigger = 'opener' | 'afterHit' | 'heroGuarding' | 'heroExhausted' | 'selfBelow';
@@ -18,9 +18,9 @@ export const CHAIN_CAP = 3;   // swings in one chain, the first included (v1). T
 export type KitState = { fired: number[]; attacks: number; lastHit: number; run: number; tried: number };
 export const initialKit = (rows: readonly KitRow[]): KitState => ({ fired: rows.map(() => -1e9), attacks: 0, lastHit: -1e9, run: 0, tried: -1 });
 // Every row's window must sit inside the engine's chain window for its `from` move on this weapon, and its chance must be a share.
-export function validateChains(rows: readonly ChainRow[], weapon: Parameters<typeof movesOf>[0]): void {
+export function validateChains(rows: readonly ChainRow[], weapon: WeaponId): void {
   for (const r of rows) {
-    const window = movesOf(weapon)[r.from]?.chain?.window;
+    const window = movesOf({ weapon })[r.from]?.chain?.window;
     if (window === undefined) throw new Error(`chain row: ${r.from} has no chain window on this weapon`);
     if (!(r.startsAfter >= 0 && r.startsAfter < r.endsBefore && r.endsBefore <= window)) throw new Error(`chain row ${r.from} -> ${r.to}: [${r.startsAfter}, ${r.endsBefore}) must sit inside the engine's ${window}-tick window`);
     if (!(r.chance >= 0 && r.chance <= 1)) throw new Error(`chain row ${r.from} -> ${r.to}: chance must be 0..1`);
@@ -48,7 +48,7 @@ export function kitIntent(duel: Duel, me: Side, intent: Intent, kit: readonly Ki
   const link = chains.length ? chainLink(duel, me, base, chains) : null;
   if (link) return { intent: { ...intent, action: link.to, lock: true }, state: { ...base, attacks: base.attacks + 1, run: base.run + 1, tried: link.window } };
   if (link === undefined) return { intent, state: { ...base, tried: tried(duel, me) } };
-  if (!isAttack(intent.action) || !kit.length) return { intent, state: isAttack(intent.action) ? { ...base, run: 1 } : base };
+  if (!isAttack(intent.action) || !kit.length) return { intent, state: chains.length && isAttack(intent.action) ? { ...base, run: 1 } : base };
   const next = { ...base, attacks: base.attacks + 1, run: 1 }, self = duel.fighters[me];
   for (let i = 0; i < kit.length; i++) {
     const row = kit[i];
