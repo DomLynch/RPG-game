@@ -276,6 +276,25 @@ test('upgrade: every refusal path', () => {
   refused(performUpgrade(input({}, { instance: 'inst:someone-else' })), 'rule-violation', 'instance');
 });
 
+test('upgrade: a story-critical piece may be upgraded and keeps its story flag, binding and provenance; a story piece is never a material', () => {
+  const oathDef = must(parseItemDefinition(F.oathGauntletsDef()));
+  const defs = (id: ItemId): ItemDefinition | undefined => (id === oathDef.id ? oathDef : lookup(id));
+  const before = must(parseItemInstance(F.gauntletsInstance()));
+  const out = must(performUpgrade(input({ instance: before, def: oathDef, materialDefs: defs }, { instance: before.id, expectedVersion: before.version })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([oathDef.story, out.instance.item, out.instance.boundTo, out.instance.location, out.instance.upgradeLevel, out.instance.version], ['story-critical', before.item, F.PC, before.location, 1, before.version + 1]);
+  assert.deepEqual(out.instance.provenance, before.provenance);
+  assert.deepEqual(out.instance.history, [{ kind: 'upgrade', smith: 'character:smith-orla', level: 1, receipt: 'upgrade:req-0001', at: LATER }], 'history gains only the upgrade entry');
+  // Offered as a material, a story piece is refused outright (it burns only on a quest step that names it), even where no cost line names it.
+  const recordInst = must(parseItemInstance(F.recordInstance()));
+  refused(performUpgrade(input({ materials: [recordInst], materialDefs: defs })), 'rule-violation', 'materials');
+  refused(performUpgrade(input({ materials: [before], materialDefs: defs })), 'rule-violation', 'materials');
+  const recordCost = must(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 100, materials: [{ item: 'item:stolen-name-record', quantity: 1 }] }] }));
+  refused(performUpgrade(input({ costs: recordCost, materials: [recordInst], materialDefs: defs })), 'rule-violation', 'materials');
+  // The piece being worked is never its own material.
+  refused(performUpgrade(input({ instance: before, def: oathDef, materials: [before], materialDefs: defs }, { instance: before.id, expectedVersion: before.version })), 'rule-violation', 'materials');
+});
+
 test('upgrade receipt: contract rejections', () => {
   const receipt = must(performUpgrade(input()));
   assert.ok(!receipt.replayed);

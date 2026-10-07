@@ -80,6 +80,7 @@ Gear stays on Attack and RES, resolved before the fight by `src/gear-stats.ts`, 
   - It requires the payer's rank (a valid, server-verified career level) to reach the upgraded piece's effective tier.
   - A piece kept in the bank is upgraded only at the Concord Exchange (`place`; Strategy, 2026-10-06). `place` is client-stated today (the request body), to be derived from presence: launch gate X1. A worn or packed piece upgrades wherever the smith is.
   - It charges one-currency coin plus optional material lines from the cost table, all or nothing. A material stack offered twice is refused before anything is spent, and so is an offer of more than 64 instances.
+  - A story-critical piece may be upgraded (Strategy, 2026-10-07): it keeps its story flag, binding, provenance and place, and stays live for the quest step that names it. A story-critical piece is never a material (it burns only on a quest step that names it), and the piece being upgraded is never its own material.
   - It writes a receipt (cost table id and revision included) and appends `history: { kind: 'upgrade', smith, level, receipt }`.
   - A repeated idempotency key returns the original receipt with no new charge. A reused key on a different request is refused. A stale item version is refused.
   - The upgrade level travels with the piece on trade.

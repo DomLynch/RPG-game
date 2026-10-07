@@ -489,6 +489,12 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   const repeated = firstRepeat(input.materials.map((m) => m.id));
   if (repeated !== undefined) return fail('duplicate-id', 'materials', `${repeated} is offered twice`);
   if (input.materials.length > MAX_UPGRADE_MATERIAL_INPUTS) return fail('out-of-range', 'materials', `at most ${MAX_UPGRADE_MATERIAL_INPUTS} material instances per upgrade (merge your stacks)`);
+  // Story pieces (Strategy, 2026-10-06/07): a story-critical piece may itself be upgraded, keeping its story flag, binding and provenance, but
+  // it burns only on a quest step that names it, so the smith never takes one as a material, and the piece being worked is never its own.
+  for (const mat of input.materials) {
+    if (mat.id === instance.id) return fail('rule-violation', 'materials', `${mat.id} is the piece being upgraded; it cannot also be spent on itself`);
+    if (input.materialDefs(mat.item)?.story === 'story-critical') return fail('rule-violation', 'materials', `${mat.item} is story-critical; the smith never takes it as a material`);
+  }
   const issues = new Issues();
   const spent: UpgradeReceipt['materials'] = [], updated: ItemInstance[] = [], consumed: ItemInstanceId[] = [];
   for (const line of row.materials) {
