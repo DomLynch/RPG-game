@@ -10,6 +10,7 @@ export type Look = {
   sunColor: string; sunIntensity: number; sunPos: [number, number, number];
   exposure: number;
   ground: [number, number, number];   // a multiplier on the ground materials' base colour (1,1,1 = as built)
+  stone?: [number, number, number];   // the same for the masonry (absent = 1,1,1): ground darker and masonry lighter is what lets a plaza read at 375
 };
 // The structural subset of a resolved zone's params this reads (origins/world Params satisfies it).
 export type LookParams = { ambience: { preset: string }; view: { fogFar: number } };
@@ -23,6 +24,9 @@ export const PRESETS: Record<string, Look> = {
   // The Ash Frontier: open ground under a high, pale, dusty sky; a long soft horizon (low density), cooler fill, a brighter key.
   'frontier-haze': { fog: '#d6bf9a', fogDensity: 0.012, hemiSky: '#b4c4da', hemiGround: '#6a5238', hemiIntensity: 1.35, sunColor: '#ffd6a0', sunIntensity: 5.6, sunPos: [-18, 30, -20], exposure: 1.35, ground: [1.05, 0.98, 0.88] },
 };
+// Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand
+// out pale against it (they were sand on sand); the paving pulled down and cooler, the masonry lifted and warmer.
+PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#6e5f52', fogDensity: 0.012, sunPos: [-16, 15, 20], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.35, 1.2, 1] };
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -38,7 +42,7 @@ export function blendLook(a: Look, b: Look, t: number): Look {
   if (k === 0) return a;
   if (k === 1) return b;
   return { fog: hexLerp(a.fog, b.fog, k), fogDensity: lerp(a.fogDensity, b.fogDensity, k), hemiSky: hexLerp(a.hemiSky, b.hemiSky, k), hemiGround: hexLerp(a.hemiGround, b.hemiGround, k), hemiIntensity: lerp(a.hemiIntensity, b.hemiIntensity, k),
-    sunColor: hexLerp(a.sunColor, b.sunColor, k), sunIntensity: lerp(a.sunIntensity, b.sunIntensity, k), sunPos: vec(a.sunPos, b.sunPos, k), exposure: lerp(a.exposure, b.exposure, k), ground: vec(a.ground, b.ground, k) };
+    sunColor: hexLerp(a.sunColor, b.sunColor, k), sunIntensity: lerp(a.sunIntensity, b.sunIntensity, k), sunPos: vec(a.sunPos, b.sunPos, k), exposure: lerp(a.exposure, b.exposure, k), ground: vec(a.ground, b.ground, k), stone: vec(a.stone ?? [1, 1, 1], b.stone ?? [1, 1, 1], k) };
 }
 // The look at a position along an axis: `stops` are zone centres (axis value, preset) in any order; between two neighbours the look blends (smoothstepped), beyond the ends it holds.
 export function lookAlong(at: number, stops: readonly { at: number; preset: string }[]): Look {
@@ -52,15 +56,13 @@ export function lookAlong(at: number, stops: readonly { at: number; preset: stri
 export const zoneLook = (p: LookParams): Look => { const l = lookOf(p.ambience.preset); return { ...l, fogDensity: l.fogDensity * (DEFAULT_FOG_FAR / p.view.fogFar) }; };
 
 // Put a look on the scene. `grounds` (optional) are the ground materials to tint: their first-seen base colour is kept in userData so a tint never compounds.
-export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, look: Look, grounds: readonly THREE.MeshStandardMaterial[] = []): Look {
+export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, look: Look, grounds: readonly THREE.MeshStandardMaterial[] = [], stones: readonly THREE.MeshStandardMaterial[] = []): Look {
   (scene.background as THREE.Color).set(look.fog);
   const fog = scene.fog as THREE.FogExp2; fog.color.set(look.fog); fog.density = look.fogDensity;
   hemi.color.set(look.hemiSky); hemi.groundColor.set(look.hemiGround); hemi.intensity = look.hemiIntensity;
   sun.color.set(look.sunColor); sun.intensity = look.sunIntensity;
   renderer.toneMappingExposure = look.exposure;
-  for (const m of grounds) {
-    const base = (m.userData.lookBase ??= m.color.clone()) as THREE.Color;
-    m.color.copy(base).multiply(m.color.clone().setRGB(...look.ground));
-  }
+  const tint = (ms: readonly THREE.MeshStandardMaterial[], t: readonly [number, number, number]) => { for (const m of ms) { const base = (m.userData.lookBase ??= m.color.clone()) as THREE.Color; m.color.copy(base); m.color.r *= t[0]; m.color.g *= t[1]; m.color.b *= t[2]; } };   // no allocation: this runs every frame
+  tint(grounds, look.ground); tint(stones, look.stone ?? [1, 1, 1]);
   return look;
 }

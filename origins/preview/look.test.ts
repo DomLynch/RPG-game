@@ -45,3 +45,11 @@ test('zoneLook scales fog density to the zone\'s view.fogFar; the default distan
   assert.equal(zoneLook({ ambience: { preset: 'ash-pit' }, view: { fogFar: DEFAULT_FOG_FAR } }).fogDensity, PRESETS['ash-pit']!.fogDensity);
   assert.ok(zoneLook({ ambience: { preset: 'ash-pit' }, view: { fogFar: 214 } }).fogDensity < PRESETS['ash-pit']!.fogDensity);
 });
+
+test('zone1 keeps the arena\'s sky and exposure, darkens the ground below the masonry, and blends stone tints (absent = 1)', () => {
+  const z = PRESETS['zone1']!, p = PRESETS['ash-pit']!;
+  assert.equal(z.exposure, p.exposure); assert.equal(z.hemiSky, p.hemiSky);
+  assert.ok(z.ground[0] < z.stone![0] && z.ground[1] < z.stone![1] && z.ground[2] < z.stone![2], 'ground below stone on every channel');
+  assert.ok(z.fogDensity < p.fogDensity);
+  blendLook(p, z, 0.5).stone!.forEach((v, i) => assert.ok(Math.abs(v - (1 + z.stone![i]!) / 2) < 1e-9));
+});

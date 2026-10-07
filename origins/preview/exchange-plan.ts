@@ -16,7 +16,7 @@ export type Shape =
   | ['cone', number, number, number] // radius, height, radial segments
   | ['sphere', number, number, number] // radius, width segments, height segments
   | ['pediment', number, number, number]; // base width, height, depth: a triangle extruded and centred on its depth
-export type Layer = 'stone' | 'iron' | 'soot' | 'coal';
+export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
 // One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()).
 export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number };
 export type Figure = { x: number; z: number; color: string };
@@ -104,10 +104,10 @@ export function exchangePlan(a: Anchors = exchangeAnchors()): Plan {
 
   // The plaza: a paved terrace on the island's rock, its kerb and a skirt of rock falling away under it (Arena 1 floats over the abyss).
   const depth = near - far + 6, cz = (near + far) / 2 - 2;
-  put('stone', box(half * 2 + 8, 0.4, depth), cx, -0.2, cz, PAVING);
+  put('paving', box(half * 2 + 8, 0.4, depth), cx, -0.2, cz, PAVING);
   for (let i = 0; i < 18; i++) { // flagstone joints: a few darker slabs break the field so scale reads
     const x = cx + ((i * 7.31) % 28) - 14, z = near - 3 - ((i * 11.7) % 36);
-    put('stone', box(1.8 + (i % 3) * 0.5, 0.02, 1.2 + (i % 2) * 0.6), x, 0.01, z, DARKSTONE);
+    put('paving', box(1.8 + (i % 3) * 0.5, 0.02, 1.2 + (i % 2) * 0.6), x, 0.01, z, DARKSTONE);
   }
   put('stone', box(half * 2 + 9, 26, depth + 1), cx, -13.4, cz, DARKSTONE, 0, -26);
   for (const side of [-1, 1]) put('stone', box(0.6, 1.1, depth - 4), cx + side * (half + 3.6), 0.55, cz, SANDSTONE, 0, 0); // balustrade over the drop
