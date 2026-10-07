@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { frontierBuild, frontierPlan } from './frontier-plan.ts';
+import { mobLook } from './mob-looks.ts';
 import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
@@ -141,4 +142,12 @@ test('visible set: the nearest twelve inside 45 m, nearest first; the rest culle
   assert.deepEqual(pickVisible(ring, at(0, 0), 99), [...Array(16).keys()], 'nothing past 45 m (index 15 is 45 m out)');
   assert.deepEqual(pickVisible(ring, at(1000, 0)), []);
   assert.equal(pickVisible(SPECS.map((s) => s.home), SPECS[0]!.home).length <= TUNING.cap, true);
+});
+
+test("every creature on the Frontier has a look in Characters' mob-looks table, on the body the plan gives it", () => {
+  for (const s of SPECS) {
+    const look = mobLook(s.character);
+    assert.ok(look, `${s.id} (${s.character}) has no mob look`);
+    assert.equal(look.opponent, s.body, `${s.id}: the look dresses a ${look.opponent}, the plan gives it a ${s.body}`);
+  }
 });
