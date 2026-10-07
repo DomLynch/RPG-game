@@ -457,12 +457,24 @@ function pressEngage() {   // STAB / SLASH / HEAVY / KICK / SKILL near a creatur
 const WORLDFIGHT = /[?&]worldfight\b/.test(location.search), FREEZE_RADIUS = 20;
 // One holder per page: createScene adds it to its scene once, at creation, and the next fight against the same body and level REUSES that stage, so a new holder per fight would be in no rendered scene (a bare background). detach() resets its matrix.
 const worldHolder = new THREE.Group();
+// The world keeps living during a world duel (Dom, 2026-10-08: one always-on world, nothing freezes at engage): the walk loop's render
+// stops (the duel renders the world it holds), but the creatures still step, animate and come at the hero every frame. The foe's world
+// body stays hidden (the duel draws it). Stopped on detach.
+let liveFoe: string | null = null, liveRaf = 0;
+const liveClock = new THREE.Clock(false);
+function liveWorld(foe: string | null, at: { x: number; z: number }) {
+  liveFoe = foe; cancelAnimationFrame(liveRaf);
+  if (!foe) { liveClock.stop(); return; }
+  liveClock.start();
+  const tick = () => { if (liveFoe !== foe) return; mobs?.update(Math.min(liveClock.getDelta(), 0.1), at, foe, foe); liveRaf = requestAnimationFrame(tick); };
+  liveRaf = requestAnimationFrame(tick);
+}
 function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
   const holder = worldHolder; let moved: THREE.Object3D[] = [];
   return {
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
-    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
-    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
+    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); document.body.classList.add('infight'); liveWorld(spec.id, at); },
+    detach() { liveWorld(null, at); if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
   };
 }
 async function startMobFight(spec: MobSpec) {

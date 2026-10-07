@@ -189,3 +189,11 @@ test('a world fight hides only the duel\'s foe and the far creatures: packmates 
   assert.equal(hiddenInFight('goblin-1', 'wolves-1', 25, 20), true, 'past the freeze radius: hidden');
   assert.equal(hiddenInFight('goblin-1', null, 12, 20), false);
 });
+
+test('the world keeps living during a world duel: attach starts the creature tick, detach stops it, the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world)', () => {
+  const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
+  assert.match(main, /attach\(\) \{[^\n]*liveWorld\(spec\.id, at\);/, 'attach starts the live tick');
+  assert.match(main, /detach\(\) \{ liveWorld\(null, at\);/, 'detach stops it first');
+  assert.match(main, /mobs\?\.update\([^\n]*, at, foe, foe\)/, 'the tick steps every creature round the hero and hides the foe\'s world body');
+  assert.match(view, /v\.group\.visible = v\.ring\.visible = s\.id !== hideBody;/);
+});
