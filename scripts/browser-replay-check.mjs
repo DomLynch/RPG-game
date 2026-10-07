@@ -42,6 +42,7 @@ import { initialPractice, stepPractice, PROFILES } from '../src/combat.ts';
 import { recordSpecials } from '../src/replay.ts';
 import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
 import { underPlayScale } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { decide, initialAi } from '../src/ai.ts';
@@ -85,6 +86,7 @@ export function replayInNode(record, sampleEvery = 60) {
 
 /** One standard-battery fight, recorded as rank-look-check records (Combat's method): L18, the AI drives the hero, tick 0 forced 'light'. */
 export async function recordFight(opponent, seed) {
+  setStab(true);   // a live fight (the Goblin's stab is an era flag, stab-rule.ts): without it the record is stamped v24, which RECORD_VERSION 29 refuses
   const level = LEVEL_ANCHORS.normal;
   const { p, killed, recorder } = underPlayScale(opponent, RECORD_VERSION, () => {   // fought in the circle this build records it in (play-radius.ts); the recorder is born inside it, so its version stamp names that circle
     const recorder = createRecorder({ build: 'replay-row', opponent, weapon: 'longsword', level, seed });

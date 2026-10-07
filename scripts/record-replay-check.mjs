@@ -19,7 +19,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { idleIntent, legal } from '../src/duel.ts';
-import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 
 // RECORD_REPLAY_FIXTURE points the check at another fixture file (the check's own tests use it); --write always writes the real one.
@@ -75,6 +77,7 @@ function play(intents, onIntent, skill = null) {
 }
 
 if (write) {
+  setPlayScale(playScaleFor(META.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);   // the references are LIVE fights: a headless recorder stamps an older era, which RECORD_VERSION 29 refuses (REACH[29])
   const records = [];
   for (const [name, script] of Object.entries(REFERENCES)) {
     const skill = SKILLS[name] ?? null, rec = createRecorder({ ...META, ...(skill ? { skill } : {}) });

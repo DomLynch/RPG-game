@@ -1211,7 +1211,7 @@ if (replayText || sharedId) {
     if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): the link converts into a fight against the same warden, never a dead page
       void text.then(peekRecordHeader).then((header) => {
         const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? header.opponent : null;   // a link is public input: name only an opponent and weapon this game knows
-        if (!header || !foe) { match.stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
+        if (!header || !foe) { match.stalled = true; banner('Recorded on an older version of the game', true); updateHud(); return; }
         if (epoch !== match.epoch) { banner(null); return; }
         if (foe !== opponent.id && !urlOpponent) {   // once, as a readable link does: the re-opened page boots that warden's rig, so PLAY NOW fights them
           const target = new URL(location.href); target.searchParams.set('opponent', foe); location.replace(target.href); return;
@@ -1222,7 +1222,7 @@ if (replayText || sharedId) {
         const name = ROSTER[foe].name, title = `${name[0].toUpperCase()}${name.slice(1)}`, weapon = `a ${header.weapon}`;
         replayStill.src = `/game/img/${foe}.webp`; replayStill.alt = title; replayStill.hidden = false;
         match.stalled = true; updateHud();
-        banner(header.outcome === 'killed' ? `${title} fell to ${weapon}. Your turn.` : header.outcome === 'died' ? `${title} won, against ${weapon}. Your turn.` : `${title} against ${weapon}. Nobody fell. Your turn.`, true);
+        banner(`Recorded on an older version of the game. ${header.outcome === 'killed' ? `${title} fell to ${weapon}.` : header.outcome === 'died' ? `${title} won, against ${weapon}.` : `${title} against ${weapon}. Nobody fell.`} Your turn.`, true);
       });
       return;
     }
@@ -1828,7 +1828,7 @@ function frame(now: number) {
       if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
       if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
-        banner('Recorded on an older build', true); accumulator = 0; updateHud();
+        banner('Recorded on an older version of the game', true); accumulator = 0; updateHud();
         break;
       }
       const practice = match.practice;
@@ -1862,7 +1862,7 @@ function frame(now: number) {
       if (!quiet) {
         if (specialCue && !match.specialIdentity.presets) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
           if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
-          else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+          else if ((e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') && e.actor === 1) feedback.cutSpecial();
         }
       }
       if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) for (const e of practice.events) {
@@ -1873,7 +1873,7 @@ function frame(now: number) {
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
           if (!quiet && e.actor === 1) announcePowerWord(opponent, e.tick);   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, an event only; once per accepted cast, like the cue
-        } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
+        } else if (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
       feedback.update(quiet ? [] : practice.events, deathAudio, {

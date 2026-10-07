@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
-import { setLateNotice } from '../src/play-radius.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
+// RECORD_VERSION 29 refuses every older version, and a headless recorder stamps an older era (play-radius.ts): a test that records a fight records it as a live fight is fought (this build's circle, late notice and stab).
+const mk: typeof createRecorder = (meta) => { setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true); return createRecorder(meta); };
 
 const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {}): Intent => ({
   move: { x: 0, z: 0, yaw: 0, run: false, ...over.move }, action: null, guard: false, lock: true,
@@ -25,7 +27,7 @@ test('record: quantization is idempotent, keeps every field, and maps the stick 
 
 test('record: pack/unpack and encode/decode round-trip every intent shape, the seed and the metadata; the version comes first and an unknown one is refused', async () => {
   setLateNotice(true); setStab(true);   // a live fight (the premise of RECORD_VERSION here); a headless recorder stamps FIRST_SCALED_VERSION
-  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 46, seed: 0xdeadbeef });
+  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 46, seed: 0xdeadbeef });
   setLateNotice(false); setStab(false);
   const shapes: Intent[] = [
     intent(), intent({ move: { x: 1, z: -1, yaw: -3.1, run: true } }), intent({ action: 'light_left', guardDirection: 'left' }),
@@ -57,7 +59,7 @@ test('record: pack/unpack and encode/decode round-trip every intent shape, the s
 // A scripted 30 s fight against the Veteran: the stick circles, the camera yaw drifts as the lock blends, attacks and guards come in
 // bursts. This is the shape of a real fight's intent stream (busy stick, busy yaw) — the worst case for the encoder, not the best.
 function scriptedFight(seed = 731, ticks = 1800) {
-  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
+  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
   let practice = initialPractice(seed, opponentAt(OPPONENTS.veteran, 18)), yaw = 0.6;   // the level-18 body, as the game builds it (gladius + scutum from L6)
   for (let t = 0; t < ticks && !practice.finish; t++) {
     yaw += 0.004 * Math.sin(t / 37);
@@ -86,7 +88,7 @@ test('record: a real 30 s fight against the Veteran encodes under 2 KB and repla
 });
 
 test('record: the recorder steps what it records — the quantized intent, not the raw one — and stops recording after finish', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = mk({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   const stepped = rec.push(intent({ move: { x: 0.123456, z: 0, yaw: 1.2345, run: false } }));
   assert.equal(stepped.move.x, Math.round(0.123456 * 127) / 127, 'the returned intent is the quantized one');
   assert.deepEqual(rec.finish('abandoned').intents[0], stepped);
@@ -95,7 +97,7 @@ test('record: the recorder steps what it records — the quantized intent, not t
 });
 
 test('record: packing refuses a record whose tick count and intents disagree, or an unknown profile/outcome', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = mk({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   rec.push(intent()); const r = rec.finish('draw');
   assert.throws(() => packRecord({ ...r, ticks: 2 }), /ticks does not match/);
   assert.throws(() => packRecord({ ...r, level: 51 }), /unknown level or outcome/);
@@ -103,7 +105,7 @@ test('record: packing refuses a record whose tick count and intents disagree, or
 });
 
 test('record: an opponent-only weapon (the reaper) is refused at decode — the hero rig bakes no blade table for it and a replay would throw mid-frame', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = mk({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   const r = rec.finish('abandoned');
   assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'reaper' })), /unknown weapon/);
   assert.equal(unpackRecord(packRecord({ ...r, weapon: 'warhammer' })).weapon, 'warhammer', 'a player weapon still decodes');
@@ -114,10 +116,10 @@ test('record: an opponent-only weapon (the reaper) is refused at decode — the 
 import { MAX_RECORD_BYTES, MAX_RECORD_TICKS } from '../src/record.ts';
 test('a record past the tick limit or the expanded-size limit is refused, not allocated', async () => {
   // A real 2-tick record with its tick count forged to MAX+1: refused before the intent array exists.
-  const rec = createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 7 });
+  const rec = mk({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 7 });
   rec.push(intent()); rec.push(intent());
   const bytes = packRecord(rec.finish('killed')), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', skill (v12), specials (v21), profile, seed → the tick count
+  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 1 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', skill (v12), specials (v21), arena (v26), profile, seed → the tick count
   assert.equal(dv.getUint32(o, true), 2, 'found the tick count field');
   dv.setUint32(o, MAX_RECORD_TICKS + 1, true);
   assert.throws(() => unpackRecord(bytes), /past the 108000-tick limit/);

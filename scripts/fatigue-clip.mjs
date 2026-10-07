@@ -12,7 +12,8 @@ import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent, legal } from '../src/duel.ts';
 import { opponentAt, profileAt } from '../src/moves.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
+import { encodeRecord } from '../src/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const DIST = arg('dist', 'dist'), OUT = arg('out', 'artifacts/fatigue'), EVERY = Number(arg('every', 3)), DPR = Number(arg('dpr', 2)), AFTER = Number(arg('after', 40));
@@ -31,7 +32,7 @@ function bot(p) {
 let resting = false;
 
 function recordFight() {
-  const profile = profileAt(OPPONENTS[OPPONENT], LEVEL), rec = createRecorder({ build: 'fatigue', opponent: OPPONENT, weapon: 'longsword', level: LEVEL, seed: 7 });
+  const profile = profileAt(OPPONENTS[OPPONENT], LEVEL), rec = liveRecorder({ build: 'fatigue', opponent: OPPONENT, weapon: 'longsword', level: LEVEL, seed: 7 });
   let p = initialPractice(7, opponentAt(OPPONENTS[OPPONENT], LEVEL), 'longsword'), t = 0;
   const bands = [];   // [tick, band]
   for (; t < MAX && !p.finish; t++) {
