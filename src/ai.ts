@@ -21,7 +21,7 @@ export type Habits = {
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 450,
+  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 1200,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
@@ -31,7 +31,7 @@ export const readOpponent = (h: Habits, profile?: AiProfile): Reads => {
   // RV31: a profile with `spamRun` reads a masher EARLY: that many consecutive lights with no defence that met a blow
   // between them (the gate reads the run alone and REPLACES the old read). Absent = the old read, byte for byte.
   const spam = profile?.spamRun
-    ? (h.run ?? 0) >= profile.spamRun && h.ticks >= (h.latch ?? 0)
+    ? ((h.run ?? 0) >= profile.spamRun && h.ticks >= (h.latch ?? 0)) || (!!profile.spamBoth && oldSpam)
     : oldSpam;
   return {
     parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,

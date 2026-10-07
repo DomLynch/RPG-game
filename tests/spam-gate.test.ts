@@ -8,7 +8,7 @@ import { profileAt, type AiProfile } from '../src/moves.ts';
 import { STRATEGIES, battery, arena, act, ready, gap, k, guard } from './strategies.ts';
 
 const habits = (over: Partial<Habits> = {}): Habits => ({ ...initialAi().habits, ...over });
-const gate = (spamRun: number): AiProfile => ({ ...OPPONENTS.veteran.profiles.normal, spamRun });
+const gate = (spamRun: number, spamBoth?: number): AiProfile => ({ ...OPPONENTS.veteran.profiles.normal, spamRun, ...(spamBoth ? { spamBoth } : {}) });
 const GATED = ['veteran', 'pitborn', 'dwarf', 'knight', 'shieldmaiden'] as const;
 
 test('the early gate reads the run alone: spamRun consecutive lights reads a spammer, one fewer or a reset run does not', () => {
@@ -57,13 +57,16 @@ test('absent spamRun is the old read: 11 swings at 70 % lights, whatever the run
   assert.equal(readOpponent(old).spammer, true);
 });
 
-test('the early gate REPLACES the old read for every gated opponent, the Shieldmaiden included', () => {
+test('the early gate REPLACES the old read; spamBoth keeps it (the Shieldmaiden alone)', () => {
   const defended = habits({ lights: 8, heavies: 3, attacks: 11, guard: 4, run: 2 });   // the old read fires, the gate does not (run 2 < 5)
   assert.equal(readOpponent(defended, gate(5)).spammer, false);
+  assert.equal(readOpponent(defended, gate(5, 1)).spammer, true);
 });
 
 test('only the five measured opponents carry spamRun, at every tier and level; the rest read as they always did', () => {
-  for (const id of GATED) for (const level of [1, 6, 12, 18, 30, 46, 50]) assert.equal(profileAt(OPPONENTS[id], level).spamRun, id === 'pitborn' ? 6 : 5, `${id} L${level}`);
+  for (const id of GATED) for (const level of [1, 6, 12, 18, 30, 46, 50]) assert.equal(profileAt(OPPONENTS[id], level).spamRun, id === 'pitborn' || id === 'dwarf' ? 6 : 5, `${id} L${level}`);
+  assert.equal(profileAt(OPPONENTS.shieldmaiden, 6).spamBoth, 1);
+  for (const id of GATED.filter(g => g !== 'shieldmaiden')) assert.ok(!profileAt(OPPONENTS[id], 6).spamBoth, `${id} has the early gate alone`);
   for (const id of Object.keys(OPPONENTS).filter(i => !(GATED as readonly string[]).includes(i))) for (const level of [1, 6, 18, 46])
     assert.equal(profileAt(OPPONENTS[id as keyof typeof OPPONENTS], level).spamRun, undefined, `${id} L${level}: absent = today's read`);
 });
