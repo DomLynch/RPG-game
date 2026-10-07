@@ -14,6 +14,7 @@ type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 export type Habits = {
   ticks: number; guard: number; parries: number; rolls: number; steps: number;
   lights: number; heavies: number; thrusts: number; kicks: number; attacks: number; parks: number;
+  run?: number;   // consecutive lights: reset by any other blow that starts (RV31, profile.spamRun's early gate)
 };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
@@ -22,8 +23,14 @@ export const READ = {
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
-export const readOpponent = (h: Habits): Reads => {
+export const readOpponent = (h: Habits, profile?: AiProfile): Reads => {
   const swings = h.lights + h.heavies + h.thrusts;
+  const oldSpam = swings >= READ.swings && h.lights / swings >= READ.lightShare;
+  // RV31: a profile with `spamRun` reads a masher EARLY: that many consecutive lights before the player has guarded, parried, rolled or
+  // stepped once (the early gate REPLACES the old read; `spamBoth` keeps the old read too). Absent = the old read, byte for byte.
+  const spam = profile?.spamRun
+    ? (h.guard === 0 && h.parries === 0 && h.rolls === 0 && h.steps === 0 && (h.run ?? 0) >= profile.spamRun) || (!!profile.spamBoth && oldSpam)
+    : oldSpam;
   return {
     parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
     turtle: h.ticks >= READ.guardTicks && h.guard / h.ticks >= READ.guardShare,
@@ -31,7 +38,7 @@ export const readOpponent = (h: Habits): Reads => {
     // backsteps out of most of my swings (the whiff punisher's habit): a kick reaches where a swing does not
     stepper: h.attacks >= READ.after && h.steps / h.attacks >= READ.roll,
     // cuts only: a player mixing in thrusts or heavies is not a spammer
-    spammer: swings >= READ.swings && h.lights / swings >= READ.lightShare,
+    spammer: spam,
     // swings mostly held at their chamber (baits, charges): the park is a habit, not a read of the moment
     parker: swings >= READ.after && h.parks / swings >= READ.parkShare,
     // thrusts more than he cuts: a fighter with no guard respects his reach and goes in on the whiff
@@ -87,13 +94,14 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // a swing released after a one-tick park, so charge === 1 alone counted every later tick of that swing as a park (bump 9)
   if (opponent.phase === 'attack' && opponent.charge === 1 && opponent.move && opponent.age === theirs[opponent.move].chamber) h.parks++;
   if (opponent.phase === 'attack' && opponent.age === 0 && opponent.move) {   // ripostes, counters and criticals are earned, not habits
+    h.run = opponent.move === 'light_left' || opponent.move === 'light_right' ? (h.run ?? 0) + 1 : 0;
     if (opponent.move === 'heavy_overhead') h.heavies++;
     else if (opponent.move === 'thrust') h.thrusts++;
     else if (opponent.move === 'light_left' || opponent.move === 'light_right') h.lights++;
     else if (opponent.move === 'kick') h.kicks++;
   }
   if (self.phase === 'attack' && self.age === 0 && self.move !== 'kick') h.attacks++;
-  const reads = readOpponent(h);
+  const reads = readOpponent(h, profile);
   // A held swing: a heavy thrown at a standing guard (or at a roller / parrier) is held to the charge that breaks or outlasts them; a
   // light held against a parry-happy player is a bait that outlives the parry window. The hold ends with the swing.
   if (self.phase !== 'attack') { next.hold = false; next.feint = false; }

@@ -246,6 +246,8 @@ export type AiProfile = {
   anticipate?: number; // ticks to notice a read cut-spammer's cut (src/ai.ts; the reaction still caps it). Absent = READ.anticipate (8), every warden as it was
   tellReaction?: number; // ticks to notice a thrust or a pommel strike (src/ai.ts TELLS), so reaction v lights can stay slow. Absent = the reaction (RV19, the Centurion)
   stab?: number;         // 0..1: share of openings (a whiffed swing's recovery) answered with the thrust when the cut cannot reach: the knife's 12-tick stab, too short a tell for a reactive guard. Absent = 0 (the Goblin's offence, COMBAT-001 3/3)
+  spamRun?: number;      // RV31: read a masher EARLY: this many consecutive lights before the player has defended once (src/ai.ts readOpponent). Absent = the old read (11 swings, 70 % lights)
+  spamBoth?: number;     // 1: keep the old read as well as the early gate (the Shieldmaiden). Absent / 0 = the early gate alone
   braceHeavy?: number;   // 0..1: with a guard that stops heavies (the scutum), meet a guard-breaking heavy in that guard, and never walk in on a charging
                          // one: step back out of its reach instead. Absent = 0 (a guard that stops nothing makes it inert) (RV19, the Centurion)
 };
@@ -680,7 +682,7 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
 // stays the warden's; with the scutum (RV18, L6+) he braces charged heavies and steps back out of a charging one. Battery (480 seeds, the
 // gladius tree): L6 thrust from range 87 -> 23 %, charged heavy only 89 -> 56 %; L10 pommel then light 86 -> 71 %, thrust 84 -> 12 %; live
 // (trident) L6 pommel then light 90 -> 79 %, thrust 73 -> 20 %; L1 tap 480 / 480; L6 light spam and heavy only unmoved (the easy rail).
-const OWN_KNOBS: Partial<Record<OpponentId, Partial<AiProfile>>> = { veteran: { tellReaction: 15, braceHeavy: 1 } };
+const OWN_KNOBS: Partial<Record<OpponentId, Partial<AiProfile>>> = { veteran: { tellReaction: 15, braceHeavy: 1, spamRun: 5 }, pitborn: { spamRun: 5 }, dwarf: { spamRun: 5 }, knight: { spamRun: 5 }, shieldmaiden: { spamRun: 5, spamBoth: 1 } };   // RV31 (docs/specs/combat/l6-anti-spam.md): the five opponents a mashing player beat at L6; every other opponent keeps today's read
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) => {
   const base = ARCHETYPES[recipe.archetype], own = OWN_KNOBS[id as OpponentId];
   const profiles = own ? { easy: { ...base.profiles.easy, ...own }, normal: { ...base.profiles.normal, ...own }, hard: { ...base.profiles.hard, ...own } } : base.profiles;
@@ -748,8 +750,8 @@ export function opponentAt(o: Opponent, level: number): Opponent {
 }
 // An absent knob means "the warden as he always was" in ai.ts; a blend needs the number that absence stands for. A knob absent on BOTH
 // sides stays absent (ai.ts draws no roll for it, so nothing downstream moves).
-const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, stab: 0, anticipate: 8, tellReaction: 99, braceHeavy: 0 };   // anticipate: ai.ts READ.anticipate (tests pin it)
-const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline', 'tellReaction']);
+const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, stab: 0, anticipate: 8, tellReaction: 99, braceHeavy: 0, spamRun: 0, spamBoth: 0 };   // anticipate: ai.ts READ.anticipate (tests pin it)
+const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline', 'tellReaction', 'spamRun']);
 const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
   const out: Record<string, number> = {};
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof AiProfile>) {
