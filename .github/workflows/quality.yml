@@ -70,12 +70,17 @@ jobs:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
     if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
+      # pr-base-check.mjs runs git only (merge-base against the base branch), so the checkout keeps the history (fetch-depth 0,
+      # blob:none) but materialises only scripts/ and the root files: a full tree checkout (the .glb assets) stalled past the old
+      # 5-minute budget on 2026-10-06 (#1531 run 37532416833, the job cancelled in checkout), the same stall the release-checks
+      # `plan` job fixed with this sparse checkout (#1503). The budget has room for a slow runner; the job itself takes under a minute.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           filter: blob:none
+          sparse-checkout: scripts
       - run: node scripts/pr-base-check.mjs "$GITHUB_BASE_REF"
   load-time:
     # The phone's wait (Strategy 2026-09-27, on Dom's words; beside check-budget's byte caps, which stay: Lead ruling (a), 2026-09-28). The base build and the head build

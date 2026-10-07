@@ -4,14 +4,14 @@
 import { accepts, counterLine, practiceHint, type ClarityEvent, type CombatEvent, type Practice } from './combat.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
-import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonId } from './lessons.ts';
+import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from './lessons.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonId; lessonFight?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -69,6 +69,7 @@ export function createHud(element: Lookup) {
       ] as const)
         meter.style.setProperty('--fill', `${(value / max) * 100}%`);
       stamina.style.setProperty('--max', `${practice.maxStamina}%`);
+      stamina.dataset.capped = String(practice.maxStamina < 100);   // a wound has lowered the ceiling: the bar draws a solid cap and a notch at --max (style.css)
       stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
       stamina.value = practice.stamina;
       element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;

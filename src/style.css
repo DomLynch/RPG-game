@@ -870,6 +870,10 @@ dialog>p {
 #stamina {
   background-image: linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%));
 }
+/* The lost ceiling, unmistakable (Lead 2026-10-07): once a wound has lowered it, everything past --max is a near-opaque dark cap with a bright notch on its edge. Presentation only: --max is the sim's maxStamina. */
+#stamina[data-capped=true] {
+  background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%));
+}
 #stamina[data-leg=true] {
   outline: 1px solid #b5533f88;
 }
@@ -1146,6 +1150,9 @@ dialog>p {
     /* The desktop #stamina rule (the lost-ceiling shading) outranks `.combat-hud meter`, so on phones it replaced the fill gradient and only
        the shading showed (owner screenshot 2026-09-20). Layer both: shading on top, the fill underneath. */
     background-image: linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%)),linear-gradient(to right,var(--bar-color) var(--fill,100%),#172329a0 var(--fill,100%));
+  }
+  #stamina[data-capped=true] {
+    background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%)),linear-gradient(to right,var(--bar-color) var(--fill,100%),#172329a0 var(--fill,100%));
   }
   .combat-hud meter.posture {
     height: 2px;
