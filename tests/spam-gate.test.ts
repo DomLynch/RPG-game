@@ -105,9 +105,9 @@ test('the latch: a counted defence switches the early gate off for READ.latch ti
 
 // RV31 (Strategy 2026-10-07): the latch must not become a back door: a masher who makes one REAL block every READ.latch ticks must still read as one.
 test('spam + one real block every K ticks stays under the 80 % cap at L6 against every gated opponent (120 seeds)', () => {
-  const strategy = (d: Duel) => (d.tick % READ.latch < 90 ? guard(d) : STRATEGIES['light spam'](d));
+  const K = READ.latch || 1200, strategy = (d: Duel) => (d.tick % K < 90 ? guard(d) : STRATEGIES['light spam'](d));
   for (const id of GATED) {
     const r = battery(6, 120, 7200, OPPONENTS[id], { 'spam + block': strategy })['spam + block'];
-    assert.ok(r.wins / 120 <= .8, `${id}: spam + a real block every ${READ.latch} ticks wins ${r.wins}/120 at L6 (cap 96)`);
+    assert.ok(r.wins / 120 <= .8, `${id}: spam + a real block every ${K} ticks wins ${r.wins}/120 at L6 (cap 96)`);
   }
 });
