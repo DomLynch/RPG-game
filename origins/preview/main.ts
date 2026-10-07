@@ -28,6 +28,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { applyLook, lookAlong } from './look.ts';
+import { creaturesLook } from '../../src/audio/creature.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -333,6 +334,7 @@ function leaveFight() {
   duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
+if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
 // ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
 // is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
 // A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
