@@ -144,6 +144,13 @@ if flat:
     px[:, 1], px[:, 3] = float(flat), 1.0
     mr_img.pixels.foreach_set(px.ravel())
     print(f"filled metal/rough with constant roughness {flat}", flush=True)
+# BAKE_FINAL=<px>: bake at SIZE (the argv size, e.g. 4096), then scale both maps down to this size. More texels per UV island at bake time means less
+# colour bleeding from the neighbouring islands (the giant's snow-camo mottle), and the downsample averages what is left.
+final = int(os.environ.get("BAKE_FINAL", "0"))
+if final and final != SIZE:
+    for img in (colour_img, mr_img):
+        img.scale(final, final)
+    print(f"scaled maps {SIZE} -> {final}", flush=True)
 # BAKE_LIFT=<gamma> (family mobs, Lead 2026-10-07: a near-black wolf must read in daylight): raise the baked colour's value, v -> v ** (1 / gamma).
 lift = float(os.environ.get("BAKE_LIFT", "1"))
 if lift != 1:
