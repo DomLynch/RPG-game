@@ -6,6 +6,7 @@ import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
 import { createBreath, type Breath } from './audio/breath.ts';
 import { sayPowerWord } from './audio/power-word.ts';
+import { voiceCreature, type CreatureCue } from './audio/creature.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
@@ -164,6 +165,10 @@ export function createFeedback(host?: FeedbackHost) {
       if (!context || !bus || !noise || !live() || quieted || !enabled) return;
       wordBus ??= (() => { const g = context!.createGain(); g.gain.value = 1; g.connect(bus!); return g; })();
       sayPowerWord(context, wordBus, noise, word, caster, now(), gain);
+    },
+    creature(body: string, cue: CreatureCue) {   // ?look=creatures (audio/creature.ts): a Frontier creature's growl, bite or death cry, synthesised on the combat bus; absent = silent as shipped
+      if (!context || !bus || !noise || !live() || quieted || !enabled) return;
+      voiceCreature(context, bus, noise, body, cue, now());
     },
     // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
     // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).

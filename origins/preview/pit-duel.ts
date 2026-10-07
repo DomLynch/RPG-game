@@ -8,6 +8,7 @@
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
 import { type Fighter } from '../../src/duel.ts';
+import { creaturesLook } from '../../src/audio/creature.ts';
 import { createFeedback } from '../../src/feedback.ts';
 import { createHud } from '../../src/hud.ts';
 import { initialPractice, stepPractice } from '../../src/combat.ts';
@@ -66,6 +67,7 @@ const element = <T extends HTMLElement>(id: string): T => {
   return el;
 };
 // The opponent's foe-holding test the game's sound reads (src/main.ts foeHolding): her swing parked in its chamber.
+const CREATURES = creaturesLook(location.search);
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
 // World mode (Dom 2026-10-07: the open world uses the Pit's controls exactly): the same kit and the same createInput drive the WALK. No duel is
 // running, so the input reads an idle practice (every press is accepted) and the page turns the stick into walking and a press into an engage.
@@ -206,6 +208,7 @@ function frame(now: number) {
       for (const e of p.events) if (e.actor === 0) { if (e.type === 'ActionStarted') saw(e.action!); else if (e.type === 'AttackStarted') saw(e.move!); else if (e.type === 'Charged') saw('charged'); }
       feedback!.update(p.events, undefined, { match: match.seed, ended: !!p.finish, tick: p.duel.tick, drawing: p.duel.fighters[0].phase === 'draw', holding: foeHolding(p.duel.fighters[1]), opponent: stage.opponent,
         loiter: Math.max(p.duel.fighters[0].loiter, p.duel.fighters[1].loiter) / RULES.wall.loiter.ticks });   // the game's sound, fed as src/main.ts feeds it
+      if (CREATURES && fight!.flags) for (const e of p.events) { if (e.type === 'Hit' && e.target === 0) feedback!.creature(stage.opponent, 'bite'); else if (e.type === 'Killed' && e.target === 1) feedback!.creature(stage.opponent, 'death'); }   // ?look=creatures: an encounter foe's bite on a landed blow and its death cry
       if (damageNumbers) hud!.floatDamage(p.events, p.duel.fighters, stage.view.project);
       controls!.consumed(match.practice.events);
       state = match.practice.fighter;
