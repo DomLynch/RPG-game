@@ -1,3 +1,14 @@
+## 2026-10-07 (night) — HANDOFF at ~500k context: wolf live, camera/C4 chains/witchfire re-pin done, Coach slice 1 half-done, "Balanced" rename + wolf-migration PRE owed
+
+**Now (what the next session picks up, in order):**
+1. **Wolf migration PRE**: send the fresh Auditor the apply note (#1706 comment 6043346017: exact SQL, rollback, PRE/POST queries) for `supabase/migrations/202610080003_wolf_encounter.sql` (+ `supabase/down/…_down.sql`); Lead's joint GO follows the PRE. Not applied; not needed for the preview.
+2. **"Balanced" rename** (Dom, 18:46Z): the fourth stance is shown as "Balanced" (also covers the brief's "agile"); one small PR set for stances data/spec/site copy, display text only, the internal id stays `neutral` (no sim/record/RV pin moves). Not started.
+3. **Coach mode slice 1** (Lead's GO: the four live stance names, no extra instruction, Pit duels only; battery numbers before any UI, then an events contract to Web): branch `combat/coach` @4d5190ce, `src/coach.ts` (decide() on side 0 with the stance battery's BY_STANCE brains; reaction/tellReaction/anticipate/accuracy/discipline never overridden) + `tests/coach.test.ts`. The four "coached record replays byte for byte" tests fail on "the coach plays a fight to its end" (no finish within 2400 ticks): debug whether decide(duel, 0, …) attacks as the player side, raise the cap to 7200, then the replay assertion; then `scripts/coach-battery.mjs` (per stance vs each live foe, 120 fights per cell) and the events contract.
+
+**Landed today (receipts on the PRs):** #1706 Ash Wolf RV35 (merged, fold4); #1728 foe-height camera (wolf low / wraith tall, Auditor PASS, same fold; the pinned pose grid equals trunk's byte for byte); #1701 C4 opponent chains @ced7dfad (Auditor PASS; Backend versions the kit via KIT_LOGIC_VERSION); #1737 re-pins veteran-witchfire's replay digest 6ed61e62 → c42e934b (deliberate: RV31 1a929cf7 moved it from the RV30 value 494c0fb9; the fixture entry came from an intermediate RV31 tune; bisect receipts in the PR).
+
+**Traps:** held opponents are not reachable by `?opponent=` (opponentFor falls back to the Centurion); on the live Origins preview `originsPreview.tapMob('wolves-1')` starts the mob duel, `fight()` a Pit legend duel. Software-GL screenshots take ~14 s: record video at the viewport size (375x812, dsf 1) and cut frames with ffmpeg. VPS scratch: `/opt/frankendom-shadow/work/combat-t4` (own node_modules), `/opt/frankendom-shadow/work/bisect` (sparse, delete when done). Memory: `project_combat_handoff_2026-10-07e.md`.
+
 ## 2026-10-07 (morning) — RV30: three own rows, backstep B (no change), no whiff tax
 
 ## 2026-10-07 (evening) — HANDOFF at 546k context: perks + roll release, mob styles/kit, standoff rematch, wolf in progress
