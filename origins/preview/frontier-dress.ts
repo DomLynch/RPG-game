@@ -94,15 +94,16 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       for (let i = 0; i < 12; i++) put(['box', between(0.3, 0.9), between(0.2, 0.6), between(0.3, 0.9)], o.x + between(-5, 5), 0.2, o.z + between(-5, 5), ROCK[Math.floor(R() * 3)]!, R() * 6, 0);
     }
 
-    // Mid-distance fill: 18 to 70 m off the road's line the ground was bare. Low rubble heaps, wall stubs, a few tall spires and dead scrub, reusing the same free() and sight rule.
-    const lateral = (x: number, zz: number) => Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux), farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 70;
-    for (let c = 0; c < Math.round(area / 150); c++) {
-      const kind = R(), rot = R() * 3.14, low = kind < 0.5 || kind > 0.85, o = low ? spot(1.2, (x, zz) => Math.hypot(rd.to.x - x, rd.to.z - zz) > 22, true) : spot(1.6, farOff);   // low rubble and scrub may lie in the view (nothing there stands above knee height)
+    // Mid-distance fill, 6 to 45 m off the road's line (the bulk 8 to 40): rubble heaps, wall stubs, spires and dead scrub sized to read at phone width. Same free()/sight rule; low pieces (rubble, scrub: knee height) may lie
+    // in the first view but never within 6 m of the line, where the camera and the walker stand; tall ones keep to 18 m and beyond.
+    const lateral = (x: number, zz: number) => Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux), farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 45, nearOff = (x: number, zz: number) => lateral(x, zz) > 6 && lateral(x, zz) < 40 && Math.hypot(rd.to.x - x, rd.to.z - zz) > 22;
+    for (let c = 0; c < Math.round(area / 70); c++) {
+      const kind = R(), rot = R() * 3.14, low = kind < 0.5 || kind > 0.85, o = low ? spot(1.6, nearOff, true) : spot(2, farOff);
       if (!o) continue;
-      if (kind < 0.5) { for (let i = 0; i < 4 + Math.floor(R() * 3); i++) { const r = between(0.25, 0.6); put(['cylinder', r * 0.6, r, r * between(0.6, 1.2), 5], o.x + between(-1.4, 1.4), r * 0.3, o.z + between(-1.4, 1.4), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
-      else if (kind < 0.7) { const len = between(2.4, 5), h = between(0.5, 1.6); put(['box', len, h, 0.6], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
-      else if (kind < 0.85) { const h = between(3.5, 7); put(['cone', between(0.7, 1.3), h, 5], o.x, h / 2, o.z, ROCK[3]!, R() * 6, 0); solid(o.x, o.z, 0.9); }
-      else { for (let i = 0; i < 5; i++) { const h = between(0.5, 1.1); put(['box', 0.06, h, 0.06], o.x + between(-0.6, 0.6), h / 2, o.z + between(-0.6, 0.6), BURNT, R() * 6, 0); } }
+      if (kind < 0.5) { for (let i = 0; i < 5 + Math.floor(R() * 4); i++) { const r = between(0.4, 1.0); put(['cylinder', r * 0.6, r, r * between(0.7, 1.3), 5], o.x + between(-2, 2), r * 0.35, o.z + between(-2, 2), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
+      else if (kind < 0.7) { const len = between(3, 6), h = between(0.8, 2.2); put(['box', len, h, 0.7], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
+      else if (kind < 0.85) { const h = between(4, 8); put(['cone', between(0.9, 1.6), h, 5], o.x, h / 2, o.z, ROCK[3]!, R() * 6, 0); solid(o.x, o.z, 1.1); }
+      else { for (let i = 0; i < 6; i++) { const h = between(0.7, 1.4); put(['box', 0.09, h, 0.09], o.x + between(-0.8, 0.8), h / 2, o.z + between(-0.8, 0.8), BURNT, R() * 6, 0); } }
     }
 
     // Burnt posts, broken fence runs, dead trees, a charred cart or barrels.
