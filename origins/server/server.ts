@@ -8,7 +8,7 @@ import { BadRequest, Conflict, handlers as defaults, type Handler } from './hand
 import { internalRoute, type InternalOptions } from './location.ts';
 
 const MAX_BODY = 64 * 1024;
-const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, '23505': 409 };
+const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, O0009: 409, O0014: 409, '23505': 409 };
 
 // Past the cap the rest of the body is read and dropped (never buffered), then refused: the client still gets its 400 on the open socket.
 const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve, reject) => {

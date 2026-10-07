@@ -1,7 +1,6 @@
 // The Frontier's fight entry and exit (Combat's side of the encounter → duel → result loop; Expansion owns the mob, resolveFight, loot and the
 // Bounty). The duel is the Pit's own (pit-duel.ts, loaded on demand); an encounter adds its twist flags (src/twist.ts, read each tick) and
 // reports the two fields resolveFight reads: `result` and `twistOutcome`. Preview only: the sim and the record are untouched.
-import { project, type Practice } from '../../src/combat.ts';
 import type { Finished } from '../pit/pit.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
 import type { FightSetup } from '../encounters/encounters.ts';
@@ -16,11 +15,6 @@ export const endOf = (finish: Finished, twist: TwistOutcome | null): EncounterEn
   finish && !finish.draw && finish.victim === 1 ? { result: 'won', twistOutcome: twist === 'caught' ? 'caught' : null } : { result: 'lost', twistOutcome: null };
 export const standingEnd = (twist: 'fled' | 'escaped'): EncounterEnd => ({ result: 'won', twistOutcome: twist });
 
-// one-health-bar v1 (stub): the foe starts with the whole pool as his bar. Preview sparring state only; no src/ file changes.
-export const withBar = (p: Practice, bar: number): Practice => {
-  const [me, foe] = p.duel.fighters;
-  return project({ ...p.duel, fighters: [me, { ...foe, health: bar, maxHealth: bar }] }, p.ai);
-};
 
 // Fight `setup` (fightSetup's) with `seed` (fightSeed's). `done` fires once, when the fight is over.
 export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, seed: number, done: (end: EncounterEnd) => void, leave: () => void, as?: Shown): Promise<void> {
