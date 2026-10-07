@@ -18,7 +18,8 @@ export const CAMP_KIT = {
   bedroll: [1.0, 0.2, 2.3], crate: [1.0, 0.9, 1.0], barrel: [0.48, 1.1],
   glow: { radius: 6.5, color: '#ff8a3a', opacity: 0.65 },
 } as const;
-const WOOD: Tint = [0.5, 0.36, 0.24], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[0.3, 0.1, 0.07], [0.1, 0.14, 0.2], [0.22, 0.2, 0.1]], ROCK: Tint = [0.7, 0.66, 0.62];
+// Warmer and lighter than the ruin rubble (cool grey-brown, 0.55-0.9), so a camp's seats, bedrolls and crate read as a camp at 375.
+const WOOD: Tint = [1.15, 0.78, 0.48], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[1.0, 0.32, 0.22], [0.42, 0.62, 0.95], [0.95, 0.8, 0.4]], ROCK: Tint = [1.25, 1.1, 0.95];
 
 const rng = (seed: string) => {   // the same string-seeded mulberry32 as frontier-dress.ts
   let h = 1779033703 ^ seed.length;
@@ -48,7 +49,7 @@ export function campKit(at: { x: number; z: number }, n: 2 | 3, seed: string, he
   }
   if (n === 3) { const a = start + Math.PI * 1.25, p = at2(K.seat.standOut, a); put('stone', ['box', 0.16, 1.9, 0.16], p.x, 0.95, p.z, BURNT); spots.push({ x: p.x, z: p.z, facing: a + heading, pose: 'stand' }); solids.push({ x: p.x, z: p.z, r: 0.5 }); }
   // Dressing: a bedroll behind each sitter's log, a crate and a barrel by the fire's far side.
-  for (let i = 0; i < n; i++) { const s = spots[i]!, back = at2(Math.hypot(s.x - at.x, s.z - at.z) + 1.9, Math.atan2(s.x - at.x, s.z - at.z) - heading); put('iron', ['box', ...K.bedroll], back.x, K.bedroll[1] / 2, back.z, CLOTH[i % CLOTH.length]!, Math.atan2(s.x - at.x, s.z - at.z) + Math.PI / 2); }
+  for (let i = 0; i < n; i++) { const s = spots[i]!, back = at2(Math.hypot(s.x - at.x, s.z - at.z) + 1.9, Math.atan2(s.x - at.x, s.z - at.z) - heading); put('stone', ['box', ...K.bedroll], back.x, K.bedroll[1] / 2, back.z, CLOTH[i % CLOTH.length]!, Math.atan2(s.x - at.x, s.z - at.z) + Math.PI / 2); }
   const c = at2(3.6, Math.PI * 0.85 + R() * 0.4); put('stone', ['box', ...K.crate], c.x, K.crate[1] / 2, c.z, WOOD, R() * 3); solids.push({ x: c.x, z: c.z, r: 0.6 });
   const b = at2(3.9, Math.PI * 0.85 + 0.9 + R() * 0.3); put('stone', ['cylinder', K.barrel[0], K.barrel[0], K.barrel[1], 8], b.x, K.barrel[1] / 2, b.z, WOOD); solids.push({ x: b.x, z: b.z, r: 0.45 });
   return { at, pieces, solids, spots, glow: { x: at.x, z: at.z, ...K.glow } };
