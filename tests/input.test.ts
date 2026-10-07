@@ -236,3 +236,15 @@ test('a refusal card over a stalled page quiets the fight controls behind it, an
   assert.ok(rule, 'the stick, hint, run toggle and every action but #reset-button are hidden and inert');
   assert.doesNotMatch(rule![0], /#reset-button\s*[,{]\s*$/m, 'PLAY NOW is exempt');
 });
+
+test('the Slash label survives every directional-cut state: nothing may repaint the attack button\'s ::after, which IS the mobile label', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  const label = rules.filter((r) => /button\[data-mobile\]::after/.test(r.selector) && /content:\s*attr\(data-mobile\)/.test(r.body));
+  assert.ok(label.length >= 1, 'the label is drawn by button[data-mobile]::after (content: attr(data-mobile))');
+  const clobbers = rules.filter((r) => /#attack-button[^,]*::(after|before)/.test(r.selector) && /\bcontent\s*:/.test(r.body));
+  assert.deepEqual(clobbers.map((r) => r.selector), [], 'an #attack-button ::after/::before rule with its own content would replace the label (it did, with data-cut set: no text, only the arc)');
+  assert.ok(!/#attack-button\[data-cut[^\]]*\][^,{]*::after/.test(css), 'the directional-cut arc is gone (Dom 2026-10-07); the cut stays in input.ts (data-cut) and the lit tick');
+  const input = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
+  assert.match(input, /cutAction\(lateral\(\)\)/, 'the cut itself is untouched'); assert.match(input, /attackButton\.dataset\.cut = cutSide/);
+});
