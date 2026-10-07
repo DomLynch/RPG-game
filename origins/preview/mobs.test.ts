@@ -2,7 +2,7 @@
 // hysteresis, the facing, the cap and the cull. Pure: no DOM.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { frontierBuild, frontierPlan } from './frontier-plan.ts';
+import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
 import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
@@ -37,7 +37,7 @@ test('each creature carries the body, level and encounter its character record n
 test('every home stands inside its own zone, clear of every building, and nobody starts near the Exchange', () => {
   for (const s of SPECS) {
     assert.ok(standOf(s)(s.home.x, s.home.z), `${s.id} home is not walkable ground`);
-    assert.ok(F.zones.find((z) => z.zone === s.zone)!.region === 'region:ash-frontier');
+    assert.ok(F.zones.find((z) => z.zone === s.zone)!.region === FRONTIER);
   }
   const exchangeEdge = F.road.to;
   assert.ok(SPECS.every((s) => Math.hypot(s.home.x - exchangeEdge.x, s.home.z - exchangeEdge.z) > 15), 'no creature starts at the Exchange gate');
