@@ -1,8 +1,9 @@
 // Origins greybox: the two thumb sticks. LEFT walks (up/down) and strafes (left/right); pushed well past the rim it RUNS, the same deliberate
 // push the Pit's pad uses (src/input.ts SPRINT_PUSH). RIGHT looks: left/right turns the hero, up/down tilts the camera. Pure: pad offsets in,
 // one intent out; no DOM, clock or storage, so the mapping is tested without a browser.
+import { SPRINT_PUSH } from '../../src/input.ts';
 export const STICK_R = 48;      // px of thumb travel that is one full push (the rim)
-export const RUN_PUSH = 1.4;    // the rim is 1; past 1.4 the move stick runs (the Pit's SPRINT_PUSH)
+export const RUN_PUSH = SPRINT_PUSH;   // the rim is 1; past it (1.4) the move stick runs: the Pit pad's own number, imported not restated
 export const DEAD = 0.12;       // a push shorter than this is a resting thumb
 export type Pad = { x0: number; y0: number; x: number; y: number } | null;
 export type Intent = { forward: number; strafe: number; turn: number; pitch: number; running: boolean };

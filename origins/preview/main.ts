@@ -308,7 +308,7 @@ function leaveFight() {
 // is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
 // A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
 const REACH = 14, TAP_MS = 1500, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
-const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 function showResult(text: string) {
@@ -317,10 +317,11 @@ function showResult(text: string) {
   note.style.cssText = 'position:fixed;left:12px;right:12px;top:30%;z-index:5;padding:12px 14px;text-align:center;font:600 17px/1.4 Georgia,serif;pointer-events:none';
   duelLayer.append(note);
 }
-canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY }); });
+canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY, far: 0 }); });
+canvas.addEventListener('pointermove', (e) => { const d = taps.get(e.pointerId); if (d) d.far = Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)); });   // the farthest the finger went: a stick drag that comes back to where it started is still a drag
 canvas.addEventListener('pointerup', (e) => {
   const d = taps.get(e.pointerId); taps.delete(e.pointerId);
-  const why = !d ? 'no-down' : !mobs ? 'no-mobs' : fighting ? 'fighting' : open ? `panel:${open}` : e.timeStamp - d.t > TAP_MS ? `hold:${Math.round(e.timeStamp - d.t)}ms` : Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX ? 'moved' : '';
+  const why = !d ? 'no-down' : !mobs ? 'no-mobs' : fighting ? 'fighting' : open ? `panel:${open}` : e.timeStamp - d.t > TAP_MS ? `hold:${Math.round(e.timeStamp - d.t)}ms` : Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)) > TAP_PX ? `moved:${Math.round(d.far)}px` : '';
   tapLog.push(why || 'tap'); if (tapLog.length > 20) tapLog.shift();
   if (why || !d) return;
   const r = canvas.getBoundingClientRect();
