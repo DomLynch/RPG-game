@@ -5,7 +5,7 @@ import { readOpponent, initialAi, decide, type Habits } from '../src/ai.ts';
 import { OPPONENTS } from '../src/combat.ts';
 import type { Duel } from '../src/duel.ts';
 import { profileAt, type AiProfile } from '../src/moves.ts';
-import { STRATEGIES, battery, arena } from './strategies.ts';
+import { STRATEGIES, battery, arena, act, ready, gap, k } from './strategies.ts';
 
 const habits = (over: Partial<Habits> = {}): Habits => ({ ...initialAi().habits, ...over });
 const gate = (spamRun: number): AiProfile => ({ ...OPPONENTS.veteran.profiles.normal, spamRun });
@@ -60,5 +60,20 @@ test('light spam at L6 stays under the 80 % cap against every gated opponent (24
   for (const id of GATED) {
     const r = battery(6, 24, 7200, OPPONENTS[id], { 'light spam': STRATEGIES['light spam'] })['light spam'];
     assert.ok(r.wins / 24 <= .8, `${id}: light spam wins ${r.wins}/24 at L6 (cap 80 %)`);
+  }
+});
+
+// RV31 (Strategy 2026-10-07): a masher who backsteps once every 4 lights to make the warden whiff must still read as one: the punishing light
+// does not count toward the run, but the other four do, and the whiff itself does not reset it.
+test('spam + one backstep every 4 lights to force our whiff stays under the 80 % cap at L6 against every gated opponent (120 seeds)', () => {
+  let n = 0;
+  const strategy = (d: Duel) => {
+    if (d.tick === 0) n = 0;
+    if (!ready(d) || gap(d) > 1.7 * k(d)) return STRATEGIES['light spam'](d);
+    return ++n % 5 === 0 ? act('backstep') : act('light');
+  };
+  for (const id of GATED) {
+    const r = battery(6, 120, 7200, OPPONENTS[id], { 'spam + backstep': strategy })['spam + backstep'];
+    assert.ok(r.wins / 120 <= .8, `${id}: spam + a backstep every 4 lights wins ${r.wins}/120 at L6 (cap 96)`);
   }
 });

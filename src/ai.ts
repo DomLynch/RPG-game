@@ -97,7 +97,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // a swing released after a one-tick park, so charge === 1 alone counted every later tick of that swing as a park (bump 9)
   if (opponent.phase === 'attack' && opponent.charge === 1 && opponent.move && opponent.age === theirs[opponent.move].chamber) h.parks++;
   if (opponent.phase === 'attack' && opponent.age === 0 && opponent.move) {   // ripostes, counters and criticals are earned, not habits
-    h.run = opponent.move === 'light_left' || opponent.move === 'light_right' ? (h.run ?? 0) + 1 : 0;
+    // a light that PUNISHES my whiff (starts while my swing is past its active frames, or I am hurt) is the honest answer, not a mash: it neither counts nor resets (RV31)
+    const punishes = self.phase === 'hurt' || (self.phase === 'attack' && !!self.move && self.age >= mine[self.move].windup + mine[self.move].active);
+    if (opponent.move === 'light_left' || opponent.move === 'light_right') { if (!punishes) h.run = (h.run ?? 0) + 1; } else h.run = 0;
     if (opponent.move === 'heavy_overhead') h.heavies++;
     else if (opponent.move === 'thrust') h.thrusts++;
     else if (opponent.move === 'light_left' || opponent.move === 'light_right') h.lights++;
