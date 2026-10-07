@@ -23,7 +23,7 @@ test('every shipped chain row sits inside the engine\'s chain window for its wea
 });
 
 // The hero stands ready and idle in reach (and cannot die); the mob's own decide() plus the layer fight it. Count the swings the engine ran with its chained timing, and the length of each run.
-const fight = (style: MobStyle, chains: readonly ChainRow[], ticks = 2400) => {
+const fight = (style: MobStyle, chains: readonly ChainRow[], ticks = 12000) => {
   const opponent = OPPONENTS[MOB_STYLE[style].opponent], profile = profileAt(opponent, 6), rows = KITS[style];
   let d: Duel = arena(opponent); d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready', maxHealth: 1e6, health: 1e6 }, d.fighters[1]] };
   let ai = initialAi(7), state = initialKit(rows), chained = 0, plain = 0, run = 0, longest = 0;
