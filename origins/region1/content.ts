@@ -104,6 +104,7 @@ export const FOES = [
     null, [{ id: 'mob', opponent: 'goblin', level: 12, encounter: 'encounter:mere-mother' }], 'mere-brood'),
   figure('character:ruin-ghoul', 'Ruin ghoul', ORIGINAL, 'A starved servant of the Blood Court ruin.',
     'faction:blood-court', [{ id: 'mob', opponent: 'goblin', level: 11, encounter: null }], 'ruin-ghoul'),
+  // PLACEHOLDER body: the worm fights on the held `minotaur` duel form until it has its own model (Strategy, 2026-10-07).
   figure('character:lambton-worm', 'The Lambton Worm', 'County Durham folklore; R. Surtees, History of Durham, vol. 2, 1820',
     'The worm a young heir threw down a well grew until it wrapped a hill. Where the sky splits over the Frontier, it comes up through the rift.',
     null, [{ id: 'rift', opponent: 'minotaur', level: 17, encounter: 'encounter:rift-worm' }], 'lambton-worm'),
@@ -152,7 +153,7 @@ export const ENCOUNTERS = [
   {
     kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:mere-mother', name: 'The Mere-Mother Rises', region: 'region:ash-frontier', scope: 'public',
     stages: [{ id: 'guard', killsToAdvance: 1, population: 1, roster: [{ character: 'character:mere-brood', weight: 1 }], loot: null }],
-    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 15, health: 15_000 },
+    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 15, health: 15_000 },   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
     decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 3600, rewards: { minContributionPercent: 10 },
   },
   solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 13),
@@ -163,7 +164,7 @@ export const ENCOUNTERS = [
   {
     kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:rift-worm', name: 'The Lambton Worm', region: 'region:ash-frontier', scope: 'public',
     stages: [{ id: 'gathering', killsToAdvance: 2, population: 2, roster: [{ character: 'character:rift-spawn', weight: 1 }], loot: null }],
-    boss: { character: 'character:lambton-worm', loot: 'loottable:rift-worm', level: 17, health: 40_000 },
+    boss: { character: 'character:lambton-worm', loot: 'loottable:rift-worm', level: 17, health: 40_000 },   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
     decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 0, rewards: { minContributionPercent: 10 },
   },
 ];
