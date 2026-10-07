@@ -22,6 +22,7 @@ import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFo
 import { levelOf, type Tier } from './grades.ts';
 import { nextRungFiles } from './gate-light.ts';
 import { kitWorn, type Loot } from './loot.ts';
+import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { type FinisherId } from './finishers.ts';
@@ -516,6 +517,8 @@ export function createScene(
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
+  const standoffOn = typeof location !== 'undefined' && standoffFlag(location.search);   // on by default, ?standoff=0 off (standoff.ts)
+  const standoff = standoffClock();   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
@@ -546,6 +549,8 @@ export function createScene(
     retryArt: loadFighters,
     // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
     // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
+    startStandoff() { standoff.start(); },   // main.ts, the moment the versus card lifts: idempotent (an art retry re-emits 'ready' mid-fight)
+    restartStandoff() { standoff.restart(); },   // main.ts nextFight: the rematch plays the draw-in again (a no-op with ?standoff=0)
     walkToGate(on: boolean) {
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE } : null);   // the gate comes inward with the arena (play-radius.ts)
@@ -553,6 +558,7 @@ export function createScene(
     raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
     // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
     rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
+    opponentRoot: () => warriors?.opponent.anchor ?? null,   // the foe rig's root (undefined-safe): the Origins preview dresses a creature's cloth on it; the sim never reads it
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
@@ -1067,8 +1073,10 @@ export function createScene(
         if (h?.slam !== undefined) { slam = h.slam; slams[side] = h.slam; }
         return h?.pose ?? p;
       };
-      const mine = struck(held(actorPose(practice, 0), 0), 0),
-        theirs = struck(held(actorPose(practice, 1), 1), 1);
+      standoff.advance(dt * 1000);
+      const stand = (p: ReturnType<typeof actorPose>) => standoffOn && standoff.age >= 0 && !walking && !practice.finish ? standoffPose(p, standoff.age) : p;
+      const mine = stand(struck(held(actorPose(practice, 0), 0), 0)),
+        theirs = stand(struck(held(actorPose(practice, 1), 1), 1));
       // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
       for (const [side, body] of [[0, player], [1, opponent]] as const) {
         const since = practice.duel.tick - specialStruck[side];

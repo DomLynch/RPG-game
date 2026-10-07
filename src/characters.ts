@@ -62,6 +62,17 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
 export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { ...Object.fromEntries([...POMMEL_BASH].map(w => [w, { Pommel: 'Skill_Pommel' }])), trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw', Pommel: 'Trident_Pommel' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw', Pommel: 'Warhammer_Pommel' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw', Pommel: 'Maul_Pommel' } };
 // Pommel is the Pommel Strike's role: the hero's Skill_Pommel where the player's row names it, else the weapon's thrust clip.
 export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? (role === 'Pommel' ? clipFor(weapon, 'Thrust') : role);
+// A quadruped (scripts/character/quadruped_rig.py) carries seven clips, not the humanoid set. It is recognised by its Bite clip, not by a weapon id, so
+// the same map serves every beast row (wolf, hound, boar). Every role the renderer asks for lands on one of the seven: any strike is the Bite, a hit
+// the Hurt, a backstep or roll the Flee, a guard or draw the Idle (the beast's profile has no guard), every death its Death. Additive scenes it
+// does not carry (Death_Hamstrung ...) stay unmapped and are skipped.
+export const QUADRUPED_CLIPS: Partial<Record<Role, string>> = {
+  Idle: 'Idle', Walk: 'Walk', Jog: 'Walk', Run: 'Run', Armed: 'Idle', ArmedWalk: 'Walk', ArmedRun: 'Run', StrafeLeft: 'Walk', StrafeRight: 'Walk',
+  Attack: 'Bite', Return: 'Bite', Heavy: 'Bite', Riposte: 'Bite', Thrust: 'Bite', Pommel: 'Bite', Kick: 'Bite',
+  Hit: 'Hurt', BlockImpact: 'Hurt', Deflected: 'Hurt', Parry: 'Hurt', Guard: 'Idle', Draw: 'Idle', Roll: 'Flee',
+  Death: 'Death', Death_SplitCrown: 'Death', Death_RunThrough: 'Death', Death_QuietOne: 'Death', Fin_RunThrough: 'Idle',
+};
+export const isQuadruped = (asset: { animations: readonly { name: string }[] }): boolean => asset.animations.some(a => a.name === 'Bite');
 // Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
 // sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
 // in PLAYER_CLIPS. A pole without a draw of its own goes in NO_HIP_DRAW (a hip mime with a pole reads wrong): it holds its armed idle
@@ -293,19 +304,32 @@ export function rigMaterials(root: Object3D, skip: ReadonlySet<Object3D> = new S
   root.traverse(object => { if (object instanceof Mesh && !skip.has(object) && object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material); });
   return materials;
 }
-export const sourceMaterial = (piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) =>
-  piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+// A palette name the source rig does not map keeps loot.glb's own entry, and loot.glb's palette is the HERO's (build-warrior.mjs): the
+// Executioner's hood came out in the hero's madder red on the player (Dom, 2026-10-07). Where the source opponent wears a different dye of
+// that name (scripts/warrior-appearance.mjs; tests/grade-materials.test.ts pins it), the piece wears that dye instead.
+export const SOURCE_DYE: Partial<Record<OpponentId, Readonly<Record<string, string>>>> = { executioner: { Heraldry: '#171310' } };
+const dyed = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>();
+export function sourceMaterial(piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) {
+  const own = piece.material, opponent = piece.userData.opponent as OpponentId;
+  if (!(own instanceof MeshStandardMaterial)) return own;
+  if (SOURCE_MAPPED[opponent]?.includes(own.name)) return materials.get(own.name) ?? own;
+  const dye = SOURCE_DYE[opponent]?.[own.name];
+  if (!dye) return own;
+  let copy = dyed.get(own);
+  if (!copy) { copy = own.clone(); copy.color.set(dye); dyed.set(own, copy); }
+  return copy;
+}
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
 function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
-  const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
+  const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>(), quadruped = isQuadruped(asset);
   for (const role of [...ROLES, ...ADDITIVE_ROLES]) {
     // A player override needs the rig to carry it: the equip file does (tests/weapons.test.ts pins it); a shared opponent rig standing in
     // for the player (buildWarriors without an opponent asset) keeps the shared row.
     const own = player ? PLAYER_CLIPS[weapon]?.[role] : undefined;
-    const name = own && asset.animations.some(a => a.name === own) ? own : clipFor(weapon, role), clip = asset.animations.find(a => a.name === name) ?? (role === 'ArmedRun' ? asset.animations.find(a => a.name === 'ArmedWalk') : undefined);
+    const name = own && asset.animations.some(a => a.name === own) ? own : (quadruped && QUADRUPED_CLIPS[role]) || clipFor(weapon, role), clip = asset.animations.find(a => a.name === name) ?? (role === 'ArmedRun' ? asset.animations.find(a => a.name === 'ArmedWalk') : undefined);
     if (!clip && (ADDITIVE_ROLES as readonly string[]).includes(role)) continue;   // an appended scene this rig does not carry
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
     clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);

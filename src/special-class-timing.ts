@@ -1,12 +1,12 @@
 import { RULES } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { LAND_AT } from './special-timing.ts';
+import { smooth } from './fx-math.ts';
 
 // The class specials' three-free timing (the Witch, the Plague Doctor, the Knight; effects in special-fx-class.ts, loaded lazily): the registry (special-modes.ts) reads the gait from here
 // without pulling the effect's chunk into the main bundle.
 export type ClassSpecial = 'wake' | 'stirring' | 'tempo' | 'pulse' | 'drag' | 'swing';
 // The rig plays a slow gait through each of the Doctor's three steps and through the Knight's drag (special-modes.ts `travel`); the anchor does the actual moving.
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 // The camera sits behind the player, so what the walkers leave behind them is hidden under the two bodies unless it lies in the open ground BEHIND the caster (first clips, 2026-10-02):
 // both walkers first back off BACK metres (the rig walks backwards, BACK_AT..BACK_AT + BACK_TICKS), then walk in from there, so the trench and the prints are laid in the clear.
 export const BACKS = { tempo: 0.9, drag: 1.2 } as const, BACK_TICKS = 30, BACK_PACES = { tempo: -1.8, drag: -2.4 } as const, BACK_AT = { tempo: 0, drag: 4 } as const;

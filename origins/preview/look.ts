@@ -21,9 +21,13 @@ export const PRESETS: Record<string, Look> = {
   'ash-pit': { fog: t1.fog, fogDensity: t1.fogDensity, hemiSky: t1.hemisphere[0], hemiGround: t1.hemisphere[1], hemiIntensity: t1.hemisphere[2], sunColor: t1.sun[0], sunIntensity: t1.sun[1], sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: t1.exposure, ground: [1, 1, 1] },
   // The Concord Exchange: a lamp-lit dusk. The sun is low and deep amber, the fog a warmer, darker haze, the shade cooler so the braziers and the forge read as the light.
   'exchange-dusk': { fog: '#8f5f3f', fogDensity: 0.024, hemiSky: '#7d86ad', hemiGround: '#3a2418', hemiIntensity: 0.95, sunColor: '#ff9a52', sunIntensity: 3.4, sunPos: [-24, 7, -15], exposure: 1.25, ground: [0.92, 0.88, 0.84] },
-  // The Ash Frontier: open ground under a high, pale, dusty sky; a long soft horizon (low density), cooler fill, a brighter key.
-  'frontier-haze': { fog: '#d6bf9a', fogDensity: 0.012, hemiSky: '#b4c4da', hemiGround: '#6a5238', hemiIntensity: 1.35, sunColor: '#ffd6a0', sunIntensity: 5.6, sunPos: [-18, 30, -20], exposure: 1.35, ground: [1.05, 0.98, 0.88] },
+  // The Ash Frontier (the Pit's sun direction, so no block throws a new hard shadow across the walker's foreground): open ground under a high, pale, dusty sky; a long soft horizon (low density), cooler fill, a brighter key.
+  'frontier-haze': { fog: '#d6bf9a', fogDensity: 0.012, hemiSky: '#b4c4da', hemiGround: '#6a5238', hemiIntensity: 1.35, sunColor: '#ffd6a0', sunIntensity: 5.6, sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: 1.35, ground: [1.05, 0.98, 0.88] },
 };
+// ?look=cinder: the Frontier's haze a little thinner and the ground-bounce darker, so the skyline silhouettes (frontier-cinder.ts, 60 to 110 m out) still read against it instead of dissolving at the fog's full strength.
+PRESETS['cinder-haze'] = { ...PRESETS['frontier-haze']!, fogDensity: 0.0095, hemiGround: '#52402c' };
+// The Frontier at night (?look=night with ?region=1): a cold dark haze, a faint moon-blue key and the fire as the light; a look test for the camps' flame and glow.
+PRESETS['frontier-night'] = { fog: '#141a2a', fogDensity: 0.02, hemiSky: '#2a3558', hemiGround: '#14100e', hemiIntensity: 0.45, sunColor: '#6a7ab0', sunIntensity: 0.6, sunPos: PRESETS['frontier-haze']!.sunPos, exposure: 1.1, ground: [0.8, 0.8, 0.9] };
 // Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand
 // out pale against it (they were sand on sand); the paving pulled down and cooler, the masonry lifted and warmer.
 PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#6e5f52', fogDensity: 0.012, sunPos: [-16, 15, 20], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.35, 1.2, 1] };
