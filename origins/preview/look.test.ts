@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
-import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneLook } from './look.ts';
+import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneLook, zonePreset } from './look.ts';
 
 test('ash-pit is Arena 1 exactly (today\'s Pit does not change)', () => {
   const t = ARENA_THEMES['1'], l = PRESETS['ash-pit']!;
@@ -52,4 +52,12 @@ test('zone1 keeps the arena\'s sky and exposure, darkens the ground below the ma
   assert.ok(z.ground[0] < z.stone![0] && z.ground[1] < z.stone![1] && z.ground[2] < z.stone![2], 'ground below stone on every channel');
   assert.ok(z.fogDensity < p.fogDensity);
   blendLook(p, z, 0.5).stone!.forEach((v, i) => assert.ok(Math.abs(v - (1 + z.stone![i]!) / 2) < 1e-9));
+});
+
+test('zonePreset: a generic frontier-haze zone gets its own row, any other preset is kept, and every row is well formed', () => {
+  for (const z of ['cinder-fields', 'black-mere', 'blood-ruin', 'ferry-landing']) { assert.equal(zonePreset(z, 'frontier-haze'), z); assert.ok(PRESETS[z]); }
+  assert.equal(zonePreset('east-road', 'frontier-haze'), 'frontier-haze');
+  assert.equal(zonePreset('black-mere', 'frontier-night'), 'frontier-night');
+  assert.equal(zonePreset('exchange', 'exchange-dusk'), 'exchange-dusk');
+  assert.deepEqual(PRESETS['cinder-fields'], PRESETS['cinder-haze']);
 });

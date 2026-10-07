@@ -31,6 +31,14 @@ PRESETS['frontier-night'] = { fog: '#141a2a', fogDensity: 0.02, hemiSky: '#2a355
 // Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand
 // out pale against it (they were sand on sand); the paving pulled down and cooler, the masonry lifted and warmer.
 PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#6e5f52', fogDensity: 0.012, sunPos: [-16, 15, 20], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.35, 1.2, 1] };
+// ?look=zonepreset: one look per Frontier zone. Draft rows to judge before any tuning (Lead 2026-10-07; every Frontier zone carried 'frontier-haze', so they all looked alike); once a zone's data names one of these presets the ZONE_ROWS fallback below stops being used.
+PRESETS['cinder-fields'] = { ...PRESETS['cinder-haze']! };
+PRESETS['black-mere'] = { ...PRESETS['frontier-haze']!, fog: '#7f8a86', fogDensity: 0.016, hemiSky: '#8fa09c', hemiGround: '#3c4540', hemiIntensity: 1.2, sunColor: '#d8e0d0', sunIntensity: 3.8, exposure: 1.3 };
+PRESETS['blood-ruin'] = { ...PRESETS['frontier-haze']!, fog: '#8a4a3a', fogDensity: 0.014, hemiSky: '#b08070', hemiGround: '#4a2a22', hemiIntensity: 1.15, sunColor: '#ff8a5a', sunIntensity: 4.6, exposure: 1.3 };
+PRESETS['ferry-landing'] = { ...PRESETS['frontier-haze']!, fog: '#c8cbc6', fogDensity: 0.014, hemiSky: '#b8c8d8', hemiGround: '#5a5a50', hemiIntensity: 1.4, sunColor: '#fff0d8', sunIntensity: 5, exposure: 1.35 };
+const ZONE_ROWS: Record<string, string> = { 'cinder-fields': 'cinder-fields', 'black-mere': 'black-mere', 'blood-ruin': 'blood-ruin', 'ferry-landing': 'ferry-landing' };
+// The preset a zone is lit with: the one its data names, unless that is the generic 'frontier-haze', then the zone's own draft row (a fallback until the data names them).
+export const zonePreset = (zone: string, preset: string): string => (preset === 'frontier-haze' ? ZONE_ROWS[zone] : undefined) ?? preset;
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;

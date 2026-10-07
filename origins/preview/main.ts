@@ -29,7 +29,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/sim.ts';
-import { applyLook, lookAlong } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, zonePreset, type Look } from './look.ts';
 import { creaturesLook } from '../../src/audio/creature.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
@@ -235,7 +235,7 @@ function step(dt: number) {
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
-  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, lookAlong(HAZE ? state.x : state.z, LOOK_STOPS), GROUNDS, STONES).sunPos);
+  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, zoneEase(dt, lookAlong(HAZE ? state.x : state.z, LOOK_STOPS)), GROUNDS, STONES).sunPos);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   // The gait follows the speed he actually covers (collisions included): the Pit's own table, characters.ts gaitWeights (Idle/Walk/Jog/Run).
@@ -279,6 +279,16 @@ function step(dt: number) {
 // ?region=1: the zone you stand in and its ambience.preset, for the look (the World lane's look.ts listens for `origins:zone`; this page
 // sets no light, fog or sky). Off the Frontier the Exchange's own data names the preset (exchange-dusk; the Pit's ash-pit).
 let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
+// ?look=zonepreset (default off, with ?region=1): each zone is lit with its own preset (look.ts zonePreset), eased over 1.5 s from the look on screen when the zone changes; off, the base look passes through untouched.
+const ZONEPRESET = REGION && /[?&]look=(?:[^&]*,)?zonepreset\b/.test(location.search);
+let zlA: Look | null = null, zlShown: Look | null = null, zlK = 1, zlKey = '';
+function zoneEase(dt: number, base: Look): Look {
+  if (!ZONEPRESET) return base;
+  const key = zoneNow ? zoneNow.zone : '', target = zoneNow ? lookOf(zonePreset(zoneNow.zone, zoneNow.preset)) : base;
+  if (key !== zlKey) { zlKey = key; zlA = zlShown ?? target; zlK = zlShown ? 0 : 1; }
+  zlK = Math.min(1, zlK + dt / 1.5);
+  return (zlShown = blendLook(zlA!, target, zlK * zlK * (3 - 2 * zlK)));
+}
 function showZone(id: string | null) {
   if (!frontier) return;
   const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange')))!;
