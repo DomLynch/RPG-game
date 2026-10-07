@@ -32,6 +32,11 @@ Stage 1 is **GO now**; Stage 2 waits until Stage 1 is merged. Expansion may own 
 - **(c) Spawns.** Every zone's default spawn sits outside any trade area. A test asserts it for every zone.
 - **(d) Window.** 10 minutes for Stage 1. Stage 2's persistence supersedes it: do not tune it.
 
+- **(e) No logout escape (Strategy, via Lead; a Stage 2 requirement).** Server-owned states (Feuds jail, an active bounty or feud, a duel in progress) override the saved location on rejoin and never expire with the 10-minute memory: a jailed player who waits out the timer comes back in jail. Test once jail exists.
+- **(f) Saved locations never land in a trade area.** (c) extends to rejoin: a rejoin never places a player inside a trade area; if the remembered or saved spot is inside one, the player rejoins at the area's edge. Test for it. (Stage 1 applies this to its 10-minute memory too, since it is cheap there.)
+
+How presence knows the zone (Expansion's proposal in their #1575 review, consistent with (a)): presence keeps one world in concord.ts's single mounted frame (`concordMounts`), and a player's zone is the zone whose rectangle contains its position; `zone` goes into the player state and the `/internal/where` answer. No second world per zone is needed.
+
 Open for Expansion (X1's owner): the Exchange's trade area. Stage 1's test needs one to assert against; until X1 states it, Backend's provisional definition is the bounding box of the Exchange's service landmarks (contract board, forge, bank, covenant stone) plus a 3 m margin, kept in one place (`origins/presence/zones.ts`) for Expansion to replace.
 
 ## 5. What this does NOT solve
