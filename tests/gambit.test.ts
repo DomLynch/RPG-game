@@ -85,7 +85,7 @@ test('a gambit fight is recorded, packed and replayed to the very same state', (
   const seed = 11, opponent = OPPONENTS.veteran, profile = profileAt(opponent, 1);
   const rec = liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level: 1, seed, gambit: true });
   let p = initialPractice(seed, opponentAt(opponent, 1), 'longsword', null, undefined, seed), armed = 0;
-  for (let i = 0; i < 160; i++) { p = stepPractice(p, rec.push(i === 0 || i === 40 || i === 54 ? act('heavy') : idle()), profile); armed += p.duel.events.filter(e => e.type === 'GambitArmed').length; }
+  for (let i = 0; i < 160; i++) { p = stepPractice(p, rec.push(i === 0 ? act('light') : i === 40 || i === 54 ? act('heavy') : idle()), profile); armed += p.duel.events.filter(e => e.type === 'GambitArmed').length; }
   assert.equal(armed, 1, 'the second heavy press armed the swing once');
   const record = unpackRecord(packRecord(rec.finish('abandoned')));
   assert.equal(record.v, 33); assert.equal(record.gambit, true);
