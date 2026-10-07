@@ -12,8 +12,8 @@ export function stanceFrom(search: string): Stance {
   return s && STANCES.includes(s) ? s : 'neutral';
 }
 
-export type StancePose = { drop: number; sway: number; hip: number; knee: number; spine1: number; spine2: number; spine3: number; neck: number; head: number; headTilt: number; arm: number; fore: number; armOut: number; offArm: number; lean: number };
-export const NO_STANCE: StancePose = { drop: 0, sway: 0, hip: 0, knee: 0, spine1: 0, spine2: 0, spine3: 0, neck: 0, head: 0, headTilt: 0, arm: 0, fore: 0, armOut: 0, offArm: 0, lean: 0 };
+export type StancePose = { drop: number; sway: number; hip: number; knee: number; spine1: number; spine2: number; spine3: number; neck: number; head: number; headTilt: number; arm: number; fore: number; offArm: number; lean: number };
+export const NO_STANCE: StancePose = { drop: 0, sway: 0, hip: 0, knee: 0, spine1: 0, spine2: 0, spine3: 0, neck: 0, head: 0, headTilt: 0, arm: 0, fore: 0, offArm: 0, lean: 0 };
 
 // hip/knee: thigh and calf bend together so the feet stay put while the pelvis drops; arm/fore: sword arm up (negative) or down; lean: side-to-side sway of the spine.
 const FULL: Record<Stance, Partial<StancePose>> = {
