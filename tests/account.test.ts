@@ -8,6 +8,7 @@ import * as cloudProfile from '../src/cloud-profile.ts';
 import * as career from '../src/career.ts';
 import * as loot from '../src/loot.ts';
 import { session } from '../src/session.ts';
+import { timedSignal } from '../src/timed-signal.ts';
 import * as lootClaims from '../src/loot-claims.ts';
 import * as sparring from '../src/sparring.ts';
 
@@ -28,7 +29,7 @@ function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<
     readFighter: async (_db: unknown, id: string) => users[id] ?? null, readAdmin: async () => admin,
     writeFighter: (_db: unknown, id: string, written: profile.Profile, revision: number | null) => new Promise<cloudProfile.CloudProfile>(answer => { writes.push({ userId: id, revision, profile: written, answer }); }),
   };
-  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
+  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './timed-signal.ts': { timedSignal }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
     './loot-claims.ts': { ...lootClaims, flushThenStanding: async () => null }, '@sentry/browser': { captureException() {} } };   // no claims to post here: the outbox has its own tests
   const win = new EventTarget(), exports: { mountAccount?: (url: string, key: string) => Promise<void> } = {};
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports, window: win, Event, URL, localStorage, crypto: { randomUUID: () => 'test' },
@@ -126,4 +127,16 @@ test('account: the test tools and the Sparring tab open for an admin (with or wi
     assert.equal(app.element('test-tools').hidden, !open, `admin ${admin}, local ?debug ${localDebug}: tools ${open ? 'open' : 'hidden'}`);
     assert.equal(app.element('sparring-tab').hidden, !open, `admin ${admin}, local ?debug ${localDebug}: Sparring tab ${open ? 'open' : 'hidden'}`);
   }
+});
+
+test('the account fetch signal still builds on a browser without AbortSignal.any / timeout (Safari < 17.4)', async () => {
+  const { any, timeout } = AbortSignal as { any?: unknown; timeout?: unknown };
+  try {
+    delete (AbortSignal as { any?: unknown }).any; delete (AbortSignal as { timeout?: unknown }).timeout;
+    const caller = new AbortController(), signal = timedSignal(caller.signal, 20);
+    assert.equal(signal.aborted, false); caller.abort(); assert.equal(signal.aborted, true, 'the caller still cancels');
+    const late = timedSignal(undefined, 5); await new Promise((r) => setTimeout(r, 30)); assert.equal(late.aborted, true, 'the timeout still fires');
+    assert.equal(timedSignal(AbortSignal.abort()).aborted, true);
+  } finally { Object.assign(AbortSignal, { any, timeout }); }
+  assert.match(readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8'), /signal: timedSignal\(init\?\.signal\)/);
 });
