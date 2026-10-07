@@ -36,11 +36,12 @@ const fight = (style: MobStyle, chains: readonly ChainRow[], ticks = 12000) => {
   return { d, chained, plain, longest };
 };
 
+const ENGINE_CHAIN = 2;   // the engine chains ONE follow-up after a swing (a run is 2 swings at most); CHAIN_CAP 3 is the validator's promise for a future engine
 test('with chain rows the mob throws more chained follow-ups inside the window than its own warden does (the warden chains on its own now and then)', () => {
   for (const s of ['brute', 'skirmisher', 'beast'] as const) {
     const withRows = fight(s, CHAINS[s]), without = fight(s, []);
     assert.ok(withRows.chained > without.chained, `${s}: the layer chained ${withRows.chained} times against the warden's ${without.chained}`);
-    assert.ok(withRows.longest <= CHAIN_CAP, `${s}: a run is never longer than the cap (${withRows.longest})`);
+    assert.ok(withRows.longest <= ENGINE_CHAIN, `${s}: a run is never longer than the engine's real cap of 2 swings (${withRows.longest}); the validator's CHAIN_CAP 3 is only a promise`);
   }
 });
 
