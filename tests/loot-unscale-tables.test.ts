@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from '../scripts/warrior-recipe.mjs';
+import { DWARF_BONES, GIANT_BONES, GOBLIN_BONES, PROPORTION_TABLES } from '../scripts/warrior-recipe.mjs';
 
 // `unscale: "<name>"` in loot.json inverts a fighter's re-proportioning field through the piece's own weights
 // (scripts/build-warrior.mjs). The lookup used to be a hand-kept `{ dwarf: DWARF_BONES }` while the goblin's table sat
@@ -10,9 +10,10 @@ type Bones = Record<string, readonly number[]>;
 const tables = PROPORTION_TABLES as Record<string, Bones>;
 
 test('loot unscale: every re-proportioned fighter is registered, and each table is per-bone [x, y, z] scales', () => {
-  assert.deepEqual(Object.keys(tables).sort(), ['dwarf', 'goblin'], 'the registered tables are exactly the re-proportioned fighters');
+  assert.deepEqual(Object.keys(tables).sort(), ['dwarf', 'giant', 'goblin'], 'the registered tables are exactly the re-proportioned fighters');
   assert.equal(tables.goblin, GOBLIN_BONES, 'the goblin resolves to the same table his body is built from — not a copy that could drift');
   assert.equal(tables.dwarf, DWARF_BONES, 'and so does the dwarf');
+  assert.equal(tables.giant, GIANT_BONES, 'and the giant (body family giant, donor built with WARRIOR_BUILD=giant)');
   for (const [id, bones] of Object.entries(tables)) {
     const entries = Object.entries(bones);
     assert.ok(entries.length, `${id}: a bones table with no bones is not a re-proportioning`);

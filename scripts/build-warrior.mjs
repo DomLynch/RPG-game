@@ -1,6 +1,6 @@
 import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
-import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
+import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, GIANT_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
 import { conformOver, jointOf, ringHull, surfaceAlong, triGrid } from './loot-fit.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
@@ -137,7 +137,9 @@ const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] },
   // inverse binds, stride and the trident matter. Legs lose 28 %, torso/limbs gain 20–25 % girth, a short thick neck and a bigger head;
   // `scale` .95 lands ~1.45 m standing. Owner asked for true dwarf proportions rather than the 1.60 m Veteran fit.
   dwarf: { scale: .95, hunch: [['spine_02', 4], ['spine_03', 4], ['neck_01', -3], ['Head', -3]], bob: .72, stride: .95 * .72, floor: .10,
-    bones: DWARF_BONES } }[fighter] ?? { scale: 1, hunch: [] };
+    bones: DWARF_BONES },
+  // The giant donor (WARRIOR_BUILD=giant on any roster fighter; the giant has no roster row): a man's height, a giant's proportions.
+  giant: { scale: 1, hunch: [['spine_02', 3], ['spine_03', 3], ['neck_01', -2], ['Head', -2]], bones: GIANT_BONES } }[process.env.WARRIOR_BUILD || fighter] ?? { scale: 1, hunch: [] };
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
