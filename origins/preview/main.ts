@@ -11,6 +11,8 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
+import { mobLook } from './mob-looks.ts';
+import { dressMob } from './mob-dress.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { MobSpec } from './mobs.ts';
@@ -305,6 +307,7 @@ function settleFight(finish: Finished) {
 }
 function leaveFight() {
   if (!fighting) return;
+  const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
@@ -317,6 +320,7 @@ const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: n
 let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 function showResult(text: string) {
+  document.getElementById('leave')!.hidden = true;   // the end panel's own "Back to the fields" is the one way out
   document.getElementById('hunt-result')?.remove();
   const note = document.createElement('div'); note.id = 'hunt-result'; note.className = 'glass'; note.textContent = text;
   note.style.cssText = 'position:fixed;left:12px;right:12px;top:30%;z-index:5;padding:12px 14px;text-align:center;font:600 17px/1.4 Georgia,serif;pointer-events:none';
@@ -361,7 +365,8 @@ async function startMobFight(spec: MobSpec) {
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
     showResult(out.text);
-  }, leaveFight);
+  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobLook(spec.character); if (look) dressMob(root, { ...look, scale: 1 }); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
+  const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
