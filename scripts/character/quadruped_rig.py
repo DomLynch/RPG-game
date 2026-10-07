@@ -103,7 +103,27 @@ bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 arm.select_set(True)
 bpy.context.view_layer.objects.active = arm
-bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+# Automatic (heat) weights fail on this body: the reduced mesh is open shells (37k of its verts got nothing). Skin it by distance instead:
+# each vertex follows its 3 nearest bone segments, weight ~ 1/d^3. Soft where a limb meets the trunk, which is what a furred body wants.
+bpy.ops.object.parent_set(type="ARMATURE_NAME")
+segs = [(b.name, Vector(b.head_local), Vector(b.tail_local)) for b in arm_data.bones if b.name != "root"]
+for name, _, _ in segs:
+    if name not in mesh.vertex_groups:
+        mesh.vertex_groups.new(name=name)
+
+
+def seg_dist(p, a, b):
+    ab = b - a
+    t = max(0.0, min(1.0, (p - a).dot(ab) / max(ab.length_squared, 1e-12)))
+    return (p - (a + ab * t)).length
+
+
+for v in mesh.data.vertices:
+    d = sorted((seg_dist(v.co, a, b), n) for n, a, b in segs)[:3]
+    w = [1.0 / (x + .004 * H) ** 3 for x, _ in d]
+    tot = sum(w)
+    for (x, n), wi in zip(d, w):
+        mesh.vertex_groups[n].add([v.index], wi / tot, "REPLACE")
 groups = {g.name: 0 for g in mesh.vertex_groups}
 for v in mesh.data.vertices:
     for g in v.groups:
