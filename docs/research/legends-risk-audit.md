@@ -2,38 +2,38 @@
 
 Dom asked for an audit of all 862 ladder names before the COO decides keep/rename/remove. Four agents each checked a quarter of the names against five risks: (A) copyright or franchise, (B) living religion or scripture, (C) real person, (D) living organisation, (E) cultural. 104 names were flagged: 26 to remove, 8 to rename, 70 to keep with a design note. **Nothing has been changed yet**; this is the decision list.
 
-**COO decisions applied 2026-10-07 (local_0f681df3, against the legends-rule skill and Dom's 10-06 rulings):** 8 removed, 7 renamed (Hellfire Club → The Medmenham Monks added), everything else kept. Every kept hero gets the honourable backstory and the "You stood against X" win line, never monster or villain casting; every citation is the source text, never a film.
+**COO decisions applied 2026-10-07 (local_0f681df3, against the legends-rule skill and Dom's 10-06 rulings):** 8 removed, 7 renamed; then Dom (18:5x) removed all 26 recommended removes and approved all 8 renames, overriding the COO keeps (Hellfire Club → The Medmenham Monks added), everything else kept. Every kept hero gets the honourable backstory and the "You stood against X" win line, never monster or villain casting; every citation is the source text, never a film.
 
 ## Recommend REMOVE (26)
 
 | Name | Risk | Severity | Why | COO decision |
 |---|---|---|---|---|
-| Yi Sun-sin | real person | high | Real admiral (d. 1598) and one of Korea's most revered national heroes; showing him as a killable enemy would offend a living national community. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Tupac Amaru II | real person | high | Real indigenous rebel leader executed by Spain in 1781; he is an official national hero in Peru and a symbol for Andean indigenous peoples today. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Zumbi dos Palmares | real person | high | Real leader of a quilombo of escaped slaves; he is a Brazilian national hero for Afro-Brazilians, and Black Consciousness Day (20 Nov) is held in his honour. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Hatuey | real person | high | Real Taino chief burned alive by Spanish colonists; he is revered as Cuba's first national hero and a symbol of resistance to genocide. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Lautaro | real person | high | Real Mapuche war leader; the living Mapuche community reveres him as a hero, and the subject is politically sensitive in Chile today. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Caupolican | real person | high | Real Mapuche toqui executed by the Spanish; the living Mapuche community reveres him as an indigenous hero. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Cain | living religion/scripture | high | Cain is a figure from Genesis, the Torah and the Quran, which puts him under the living-religion scripture rule even though Beowulf mentions him. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Lapu-Lapu | real person | high | Lapu-Lapu is an official national hero of the Philippines, with statues, a city and a police emblem named after him, so making him a killable enemy is very likely to offend. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Tecun Uman | real person | high | Tecun Uman is Guatemala's official national hero and a symbol of resistance to the Spanish conquest, revered by living Maya communities. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Cuauhtemoc | real person | high | Cuauhtemoc is Mexico's foremost national hero; he resisted the conquistadors and was tortured and executed by them. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Queen Njinga | real person | high | Queen Njinga is Angola's national heroine and a living symbol of anti-colonial resistance. | KEEP (honourable figure only, never a villain; Dom 10-06) |
+| Yi Sun-sin | real person | high | Real admiral (d. 1598) and one of Korea's most revered national heroes; showing him as a killable enemy would offend a living national community. | REMOVE (Dom 10-07, overrides COO keep) |
+| Tupac Amaru II | real person | high | Real indigenous rebel leader executed by Spain in 1781; he is an official national hero in Peru and a symbol for Andean indigenous peoples today. | REMOVE (Dom 10-07, overrides COO keep) |
+| Zumbi dos Palmares | real person | high | Real leader of a quilombo of escaped slaves; he is a Brazilian national hero for Afro-Brazilians, and Black Consciousness Day (20 Nov) is held in his honour. | REMOVE (Dom 10-07, overrides COO keep) |
+| Hatuey | real person | high | Real Taino chief burned alive by Spanish colonists; he is revered as Cuba's first national hero and a symbol of resistance to genocide. | REMOVE (Dom 10-07, overrides COO keep) |
+| Lautaro | real person | high | Real Mapuche war leader; the living Mapuche community reveres him as a hero, and the subject is politically sensitive in Chile today. | REMOVE (Dom 10-07, overrides COO keep) |
+| Caupolican | real person | high | Real Mapuche toqui executed by the Spanish; the living Mapuche community reveres him as an indigenous hero. | REMOVE (Dom 10-07, overrides COO keep) |
+| Cain | living religion/scripture | high | Cain is a figure from Genesis, the Torah and the Quran, which puts him under the living-religion scripture rule even though Beowulf mentions him. | REMOVE (Dom 10-07, overrides COO keep) |
+| Lapu-Lapu | real person | high | Lapu-Lapu is an official national hero of the Philippines, with statues, a city and a police emblem named after him, so making him a killable enemy is very likely to offend. | REMOVE (Dom 10-07, overrides COO keep) |
+| Tecun Uman | real person | high | Tecun Uman is Guatemala's official national hero and a symbol of resistance to the Spanish conquest, revered by living Maya communities. | REMOVE (Dom 10-07, overrides COO keep) |
+| Cuauhtemoc | real person | high | Cuauhtemoc is Mexico's foremost national hero; he resisted the conquistadors and was tortured and executed by them. | REMOVE (Dom 10-07, overrides COO keep) |
+| Queen Njinga | real person | high | Queen Njinga is Angola's national heroine and a living symbol of anti-colonial resistance. | REMOVE (Dom 10-07, overrides COO keep) |
 | The Hashshashin | living organisation | high | 'Hashshashin' was a hostile medieval name for the Nizari Ismailis, a living community of millions led by the Aga Khan, and making them killable assassins also echoes the Assassin's Creed IP; if renamed, use 'The Hidden Blades of Alamut'. | REMOVE |
 | The Knights Hospitaller | living organisation | high | Still active today as the Sovereign Military Order of Malta and the Order of St John (St John Ambulance), a Catholic and chivalric body with UN observer status. | REMOVE |
 | The Teutonic Knights | living organisation | high | The Teutonic Order still exists as a Catholic religious order based in Vienna. | REMOVE |
 | Guan Yu | living religion/scripture | high | Guan Yu is actively worshipped as a deity (Guandi) in Chinese folk religion, Taoism and Buddhism, with temples across Asia. | REMOVE |
 | Nezha | living religion/scripture | high | Nezha is an actively venerated Taoist deity, and the record-breaking Ne Zha film franchise (2019, 2025) now dominates the name. | REMOVE |
-| Shaka Zulu | real person | high | Shaka is revered as the founding national hero of the living Zulu nation and royal house; Shaka Day is a public commemoration in South Africa. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Atahualpa | real person | high | The last Inca emperor was executed by the conquistadors, and today he is an indigenous and national hero in Peru and Ecuador. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Tipu Sultan | real person | high | Tipu Sultan is a live political and religious flashpoint in India, revered by some as an anti-colonial hero and attacked by others, so any portrayal invites controversy. | KEEP (honourable figure only, never a villain; Dom 10-06) |
+| Shaka Zulu | real person | high | Shaka is revered as the founding national hero of the living Zulu nation and royal house; Shaka Day is a public commemoration in South Africa. | REMOVE (Dom 10-07, overrides COO keep) |
+| Atahualpa | real person | high | The last Inca emperor was executed by the conquistadors, and today he is an indigenous and national hero in Peru and Ecuador. | REMOVE (Dom 10-07, overrides COO keep) |
+| Tipu Sultan | real person | high | Tipu Sultan is a live political and religious flashpoint in India, revered by some as an anti-colonial hero and attacked by others, so any portrayal invites controversy. | REMOVE (Dom 10-07, overrides COO keep) |
 | Ilya Muromets | living religion/scripture | medium | The Russian Orthodox Church canonised him as Saint Elias of Murom (relics at Kyiv Pechersk Lavra), and he is a national folk hero in both Russia and Ukraine. | REMOVE |
-| Hua Mulan | copyright/franchise | medium | The Disney Mulan franchise (1998 and 2020) dominates the name, and Mulan is also revered as a Chinese national heroine, so killing her is risky. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Minamoto no Yoshitsune | real person | medium | Real samurai general (d. 1189) who is worshipped as a kami at Shirahata Shrine and revered as a tragic Japanese national hero. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Sundiata Keita | real person | medium | Sundiata Keita founded the Mali Empire and is still revered as a national and ethnic hero through a living griot tradition across West Africa. | KEEP (honourable figure only, never a villain; Dom 10-06) |
-| Skanderbeg | real person | medium | Skanderbeg is Albania's supreme national hero; his eagle and helmet are state symbols. | KEEP (honourable figure only, never a villain; Dom 10-06) |
+| Hua Mulan | copyright/franchise | medium | The Disney Mulan franchise (1998 and 2020) dominates the name, and Mulan is also revered as a Chinese national heroine, so killing her is risky. | REMOVE (Dom 10-07, overrides COO keep) |
+| Minamoto no Yoshitsune | real person | medium | Real samurai general (d. 1189) who is worshipped as a kami at Shirahata Shrine and revered as a tragic Japanese national hero. | REMOVE (Dom 10-07, overrides COO keep) |
+| Sundiata Keita | real person | medium | Sundiata Keita founded the Mali Empire and is still revered as a national and ethnic hero through a living griot tradition across West Africa. | REMOVE (Dom 10-07, overrides COO keep) |
+| Skanderbeg | real person | medium | Skanderbeg is Albania's supreme national hero; his eagle and helmet are state symbols. | REMOVE (Dom 10-07, overrides COO keep) |
 | Zhong Kui | living religion/scripture | medium | Zhong Kui is an actively venerated Taoist demon-queller deity whose image is still hung at New Year and the Dragon Boat Festival. | REMOVE |
-| Yellow Emperor | living religion/scripture | medium | The Yellow Emperor is venerated in Taoism and as the ancestor of the Chinese people, with state-sponsored rites in Shaanxi and Henan. | KEEP (honourable figure only, never a villain; Dom 10-06) |
+| Yellow Emperor | living religion/scripture | medium | The Yellow Emperor is venerated in Taoism and as the ancestor of the Chinese people, with state-sponsored rites in Shaanxi and Henan. | REMOVE (Dom 10-07, overrides COO keep) |
 
 ## Recommend RENAME (8)
 
