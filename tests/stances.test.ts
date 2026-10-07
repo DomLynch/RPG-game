@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, feintable, mirror, stepDuel, withStances, type Duel } from '../src/duel.ts';
+import { createFighter, feintable, guardOf, mirror, stepDuel, withStances, type Duel } from '../src/duel.ts';
 import { PICKS, STANCES, asStance, homePick, moodOf, stanced, type StanceId } from '../src/stance.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
@@ -14,8 +14,8 @@ import { act, arena, idle, W } from './strategies.ts';
 test('the stance table is Dom\'s: every delta, per mille, and nothing else', () => {
   assert.deepEqual(STANCES, {
     aggressive: { damage: 50, posture: 100, block: 100 },
-    defensive: { damage: -50, block: -150, recover: 250 },
-    trickster: { heavyDamage: -50, feint: -500, kickPosture: 250 },
+    defensive: { damage: -50, block: -150, recover: 250, window: 250, counter: 250 },
+    trickster: { heavyDamage: -50, feint: -500, kickPosture: 500 },
   });
   assert.deepEqual([...PICKS], ['neutral', 'aggressive', 'defensive', 'trickster']);
 });
@@ -41,6 +41,22 @@ test('stances move damage and block cost by their table and never the timing of 
   const plain = guarded(), a = guarded('aggressive'), df = guarded('defensive');
   assert.ok(plain && a && df);
   assert.ok(a.stamina! > plain.stamina! && df.stamina! < plain.stamina!, 'an aggressive blocker pays more, a defensive one less');
+});
+
+test('a Defensive stance widens the parry window by a quarter and nothing else about the guard', () => {
+  const f = createFighter({ x: 0, z: 0, heading: 0, distance: 0 } as never, 'ready'), plain = guardOf(f), wide = guardOf({ ...f, stance: 'defensive' });
+  assert.equal(wide.window, Math.round(plain.window * 1.25)); assert.ok(wide.window > plain.window);
+  assert.deepEqual({ ...wide, window: 0 }, { ...plain, window: 0 }); assert.equal(guardOf({ ...f, stance: 'trickster' }).window, plain.window);
+});
+
+test('a trickster\'s kick deals 50% more posture against a HELD guard only', () => {
+  const kick = (stance: StanceId | undefined, guard: boolean) => {
+    let d: Duel = withStances(arena(), stance, undefined); d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready' }, d.fighters[1]] };
+    for (let i = 0; i < 40; i++) d = stepDuel(d, [i === 0 ? act('kick') : idle(), guard ? { ...idle(), guard: true, guardDirection: mirror('thrust') } : idle()]);
+    return d.fighters[1].posture;
+  };
+  assert.ok(kick('trickster', true) > kick(undefined, true), 'against a held guard the trickster\'s kick deals more posture');
+  assert.equal(kick('trickster', false), kick(undefined, false), 'against an open foe it is the plain kick');
 });
 
 test('a trickster feints for half: a swing he could not afford to abandon, he can', () => {

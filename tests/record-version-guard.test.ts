@@ -23,7 +23,7 @@ import type { OpponentId } from '../src/roster.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/detmath.ts', 'src/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
-const SIM_DIGEST = '460761e2b1fae5278ea3e13a9a0d742fe1ac464016d6ff4de30b64d54c647108';   // RV34 (2026-10-07, stances: src/stance.ts, duel.ts sites, record.ts flag bits); re-pin if the stance numbers are retuned inside the unreleased v34
+const SIM_DIGEST = '1e2e79bc285261bb8486ca350cf0d3beecfc67fe82131bc630a4ae3b27441139';   // RV34 (2026-10-07, stances: src/stance.ts, duel.ts sites, record.ts flag bits); re-pin if the stance numbers are retuned inside the unreleased v34
 const PINNED_FOR_VERSION = 34;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {

@@ -125,7 +125,9 @@ export const walled = (body: State, dx: number, dz: number): boolean => M.hypot(
 export const elapsed = (f: Fighter): number => f.age + f.charge;
 export const timing = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
-export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
+const baseGuard = (f: Fighter, R: typeof RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
+// The Defensive stance widens the parry window by a quarter (src/stance.ts, `window`); no stance = the window untouched.
+export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => { const g = baseGuard(f, R); return f.stance ? { ...g, window: Math.round(stanced(f, 'window', g.window)) } : g; };
 // Directional guard (owner 2026-09-20, on by default): a guard or parry covers ONE of the five attack sides. The side is the DEFENDER's:
 // facing each other, an attacker's `right` cut arrives on the defender's left, so a `left` guard meets a `right` cut; overhead, thrust
 // and low match by name. No side chosen (the thumb still on the button) is the straight guard, `thrust` — never "everything".
@@ -379,7 +381,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!location) continue;
     A.landed = true;
     const g = guardOf(d, R), facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= g.arc;
-    const dealtPosture = (x: number): number => { const p = stanced(a, 'posture', x); return a.move === 'kick' ? stanced(a, 'kickPosture', p) : p; };   // posture this blow deals: the attacker's stance (aggressive +10%; a trickster's kick +25%)
+    const dealtPosture = (x: number): number => { const p = stanced(a, 'posture', x); return a.move === 'kick' && d.phase === 'guard' ? stanced(a, 'kickPosture', p) : p; };   // posture this blow deals: the attacker's stance (aggressive +10%; a trickster's kick +50% against a HELD guard only)
     const raised = d.phase === 'guard' && facing, guarding = raised && covers(d, def.direction, R);   // raised: any guard up; guarding: the side covers this attack
     const breaks = (def.breaksGuard || charged || (g.heavyBreaks && def.direction === 'overhead')) && !g.stopsHeavy, blockCost = stanced(d, 'block', perked(d, 'guard', def.staminaDamage * g.costScale));
     const stagger = (ticks: number) => {
@@ -411,12 +413,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       events.push({ tick, type: 'Parried', actor: j, target: i, move: a.move, weapon: weapon.id, material: weapon.material }, { tick, type: 'Staggered', actor: i, ticks: R.parryStun });
       shake(i, R.posture.parry);
     } else if (raised && !guarding && def.vsGuard) {   // a kick into a guard held on any other side: the shove lands as before. The low guard braces it — an ordinary block below.
-      const hit = rolled(def.damage); spend(j, def.vsGuard.staminaDamage); wound(hit, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, guarded: true, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, def.posture);
+      const hit = rolled(def.damage); spend(j, def.vsGuard.staminaDamage); wound(hit, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, guarded: true, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, dealtPosture(def.posture));
     } else if (guarding && !breaks && d.stamina >= (d.age - g.window < R.perfectBlock ? blockCost * R.perfectBlockCost : blockCost)) {
       // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half and stops the chip; the
       // discounted price is what has to be affordable.
       const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]), taken = chip ? rolled(chip) : 0;
-      spend(j, cost); D.counterWindow = R.guardCounter;   // a block opens the guard-counter window
+      spend(j, cost); D.counterWindow = stanced(d, 'counter', R.guardCounter);   // a block opens the guard-counter window (a Defensive stance's is a quarter longer)
       events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect, weapon: weapon.id, material: weapon.material, ...(chip ? { damage: taken, ...rollTag() } : {}) });
       if (chip) { wound(taken, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
       shake(j, dealtPosture(def.posture * (perfect ? R.posture.perfect : 1)));
