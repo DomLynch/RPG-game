@@ -1714,6 +1714,9 @@ dialog #account-login { flex-basis: 100%; min-height: 48px; background: #fff; bo
 }
 .howto { border-top: 1px solid var(--jl); margin-top: 12px; }
 .howto summary { cursor: pointer; padding: 12px 0; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jf); }
+.credits ul { margin: 0 0 12px; padding-left: 18px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
+.credits li { margin: 0 0 8px; }
+.credits a { color: inherit; text-decoration: underline; }
 .howto p { margin: 0 0 12px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
 .scorecard {
   white-space: pre-wrap;
