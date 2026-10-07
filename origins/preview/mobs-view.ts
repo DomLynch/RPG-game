@@ -9,7 +9,7 @@ import witchUrl from '../../src/assets/witch.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobLook } from './mob-looks.ts';
+import { mobVariant } from './mob-looks.ts';
 import { TUNING, mobSpecs, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -76,7 +76,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   };
 
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
-    const model = clone(body.scene), look = mobLook(s.character);
+    const model = clone(body.scene), look = mobVariant(s.character, s.id);
     model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
     if (look) dressMob(model, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     v.mixer = new THREE.AnimationMixer(model);
@@ -88,7 +88,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   function viewOf(i: number): View {
     let v = views.get(i); if (v) return v;
-    const s = specs[i]!, group = new THREE.Group(), look = mobLook(s.character), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
+    const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
     stand.position.y = 0.85; stand.castShadow = true;
     const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height;
