@@ -7,7 +7,7 @@ import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
-export type Dress = { pieces: Piece[]; solids: Solid[] };
+export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
 const rng = (seed: string) => {   // mulberry32 over a string hash
   let h = 1779033703 ^ seed.length;
@@ -17,19 +17,22 @@ const rng = (seed: string) => {   // mulberry32 over a string hash
 };
 
 // Ground decals sit at fixed heights per kind so overlapping ones never fight: ash pale, then the worn road, its ruts, the scorch.
-const TOP = { ash: 0.03, road: 0.045, rut: 0.055, scorch: 0.07 };
-const ASHPALE: Tint = [1.55, 1.5, 1.45], SCORCH: Tint = [0.3, 0.27, 0.25], ROAD: Tint = [1.25, 1.15, 1.02], RUT: Tint = [0.62, 0.56, 0.5];
+const SLAB = 0.04, TOP = { ash: 0.06, road: 0.075, rut: 0.085, scorch: 0.1 };
+const ASHPALE: Tint = [1.45, 1.42, 1.38], SCORCH: Tint = [0.38, 0.34, 0.32], ROAD: Tint = [1.2, 1.12, 1.02], RUT: Tint = [0.7, 0.64, 0.58];
 const BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.88, 0.8, 0.7], [0.56, 0.54, 0.54]], WALL: Tint = [0.95, 0.84, 0.7];
 
 export function frontierDress(f: Frontier, b: Build): Dress {
-  const pieces: Piece[] = [], solids: Solid[] = [];
+  const pieces: Piece[] = [], ground: Piece[] = [], solids: Solid[] = [];
   const put = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = 0) => { pieces.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot }); };
-  const decal = (r: number, top: number, x: number, z: number, tint: Tint, rotY = 0) => put(['cylinder', r, r, top, 14], x, top / 2, z, tint, rotY, -1);
+  const lay = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0) => { ground.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot: -1 }); };
+  const decal = (r: number, top: number, x: number, z: number, tint: Tint, rotY = 0) => lay(['cylinder', r, r, top, 14], x, top / 2, z, tint, rotY);
 
   for (const z of f.zones) {
     if (!z.region.includes('frontier')) continue;
     const R = rng(z.zone), between = (lo: number, hi: number) => lo + (hi - lo) * R();
     const world = (x: number, d: number) => toWorld({ x, d }, z.mount);
+    const mid = world(0, z.depth / 2);   // the zone's dirt: one slab over its footprint, on frontier.ts's own ground material
+    lay(['box', z.width, SLAB, z.depth], mid.x, SLAB / 2, mid.z, [1, 1, 1], z.mount.heading);
     const lm = Object.values(z.landmarks), keep = [...lm, f.giver.at];
     // The ways on, laid as worn roads: from each link's landmark to the zone's middle, in short wobbling strips with two ruts.
     const hub = world(0, z.depth / 2), strips: { x: number; z: number }[] = [];
@@ -38,11 +41,11 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       const dx = hub.x - a.x, dz = hub.z - a.z, len = Math.hypot(dx, dz), n = Math.max(1, Math.round(len / 4)), ux = dx / len, uz = dz / len, rot = Math.atan2(ux, uz);
       for (let i = 0; i <= n; i++) {
         const t = i / n, wob = Math.sin(t * 9 + z.zone.length) * 0.6, x = a.x + dx * t - uz * wob, zz = a.z + dz * t + ux * wob;
-        put(['box', 3.4, TOP.road, len / n + 0.8], x, TOP.road / 2, zz, ROAD, rot, -1); strips.push({ x, z: zz });
-        for (const side of [-0.75, 0.75]) put(['box', 0.2, TOP.rut, len / n + 0.8], x - uz * side, TOP.rut / 2, zz + ux * side, RUT, rot, -1);
+        lay(['box', 3.4, TOP.road, len / n + 0.8], x, TOP.road / 2, zz, ROAD, rot); strips.push({ x, z: zz });
+        for (const side of [-0.75, 0.75]) lay(['box', 0.2, TOP.rut, len / n + 0.8], x - uz * side, TOP.rut / 2, zz + ux * side, RUT, rot);
       }
     }
-    put(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0, -1); strips.push(hub);
+    lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub);
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
     const free = (x: number, zz: number, r: number) => inZone(z, x, zz, r + 2)
@@ -96,5 +99,5 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       else { for (let i = 0; i < 3; i++) { const x = o.x + between(-0.9, 0.9), zz = o.z + between(-0.9, 0.9); put(['cylinder', 0.38, 0.4, 0.9, 8], x, 0.45, zz, BURNT, 0, 0); } solid(o.x, o.z, 1.1); }
     }
   }
-  return { pieces, solids };
+  return { ground, pieces, solids };
 }
