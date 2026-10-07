@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, guardSide } from '../src/input.ts';
+import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, cutSideOf, guardSide } from '../src/input.ts';
 import type { Direction } from '../src/moves.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
@@ -227,7 +227,7 @@ test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to 
   assert.equal(cutAction(-CUT_PUSH), 'light_left'); assert.equal(cutAction(-1), 'light_left');
   assert.equal(cutAction(CUT_PUSH), 'light_right'); assert.equal(cutAction(1.4), 'light_right');
   const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
-  assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(cutLateral\(\)\)\)/, 'the LIGHT press reads the keyboard side (the on-screen stick is movement only)');
+  assert.match(src, /take\(isHeavy \? 'heavy' : cutAction\(cutLateral\(\)\)\)/, 'the LIGHT press reads the keyboard side (the on-screen stick is movement only) and goes through take()');
   assert.match(src, /const arrowKey = \(code: string\) => !keys\.has\('KeyQ'\)/, 'Q + an arrow is the guard side, never a cut');
   assert.match(src, /attackButton\.dataset\.cut = cutSide/, 'the button shows the chosen side');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
@@ -248,9 +248,25 @@ test('the Slash label survives every directional-cut state: nothing may repaint 
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
   const label = rules.filter((r) => /button\[data-mobile\]::after/.test(r.selector) && /content:\s*attr\(data-mobile\)/.test(r.body));
   assert.ok(label.length >= 1, 'the label is drawn by button[data-mobile]::after (content: attr(data-mobile))');
-  const clobbers = rules.filter((r) => /#attack-button[^,]*::(after|before)/.test(r.selector) && /\bcontent\s*:/.test(r.body));
-  assert.deepEqual(clobbers.map((r) => r.selector), [], 'an #attack-button ::after/::before rule with its own content would replace the label (it did, with data-cut set: no text, only the arc)');
+  const clobbers = rules.filter((r) => /#attack-button[^,]*::after/.test(r.selector) && /\bcontent\s*:/.test(r.body));
+  assert.deepEqual(clobbers.map((r) => r.selector), [], 'an #attack-button ::after rule with its own content would replace the label (it did, with data-cut set: no text, only the arc)');
   assert.ok(!/#attack-button\[data-cut[^\]]*\][^,{]*::after/.test(css), 'the directional-cut arc is gone (Dom 2026-10-07); the cut stays in input.ts (data-cut) and the lit tick');
   const input = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
   assert.match(input, /cutAction\(cutLateral\(\)\)/, 'the cut itself reads the keyboard side only'); assert.match(input, /attackButton\.dataset\.cut = cutSide/);
+});
+
+test('the cut flash fires only for a taken side cut, at the press, on ::before, and never touches the label (Dom 2026-10-07)', () => {
+  assert.equal(cutSideOf('light_left'), 'left'); assert.equal(cutSideOf('light_right'), 'right');
+  assert.equal(cutSideOf('light'), null, 'a neutral LIGHT flashes nothing'); assert.equal(cutSideOf('heavy'), null, 'Heavy has no side'); assert.equal(cutSideOf('thrust'), null);
+  const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /function take\(next: Action\) \{\s*request\(next\);\s*if \(action === next\) flashCut\(next\);/, 'one guard: flash only once the press was taken');
+  assert.match(src, /function fireSlash[\s\S]*?take\(side === 'left' \? 'light_left' : 'light_right'\)/, 'the thumb slide (fireSlash) goes through the same guard, so a touch cut flashes too');
+  const intentBody = src.slice(src.indexOf('intent(): ControlIntent {')); assert.ok(intentBody.length > 200 && !/flashCut/.test(intentBody.slice(0, intentBody.indexOf('return {'))), 'the held-stick intent never flashes: the indicator comes with the press, not before');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  const flash = rules.filter((r) => /#attack-button\[data-flash=(left|right)\]::before/.test(r.selector));
+  assert.equal(flash.length, 2, 'one rule per side, on ::before'); for (const r of flash) assert.match(r.body, /animation:\s*cut-flash 2[0-5]\dms/, '~200-250 ms');
+  assert.match(css, /@keyframes cut-flash\{\s*from\{\s*opacity: \.[1-6]/, 'faint: starts at 60% or less');
+  assert.deepEqual(rules.filter((r) => /#attack-button\[data-flash[^\]]*\][^,]*::after/.test(r.selector)).map((r) => r.selector), [], 'the flash never styles the label (::after)');
+  assert.ok(!/data-flash/.test(readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8')), 'hud.ts (which writes the label) never touches the flash');
 });
