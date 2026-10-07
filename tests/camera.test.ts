@@ -415,14 +415,14 @@ test('only the wolf (low) and the wraith (tall) have a framing of their own; eve
 test('the lock pose for a foe at or under a man is exactly what it was (a pinned grid of 5 scales x lock/orbit x yaw x positions)', () => {
   const h = createHash('sha256');
   for (const scale of [0.45, 0.6, 0.78, 0.9, 1]) for (const locked of [true, false]) for (let yaw = -3; yaw <= 3; yaw += 0.5) for (let px = -6; px <= 6; px += 3) for (let pz = -6; pz <= 6; pz += 3) for (const ex of [0, 2.5, -4]) {
-    const p = cameraPose({ x: px, z: pz }, yaw, 0.45, locked, { x: ex, z: ex * 0.5 + 1 }, scale);
+    const p = cameraPose({ ...initialState(), x: px, z: pz }, yaw, 0.45, locked, { x: ex, z: ex * 0.5 + 1 }, scale);
     h.update(JSON.stringify([scale, locked, yaw, px, pz, ex, p.x, p.y, p.z, p.lookX, p.lookZ]));
   }
   assert.equal(h.digest('hex'), '85f386948499c9921d6f94863121a83ad0333210f65ae2908fe1fb11d6f56490', 'a pose for a man or a shorter foe moved: this must stay trunk\'s (re-pin only with the reason in the PR)');
 });
 
 test('a tall foe is framed from further back and higher; an orbit camera and a man are untouched', () => {
-  const state = { x: 0, z: 0 }, foe = { x: 0, z: -2.2 };
+  const state = { ...initialState(), x: 0, z: 0 }, foe = { x: 0, z: -2.2 };
   const man = cameraPose(state, 0, 0.45, true, foe, 1), tall = cameraPose(state, 0, 0.45, true, foe, 1, framingTall('wraith'));
   assert.ok(tall.z > man.z && tall.y > man.y, 'backed off and up');
   assert.deepEqual(cameraPose(state, 0, 0.45, false, foe, 1, framingTall('wraith'), framingLow('wolf')), cameraPose(state, 0, 0.45, false, foe, 1), 'the orbit camera ignores foe height');
