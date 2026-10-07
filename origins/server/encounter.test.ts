@@ -9,6 +9,7 @@ import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import { encounterOps, type EncounterDeps } from './encounter.ts';
 import { liveSpecials, verifyEncounter } from './encounter-verify.ts';
+import { kitBuild } from '../mobs/kit-version.ts';
 
 const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';
 
@@ -51,10 +52,10 @@ const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer: null,
 const deps = (over: Partial<EncounterDeps> = {}): EncounterDeps => ({ resolve: (_w, id) => (id === 'encounter:knight' ? RESOLVED : null), verify: verifyEncounter, now: () => clock.t, ...over });
 
 // The client: plays the fight with the server's seed, records it as the Pit's recorder does, packs it for the wire.
-function fight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false): string {
+function fight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false, build = kitBuild('test')): string {
   let s = intentSeed >>> 0; const rand = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
   const specials = liveSpecials(level), profile = profileAt(OPPONENTS[enemy], level);
-  const rec = createRecorder({ build: 'test', opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}) });
+  const rec = createRecorder({ build, opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}) });
   let p = initialPractice(seed, opponentAt(OPPONENTS[enemy], level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }));
   for (let i = 0; i < 1500 && !p.finish; i++) p = stepPractice(p, rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: false }, action: rand() < 0.5 ? 'light' : null, guard: rand() < 0.1, lock: true }), profile);
   if (onlyFinished && !p.finish) return '';   // a scripted fight that never ended has no verifiable record
@@ -134,4 +135,12 @@ test('settle after the expiry is refused (the sweep settles it as an abandonment
   clock.t += 200_000;
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record: fight(start.seed, 1) }), Conflict);
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: 'A'.repeat(32), record: fight(1, 1) }), BadRequest);
+});
+
+test('settle with a record from another mob kit: 422 kit-mismatch, the token is NOT consumed and nothing is written (not a loss)', async () => {
+  const clock = { t: 1e6 }, { db, rows, events } = fakeDb(clock), ops = encounterOps(deps({ resolve: () => ({ ...RESOLVED, layer: 'brute' }) }));
+  const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: out.token, record: fight(out.seed, 1, 6, 'knight', false, 'test kit:zzz') }), (e: unknown) => e instanceof Refused && e.status === 422 && e.code === 'kit-mismatch' && /kit mismatch/.test(e.message));
+  assert.equal(events.length, 0, 'no event, so no loss');
+  assert.equal(rows.get(out.token)!.used, false, 'the token stays open for the sweep');
 });

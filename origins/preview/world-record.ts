@@ -4,9 +4,10 @@
 import type { Match } from '../../src/match.ts';
 import { createRecorder, type FightRecord } from '../../src/record.ts';
 import type { Finished } from '../pit/pit.ts';
+import { kitBuild } from '../mobs/kit-version.ts';
 
 export function recordWorldFight(match: Match, opponent: string, level: number, seed: number): void {
-  match.recorder = createRecorder({ build: 'origins-preview', opponent: opponent as Parameters<typeof createRecorder>[0]['opponent'], weapon: 'longsword', level, seed, ...(match.specials ? { specials: true } : {}) });
+  match.recorder = createRecorder({ build: kitBuild('origins-preview'), opponent: opponent as Parameters<typeof createRecorder>[0]['opponent'], weapon: 'longsword', level, seed, ...(match.specials ? { specials: true } : {}) });
 }
 
 /** The record once the fight is over: by the finish when there is one, 'abandoned' when a twist ended it with both standing (what the verifier expects). Null when none was kept. */
