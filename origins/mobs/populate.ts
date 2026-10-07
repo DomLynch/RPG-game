@@ -26,7 +26,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
     if (r.later) continue;
     const issues = validateMobRow(r, zoneCtx);
     if (!issues.length) eligible.push(r);
-    else if (issues.some((i) => i.code !== 'level-band')) rejected.push({ row: r.id, issues });   // a band that misses this zone is just not eligible here
+    else if (issues.some((i) => i.code !== 'level-miss')) rejected.push({ row: r.id, issues });   // a band that misses this zone (level-miss) is just not eligible here; a malformed band (level-band) is rejected by name
   }
   const camps: Camp[] = [], finish = (): Populated => ({ camps, budget, rejected, issues: checkZone(sketchOf(name, zone, camps.flatMap((c) => c.members))) });
   if (!budget || !eligible.length) return finish();

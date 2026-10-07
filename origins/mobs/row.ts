@@ -37,7 +37,7 @@ export type MobRow = {
   later?: boolean;               // reserved for a later batch: needs no look or source yet, never generated
 };
 
-export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
+export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
 export type RowIssue = { code: RowCode; path: string; message: string };
 export type RowContext = {
   look: (id: string) => { opponent: string } | null;   // the look table: mobLook
@@ -79,7 +79,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   if (styleOpponent(row.role) === undefined) add('bad-role', 'role', `role "${row.role}" is not a MobStyle`);
   const [lo, hi] = row.level;
   if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || lo > hi) add('level-band', 'level', 'the level band is whole numbers, 1 or more, low to high');
-  else if (ctx.zone && (hi < ctx.zone.levelMin || lo > ctx.zone.levelMax)) add('level-band', 'level', `band ${lo}..${hi} does not meet the zone's ${ctx.zone.levelMin}..${ctx.zone.levelMax}`);
+  else if (ctx.zone && (hi < ctx.zone.levelMin || lo > ctx.zone.levelMax)) add('level-miss', 'level', `band ${lo}..${hi} does not meet the zone's ${ctx.zone.levelMin}..${ctx.zone.levelMax}`);
   if (!ctx.lootTables.has(row.loot)) add('loot-unknown', 'loot', `${row.loot} is not a registered loot table`);
   const b = row.behaviour;
   for (const [k, [min, max]] of Object.entries(RANGES)) {

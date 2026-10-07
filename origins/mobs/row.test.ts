@@ -37,7 +37,7 @@ test('each rule has a failing row that yields exactly its code', () => {
   assert.deepEqual(codes({ ...good, role: 'archer' }), ['bad-role'], 'the old name archer is gone');
   assert.deepEqual(codes({ ...good, id: 'character:nobody' }), ['family-no-look']);
   assert.deepEqual(codes({ ...good, level: [14, 12] }), ['level-band']);
-  assert.deepEqual(codes(good, { ...ctx, zone: { levelMin: 20, levelMax: 30 } }), ['level-band'], 'the band must meet the zone');
+  assert.deepEqual(codes(good, { ...ctx, zone: { levelMin: 20, levelMax: 30 } }), ['level-miss'], 'the band must meet the zone');
   assert.deepEqual(codes({ ...good, loot: 'loottable:gone' }), ['loot-unknown']);
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, roam: 20 } }), ['roam-leash'], '20 m roam on the default 26 m leash');
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, campSize: [1, CAMP_MAX + 1] } }), ['camp-size']);
@@ -163,4 +163,13 @@ test('populateZone: a rare takes some placeholder camps, never stands alone, and
     assert.equal(populateZone(zone.value, [rare], seed, ctx).camps.length, 0, 'a rare alone makes nothing');
   }
   assert.ok(rares > 0 && rares < camps * 0.5, `${rares} rare camps of ${camps}: some, not most (chance 0.2)`);
+});
+
+test('populateZone: a band that misses the zone is skipped quietly, a malformed band is rejected by name', () => {
+  const zone = generateZone(WILDS, 7);
+  assert.ok(zone.ok);
+  const far: MobRow = { ...cited3[1]!, id: 'character:ruin-ghoul', level: [40, 50] }, broken: MobRow = { ...cited3[2]!, id: 'character:mere-brood', level: [14, 12] };
+  const r = populateZone(zone.value, [cited3[0]!, far, broken], 7, ctx);
+  assert.deepEqual(r.rejected.map((x) => [x.row, x.issues.map((i) => i.code)]), [['character:mere-brood', ['level-band']]]);
+  assert.ok(r.camps.every((c) => c.row === cited3[0]!.id), 'only the eligible kind is placed');
 });
