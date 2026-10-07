@@ -3,6 +3,13 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+## 2026-10-07 12:48 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1248 + project_dom_decided_ledger (11:4x–12:5x).
+
+**Now.** Back on this account. Lanes consolidated to 10 (docs/LANES.md); all running. Re-arm the 40-min light check-in (two crons, see memory). Live a5234895 (curl 12:48); Deploy 5ee0a99 in flight.
+**Done.** Sidebar 22→10 lanes + models; sign-in was a stale tab; Origins saving moved onto the Pit key (#1639 live, POST PASS; #1463 install on CI green, no Dom step); mob design + "generators, not hand-made" rulings; donor library moved to the Hetzner storage box (/mnt/frankendom-donors), 18 classics added, batch 2 running (/root/donor-batch2.log).
+**Open.** Preview link from Lead (wandering mobs); #1463 install; batch 2 finish; 600-zone plan parked for Dom (reference memory).
+**Gotchas.** Dom never does root/SQL steps. Donor box is flat (no per-game folders). OpenXRay/DevilutionX excluded (leaked/decompiled). Armagedom = Dom's separate game, Frankendom primary.
+
 ## 2026-10-07 09:56 (+04, `date`) — HANDOFF (Dom: 4% credits, none for 5 days). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0956 + project_dom_decided_ledger.
 
 **Now.** Live 7a6ff569. Standoff (combat/standoff-final @5ae2592d) then RV31 rebuild (@4db8c0e8, Auditor re-probing) as own releases. Origins saving blocked on Dom's W3 (#1455); then #1463 installer → presence step 2 → X1 #1593.
