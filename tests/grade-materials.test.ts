@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { Box3, Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { SOURCE_MAPPED, buildWarriors, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { SOURCE_DYE, SOURCE_MAPPED, buildWarriors, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { LOOT, cleanProvenance, isWeaponLoot, kitWorn } from '../src/loot.ts';
 import { OPPONENTS, WEAPONS, type OpponentId } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { splitLoot } from '../scripts/split-loot.mjs';
+import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 const mat = (p: SkinnedMesh) => p.material as MeshStandardMaterial;
 
 // Parse a shipped GLB in Node, as tests/loot-wear.test.ts does: geometry, rig and material names; images are the browser's.
@@ -55,7 +56,9 @@ test('ruling C: an opponent wears his own carriers ungraded; his body, a baked *
   for (const p of carried.filter(p => p.userData.slot !== 'Shield')) {   // a shield wears a two-sided copy of the same material (bothSides)
     // the piece it was copied from (a shared ~kit draw repeats its name), mapped by its own source rig, as wear() does
     const source = mat(pieces.find(q => q.geometry === p.geometry)!), expected = SOURCE_MAPPED[p.userData.opponent as OpponentId]?.includes(source.name) ? his.get(source.name) ?? source : source;
-    assert.equal(p.material, expected, `${p.name}: the carrier's own material (or his own mapped one), never a graded clone`);
+    const dye = SOURCE_DYE[p.userData.opponent as OpponentId]?.[source.name];   // his own dye over the hero-palette entry (the hood), a copy by design
+    if (dye) assert.deepEqual([mat(p).name, hex(mat(p)), mat(p).roughness], [source.name, hex(new MeshStandardMaterial({ color: dye })), source.roughness], `${p.name}: the carrier's own material in his own dye`);
+    else assert.equal(p.material, expected, `${p.name}: the carrier's own material (or his own mapped one), never a graded clone`);
   }
   const body: MeshStandardMaterial[] = [];   // his own draws, by mesh: a worn piece may share his very (mapped) material
   executioner.anchor.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && !carried.includes(o as SkinnedMesh)) body.push(o.material); });
@@ -142,6 +145,25 @@ test('ruling C: SOURCE_MAPPED is each rig\'s mapped loot-palette names, read fro
     const mapped = (json(`${id}.glb`).materials as { name: string; pbrMetallicRoughness?: { baseColorTexture?: object } }[]).filter(m => m.pbrMetallicRoughness?.baseColorTexture && palette.has(m.name)).map(m => m.name);
     assert.deepEqual([...(SOURCE_MAPPED[id] ?? [])].sort(), mapped.sort(), `${id}: the table matches his rig`);
   }
+});
+// Dom, 2026-10-07: the Executioner's hood (executioner.Crest, Heraldry) showed the hero's red on the player, because his rig maps no Heraldry and
+// loot.glb's palette entry is the hero's. SOURCE_DYE is each opponent's own dye, and the worn hood wears it; his own draws keep theirs.
+test('ruling C: SOURCE_DYE is the source opponent\'s own dye, and the Executioner\'s hood worn on the hero is his near-black, not the hero\'s red', async () => {
+  for (const [id, dyes] of Object.entries(SOURCE_DYE)) for (const [name, dye] of Object.entries(dyes!)) {
+    assert.equal(name, 'Heraldry', `${id}: only Heraldry is dyed per opponent`);
+    assert.ok(!SOURCE_MAPPED[id as OpponentId]?.includes(name), `${id}: a mapped ${name} would take the wearer's map instead`);
+    assert.equal(dye, warriorAppearance(id).heraldry, `${id}: the dye is his appearance's heraldry`);
+  }
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'));
+  const hood = pieces.find(p => lootId(p) === 'executioner.Crest')!, red = hex(new MeshStandardMaterial({ color: warriorAppearance('hero').heraldry }));
+  const own = materialsOf(player.anchor).map(finish);
+  player.wear([hood]);
+  const worn = (player.worn() as SkinnedMesh[]).find(p => p.name === hood.name)!;
+  assert.equal(hex(mat(worn)), hex(new MeshStandardMaterial({ color: '#171310' })), 'the hood is his near-black');
+  assert.notEqual(hex(mat(worn)), red);
+  assert.equal(mat(worn).name, 'Heraldry', 'still Heraldry: cloth, never graded');
+  player.wear([]);
+  assert.deepEqual(materialsOf(player.anchor).map(finish), own, 'his own draws keep their look');
 });
 test('ruling C: the Knight\'s iron worn on the hero is the very material the opponent Knight wears; a Goblin piece takes the mapped Steel, ungraded', async () => {
   const pieces = lootPiecesOf((await parse('loot.glb')).scene), warrior = await parse('warrior.glb'), heroSteel = new Texture();
