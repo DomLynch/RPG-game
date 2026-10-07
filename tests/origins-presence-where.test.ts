@@ -2,7 +2,7 @@
 // fail-closed client (origins/presence/where.ts) and the fixture the writer's tests inject (origins/presence/fixtures.ts).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createPresence } from '../origins/presence/server.ts';
+import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { fakeWhere, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
 import { inZone, parseWhere, presenceWhere, standsWithin } from '../origins/presence/where.ts';
 
@@ -102,4 +102,22 @@ test('fixtures: fakeWhere answers from a table, an unknown account is offline, a
   assert.deepEqual(await where(acct(2)), { online: true, layer: 1, placed: false });
   assert.deepEqual(await where(acct(9)), { online: false });
   await assert.rejects(fakeWhere({}, true)(acct(1)), /unreachable/);
+});
+
+test('where: a connected player who stands still stays fresh (the socket heartbeat refreshes seenAt); after disconnect it is offline at once', async () => {
+  const clock = { t: 1_000_000 };
+  const p = createPresence({ verify: async t => (t === 'u1' ? acct(1) : null), log: () => {}, internalKey: KEY, now: () => clock.t, limits: { ...LIMITS, beatMs: 20 } });
+  await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${p.port()}`, where = presenceWhere(base, KEY), sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+  const ws = new WebSocket(`ws://127.0.0.1:${p.port()}/origins/presence`, ['frankendom.presence.v1', 'token.u1']);
+  try {
+    await new Promise<void>((res, rej) => { ws.onmessage = ev => { if (typeof ev.data === 'string' && JSON.parse(ev.data).t === 'hello') res(); }; ws.onerror = () => rej(new Error('refused')); });
+    clock.t += 30_000;   // 30 s of no pose at all
+    await sleep(120);    // a few heartbeats
+    const w = await where(acct(1));
+    assert.ok(w.online && w.placed && w.ageMs < 5000, `idle but connected: fresh (ageMs ${w.online && w.placed ? w.ageMs : 'n/a'})`);
+    assert.equal(inZone(w, 'pit-yard', 5000), true, 'so it still reads inZone at the spawn');
+    ws.close(); await sleep(120);
+    assert.deepEqual(await where(acct(1)), { online: false }, 'after disconnect it is gone');
+  } finally { ws.close(); await p.close(); }
 });

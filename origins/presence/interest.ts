@@ -22,7 +22,7 @@ export const RULES = {
 };
 export type Rules = typeof RULES;
 
-export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; strikes: number; strikeAt: number };
+export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number };
 export class Layer {
   readonly players = new Map<number, Player>();
   readonly cells = new Map<number, Set<Player>>();
@@ -60,7 +60,7 @@ export class World {
     let id = 1; while (layer.players.has(id)) id++;
     const from = at ?? this.recall(account, now) ?? SPAWN;
     const x = Math.min(zoneCm, Math.max(0, Math.round(from.x))), z = Math.min(zoneCm, Math.max(0, Math.round(from.z)));
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, strikes: 0, strikeAt: now };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -88,7 +88,7 @@ export class World {
     if (now - p.strikeAt > strikeWindowMs) { p.strikes = 0; p.strikeAt = now; }
     const dt = Math.max(100, Math.min(1000, now - p.movedAt)) / 1000, reach = maxSpeedCmS * speedSlack * dt;
     const x = Math.min(zoneCm, Math.max(0, pose.x)), z = Math.min(zoneCm, Math.max(0, pose.z));
-    p.movedAt = now;
+    p.movedAt = now; p.seenAt = now;
     if (Math.hypot(x - p.x, z - p.z) > reach) {
       if (++p.strikes > strikesToDrop) return 'drop';
       return 'snapped';
