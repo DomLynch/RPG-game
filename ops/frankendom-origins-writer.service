@@ -1,11 +1,11 @@
-# The Origins writer: verifies a player's Supabase token and commits their save through origins_commit (origins/server). Not enabled until #1449 is applied.
+# The Origins writer: verifies a player's Supabase token and commits their save through origins_commit (origins/server). Connects as frankendom_verifier (DATABASE_URL from verifier.env; 202610080001 grants it the origins_* functions), no second role password.
 [Unit]
 Description=Frankendom Origins writer
 After=network-online.target
 
 [Service]
 WorkingDirectory=/opt/frankendom-verifier/current
-EnvironmentFile=/etc/frankendom/origins-writer.env
+EnvironmentFile=/etc/frankendom/verifier.env
 ExecStart=/usr/bin/env node scripts/origins-writer.mjs
 Restart=on-failure
 RestartSec=3
