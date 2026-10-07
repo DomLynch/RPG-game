@@ -81,6 +81,12 @@ expect "the include was taken back out" "$(includes)" 0
 expect "the site file is as it was" "$(cksum < "$(site)")" "$before"
 expect "and sites-enabled is clean (no stray .tmp or backup)" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
 
+# N1b: a RE-install (include already present, backups dir missing) whose nginx -t fails must really take the include out
+fresh; run rev1; rm -rf "$tmp/root/etc/nginx/backups"; export NGINX_RC=1; run rev1
+expect "a failing nginx -t on a re-install exits non-zero" "$rc" 1
+expect "and the include is really gone, not just reported gone" "$(includes)" 0
+expect "and sites-enabled is still clean" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
+
 # N2: node >= 22.18
 fresh; export FAKE_NODE=v20.11.0; run rev4
 expect "an old node stops the install" "$rc" 1

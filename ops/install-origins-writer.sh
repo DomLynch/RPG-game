@@ -48,6 +48,7 @@ install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer
 install -m 0644 "$here/package.json" "$dest/package.json"
 ln -sfn "$dest" "$opt/current"
 install -d -m 0700 "$r/etc/frankendom"
+install -d -m 0700 "$backup"   # before any branch: the nginx -t failure path writes its temp file here even on a re-install where the include is already present
 install -d "$r/etc/nginx/snippets" "$r/etc/nginx/conf.d" "$r/etc/systemd/system"
 install -m 0644 "$here/ops/frankendom-origins-writer.service" "$unit"
 install -m 0644 "$here/ops/nginx/frankendom-origins-writer.conf" "$snippet"
