@@ -13,7 +13,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
 import { openPose, openWeight, NO_OPEN } from './opening-pose.ts';
-import { stancePose, NO_STANCE, type Stance } from './stance-pose.ts';
+import { stancePose, type Stance } from './stance-pose.ts';
 import type { Opening } from './combat.ts';
 import { GUARD_DROP } from './fatigue-tune.ts';
 import type { Fatigue } from './fatigue.ts';
@@ -732,6 +732,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             readGuard = 0;
             if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
           }
+        }
+        stanceW += (Number(stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
+        if (stanceW > .001) {   // ?look=stances: the stance's bones on top of the calm pose (stance-pose.ts); restored at the top of the next update
+          const sp = stancePose(stance, stanceW, stanceClock), b = stanceBones;
+          b.forEach((bone, i) => bone && stanceSaved[i].copy(bone.quaternion)); if (b[0]) stancePelvis.copy(b[0].position); stanceApplied = true;
+          if (b[0]) { b[0].position.y -= sp.drop; b[0].position.x += sp.sway; }
+          if (b[1]) b[1].rotation.x += sp.hip; if (b[2]) b[2].rotation.x += sp.hip; if (b[3]) b[3].rotation.x += sp.knee; if (b[4]) b[4].rotation.x += sp.knee;
+          if (b[5]) { b[5].rotation.x += sp.spine1; b[5].rotation.z += sp.lean; } if (b[6]) b[6].rotation.x += sp.spine2; if (b[7]) b[7].rotation.x += sp.spine3;
+          if (b[8]) b[8].rotation.x += sp.neck; if (b[9]) { b[9].rotation.x += sp.head; b[9].rotation.z += sp.headTilt; }
+          if (b[10]) b[10].rotation.x += sp.arm; if (b[11]) b[11].rotation.x += sp.fore; if (b[12]) b[12].rotation.x += sp.offArm;
         }
         const shieldHeld = shieldArm && armed && !dead, guardUp = shieldHeld && (pose === 'guard' || pose === 'block' || pose === 'parry'), cutting = shieldHeld && (pose === 'attack' || pose === 'kick' || pose === 'deflected' || pose === 'roll');   // a deflect throws the arm open; a roll tucks it
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;
