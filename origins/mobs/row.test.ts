@@ -8,7 +8,7 @@ import { mobLook } from '../preview/mob-looks.ts';
 import { CREATURE_LOOT } from '../region1/content.ts';
 import { FRONTIER_ROWS } from './frontier-rows.ts';
 import { populateZone } from './populate.ts';
-import { CAMP_MAX, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
+import { BOSS_CAMP_MAX, CAMP_MAX, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
 
 const registry = frontierPlan().data.registry;
 const ctx: RowContext = { look: mobLook, lootTables: new Set(registry.lootTables.keys()) };
@@ -42,6 +42,9 @@ test('each rule has a failing row that yields exactly its code', () => {
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, roam: 20 } }), ['roam-leash'], '20 m roam on the default 26 m leash');
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, campSize: [1, CAMP_MAX + 1] } }), ['camp-size']);
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, campSize: [4, 2] } }), ['camp-size']);
+  assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, campSize: [5, 5] } }), ['camp-size'], 'an ordinary camp is a leader and three');
+  assert.deepEqual(codes({ ...good, bossCamp: true, behaviour: { ...good.behaviour, campSize: [6, 6] } }), [], 'a boss camp may be six');
+  assert.deepEqual(codes({ ...good, bossCamp: true, behaviour: { ...good.behaviour, campSize: [1, BOSS_CAMP_MAX + 1] } }), ['camp-size']);
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, aggro: 99 } }), ['behaviour-range']);
   assert.deepEqual(codes({ ...good, named: true }, { ...ctx, generated: true }), ['named-generated']);
   assert.deepEqual(validateRows([good, good], ctx).map((i) => i.code), ['dup-id']);

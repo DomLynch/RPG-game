@@ -27,6 +27,7 @@ export type MobRow = {
   level: readonly [number, number];
   weight?: number;               // share in a zone's mix (default 10)
   named?: boolean;               // named creatures stay on their encounter and are never generated
+  bossCamp?: boolean;            // this kind's camp is a Region's boss camp: up to BOSS_CAMP_MAX members (ordinary camps are CAMP_MAX: a leader and three)
   later?: boolean;               // reserved for a later batch: needs no look or source yet, never generated
 };
 
@@ -40,7 +41,8 @@ export type RowContext = {
 };
 
 export const DEFAULTS = { aggro: 7, leash: 26, roam: 6, campSize: [2, 3] as const, weight: 10 };
-export const CAMP_MAX = 6;   // mobs.md 3.3 says 1..3; the Frontier's shipped fields are 6, 4 and 3, so the cap is 6 until Strategy rules (one constant)
+export const CAMP_MAX = 4;        // Strategy 2026-10-07: an ordinary camp is a leader and three followers
+export const BOSS_CAMP_MAX = 6;   // ... and only a row flagged `bossCamp` may go to six
 // Each number a behaviour field may take (spec sections 2 and 3, widened to the shipped data): [min, max].
 export const RANGES: Record<string, readonly [number, number]> = { aggro: [2, 20], leash: [5, 80], roam: [0, 30], spread: [0, 40], pull: [0, 30] };
 
@@ -77,7 +79,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   }
   if ((b.roam ?? DEFAULTS.roam) > (b.leash ?? DEFAULTS.leash) / 3) add('roam-leash', 'behaviour.roam', 'roam is above a third of the leash');
   const [cmin, cmax] = b.campSize ?? DEFAULTS.campSize;
-  if (!Number.isInteger(cmin) || !Number.isInteger(cmax) || cmin < 1 || cmax > CAMP_MAX || cmin > cmax) add('camp-size', 'behaviour.campSize', `a camp is 1..${CAMP_MAX} members, min not above max`);
+  if (!Number.isInteger(cmin) || !Number.isInteger(cmax) || cmin < 1 || cmax > (row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX) || cmin > cmax) add('camp-size', 'behaviour.campSize', `a camp is 1..${row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX} members${row.bossCamp ? '' : ' (6 only on a boss camp)'}, min not above max`);
   if (ctx.generated && row.named) add('named-generated', 'named', 'named creatures stay on their encounter and are not generated');
   return out;
 }

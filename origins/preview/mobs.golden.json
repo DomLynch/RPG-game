@@ -136,41 +136,41 @@
   "named": false
  },
  {
-  "id": "scavengers-5",
-  "character": "character:cinder-scavenger",
-  "name": "Cinder scavenger",
-  "encounter": null,
-  "body": "goblin",
-  "level": 11,
-  "zone": "cinder-fields",
-  "spawn": "scavengers",
-  "home": {
-   "x": -89.72266012846902,
-   "z": 25.28696684519798
-  },
-  "roam": 8,
-  "aggro": 7,
-  "named": false
- },
- {
-  "id": "scavengers-6",
-  "character": "character:cinder-scavenger",
-  "name": "Cinder scavenger",
+  "id": "brood-1",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
   "level": 12,
-  "zone": "cinder-fields",
-  "spawn": "scavengers",
+  "zone": "black-mere",
+  "spawn": "brood",
   "home": {
-   "x": -104.09697989536645,
-   "z": 28.25420756035813
+   "x": -163.09399632226376,
+   "z": -117.6510811495762
   },
-  "roam": 8,
+  "roam": 6,
   "aggro": 7,
   "named": false
  },
  {
-  "id": "brood-1",
+  "id": "brood-2",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
+  "encounter": null,
+  "body": "goblin",
+  "level": 13,
+  "zone": "black-mere",
+  "spawn": "brood",
+  "home": {
+   "x": -171.1795511911436,
+   "z": -115.98200824729861
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "brood-3",
   "character": "character:mere-brood",
   "name": "Mere brood",
   "encounter": null,
@@ -187,7 +187,7 @@
   "named": false
  },
  {
-  "id": "brood-2",
+  "id": "brood-4",
   "character": "character:mere-brood",
   "name": "Mere brood",
   "encounter": null,
@@ -204,40 +204,6 @@
   "named": false
  },
  {
-  "id": "brood-3",
-  "character": "character:mere-brood",
-  "name": "Mere brood",
-  "encounter": null,
-  "body": "goblin",
-  "level": 12,
-  "zone": "black-mere",
-  "spawn": "brood",
-  "home": {
-   "x": -175.37267000697085,
-   "z": -119.00815239187065
-  },
-  "roam": 6,
-  "aggro": 7,
-  "named": false
- },
- {
-  "id": "brood-4",
-  "character": "character:mere-brood",
-  "name": "Mere brood",
-  "encounter": null,
-  "body": "goblin",
-  "level": 13,
-  "zone": "black-mere",
-  "spawn": "brood",
-  "home": {
-   "x": -162.0974456470161,
-   "z": -116.02946897872066
-  },
-  "roam": 6,
-  "aggro": 7,
-  "named": false
- },
- {
   "id": "ghouls-1",
   "character": "character:ruin-ghoul",
   "name": "Ruin ghoul",
@@ -247,8 +213,8 @@
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
-   "x": -269.64637379555245,
-   "z": -127.85890486544045
+   "x": -267.1787433387551,
+   "z": -133.1174518603439
   },
   "roam": 6,
   "aggro": 7,
@@ -264,8 +230,8 @@
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
-   "x": -268.4189281625708,
-   "z": -134.3787022998833
+   "x": -256.85356883656806,
+   "z": -130.80069809456057
   },
   "roam": 6,
   "aggro": 7,
@@ -281,8 +247,8 @@
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
-   "x": -266.43305978129075,
-   "z": -135.9177395173709
+   "x": -269.64637379555245,
+   "z": -127.85890486544045
   },
   "roam": 6,
   "aggro": 7,
