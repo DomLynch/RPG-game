@@ -8,7 +8,7 @@ import { isOffline } from './save.ts';
 import { fightOf, settledOf, settleFight, startFight, touchFight } from './encounter-net.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
-import { ACCOUNT, CHAR, deps, fakeDb, playFight } from '../server/encounter-fixtures.ts';
+import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
 import { fakeWhere } from '../presence/fixtures.ts';
 
 const fight = { token: 'T'.repeat(32), seed: 7, enemy: 'knight', level: 6, bar: null, flags: [], layer: null, startTick: 0, lastTick: 0, graceS: 120, expiresAt: '2026-10-07T20:00:00.000Z' };
@@ -92,7 +92,7 @@ test('round trip against the real writer: start -> touch -> play on the server s
     clock.t += 30_000;
     const touched = await touchFight('tok', run.token, 300, { base: w.base });
     assert.equal((touched as { seed: number }).seed, run.seed, 'the same seed continues');
-    const record = playFight(run.seed, 3, run.level, 'knight', true) ?? assert.fail('the scripted fight did not finish');
+    const record = finishedFight(run.seed, run.level);
     const settled = await settleFight('tok', run.token, record, { base: w.base });
     assert.deepEqual([(settled as { verified: boolean }).verified, (settled as { event: string }).event], [true, `enc:${run.token}`]);
     assert.equal(w.events.length, 1);
@@ -107,7 +107,7 @@ test('round trip: a record played on a seed the server did not issue settles as 
     const run = await startFight('tok', CHAR, 'encounter:knight', { base: w.base }) as { seed: number; token: string };
     assert.deepEqual(await startFight('tok', CHAR, 'encounter:knight', { base: w.base }), { offline: 'http-409' }, 'one open fight per account: resume the first');
     assert.deepEqual(await startFight('stranger', CHAR, 'encounter:knight', { base: w.base }), { offline: 'http-401' });
-    const forged = await settleFight('tok', run.token, playFight(run.seed + 1, 3, 6, 'knight', true)!, { base: w.base }) as { verified: boolean; result: string };
+    const forged = await settleFight('tok', run.token, finishedFight(run.seed + 1), { base: w.base }) as { verified: boolean; result: string };
     assert.deepEqual([forged.verified, forged.result], [false, 'lost']);
   } finally { await w.close(); }
 });

@@ -62,3 +62,9 @@ export function fight(seed: number, intentSeed: number, level = 6, enemy: 'knigh
   const record = playFight(seed, intentSeed, level, enemy, onlyFinished);
   return record ? toBase64Url(gzipSync(packRecord(record))) : '';
 }
+
+// A fight that ENDED on `seed`: the scripted intents of one `intentSeed` can run out the 1500 ticks without a finish, so try the next (deterministic: the same seed always lands on the same one).
+export function finishedFight(seed: number, level = 6, enemy: 'knight' = 'knight'): FightRecord {
+  for (let intentSeed = 1; intentSeed <= 60; intentSeed++) { const record = playFight(seed, intentSeed, level, enemy, true); if (record) return record; }
+  throw new Error(`no scripted fight finished on seed ${seed}`);
+}
