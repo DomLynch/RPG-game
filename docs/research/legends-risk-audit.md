@@ -122,3 +122,9 @@ Dom asked for an audit of all 862 ladder names before the COO decides keep/renam
 | Francisco Pizarro | real person | low | Pizarro led the conquest of the Inca; acceptable as a foe only if the portrayal does not glorify the conquest. | KEEP (design note applies) |
 | Long John Silver | copyright/franchise | low | The character is public domain, but 'Long John Silver's' is a registered US restaurant-chain trademark. | KEEP (design note applies) |
 | Henry Morgan | copyright/franchise | low | Diageo's Captain Morgan rum brand strongly owns his image; avoid the 'Captain Morgan' styling and the brand's look. | KEEP (design note applies) |
+
+## MANDATORY: no franchise look (Dom, 2026-10-07)
+Thor and Loki stay **on one condition: zero Marvel branding**. Every art, name, copy and marketing choice must come from the source text, never a film, comic or game. A reviewer who sees any of the items below must block the PR.
+- **Thor:** no red cape, no winged helm, no square-headed Marvel hammer, no blond clean-shaven look. Draw on the Eddas: red beard, iron gloves (Járngreipr), short-handled Mjölnir, storm and goats.
+- **Loki:** no golden horned helm, no green-and-gold costume, no sceptre. Draw on the Eddas: shape-shifter, fire and trickster motifs, lips sewn shut.
+- The same rule covers every franchise-shadowed name kept here: Heracles (no Disney), Hippolyta (no Wonder Woman), Pazuzu (no Exorcist), Imhotep (no Mummy films), Paimon (no Genshin), Sun Wukong (no Black Myth), Cthulhu (never "Call of Cthulhu"), Erik and Sweeney Todd (no musical styling), Ragnar and Lagertha (no Vikings TV look), Henry Morgan (no Captain Morgan rum look), Long John Silver (no restaurant-chain look).
