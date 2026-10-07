@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const OUT = arg('out', 'docs/stills/wolf'), OPPONENT = arg('opponent', 'wolf');
-const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
+const server = await createServer({ cacheDir: `${process.env.TMPDIR ?? '/tmp'}/vite-wolf-stills`, server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
@@ -20,7 +20,8 @@ try {
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`${origin}/?opponent=${OPPONENT}&debug=1`);
   const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.click();
-  await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 180000, polling: 100 });
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
+  await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 180000, polling: 100 }).catch(async (e) => { await page.screenshot({ path: `${OUT}/stuck.png` }); console.log('stuck:', await page.evaluate(() => document.querySelector('#art-status')?.textContent + ' | ' + (document.querySelector('#debug')?.textContent ?? '').slice(0, 300)), errors.join(' | ')); throw e; });
   await page.locator('#debug').evaluate((el) => { el.style.display = 'none'; });
   const clip = () => page.evaluate(() => document.querySelector('#debug').dataset.clips.split(' ')[1] ?? '');
   await page.screenshot({ path: `${OUT}/ready.png` }); console.log('ready', await clip());
