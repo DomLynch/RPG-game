@@ -4,6 +4,7 @@
 //     REVIEWER CHECKLIST: a PR that adds a legend body, loot part or prop for one of those names shows its stills; block any red cape,
 //     winged or horned helm, square hammer or green-and-gold look, and add the new marker to FRANCHISE_MARKERS below.
 // (b) REMOVED / RENAMED legends stay out of the roster and the legends data: West Witches (now The Moorland Coven), Count Orlok, Hua Mulan.
+// Design notes are NOT scanned: they name banned looks only to forbid them ("no red cape, no winged helm"), so a marker there is the ban itself (Lead, #1759).
 // The legends-500 spec CSV is a frozen stage document (it still lists hua-mulan) and is not scanned; the live ladder is legends-600-ladder.csv.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
