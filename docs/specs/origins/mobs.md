@@ -13,7 +13,7 @@
 ## Non-negotiable: nothing pauses in the open world (Dom, 2026-10-07)
 
 1. Every intro or overlay beat (standoff, versus card, Journal, bag, map, menus) is visual only, over a running clock; the hero stays vulnerable.
-2. ~~A creature fight is locked 1v1~~ DROPPED (Dom, 2026-10-07 14:4x): a fight is not locked. PvP flag design pending (per-player flag, anti-gank damage falloff, most-damage loot); see Strategy's note. Design only, nothing built.
+2. ~~A creature fight is locked 1v1~~ DROPPED (Dom, 2026-10-07 14:4x): a fight is not locked. The PvP design is the section "PvP" in `docs/specs/origins/server-save-schema.md` (design only, nothing built); creature loot goes to whoever did the most damage.
 3. No escape by pause, backgrounding or disconnect: the fight resolves on the server's terms (the X2 no-logout-escape ruling).
 4. Offline single-player previews may keep the Pit's pause. The present preview does (it is offline and writes nothing).
 

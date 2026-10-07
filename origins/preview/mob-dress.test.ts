@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Color, Group, Mesh, MeshStandardMaterial } from 'three';
 import { MOB_LOOKS } from './mob-looks.ts';
-import { dressMob, dressedColor } from './mob-dress.ts';
+import { dressMob, dressedColor, undressMob } from './mob-dress.ts';
 
 const body = () => {
   const root = new Group(), cloth = new MeshStandardMaterial({ name: 'goblin.body.Gambeson_goblin'.split('.').slice(2).join('.'), color: 0xaaaaaa }), metal = new MeshStandardMaterial({ name: 'WeaponKnife', color: 0xcccccc }), skin = new MeshStandardMaterial({ name: 'Skin' });
@@ -42,4 +42,12 @@ test('the Witch and Knight baked surfaces are dressed (they carry no cloth draw 
     assert.ok(!((root.children[0] as Mesh).material as MeshStandardMaterial).color.equals(surface.color));
     assert.equal((root.children[1] as Mesh).material, skin);
   }
+});
+
+test('a body reused for the next fight dresses from its original cloth: three fights give one colour and no new materials, and undress restores it', () => {
+  const a = body(), look = MOB_LOOKS[Object.keys(MOB_LOOKS)[0]!]!, mesh = a.root.children[0] as Mesh, original = mesh.material;
+  dressMob(a.root, look, false); const first = (mesh.material as MeshStandardMaterial), hex = first.color.getHex(), rough = first.roughness;
+  for (let n = 0; n < 2; n++) { dressMob(a.root, look, false); const m = mesh.material as MeshStandardMaterial; assert.equal(m, first, 'the same shared clone, not a clone of a clone'); assert.equal(m.color.getHex(), hex); assert.equal(m.roughness, rough); }
+  assert.notEqual(first, original);
+  undressMob(a.root); assert.equal(mesh.material, original, 'a Pit legend on this body sees the cloth as loaded');
 });

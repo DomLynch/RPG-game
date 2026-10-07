@@ -44,7 +44,7 @@ test('each rule has a failing row that yields exactly its code', () => {
   assert.deepEqual(codes({ ...good, role: 'archer' }), ['bad-role'], 'the old name archer is gone');
   assert.deepEqual(codes({ ...good, id: 'character:nobody' }), ['family-no-look']);
   assert.deepEqual(codes({ ...good, level: [14, 12] }), ['level-band']);
-  assert.deepEqual(codes(good, { ...ctx, zone: { levelMin: 20, levelMax: 30 } }), ['level-band'], 'the band must meet the zone');
+  assert.deepEqual(codes(good, { ...ctx, zone: { levelMin: 20, levelMax: 30 } }), ['level-miss'], 'the band must meet the zone');
   assert.deepEqual(codes({ ...good, loot: 'loottable:gone' }), ['loot-unknown']);
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, roam: 20 } }), ['roam-leash'], '20 m roam on the default 26 m leash');
   assert.deepEqual(codes({ ...good, behaviour: { ...good.behaviour, campSize: [1, CAMP_MAX + 1] } }), ['camp-size']);
@@ -81,7 +81,7 @@ test('bad-role reads Combat\'s MOB_STYLE, not a copy: every id it names is valid
 
 const WILDS: Template = {
   base: { layout: { entry: { u: 0.5, v: 0.05, facing: 180 }, camp: { u: 0.3, v: 0.5 }, lair: { u: 0.7, v: 0.9 }, ford: { u: 0.5, v: 0.7 } }, spawns: { boss: 'lair' } },
-  vary: { 'zoneSize.width': [80, 160], 'zoneSize.depth': [80, 160], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
+  vary: { 'zoneSize.width': [80, 230], 'zoneSize.depth': [80, 230], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
   jitter: 0.05,
 };
 const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited }));
@@ -92,6 +92,7 @@ test('populateZone: deterministic, inside the zone, band met, count within one c
     assert.ok(zone.ok);
     const a = populateZone(zone.value, cited3, seed, ctx), b = populateZone(zone.value, cited3, seed, ctx);
     assert.deepEqual(a, b, 'same inputs, same camps');
+    assert.deepEqual(a.issues, [], `seed ${seed}: the zone rules (opener within 10 s, nothing dead for 15 s) hold`);
     const w = zone.value.zoneSize.width, d = zone.value.zoneSize.depth, n = a.camps.reduce((s, c) => s + c.members.length, 0);
     assert.ok(a.camps.length > 0 && n >= a.budget && n < a.budget + CAMP_MAX, `seed ${seed}: ${n} creatures for a budget of ${a.budget}`);
     for (const c of a.camps) {
@@ -117,4 +118,13 @@ test('populateZone: pending-source rows are rejected by name, a safe zone gets n
   assert.ok(refused.rejected.every((r) => r.issues.some((i) => i.code === 'no-source')));
   const none = populateZone(open.value, cited3, 7, ctx, () => false);
   assert.equal(none.camps.length, 0, 'no standable ground, no creatures');
+});
+
+test('populateZone: a band that misses the zone is skipped quietly, a malformed band is rejected by name', () => {
+  const zone = generateZone(WILDS, 7);
+  assert.ok(zone.ok);
+  const far: MobRow = { ...cited3[1]!, id: 'character:ruin-ghoul', level: [40, 50] }, broken: MobRow = { ...cited3[2]!, id: 'character:mere-brood', level: [14, 12] };
+  const r = populateZone(zone.value, [cited3[0]!, far, broken], 7, ctx);
+  assert.deepEqual(r.rejected.map((x) => [x.row, x.issues.map((i) => i.code)]), [['character:mere-brood', ['level-band']]]);
+  assert.ok(r.camps.every((c) => c.row === cited3[0]!.id), 'only the eligible kind is placed');
 });
