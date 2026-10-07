@@ -135,7 +135,7 @@ addEventListener('keydown', (e) => {
 });
 
 // Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
-const ZONE_LOOK = /[?&]look=zones\b/.test(location.search), LOOK_STOPS = [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];
+const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || /[?&]look=zones\b/.test(location.search), LOOK_STOPS = [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: ZONE1 ? 'zone1' : 'exchange-dusk' }];
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let forward = held('KeyW', 'ArrowUp') * (REGION && held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');
@@ -149,7 +149,7 @@ function step(dt: number) {
   const nx = state.x + Math.sin(heading) * forward * WALK * dt, nz = state.z + Math.cos(heading) * forward * WALK * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
-  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, lookAlong(state.z, LOOK_STOPS)).sunPos);
+  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, lookAlong(state.z, LOOK_STOPS), ZONE1 ? [exchange.ground] : [], ZONE1 ? [exchange.stone] : []).sunPos);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = forward < 0 ? -1 : 1; mixer.update(dt); }
