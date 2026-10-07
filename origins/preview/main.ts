@@ -445,8 +445,10 @@ function pressEngage() {   // STAB / SLASH / HEAVY / KICK / SKILL near a creatur
 // the walker and the engaged creature are not drawn (the duel draws its own pair), the other creatures stand frozen and those past 20 m are hidden. Off by default: without the flag
 // the fight is the Pit's, as it was.
 const WORLDFIGHT = /[?&]worldfight\b/.test(location.search), FREEZE_RADIUS = 20;
+// One holder per page: createScene adds it to its scene once, at creation, and the next fight against the same body and level REUSES that stage, so a new holder per fight would be in no rendered scene (a bare background). detach() resets its matrix.
+const worldHolder = new THREE.Group();
 function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
-  const holder = new THREE.Group(); let moved: THREE.Object3D[] = [];
+  const holder = worldHolder; let moved: THREE.Object3D[] = [];
   return {
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
     attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
