@@ -12,16 +12,25 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
-import { mobSpecs, spawnAmong } from './mobs.ts';
+import { mobVariant } from './mob-looks.ts';
+import { dressMob } from './mob-dress.ts';
+import { mobSpecs, spawnAmong, type MobSpec } from './mobs.ts';
+import { createCreatureCard } from './creature-card.ts';
+import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
 import { frontierDress } from './frontier-dress.ts';
+import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
-import { bountyQuest, giverTalk } from './bounty.ts';
+import { campFires } from './camp-fire.ts';
+import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
+import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
+import { wrapAngle } from '../../src/sim.ts';
 import { applyLook, lookAlong } from './look.ts';
+import { creaturesLook } from '../../src/audio/creature.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -43,11 +52,13 @@ scene.add(sun, sun.target);
 
 // ?region=1 (Origins slice 1): the Exchange's west gate opens onto the Ash Frontier, laid out from the Region 1 data (frontier-plan.ts).
 // Without the flag none of it is built and the page is the walk out as before.
+const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') === '1';
 const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
-const dress = frontier && frontierParts ? frontierDress(frontier, frontierParts) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const CINDER = /[?&]look=cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
+const dress = frontier && frontierParts ? (CINDER ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
-const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
+const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
@@ -57,7 +68,7 @@ if (frontier && frontierParts) {
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
 // steps onto the west road, never on the Pit/Exchange-only page.
-let mobs: { update(dt: number, hero: { x: number; z: number }): void; debug(): unknown } | null = null, mobsAsked = false;
+let mobs: Mobs | null = null, mobsAsked = false;
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
@@ -75,6 +86,7 @@ function environment(sky?: THREE.Texture) {
 environment(); void arena.ready.then(() => environment(arena.sky));
 const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
+const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
 
 // The walker: the game's own hero (src/assets/warrior.glb, Dom 2026-10-06 "use our real char"), Idle and Walk from his rig. The capsule
 // holds his place until the file lands, and stays if it never does.
@@ -107,11 +119,12 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecs(frontier, frontierParts)) : null;
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
-let hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks around. Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty. Creatures roam the fields now: they stop and watch when you come near.';
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, FRONTIER_ROWS, () => careerLine(session.career).level);
+let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
+if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
@@ -125,6 +138,7 @@ function releaseStick(side: Side) {
 }
 const releaseSticks = () => { releaseStick('move'); releaseStick('look'); };
 canvas.addEventListener('pointerdown', (e) => {
+  if (kit) return;   // the Pit's kit walks (its own stick); there is no second stick
   const side = sideOf(e.clientX);
   if (pads[side]) return;   // that thumb is already down; a second finger on the same half is ignored
   pads[side] = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; padIds[side] = e.pointerId;
@@ -178,19 +192,29 @@ addEventListener('keydown', (e) => {
 // Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
 const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REGION || /[?&]look=zones\b/.test(location.search),
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
-  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
+  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
 const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
+let kit = false, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
+const LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
+try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
 const WALK = 2.3, RUN = 5.2, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
-  let forward = held('KeyW', 'ArrowUp') * (held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
+  let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
-  else if (pads.move || pads.look) ({ forward, strafe, turn, pitch } = intent(pads.move, pads.look));   // the sticks win while a thumb is down
+  else if (kit) {   // the Pit's own controls (src/input.ts over the game's kit, pit-duel.ts world mode): stick walks, a button presses the nearest creature into a duel
+    const i = duel!.worldIntent(), k = i.run ? 2 : 1;
+    forward = Math.max(-0.6, Math.min(1, -i.z)) * k; strafe = Math.max(-1, Math.min(1, i.x)) * 0.7 * k; running = i.run;
+    lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
+    if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
+    if (i.action && i.action !== 'dodge' && i.action !== 'backstep') pressEngage();
+  }
+  else if (pads.move || pads.look) ({ forward, strafe, turn, pitch, running } = intent(pads.move, pads.look));   // the sticks win while a thumb is down
   if (forward || turn || strafe || pitch) { hint.hidden = true; hintMoved = true; }   // the first-load hint goes once you move (Lead 2026-10-06)
   heading += turn * TURN * dt;
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
   // A push up to a full walk is 2.3 m/s at the rim; a run (the move stick pushed past SPRINT_PUSH, or Shift) is the gait table's Run knot, 5.2 m/s.
-  const px = state.x, pz = state.z, ground = Math.hypot(forward, strafe) > 1.2 ? RUN / 2 : WALK;
+  const px = state.x, pz = state.z, ground = running ? RUN / 2 : WALK;   // Intent.running, not a guess from the stick size
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
@@ -215,7 +239,7 @@ function step(dt: number) {
     mobsAsked = true;
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
-  if (mobs) mobs.update(dt, state);
+  if (mobs) { mobs.update(dt, state, cardId); if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
   place.textContent = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
@@ -247,6 +271,7 @@ const clock = new THREE.Clock();
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   step(dt); arena.update(dt, [], camera); exchange.update(time);
+  fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
@@ -262,6 +287,26 @@ let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null
 let source: Source = CHECKING;
 let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
+// ?region=1: the walk uses the Pit's controls exactly (Dom 2026-10-07). pit-duel.ts (its own chunk) binds the game's kit and src/input.ts in world mode; until
+// it has loaded the old floating sticks still work, and if it never loads they stay. The ☰ menu's "Camera locked" chip is the lock-on, saved in this page's own key.
+if (frontier) {
+  duelLayer.classList.add('world'); duelLayer.hidden = false;
+  void import('./pit-duel.ts').then((m) => {
+    duel = m; m.enterWorld(leaveFight); kit = true; releaseSticks(); document.body.classList.add('kit');
+    hint.textContent = 'Left stick walks (push to the edge to run). Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
+    // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
+    const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
+    if (menu && chips) {
+      const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
+      entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
+      chips.append(entry);
+    }
+    const chip = document.getElementById('mobile-camera');
+    const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
+    chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
+    paint();
+  }).catch((error) => console.warn('the Pit controls did not load; the two sticks stay', error));
+}
 const saveNote = document.getElementById('save')!, allegianceButton = document.getElementById('allegiance')!;
 // The graduation picker (allegiance.ts): only on the SAVED career at Gladiator or above; the choice lives in the preview's own save.
 let storage: Storage | null = null;
@@ -318,9 +363,79 @@ function settleFight(finish: Finished) {
 }
 function leaveFight() {
   if (!fighting) return;
-  fighting = false; duel?.closeDuel();
-  duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
+  const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
+  fighting = false; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
+  duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
+  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
+}
+if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
+// ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
+// is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
+// A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
+const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
+const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
+function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
+function showResult(text: string) {
+  document.getElementById('leave')!.hidden = true;   // the end panel's own "Back to the fields" is the one way out
+  document.getElementById('hunt-result')?.remove();
+  const note = document.createElement('div'); note.id = 'hunt-result'; note.className = 'glass'; note.textContent = text;
+  note.style.cssText = 'position:fixed;left:12px;right:12px;top:30%;z-index:5;padding:12px 14px;text-align:center;font:600 17px/1.4 Georgia,serif;pointer-events:none';
+  duelLayer.append(note);
+}
+canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY, far: 0, lx: e.clientX }); });
+canvas.addEventListener('pointermove', (e) => {
+  const d = taps.get(e.pointerId); if (!d) return;
+  d.far = Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y));
+  const dx = e.clientX - d.lx; d.lx = e.clientX;   // the clientX delta: movementX is unreliable on WebKit touch
+  if (kit && !fighting && !lockOn && d.far > TAP_PX) heading -= dx * 0.006;   // one finger dragged on empty screen looks round: free camera, no second stick
+});   // the farthest the finger went: a stick drag that comes back to where it started is still a drag
+canvas.addEventListener('pointerup', (e) => {
+  const d = taps.get(e.pointerId); taps.delete(e.pointerId);
+  const why = !d ? 'no-down' : !mobs ? 'no-mobs' : fighting ? 'fighting' : open ? `panel:${open}` : e.timeStamp - d.t > TAP_MS ? `hold:${Math.round(e.timeStamp - d.t)}ms` : Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)) > TAP_PX ? `moved:${Math.round(d.far)}px` : '';
+  tapLog.push(why || 'tap'); if (tapLog.length > 20) tapLog.shift();
+  if (why || !d) return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  caster.setFromCamera(ndc, camera);
+  const hit = mobs.pick(caster.ray);
+  if (hit) engage(hit.spec, hit.x, hit.z);
+});
+addEventListener('pointercancel', (e) => taps.delete(e.pointerId));
+function engage(spec: MobSpec, x: number, z: number) {
+  if (fighting) { say('A fight is already starting: wait a moment, or tap Back to the fields.'); return; }
+  if (Math.hypot(x - state.x, z - state.z) > REACH) { say(`${spec.name} is too far off: walk closer, then tap.`); return; }
+  void startMobFight(spec);
+}
+function pressEngage() {   // STAB / SLASH / HEAVY / KICK / SKILL near a creature starts the duel with the nearest one in reach; with none, it says what to do
+  const t = mobs?.nearest(state.x, state.z, REACH);
+  if (t) engage(t.spec, t.x, t.z); else say('Nothing in reach: walk up to a creature, then press STAB, SLASH or HEAVY.');
+}
+async function startMobFight(spec: MobSpec) {
+  if (fighting || !frontier) { say(frontier ? 'A fight is already starting.' : 'There is nothing to fight here.'); return; }
+  fighting = true; kit = false; duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
+  openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
+  duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name}: a duel`;
+  renderer.setAnimationLoop(null);
+  document.getElementById('art-status')!.textContent = 'Loading…';
+  try {   // a chunk that never arrives must not leave `fighting` set for good: 20 s and the catch below hands the hero back
+    await Promise.race([(async () => { duel ??= await import('./pit-duel.ts'); huntMod ??= await import('./hunt.ts'); encDuel ??= await import('./encounter-duel.ts'); hunt ??= huntMod.newHunt(); })(), new Promise((_, no) => setTimeout(() => no(new Error('the fight chunks took over 20 s')), 20000))]);
+  }
+  catch (error) { console.warn('the fight did not load', error); leaveFight(); say('Could not load the fight. Tap the creature to try again.'); return; }
+  const prepared = huntMod.prepare(hunt, spec);
+  if (!prepared.ok) { console.warn('the fight cannot be set up', prepared.issues); leaveFight(); say('This creature cannot be fought yet.'); return; }
+  if (!fighting) return;   // left while the chunks loaded
+  const run = prepared.value, quest = bountyQuestId(frontier.giver);
+  // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
+  const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
+  void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, run.seed, (end) => {
+    const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest));
+    if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
+    if (out.won) mobs?.fell(spec.id);
+    showResult(out.text);
+  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
+  const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
@@ -329,6 +444,12 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   mobs: () => mobs?.debug() ?? null,
+  tapLog: () => [...tapLog],
+  // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
+  tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
+  // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
+  mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },
+  hunt: () => hunt && { kills: hunt.kills, metal: hunt.metal, bountyWins: hunt.bountyWins, pack: hunt.inventory.items.map((i) => `${i.item}×${i.quantity}`) },
   bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,

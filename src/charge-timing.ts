@@ -1,5 +1,6 @@
 import { CAST_MARGIN, LAND_AT, type Cast } from './special-timing.ts';
 import { SPECIAL_RECOVER } from './special-look.ts';
+import { smooth } from './fx-math.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the presentation timeline (World, 2026-10-01; Strategy's brief
 // docs/briefs/specials/centurion-l8-l10-2026-10-01.md). Three-free, like nightfall-timing.ts, whose Cast it reads. No horse: for the last RACE ticks
@@ -32,7 +33,6 @@ export function charge(cast: Cast, now: number): Charge | null {
 // The body and its gait share ONE clock, so the run never ends a few ticks off the slide: from GATHER ticks before the race he eases back LEAD metres (BACK_PACE, walking
 // backwards), then rides the dust front forward over RIDE ticks (RUN_PACE, the rig's armed gait) to his own spot; after RIDE he is the sim's again for the blow.
 export const GATHER = 18, RIDE = 24, BACK_PACE = -1.7, RUN_PACE = 4;   // ticks; ticks; m/s the rig is told he travels (its Run is its Walk clip; #1224's ArmedRun above 3.2)
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 // How many metres behind his own spot he is drawn, `age` ticks after the cast began (0 outside the gather and the ride).
 export const slideAt = (age: number, lead: number): number =>
   age < RACE_FROM - GATHER || age >= RACE_FROM + RIDE ? 0 : age < RACE_FROM ? lead * smooth((age - (RACE_FROM - GATHER)) / GATHER) : lead * (1 - Math.min(1, (age - RACE_FROM) / RIDE) ** 1.5);

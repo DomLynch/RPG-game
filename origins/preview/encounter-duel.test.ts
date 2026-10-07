@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice } from '../../src/combat.ts';
 import { OPPONENTS } from '../../src/moves.ts';
-import { endOf, standingEnd, withBar } from './encounter-duel.ts';
+import { endOf, standingEnd } from './encounter-duel.ts';
+import { withBar } from '../shared/with-bar.ts';
 
 test('the foe fell: a win; inside a catch window it is `caught`', () => {
   assert.deepEqual(endOf({ victim: 1 }, null), { result: 'won', twistOutcome: null });

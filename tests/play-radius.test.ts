@@ -5,7 +5,7 @@ import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
-import { RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
 
 test('the scaled opponents are exactly the ladder rungs that fight in Arena 1', () => {
   const arenaOne = LADDER.filter((_, i) => ARENA_PICK[arenaBand(i + 1)] === '1').map(o => o.id);
@@ -45,10 +45,10 @@ test('fighters start inside the smaller circle, shrunk with it but never closer 
 });
 
 test('a record states the circle its fight was fought in: this build\'s version in the live circle, the old-circle version otherwise, and the current one round-trips (an older era is refused, REACH[29])', () => {
-  const stamp = (opponent: 'veteran' | 'goblin') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); if (r.v === RECORD_VERSION) assert.deepEqual(unpackRecord(packRecord(r)), r); else assert.throws(() => unpackRecord(packRecord(r)), /bump 29 changed/, 'an older era is refused at decode (REACH[29])'); return r.v; };
+  const stamp = (opponent: 'veteran' | 'goblin') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); if (r.v === NO_PATRON_VERSION) assert.deepEqual(unpackRecord(packRecord(r)), r); else assert.throws(() => unpackRecord(packRecord(r)), /bump 29 changed/, 'an older era is refused at decode (REACH[29])'); return r.v; };
   setLateNotice(true); setStab(true);
-  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), RECORD_VERSION); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION - 1, 'a goblin fought in the small circle was not fought in his own');
-  setPlayScale(1); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'a veteran fought in the old circle is an old-circle record'); assert.equal(stamp('goblin'), RECORD_VERSION);
+  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), NO_PATRON_VERSION); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION - 1, 'a goblin fought in the small circle was not fought in his own');
+  setPlayScale(1); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'a veteran fought in the old circle is an old-circle record'); assert.equal(stamp('goblin'), NO_PATRON_VERSION);
   // The ramp is part of the era (play-radius.ts LATE_NOTICE): a fight without it in the right circle is the version before the ramp, so it replays without it.
   setLateNotice(false); setStab(false);
   setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION, 'the small circle without late notice is v23'); setPlayScale(1); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION, 'a goblin without late notice is v23 (his circle is the same in both)');
@@ -68,5 +68,5 @@ test('the version is stamped when the recorder is born, in the circle the fight 
   setPlayScale(ARENA_ONE_SCALE); setLateNotice(true); setStab(true);   // a live fight: the page has the late notice on (a headless recorder stamps FIRST_SCALED_VERSION, tested below)
   const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   setPlayScale(1); setLateNotice(false); setStab(false);   // the page moved on before the record was finished
-  assert.equal(rec.finish('abandoned').v, RECORD_VERSION);
+  assert.equal(rec.finish('abandoned').v, NO_PATRON_VERSION);
 });

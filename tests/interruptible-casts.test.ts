@@ -115,5 +115,5 @@ test('record: a specials fight packs and unpacks at the bumped version', () => {
   const back = unpackRecord(packRecord(rec.finish('abandoned')));
   assert.equal(back.specials, true);
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(back.v) && back.v <= RECORD_VERSION);
-  assert.equal(RECORD_VERSION, 31);   // RV31 (the early spammer read) stacks on RV30 (the three own rows), which stacks on RV29 (the rule batch), which stacks on #1507's 28
+  assert.equal(RECORD_VERSION, 33);   // the Gambit (33; only a gambit fight writes it) stacks on patron perks (32; a no-patron fight still writes 31) stack on RV31 (the early spammer read) stacks on RV30 (the three own rows), which stacks on RV29 (the rule batch), which stacks on #1507's 28
 });

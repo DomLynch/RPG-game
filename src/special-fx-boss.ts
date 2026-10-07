@@ -4,15 +4,9 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
 import { BUILD, BUILD_AT, isBossCast, slingAngle, wrathTremor, type BossKind } from './special-boss-timing.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
-  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy), cell = (cx: number, cy: number) => hash(cx * 127 + cy * 311, seed);
-  return lerp(lerp(cell(ix, iy), cell(ix + 1, iy), kx), lerp(cell(ix, iy + 1), cell(ix + 1, iy + 1), kx), ky);
-};
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 function softDot() {
   const n = 16, px = new Uint8Array(n * n * 4);

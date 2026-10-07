@@ -558,6 +558,7 @@ export function createScene(
     raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
     // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
     rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
+    opponentRoot: () => warriors?.opponent.anchor ?? null,   // the foe rig's root (undefined-safe): the Origins preview dresses a creature's cloth on it; the sim never reads it
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.

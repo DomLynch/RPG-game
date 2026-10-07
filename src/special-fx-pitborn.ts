@@ -3,6 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { specialGust } from './special-gust.ts';
 import { advanceCast, shadowPhase as castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // The Pitborn's rank 8-10 boss specials (Pitborn lane; Dom picked all three on 2026-10-01: Cracking Ground, Ash Fall, Wind Wall). One idea each, drawn
 // from the arena itself, no props, no glow, painted and irregular. Presentation only, on Red Wind's seam (special-timing.ts) and its painted strokes
@@ -12,17 +13,8 @@ import { advanceCast, shadowPhase as castPhase, LAND_AT, type Cast, type isHades
 //   surtr   (rank 9, level 41): ASH FALL. Torn grey ash drifts down over the whole arena and thickens, soot scorches the sand under him, a low smoke lies on it.
 //   typhon  (rank 10, level 46): WIND WALL. A gale from behind him tears sand sideways toward the target and snaps the crowd banners (special-gust.ts -> arena.ts).
 
-// Painted-stroke helpers (the same recipe as Red Wind's special-fx-wind.ts and the Shield Quake's special-fx-quake.ts, which are not on this base; kept
-// local so this module stands alone and rebases cleanly when those land: swap these for their exports then).
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
+// Painted-stroke helpers: hash, clamp01, smooth and noise come from fx-math.ts (shared with Red Wind and the Shield Quake); lerp stays local.
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
-const cell = (x: number, y: number, seed: number) => hash(x * 127 + y * 311, seed);
-const noise = (x: number, y: number, seed: number) => {
-  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy);
-  return lerp(lerp(cell(ix, iy, seed), cell(ix + 1, iy, seed), kx), lerp(cell(ix, iy + 1, seed), cell(ix + 1, iy + 1, seed), kx), ky);
-};
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 type SandLook = { core: THREE.Color; edge: THREE.Color; dim: boolean };
 // Dark disturbed earth with a pale dry rim (the Shield Quake's).

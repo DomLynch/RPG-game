@@ -5,6 +5,9 @@
 
 // Where a fight happens. Dom's ruling (2026-10-07): damage rolls apply ONLY to Origins world mobs outside the Pit, in both directions
 // (player -> mob and mob -> player). The Pit (legends and arena AI), PvP and the ladder never roll.
+import { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult } from '../../src/gambit.ts';
+import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../../src/roll.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
+
 export type FightKind = 'world-mob' | 'pit' | 'pvp' | 'ladder';
 
 // The flag, default OFF. `monsterRolls` = the world-mob damage rolls. Read from the Origins config object; anything that is not exactly `true` is off.
@@ -20,12 +23,12 @@ export function parseLuckFlags(raw: unknown): LuckFlags {
 export type RollSource = (seed: number, hit: number) => number;
 
 // ±10% damage rolls, shown on screen. `percent` is the whole-number roll the HUD shows (−10..+10); `damage` is never below 1.
-export const ROLL_BAND_PERCENT = 10;
+export const ROLL_BAND_PERCENT = ROLL_BAND;
 export type DamageRoll = { base: number; percent: number; damage: number };
 export function rollDamage(base: number, u: number, band = ROLL_BAND_PERCENT): DamageRoll {
   if (!(u >= 0 && u < 1)) throw new RangeError(`roll: u must be in [0, 1), got ${u}`);
-  const percent = Math.min(band, Math.floor(u * (2 * band + 1)) - band);   // a uniform whole percent in −band..+band
-  return { base, percent, damage: Math.max(1, Math.round(base * (1 + percent / 100))) };
+  const percent = percentOf(u, band);   // a uniform whole percent in −band..+band (src/roll.ts, the one definition the duel also applies)
+  return { base, percent, damage: rolledDamage(base, percent) };
 }
 // The scope rule: a roll is applied only in an Origins world-mob fight with the flag on, whichever side strikes. Pit, PvP, ladder: never.
 export const rollsApply = (kind: FightKind, flags: LuckFlags): boolean => kind === 'world-mob' && flags.monsterRolls;
@@ -36,20 +39,8 @@ export function hitDamage(kind: FightKind, flags: LuckFlags, base: number, seed:
 
 // The Gambit: a chosen version of the heavy (a second heavy press after the chamber), everywhere including PvP, with the flag on.
 // Odds are ONE constant: about 1 in 2 for about 2x (Dom-approved 2026-10-07); EV slightly under a heavy once the self-stagger is counted.
-export type GambitOdds = { chance: number; multiplier: number };
-export const GAMBIT_ODDS: GambitOdds = Object.freeze({ chance: 1 / 2, multiplier: 2 });
-export const GAMBIT_KILL_FLOOR = 0.4;   // C1: a landed Gambit never kills from above 40% of max health
+export { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult };   // src/gambit.ts: the one definition the duel also applies
 export const gambitApply = (flags: LuckFlags): boolean => flags.gambit;
-// C1: the mean landed damage must not beat the plain heavy (the self-stagger's punish cost then makes it slightly worse, as ruled).
-export const gambitMean = (heavy: number, odds: GambitOdds = GAMBIT_ODDS): number => heavy * odds.chance * odds.multiplier;
-export type GambitResult = { landed: boolean; damage: number };   // not landed = the thrower staggers (Combat's state), no damage
-export function resolveGambit(heavy: number, u: number, health: number, maxHealth: number, odds: GambitOdds = GAMBIT_ODDS): GambitResult {
-  if (!(u >= 0 && u < 1)) throw new RangeError(`gambit: u must be in [0, 1), got ${u}`);
-  if (u >= odds.chance) return { landed: false, damage: 0 };
-  const raw = Math.round(heavy * odds.multiplier);
-  return { landed: true, damage: health > maxHealth * GAMBIT_KILL_FLOOR ? Math.min(raw, health - 1) : raw };
-}
-
 // HUD text, behind the same flag (the view only places it). A shown roll reads "+7%", "−3%" or "±0%"; the odds read "1 in 2".
 export const rollLabel = (r: DamageRoll): string => (r.percent > 0 ? `+${r.percent}%` : r.percent < 0 ? `−${-r.percent}%` : '±0%');
 export const oddsLabel = (odds: GambitOdds = GAMBIT_ODDS): string => `1 in ${Math.round(1 / odds.chance)}`;
@@ -59,8 +50,4 @@ export function luckHud(kind: FightKind, flags: LuckFlags, last: DamageRoll | nu
 }
 
 // The world-mob roll's source: a hash of (fight seed, hit index), never Math.random, so the same fight replays the same rolls.
-export const seededSource: RollSource = (seed, hit) => {
-  let h = Math.imul((seed >>> 0) ^ Math.imul(hit + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
-  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
-};
+export const seededSource: RollSource = rollUnit;   // src/roll.ts: the same draw the duel's Duel.roll uses

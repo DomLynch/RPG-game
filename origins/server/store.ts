@@ -56,3 +56,39 @@ export const saveLocation = async (db: Db, account: string, at: { x: number; z: 
     { a: acct(account), x: String(at.x), z: String(at.z), zone: at.zone ?? '', t: String(at.atMs) }));
 export const savedLocation = async (db: Db, account: string): Promise<SavedRow | null> =>
   JSON.parse((await db.run(`select coalesce(public.origins_saved_location(:'a'::uuid)::text, 'null');`, { a: acct(account) })) || 'null');
+
+// World creature fights (migration 202610080002): the parameters the server holds for a fight and its lifecycle. Every call answers `null` when the migration is not applied (the
+// writer maps that to a 503), so merged code on a database without it fails closed instead of 500ing.
+export type EncounterRun = {
+  token: string; character: string; seed: number; enemy: string; level: number; expires_at: string; used: boolean; start_tick: number; last_tick: number;
+  bar: number | null; flags: Json[]; layer: string | null; instance: string | null; grace_s: number; settled: boolean; result: string | null;
+};
+const HAS_ENCOUNTERS = `select to_regprocedure('public.origins_encounter_start(uuid,text,text,bigint,text,integer,integer,integer,jsonb,text,text)') is not null as enc \\gset\n`;
+const encounterCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await db.run(`${HAS_ENCOUNTERS}\\if :enc\nselect ${call}::text;\n\\else\nselect 'absent';\n\\endif\n`, vars);
+  return out === 'absent' ? null : out;
+};
+export type EncounterStart = { token: string; seed: number; enemy: string; level: number; tick: number; bar: number | null; flags: readonly Json[]; layer: string | null; instance: string | null };
+export const encounterStart = async (db: Db, account: string, character: string, e: EncounterStart): Promise<EncounterRun | null> => {
+  const out = await encounterCall(db, `public.origins_encounter_start(:'a'::uuid, :'c', :'t', :'s'::bigint, :'e', :'l'::int, :'k'::int, nullif(:'b', '')::int, :'f'::jsonb, nullif(:'y', ''), nullif(:'i', ''))`,
+    { a: acct(account), c: character, t: e.token, s: String(e.seed), e: e.enemy, l: String(e.level), k: String(e.tick), b: e.bar === null ? '' : String(e.bar), f: JSON.stringify(e.flags), y: e.layer ?? '', i: e.instance ?? '' });
+  return out === null ? null : JSON.parse(out);
+};
+export const encounterGet = async (db: Db, account: string, token: string): Promise<EncounterRun | 'none' | null> => {
+  const out = await encounterCall(db, `coalesce(public.origins_encounter_get(:'a'::uuid, :'t'), 'null'::jsonb)`, { a: acct(account), t: token });
+  return out === null ? null : out === 'null' ? 'none' : JSON.parse(out);
+};
+export const encounterTouch = async (db: Db, account: string, token: string, tick: number): Promise<EncounterRun | null> => {
+  const out = await encounterCall(db, `public.origins_encounter_touch(:'a'::uuid, :'t', :'k'::int)`, { a: acct(account), t: token, k: String(tick) });
+  return out === null ? null : JSON.parse(out);
+};
+// Consume the token, close the run, release the creature and apply the batch (event enc:<token> and any reward lines) in ONE transaction.
+export const encounterSettle = async (db: Db, account: string, token: string, result: 'won' | 'lost', ticks: number, batch: readonly Json[]): Promise<Json | null> => {
+  const out = await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb)`, { a: acct(account), t: token, r: result, k: String(ticks), b: JSON.stringify(batch) });
+  return out === null ? null : JSON.parse(out);
+};
+// The sweep (a loss by abandonment for every fight past its grace); how many it settled, null when the migration is not applied.
+export const encounterExpire = async (db: Db, limit: number): Promise<number | null> => {
+  const out = await encounterCall(db, `public.origins_encounter_expire(:'n'::int)`, { n: String(limit) });
+  return out === null ? null : Number(out);
+};
