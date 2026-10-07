@@ -319,6 +319,7 @@ weapon = bpy.data.objects.new("WeaponDrawn", None)
 bpy.context.collection.objects.link(weapon)
 weapon.parent, weapon.parent_type, weapon.parent_bone = arm, "BONE", "jaw"
 weapon.location = (0, -jaw.length, 0)   # a bone-parented child is placed from the bone's TAIL: step back to the joint
+weapon.rotation_euler = (-math.pi / 2, 0, 0)   # the exporter turns objects (not bones) Z-up -> Y-up: cancel it so the node's local +Y IS the jaw's +Y
 weapon["weapon"] = "bite"
 weapon["contact"] = {"from": 0.0, "to": 0.08}
 os.makedirs(os.path.dirname(os.path.abspath(DST)), exist_ok=True)
