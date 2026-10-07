@@ -14,12 +14,13 @@ type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 export type Habits = {
   ticks: number; guard: number; parries: number; rolls: number; steps: number;
   lights: number; heavies: number; thrusts: number; kicks: number; attacks: number; parks: number;
+  hold?: number;  // ticks the guard has been held without a break (RV31: a guard held through my windup is a commitment, not a tap)
   run?: number;   // consecutive lights: reset by any other blow that starts and by a defence that meets a blow (RV31, profile.spamRun's early gate)
 };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6,
+  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
@@ -90,6 +91,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (opponent.phase === 'guard' && opponent.parrying && opponent.age === 0) h.parries++;
   if (opponent.phase === 'roll' && opponent.age === 0) h.rolls++;
   if (opponent.phase === 'backstep' && opponent.age === 0) h.steps++;
+  h.hold = opponent.phase === 'guard' ? (h.hold ?? 0) + 1 : 0;
+  // a guard held through my windup (up to the tick it ends) is a real commitment: it ends the run with no contact needed; a tap of a few ticks does not (RV31)
+  if (self.phase === 'attack' && self.move && self.age === mine[self.move].windup && h.hold >= READ.holdTicks) h.run = 0;
   // a defence that actually meets a blow ends the masher's run (RV31): a block, parry or roll-dodge event by the player, or one of my swings
   // missing a backstepping player. A bare guard / roll / backstep tick does not (a tap between cuts would otherwise blind the gate).
   if (duel.events.some(e => (e.actor === 1 - me && (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')) || (e.actor === me && e.type === 'AttackMissed' && opponent.phase === 'backstep'))) h.run = 0;

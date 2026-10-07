@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readOpponent, initialAi, decide, type Habits } from '../src/ai.ts';
 import { OPPONENTS } from '../src/combat.ts';
-import type { Duel } from '../src/duel.ts';
+import { movesOf, type Duel } from '../src/duel.ts';
 import { profileAt, type AiProfile } from '../src/moves.ts';
 import { STRATEGIES, battery, arena, act, ready, gap, k } from './strategies.ts';
 
@@ -35,6 +35,18 @@ test('guard-tap: a bare guard, roll or backstep that meets no blow does not rese
   for (const phase of ['guard', 'roll', 'backstep'] as const) assert.equal(stepped({ phase, age: 3 }), 4, `${phase} tick with no event`);
   assert.equal(stepped({ phase: 'ready' }, [ev('AttackMissed', 1, { target: undefined })]), 4, 'a miss on a standing player is not an evade');
   assert.equal(stepped({ phase: 'guard', age: 3 }, [ev('Blocked', 1)]), 4, 'my own block event is not his');
+});
+
+test('a guard HELD through my windup ends the run with no contact; a tap of a few ticks does not (RV31, Strategy)', () => {
+  const at = (hold: number) => {
+    const d = arena(OPPONENTS.veteran), w = d.fighters[1], move = 'light_right' as const;
+    d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: hold };
+    d.fighters[1] = { ...w, phase: 'attack', move, age: movesOf(w)[move].windup - 1 };   // decide() reads the post-step state: age = windup on this tick's view
+    d.fighters[1] = { ...d.fighters[1], age: movesOf(w)[move].windup };
+    return decide(d, 1, { ...initialAi(), habits: habits({ lights: 4, attacks: 4, run: 4, hold: hold - 1 }) }, gate(5)).ai.habits.run;
+  };
+  assert.equal(at(8), 0, 'a guard held 8 ticks into my windup ends the run');
+  assert.equal(at(3), 4, 'a 3-tick tap does not');
 });
 
 test('absent spamRun is the old read: 11 swings at 70 % lights, whatever the run', () => {
