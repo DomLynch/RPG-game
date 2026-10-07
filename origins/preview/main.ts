@@ -41,7 +41,14 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, pixelCap(PHONE)));
 // iOS drops a WebGL context under GPU memory pressure and the screen goes black (Dom's iPhone 15, 2026-10-07). Log it, stop the page's default
 // (so a restore is possible) and reload once the context comes back: the creatures' bodies are re-fetched and re-dressed from scratch.
 canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); console.warn('origins-preview: webgl context lost'); (window as unknown as { __contextLost?: number }).__contextLost = Date.now(); });
-canvas.addEventListener('webglcontextrestored', () => { console.warn('origins-preview: webgl context restored; reloading'); location.reload(); });
+canvas.addEventListener('webglcontextrestored', () => {   // at most one automatic reload a minute (a phone that loses it again must not loop and lose the hero's place each time); private mode: no storage, no reload
+  try {
+    const at = Number(sessionStorage.getItem('origins-preview.reloaded') ?? 0);
+    if (Date.now() - at < 60_000) { console.warn('origins-preview: webgl context restored again within a minute; not reloading'); return; }
+    sessionStorage.setItem('origins-preview.reloaded', String(Date.now()));
+  } catch { return; }
+  console.warn('origins-preview: webgl context restored; reloading'); location.reload();
+});
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = theme.exposure;
 const scene = new THREE.Scene();
