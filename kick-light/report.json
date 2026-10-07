@@ -1,0 +1,38 @@
+{
+ "before": {
+  "kick": {
+   "w": 44,
+   "h": 44
+  },
+  "idleReach": "true",
+  "litNatural": true,
+  "overlaps": [],
+  "ids": [
+   "attack-button",
+   "kick-button",
+   "heavy-button",
+   "skill-button",
+   "thrust-button",
+   "dodge-button",
+   "guard-button"
+  ]
+ },
+ "after": {
+  "kick": {
+   "w": 52,
+   "h": 52
+  },
+  "idleReach": "true",
+  "litNatural": true,
+  "overlaps": [],
+  "ids": [
+   "attack-button",
+   "kick-button",
+   "heavy-button",
+   "skill-button",
+   "thrust-button",
+   "dodge-button",
+   "guard-button"
+  ]
+ }
+}
