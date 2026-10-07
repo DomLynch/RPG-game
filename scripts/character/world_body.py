@@ -1,7 +1,7 @@
 # World body (Lead 2026-10-07, Dom's phone test: the Origins preview lags and goes black on an iPhone 15 because every world creature is the full
 # duel GLB: goblin.glb is 62k tris and 34 textures). One cheap body per kind, generated in a batch from the duel GLB itself so the rig and the
 # clip names stay identical: the world plays idle/walk on it and the duel GLB loads only when the fight starts.
-# Steps: drop the carried weapons, join the skinned body meshes, decimate on geometry (vertex-group weights follow the collapse), unwrap fresh,
+# Steps: join the skinned body meshes (rigid carried parts such as weapons are dropped), decimate on geometry (vertex-group weights follow the collapse), unwrap fresh,
 # bake every source material's base colour into ONE atlas through Emission (copied, not relit), export the armature and actions untouched.
 #   blender -b -P scripts/character/world_body.py -- <duel.glb> <out.glb> [tris 8000] [size 1024]
 # BAKE_DROP=<comma list of material-name prefixes to drop> (default Weapon), BAKE_FMT=WEBP|PNG, BAKE_LIFT=<gamma> as in herolook_bake.py.
@@ -24,8 +24,13 @@ meshes = [o for o in scene.objects if o.type == "MESH"]
 for o in meshes:   # carried weapons are not part of the world body
     if o.data.materials and all((m.name if m else "").startswith(DROP) for m in o.data.materials):
         bpy.data.objects.remove(o, do_unlink=True)
-meshes = [o for o in scene.objects if o.type == "MESH"]
+# Only the skinned meshes make the body: join() keeps the ACTIVE object's armature modifier and vertex groups, so a rigid part (a hammer, a
+# staff) as the active one silently unskins the whole body (the knight and witch came out as a lump that ignores the rig, 2026-10-07).
+meshes = [o for o in scene.objects if o.type == "MESH" and any(m.type == "ARMATURE" for m in o.modifiers) and o.vertex_groups]
+for o in [o for o in scene.objects if o.type == "MESH" and o not in meshes]:
+    bpy.data.objects.remove(o, do_unlink=True)
 arm = next(o for o in scene.objects if o.type == "ARMATURE")
+meshes.sort(key=lambda o: len(o.data.vertices), reverse=True)
 bpy.ops.object.select_all(action="DESELECT")
 for o in meshes:
     o.select_set(True)
