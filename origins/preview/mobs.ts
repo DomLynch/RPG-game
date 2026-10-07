@@ -168,19 +168,26 @@ export function pickVisible(at: readonly Pos[], hero: Pos, cap = TUNING.cap, ran
   return at.map((p, i) => ({ i, d: Math.hypot(p.x - hero.x, p.z - hero.z) })).filter((e) => e.d <= range).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, cap).map((e) => e.i);
 }
 
-// Where the preview drops the hero: in the middle of the largest group of creatures, on the first free spot (nearest the group's centre) that
-// stands clear of every home by the notice ring plus a metre, so they are all round him and wandering, none already facing him. Deterministic.
+// Where the preview drops the hero: in sight of the biggest group of creatures but outside their reach, on the first free spot (scanning outward
+// from 25 m, so nearest the group) that stands 25-35 m from the nearest creature (wolves aside) (clear of the 14 m tap reach and the notice rings, close enough to
+// see them). When wolves are placed (?wolf) it stands 15-25 m from the nearest wolf instead and faces the wolf camp: the first thing in front of him is
+// the wolf. Falls back to any spot clear of every notice ring. Deterministic.
+const SPAWN_NEAR = 25, SPAWN_FAR = 35, SPAWN_WOLF: readonly [number, number] = [15, 25];
 export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { x: number; z: number; facing: number } | null {
   const groups = new Map<string, MobSpec[]>();
   for (const s of specs) { const g = groups.get(s.zone + '/' + s.spawn); if (g) g.push(s); else groups.set(s.zone + '/' + s.spawn, [s]); }
   const crowd = [...groups.values()].sort((a, c) => c.length - a.length)[0];
   const zone = crowd && f.zones.find((z) => z.zone === crowd[0]!.zone);
   if (!crowd || !zone) return null;
-  const cx = crowd.reduce((n, s) => n + s.home.x, 0) / crowd.length, cz = crowd.reduce((n, s) => n + s.home.z, 0) / crowd.length;
-  const stand = mobStand(b, zone), clear = TUNING.aggro + 1;
-  for (let r = 0; r <= 14; r += 2) for (let k = 0; k < 12; k++) {
-    const a = (k / 12) * Math.PI * 2, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
-    if (stand(x, z) && specs.every((s) => Math.hypot(s.home.x - x, s.home.z - z) >= clear)) return { x, z, facing: headingTo({ x, z }, { x: cx, z: cz }) };
+  const centre = (g: readonly MobSpec[]) => ({ x: g.reduce((n, s) => n + s.home.x, 0) / g.length, z: g.reduce((n, s) => n + s.home.z, 0) / g.length });
+  const wolves = specs.filter((s) => s.body === 'wolf' && s.zone === zone.zone), c = centre(crowd), look = wolves.length ? centre(wolves) : c;
+  const others = wolves.length ? specs.filter((s) => s.body !== 'wolf') : specs, stand = mobStand(b, zone), clear = TUNING.aggro + 1, near = (x: number, z: number, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - x, s.home.z - z)));
+  for (const strict of [true, false]) for (let r = 0; r <= 44; r += 2) for (let k = 0; k < 24; k++) {
+    const a = (k / 24) * Math.PI * 2, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;
+    if (!stand(x, z) || near(x, z, specs) < clear) continue;
+    const d = near(x, z, others), w = wolves.length ? near(x, z, wolves) : null;
+    if (strict && (d < SPAWN_NEAR || d > SPAWN_FAR || (w !== null && (w < SPAWN_WOLF[0] || w > SPAWN_WOLF[1])))) continue;
+    return { x, z, facing: headingTo({ x, z }, look) };
   }
   return null;
 }

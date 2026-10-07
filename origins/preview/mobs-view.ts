@@ -7,6 +7,8 @@ import knightUrl from '../../src/assets/knight.glb?url';
 import pitbornUrl from '../../src/assets/pitborn.glb?url';
 import witchUrl from '../../src/assets/witch.glb?url';
 import wolfUrl from '../../src/assets/wolf.glb?url';
+import worldGoblinUrl from '../../src/assets/world/goblin.glb?url';
+import worldWolfUrl from '../../src/assets/world/wolf.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
@@ -18,6 +20,8 @@ import { TUNING, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, 
 // Pit fights with the same files), one download per body kind, fetched only when a creature of that kind first comes within reach; every
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
 const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl, wolf: wolfUrl };
+// The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
+const WORLD_URLS: Record<string, string> = { goblin: worldGoblinUrl, wolf: worldWolfUrl };
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
@@ -71,9 +75,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
   const fetchBody = (kind: string) => {
-    if (bodies.has(kind) || !URLS[kind]) return;
+    const url = WORLD_URLS[kind] ?? URLS[kind];
+    if (bodies.has(kind) || !url) return;
     bodies.set(kind, 'loading');
-    loader.loadAsync(URLS[kind]!).then((gltf) => {
+    loader.loadAsync(url).then((gltf) => {
       gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = false; });
       if (opts.phone) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);
       bodies.set(kind, { scene: gltf.scene, clips: gltf.animations });
