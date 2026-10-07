@@ -64,3 +64,50 @@ test('Match specials rule over every level (the verifier derives the same expect
   assert.equal(live.length, LEVELS);
   assert.ok(live.some(Boolean) && live.some((v) => !v), 'both phases exist');
 });
+
+// The record the world duel keeps (origins/preview/world-record.ts) is what the server's verifier accepts, with the server's own parameters.
+import { verifyEncounter } from '../origins/server/encounter-verify.ts';
+import { recordWorldFight, worldRecord } from '../origins/preview/world-record.ts';
+for (const [opponent, level, seed] of [['knight', 10, 731], ['veteran', 40, 123456]] as const) {
+  test(`world fight record verifies: ${opponent} L${level} seed ${seed}`, () => {
+    const m = sparring(opponent, seed, level, 'longsword', 'brute'), rand = lcg(seed ^ level);
+    recordWorldFight(m, opponent, level, seed);
+    for (let tick = 0; tick < 4000 && m.step(() => intentAt(rand, tick)) !== 'ended'; tick++);
+    assert.ok(m.practice.finish, 'the fight finished');
+    const record = worldRecord(m, m.practice.finish)!;
+    assert.equal(worldRecord(m, m.practice.finish), null, 'once');
+    const v = verifyEncounter(record, { seed, enemy: opponent, level, bar: null, flags: [], layer: 'brute' });
+    assert.ok(v.ok, v.ok ? '' : v.reason);
+  });
+}
+
+// A flee-at twist ends the duel with both standing (pit-duel.ts: twist.outcome 'fled' or 'escaped'). The page then hands the 'abandoned' record to `twisted`. It must NOT call Match.end(): that throws
+// without a finish, which froze the duel (frame() never re-armed, `twisted` never fired, no record). The record the page does hand over is the one the server's verifier accepts.
+import { noTwist, stepTwist, type TwistFlag } from '../src/twist.ts';
+test('flee-at: the fight ends with both standing, Match.end() would throw, and the abandoned record verifies as a win with the twist', () => {
+  const flags: TwistFlag[] = [{ kind: 'flee-at', percent: 99 }], [opponent, level, seed] = ['knight', 10, 731] as const;
+  for (let intentSeed = 1; intentSeed <= 60; intentSeed++) {
+    const m = sparring(opponent, seed, level, 'longsword', 'brute'), rand = lcg(intentSeed);
+    recordWorldFight(m, opponent, level, seed);
+    let twist = noTwist(), ended = false;
+    for (let tick = 0; tick < 4000 && !ended && !twist.outcome; tick++) { ended = m.step(() => intentAt(rand, tick)) === 'ended'; if (!ended) twist = stepTwist(m.practice.duel, flags, twist).twist; }
+    if (ended || (twist.outcome !== 'fled' && twist.outcome !== 'escaped')) continue;   // this scripted fight ended another way: try the next
+    assert.equal(m.practice.finish, null, 'both fighters are still standing');
+    assert.throws(() => m.end(false), /before the fight finished/, 'the call the page used to make on this path');
+    const record = worldRecord(m, null)!;
+    assert.equal(record.outcome, 'abandoned');
+    const v = verifyEncounter(record, { seed, enemy: opponent, level, bar: null, flags, layer: 'brute' });
+    assert.ok(v.ok && v.result === 'won' && v.twist === twist.outcome, v.ok ? `twist ${v.twist}` : v.reason);
+    return;
+  }
+  assert.fail('no scripted fight made the foe flee in 60 tries');
+});
+
+// pit-duel.ts is DOM-bound, so the page's own branch is guarded by source: the twist-ended branch must hand the record to `twisted` and never call Match.end() (it throws there).
+import { readFileSync } from 'node:fs';
+test('pit-duel\'s fled/escaped branch does not call match.end()', () => {
+  const src = readFileSync(new URL('../origins/preview/pit-duel.ts', import.meta.url), 'utf8');
+  const at = src.indexOf("twist.outcome === 'fled' || twist.outcome === 'escaped'"), branch = src.slice(at, src.indexOf('break;', at)).replace(/\/\/.*$/gm, '');   // code only: the fix's own comment names match.end()
+  assert.ok(at > 0 && /hooks\?\.twisted\?\.\(twist\.outcome, worldRecord\(match, null\)\)/.test(branch), 'the branch hands the abandoned record to twisted');
+  assert.ok(!/match\.end\(/.test(branch), 'and does not call match.end()');
+});
