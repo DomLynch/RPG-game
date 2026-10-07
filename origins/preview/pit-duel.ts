@@ -184,7 +184,7 @@ export function enterWorld(leave: () => void) { world = true; liveLook(true); if
 // back: the ground a roll or backstep covers, and the phase (roll / backstep / guard) the page plays the rig's clip for. Attack presses are not sent here:
 // they start the duel (main.ts), which is the same sim with a real foe.
 let wsim: Practice = idle, wacc = 0;
-const frozen = (_duel: Duel, _warden: Intent): Intent => idleIntent();
+const frozen = (): Intent => idleIntent();
 export type WorldMove = { dx: number; dz: number; phase: string; stamina: number; facing: number };   // facing: the way the fighter faces (a roll turns him)
 export function worldStep(dt: number, heading: number, i: ControlIntent): WorldMove {
   wacc = Math.min(wacc + dt, STEP * 6);
