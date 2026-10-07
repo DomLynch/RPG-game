@@ -44,7 +44,7 @@ async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'w
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
   // Reconstructed surfaces carry colour + ORM; a procedural player equip with no maps at all (the gladius) carries no images array.
   const images: { bufferView: number }[] = json.images ?? [];
-  if (!file.startsWith('weapons/player/') || images.length) assert.ok(images.length >= (['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3));
+  if (!file.startsWith('weapons/player/') || images.length) assert.ok(images.length >= (file === 'wolf.glb' ? 1 : ['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3))   // the wolf carries its one 2048 body texture;
   assert.ok(images.every(i => Number.isInteger(i.bufferView)));
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
