@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { idleIntent, initialDuel, stepDuel, withPerk, withPerks, createFighter, type Duel, type Intent, type Perk } from '../src/duel.ts';
 import { OPPONENTS, RULES } from '../src/moves.ts';
 import { hashDuel } from '../src/net/rollback.ts';
-import { initialState, TARGET } from '../src/sim.ts';
+import { initialState } from '../src/sim.ts';
+import { act, arena, guard, idle } from './strategies.ts';
 
 // Patron perks in the sim (docs/specs/origins/patron-perks-sim.md): a fight with no perk is the fight it always was; each template moves its own number.
 const fought = (perks: readonly [Perk | undefined, Perk | undefined] | null, seed: number): string => {
@@ -57,23 +58,22 @@ test('thrift prices an attack', () => {
   assert.ok(Math.abs(cost({ thrift: 20 }) - plain * 1.02) < 1e-9);
 });
 
-// Two men stand a sword apart: one swings every 40 ticks, the other holds a guard. The first block lands on the same tick with or without a perk that
-// only prices a block or posture, so the first one is compared.
+// The warden swings every 40 ticks at a player who holds the matching guard (strategies.ts guard). The first block lands on the same tick with or without a
+// perk that only prices a block or posture, so the first one is compared.
 const firstContact = (perk: Perk | undefined, pick: (d: Duel, prev: Duel) => number): number => {
-  const body = (z: number, heading: number) => ({ x: 0, z, heading, distance: 0 });
-  let d: Duel = withPerks({ tick: 0, fighters: [createFighter(body(TARGET.z + 1.2, Math.PI), 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] }, [perk, perk]);
+  let d = withPerks(arena(), [perk, undefined]);
   for (let i = 0; i < 2000; i++) {
     const prev = d;
-    d = stepDuel(d, [{ ...idleIntent(), action: i % 40 === 0 ? 'light' : null }, { ...idleIntent(), guard: true }]);
+    d = stepDuel(d, [guard(d), i % 40 === 0 ? act('light') : idle()]);
     const v = pick(d, prev); if (v) return v;
   }
-  throw Error(`no contact; events ${JSON.stringify(d.events)} ${d.fighters.map(f => f.phase)}`);
+  throw Error(`no contact; ${d.fighters.map(f => f.phase)}`);
 };
 
 test('guard prices a block and poise prices posture, each by its own per-mille', () => {
   const block = (d: Duel) => d.events.find(e => e.type === 'Blocked' && !e.perfect)?.stamina ?? 0;
   assert.ok(Math.abs(firstContact({ guard: 30 }, block) / firstContact(undefined, block) - 1.03) < 1e-9);
-  const posture = (d: Duel, prev: Duel) => { const k = d.fighters.findIndex((f, i) => f.posture > prev.fighters[i].posture && prev.fighters[i].posture === 0); return k < 0 ? 0 : d.fighters[k].posture; };
+  const posture = (d: Duel, prev: Duel) => (prev.fighters[0].posture === 0 ? d.fighters[0].posture : 0);
   assert.ok(Math.abs(firstContact({ poise: -30 }, posture) / firstContact(undefined, posture) - 0.97) < 1e-9);
 });
 
