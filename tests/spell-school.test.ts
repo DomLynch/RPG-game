@@ -40,5 +40,10 @@ test('plain then dark keep the hue and get darker; soft keeps today\'s pixels an
   const px = new Uint8Array([2, 2, 2, 200, 100, 100, 100, 90]), tex = new THREE.DataTexture(px, 2, 1), m = new THREE.MeshBasicMaterial({ map: tex }), g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.BufferGeometry(), m)); schoolTinter(g, 'shadow', 'soft')();
   assert.ok(px[0] < 40 && px[1] < 40 && px[2] < 40, 'ink stays near-black'); assert.ok(px[2] > px[1] && px[0] > px[1], 'with a faint violet lean');
+  // a pale hue over a mid-violet haze (frost over today's violet haze: the Mist cloud measured 102.6 vs 89.0 luminance before the clamp) may lean but never come out lighter than today's pixel
+  const lav = new Uint8Array([60, 40, 90, 120]), lt = new THREE.DataTexture(lav, 1, 1), lm = new THREE.MeshBasicMaterial({ map: lt }), lg = new THREE.Group();
+  lg.add(new THREE.Mesh(new THREE.BufferGeometry(), lm)); schoolTinter(lg, 'frost', 'soft')();
+  const lumOf = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  assert.ok(lumOf(lav[0], lav[1], lav[2]) <= lumOf(60, 40, 90) + 0.5, 'soft frost is not lighter than today\'s pixel'); assert.ok(lav[1] > 40, 'and still leans toward the school (a little green/blue added)');
   assert.ok(px[4] >= 80 && px[4] <= 100 && px[7] === 90 && px[3] === 200, 'mid pixel keeps most of itself, alpha untouched');
 });

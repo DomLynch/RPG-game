@@ -27,6 +27,7 @@ export const schoolsStrength = (search: string): Strength => { const l = looks(s
 // The effects paint dark ink into DataTexture maps, and a material colour only multiplies its map (black x any hue is black), so a mapped material's pixels are recoloured in
 // place: the school hue at the pixel's own shading (relative to the map's brightest), alpha untouched, so the shape, tear and fade stay the effect's own. An unmapped material
 // takes the hue as its colour. Each texture and material is done once.
+const SOFT_FLOOR = 12;   // soft: the luminance (0..255) a pixel may rise to when today's own pixel is darker than this
 const SHADE = [0.55, 0.45] as const;   // darkest pixel at 55% of the hue, brightest at 100%
 type Tintable = THREE.Material & { color?: THREE.Color; map?: THREE.Texture | null };
 function recolour(map: THREE.Texture, hue: THREE.Color, mix = 0) {
@@ -36,7 +37,14 @@ function recolour(map: THREE.Texture, hue: THREE.Color, mix = 0) {
   for (let i = 0; i < data.length; i += 4) top = Math.max(top, data[i], data[i + 1], data[i + 2]);
   const rgb = [hue.r, hue.g, hue.b];
   if (mix) {   // soft: the effect's own pixel, the school hue (at its darker shade) mixed in at `mix`; alpha untouched
-    for (let i = 0; i < data.length; i += 4) for (let c = 0; c < 3; c++) data[i + c] = Math.min(255, data[i + c] * (1 - mix) + rgb[c] * 255 * SHADE[0] * mix);
+    const lum = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      let nr = r * (1 - mix) + rgb[0] * 255 * SHADE[0] * mix, ng = g * (1 - mix) + rgb[1] * 255 * SHADE[0] * mix, nb = b * (1 - mix) + rgb[2] * 255 * SHADE[0] * mix;
+      const cap = Math.max(lum(r, g, b), SOFT_FLOOR), now = lum(nr, ng, nb);   // never lighter than today's pixel (a pale hue such as frost over a violet haze did lift it); the floor lets near-black ink take the faint lean
+      if (now > cap) { const k = cap / now; nr *= k; ng *= k; nb *= k; }
+      data[i] = nr; data[i + 1] = ng; data[i + 2] = nb;
+    }
     map.needsUpdate = true; return;
   }
   for (let i = 0; i < data.length; i += 4) {
