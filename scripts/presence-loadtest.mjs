@@ -12,6 +12,7 @@ import { once } from 'node:events';
 import console from 'node:console';
 import process from 'node:process';
 import { clearInterval, setInterval, setTimeout } from 'node:timers';
+import { tickStats } from '../origins/presence/ticks.ts';
 /* global WebSocket, fetch */
 
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? Number(hit.split('=')[1]) : fallback; };
@@ -60,17 +61,18 @@ const failed = bots.filter(b => b.failed || !b.ready).length;
 console.log(`connected ${BOTS - failed}/${BOTS} bots; warming up ${WARMUP}s, measuring ${SECONDS}s`);
 await new Promise(r => setTimeout(r, WARMUP * 1000));
 
-const health = async () => (await fetch(`http://127.0.0.1:${PORT}/origins/presence/health`)).json();
+const health = async (ticks = 0) => (await fetch(`http://127.0.0.1:${PORT}/origins/presence/health${ticks ? `?ticks=${ticks}` : ''}`)).json();
 const cpu0 = cpuSeconds(), t0 = Date.now(), h0 = await health();
 measuring = true;
 await new Promise(r => setTimeout(r, SECONDS * 1000));
 measuring = false;
 const wall = (Date.now() - t0) / 1000, cpu = cpuSeconds() - cpu0, h1 = await health(), rss = rssMb();
+const measuredTicks = h1.ticks - (h0.ticks ?? 0), tick = tickStats((await health(measuredTicks)).tickMs ?? []);   // every tick of the measuring window, so p99 is exact (and the ring holds 40,000: a 30-minute soak is about 18,000)
 
 const layers = new Map();
 for (const b of bots) { if (!b.ready) continue; const l = layers.get(b.layer) ?? { bots: 0, packets: 0, bytes: 0, entities: 0, sent: 0 }; l.bots++; l.packets += b.packets; l.bytes += b.bytes; l.entities += b.entities; l.sent += b.sent; layers.set(b.layer, l); }
 const rows = [...layers].map(([id, l]) => ({ layer: id, players: l.bots, packetsPerSec: +(l.packets / wall).toFixed(0), downKBpsTotal: +(l.bytes / wall / 1024).toFixed(1), downKBpsPerClient: +(l.bytes / wall / 1024 / l.bots).toFixed(2), downKbitPerClient: +(l.bytes / wall * 8 / 1000 / l.bots).toFixed(1), entitiesPerPacket: +(l.entities / Math.max(1, l.packets)).toFixed(1), upMsgPerSecTotal: +(l.sent / wall).toFixed(0) }));
-const result = { bots: BOTS, connected: BOTS - failed, crowdM: CROWD_CM / 100, layerCap: CAP, seconds: +wall.toFixed(1), serverCpuPercentOfOneCore: +(cpu / wall * 100).toFixed(1), serverRssMb: +rss.toFixed(0), maxTickMs: +h1.maxTickMs.toFixed(2), ticks: h1.ticks - (h0.ticks ?? 0), refused: h1.refused, layers: rows };
+const result = { bots: BOTS, connected: BOTS - failed, crowdM: CROWD_CM / 100, layerCap: CAP, seconds: +wall.toFixed(1), serverCpuPercentOfOneCore: +(cpu / wall * 100).toFixed(1), serverRssMb: +rss.toFixed(0), maxTickMs: +h1.maxTickMs.toFixed(2), tickMs: { n: tick.n, p50: tick.p50 === null ? null : +tick.p50.toFixed(2), p99: tick.p99 === null ? null : +tick.p99.toFixed(2), max: tick.max === null ? null : +tick.max.toFixed(2) }, ticks: measuredTicks, refused: h1.refused, layers: rows };
 console.log(JSON.stringify(result, null, 2));
 for (const b of bots) { clearInterval(b.walk); b.ws.close(); }
 server.kill(); await once(server, 'exit').catch(() => {});

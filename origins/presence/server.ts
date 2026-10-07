@@ -15,6 +15,7 @@ export const PROTOCOL = 'frankendom.presence.v1';   // the one subprotocol the c
 const UUID = /^[0-9a-f-]{36}$/;
 export const LIMITS = { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 };
 export type Limits = typeof LIMITS;
+const TICK_RING = 40_000;   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
 
 function frame(opcode: number, payload: Uint8Array): Buffer {
   const n = payload.length, head = n < 126 ? Buffer.from([0x80 | opcode, n]) : Buffer.from([0x80 | opcode, 126, n >> 8, n & 255]);
@@ -38,6 +39,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   const perLayerOut = new Map<number, { packets: number; bytes: number }>();
   const refused = (why: string): void => { counts.refused[why] = (counts.refused[why] ?? 0) + 1; };
   let tickNo = 0;
+  const tickRing = new Float64Array(TICK_RING); let tickRingN = 0;   // every tick's duration in ms, newest overwrites oldest
 
   // The tick is aimed at the wall clock (not setInterval's drift) so a slow tick does not stretch every later one; the time each took is reported.
   let next = now() + rules.tickMs;
@@ -55,6 +57,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     }
     const took = performance.now() - started;
     counts.ticks++; if (took > counts.maxTickMs) counts.maxTickMs = took;
+    tickRing[tickRingN++ % TICK_RING] = took;
   }, Math.max(5, Math.floor(rules.tickMs / 4)));
   const beats = setInterval(() => { world.sweep(now()); for (const s of sockets.values()) if (!s.destroyed) s.write(frame(1, Buffer.from('{"t":"beat"}'))); }, limits.beatMs);
   const reporter = setInterval(() => {
@@ -66,8 +69,21 @@ export function createPresence(opts: PresenceOptions): Presence {
   for (const t of [ticker, beats, reporter, sweeper]) t.unref();
 
   const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut) });
+  // The last `n` tick durations (ms), oldest first, at most what the ring holds.
+  const recentTicks = (n: number): number[] => {
+    const have = Math.min(tickRingN, TICK_RING, Math.max(0, Math.floor(n))), out: number[] = [];
+    for (let i = tickRingN - have; i < tickRingN; i++) out.push(tickRing[i % TICK_RING]!);
+    return out;
+  };
   const server = createServer((req, res) => {
-    if (req.method === 'GET' && req.url === '/origins/presence/health') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return void res.end(JSON.stringify(stats())); }
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/health') {
+      // The tick samples (up to ~700 KB) are for the load test only: honoured for a DIRECT loopback caller, never for a proxied one (behind nginx the socket peer is 127.0.0.1 too, so a
+      // proxy header, which nginx sets, means "not direct"). The ops nginx snippet does not proxy this path at all; this is the second lock.
+      const direct = (req.socket.remoteAddress === '127.0.0.1' || req.socket.remoteAddress === '::1' || req.socket.remoteAddress === '::ffff:127.0.0.1') && !req.headers['x-real-ip'] && !req.headers['x-forwarded-for'];
+      const n = direct ? Number(new URL(req.url, 'http://presence').searchParams.get('ticks') ?? 0) : 0;
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      return void res.end(JSON.stringify(n > 0 ? { ...stats(), tickMs: recentTicks(n) } : stats()));
+    }
     if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
     res.writeHead(404); res.end();
   });
