@@ -193,7 +193,7 @@ const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REG
   LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
 const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 let kit = false, worldPhase = 'ready', facing = 0, prevPose = 'ready', camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
-const LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
+const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
 const WALK = 2.3, RUN = 5.2, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
@@ -204,7 +204,7 @@ function step(dt: number) {
     forward = Math.max(-0.6, Math.min(1, -i.z)) * k; strafe = Math.max(-1, Math.min(1, i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
     if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
-    if (i.action && i.action !== 'dodge' && i.action !== 'backstep') pressEngage();
+    if (i.action && STRIKES.has(i.action)) pressEngage();   // an attack press engages; ROLL and GUARD (dodge, backstep, parry) are the walk's own, below
     const w = duel!.worldStep(dt, heading, i); worldPhase = w.phase; facing = w.facing;   // ROLL / GUARD: the Pit's own sim (pit-duel.ts worldStep), the ground a roll covers comes back as (dx, dz)
     if (w.dx || w.dz) { const rx = state.x + w.dx, rz = state.z + w.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; }
     if (worldPhase === 'roll' || worldPhase === 'backstep') { forward = strafe = 0; }   // the roll carries him; the stick does not add to it
