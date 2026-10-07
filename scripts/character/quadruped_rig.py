@@ -28,6 +28,16 @@ BODIES = {
         "hind": [(.72, .52), (.68, .34), (.75, .20), (.74, .03)],                      # hip, knee, hock, paw
         "legx": .55,
     },
+    # Measured on the reduced cinder boar (2026-10-07, 20k tris): paws front y~.35, hind y~.75; the hump tops out at y~.5; the head is low and short.
+    "boar": {
+        "spine": [(.78, .52), (.66, .55), (.52, .60), (.40, .62), (.30, .62)],
+        "neck": [(.20, .62)], "head": (.12, .46), "nose": (.02, .46), "jaw": (.05, .38),
+        "ear": ((.20, .82), .45),
+        "tail": [(.86, .58), (.93, .50), (.98, .38), (1.0, .26)],
+        "front": [(.35, .50), (.35, .30), (.36, .16), (.36, .03)],
+        "hind": [(.74, .50), (.70, .32), (.77, .20), (.76, .03)],
+        "legx": .60,
+    },
 }[BODY]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
