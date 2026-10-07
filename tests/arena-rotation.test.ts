@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { ARENA_ROTATION, arenaFor, isRotationArena, type ArenaKey } from '../src/arena-themes.ts';
 import { nextArena, passKey } from '../src/ladder.ts';
 import { loadProfile } from '../src/profile.ts';
-import { ARENAS, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { ARENAS, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 import { setLateNotice } from '../src/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
@@ -58,7 +58,7 @@ test('record v26: the arena byte round-trips, and an unnamed arena stays unnamed
   const plain = createRecorder({ build: 'b', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 9 });
   setLateNotice(false); setStab(false);
   const r = named.finish('abandoned'), p = plain.finish('abandoned');
-  assert.ok(RECORD_VERSION >= 26); assert.equal(r.v, RECORD_VERSION);
+  assert.ok(RECORD_VERSION >= 26); assert.equal(r.v, NO_PATRON_VERSION);   // a patron-less fight writes the lowest version that can express it
   assert.equal(unpackRecord(packRecord(r)).arena, '10'); assert.equal((await decodeRecord(await encodeRecord(r))).arena, '10');
   assert.equal('arena' in unpackRecord(packRecord(p)), false);
   assert.equal((await peekRecordHeader(await encodeRecord(r)))?.outcome, 'abandoned', 'the header peek skips the arena byte');
