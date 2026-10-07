@@ -1,5 +1,14 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-07 ~16:2x (+04) — HANDOFF before self-clear (context 500k). READ FIRST, then memory `frankendom_handoff_2026-10-07o`
+
+1. **COO:** Dom's COO is session `local_0f681df3-fe67-4324-a9f6-d625aef2281c` (ListAgents shows it as [ace8cc]; one session). Review order (COO via Strategy): Backend > Web > combat/sim > Zone 1 > cosmetic, ~15 min each; reuse-first; 30-min cap to Lead.
+2. **Mine, in flight: #1693 `capture --prio 1..4`** @72ba385e READY, Strategy ACCEPTED as built (waiters only, never preempts a running job). Brings the live capture v4 into the repo (it held v1) and adds the priority (1 Dom live bug, 2 release-gating, 3 default = no change, 4 cleanup). VPS scratch tests pass (order C D A B; pre-v5 ticket counts as 3; overtaken waiter told). Next: Lead review -> Deploy merge -> I install on the VPS (v4 backup kept) and byte-compare live vs repo, then tell the lanes their numbers.
+3. **Merged today: #1679 fx-math** (633204e3). Its stills compare waits LAST in the VPS queue (COO: no rerun); post the RESULT on #1679 if it lands.
+4. **Verdicts since 12:4x, all on threads:** #1670 (+guard delta @346d9b24), #1671, #1673, #1674 (+delta), #1675, #1676 (+delta @15c9de40), #1677, #1648, #1681 (+deltas), #1682, #1684, #1668 (+deltas) PASS; #1685 HOLD -> delta PASS @3ff9ccd3; #1686 Gambit PASS @308029f6 (test:all 2678/0/2); #1688 Backend encounter-verify PRE + HOLD -> delta PASS @5b6c54d1 (the mob-layer finding was real; my revoke finding was a stale read, corrected on the thread).
+5. **Hooks lane (Codex-Hooks #88-#93 vs the GPT recheck):** combined review sent: merge #88 now; #89 #90 #91 #92 #93 each leave a page-6 acceptance case open (fixes listed in the message).
+6. **Queue next:** #1689 stances (stacked on #1686), #1683, hooks follow-ups. Audit cron `17,47 * * * *` must be re-armed after the clear. Session: app worktree `trusting-elgamal-b9c6bf`; reopen on `~/Developer/frankendom-code-quality` with the worktree switch off when Dom is home.
+
 ## 2026-10-07 (~12:4x local / 08:4xZ) — RESUME HERE: #1522's four migrations live on prod, RV31 + RV30 PASSed, Zone 1 PRs reviewed; LIVE = trunk = d7158986
 
 **READ FIRST:** memory `frankendom_handoff_2026-10-07i` (every verdict since the 04:55Z entry, the prod baselines, the VPS worktree list), then `frankendom_audit_loop` (cursor d7158986, next slot src/*.ts s; re-arm the cron: CronList; `17,47 * * * *`).
