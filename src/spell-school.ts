@@ -18,7 +18,9 @@ const looks = (search: string) => (new URLSearchParams(search).get('look') ?? ''
 export const schoolsFlag = (search: string) => !looks(search).includes('schools-off');
 // Three strengths of the same hues, so Dom picks in one look (Lead 2026-10-07: his rulings want specials grey/dark/unsaturated): ?look=schools is the plain school colour,
 // schools2 half the saturation and half the lightness (a soft lavender haze), schools3 a violet-black smoke (saturation x0.4, lightness x0.28).
-export const STRENGTH = { plain: { saturation: 1, lightness: 1 }, soft: { saturation: 0.5, lightness: 0.5 }, dark: { saturation: 0.4, lightness: 0.28 } } as const;
+// soft (the shipped default, Lead 2026-10-07: Dom's specials bar is dark ink, nothing pale or glowing over a fighter) does NOT repaint the effect: it keeps today's own pixels and
+// mixes the school hue in at `mix` (20%), so the cloud stays as dark as today's and only leans toward the school.
+export const STRENGTH = { plain: { saturation: 1, lightness: 1 }, soft: { mix: 0.2 }, dark: { saturation: 0.4, lightness: 0.28 } } as const;
 export type Strength = keyof typeof STRENGTH;
 export const schoolsStrength = (search: string): Strength => { const l = looks(search); return l.includes('schools3') ? 'dark' : l.includes('schools') ? 'plain' : 'soft'; };
 
@@ -27,11 +29,16 @@ export const schoolsStrength = (search: string): Strength => { const l = looks(s
 // takes the hue as its colour. Each texture and material is done once.
 const SHADE = [0.55, 0.45] as const;   // darkest pixel at 55% of the hue, brightest at 100%
 type Tintable = THREE.Material & { color?: THREE.Color; map?: THREE.Texture | null };
-function recolour(map: THREE.Texture, hue: THREE.Color) {
+function recolour(map: THREE.Texture, hue: THREE.Color, mix = 0) {
   const data = (map.image as { data?: unknown } | undefined)?.data;
   if (!(data instanceof Uint8Array) || data.length % 4) return;
   let top = 1;
   for (let i = 0; i < data.length; i += 4) top = Math.max(top, data[i], data[i + 1], data[i + 2]);
+  const rgb = [hue.r, hue.g, hue.b];
+  if (mix) {   // soft: the effect's own pixel, the school hue (at its darker shade) mixed in at `mix`; alpha untouched
+    for (let i = 0; i < data.length; i += 4) for (let c = 0; c < 3; c++) data[i + c] = Math.min(255, data[i + c] * (1 - mix) + rgb[c] * 255 * SHADE[0] * mix);
+    map.needsUpdate = true; return;
+  }
   for (let i = 0; i < data.length; i += 4) {
     const shade = SHADE[0] + SHADE[1] * (Math.max(data[i], data[i + 1], data[i + 2]) / top);
     data[i] = Math.min(255, hue.r * 255 * shade); data[i + 1] = Math.min(255, hue.g * 255 * shade); data[i + 2] = Math.min(255, hue.b * 255 * shade);
@@ -40,13 +47,14 @@ function recolour(map: THREE.Texture, hue: THREE.Color) {
 }
 export function schoolTinter(group: THREE.Object3D, school: School, strength: Strength = 'plain') {
   const done = new WeakSet<object>(), hue = new THREE.Color(SCHOOLS[school]);
-  if (strength !== 'plain') { const hsl = { h: 0, s: 0, l: 0 }, k = STRENGTH[strength]; hue.getHSL(hsl); hue.setHSL(hsl.h, hsl.s * k.saturation, hsl.l * k.lightness); }
+  const k = STRENGTH[strength], mix = 'mix' in k ? k.mix : 0;
+  if ('saturation' in k && strength !== 'plain') { const hsl = { h: 0, s: 0, l: 0 }; hue.getHSL(hsl); hue.setHSL(hsl.h, hsl.s * k.saturation, hsl.l * k.lightness); }
   return () => group.traverse((o) => {
     const m = (o as THREE.Mesh).material as Tintable | Tintable[] | undefined;
     for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
       if (done.has(mat) || !mat.color) continue;
       done.add(mat);
-      if (mat.map) { mat.color.set(0xffffff); if (!done.has(mat.map)) { done.add(mat.map); recolour(mat.map, hue); } } else mat.color.copy(hue);
+      if (mat.map) { if (!mix) mat.color.set(0xffffff); if (!done.has(mat.map)) { done.add(mat.map); recolour(mat.map, hue, mix); } } else if (mix) mat.color.lerp(hue.clone().multiplyScalar(SHADE[0]), mix); else mat.color.copy(hue);
     }
   });
 }
