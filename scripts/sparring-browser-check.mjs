@@ -14,8 +14,17 @@ import { setTimeout, clearTimeout } from 'node:timers';
 
 const PICK = { opponent: 'dwarf', difficulty: 'dummy', weapon: 'estoc', skill: 'witchfire' };
 const source = process.argv.includes('--source');
-let site, browser, deadline, activePage;
-const receipt = { mode: source ? 'current-source/local-synthetic-tester' : 'dist', pick: PICK, errors: [], passed: false };
+let site, browser, activePage;
+const receipt = { mode: source ? 'current-source/local-synthetic-tester' : 'dist', pick: PICK, errors: [], passed: false, steps: [] };
+// The deadline is per step, not per run (Lead 2026-10-07). One 180 s wall-clock cap on the whole run failed a healthy check on a loaded box
+// (every step merely slow, none stuck), while the check's many real-time waits (asset loads, cooldowns, a 15 s cast) add up differently on
+// every machine. So: a step that makes no progress for STEP_MS fails, naming the last step reached; a slow run that keeps moving passes, and
+// the receipt's `steps` list says how long each took, so a slow box reads as its own row. The hang bound is still STEP_MS, not minutes.
+const STEP_MS = Number(process.env.SPARRING_STEP_MS ?? 60000);
+let stepStart = Date.now(), lastStep = 'boot', stall, stalled;
+const stalling = new Promise((_, reject) => { stalled = reject; });
+const arm = () => { clearTimeout(stall); stall = setTimeout(() => stalled(new Error(`Sparring browser check: no progress for ${STEP_MS / 1000} s after step "${lastStep}"`)), STEP_MS); };
+const mark = (step) => { const now = Date.now(); receipt.steps.push({ step: lastStep, ms: now - stepStart }); stepStart = now; lastStep = step; arm(); };
 async function check() {
   if (source) {
     const server = await createServer({ server: { host: '127.0.0.1', port: 0, strictPort: true, open: false } });
@@ -31,6 +40,7 @@ async function check() {
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
   await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
+  mark('arena list');
   assert.deepEqual(await page.locator('#arena-select option').evaluateAll(os => os.map(o => o.value)), ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'], 'only the known arena choices remain');   // Arena 11 (Bloodfall Keep) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 10 (The Pale Gate) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 9 (The Reaper Gate) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 8 (Legion Heights) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 7 (Cloud Reach) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 6 (The Goblin King) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 5 (The Bone Camp) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 4 (Heaven's Breach) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 3 (Sunset Legion) joined the Stage list with #1425 (Dom 2026-10-06 "arena 3 looks good"): the pin follows the list on purpose   // Arena 2 (The Skull Gate) joined the Stage list with #1421 (Dom 2026-10-06 "ship arena 2 live")
   let loads = 0; page.on('load', () => { loads++; });
 
@@ -52,6 +62,7 @@ async function check() {
   let enabled = 0, disabled = 0;
   receipt.catalog = {};
   for (const [opponent, expected] of Object.entries(matrix)) {
+    mark(`catalog ${opponent}`);
     await page.selectOption('#opponent-select', opponent); await page.selectOption('#difficulty-select', { index: 0 });
     const groups = await page.locator('#spar-special optgroup').evaluateAll(gs => gs.map(g => ({ label: g.label, options: [...g.children].map(o => ({ value: o.value, disabled: o.disabled })) })));
     assert.deepEqual(groups.map(g => g.label), ['L1–3', 'L4–7', 'L8', 'L9', 'L10']);
@@ -80,6 +91,7 @@ async function check() {
   await page.selectOption('#difficulty-select', PICK.difficulty);
   await page.selectOption('#spar-weapon', PICK.weapon);
   await page.selectOption('#spar-skill', PICK.skill);
+  mark('picks made');
   await page.waitForTimeout(1500);   // a reload the pickers wrongly fire would land in this window
   receipt.loadsBeforeStart = loads;
   assert.equal(loads, 0, 'path C: no pick reloads the page before Start sparring');
@@ -94,7 +106,7 @@ async function check() {
     banner: document.querySelector('#replay-banner')?.textContent.trim(),
     weapon: document.getElementById('spar-weapon').value, skill: document.getElementById('spar-skill').value,
   }));
-  receipt.booted = booted;
+  receipt.booted = booted; mark('dummy booted');
   assert.deepEqual(booted.search, { ...PICK, spar: '1', special: 'none', yourSpecial: 'none', arena: 'ladder' }, 'Dummy carries explicit NONE and Ladder');
   assert.deepEqual({ opponent: booted.search.opponent, difficulty: booted.search.difficulty, weapon: booted.search.weapon, skill: booted.search.skill }, PICK, 'the link carries every pick');
   assert.match(booted.foe ?? '', /dwarf/i, 'the fight on screen is the picked opponent');
@@ -111,6 +123,7 @@ async function check() {
   assert.deepEqual(receipt.bannerOverlaps, [], 'the sparring banner clears the HUD labels and meters');
   // Opponent-only Nyx goes through the form and Start, with Your explicitly off.
   await page.goto(new URL('/?debug=1&opponent=nightborn', site.url).href); await waitForGame(page, { art: true });
+  mark('nightborn form');
   await page.locator('#journal-button').tap(); await page.locator('#sparring-tab').tap();
   await page.selectOption('#opponent-select', 'nightborn');
   const groups = await page.locator('#spar-special optgroup').evaluateAll(os => os.map(o => o.label));
@@ -150,10 +163,10 @@ async function check() {
   assert.equal(await page.locator('#finisher-select').inputValue(), 'opened');
   await page.locator('#attack-button').tap();
   await page.waitForFunction(() => { const stage = globalThis.__special?.().stages[1]; return stage?.stage === 'windup' && stage.progress >= .5; }, null, { timeout: 30000, polling: 50 });
-  receipt.specialWindup = await page.evaluate(() => globalThis.__special());
+  receipt.specialWindup = await page.evaluate(() => globalThis.__special()); mark('nyx windup');
   await page.screenshot({ path: 'artifacts/sparring-browser-check/nyx-windup-375.png' });
   await page.waitForFunction(() => globalThis.__special?.().stages[1]?.stage === 'recover', null, { timeout: 10000, polling: 25 });
-  receipt.specialRecover = await page.evaluate(() => globalThis.__special());
+  receipt.specialRecover = await page.evaluate(() => globalThis.__special()); mark('nyx recover');
   await page.screenshot({ path: 'artifacts/sparring-browser-check/nyx-recover-375.png' });
   assert.equal(await page.evaluate(() => globalThis.__special().fighters[0].skill), null, 'opponent-only boot has no player skill');
   assert.equal(await page.locator('#skill-button').getAttribute('aria-disabled'), 'true');
@@ -165,6 +178,7 @@ async function check() {
   assert.deepEqual(receipt.passiveDebugStage, { fog: '261c1a', density: .028 }, 'separate passive debug reload draws the selected Night Pit');
   async function openForm(search = '/?debug=1&opponent=nightborn&spar=1&weapon=estoc&difficulty=6&skill=none&special=none&yourSpecial=none') {
     await page.goto(new URL(search, site.url).href); await waitForGame(page, { art: true });
+    mark('form open');
     await page.locator('#journal-button').tap(); await page.locator('#sparring-tab').tap();
   }
   let beforeStartStorage;
@@ -179,7 +193,7 @@ async function check() {
     await waitForGame(page, { art: true });
     const actual = Object.fromEntries(new URL(page.url()).searchParams);
     for (const [key, value] of Object.entries(expected)) assert.equal(actual[key], value, `real Start navigation carries ${key}`);
-    receipt.caseStarts ??= []; receipt.caseStarts.push({ expected, actual });
+    receipt.caseStarts ??= []; receipt.caseStarts.push({ expected, actual }); mark(`case start ${expected.special}/${expected.yourSpecial === 'none' ? expected.skill : expected.yourSpecial}`);
     await page.locator('#attack-button').tap();
   }
   receipt.preManual = []; receipt.manualMovement = [];
@@ -200,7 +214,7 @@ async function check() {
     assert.equal(before.events.some(e => e.actor === 0 && e.type === 'SpecialStarted'), false, 'player preset never casts automatically');
     assert.equal(before.mode, 'sparring'); assert.equal(before.recorder, false); assert.equal(before.practiceOnly, true);
     receipt.preManual.push(before);
-    await page.locator('#skill-button').tap();
+    mark('manual cast'); await page.locator('#skill-button').tap();
   }
   async function castLifecycle(label, requireLand = true) {
     const finished = await page.waitForFunction(land => {
@@ -231,6 +245,7 @@ async function check() {
     }
     await page.waitForFunction(() => globalThis.__special().stages[0] === null, null, { timeout: 15000 });
     receipt[label] = { outcome: ended.type, terminal, recovery, cleared: await page.evaluate(() => globalThis.__special()), storageUnchanged: JSON.stringify(await storageSnapshot()) === JSON.stringify(beforeStartStorage) };
+    mark(label);
     assert.equal(receipt[label].storageUnchanged, true, 'test cast writes no kit/progression/reward/record');
   }
   await openForm();
@@ -285,6 +300,7 @@ async function check() {
   receipt.retiredArenas = [];
   const base = '/?debug=1&opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none&special=none&yourSpecial=none';
   for (const retired of ['art1', 'portrait']) {
+    mark(`retired ${retired}`);
     await page.evaluate(value => sessionStorage.setItem('frankendom.arena-override', value), retired);
     for (const suffix of ['', `&arena=${retired}`]) {
       await page.goto(new URL(base + suffix, site.url).href); await waitForGame(page, { art: true });
@@ -297,9 +313,12 @@ async function check() {
     await page.screenshot({ path: `artifacts/sparring-browser-check/retired-${retired}-default-375.png` });
   }
   assert.deepEqual(receipt.errors, []);
+  mark('done');
 }
+const started = Date.now();
 try {
-  await Promise.race([check(), new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Sparring browser check exceeded180s')), 180000); })]);
+  arm();
+  await Promise.race([check(), stalling]);
   receipt.passed = true;
 } catch (e) {
   receipt.failure = String(e?.stack || e); process.exitCode = 1;
@@ -309,10 +328,10 @@ try {
   } catch (snapshotError) { receipt.failureSnapshotError = String(snapshotError); }
 }
 finally {
-  clearTimeout(deadline);
+  clearTimeout(stall); receipt.totalMs = Date.now() - started;
   const closed = await Promise.allSettled([browser?.close(), site?.close()]);
   const failure = closed.find(r => r.status === 'rejected');
   if (failure) { receipt.passed = false; receipt.failure = String(failure.reason); process.exitCode = 1; }
 }
 await writeReceipt('artifacts/sparring-browser-check/receipt.json', receipt);
-console.log(JSON.stringify({ passed: receipt.passed, loadsBeforeStart: receipt.loadsBeforeStart, booted: receipt.booted, failure: receipt.failure?.split('\n')[0], errors: receipt.errors.slice(0, 3) }));
+console.log(JSON.stringify({ passed: receipt.passed, totalMs: receipt.totalMs, slowestStep: [...receipt.steps].sort((a, b) => b.ms - a.ms)[0], loadsBeforeStart: receipt.loadsBeforeStart, booted: receipt.booted, failure: receipt.failure?.split('\n')[0], errors: receipt.errors.slice(0, 3) }));
