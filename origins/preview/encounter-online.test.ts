@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { STEP } from '../../src/sim.ts';
-import { beginOnline, onlineWanted, TOUCH_EVERY_MS } from './encounter-online.ts';
+import { beginOnline, onlineWanted, RETRY_AFTER_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
@@ -38,9 +38,11 @@ test('the flag off (503), no session (401), a second open fight (409) and a netw
   assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: (async () => { throw new TypeError('down'); }) as unknown as typeof fetch }), null);
 });
 
-test('a foe the server resolved differently from the page is not played online', async () => {
-  const s = server(() => reply(200, { ok: true, result: { ...run, level: 9 } }));
-  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f }), null);
+test('a foe the server resolved differently from the page is not played online, and says so (the server\'s token stays open until its grace runs out)', async () => {
+  const s = server(() => reply(200, { ok: true, result: { ...run, level: 9 } })), warned: string[] = [];
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, warn: (m) => warned.push(m) }), null);
+  assert.equal(warned.length, 1);
+  assert.match(warned[0]!, /wolf L9.*wolf L3.*playing offline.*TTTTTT.*stays open/s);
 });
 
 test('online: the server\'s seed is played, start names only the character and the fight', async () => {
@@ -74,18 +76,27 @@ test('settle: verified, unverified, no record (nothing sent), and a 409 is alrea
   assert.equal(await a.on.settle({ result: 'won', record }), 'already', 'the server already settled this token: done');
 });
 
-test('a reply lost after the server settled: the automatic retry gets 409 and that is "already settled"', async () => {
-  let n = 0;
+test('a reply lost after the server settled: the retry gets 409 and that is "already settled"', async () => {
+  let n = 0; const waits: number[] = [];
   const s = server((op) => { if (op !== 'encounter_settle') return ok(op); n++; if (n === 1) throw new TypeError('timeout'); return reply(409, { ok: false, error: 'used' }); });
-  const on = (await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, every: (() => 1) as never, clear: (() => {}) as never }))!;
+  const on = (await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, every: (() => 1) as never, clear: (() => {}) as never, wait: async (ms) => { waits.push(ms); } }))!;
   assert.equal(await on.settle({ result: 'won', record }), 'already');
   assert.equal(n, 2);
+  assert.deepEqual(waits, [RETRY_AFTER_MS[0]]);
 });
 
-test('a settle that cannot reach the server is offline (and may be retried), never a throw', async () => {
-  const s = server((op) => { if (op !== 'encounter_settle') return ok(op); throw new TypeError('down'); });
-  const on = (await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, every: (() => 1) as never, clear: (() => {}) as never }))!;
+test('a settle the server cannot be reached for is retried after the waits, then offline; a 5xx is retried too, a 4xx is not', async () => {
+  const mk = (status: number | 'down') => { let n = 0; const waits: number[] = [], s = server((op) => { if (op !== 'encounter_settle') return ok(op); n++; if (status === 'down') throw new TypeError('down'); return reply(status, { ok: false }); }); return { s, count: () => n, waits, start: () => beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, every: (() => 1) as never, clear: (() => {}) as never, wait: async (ms) => { waits.push(ms); } }) }; };
+  let c = mk('down'); let on = (await c.start())!;
   assert.equal(await on.settle({ result: 'won', record }), 'offline');
+  assert.equal(c.count(), 1 + RETRY_AFTER_MS.length); assert.deepEqual(c.waits, RETRY_AFTER_MS);
+  c = mk(503); on = (await c.start())!;
+  assert.equal(await on.settle({ result: 'won', record }), 'offline');
+  assert.equal(c.count(), 1 + RETRY_AFTER_MS.length);
+  c = mk(401); on = (await c.start())!;
+  assert.equal(await on.settle({ result: 'won', record }), 'offline');
+  assert.equal(c.count(), 1, 'no retry on a 4xx: the server answered');
+  assert.deepEqual(c.waits, []);
 });
 
 // The real writer: createWriter(+ encounterOps, the real verifier) on a loopback port.
