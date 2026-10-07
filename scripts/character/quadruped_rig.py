@@ -309,10 +309,21 @@ for name, act in actions.items():   # one NLA strip per clip so the exporter wri
     tr = arm.animation_data.nla_tracks.new()
     tr.name = name
     tr.strips.new(name, int(act.frame_range[0]), act)
-mesh.name = os.environ.get("BAKE_NAME", "Wolf")
+# The game's loader contract (src/characters.ts): the skinned body is the node named CreatureBody (missingMap checks its map + roughnessMap),
+# and a fighter carries a WeaponDrawn node whose extras name the strike's contact segment, metres along its local +Y. For a beast the weapon is
+# the bite: an empty at the jaw joint, +Y running along the jaw toward the snout tip (0.08 m, measured on the exported GLB).
+mesh.name = "CreatureBody"
+mesh["creature"] = BODY
+jaw = arm_data.bones["jaw"]
+weapon = bpy.data.objects.new("WeaponDrawn", None)
+bpy.context.collection.objects.link(weapon)
+weapon.parent, weapon.parent_type, weapon.parent_bone = arm, "BONE", "jaw"
+weapon.location = (0, -jaw.length, 0)   # a bone-parented child is placed from the bone's TAIL: step back to the joint
+weapon["weapon"] = "bite"
+weapon["contact"] = {"from": 0.0, "to": 0.08}
 os.makedirs(os.path.dirname(os.path.abspath(DST)), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format="JPEG", export_animations=True,
-                          export_animation_mode="NLA_TRACKS", export_force_sampling=True, use_selection=False)
+                          export_animation_mode="NLA_TRACKS", export_force_sampling=True, use_selection=False, export_extras=True)
 print("exported", DST, {n: (int(a.frame_range[0]), int(a.frame_range[1])) for n, a in actions.items()}, flush=True)
 
 if SHEET:
