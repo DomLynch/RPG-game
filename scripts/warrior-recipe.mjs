@@ -24,10 +24,4 @@ export const GOBLIN_BONES = { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l
   neck_01: [.86, .9, .86], Head: [1.17, 1.17, 1.17] };   // a thin, shorter neck; a big head
 // Every re-proportioned fighter, keyed by the name `loot.json`'s `unscale` uses. One list, so a fighter cannot be
 // re-proportioned for his body and unknown to the unscaler at the same time (tests/loot-unscale-tables.test.ts).
-// The giant's donor (Hrungnir, body family `giant`): the hero's frame at a man's height with a giant's proportions, so the TRELLIS surface skins
-// onto joints that sit where its shoulders, elbows and knees are. Long arms and a broad trunk, a short thick neck, a smaller head for the body.
-// FIRST GUESS from the reduced surface's turntable (hands to the knee, shoulders about 1.35 x a man's): the pose sheet judges it.
-export const GIANT_BONES = { upperarm_l: [1.25, 1.2, 1.25], upperarm_r: [1.25, 1.2, 1.25], lowerarm_l: [1.25, 1.2, 1.25], lowerarm_r: [1.25, 1.2, 1.25],
-  clavicle_l: [1, 1.2, 1], clavicle_r: [1, 1.2, 1], spine_01: [1.3, 1, 1.2], spine_02: [1.3, 1, 1.2], spine_03: [1.3, 1, 1.2],
-  thigh_l: [1.2, .95, 1.2], thigh_r: [1.2, .95, 1.2], calf_l: [1.2, .95, 1.2], calf_r: [1.2, .95, 1.2], neck_01: [1.2, .8, 1.2], Head: [.92, .92, .92] };
-export const PROPORTION_TABLES = { dwarf: DWARF_BONES, goblin: GOBLIN_BONES, giant: GIANT_BONES };
+export const PROPORTION_TABLES = { dwarf: DWARF_BONES, goblin: GOBLIN_BONES };
