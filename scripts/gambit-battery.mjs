@@ -1,11 +1,12 @@
 // RV33 battery (docs/specs/origins/combat-study.md C1): does the Gambit beat a plain heavy? The "heavy only" bot of tests/strategies.ts, with and without arming every heavy
-// at its chamber tick, against each opponent at the given ladder levels (24 seeds, the battery's own seeding). Usage: node scripts/gambit-battery.mjs [seeds]
+// at its chamber tick, against each opponent at the given ladder levels (24 seeds, the battery's own seeding). Usage: node scripts/gambit-battery.mjs [seeds] [stagger ticks] [levels,..] [foes,..]
 import { decide, initialAi } from '../src/ai.ts';
 import { stepDuel, withGambit } from '../src/duel.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { act, arena, gap, idle, k, P, ready, W } from '../tests/strategies.ts';
 
-const SEEDS = Number(process.argv[2] ?? 24), LEVELS = [1, 6, 18, 30, 46], FOES = ['veteran', 'pitborn', 'goblin', 'executioner'];
+const SEEDS = Number(process.argv[2] ?? 24), LEVELS = (process.argv[4] ?? '1,6,18,30,46').split(',').map(Number), FOES = (process.argv[5] ?? 'veteran,pitborn,goblin,executioner').split(',');
+if (process.argv[3]) RULES.gambit.stagger = Number(process.argv[3]);   // a sweep of the self-stagger (ticks); default is the rule's own
 const heavy = d => (ready(d) && gap(d) <= 1.8 * k(d) ? act('heavy') : idle());
 const gambit = d => (P(d).phase === 'attack' && P(d).move === 'heavy_overhead' && P(d).age === 10 && !P(d).gambit ? act('heavy') : heavy(d));
 const run = (foe, level, strategy, on, seed) => {
