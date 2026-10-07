@@ -35,7 +35,7 @@ export function hitDamage(kind: FightKind, flags: LuckFlags, base: number, seed:
 }
 
 // The Gambit: a chosen version of the heavy (a second heavy press after the chamber), everywhere including PvP, with the flag on.
-// Odds are ONE constant; Dom confirms 1-in-2 at x2 (Strategy's pick, shown here) or his original 1-in-3.
+// Odds are ONE constant: about 1 in 2 for about 2x (Dom-approved 2026-10-07); EV slightly under a heavy once the self-stagger is counted.
 export type GambitOdds = { chance: number; multiplier: number };
 export const GAMBIT_ODDS: GambitOdds = Object.freeze({ chance: 1 / 2, multiplier: 2 });
 export const GAMBIT_KILL_FLOOR = 0.4;   // C1: a landed Gambit never kills from above 40% of max health
