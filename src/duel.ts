@@ -1,7 +1,8 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
 import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, isInterruptible, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, initialTarget, RADIUS, wrapAngle, type Input, type State } from './sim.ts';
-import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { M } from './detmath.ts';
+import { rolledDamage, rollPercent } from './roll.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -80,14 +81,7 @@ export type CombatEvent = { tick: number; type: EventType; actor: Side; target?:
 // `roll`: the world-mob damage roll (Origins luck ruling, Dom 2026-10-07: +/-10% on every blow in both directions, in a world-mob fight only). Absent = the Pit, PvP and the
 // ladder: today's fight byte for byte. `hits` numbers the fight's blows in the order they resolve, so the draw is a pure function of (seed, hit) and a replay reproduces it.
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; roll?: { seed: number; hits: number } };
-export const ROLL_BAND = 10;
-// The same draw and the same arithmetic as origins/luck/luck.ts (seededSource + rollDamage), pinned equal by tests/mob-roll.test.ts: ONE engine, the world layer reads it.
-export const rollPercent = (seed: number, hit: number): number => {
-  let h = Math.imul((seed >>> 0) ^ Math.imul(hit + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
-  return Math.min(ROLL_BAND, Math.floor((((h ^ (h >>> 16)) >>> 0) / 4294967296) * (2 * ROLL_BAND + 1)) - ROLL_BAND);   // 2^32, a literal: the sim uses no **
-};
-export const rolledDamage = (base: number, percent: number): number => Math.max(1, Math.round(base * (1 + percent / 100)));
+export { ROLL_BAND, rollPercent, rolledDamage } from './roll.ts';   // the one definition (src/roll.ts), shared with origins/luck/luck.ts
 export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
 
 // Which sixth of the ring wall a lorarius stands in, from the position of the man he is whipping: the six guards are drawn at 60-degree

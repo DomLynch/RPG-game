@@ -1,16 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepDuel, withRoll, rollPercent, rolledDamage, ROLL_BAND, type Duel } from '../src/duel.ts';
+import { stepDuel, withRoll, type Duel } from '../src/duel.ts';
+import { ROLL_BAND, percentOf, rollPercent, rolledDamage, rollUnit } from '../src/roll.ts';
 import { hashDuel } from '../src/net/rollback.ts';
 import { rollDamage, seededSource } from '../origins/luck/luck.ts';
 import { act, arena, idle } from './strategies.ts';
 
 // The world-mob damage roll (Dom 2026-10-07: +/-10% on every blow, both directions, world-mob fights only). One engine: the sim owns the draw and the arithmetic,
 // origins/luck/luck.ts stays the Origins view of the same numbers, and the first test pins them equal.
-test('the sim\'s draw and arithmetic equal origins/luck: one set of numbers', () => {
+// One definition (src/roll.ts), imported by the duel and by origins/luck: this is an IDENTITY test, not a copy-equality test. If either side ever grows its own formula again it fails here.
+test('origins/luck and the duel share the one roll definition: same draw, same percent, same damage', () => {
+  assert.equal(seededSource, rollUnit, 'luck.ts re-exports the sim\'s draw, it does not redefine it');
   for (const seed of [0, 1, 7, 0xdeadbeef, 0xffffffff]) for (let hit = 0; hit < 200; hit++) {
     const origin = rollDamage(25, seededSource(seed, hit));
     assert.equal(rollPercent(seed, hit), origin.percent);
+    assert.equal(percentOf(seededSource(seed, hit)), origin.percent);
     for (const base of [1, 2, 9, 14, 25, 40]) assert.equal(rolledDamage(base, rollPercent(seed, hit)), rollDamage(base, seededSource(seed, hit)).damage);
   }
   const seen = new Set<number>(); for (let hit = 0; hit < 500; hit++) seen.add(rollPercent(3, hit));
