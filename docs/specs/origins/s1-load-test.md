@@ -36,16 +36,16 @@ S1 settles the **server side** numbers: per-layer CPU, memory, tick time, packet
 
 | # | Command shape | Question it answers |
 |---|---|---|
-| R1 | `--bots=100 --crowd-m=60 --layer-cap=100 --seconds=300`, plus a **30-minute soak** (`--seconds=1800`) | Worst crowd (everyone sees everyone), one full layer: repeats the 8.6% figure; the soak judges drift (memory growth, tick creep). |
-| R2 | same with `--crowd-m=300` | The spread case: how far below R1 a normal town sits. |
-| R2c | `--bots=100` with a **moving cluster**: 40% of the bots gather in one ~20 m square (the Exchange: bank + smith + trade), the cluster moves every 2 minutes, the other 60% wander (`--crowd-m=300`) | The hot spot. Every player passes the Exchange, so this is the realistic worst crowd, not an edge case: R2c **gates beta beside R1**. Needs a `--cluster` option in `scripts/presence-loadtest.mjs` (an S1 build item, not built yet). |
+| R1 | `--bots=100 --crowd-m=60 --layer-cap=100 --warmup=40 --seconds=300`, plus a **30-minute soak** (`--seconds=1800`) | Worst crowd (everyone sees everyone), one full layer: repeats the 8.6% figure; the soak judges drift (memory growth, tick creep). |
+| R2 | same with `--crowd-m=300 --warmup=40` | The spread case: how far below R1 a normal town sits. |
+| R2c | `--bots=100` with a **moving cluster**: 40% of the bots gather in one ~20 m square (the Exchange: bank + smith + trade), the cluster moves every 2 minutes, the other 60% wander (`--crowd-m=300`) | The hot spot. Every player passes the Exchange, so this is the realistic worst crowd, not an edge case: R2c **gates beta beside R1**. The option is `--cluster=0.4 --cluster-m=20 --cluster-move-s=120 --crowd-m=300` in `scripts/presence-loadtest.mjs` (PR #1574, draft, stacked behind the presence PRs; not on trunk until it merges). Cluster bots walk in from the spawn, so give them time to gather (`--warmup=60`): the result's `gatheredMedian` shows whether they did. |
 | R3 | `--bots=80 --layer-cap=80`, then `--bots=100 --layer-cap=100` | The soft and hard caps themselves. |
 | R4 | `--bots=300` with the default caps (80/100), plus a **30-minute soak** (`--seconds=1800`) | The **beta target**: 3 layers, about 300 concurrent. Reports per layer and the host total. Checks that the layer split at 80 behaves (no layer over the hard cap, new joins land on the next layer). |
 | R5 | `--bots=500`, `--bots=800`, `--bots=1000` (default caps, `--max-layers` raised to fit) | The host ceiling and the 800 trigger. The first bot count at which a limit in §4 trips is the measured cap; 80% of it is the add-a-host trigger. |
 | R6 | R4 **plus** `scripts/duel-two-page-check.mjs` looped over N pairs (the relay) **plus** `scripts/origins-writer-check.mjs` looped against a disposable PostgreSQL (the writer) | The cost of sharing the box. This is the number the 300-concurrent beta claim rests on. The report states the rates it actually ran at. **Rates (Strategy 2026-10-07, a realistic evening at 300 online):** writer = 1 op per online player per 30 s (10 ops/s), plus one 60 s burst at 30 ops/s (an Exchange rush); duel relay N = 15 concurrent pairs (10% of the online count in PvP). |
 | R7 | R4 through nginx + TLS on the real route, the bots' client on a **second VPS or a cloud shell, never the Mac on home broadband** | What the proxy and real sockets add (connection count, TLS CPU, bytes out). Optional for the gate; required before the cap is quoted to Dom as a hosting number. |
 
-Every run records the commit sha, node version, the box load average at the start and the full JSON the script prints. The script prints `tickMs {n, p50, p99, max}` for exactly the measuring window (PR #1572, draft; until it merges the script reports only the longest tick); §4 criterion 2 cannot be judged without it. The moving-cluster option R2c needs is not built yet.
+Every run records the commit sha, node version, the box load average at the start and the full JSON the script prints. The script prints `tickMs {n, p50, p99, max}` for exactly the measuring window (PR #1572, draft; until it merges the script reports only the longest tick); §4 criterion 2 cannot be judged without it. 
 
 ## 4. Pass criteria (proposed; Strategy rules the thresholds)
 
@@ -76,5 +76,6 @@ A report file `docs/state/s1-load-test-report.md` (or the gate row's link): the 
 
 - The thresholds in §4 were reviewed by the Auditor and ruled by Strategy 2026-10-07 (70% of one core, longest tick < 50 ms and p99 < 25 ms, soak-judged RSS < 10%, egress < 50% of the allowance); the 2x margin and the 20% chat reserve remain Backend's proposal.
 - The plan's included traffic (GB/month) is still to be filled in §4 criterion 5 by whoever can read the provider panel (Dom or Deploy).
+- **Warm-up:** presence starts every fresh join at the zone centre and treats a far first pose as a teleport (X2 stage 1), so every bot starts at the centre and walks out; a wide `--crowd-m` needs `--warmup` of about 40 s before the numbers mean anything (the run lines above say so).
 - The bots are simple wanderers. Strategy ruled 2026-10-07 that the hot spot is a run of its own, R2c (a moving cluster at the Exchange), and that it gates beta; `--crowd-m=60` stays as R1's worst case.
 - R6's rates are ruled (see R6); the report records the rates actually run, and any change to them is a new ruling, not an edit here.
