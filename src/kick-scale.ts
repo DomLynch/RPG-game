@@ -4,7 +4,7 @@
 // compensation: the scale follows how far apart the fighters stand over the median separation (x1.0 at the median; a close hit softer, a wide one harder).
 // The roll's angle is a rotation about the view axis (distance-free) and the hit-stop is untouched. Presentation only; no tick or record changes.
 import type { Shove } from './camera-kick.ts';
-export const KICK_REF_CAM = 4.9;   // m: camera to the fight at the approved framing (PROVISIONAL until the dummy harness reports the median)
+export const KICK_REF_CAM = 5.37;  // m: camera to the fight, median over 1094 frames of a scripted Veteran fight (VPS harness 2026-10-07; min 5.07, max 7.20)
 export const KICK_REF_SEP = 1.25;  // m: median fighter separation over 17 logged hits (VPS capture 2026-10-07)
 export type KickScaleMode = 'cam' | 'sep';
 export function kickScaleFlag(search: string): KickScaleMode | null {
