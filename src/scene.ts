@@ -152,7 +152,8 @@ export function createScene(
   scene.add(sun);
   // Look test links (souls-look.ts): `?look=souls`, `?look=shade` or both. No flag fetches, builds and compiles nothing and draws
   // today's frame; with one, the module (and its post chain) is its own chunk, fetched beside the fight's art.
-  const kickScaled = typeof location !== 'undefined' && kickScaleFlag(location.search);   // ?look=kickscale (kick-scale.ts): kick and roll shift scaled by camera distance; absent = today's game
+  const fightMid = new THREE.Vector3();   // scratch for ?look=kickscale
+  const kickScaled = typeof location !== 'undefined' ? kickScaleFlag(location.search) : null;   // ?look=kickscale (kick-scale.ts): kick and roll shift scaled by camera distance (kickscale-sep: by separation); absent = today's game
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
   // `?look=armfeel&feel=high|low|off` (armfeel.ts): the victim's flinch on a visual pivot between the fighter's root and its rig. Absent or `off`: no pivot, today's frame.
   const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -889,7 +890,7 @@ export function createScene(
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
       // Every contact goes through hit-impact.ts first: a landed blow or a block knocks the camera away from it, a parry jolts it toward the attacker.
-      const fightScale = () => kickScale(rig.camera.position.distanceTo(new THREE.Vector3((state.x + practice.enemy.x) / 2, rig.camera.position.y, (state.z + practice.enemy.z) / 2)));   // camera to the fight's midpoint (flat)
+      const fightScale = () => kickScale(kickScaled!, rig.camera.position.distanceTo(fightMid.set((state.x + practice.enemy.x) / 2, 1, (state.z + practice.enemy.z) / 2)), Math.hypot(state.x - practice.enemy.x, state.z - practice.enemy.z));   // camera to the fight (chest height) and the fighters' separation
       const blowDirection = (e: CombatEvent) => { const by = attackerOf(e); return e.move && by !== undefined ? weaponOf(practice.duel.fighters[by].weapon).moves[e.move]?.direction : undefined; };
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
       const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && (impactShove(shoveEvent, blowDirection(shoveEvent)) ?? shoveFor(shoveEvent));
