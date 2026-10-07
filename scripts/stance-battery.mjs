@@ -10,9 +10,9 @@ import { arena } from '../tests/strategies.ts';
 for (const [id, deltas] of Object.entries(JSON.parse(process.env.STANCE_TUNE ?? '{}'))) Object.assign(STANCES[id], deltas);
 // Brains (Strategy, 2026-10-07: the honest bots barely block, feint or kick, so the defensive stances cannot show): `honest` is the opponent's own profile; `blocker` guards and parries (a human who plays the
 // defence); `feinter` feints and kicks (a human who plays the mind games). Both sides use the same brain, so a cell isolates the stances. Usage: BRAIN=honest|blocker|feinter.
-const BRAINS = { honest: {}, aggressor: { aggression: .9, parry: .2, lapse: .1 }, blocker: { parry: .7, dodge: .1, aggression: .35, guard: 1, lapse: .1, read: .9 }, feinter: { feint: .5, kick: .6, aggression: .7, parry: .2, read: .8 } };
+const BRAINS = { honest: {}, aggressor: { aggression: .9, parry: .2, lapse: .1 }, turtle: { parry: 0, dodge: 0, aggression: .25, guard: 1, read: 1, lapse: 0 }, blocker: { parry: .7, dodge: .1, aggression: .35, guard: 1, lapse: .1, read: .9 }, feinter: { feint: .5, kick: .6, aggression: .7, parry: .2, read: .8 } };
 const BRAIN = process.env.BRAIN ?? 'honest';   // BRAIN=bystance gives each side the brain its stance would play (a human who picks Defensive blocks, a Trickster feints, an Aggressive presses): neutral honest, aggressive aggressor, defensive blocker, trickster feinter
-const BY_STANCE = { neutral: 'honest', aggressive: 'aggressor', defensive: 'blocker', trickster: 'feinter' };
+const BY_STANCE = { neutral: 'honest', aggressive: 'aggressor', defensive: process.env.DEF_BRAIN ?? 'blocker', trickster: 'feinter' };   // DEF_BRAIN=turtle: a passive holder (parry 0, guard 1), the human who simply keeps the guard up
 const SEEDS = Number(process.argv[2] ?? 30), FOE = process.argv[3] ?? 'pitborn', LEVEL = Number(process.argv[4] ?? 6);
 const opponent = OPPONENTS[FOE], baseProfile = profileAt(opponent, LEVEL), base = arena();
 const profileFor = pick => ({ ...baseProfile, ...BRAINS[BRAIN === 'bystance' ? BY_STANCE[pick] : BRAIN] });
