@@ -9,8 +9,8 @@ export const PICKS: readonly PickedStance[] = ['neutral', 'aggressive', 'defensi
 export type StanceKey = 'damage' | 'heavyDamage' | 'posture' | 'kickPosture' | 'block' | 'feint' | 'recover';
 export const STANCES: Readonly<Record<StanceId, Readonly<Partial<Record<StanceKey, number>>>>> = {
   aggressive: { damage: 50, posture: 100, block: 100 },   // +5% damage, +10% posture dealt; blocks cost 10% more stamina. Beats the Trickster
-  defensive: { damage: -50, block: -150, recover: 1000 },   // -5% damage; blocks cost 15% less stamina, posture drains twice as fast (Dom: "faster", no figure; the battery moved it from +25%). Beats the Aggressive
-  trickster: { heavyDamage: -50, feint: -500, kickPosture: 1000 },   // -5% damage on heavies; feints cost half, kicks deal twice the posture (Dom: "more", no figure; moved from +25%). Beats the Defensive
+  defensive: { damage: -50, block: -150, recover: 250 },   // -5% damage; blocks cost 15% less stamina, posture drains 25% faster (Dom: "faster", no figure; Strategy kept +25%: not tuned to a bot that never blocks). Beats the Aggressive
+  trickster: { heavyDamage: -50, feint: -500, kickPosture: 250 },   // -5% damage on heavies; feints cost half, kicks deal 25% more posture (Dom: "more", no figure). Beats the Defensive
 };
 export const stanced = (f: { stance?: StanceId }, key: StanceKey, x: number): number => { const d = f.stance && STANCES[f.stance][key]; return d ? (x * (1000 + d)) / 1000 : x; };
 // The AI's mood: drawn from the fight seed (a replay re-sims it exactly), 50% its home stance and 50% one of the other three picks. Home stances are the ruling's; every other opponent's home is Neutral.

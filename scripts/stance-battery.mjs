@@ -8,8 +8,12 @@ import { PICKS, STANCES, asStance } from '../src/stance.ts';
 import { arena } from '../tests/strategies.ts';
 
 for (const [id, deltas] of Object.entries(JSON.parse(process.env.STANCE_TUNE ?? '{}'))) Object.assign(STANCES[id], deltas);
+// Brains (Strategy, 2026-10-07: the honest bots barely block, feint or kick, so the defensive stances cannot show): `honest` is the opponent's own profile; `blocker` guards and parries (a human who plays the
+// defence); `feinter` feints and kicks (a human who plays the mind games). Both sides use the same brain, so a cell isolates the stances. Usage: BRAIN=honest|blocker|feinter.
+const BRAINS = { honest: {}, blocker: { parry: .7, dodge: .1, aggression: .35, guard: 1, lapse: .1, read: .9 }, feinter: { feint: .5, kick: .6, aggression: .7, parry: .2, read: .8 } };
+const BRAIN = process.env.BRAIN ?? 'honest';
 const SEEDS = Number(process.argv[2] ?? 30), FOE = process.argv[3] ?? 'pitborn', LEVEL = Number(process.argv[4] ?? 6);
-const opponent = OPPONENTS[FOE], profile = profileAt(opponent, LEVEL), base = arena();
+const opponent = OPPONENTS[FOE], profile = { ...profileAt(opponent, LEVEL), ...BRAINS[BRAIN] }, base = arena();
 const fight = (s0, s1, seed) => {
   let d = { ...base, fighters: [opponentFighter(opponent, base.fighters[0].body), opponentFighter(opponent, base.fighters[1].body)] };
   d = withStances(d, asStance(s0), asStance(s1));
@@ -17,7 +21,7 @@ const fight = (s0, s1, seed) => {
   for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a0, profile), y = decide(d, 1, a1, profile); a0 = x.ai; a1 = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
   return !d.finish || d.finish.draw ? 0.5 : d.finish.victim === 1 ? 1 : 0;   // side 0's score
 };
-console.log(`${FOE} L${LEVEL}, ${SEEDS * 2} fights per cell (row stance's win rate)`);
+console.log(`${FOE} L${LEVEL}, ${BRAIN} brain, ${SEEDS * 2} fights per cell (row stance's win rate)`);
 console.log(['row \\ col', ...PICKS].map(x => x.padEnd(11)).join(''));
 const mean = [];
 for (const row of PICKS) {
