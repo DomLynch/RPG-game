@@ -349,7 +349,9 @@ async function startMobFight(spec: MobSpec) {
   if (!prepared.ok) { console.warn('the fight cannot be set up', prepared.issues); leaveFight(); say('This creature cannot be fought yet.'); return; }
   if (!fighting) return;   // left while the chunks loaded
   const run = prepared.value, quest = bountyQuestId(frontier.giver);
-  void encDuel.startEncounterDuel(duelLayer, run.setup, run.seed, (end) => {
+  // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game.
+  const bar = Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null;
+  void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar } : run.setup, run.seed, (end) => {
     const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest));
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
