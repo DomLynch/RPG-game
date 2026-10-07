@@ -71,6 +71,8 @@ export function createPresence(opts: PresenceOptions): Presence {
   for (const t of [ticker, beats, reporter, sweeper]) t.unref();
 
   const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut) });
+  // The hello carries where the server placed the player, so a client adopts it before its first pose (a rejoin or a recalled spot must not look like a teleport).
+  const hello = (p: Player): Buffer => frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: p.id, layer: p.layer.id, x: p.x, z: p.z })));
   const rejoiners = new Map<string, () => Promise<boolean>>();   // account -> re-place that connected account (set per socket, removed when it goes)
   // The last `n` tick durations (ms), oldest first, at most what the ring holds.
   const recentTicks = (n: number): number[] => {
@@ -150,7 +152,7 @@ export function createPresence(opts: PresenceOptions): Presence {
       const me = account;
       socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\nSec-WebSocket-Protocol: ${PROTOCOL}\r\n\r\n`);
       (socket as Socket).setNoDelay(true);
-      socket.write(frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: player.id, layer: player.layer.id }))));
+      socket.write(hello(player));
       let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout;
       const close = (code: number, why?: string): void => { if (why) refused(why); if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); } };
       const touch = (): void => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), limits.idleMs); };
@@ -160,10 +162,11 @@ export function createPresence(opts: PresenceOptions): Presence {
         const at = await (opts.locate?.(me) ?? Promise.resolve(null)).catch(() => null) ?? undefined;
         if (socket.destroyed || sockets.get(player) !== socket) return false;
         const old = player; sockets.delete(old); world.leave(old, now());
-        const fresh = world.join(me, now(), undefined, at);
+        world.memory.delete(me);   // a rejoin is a different character: with no saved spot it starts at the spawn, never where the old one left
+        const fresh = world.join(me, now(), friend, at);
         if (!fresh) { bucket.sockets--; rejoiners.delete(me); close(1013, 'world-full'); return false; }
         player = fresh; sockets.set(fresh, socket);
-        socket.write(frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: fresh.id, layer: fresh.layer.id }))));
+        socket.write(hello(fresh));
         return true;
       });
       socket.on('data', (chunk: Buffer) => {

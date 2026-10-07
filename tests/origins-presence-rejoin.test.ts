@@ -14,8 +14,8 @@ const start = async (locate?: (a: string) => Promise<{ x: number; z: number } | 
   await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
   return { p, base: `http://127.0.0.1:${p.port()}` };
 };
-const connect = (port: number) => new Promise<{ ws: WebSocket; hellos: { id: number }[] }>((res, rej) => {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence`, ['frankendom.presence.v1', 'token.u1']), hellos: { id: number }[] = [];
+const connect = (port: number) => new Promise<{ ws: WebSocket; hellos: { id: number; x: number; z: number }[] }>((res, rej) => {
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence`, ['frankendom.presence.v1', 'token.u1']), hellos: { id: number; x: number; z: number }[] = [];
   ws.onmessage = ev => { if (typeof ev.data === 'string') { const m = JSON.parse(ev.data); if (m.t === 'hello') { hellos.push(m); if (hellos.length === 1) res({ ws, hellos }); } } };
   ws.onerror = () => rej(new Error('refused'));
 });
@@ -44,6 +44,8 @@ test('rejoin: a connected account is dropped and placed again at the located spo
     const after = await where(acct(1));
     assert.ok(after.online && after.placed && after.x === 5000 && after.z === 6000, 'the new character stands at its saved spot');
     assert.equal(hellos.length, 2, 'the client got a fresh hello');
+    assert.deepEqual([hellos[0]!.x, hellos[0]!.z], [15000, 15000], 'the first hello says where it was placed (the spawn)');
+    assert.deepEqual([hellos[1]!.x, hellos[1]!.z], [5000, 6000], 'the rejoin hello says where the new character stands, so the client adopts it before posing');
     assert.equal((p.stats() as { players: number }).players, 1, 'the old presence is gone: one player, not two');
     assert.equal(ws.readyState, WebSocket.OPEN, 'the socket stays open');
     ws.close(); await sleep(80);
@@ -58,7 +60,24 @@ test('rejoin: a locate that fails or answers nothing places the account at the d
       assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
       await sleep(50);
       const w = await where(acct(1));
-      assert.ok(w.online && (!w.placed || (w.x === 15000 && w.z === 15000)), 'the default placement (unplaced, or the spawn once #1577 lands), never an invented position');
+      assert.ok(w.online && w.placed && w.x === 15000 && w.z === 15000, 'the default placement: the spawn, never an invented position');
     } finally { ws.close(); await p.close(); }
   }
+});
+
+test('rejoin: with no saved spot the new character starts at the spawn, not where the previous one left (the world\'s memory is dropped); the friend is passed through', async () => {
+  let spot: { x: number; z: number } | null = { x: 5000, z: 6000 };
+  const { p, base } = await start(async () => spot), where = presenceWhere(base, KEY), { ws } = await connect(p.port());
+  try {
+    assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
+    await sleep(50);
+    const at = await where(acct(1));
+    assert.ok(at.online && at.placed && at.x === 5000, 'placed at the first character\'s saved spot');
+    spot = null;
+    assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
+    await sleep(50);
+    const w = await where(acct(1));
+    assert.ok(w.online && w.placed && w.x === 15000 && w.z === 15000, 'the second character, nothing saved: the spawn, not (5000, 6000)');
+    assert.equal(p.world.memory.has(acct(1)), false, 'and the previous character\'s remembered spot is gone');
+  } finally { ws.close(); await p.close(); }
 });
