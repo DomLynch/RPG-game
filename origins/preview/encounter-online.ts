@@ -17,7 +17,7 @@ export type Online = {
   seed: number;
   // The fight is over: post its record. A 409 means the server already settled this token (a retry after a client timeout): that is done, not an error. A failed post (offline) may be retried.
   settle(end: Ended): Promise<SettleOutcome>;
-  played(): void;   // the fight's first tick has run: from now on a 409 never resumes this token (a loser must not replay the same seed)
+  played(): void;   // the fight's first tick has run: from now on a 409 never resumes this token (a loser must not replay the same seed), and the server hears it (touch at tick 1)
   stop(): void;   // the player left: stop touching (an unsettled token expires on the server as a loss by abandonment)
 };
 export type HeldFight = { token: string; played: boolean };
@@ -45,7 +45,7 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
   let timer: ReturnType<typeof setInterval> | undefined = every(() => { void touchFight(d.token, run.token, tickNow(), opts); }, TOUCH_EVERY_MS), done = false;
   const stop = () => { if (timer !== undefined) { clear(timer); timer = undefined; } };
   return {
-    seed: run.seed, stop, played: () => { d.held?.set({ token: run.token, played: true }); },
+    seed: run.seed, stop, played: () => { d.held?.set({ token: run.token, played: true }); void touchFight(d.token, run.token, 1, opts); },   // and tell the server the fight began (lastTick 1): a backstop for a client that skips the mark
     async settle(end) {
       stop(); d.held?.set(null);   // settled or not, this token is spent as far as the page is concerned
       if (done) return 'already';
