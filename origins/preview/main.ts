@@ -11,6 +11,7 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
+import { frontierDress } from './frontier-dress.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
@@ -39,10 +40,12 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const REGION = new URLSearchParams(location.search).get('region') === '1';
 const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
+const dress = frontier && frontierParts ? frontierDress(frontier, frontierParts) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 if (frontier && frontierParts) {
-  buildFrontier(scene, arena.materials, frontierParts);
+  buildFrontier(scene, arena.materials, frontierParts, dress);
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));

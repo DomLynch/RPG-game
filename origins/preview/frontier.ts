@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { ArenaMaterials } from '../../src/arena.ts';
 import { meshPieces } from './exchange.ts';
 import type { Board, Build } from './frontier-plan.ts';
+import type { Dress } from './frontier-dress.ts';
 
 // ?region=1: the Ash Frontier greybox from frontier-plan.ts (blocks, the west road, signposts, townsfolk). Massing and signage only; no
 // light, fog or sky here (the World lane's look.ts reads each zone's ambience.preset).
@@ -20,9 +21,10 @@ function boardMesh(b: Board): THREE.Mesh {
   return mesh;
 }
 
-export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build): THREE.Group {
+export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build, dress?: Dress): THREE.Group {
   const group = new THREE.Group(); group.name = 'ash-frontier'; scene.add(group);
   meshPieces(group, b.pieces, m, 'frontier');
+  if (dress) meshPieces(group, dress.pieces, m, 'frontier-dress');   // frontier-dress.ts: roads, patches, rocks, ruins, burnt posts
   for (const f of b.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));
     body.position.set(f.x, 0.87, f.z); body.castShadow = true; group.add(body);
