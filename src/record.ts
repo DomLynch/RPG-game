@@ -79,6 +79,7 @@ export const READABLE_VERSIONS = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29
 // header carries a patron byte of 0 (only v32 refuses a zero patron, because a v32 patron-less fight was always written as 31). Pinned by tests/record-version-guard.test.ts, which simulates RV33.
 export const NO_PATRON_VERSION = (RECORD_VERSION as number) <= 33 ? 31 : RECORD_VERSION;   // RV33 only writes a gambit fight as v33 (below), so through 33 a patron-less, gambit-less fight is still the v31 it always was
 export const FIRST_GAMBIT_VERSION = 33;
+export const PATRON_VERSION = (RECORD_VERSION as number) <= 33 ? FIRST_PATRON_VERSION : RECORD_VERSION;   // what a patron fight writes: v32 until a bump after 33 stamps every live fight again
 export const FIRST_PATRON_VERSION = 32;
 // Each bump's REACH (the standing rule, Strategy 2026-09-28): the fights bump N can change, as (opponent, from level). A record of version
 // k is refused when any bump after k reaches its opponent at its level; everything else is read. Literals on purpose, not the data they
@@ -146,7 +147,7 @@ export function quantizeIntent(intent: Intent): Intent {
 export function createRecorder(meta: RecordMeta) {
   const era = stampedVersion(meta.opponent);
   if ((meta.patron || meta.gambit) && era !== NO_PATRON_VERSION) throw Error('Fight record: a patron or gambit fight must be fought in the live era');
-  const version = meta.gambit ? RECORD_VERSION : meta.patron ? FIRST_PATRON_VERSION : era;   // the circle in force when the fight BEGINS names the record, not whatever is set when it ends
+  const version = meta.gambit ? RECORD_VERSION : meta.patron ? PATRON_VERSION : era;   // the circle in force when the fight BEGINS names the record, not whatever is set when it ends
   if (version < FIRST_ARENA_VERSION && meta.arena) { meta = { ...meta }; delete meta.arena; }   // an older era has no arena byte: a script run in the old circle names none
   const intents: Intent[] = [];
   let done: FightRecord | null = null;
@@ -175,7 +176,7 @@ const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 
 export function packRecord(rec: FightRecord): Uint8Array {
   // The lowest version that can express the fight: a record with no patron is written as v31 (today's links stay byte-identical), a patron needs 32.
   // A gambit fight is v33; otherwise a patron fight is v32 and a patron-less one v31.
-  const r: FightRecord = rec.gambit ? rec : rec.v === RECORD_VERSION ? { ...rec, v: rec.patron ? FIRST_PATRON_VERSION : NO_PATRON_VERSION } : rec;
+  const r: FightRecord = rec.gambit ? rec : rec.v === RECORD_VERSION ? { ...rec, v: rec.patron ? PATRON_VERSION : NO_PATRON_VERSION } : rec;
   if (r.gambit && r.v < FIRST_GAMBIT_VERSION) throw Error('Fight record: a gambit on a version that has no flag for it');
   if (r.v === FIRST_GAMBIT_VERSION && !r.gambit) throw Error('Fight record: a version 33 record names the gambit');
   if (r.v !== RECORD_VERSION && r.v !== FIRST_PATRON_VERSION && r.v !== NO_PATRON_VERSION && r.v !== STAB_VERSION && r.v !== FIRST_LATE_NOTICE_VERSION && r.v !== FIRST_SCALED_VERSION && r.v !== OLD_CIRCLE_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);

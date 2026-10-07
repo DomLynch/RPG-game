@@ -5,7 +5,7 @@ import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
-import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
 // RECORD_VERSION 29 refuses every older version, and a headless recorder stamps an older era (play-radius.ts): a test that records a fight records it as a live fight is fought (this build's circle, late notice and stab).
 const mk: typeof createRecorder = (meta) => { setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true); return createRecorder(meta); };
 
@@ -134,8 +134,8 @@ test('a record past the tick limit or the expanded-size limit is refused, not al
 });
 
 // Patron perks (docs/specs/origins/patron-perks-sim.md): the header byte exists only on v32, and a fight with no patron is byte-identical to v31.
-const fight = (patron?: number) => {
-  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}) });
+const fight = (patron?: number, gambit = false) => {
+  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}), ...(gambit ? { gambit: true } : {}) });
   for (let i = 0; i < 40; i++) rec.push(intent({ action: i % 9 === 0 ? 'light' : null }));
   return rec.finish('draw');
 };
@@ -143,7 +143,7 @@ const fight = (patron?: number) => {
 test('record: a no-patron fight is a v31 record, byte for byte; a patron fight is v32 with one extra byte after the arena byte', async () => {
   const none = fight(), withPatron = fight(5);
   assert.equal(none.v, NO_PATRON_VERSION); assert.equal(none.patron, undefined);
-  assert.equal(withPatron.v, RECORD_VERSION); assert.equal(RECORD_VERSION, 32);
+  assert.equal(withPatron.v, PATRON_VERSION); assert.equal(PATRON_VERSION, 32);
   const a = packRecord(none), b = packRecord(withPatron);
   assert.equal(a[2], 31); assert.equal(b[2], 32); assert.equal(b.length, a.length + 1);
   assert.deepEqual(packRecord({ ...none, v: RECORD_VERSION }), a, 'a no-patron record packed at the ceiling still writes the v31 bytes');
@@ -162,4 +162,25 @@ test('record: a patron is refused where it cannot be (v31, id 0 or 256, a v32 re
   assert.throws(() => unpackRecord(zero), /names a patron/);
   setLateNotice(false); setStab(false);
   assert.throws(() => createRecorder({ weapon: 'longsword', build: 'a', opponent: 'goblin', level: 1, seed: 1, patron: 3 }), /live era/);
+});
+
+test('record: only a gambit fight is v33 (flag bit 1 of the specials byte); every other fight keeps its v31 / v32 bytes', async () => {
+  const none = fight(), withPatron = fight(5), gambit = fight(undefined, true), both = fight(5, true);
+  assert.equal(none.v, NO_PATRON_VERSION); assert.equal(withPatron.v, PATRON_VERSION); assert.equal(gambit.v, 33); assert.equal(both.v, 33);
+  const a = packRecord(none), g = packRecord(gambit);
+  assert.equal(g[2], 33); assert.equal(g.length, a.length + 1, 'the patron byte every v32+ header carries; the gambit is a bit, not a byte');
+  assert.deepEqual(unpackRecord(g), gambit); assert.deepEqual(unpackRecord(packRecord(both)), both);
+  assert.deepEqual(await decodeRecord(await encodeRecord(gambit)), gambit);
+  assert.equal(unpackRecord(a).gambit, undefined); assert.equal(unpackRecord(packRecord(withPatron)).gambit, undefined);
+});
+
+test('record: the gambit is refused where it cannot be (a v31/v32 header, a v33 record without it, an unknown flag bit)', () => {
+  const none = fight(), gambit = fight(undefined, true);
+  assert.throws(() => packRecord({ ...none, v: NO_PATRON_VERSION, gambit: true }), /gambit/);
+  assert.throws(() => packRecord({ ...gambit, v: 33, gambit: undefined } as typeof gambit), /names the gambit/);
+  const bytes = packRecord(gambit).slice(), flagAt = (b: Uint8Array) => { let o = 3; for (let k = 0; k < 3; k++) o += 1 + b[o]; return o + 1; };
+  assert.equal(bytes[flagAt(bytes)], 2);
+  const noFlag = bytes.slice(); noFlag[flagAt(noFlag)] = 0; assert.throws(() => unpackRecord(noFlag), /names the gambit/);
+  const unknown = bytes.slice(); unknown[flagAt(unknown)] = 4; assert.throws(() => unpackRecord(unknown), /unknown specials flag/);
+  const v32 = packRecord(fight(5)).slice(); v32[flagAt(v32)] = 2; assert.throws(() => unpackRecord(v32), /unknown specials flag/, 'a v32 header has no gambit bit');
 });

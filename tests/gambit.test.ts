@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { mirror, stepDuel, withGambit, type Duel } from '../src/duel.ts';
 import { GAMBIT_KILL_FLOOR, GAMBIT_ODDS, gambitMean, gambitUnit, resolveGambit } from '../src/gambit.ts';
 import * as luck from '../origins/luck/luck.ts';
-import { RULES } from '../src/moves.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
+import { initialPractice, stepPractice } from '../src/combat.ts';
+import { packRecord, unpackRecord } from '../src/record.ts';
+import { verifyRecord } from '../src/replay.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { hashDuel } from '../src/net/rollback.ts';
 import { act, arena, idle, W } from './strategies.ts';
 
@@ -74,4 +78,18 @@ test('C1: mean landed damage never beats the plain heavy, and a landed Gambit ne
 
 test('the draw is a pure function of (seed, draw number): a replay reproduces it', () => {
   assert.equal(hashDuel(run(77, 14)), hashDuel(run(77, 14)));
+});
+
+// RV33: the record carries the flag, and every replay builds the fight through the same door (initialPractice's seed argument), so a recorded Gambit fight verifies bit for bit.
+test('a gambit fight is recorded, packed and replayed to the very same state', () => {
+  const seed = 11, opponent = OPPONENTS.veteran, profile = profileAt(opponent, 1);
+  const rec = liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level: 1, seed, gambit: true });
+  let p = initialPractice(seed, opponentAt(opponent, 1), 'longsword', null, undefined, seed), armed = 0;
+  for (let i = 0; i < 160; i++) { p = stepPractice(p, rec.push(i === 0 || i === 40 || i === 54 ? act('heavy') : idle()), profile); armed += p.duel.events.filter(e => e.type === 'GambitArmed').length; }
+  assert.equal(armed, 1, 'the second heavy press armed the swing once');
+  const record = unpackRecord(packRecord(rec.finish('abandoned')));
+  assert.equal(record.v, 33); assert.equal(record.gambit, true);
+  const replay = verifyRecord(record);
+  assert.ok(replay.ok); assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
+  assert.deepEqual(replay.practice.duel.gambit, p.duel.gambit);
 });
