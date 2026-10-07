@@ -5,6 +5,7 @@ import { project, type Practice } from '../../src/combat.ts';
 import type { Finished } from '../pit/pit.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
 import type { FightSetup } from '../encounters/encounters.ts';
+import { styleOf } from '../mobs/styles.ts';
 import type { Shown } from './pit-duel.ts';
 
 export type EncounterEnd = { result: 'won' | 'lost'; twistOutcome: TwistOutcome | null };
@@ -26,7 +27,7 @@ export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, s
   const duel = await import('./pit-duel.ts');
   let over = false;
   const finish = (end: EncounterEnd) => { if (!over) { over = true; done(end); } };
-  duel.openDuel(host, { opponent: setup.opponent.body, level: setup.opponent.level, seed, flags: setup.combatFlags, bar: setup.bar, as }, {
+  duel.openDuel(host, { opponent: setup.opponent.body, level: setup.opponent.level, seed, flags: setup.combatFlags, bar: setup.bar, mob: styleOf(setup.opponent.body), as }, {
     ended: (f) => { finish(endOf(f, duel.duelTwist().outcome)); },
     again: as ? leave : () => {},   // a creature has no rematch: its one end button goes back to the walk
     twisted: (outcome) => { if (outcome === 'fled' || outcome === 'escaped') finish(standingEnd(outcome)); },
