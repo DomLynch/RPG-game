@@ -14,15 +14,7 @@ const sketch = (z: (typeof F.zones)[number]): ZoneSketch => ({
   safe: z.town !== null || z.region !== FRONTIER,
 });
 
-// Region 1 as authored does NOT pass all three rules today. These two are named, not hidden: the build stays green only while exactly these fail, so a new
-// failure fails it, and fixing one (more creatures, or ferry-landing marked safe, Strategy's call) fails it until the entry is removed here.
-const KNOWN: Record<string, string> = {
-  'late-fight ferry-landing': 'an unsafe zone with no creature (a landing and its houses); either it is safe or it needs a creature near the entry',
-  'late-fight cinder-fields': 'the nearest creature is 52.1 m from the entry, a hair over the 52 m limit; one scavenger a few metres nearer fixes it',
-};
-
-test('Region 1 against the zone rules: no zone is over 45 s across and none is dead for 15 s; the two known late-fight misses are exactly the ones named above', () => {
+test('Region 1 passes the zone rules, all three, with no exceptions: not over 45 s across, never dead for 15 s, and every unsafe zone opens with a fight inside 10 s', () => {
   const failures = F.zones.flatMap((z) => checkZone(sketch(z)));
-  const got = failures.map((i) => `${i.code} ${i.zone}`).sort();
-  assert.deepEqual(got, Object.keys(KNOWN).sort(), `each failure is named: ${failures.map((i) => i.message).join(' | ')}`);
+  assert.deepEqual(failures.map((i) => i.message), [], 'every failing zone is named above');
 });

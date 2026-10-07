@@ -32,6 +32,17 @@ export function worstHop(entry: Pt, points: readonly Pt[]): { from: Pt; to: Pt; 
   return best;
 }
 
+// The opener rule, one function for the generator and for hand zones: where the first fight stands. A spot `clear` (15) to `far` (40) m from the entry,
+// on the inward side (`inward` is the heading the zone runs in, 0 = +z), that `ok` accepts. `rand` is any [0, 1) source; null when nothing fits.
+export const OPENER_CLEAR = 15, OPENER_FAR = 40;
+export function openerSpot(entry: Pt, inward: number, rand: () => number, ok: (x: number, z: number) => boolean, clear = OPENER_CLEAR, far = OPENER_FAR): Pt | null {
+  for (let t = 0; t < 60; t++) {
+    const r = clear + 4 + rand() * (far - clear - 12), a = inward + rand() * Math.PI - Math.PI / 2, x = entry.x + Math.sin(a) * r, z = entry.z + Math.cos(a) * r;
+    if (ok(x, z)) return { x, z };
+  }
+  return null;
+}
+
 export function checkZone(z: ZoneSketch): ZoneIssue[] {
   const out: ZoneIssue[] = [], add = (code: ZoneIssue['code'], message: string) => out.push({ code, zone: z.name, message: `${z.name}: ${message}` });
   const across = Math.max(z.width, z.depth);

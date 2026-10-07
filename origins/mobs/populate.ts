@@ -6,7 +6,7 @@
 // wherever the walk would be left more than 15 s with nothing to meet, even past the budget. `issues` is what is still broken, named by zone.
 import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
-import { MAX_HOP_M, checkZone, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
+import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
 import { DEFAULTS, validateMobRow, type MobRow, type RowContext, type RowIssue } from './row.ts';
 
 export type Member = { x: number; z: number; level: number };
@@ -14,8 +14,7 @@ export type Camp = { row: string; at: string; members: Member[] };
 export type Populated = { camps: Camp[]; budget: number; rejected: { row: string; issues: RowIssue[] }[]; issues: ZoneIssue[] };
 
 const CAMP_GAP = 6;      // m: two camps' centres stay at least this far apart
-const DOOR_CLEAR = 15;   // m: no camp within this of the entry landmark (the hero arrives there)
-const OPENER_FAR = 40;   // m: the opener camp stands no farther than this from the entry
+const DOOR_CLEAR = OPENER_CLEAR;   // m: no camp within this of the entry landmark (the hero arrives there)
 const MOBS = 0x6d6f6273; // "mobs": the stream's seed offset
 
 export function populateZone(zone: Params, rows: readonly MobRow[], seed: number, ctx: RowContext, stand: (x: number, z: number) => boolean = () => true, name = 'zone'): Populated {
@@ -50,11 +49,10 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
     }
     return members.length ? { row: row.id, at, members } : null;
   };
-  // The opener: between the door's clearance and OPENER_FAR of the entry, so the first fight is inside the 10 s window.
-  for (let t = 0; t < 60 && !camps.length; t++) {
-    const r = DOOR_CLEAR + 4 + rand() * (OPENER_FAR - DOOR_CLEAR - 4 - 8), a = rand() * Math.PI, centre = { x: door.x + Math.sin(a - Math.PI / 2) * r, z: door.z + Math.cos(a - Math.PI / 2) * r };
-    if (!inside(centre.x, centre.z)) continue;
-    const c = camp(pickRow(), 'opener', centre); if (c) camps.push(c);
+  // The opener (zone-rules.ts openerSpot, the same rule the hand zones use): the first fight stands inside the 10 s window.
+  for (let t = 0; t < 6 && !camps.length; t++) {
+    const spot = openerSpot(door, 0, rand, inside);
+    const c = spot && camp(pickRow(), 'opener', spot); if (c) camps.push(c);
   }
   let made = camps.reduce((n, c) => n + c.members.length, 0);
   for (let guard = 0; sites.length && made < budget && guard < budget * 8; guard++) {
