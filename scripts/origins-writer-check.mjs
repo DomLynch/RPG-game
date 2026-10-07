@@ -379,6 +379,10 @@ try {
   eq(objects(), '2|4', 'the migration\'s two tables and four functions');
   psql(down);
   eq(objects(), '0|0', 'down: all gone');
+  // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
+  const pre = await call('create_character', 'tb', { name: 'Brin' });
+  eq(pre.status, 200, 'without 0009: create_character still creates');
+  eq((await call('open', 'tb', { character: pre.json.result.id })).status, 503, 'without 0009: open {character} is 503');
   psql(up);
   eq(objects(), '2|4', 'up again after down');
   console.log(`origins-writer-check: ${checks} checks passed`);

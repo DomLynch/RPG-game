@@ -4,7 +4,7 @@ import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
 import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
-import { BadRequest, Conflict } from './errors.ts';
+import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Content } from './holdings.ts';
 import { questAdvance } from './quest-advance.ts';
 import type { StoryContent } from './story.ts';
@@ -47,7 +47,9 @@ const CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
 const open: Handler = async (ctx, body) => {
   if (body.character !== undefined) {
     if (typeof body.character !== 'string' || !CHARACTER.test(body.character)) throw new BadRequest('character: a character id');
-    if (!(await store.setActive(ctx.db, ctx.account, body.character))) throw new BadRequest('character: not one of this account\'s characters');
+    const set = await store.setActive(ctx.db, ctx.account, body.character);
+    if (set === 'absent') throw new Refused(503, 'character: choosing a character is not installed yet');   // 0009 not applied: the writer is up, the table is not
+    if (!set) throw new BadRequest('character: not one of this account\'s characters');
   }
   return openAccount(ctx);
 };

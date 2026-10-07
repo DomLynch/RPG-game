@@ -37,12 +37,17 @@ export const event = async (db: Db, account: string, id: string): Promise<Json |
   JSON.parse((await db.run(`select coalesce(public.origins_event(:'a'::uuid, :'e')::text, 'null');`, { a: acct(account), e: id })) || 'null');
 
 // X2 Stage 2 (migration 202610070009): one ACTIVE character per account, and the saved location presence reports for it.
+// Fail-safe on order (Auditor/Lead, 2026-10-07): each call checks in the same psql run that 0009 is applied, so merged code on a database without
+// 0009 (or after its down-script) still creates characters; it just sets no active one. No cache: the check costs no extra round trip.
+const HAS_X2 = `select to_regprocedure('public.origins_set_active(uuid,text)') is not null as x2 \\gset\n`;
 // create_character makes the new character active in the same transaction (psql \gset carries the id into the second statement; ON_ERROR_STOP aborts both).
 export const createActiveCharacter = (db: Db, account: string, name: string): Promise<string> =>
-  db.run(`begin;\nselect public.origins_create_character(:'a'::uuid, :'n') as cid \\gset\nselect :'cid' where public.origins_set_active(:'a'::uuid, :'cid');\ncommit;`, { a: acct(account), n: name });
-// False when the character is not this account's (nothing written).
-export const setActive = async (db: Db, account: string, character: string): Promise<boolean> =>
-  (await db.run(`select public.origins_set_active(:'a'::uuid, :'c');`, { a: acct(account), c: character })) === 't';
+  db.run(`begin;\nselect public.origins_create_character(:'a'::uuid, :'n') as cid \\gset\n${HAS_X2}\\if :x2\nselect :'cid' where public.origins_set_active(:'a'::uuid, :'cid');\n\\else\nselect :'cid';\n\\endif\ncommit;`, { a: acct(account), n: name });
+// False when the character is not this account's (nothing written); 'absent' when 0009 is not applied.
+export const setActive = async (db: Db, account: string, character: string): Promise<boolean | 'absent'> => {
+  const out = await db.run(`${HAS_X2}\\if :x2\nselect public.origins_set_active(:'a'::uuid, :'c');\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account), c: character });
+  return out === 'absent' ? 'absent' : out === 't';
+};
 export const active = async (db: Db, account: string): Promise<string | null> =>
   (await db.run(`select coalesce(public.origins_active(:'a'::uuid), '');`, { a: acct(account) })) || null;
 export type SavedRow = { character: string; zone: string | null; x: number; z: number; updated_at: string };
