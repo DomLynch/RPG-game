@@ -7,6 +7,7 @@
 //   - `m` (metres) for the BODY and the CAMERA: walking, reach, view, terrain height. The hero stays 1.8 m whatever the world's scale.
 // Layout is never authored in metres: a landmark is (u, v) in 0..1 of its zone, so a resized zone keeps its plan.
 import { TITLES } from '../../src/career.ts';
+import { ACROSS_SECONDS, MAX_ACROSS_M } from './zone-rules.ts';
 
 export type Field =
   | { t: 'num' | 'int'; unit: string; min: number; max: number; def: number; doc: string }
@@ -147,6 +148,7 @@ export type Params = Resolved<typeof SCHEMA>;
 // Cross-field rules a single field's range cannot say. Landmark refs are checked generically (kind 'ref'), not here.
 export const CHECKS: ((p: Params) => [string, string] | null)[] = [
   (p) => (p.movement.runSpeed < p.movement.walkSpeed ? ['movement.runSpeed', 'run speed is below walk speed'] : null),
+  (p) => (Math.max(p.zoneSize.width, p.zoneSize.depth) * p.scale.metresPerUnit > MAX_ACROSS_M ? ['zoneSize.width', `a zone takes more than ${ACROSS_SECONDS} s to run across (at most ${Math.round(MAX_ACROSS_M)} m on a side)`] : null),
   (p) => (p.view.fogNear >= p.view.fogFar ? ['view.fogNear', 'fog must start before it is opaque'] : null),
   (p) => (p.view.backdropRadius > p.view.drawDistance ? ['view.backdropRadius', 'the backdrop ring sits beyond the draw distance'] : null),
   (p) => (p.terrain.heightMin > p.terrain.heightMax ? ['terrain.heightMin', 'lowest ground is above highest'] : null),

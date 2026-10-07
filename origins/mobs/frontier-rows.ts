@@ -4,6 +4,9 @@
 import type { MobRow } from './row.ts';
 
 const pending = { pending: 'Content/Strategy to cite (legends-rule)' };
+// A zone that is not safe opens with a fight inside 10 s of its entry (zone-rules.ts). Where the data has no creature near the entry, this names the kind that
+// stands there as a lone opener, placed by the same rule the generator uses (openerSpot). Zone id -> row id.
+export const FRONTIER_OPENERS: Readonly<Record<string, string>> = { 'ferry-landing': 'character:mere-brood', 'cinder-fields': 'character:cinder-scavenger' };
 export const FRONTIER_ROWS: readonly MobRow[] = [
   { id: 'character:cinder-scavenger', source: pending, role: 'beast', loot: 'loottable:cinder-scavenger', level: [11, 12], behaviour: { roam: 8, spread: 16, pull: 0, campSize: [4, 4] } },
   { id: 'character:mere-brood', source: pending, role: 'beast', loot: 'loottable:mere-brood', level: [12, 13], behaviour: { roam: 6, spread: 9, pull: 0, campSize: [4, 4] } },

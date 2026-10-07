@@ -23,7 +23,7 @@ const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close
 const TWEEN = 6;   // 1/s: how quickly a walk/idle blend and a turn settle
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; mixer?: THREE.AnimationMixer; idle?: THREE.AnimationAction; walk?: THREE.AnimationAction; ring: THREE.Mesh; bang: THREE.Sprite; walkW: number };
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; mixer?: THREE.AnimationMixer; idle?: THREE.AnimationAction; walk?: THREE.AnimationAction; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; walkW: number };
 
 function labelSprite(text: string, named: boolean): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96;
@@ -48,7 +48,7 @@ function bangSprite(): THREE.Sprite {
 
 export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 export type Mobs = {
-  update(dt: number, hero: { x: number; z: number }): void; debug(): unknown;
+  update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
@@ -96,13 +96,13 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - 0.12, s.aggro, 48), new THREE.MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
     group.add(stand, label, bang);
-    v = { group, stand, model: null, ring, bang, walkW: 0 }; views.set(i, v);
+    v = { group, stand, model: null, ring, bang, label, walkW: 0 }; views.set(i, v);
     root.add(group, ring);
     return v;
   }
 
   return {
-    update(dt, hero) {
+    update(dt, hero, hideLabel) {
       mobs.forEach((m, i) => { mobs[i] = stepMob(m, specs[i]!, hero, dt, stands[i]!); });
       for (const [i, t] of down) { if (t - dt <= 0) down.delete(i); else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
@@ -118,6 +118,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.ring.position.set(m.x, 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
+        v.label.visible = s.id !== hideLabel;   // the info card (creature-card.ts) carries this creature's name and level while it is up
         v.bang.visible = aggro; mat.opacity = aggro ? 0.34 : 0.1; mat.color.set(aggro ? '#e0553a' : '#d8c9a8');
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.mixer && v.idle && v.walk) {
