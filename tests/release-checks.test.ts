@@ -8,6 +8,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// A checkout without .git (the VPS work copies) cannot resolve HEAD: tests that need it skip there and stay strict in CI and on the Mac.
+const noGit = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { stdio: 'ignore' }).status !== 0 && 'no git history in this checkout (HEAD is unreadable)';
 const runner = join(process.cwd(), 'scripts', 'release-checks.mjs');
 // The knobs a real deploy exports (deploy.sh: RELEASE_CHECKS_TRUST_CI=0 for the whole run, RELEASE_CHECKS_SKIP*) must not reach the
 // children here: run G c97ce967 (2026-09-28) failed two ci-trusted-checks tests inside test:all with "disabled by RELEASE_CHECKS_TRUST_CI=0".
@@ -403,7 +405,6 @@ test('deploy scope: a changed .quality-gate.json runs only the rows it adds or c
   const kept = (r: ReturnType<typeof pick>) => 51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
   assert.equal(kept(pick(null, '.quality-gate.json')), 51, 'no base: every row');
   assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), 51, 'an unreadable base: every row');
-  assert.equal(kept(pick('HEAD', '.quality-gate.json')), 5, 'the same row list as the base: the core five only');
   const { deployRowsFor, rows } = await import('../scripts/release-rows-for.mjs');
   const live: string[][] = rows.map((r: { argv: string }) => JSON.parse(r.argv) as string[]);
   const names = (picked: { index: number; name: string }[]) => picked.map(r => `${r.index} ${r.name}`);
@@ -414,6 +415,11 @@ test('deploy scope: a changed .quality-gate.json runs only the rows it adds or c
   const edited = live.map((command, i) => (i === 43 ? [...command, '--changed'] : command));
   assert.ok(names(deployRowsFor(['.quality-gate.json'], edited)).includes('44 sparring-browser-check'), 'a row whose argv changed runs');
   assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, 51, 'no previous list: every row');
+});
+
+test('deploy scope: a --base of HEAD (the same row list) runs the core five only', { skip: noGit }, () => {
+  const r = spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', '--base', 'HEAD'], { input: '.quality-gate.json', encoding: 'utf8' });
+  assert.equal(51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size, 5, 'the same row list as the base: the core five only');
 });
 
 test('the unit gate ignores the deploy shell\'s own DEPLOY_* exports: a ci-trust-run still stamps a run of every row', () => {
