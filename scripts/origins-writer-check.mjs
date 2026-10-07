@@ -13,7 +13,8 @@ import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
 import * as F from '../origins/contracts/fixtures.ts';
-import { creditFromMarks } from '../origins/progression/model.ts';
+import { creditFromMarks, cumulative } from '../origins/progression/model.ts';
+import { smithContent } from '../origins/server/upgrade.ts';
 import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 
@@ -47,10 +48,14 @@ try {
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${B}','Bran',0,'{"owned":[],"equipped":{}}'),('${D}','Dara',10,'{"owned":[],"equipped":{}}');`);
 
   // Example content (the contracts' fixtures): exchange ore and the story-critical Record of Names. The writer is built with its content; no body names a definition.
-  const defs = new Map([F.exchangeOreDef(), F.recordDef()].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+  // The smith: the fixtures' forge, materials only (level 1 costs 5 grave iron and 0 coin; level 2 still prices coin, so it is a 501).
+  const defs = new Map([F.exchangeOreDef(), F.recordDef(), F.helmetDef(), F.graveIronDef(),
+    { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
-  server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null,
-    handlers: { ...withContent({ lookup: id => defs.get(id) }), ...storyOps(readStoryContent(join(root, 'content.json'))) } });
+  server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, handlers: { ...withContent({
+    lookup: id => defs.get(id),
+    smith: smithContent(F.blacksmith(), { ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 0, materials: [{ item: 'item:grave-iron', quantity: 5 }] }, { level: 2, rarity: 'common', coin: 250, materials: [] }] }),
+  }), ...storyOps(readStoryContent(join(root, 'content.json'))) } });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/origins/`;
   const call = async (op, token, body, method = 'POST') => {
@@ -134,6 +139,45 @@ try {
   const story = await call('consume', 'ta', handIn({ op: 'quest:stolen-name:ruin:handin', itemId: 'item:stolen-name-record', qty: 1, consumesStoryItem: 'item:stolen-name-record' }));
   eq([story.status, live(), conserved()], [200, 'inst:ore-b:6:v3,inst:ore-c:20:v1', '0'], 'consume: the step that names the story piece burns it');
   eq(psql(`select count(*) from public.origins_events where kind = 'burn' and account = '${A}'`), '3', 'one burn event per op id');
+
+  // apply_upgrade (the smith, materials only): a Recruit helmet one level up for 5 grave iron, retried, conflicted, raced; conservation at every commit
+  psql(`update public.origins_career set world_credit = ${cumulative(11)}, version = version + 1 where account = '${A}';`);   // rank for a Legionary piece
+  psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
+    mint('inst:helm-wc', 'item:loot.veteran.Helmet', 1, 'pack', 3, 'claim:9001', { kind: 'arena-award', claimId: 9001, lootId: 'veteran.Helmet', fromLegend: 'veteran-1', atRank: 'Recruit' }, { tier: 'Recruit' }),
+    mint('inst:iron-a', 'item:grave-iron', 3, 'pack', 4, 'loot:wc:ia', loot), mint('inst:iron-b', 'item:grave-iron', 10, 'pack', 5, 'loot:wc:ib', loot),
+    mint('inst:iron-c', 'item:grave-iron', 20, 'bank', 1, 'loot:wc:ic', loot), mint('inst:iron-d', 'item:grave-iron', 6, 'pack', 6, 'loot:wc:id', loot),
+  ])}$j$::jsonb);`);
+  const helmRow = () => psql(`select upgrade_level || ':v' || version || ':' || jsonb_array_length(history) || ':' || coalesce(history -> -1 ->> 'kind', '-') || ':' || coalesce(history -> -1 ->> 'receipt', '-') from public.origins_items where id = 'inst:helm-wc'`);
+  const irons = () => psql(`select coalesce(string_agg(id || ':' || quantity || ':v' || version, ',' order by id), '') from public.origins_items where item = 'item:grave-iron' and retired_at is null`);
+  const upgrades = () => psql(`select count(*) from public.origins_events where kind = 'upgrade' and account = '${A}'`);
+  const smithAsk = over => ({ character: pc, op: 'smith:helm-wc:l1', instance: 'inst:helm-wc', toLevel: 1, materials: ['inst:iron-a', 'inst:iron-b'], ...over });
+  const burned0 = burns();
+  const u1 = await call('apply_upgrade', 'ta', smithAsk({ coin: 999, fromLevel: 8 }));
+  eq([u1.status, u1.json.result?.replayed, u1.json.result?.receipt.coin, u1.json.result?.receipt.fromLevel, u1.json.result?.receipt.materials.map(m => [m.instance, m.quantity])],
+    [200, false, 0, 0, [['inst:iron-a', 3], ['inst:iron-b', 2]]], 'upgrade: level 0 -> 1 for 5 iron and 0 coin, whatever the body says');
+  eq(helmRow(), '1:v2:1:upgrade:smith:helm-wc:l1', 'upgrade: the piece is level 1, one version on, its history grew by the upgrade entry');
+  eq(irons(), 'inst:iron-b:8:v2,inst:iron-c:20:v1,inst:iron-d:6:v1', 'upgrade: iron a spent (retired), b down to 8, the bank and d untouched');
+  eq([upgrades(), burns(), conserved()], ['1', `${Number(burned0.split('/')[0]) + 2}/${Number(burned0.split('/')[1]) + 5}`, '0'], 'upgrade: one event, two ledger burns of 5 units, every root conserved at commit');
+  const u2 = await call('apply_upgrade', 'ta', smithAsk());
+  eq([u2.status, u2.json.result?.replayed, JSON.stringify(u2.json.result?.receipt) === JSON.stringify(u1.json.result?.receipt)], [200, true, true], 'upgrade retry: the original receipt, byte for byte');
+  eq([helmRow(), irons(), upgrades(), conserved()], ['1:v2:1:upgrade:smith:helm-wc:l1', 'inst:iron-b:8:v2,inst:iron-c:20:v1,inst:iron-d:6:v1', '1', '0'], 'upgrade retry: nothing changed');
+  const u3 = await call('apply_upgrade', 'ta', smithAsk({ toLevel: 2 }));
+  eq([u3.status, u3.json.code], [409, 'op-conflict'], 'upgrade: the op id with a different request is a conflict');
+  const u4 = await call('apply_upgrade', 'ta', smithAsk({ op: 'smith:helm-wc:l2', toLevel: 2, materials: [], coin: 999, balance: 999 }));
+  eq([u4.status, u4.json.code, /metals ledger/.test(u4.json.error)], [501, 'not-implemented', true], 'upgrade: a cost row that charges coin is a 501, whatever balance the body claims');
+  eq((await call('apply_upgrade', 'tb', smithAsk({ op: 'smith:helm-wc:b', account: A }))).status, 400, 'upgrade: B cannot name A\'s character or piece');
+  eq([helmRow(), irons(), upgrades(), conserved()], ['1:v2:1:upgrade:smith:helm-wc:l1', 'inst:iron-b:8:v2,inst:iron-c:20:v1,inst:iron-d:6:v1', '1', '0'], 'upgrade: refusals changed nothing');
+  // a second piece (one of each: the cuirass, not another helmet), bank iron: refused away from the Exchange, taken at it; two identical requests at once upgrade once
+  psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
+    mint('inst:body-wc', 'item:loot.veteran.Body', 1, 'pack', 7, 'claim:9002', { kind: 'arena-award', claimId: 9002, lootId: 'veteran.Body', fromLegend: 'veteran-1', atRank: 'Recruit' }, { tier: 'Recruit' }),
+  ])}$j$::jsonb);`);
+  const secondPiece = over => smithAsk({ op: 'smith:body-wc:l1', instance: 'inst:body-wc', materials: ['inst:iron-c'], ...over });
+  const away = await call('apply_upgrade', 'ta', secondPiece());
+  eq([away.status, /Concord Exchange/.test(away.json.error)], [400, true], 'upgrade: bank iron is refused away from the Exchange');
+  const smithRace = await Promise.all([call('apply_upgrade', 'ta', secondPiece({ place: 'exchange' })), call('apply_upgrade', 'ta', secondPiece({ place: 'exchange' }))]);
+  eq([smithRace.map(r => r.status), smithRace.map(r => r.json.result?.replayed).sort()], [[200, 200], [false, true]], 'upgrade race: one upgrade, one replay');
+  eq([psql(`select upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:body-wc'`), irons(), upgrades(), conserved()],
+    ['1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade race: upgraded and burned once, at the Exchange, conserved');
 
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.

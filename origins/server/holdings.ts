@@ -1,13 +1,15 @@
 // One character's stored items -> the pure inventory module's Holdings. Rows come from origins_open (the token's account only), so a character
 // of another account is simply not there. A row the contracts refuse is a server fault (500), never repaired here.
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
+import type { ServiceDefinition, UpgradeCostTable } from '../contracts/economy.ts';
 import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
 import { openInventory, type Inventory, type Lookup } from '../inventory/inventory.ts';
 import { BadRequest } from './handlers.ts';
 import type { Db } from './db.ts';
 import * as store from './store.ts';
 
-export type Content = { lookup: Lookup };
+// `smith`: the forge's service definition and cost table, parsed by the contracts (smithContent in upgrade.ts). Absent = no smith in this content.
+export type Content = { lookup: Lookup; smith?: { service: ServiceDefinition; costs: UpgradeCostTable } };
 type Row = store.Json & { id: string; loc_kind: string | null; loc_owner: string | null; mint_key: string; provenance: store.Json };
 
 // The stored row as an ItemInstance. A split child keeps its parent's provenance in the database but carries its own mint key (parent::s<v>),
@@ -23,6 +25,11 @@ export function instanceOf(row: Row): ItemInstance {
 }
 
 export async function openHoldings(db: Db, account: string, character: unknown, content: Content): Promise<Inventory> {
+  return (await openHoldingsWith(db, account, character, content)).inventory;
+}
+
+// The same, with the snapshot it was read from (the smith also needs the career row the rank gate reads).
+export async function openHoldingsWith(db: Db, account: string, character: unknown, content: Content): Promise<{ inventory: Inventory; snap: store.Snapshot }> {
   const snap = await store.open(db, account);
   const pc = snap.characters.find(c => c.id === character);
   if (!pc || typeof character !== 'string') throw new BadRequest('character: not one of this account\'s characters');
@@ -33,5 +40,5 @@ export async function openHoldings(db: Db, account: string, character: unknown, 
     owner: character as CharacterInstanceId, account: owner.value, items: rows.map(instanceOf), packSize: Number(pc.pack_slots), bankSize: Number(pc.bank_slots),
   }, content.lookup);
   if (!inv.ok) throw Error(`stored holdings of ${character} do not hold: ${inv.issues.map(i => `${i.path} ${i.code}`).join(', ')}`);
-  return inv.value;
+  return { inventory: inv.value, snap };
 }

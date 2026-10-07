@@ -228,3 +228,11 @@ test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to 
   assert.match(css, /#attack-button\[data-cut\]::after\{[^}]*border-left-color: var\(--cut-arc\)/, 'v2: a solid arc marks the chosen edge');
   assert.match(css, /#attack-button\[data-cut=right\]::after\{ clip-path: inset\(0 0 0 50%\)/, 'right cut keeps the right half');
 });
+
+test('a refusal card over a stalled page quiets the fight controls behind it, and PLAY NOW stays (Lead 2026-10-07)', () => {
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(main, /classList\.toggle\('card-up', match\.stalled && replayBanner\.dataset\.stale === '1'\)/, 'set from the stalled page and the stale banner');
+  const rule = /:root\.card-up #joystick,[^{]*#actions button:not\(#reset-button\)\s*\{[^}]*visibility: hidden !important; pointer-events: none !important;/.exec(css);
+  assert.ok(rule, 'the stick, hint, run toggle and every action but #reset-button are hidden and inert');
+  assert.doesNotMatch(rule![0], /#reset-button\s*[,{]\s*$/m, 'PLAY NOW is exempt');
+});

@@ -830,6 +830,7 @@ function updateHud() {
   // the win's one loot offer. Timing only — nothing moves, and the loot panel is outside the fade group as before.
   const hushed = pendingLoot !== null ? !phase?.complete : !phase?.settled;
   document.documentElement.classList.toggle('endgame-fade', !!phase && (hushed || (phase.touring && !watching)));
+  document.documentElement.classList.toggle('card-up', match.stalled && replayBanner.dataset.stale === '1');   // a refusal card (old or unplayable link) over a stalled page: the fight controls behind it go quiet (style.css)
   // The rank row keeps only the hush, not the tour (Dom 2026-09-24, phone: the strip was "missing" at fight end — it showed for ~3 s
   // between settle and the tour, then faded until a touch). Text in the top band, no pointer: it stays up while the camera rolls.
   document.documentElement.classList.toggle('endgame-hush', !!phase && hushed);
