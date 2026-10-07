@@ -53,6 +53,7 @@ import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
 import * as breakBeat from '../src/break-beat.ts';
+import * as kickScale from '../src/kick-scale.ts';
 import * as powerWords from '../src/power-words.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
@@ -110,6 +111,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
+  modules['./kick-scale.ts'] = kickScale;   // ?look=kickscale's pure core (scene.ts scales the camera kick and the roll shift)
   modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
