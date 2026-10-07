@@ -11,7 +11,7 @@
 #   bash ops/install-presence.sh --rollback        undo everything this script did: stop + disable the unit, remove the include, delete the snippet and the unit, reload nginx
 # Touches only: /opt/frankendom-presence/<revision> (+ `current`; the files listed by ops/presence-files.mjs, nothing else), /etc/frankendom/presence.env (the internal key is generated once,
 # root 0600, never printed), the unit, /etc/nginx/snippets/frankendom-presence.conf and ONE include line in the frankendom.com :443 server block (its prior copy kept as
-# <site>.before-presence). The relay's, the writer's and the verifier's units, the :80 block, every other site and every other project's files are not read or changed. nginx reloads only
+# $root/etc/nginx/backups/frankendom.com.before-presence, never sites-enabled). The relay's, the writer's and the verifier's units, the :80 block, every other site and every other project's files are not read or changed. nginx reloads only
 # after `nginx -t` passes; on failure the include is taken back out. PRESENCE_ROOT (tests only) puts every path under a prefix.
 set -euo pipefail
 root="${PRESENCE_ROOT:-}"
@@ -21,10 +21,11 @@ unit="$root/etc/systemd/system/frankendom-presence.service"
 env="$root/etc/frankendom/presence.env"
 writer_env="$root/etc/frankendom/origins-writer.env"
 opt="$root/opt/frankendom-presence"
+backup="$root/etc/nginx/backups"   # OUTSIDE sites-enabled: nginx loads every file there, so a backup copy of the frankendom.com block is a duplicate server (the conflicting-server-name warnings; the first-loaded copy can shadow the include)
 include="    include $snippet;   # frankendom presence"
 here="$(cd "$(dirname "$0")/.." && pwd)"
 
-drop_include() { if grep -qF "$snippet" "$site"; then grep -vF "$snippet" "$site" > "$site.tmp" && cat "$site.tmp" > "$site" && rm -f "$site.tmp"; fi; }
+drop_include() { if grep -qF "$snippet" "$site"; then install -d -m 0700 "$backup"; grep -vF "$snippet" "$site" > "$backup/site.tmp" && cat "$backup/site.tmp" > "$site" && rm -f "$backup/site.tmp"; fi; }
 get() { grep "^$1=" "$env" | head -n1 | cut -d= -f2-; }
 code() { curl -s -o /dev/null -w '%{http_code}' "$@" || true; }
 
@@ -82,10 +83,10 @@ install -D -m 0644 "$here/ops/frankendom-presence.service" "$unit"
 install -D -m 0644 "$here/ops/nginx/frankendom-presence.conf" "$snippet"
 
 if ! grep -qF "$snippet" "$site"; then
-  cp "$site" "$site.before-presence"
+  install -d -m 0700 "$backup"; cp "$site" "$backup/frankendom.com.before-presence"
   # After the `server_name frankendom.com;` line: that exact line is the apex :443 block (the :80 block names www too, www only redirects).
-  awk -v inc="$include" '{ print } /^[[:space:]]*server_name frankendom\.com;[[:space:]]*$/ && !done { print inc; done = 1 }' "$site.before-presence" > "$site"
-  grep -qF "$snippet" "$site" || { cp "$site.before-presence" "$site"; echo "install-presence: server_name frankendom.com; not found in $site" >&2; exit 1; }
+  awk -v inc="$include" '{ print } /^[[:space:]]*server_name frankendom\.com;[[:space:]]*$/ && !done { print inc; done = 1 }' "$backup/frankendom.com.before-presence" > "$site"
+  grep -qF "$snippet" "$site" || { cp "$backup/frankendom.com.before-presence" "$site"; echo "install-presence: server_name frankendom.com; not found in $site" >&2; exit 1; }
 fi
 if ! nginx -t 2>/dev/null; then
   drop_include

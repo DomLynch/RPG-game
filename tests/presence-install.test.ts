@@ -2,7 +2,7 @@
 // against a throwaway root with stub systemctl/nginx/curl/openssl, so nothing here touches a real server. The installer is for the Linux VPS (GNU install -D), so the script tests skip elsewhere.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync, readlinkSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -78,7 +78,8 @@ test('install: the first install needs the public Supabase values, writes a 0600
     const site = s.read('etc/nginx/sites-enabled/frankendom.com');
     assert.equal(site.split('frankendom-presence.conf').length - 1, 1, 'exactly one include');
     assert.ok(site.indexOf('include') > site.lastIndexOf('listen 443'), 'in the :443 block, not the :80 one');
-    assert.ok(existsSync(join(s.root, 'etc/nginx/sites-enabled/frankendom.com.before-presence')), 'the prior site file is kept');
+    assert.equal(s.read('etc/nginx/backups/frankendom.com.before-presence'), SITE, 'the prior site file is kept, exactly as it was');
+    assert.deepEqual(readdirSync(join(s.root, 'etc/nginx/sites-enabled')), ['frankendom.com'], 'and OUTSIDE sites-enabled: nginx loads every file there, a backup would be a duplicate frankendom.com server block');
     const calls = s.calls();
     assert.match(calls, /systemctl enable frankendom-presence.service/);
     assert.doesNotMatch(calls, /systemctl restart/, 'OFF: nothing is started');
