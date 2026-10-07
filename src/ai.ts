@@ -18,7 +18,7 @@ export type Habits = {
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6,
+  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, reactP: .4, reactStep: .15, reactCap: .85, reactWindow: 90,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
@@ -44,6 +44,7 @@ export type AiState = {
   seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1;
   decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null;
   jitter: number; retreatUntil: number; hold: boolean; feint: boolean;
+  hitRun?: number; hitAt?: number;   // consecutive lights the player has landed on me, and the tick of the last one (profile.react)
   disengageUntil: number;   // the tick until which a landed blow is followed by a hop back out (profile.disengage)
   brace?: boolean;   // this threat is met in a guard that stops heavies (profile.braceHeavy), rolled once per threat
   habits: Habits; scores: Record<string, number>;
@@ -79,6 +80,15 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (profile.disengage && duel.events.some(e => e.type === 'Hit' && e.actor === me) && roll() < profile.disengage) next.disengageUntil = tick + 40;
   // Observe the opponent's habits from state edges (age 0 = this tick's start) and read them.
   const h = next.habits = { ...ai.habits, ticks: ai.habits.ticks + 1 };
+  // Hit-reactive defence (profile.react): lights the player lands on me in a row, read from the events alone (no classification of him). A defended
+  // light, or any other blow of his that lands, ends the run; it also lapses after READ.reactWindow * 2 ticks without a hit.
+  if (profile.react) {
+    for (const e of duel.events) {
+      if (e.type === 'Hit' && e.actor === 1 - me && e.target === me && !(e as { guarded?: boolean }).guarded) { next.hitRun = (e.move === 'light_left' || e.move === 'light_right') ? (next.hitRun ?? 0) + 1 : 0; next.hitAt = tick; }
+      else if ((e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged') && e.actor === me) next.hitRun = 0;
+    }
+    if (tick - (next.hitAt ?? -1e9) > READ.reactWindow * 2) next.hitRun = 0;
+  }
   if (opponent.phase === 'guard') h.guard++;
   if (opponent.phase === 'guard' && opponent.parrying && opponent.age === 0) h.parries++;
   if (opponent.phase === 'roll' && opponent.age === 0) h.rolls++;
@@ -170,6 +180,15 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       // time" spreads over lateNotice - 1 levels of reaction instead of one. No draw is made at spare <= 0, so a warden slower than the cut keeps its stream.
       const spare = timing(opponent).windup - reaction;
       if (next.plan !== 'ignore' && profile.softNotice && LATE_NOTICE && !TELLS.has(opponent.move ?? '') && !opponent.chained && spare > 0 && spare < READ.lateNotice && roll() >= (spare - 1) / (READ.lateNotice - 1)) next.plan = 'ignore';
+      // Hit-reactive defence: after taking a light hit the warden answers the NEXT light in the window with a defence, with a chance that rises per
+      // consecutive light hit taken. It picks by its own profile (a parry, else a roll, else a guard) and still answers at its own reaction.
+      if (profile.react && (next.hitRun ?? 0) > 0 && (opponent.move === 'light_left' || opponent.move === 'light_right') && tick - (next.hitAt ?? -1e9) <= READ.reactWindow
+        && roll() < Math.min(READ.reactCap, READ.reactP + READ.reactStep * ((next.hitRun ?? 1) - 1))) {
+        // the profile picks the answer (1 parry, 2 guard, 3 step back out of reach), falling back along parry > guard > step if it cannot afford it
+        const can = { parry: !self.parryCooldown && guardShare > 0, block: affordable && guardShare > 0, evade: true } as const;
+        const defence: AiPlan | null = profile.react === 1 && can.parry ? 'parry' : profile.react === 3 ? 'evade' : can.block ? 'block' : can.parry ? 'parry' : 'evade';
+        if (defence) next.plan = defence;
+      }
       next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
     }
   } else if (noticed && next.plan === 'block' && charging(opponent) && !next.brace) {   // a heavy seen to be charging will break the guard: change the answer
