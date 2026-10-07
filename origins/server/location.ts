@@ -8,28 +8,14 @@
 // the exchange zone (the whole zone is the trade area, Lead 05:4x) is served just outside the Exchange's outer gate, Pit side, 50 cm in.
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CONCORD, CONCORD_REGION, concordMounts } from '../world/concord.ts';
-import { toMetres, toWorld } from '../world/derive.ts';
-import { resolveZone } from '../world/resolve.ts';
-import { CENTRE_CM, zoneAt } from '../presence/zones.ts';
+import { inTradeArea, REJOIN_EDGE, zoneAt } from '../presence/zones.ts';
 import type { Db } from './db.ts';
 import * as store from './store.ts';
 
 export const ZONE_CM = 30000;   // presence's town square (origins/presence/interest.ts RULES.zoneCm); the migration's x/z check uses the same bound
-type Pt = { x: number; z: number };
 
-// The rejoin edge, from the Concord data in the one frame presence uses (origins/presence/zones.ts). #1577 (X2 Stage 1, not on trunk yet) adds the same point to
-// zones.ts as REJOIN_EDGE / clearOfTradeAreas; once it lands this module should import those instead of computing its own (a test pins that they agree).
-const outerGateCm = (): Pt => {
-  const mounts = concordMounts(), params = resolveZone(CONCORD, CONCORD_REGION, 'exchange');
-  const gate = params.ok ? toMetres(params.value).landmarks['outer-gate'] : undefined;
-  if (!mounts.ok || !gate) throw new Error('writer: the Exchange outer gate does not resolve');
-  const w = toWorld({ x: gate.x, d: gate.d }, mounts.value.exchange);
-  return { x: Math.round(CENTRE_CM + w.x * 100), z: Math.round(CENTRE_CM + w.z * 100) };
-};
-const GATE = outerGateCm();
-export const REJOIN_EDGE: Pt = { x: GATE.x, z: GATE.z + 50 };   // the Exchange's inward direction is world -z (heading π), so +z is the Pit side
-export const inTradeArea = (x: number, z: number): boolean => zoneAt(x, z) === 'exchange';
+// The rejoin edge and the trade area are presence's own (origins/presence/zones.ts, #1577): one definition for both servers.
+export { inTradeArea, REJOIN_EDGE };
 
 // Strategy's rule (a), no logout escape: a server-owned state that decides where the character stands (Feuds jail, an active bounty or feud, a duel in
 // progress) overrides the saved spot and never expires. The writer holds NO such state today (origins/feuds is a pure engine with no table; duels are not in
