@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 05:40 (+04, Mac clock) — research #18 (distance-scaled camera kick): CLOSED, "not needed on our camera"; flag stays off
+
+- **#1561 (live, flag off) used a wrong reference** (3.5 m): the lock camera sits 4.96-7.2 m from the fight (median 5.38, 1221 frames of a scripted Veteran fight), so it made every kick ~40% bigger. Re-referenced here to the measured median (5.37 m), plus `?look=kickscale-sep` (scale by fighter separation over the 1.25 m logged median: a different design that changes feel; for Dom to judge, never the default).
+- **Measured at the kicks** (VPS dummy-opponent harness, flag off): camera distance at the 10 real-fight hits 4.97-5.49 m, median 5.39, so the compensation factor is 0.93-1.02 (span 9.6%, p10-p90 5.06-5.49). The 0.94-1.34 over all frames is retreats, not hits. Strategy's bar (<~10%) is met: no compensation needed. Camera distance does not follow fighter separation (1.0 m and 1.6 m strikes: 5.27 and 5.47 m).
+- Roll tilt: peak tilt 6.8 deg flag off and on (6.77 / 6.81 / 6.87): the angle is not scaled by design and stays equal. The roll's shift could not be isolated (the camera follows the rolling hero, ~8 m of travel).
+- Evidence: ~/Desktop/Business/frankendom-kickscale/result3.json; tests 115 pass / 0 fail on the VPS (tsc's one error there is the scratch `globalThis.__cam` hook patched in by the harness, not in the PR).
+
 ## 2026-10-04 ~22:xx (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
 
 ### Now
