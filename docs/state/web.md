@@ -1,6 +1,6 @@
-## 2026-10-07 ~06:30 (+04) — HANDOFF before /clear (Lead). READ FIRST: #1587 MERGED; open: #1592 (headline follow-up), #1595 (?look=kickclose, refined rule, Auditor reviewing @c2de1443)
+## 2026-10-07 ~06:30 (+04) — HANDOFF before /clear (Lead). READ FIRST: #1587 MERGED; open: #1592 (headline follow-up), #1595 (?look=kickclose, refined rule, Lead says the Auditor was asked to review @c2de1443; no verdict seen)
 
-**ADDED ~06:30:** **#1595** `web/kick-close` @c2de1443: ?look=kickclose, default off; KICK lit if gap <= 1.5 m AND NOT (gap grew > 3 cm over 4 ticks AND the player was not hurt in that window) (Combat's refinement, Lead kept it: 427 whiffs removed / 75 landings lost vs the plain rule's 519 / 199; Combat's numbers, not re-run by Web). src/kick-close.ts + hud.ts + 2 main.ts lines; tests/kick-close.test.ts; stills on stills/fifty-1475 kick-close-v2 (the player's phase was not logged in the capture: stated in the body). With the Auditor; no GO yet. #1587 is merged (gh 06:30); #1592 is no longer stacked on anything open.
+**ADDED ~06:30:** **#1595** `web/kick-close` @c2de1443: ?look=kickclose, default off; KICK lit if gap <= 1.5 m AND NOT (gap grew > 3 cm over 4 ticks AND the player was not hurt in that window) (Combat's refinement, Lead kept it: 427 whiffs removed / 75 landings lost vs the plain rule's 519 / 199; Combat's numbers, not re-run by Web). src/kick-close.ts + hud.ts + 2 main.ts lines; tests/kick-close.test.ts; stills on stills/fifty-1475 kick-close-v2 (the player's phase was not logged in the capture: stated in the body). Lead says the Auditor was asked to review; no verdict or GO seen by Web. #1587 is merged (gh 06:30); #1592 is no longer stacked on anything open.
 
 ## (earlier, ~06:05) #1587 victory headline entry
 
