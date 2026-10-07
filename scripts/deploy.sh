@@ -126,11 +126,24 @@ if test -L current; then ln -sfn "$(readlink current)" previous; fi
 # A tab opened on the outgoing release still lazy-loads its hashed chunks (/assets/ is try_files =404): hard-link the outgoing
 # release's recent assets (built within 2 days, so history does not pile up) into the new one, never overwriting a file (2026-10-07).
 if test -d current/assets; then (cd current/assets && find . -type f -mtime -2 -exec cp -al --update=none --parents {} "$1/assets/" \;); fi
+# Carry /preview/ (look-test and Origins previews, published outside any release) into the new release BEFORE the switch: otherwise every
+# preview URL 404s (2026-10-07, 09a81037 went live without /preview/). Fails loudly, so the switch never happens without them.
+# carry-previews begin
+carry_previews() {
+  [ -d current/preview ] || return 0
+  [ -e "$1/preview" ] || cp -al current/preview "$1/preview"
+  [ -d "$1/preview" ] || { echo "carry-previews: $1/preview missing after the carry" >&2; return 1; }
+  echo "previews carried: $(find "$1/preview" -mindepth 1 -maxdepth 1 | wc -l | tr -d " ") folders"
+}
+# carry-previews end
+carry_previews "$1"
 ln -sfn "$1" next
 mv -Tf next current
 REMOTE
 cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
 cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
+# The previews are published outside a release and carried by carry_previews: a switch that left them 404 must not pass silently.
+curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || { echo "preview check: /preview/origins/ is not 200 after the switch" >&2; exit 1; }
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
