@@ -38,6 +38,7 @@ export function createHud(element: Lookup) {
   const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
   let dmgCursor = 0;
   let lastHud = '';
+  let staminaLowOn = false;   // ?look=fatigue-preview's low-stamina state (hysteresis needs the previous one)
   const gaps = createGapHistory();   // ?look=kickclose (kick-close.ts): the last few ticks of the gap
   return {
     // Force the next update to write everything (the debug toggle relabels the buttons).
@@ -61,9 +62,10 @@ export function createHud(element: Lookup) {
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
       const me = practice.duel.fighters[0], skillMove = me.skill ? weaponOf(me.weapon).moves[SKILL_MOVE[me.skill]] : null;
       const inSkillReach = skillMove?.path === null ? gap <= skillMove.reach : null;
-      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}${skillOk ? 1 : 0}:${practice.wound > 0}:${practice.exhausted}:${practice.threat}:${practice.threatMove}:${inKickReach}:${inSkillReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}${view.debug ? 'd' : ''}`;   // d: ?debug shown follows the test tools (#1093), so an admin opening them rewrites #debug
+      const lowNext = !!view.fatiguePreview && staminaLow(practice.stamina, staminaLowOn);   // in the skip key below: the floor of stamina alone would hide a 10.0 / 10.7 crossing
+      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}${lowNext ? 'L' : ''}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}${skillOk ? 1 : 0}:${practice.wound > 0}:${practice.exhausted}:${practice.threat}:${practice.threatMove}:${inKickReach}:${inSkillReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}${view.debug ? 'd' : ''}`;   // d: ?debug shown follows the test tools (#1093), so an admin opening them rewrites #debug
       if (key === lastHud) return;
-      lastHud = key;
+      lastHud = key; staminaLowOn = lowNext;
       health.max = practice.enemyMaxHealth;
       playerHealth.max = practice.maxHealth; // an opponent may carry more than a man (moves.ts `Opponent.health`)
       health.value = practice.health;
@@ -80,7 +82,7 @@ export function createHud(element: Lookup) {
       stamina.dataset.capped = String(practice.maxStamina < 100);   // a wound has lowered the ceiling: the bar draws a solid cap and a notch at --max (style.css)
       stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
       stamina.value = practice.stamina;
-      stamina.dataset.low = String(!!view.fatiguePreview && staminaLow(practice.stamina));   // ?look=fatigue-preview: red and a gentle pulse in the last 10 % (style.css)
+      stamina.dataset.low = String(staminaLowOn);   // ?look=fatigue-preview: red and a gentle pulse in the last 10 %, with hysteresis (style.css, fatigue-preview.ts)
       element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
       for (const [id, value] of [
         ['posture', practice.posture],
