@@ -2,7 +2,8 @@
 // hysteresis, the facing, the cap and the cull. Pure: no DOM.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { frontierBuild, frontierPlan } from './frontier-plan.ts';
+import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
+import { mobLook } from './mob-looks.ts';
 import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
@@ -36,7 +37,7 @@ test('each creature carries the body, level and encounter its character record n
 test('every home stands inside its own zone, clear of every building, and nobody starts near the Exchange', () => {
   for (const s of SPECS) {
     assert.ok(standOf(s)(s.home.x, s.home.z), `${s.id} home is not walkable ground`);
-    assert.ok(F.zones.find((z) => z.zone === s.zone)!.region === 'region:ash-frontier');
+    assert.ok(F.zones.find((z) => z.zone === s.zone)!.region === FRONTIER);
   }
   const exchangeEdge = F.road.to;
   assert.ok(SPECS.every((s) => Math.hypot(s.home.x - exchangeEdge.x, s.home.z - exchangeEdge.z) > 15), 'no creature starts at the Exchange gate');
@@ -141,4 +142,12 @@ test('visible set: the nearest twelve inside 45 m, nearest first; the rest culle
   assert.deepEqual(pickVisible(ring, at(0, 0), 99), [...Array(16).keys()], 'nothing past 45 m (index 15 is 45 m out)');
   assert.deepEqual(pickVisible(ring, at(1000, 0)), []);
   assert.equal(pickVisible(SPECS.map((s) => s.home), SPECS[0]!.home).length <= TUNING.cap, true);
+});
+
+test("every creature on the Frontier has a look in Characters' mob-looks table, on the body the plan gives it", () => {
+  for (const s of SPECS) {
+    const look = mobLook(s.character);
+    assert.ok(look, `${s.id} (${s.character}) has no mob look`);
+    assert.equal(look.opponent, s.body, `${s.id}: the look dresses a ${look.opponent}, the plan gives it a ${s.body}`);
+  }
 });

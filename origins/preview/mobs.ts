@@ -6,8 +6,7 @@
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import type { CharacterId } from '../contracts/ids.ts';
-import { FRONTIER_REGION } from '../region1/world.ts';
-import { inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
+import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
 export type Pos = { x: number; z: number };
 export type MobSpec = {
@@ -58,9 +57,9 @@ export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): bo
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
 export function mobSpecs(f: Frontier, b: Build): MobSpec[] {
-  const reg = f.data.registry.regions.get(FRONTIER_REGION as never)!, out: MobSpec[] = [];
+  const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
   for (const sp of reg.spawns) {
-    const zone = f.zones.find((z) => z.region === FRONTIER_REGION && Object.hasOwn(z.landmarks, sp.at));
+    const zone = f.zones.find((z) => z.region === FRONTIER && Object.hasOwn(z.landmarks, sp.at));
     if (!zone) continue;
     // Who: the spawn's creatures (their `mob` form), or the boss of its encounter (the form that names that encounter).
     const who: { id: CharacterId; form: { id: string; opponent: string | null; level: number | null } }[] = [];

@@ -1571,6 +1571,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
+      if (kind === 'ready') view?.startStandoff();
       if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
