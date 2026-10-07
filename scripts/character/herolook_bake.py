@@ -38,6 +38,14 @@ bpy.ops.mesh.select_all(action="SELECT")
 if os.environ.get("BAKE_WELD", "0") == "1":   # off: welding fuses armour to the body under it (tested 2026-09-26)
     bpy.ops.mesh.remove_doubles(threshold=height * 0.0002)   # TRELLIS splits vertices along its UV seams: weld them so collapse sees one surface
 bpy.ops.object.mode_set(mode="OBJECT")
+# BAKE_REMESH=<voxel size as a fraction of height>: a muscular sculpt decimates into triangle soup (each triangle its own UV island, so the
+# bake speckles white). Voxel-remeshing first gives one clean manifold surface; the baked maps still carry the fine detail.
+remesh = float(os.environ.get("BAKE_REMESH", "0"))
+if remesh:
+    rm = low.modifiers.new("Remesh", "REMESH")
+    rm.mode = "VOXEL"
+    rm.voxel_size = height * remesh
+    bpy.ops.object.modifier_apply(modifier=rm.name)
 tris = sum(len(p.vertices) - 2 for p in low.data.polygons)
 mod = low.modifiers.new("Reduce", "DECIMATE")
 mod.ratio = min(1.0, TRIS / tris)
