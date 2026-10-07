@@ -51,7 +51,7 @@ export function frontierDress(f: Frontier, b: Build): Dress {
     // The walker's first view: the west road's line carried on past its end, kept clear of props (the camera trails 6 m behind), plus a ring round where it ends.
     const rd = f.road, ux = Math.sin(rd.facing), uz = Math.cos(rd.facing), sight = (x: number, zz: number, r: number) => {
       const along = (x - rd.from.x) * ux + (zz - rd.from.z) * uz, across = Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux);
-      return (along > -10 && along < 60 && across < rd.width / 2 + r + 6) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
+      return (along > -10 && along < 60 && across < rd.width / 2 + r + 10) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
     };
     const free = (x: number, zz: number, r: number, low = false) => inZone(z, x, zz, r + 2)
       && !onRoad(f, x, zz) && (low || !sight(x, zz, r)) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
