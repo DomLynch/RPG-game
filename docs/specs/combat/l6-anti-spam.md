@@ -46,7 +46,7 @@ Probe patches (scratch clone only): a per-fight habit `run` (consecutive lights)
 | shieldmaiden | 5 + old read | 119 -> 81 | 81/82 -> 80/81 | 94/97 -> 93/90 | pass at n = 120 except skilled L12 -7; re-measured at n = 240: skilled L12 94 -> 90 (-4), blocker L12 79 -> 75 (-4): pass |
 | pitborn | 6 | 116 -> 88 | 58/40 -> 63/53 | 63/54 -> 58/56 | **MISS by 1 point, reported**: skilled L6 at n = 240: base 70, gate 5 -> 61 (-9), gate 6 -> 64 (-6), gate 7 -> 66 (-4) but light spam 47/48 (98 %, over the cap). Gate 6 is the smallest change that clears the cap (88/120 = 73 %) and it is -6 +/- 3 (one standard error at n = 240) on one cell |
 
-L1 is untouched everywhere (light spam 48/48 and the tap-attack first-timer unchanged, blocker 100 / skilled 100 at L1 in every row). Light spam target (under 80 % at L6 for every opponent, Shieldmaiden included): met for all five.
+L1 (measured on the real branch, n = 120, base -> gate): tap-attack first-timer 120/120 -> 120/120 for veteran, pitborn and shieldmaiden, knight 117 -> 120, dwarf 120 -> 118; light spam 120/120 everywhere before and after (the novice rung stays a win, by design); human-like blocker and skilled 100 at L1 in every row. Light spam target (under 80 % at L6 for every opponent, Shieldmaiden included): met for all five.
 
 **Not measured:** L18-L50 honest bots (the gate is on every level; the full gate suite below is the check), and the human-like bots at L1/L6/L12 for the five only; the other nine opponents are unchanged by construction (absent knob).
 
