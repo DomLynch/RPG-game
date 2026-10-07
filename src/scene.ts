@@ -22,7 +22,7 @@ import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFo
 import { levelOf, type Tier } from './grades.ts';
 import { nextRungFiles } from './gate-light.ts';
 import { kitWorn, type Loot } from './loot.ts';
-import { standoffFlag, standoffPose } from './standoff.ts';
+import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { type FinisherId } from './finishers.ts';
@@ -518,7 +518,7 @@ export function createScene(
   const blade = createBladeBlood();
   let heading = Math.PI;
   const standoffOn = typeof location !== 'undefined' && standoffFlag(location.search);   // on by default, ?standoff=0 off (standoff.ts)
-  let standoffAge = -1;   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
+  const standoff = standoffClock();   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
@@ -549,7 +549,8 @@ export function createScene(
     retryArt: loadFighters,
     // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
     // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
-    startStandoff() { if (standoffAge < 0) standoffAge = 0; },   // main.ts, the moment the versus card lifts (a no-op with ?standoff=0)
+    startStandoff() { standoff.start(); },   // main.ts, the moment the versus card lifts: idempotent (an art retry re-emits 'ready' mid-fight)
+    restartStandoff() { standoff.restart(); },   // main.ts nextFight: the rematch plays the draw-in again (a no-op with ?standoff=0)
     walkToGate(on: boolean) {
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE } : null);   // the gate comes inward with the arena (play-radius.ts)
@@ -1072,8 +1073,8 @@ export function createScene(
         if (h?.slam !== undefined) { slam = h.slam; slams[side] = h.slam; }
         return h?.pose ?? p;
       };
-      if (standoffAge >= 0 && standoffAge < 1e6) standoffAge += dt * 1000;
-      const stand = (p: ReturnType<typeof actorPose>) => standoffOn && standoffAge >= 0 && !walking && !practice.finish ? standoffPose(p, standoffAge) : p;
+      standoff.advance(dt * 1000);
+      const stand = (p: ReturnType<typeof actorPose>) => standoffOn && standoff.age >= 0 && !walking && !practice.finish ? standoffPose(p, standoff.age) : p;
       const mine = stand(struck(held(actorPose(practice, 0), 0), 0)),
         theirs = stand(struck(held(actorPose(practice, 1), 1), 1));
       // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).

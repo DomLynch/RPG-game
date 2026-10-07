@@ -7,7 +7,7 @@
 # install-presence.sh --link-writer. It must NOT set DATABASE_URL (it is read after verifier.env and would override it). Without those keys the files are installed but the service is NOT started.
 # The flag (origins_config.origins_enabled) and the allowlist (origins_access) are the database's and are not touched here: until Strategy + Lead flip them
 # the route answers 403 for everyone. Touches only: /opt/frankendom-origins/<revision> (+ `current`), the unit, /etc/nginx/snippets/frankendom-origins-writer.conf,
-# /etc/nginx/conf.d/frankendom-origins-limits.conf and ONE include line in the frankendom.com :443 server block (prior copy kept as <site>.before-origins-writer).
+# /etc/nginx/conf.d/frankendom-origins-limits.conf and ONE include line in the frankendom.com :443 server block (prior copy kept as /etc/nginx/backups/frankendom.com.before-origins-writer, OUTSIDE sites-enabled).
 # nginx reloads only after `nginx -t` passes; on failure the include is taken back out.
 set -euo pipefail
 r="${ORIGINS_INSTALL_ROOT:-}"   # empty on the box; a scratch directory in tests, with stub nginx/systemctl on PATH
@@ -18,11 +18,12 @@ unit=$r/etc/systemd/system/frankendom-origins-writer.service
 env=$r/etc/frankendom/origins-writer.env
 venv=$r/etc/frankendom/verifier.env
 opt=$r/opt/frankendom-origins
+backup="$r/etc/nginx/backups"   # as install-presence.sh: OUTSIDE sites-enabled, which nginx loads whole (a stale copy of the frankendom.com block is a duplicate server)
 include="    include $snippet;   # frankendom origins writer"
 
 if [ "${1:-}" = "--rollback" ]; then
   systemctl disable --now frankendom-origins-writer.service 2>/dev/null || true
-  if grep -qF "$snippet" "$site"; then grep -vF "$snippet" "$site" > "$site.tmp" && cat "$site.tmp" > "$site" && rm -f "$site.tmp"; fi
+  if grep -qF "$snippet" "$site"; then install -d -m 0700 "$backup"; grep -vF "$snippet" "$site" > "$backup/site.tmp" && cat "$backup/site.tmp" > "$site" && rm -f "$backup/site.tmp"; fi
   rm -f "$snippet" "$limits" "$unit"; systemctl daemon-reload
   nginx -t >&2 || { echo "install-origins-writer: ROLLBACK INCOMPLETE: nginx -t failed after the include was removed; the running nginx still proxies /origins/* (the service is already stopped). Fix the nginx config and reload it by hand." >&2; exit 1; }
   systemctl reload nginx || { echo "install-origins-writer: ROLLBACK INCOMPLETE: nginx -t passed but the reload failed; the running nginx still proxies /origins/*. Reload it by hand." >&2; exit 1; }
@@ -47,6 +48,7 @@ install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer
 install -m 0644 "$here/package.json" "$dest/package.json"
 ln -sfn "$dest" "$opt/current"
 install -d -m 0700 "$r/etc/frankendom"
+install -d -m 0700 "$backup"   # before any branch: the nginx -t failure path writes its temp file here even on a re-install where the include is already present
 install -d "$r/etc/nginx/snippets" "$r/etc/nginx/conf.d" "$r/etc/systemd/system"
 install -m 0644 "$here/ops/frankendom-origins-writer.service" "$unit"
 install -m 0644 "$here/ops/nginx/frankendom-origins-writer.conf" "$snippet"
@@ -54,13 +56,13 @@ install -m 0644 "$here/ops/nginx/frankendom-origins-limits.conf" "$limits"
 systemctl daemon-reload
 
 if ! grep -qF "$snippet" "$site"; then
-  cp "$site" "$site.before-origins-writer"
+  install -d -m 0700 "$backup"; cp "$site" "$backup/frankendom.com.before-origins-writer"
   # After the `server_name frankendom.com;` line: that exact line is the apex :443 block (the :80 block names www too, www only redirects).
-  awk -v inc="$include" '{ print } /^[[:space:]]*server_name frankendom\.com;[[:space:]]*$/ && !done { print inc; done = 1 }' "$site.before-origins-writer" > "$site"
-  grep -qF "$snippet" "$site" || { cp "$site.before-origins-writer" "$site"; echo "install-origins-writer: server_name frankendom.com; not found in $site" >&2; exit 1; }
+  awk -v inc="$include" '{ print } /^[[:space:]]*server_name frankendom\.com;[[:space:]]*$/ && !done { print inc; done = 1 }' "$backup/frankendom.com.before-origins-writer" > "$site"
+  grep -qF "$snippet" "$site" || { cp "$backup/frankendom.com.before-origins-writer" "$site"; echo "install-origins-writer: server_name frankendom.com; not found in $site" >&2; exit 1; }
 fi
 if ! nginx -t 2>/dev/null; then
-  grep -vF "$snippet" "$site" > "$site.tmp" && cat "$site.tmp" > "$site" && rm -f "$site.tmp"
+  grep -vF "$snippet" "$site" > "$backup/site.tmp" && cat "$backup/site.tmp" > "$site" && rm -f "$backup/site.tmp"
   nginx -t >&2 || true; echo "install-origins-writer: nginx -t failed; include removed, nothing reloaded" >&2; exit 1
 fi
 systemctl reload nginx

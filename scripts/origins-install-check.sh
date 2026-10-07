@@ -50,6 +50,8 @@ expect "one include inserted" "$(includes)" 1
 [ -f "$tmp/root/opt/frankendom-origins/rev1/scripts/origins-writer.mjs" ] && ok || fail "writer not copied"
 [ -z "$(find "$tmp/root/opt/frankendom-origins/rev1/origins" -name '*.test.ts' | head -1)" ] && ok || fail "tests were copied"
 [ -L "$tmp/root/opt/frankendom-origins/current" ] && ok || fail "current symlink missing"
+expect "sites-enabled holds only the site (nginx loads every file there: a backup would be a duplicate frankendom.com server)" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
+expect "the prior site file is kept in /etc/nginx/backups, exactly as it was" "$(cksum < "$tmp/root/etc/nginx/backups/frankendom.com.before-origins-writer")" "$before"
 case "$(cat "$STUB_LOG")" in *"enable --now"*) fail "the service was started without an env file" ;; *) ok ;; esac
 run rev1
 expect "re-install is idempotent" "$(includes)" 1
@@ -77,6 +79,13 @@ contains "the diagnostic is kept" "$out" "[emerg] stub failure"
 contains "and the message says nothing was reloaded" "$out" "nginx -t failed; include removed, nothing reloaded"
 expect "the include was taken back out" "$(includes)" 0
 expect "the site file is as it was" "$(cksum < "$(site)")" "$before"
+expect "and sites-enabled is clean (no stray .tmp or backup)" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
+
+# N1b: a RE-install (include already present, backups dir missing) whose nginx -t fails must really take the include out
+fresh; run rev1; rm -rf "$tmp/root/etc/nginx/backups"; export NGINX_RC=1; run rev1
+expect "a failing nginx -t on a re-install exits non-zero" "$rc" 1
+expect "and the include is really gone, not just reported gone" "$(includes)" 0
+expect "and sites-enabled is still clean" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
 
 # N2: node >= 22.18
 fresh; export FAKE_NODE=v20.11.0; run rev4
@@ -91,6 +100,7 @@ fresh; run rev1; expect "install before the rollback" "$(includes)" 1
 run --rollback
 expect "a rollback exits 0 when nginx is fine" "$rc" 0
 expect "the include is gone" "$(includes)" 0
+expect "a rollback leaves sites-enabled clean too" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
 [ ! -e "$tmp/root/etc/nginx/snippets/frankendom-origins-writer.conf" ] && [ ! -e "$tmp/root/etc/nginx/conf.d/frankendom-origins-limits.conf" ] && [ ! -e "$tmp/root/etc/systemd/system/frankendom-origins-writer.service" ] && ok || fail "rollback left files behind"
 contains "the service was disabled" "$(cat "$STUB_LOG")" "disable --now frankendom-origins-writer.service"
 fresh; run rev1; export NGINX_RC=1; run --rollback

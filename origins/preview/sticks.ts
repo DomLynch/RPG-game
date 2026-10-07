@@ -4,6 +4,7 @@
 import { SPRINT_PUSH } from '../../src/input.ts';
 export const STICK_R = 48;      // px of thumb travel that is one full push (the rim)
 export const RUN_PUSH = SPRINT_PUSH;   // the rim is 1; past it (1.4) the move stick runs: the Pit pad's own number, imported not restated
+export const LOOK_GAIN = 0.5;   // the right stick's sensitivity: Dom found it twice too quick (2026-10-07)
 export const DEAD = 0.12;       // a push shorter than this is a resting thumb
 export type Pad = { x0: number; y0: number; x: number; y: number } | null;
 export type Intent = { forward: number; strafe: number; turn: number; pitch: number; running: boolean };
@@ -23,7 +24,7 @@ export function intent(move: Pad, look: Pad): Intent {
   }
   if (look) {
     const dx = (look.x - look.x0) / STICK_R, dy = (look.y0 - look.y) / STICK_R;
-    if (Math.hypot(dx, dy) >= DEAD) { turn = -clamp(dx, -1, 1); pitch = clamp(dy, -1, 1); }
+    if (Math.hypot(dx, dy) >= DEAD) { turn = -clamp(dx, -1, 1) * LOOK_GAIN; pitch = clamp(dy, -1, 1) * LOOK_GAIN; }
   }
   return { forward, strafe, turn, pitch, running };
 }

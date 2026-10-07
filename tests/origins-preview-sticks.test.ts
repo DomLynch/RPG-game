@@ -1,7 +1,7 @@
 // The two thumb sticks (origins/preview/sticks.ts): walk, run past the rim, strafe, turn, tilt, and the resting-thumb dead zone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEAD, RUN_PUSH, STICK_R, intent, type Pad } from '../origins/preview/sticks.ts';
+import { DEAD, LOOK_GAIN, RUN_PUSH, STICK_R, intent, type Pad } from '../origins/preview/sticks.ts';
 
 const pad = (dx: number, dy: number): Pad => ({ x0: 100, y0: 300, x: 100 + dx, y: 300 + dy });   // dy < 0 is a push UP the screen
 const NONE = { forward: 0, strafe: 0, turn: 0, pitch: 0, running: false };
@@ -31,13 +31,14 @@ test('pushed well past the rim, forward RUNS (the Pit\'s deliberate push); never
 
 test('right stick: right turns right (negative turn, like key D), up tilts the camera up, and it never moves the hero', () => {
   const r = intent(null, pad(STICK_R, -STICK_R));
-  assert.equal(r.turn, -1); assert.equal(r.pitch, 1); assert.equal(r.forward, 0);
+  assert.equal(r.turn, -LOOK_GAIN); assert.equal(r.pitch, LOOK_GAIN); assert.equal(r.forward, 0);
   const l = intent(null, pad(-STICK_R, STICK_R));
-  assert.equal(l.turn, 1); assert.equal(l.pitch, -1);
-  assert.equal(intent(null, pad(10 * STICK_R, 0)).turn, -1, 'turn is clamped to 1');
+  assert.equal(l.turn, LOOK_GAIN); assert.equal(l.pitch, -LOOK_GAIN);
+  assert.equal(intent(null, pad(10 * STICK_R, 0)).turn, -LOOK_GAIN, 'turn is clamped to a full push');
+  assert.equal(LOOK_GAIN, 0.5, 'Dom: the look stick was twice too quick');
 });
 
 test('both thumbs at once combine into one intent', () => {
   const both = intent(pad(0, -STICK_R), pad(-STICK_R / 2, 0));
-  assert.equal(both.forward, 1); assert.equal(both.turn, 0.5);
+  assert.equal(both.forward, 1); assert.equal(both.turn, 0.5 * LOOK_GAIN);
 });

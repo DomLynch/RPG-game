@@ -3,6 +3,7 @@ import type { ArenaMaterials } from '../../src/arena.ts';
 import { meshPieces } from './exchange.ts';
 import type { Board, Build } from './frontier-plan.ts';
 import type { Dress } from './frontier-dress.ts';
+import type { Camp } from './frontier-camp.ts';
 
 // ?region=1: the Ash Frontier greybox from frontier-plan.ts (blocks, the west road, signposts, townsfolk). Massing and signage only; no
 // light, fog or sky here (the World lane's look.ts reads each zone's ambience.preset).
@@ -36,10 +37,19 @@ function dirtMaterial(): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ map, roughness: 1 });
 }
 
-export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build, dress?: Dress): THREE.Group {
+// A camp's night light on the ground: one additive radial disc (no light object, no shadow), soft at the rim.
+function campGlow(c: Camp): THREE.Mesh {
+  const N = 128, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d')!, gr = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2);
+  gr.addColorStop(0, c.glow.color); gr.addColorStop(0.45, `${c.glow.color}55`); gr.addColorStop(1, `${c.glow.color}00`); g.fillStyle = gr; g.fillRect(0, 0, N, N);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(c.glow.radius * 2, c.glow.radius * 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, opacity: c.glow.opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  mesh.rotation.x = -Math.PI / 2; mesh.position.set(c.glow.x, 0.12, c.glow.z); mesh.name = 'camp-glow'; return mesh;
+}
+
+export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = []): THREE.Group {
   const group = new THREE.Group(); group.name = 'ash-frontier'; scene.add(group);
   meshPieces(group, b.pieces, m, 'frontier');
   if (dress) { meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial() }); meshPieces(group, dress.pieces, m, 'frontier-dress'); }   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
+  if (camps.length) { meshPieces(group, camps.flatMap((c) => c.pieces), m, 'camp'); for (const c of camps) group.add(campGlow(c)); }   // frontier-camp.ts: fire, seats, bedrolls, crates and the soft ground glow
   for (const f of b.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));
     body.position.set(f.x, 0.87, f.z); body.castShadow = true; group.add(body);
