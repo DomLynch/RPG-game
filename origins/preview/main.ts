@@ -11,6 +11,7 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
+import { loadFailure } from './fight-load.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -194,8 +195,15 @@ async function startFight(pick?: string): Promise<PitFight | null> {
   renderer.setAnimationLoop(null);
   document.getElementById('art-status')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
   try { duel ??= await import('./pit-duel.ts'); } catch {
-    // the chunk did not load (offline, a stale deploy): back to the walk, the fight not counted, the prompt retries; a stale failure does nothing
-    if (fighting && fight === next) { duelFailed = true; session = before; fight = null; leaveFight(); showCareer(); hint.textContent = 'Could not load the duel. Tap “Fight in the Pit” to retry.'; hint.hidden = false; }
+    // the chunk did not load (offline, a stale deploy): the fight not counted (even if the player left meanwhile), back to the walk with the
+    // retry hint if still in the duel; a failure for a fight since replaced does nothing (fight-load.ts)
+    const failed = loadFailure(fight === next, fighting);
+    if (failed !== 'none') {
+      duelFailed = true; session = before; fight = null;
+      if (failed === 'restore-and-hint') leaveFight();
+      showCareer();
+      if (failed === 'restore-and-hint') { hint.textContent = 'Could not load the duel. Tap “Fight in the Pit” to retry.'; hint.hidden = false; }
+    }
     return null;
   }
   if (!fighting || fight !== next) return next;   // left (or restarted) while the chunk loaded

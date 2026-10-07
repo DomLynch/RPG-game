@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { readFile, readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL, URLSearchParams } from 'node:url';
 import { basename } from 'node:path';
 import { optimizeGlb } from '../../scripts/optimize-glb.mjs';
 import { liveKit } from './live-kit.mjs';

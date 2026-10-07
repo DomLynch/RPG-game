@@ -13,7 +13,8 @@ import type { Location } from '../contracts/items.ts';
 import { applyUpgrade, BANK_PLACE, find } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../progression/model.ts';
 import { DbError } from './db.ts';
-import { BadRequest, Conflict, NotImplemented, type Handler } from './handlers.ts';
+import { Refused } from './errors.ts';
+import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
 
@@ -36,7 +37,7 @@ function canonical(raw: unknown): UpgradeReceipt {
 function refusal(issues: readonly Issue[]): Error {
   const text = issues.map(i => `${i.path}: ${i.message}`).join('; ');
   if (issues.some(i => i.code === 'duplicate-id' && (i.path === 'idempotencyKey' || i.path === 'op'))) return new Conflict(text);
-  if (issues.some(i => i.path === 'balance')) return new NotImplemented(`${COIN_NOT_BUILT} (${text})`);   // balance 0: only a coin > 0 row is refused here
+  if (issues.some(i => i.path === 'balance')) return new Refused(501, `${COIN_NOT_BUILT} (${text})`, 'not-implemented');   // balance 0: only a coin > 0 row is refused here
   if (issues.some(i => i.code === 'version-conflict')) return new DbError('O0002', `stale: ${text}; open again and retry`);
   return new BadRequest(text);
 }
@@ -47,7 +48,7 @@ const locOf = (l: Location): store.Json => (l.kind === 'equipped' ? { kind: l.ki
 export function upgradeHandler(content: Content, now: () => string = () => new Date().toISOString()): Handler {
   return async ({ db, account }, body) => {
     const smith = content.smith;
-    if (!smith) throw new NotImplemented('there is no smith in this content');
+    if (!smith) throw new Refused(501, 'there is no smith in this content', 'not-implemented');
     const { character, op, instance, toLevel, materials = [], place } = body;
     if (typeof op !== 'string' || op.length > 120) throw new BadRequest('op: an operation id (8..120 of a-z 0-9 : . _ -)');   // the event id must fit 200
     if (typeof character !== 'string') throw new BadRequest('character: a character id');   // checked before it is spliced into the event id
@@ -85,7 +86,7 @@ export function upgradeHandler(content: Content, now: () => string = () => new D
     const first = await decide();
     const { outcome } = first;
     if (outcome.replayed) return answer(outcome);
-    if (outcome.receipt.coin !== 0) throw new NotImplemented(COIN_NOT_BUILT);   // unreachable at balance 0; never commit a charge nobody holds
+    if (outcome.receipt.coin !== 0) throw new Refused(501, COIN_NOT_BUILT, 'not-implemented');   // unreachable at balance 0; never commit a charge nobody holds
     const applied = applyUpgrade({ inventory: first.inventory, ledger: [] }, outcome, content.lookup, at);
     if (!applied.ok) throw refusal(applied.issues);
     const held = new Map(first.inventory.items.map(i => [i.id, i]));

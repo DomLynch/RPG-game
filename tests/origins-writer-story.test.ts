@@ -4,9 +4,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import process from 'node:process';
 import { creditFromMarks, levelOfCredit, basePay, TYPE_WEIGHTS } from '../origins/progression/model.ts';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { loadStoryContent, readStoryContent } from '../origins/server/content.ts';
@@ -280,7 +282,7 @@ test('the registry: with no content loaded both ops answer 503; with the bundle 
     return { server, call: async (op: string, body: unknown) => { const res = await fetch(url + op, { method: 'POST', headers: { authorization: 'Bearer tok' }, body: JSON.stringify(body) }); return { status: res.status, body: await res.json() as { error?: string } }; } };
   };
   const calls = [['quest_advance', { character: PA, quest: CQ, stage: 'smith' }], ['talk_pick', { character: PA, npc: NPC, line: 'greet-first' }]] as const;
-  const bare = await serve(handlers);   // ORIGINS_CONTENT is unset under the test runner
+  const bare = await serve(handlers);   // the default registry: no content, whatever ORIGINS_CONTENT says (the entry point loads it)
   try {
     for (const [op, body] of calls) {
       const res = await bare.call(op, body);
@@ -294,6 +296,12 @@ test('the registry: with no content loaded both ops answer 503; with the bundle 
     for (const [op, body] of calls) assert.equal((await loaded.call(op, body)).status, 200, op);
     assert.equal(f.commits.length, 2);
   } finally { loaded.server.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('importing the registry reads no env and no file: ORIGINS_CONTENT naming a missing bundle neither throws nor loads', () => {
+  const probe = `const h = await import(${JSON.stringify(new URL('../origins/server/handlers.ts', import.meta.url).href)}); console.log(JSON.stringify([Object.keys(h).includes('content'), Object.keys(h.handlers).sort()]));`;
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', probe], { env: { ...process.env, ORIGINS_CONTENT: join(tmpdir(), 'origins-no-such-bundle', 'missing.json') }, encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(out), [false, ['create_character', 'open', 'quest_advance', 'talk_pick']]);
 });
 
 test('content: a bundle that does not load stops the writer', () => {
