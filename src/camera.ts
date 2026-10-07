@@ -9,6 +9,13 @@ import type { FinisherId } from './finishers.ts';
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 
 const AIM_PER_SHRINK = 1.4;   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36)
+// How tall each foe LOOKS against a man's, for the camera only. The sim's `scale` (moves.ts OPPONENTS[id].scale) is a hitbox/rate number and stays put (it is in the record's
+// SIM_FILES); a foe whose body is not a man's by that number says so here. The Ash Wolf is ~.8 m at the back (the sim says .8 for its rates): behind the hero's head at bite range
+// without this. The Wraith is a tall rig whose head and scythe tip left the top of the lock frame. Every other foe is absent: the sim scale it always had.
+export const FRAMING_SCALE: Readonly<Record<string, number>> = { wolf: 0.45, wraith: 1.35 };
+export const framingScale = (id: string, simScale: number): number => FRAMING_SCALE[id] ?? simScale;
+const TALL_BACK = 2.4,   // metres the lock camera backs off, per unit of foe height above a man's, so his head and weapon tip stay in the frame
+  TALL_LIFT = 1.6;   // ...and rises
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
   SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
   SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
@@ -22,10 +29,11 @@ export function cameraPose(
 ) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
-  const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);   // the original lock (Dom 2026-10-05 chose it over the 10-03 flatter one: HUD over sand, not the painting)
+  const tall = locked ? Math.max(0, targetScale - 1) : 0;   // a foe above a man's height (the Wraith): back off and up; nothing for a man or a shorter one
+  const back = (locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch)) + tall * TALL_BACK;   // the original lock (Dom 2026-10-05 chose it over the 10-03 flatter one: HUD over sand, not the painting)
   let x = state.x + Math.sin(yaw) * back,
     z = state.z + Math.cos(yaw) * back,
-    y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
+    y = (locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch)) + tall * TALL_LIFT;
   // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's back at close range. Where a man at this gap would be
   // hidden below the player's shoulders, step the lock camera over the player's left shoulder so the line to him passes
   // SIDE_CLEAR per unit of missing height beside the player's spine; nothing for a man or a bigger one, nothing once in the clear.
