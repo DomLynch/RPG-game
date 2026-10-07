@@ -33,8 +33,8 @@ function labelSprite(text: string, named: boolean): THREE.Sprite {
   g.lineWidth = 7; g.strokeStyle = 'rgba(10,8,6,0.85)'; g.strokeText(text, c.width / 2, c.height / 2);
   g.fillStyle = named ? '#f2c66d' : '#ece0c8'; g.fillText(text, c.width / 2, c.height / 2);
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false }));
-  s.scale.set(2.4, 0.45, 1); return s;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
+  s.scale.set(0.2, 0.0375, 1); return s;   // sizeAttenuation off: the same size on screen at any distance (a creature next to the camera no longer fills it)
 }
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -42,8 +42,8 @@ function bangSprite(): THREE.Sprite {
   g.font = '800 56px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineWidth = 8; g.strokeStyle = 'rgba(10,8,6,0.9)'; g.strokeText('!', 32, 34); g.fillStyle = '#ff5a3c'; g.fillText('!', 32, 34);
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false }));
-  s.scale.set(0.5, 0.5, 1); return s;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
+  s.scale.set(0.045, 0.045, 1); return s;
 }
 
 export type Mobs = { update(dt: number, hero: { x: number; z: number }): void; debug(): unknown };
