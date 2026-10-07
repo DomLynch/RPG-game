@@ -164,7 +164,14 @@ try {
   // Lead's level floor (#621): a win fought below the dial floor under the account's SERVER rank is refused with its reason: no mark.
   // Scripted walk-in wins at exact levels (seeds found by search): level 1 (a fresh device at the device count), 14 (one under the floor),
   // 15 (the floor). The two refusals go first so the standing is still level 20 when the floor case is swept.
-  const winAt = (level, seed, build) => fight('goblin', level, seed, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
+  // The walk-in's outcome at a given (level, seed) moves with every rule batch (RV29 killed it at L14 seed 10): take the first seed from `seed` up whose fight is a win.
+  const winAt = async (level, seed, build) => {
+    for (let s = seed; s < seed + 40; s++) {
+      const record = await fight('goblin', level, s, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
+      if ((await decodeRecord(record)).outcome === 'killed') return record;
+    }
+    fail(`no walk-in win at level ${level} within 40 seeds from ${seed}`);
+  };
   const fresh = claim(H, await winAt(1, 1, 'h-fresh'), 'goblin', 'goblin.Knife');
   const under = claim(H, await winAt(14, 10, 'h-14'));
   await sweep();
