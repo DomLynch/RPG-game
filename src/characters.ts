@@ -13,12 +13,14 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
 import { openPose, openWeight, NO_OPEN } from './opening-pose.ts';
+import { stancePose, type Stance } from './stance-pose.ts';
 import type { Opening } from './combat.ts';
 import { GUARD_DROP } from './fatigue-tune.ts';
 import type { Fatigue } from './fatigue.ts';
 import { type FatigueTune, breathe, fatigueLayer } from './fatigue-layer.ts';
 import { fatigueRead, readRate } from './fatigue-read.ts';
 import { HAMSTRUNG_BEATS } from './hamstrung.ts';
+import { EXECUTION_BEATS } from './execution.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from './grades.ts';
@@ -31,7 +33,8 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 // Paired scenes added per rig (scripts/build-hamstrung.mjs): a rig without the clip simply has no such role, and nothing that does not play the scene needs it.
 // Death_Hamstrung is appended to the GLBs of the creatures that fall to it; the killer's Fin_Hamstrung ships beside warrior.glb (src/assets/hamstrung-killer.json,
 // fitted to the hero) and is adopted by the player's actor only in a fight that can play the scene (adoptClip), so the hero's GLB and every other fight are untouched.
-export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung'] as const;
+// Execution (scripts/build-execution.mjs) ships the same way for every hero-rig body: src/assets/execution-killer.json and execution-victim-hero.json, adopted on demand.
+export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution'] as const;
 // Clips only the player's rig (warrior.glb) carries: the SKILL casts (docs/briefs/skill-witch-arm.md). Opponents never cast, so
 // their rigs are the hero's clip set without these.
 export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm', 'Skill_Pommel'];
@@ -79,7 +82,7 @@ export const isQuadruped = (asset: { animations: readonly { name: string }[] }):
 // and raises straight to ready. Empty since the warhammer and maul took their carries (2026-09-26).
 export const NO_HIP_DRAW: readonly WeaponId[] = [];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
-const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel', 'Death_Hamstrung', 'Fin_Hamstrung'];
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel', 'Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -500,6 +503,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const FORWARD = new Vector3(0, 0, 1);
     const readBones = ['spine_03', 'neck_01', 'Head', 'clavicle_l', 'clavicle_r'].map(n => root.getObjectByName(n)), readSaved = readBones.map(() => new Quaternion());
     let readApplied = false, readBreath = 0, readGuard = 0;
+    // ?look=stances (stance-pose.ts): the stance's extra bones, restored before every update; empty and untouched without the flag.
+    let stance: Stance = 'neutral', stanceW = 0, stanceClock = 0, stanceApplied = false;
+    const stanceBones = ['pelvis', 'thigh_l', 'thigh_r', 'calf_l', 'calf_r', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'upperarm_r', 'lowerarm_r', 'upperarm_l'].map(n => root.getObjectByName(n)), stanceSaved = stanceBones.map(() => new Quaternion()), stancePelvis = new Vector3();
     const turnAbout = (bone: Object3D | null | undefined, axis: Vector3, angle: number) => {   // a world-axis turn of a bone (the clavicles' own axes are not the fighter's)
       if (!bone?.parent || !angle) return;
       const parent = bone.parent.getWorldQuaternion(new Quaternion()), turn = new Quaternion().setFromAxisAngle(axis.clone().applyQuaternion(root.getWorldQuaternion(new Quaternion())), angle);
@@ -675,15 +681,17 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
       opening(o: Opening | null) { open = o; },   // opening-pose.ts: this body's open stagger (Practice.opening when its side is this body), or null
       fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
+      setStance(s: Stance) { stance = s; },   // stance-pose.ts: this body's stance (look test only; neutral = nothing)
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of roles) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'opened' | 'hamstrung' | 'hamstrungStrike' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null, lean: ChargeLean | null = null, holding = false) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'opened' | 'hamstrung' | 'hamstrungStrike' | 'execution' | 'executionStrike' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null, lean: ChargeLean | null = null, holding = false) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
         if (pose !== 'opened' && opened) { opened.group.visible = false; root.visible = true; }
         if ((pose === 'hamstrung' || pose === 'hamstrungStrike') && !clips[pose === 'hamstrung' ? 'Death_Hamstrung' : 'Fin_Hamstrung']) throw new Error('Hamstrung clips are not installed on this rig');
+        if ((pose === 'execution' || pose === 'executionStrike') && !clips[pose === 'execution' ? 'Death_Execution' : 'Fin_Execution']) throw new Error('Execution clips are not installed on this rig');
         const step = Math.max(0, Math.min(dt, 0.1));
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
@@ -694,18 +702,18 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         actions.ArmedRun.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.5,speed/(5.2*stride)));   // the sprint's ground speed is the gait table's 5.2 m/s knot
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'hamstrung' ? 'Death_Hamstrung' : pose === 'hamstrungStrike' ? 'Fin_Hamstrung' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'hamstrung' ? 'Death_Hamstrung' : pose === 'hamstrungStrike' ? 'Fin_Hamstrung' : pose === 'execution' ? 'Death_Execution' : pose === 'executionStrike' ? 'Fin_Execution' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
-        const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'opened' || pose === 'hamstrung';
+        const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'opened' || pose === 'hamstrung' || pose === 'execution';
         for (const role of roles) {
           const a = actions[role];
-          const fade = pose === 'opened' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected','runThroughHold','hamstrungStrike'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
+          const fade = pose === 'opened' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected','runThroughHold','hamstrungStrike','executionStrike'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
           const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
           const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
           // A parried attacker is thrown off line on the impact tick itself (Strategy 2026-09-24: the parry's tell is the attacker, not a spark):
           // the weight snaps like a live blade does — the parry's hit-stop runs at dt 0, where an eased weight would hold the attack pose.
-          a.setEffectiveWeight(pose === 'opened' || ((pose === 'hamstrung' || pose === 'hamstrungStrike') && progress >= .05) ? target : activeBlade || pose === 'deflected' ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          a.setEffectiveWeight(pose === 'opened' || ((pose === 'hamstrung' || pose === 'hamstrungStrike' || pose === 'execution' || pose === 'executionStrike') && progress >= .05) ? target : activeBlade || pose === 'deflected' ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
           if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : pose === 'deflected' ? DEFLECT_FROM + progress * (1 - DEFLECT_FROM) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
@@ -713,6 +721,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         if (aimedOffHand) { offHand[0]!.quaternion.copy(aimedOffHand[0]); offHand[1]!.quaternion.copy(aimedOffHand[1]); aimedOffHand = undefined; }
+        if (stanceApplied) { stanceBones.forEach((b, i) => b?.quaternion.copy(stanceSaved[i])); stanceBones[0]?.position.copy(stancePelvis); stanceApplied = false; }
         if (readApplied) { readBones.forEach((b, i) => b?.quaternion.copy(readSaved[i])); readApplied = false; }
         if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         if (carried) { offHand.forEach((b, i) => b!.quaternion.copy(uncarried[i])); carried = false; }
@@ -751,12 +760,22 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
           }
         }
+        stanceW += (Number(stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
+        if (stanceW > .001) {   // ?look=stances: the stance's bones on top of the calm pose (stance-pose.ts); restored at the top of the next update
+          const sp = stancePose(stance, stanceW, stanceClock), b = stanceBones;
+          b.forEach((bone, i) => bone && stanceSaved[i].copy(bone.quaternion)); if (b[0]) stancePelvis.copy(b[0].position); stanceApplied = true;
+          if (b[0]) { b[0].position.y -= sp.drop; b[0].position.x += sp.sway; }
+          if (b[1]) b[1].rotation.x += sp.hip; if (b[2]) b[2].rotation.x += sp.hip; if (b[3]) b[3].rotation.x += sp.knee; if (b[4]) b[4].rotation.x += sp.knee;
+          if (b[5]) { b[5].rotation.x += sp.spine1; b[5].rotation.z += sp.lean; } if (b[6]) b[6].rotation.x += sp.spine2; if (b[7]) b[7].rotation.x += sp.spine3;
+          if (b[8]) b[8].rotation.x += sp.neck; if (b[9]) { b[9].rotation.x += sp.head; b[9].rotation.z += sp.headTilt; }
+          if (b[10]) b[10].rotation.x += sp.arm; if (b[11]) b[11].rotation.x += sp.fore; if (b[12]) b[12].rotation.x += sp.offArm;
+        }
         const shieldHeld = shieldArm && armed && !dead, guardUp = shieldHeld && (pose === 'guard' || pose === 'block' || pose === 'parry'), cutting = shieldHeld && (pose === 'attack' || pose === 'kick' || pose === 'deflected' || pose === 'roll');   // a deflect throws the arm open; a roll tucks it
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;
         if (carry < .001) carry = 0;
         carryShield(carry, raise, strike);
-        spectralLife = spectral?.(step, dead, progress, pose === 'opened' || pose === 'hamstrung', pose === 'hamstrung' ? HAMSTRUNG_BEATS.duration + .6 : 3.6) ?? 1;   // the ghost outlasts the whole scene, as it outlasts Opened's separation
-        droppedWeapon?.apply(pose === 'hamstrung' ? (progress - HAMSTRUNG_BEATS.knee) * HAMSTRUNG_BEATS.duration : -1);   // seconds since the knee blow; negative keeps it in his hand
+        spectralLife = spectral?.(step, dead, progress, pose === 'opened' || pose === 'hamstrung' || pose === 'execution', pose === 'hamstrung' ? HAMSTRUNG_BEATS.duration + .6 : pose === 'execution' ? EXECUTION_BEATS.duration / EXECUTION_BEATS.speed + .6 : 3.6) ?? 1;   // the ghost outlasts the whole scene, as it outlasts Opened's separation
+        droppedWeapon?.apply(pose === 'hamstrung' ? (progress - HAMSTRUNG_BEATS.knee) * HAMSTRUNG_BEATS.duration : pose === 'execution' ? (progress - EXECUTION_BEATS.drop) * EXECUTION_BEATS.duration / EXECUTION_BEATS.speed : -1);   // seconds since the knee blow; negative keeps it in his hand
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
@@ -893,21 +912,53 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Give this actor a clip for an additive role its rig does not carry (the killer's Fin_Hamstrung): the clip gets its own one-shot action, like a rig's own.
       // `sourcePelvis`: the rest length of the pelvis bone the clip was authored on (warrior.glb's); a body reproportioned from the hero rig with a shorter or
       // longer pelvis (the Dwarf) gets the clip's pelvis path scaled by the ratio, so it sits on the floor instead of hovering or sinking. Omitted for the hero's own clip.
-      adoptClip(role: (typeof ADDITIVE_ROLES)[number], clip: AnimationClip, sourcePelvis?: number) {
+      // `fitFloor`: the clip's own beats (fractions) at which this body's real skin is measured against the floor, and the pelvis path lifted or lowered between them so
+      // the kneel and the fall rest on the sand whatever the mesh (a body's feet, chest and face differ from the one the clip was authored on, which the pelvis ratio cannot see).
+      adoptClip(role: (typeof ADDITIVE_ROLES)[number], clip: AnimationClip, sourcePelvis?: number, fitFloor?: readonly number[]) {
         if (clips[role]) return;
         const rest = asset.scene.getObjectByName('pelvis')?.position.length();
         if (sourcePelvis && rest && Math.abs(rest / sourcePelvis - 1) > 1e-4) {
           clip = clip.clone();
           for (const track of clip.tracks) if (track.name === 'pelvis.position') track.values = track.values.map(v => v * rest / sourcePelvis);
         }
+        if (!clip.uuid) (clip as { uuid: string }).uuid = MathUtils.generateUUID();   // clip JSON ships without one (the build is byte-stable) and parse() leaves it undefined: the mixer keys its actions by uuid, so two adopted clips would be ONE action
         clips[role] = clip; roles.push(role);
         const action = actions[role] = mixer.clipAction(clip).play(); action.setEffectiveWeight(0); action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true;
+        const track = fitFloor && clip.tracks.find(t => t.name === 'pelvis.position');
+        if (track) {
+          const point = new Vector3();   // every 4th skinned vertex of what is drawn: the floor to a centimetre at a quarter of the cost of the exact box
+          const low = (progress: number) => sample(role, progress, () => {
+            let min = Infinity;
+            root.traverse(o => { if (o instanceof SkinnedMesh && o.visible) { o.skeleton.update(); for (let v = 0, n = o.geometry.getAttribute('position').count; v < n; v += 4) min = Math.min(min, o.getVertexPosition(v, point).applyMatrix4(o.matrixWorld).y); } });
+            return min;
+          });
+          const marks = [...new Set([0, ...fitFloor!, 1])].sort((a, b) => a - b), start = low(0), lift = marks.map(m => (m ? start - low(m) : 0));
+          const up = root.getObjectByName('pelvis')!.parent!.matrixWorld.elements, rise = Math.hypot(up[8], up[9], up[10]);   // the rig's up is the pelvis parent's local z (Blender's), scaled
+          for (let i = 0; i < track.times.length; i++) {   // in place: the mixer's interpolant reads this very array
+            const at = track.times[i] / clip.duration, next = marks.findIndex(m => m > at), k = next < 0 ? marks.length - 2 : Math.max(0, next - 1), f = Math.min(1, Math.max(0, (at - marks[k]) / (marks[k + 1] - marks[k])));
+            track.values[i * 3 + 2] += (lift[k] + (lift[k + 1] - lift[k]) * f) / rise;
+          }
+        }
       },
       // Hamstrung (src/hamstrung.ts): the victim's weapon is cached at its release pose while he stands, so the knee blow costs no mesh work.
       prepareHamstrung() {
         if (droppedWeapon) return;
         droppedWeapon = sample('Death_Hamstrung', HAMSTRUNG_BEATS.knee, () => prepareWeaponDrop(root, anchor));
         anchor.add(droppedWeapon.group);
+      },
+      // Execution (src/execution.ts): the same cached weapon, released while he still stands (his pose at EXECUTION_BEATS.drop is the standing one, as at Hamstrung's knee).
+      prepareExecution() {
+        if (droppedWeapon) return;
+        droppedWeapon = sample('Death_Execution', EXECUTION_BEATS.drop, () => prepareWeaponDrop(root, anchor));
+        anchor.add(droppedWeapon.group);
+      },
+      // The victim's nape (his neck bone) at the cut, at the origin, for the killer's step (executionStep); the live pose is untouched.
+      executionContacts() {
+        return { nape: sample('Death_Execution', EXECUTION_BEATS.strike, () => root.getObjectByName('neck_01')!.getWorldPosition(new Vector3())) };
+      },
+      // Where the killer's anchor must stand, at `progress` of Fin_Execution, for the middle of the blade to meet `target`.
+      executionStep(progress: number, target: Vector3) {
+        return sample('Fin_Execution', progress, () => { this.aimBladeAt(target); return anchor.position.clone(); });
       },
       // The victim's knee and upper back at the two blows, at the origin, for the killer's steps (hamstrungStep); the live pose is untouched.
       hamstrungContacts() {

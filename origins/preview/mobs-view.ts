@@ -20,10 +20,11 @@ const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pit
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
+const NEAR = 25;   // m: inside it a creature's mixer ticks every frame
 const TWEEN = 6;   // 1/s: how quickly a walk/idle blend and a turn settle
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; mixer?: THREE.AnimationMixer; idle?: THREE.AnimationAction; walk?: THREE.AnimationAction; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; walkW: number };
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; mixer?: THREE.AnimationMixer; idle?: THREE.AnimationAction; walk?: THREE.AnimationAction; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; walkW: number; pending: number; skip: number };
 
 function labelSprite(text: string, named: boolean): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96;
@@ -51,6 +52,7 @@ export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
+  nearest(x: number, z: number, within: number): MobPick | null;   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
 };
 const RESPAWN = 90;   // s
@@ -59,8 +61,9 @@ const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean }): Mobs {
   const specs = mobSpecs(frontier, build), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
-  const cap = opts.phone ? 8 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
+  const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
+  const blobGeometry = new THREE.CircleGeometry(0.6, 20).rotateX(-Math.PI / 2), blobMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });   // one shared soft-looking shadow under every creature
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let shown: number[] = [];
   const down = new Map<number, number>();   // creature index -> seconds until it is back
@@ -69,7 +72,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     if (bodies.has(kind) || !URLS[kind]) return;
     bodies.set(kind, 'loading');
     loader.loadAsync(URLS[kind]!).then((gltf) => {
-      gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+      gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = false; });
       if (opts.phone) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);
       bodies.set(kind, { scene: gltf.scene, clips: gltf.animations });
     }).catch((error: unknown) => { bodies.set(kind, 'failed'); console.warn(`${kind} body did not load; capsules stand in`, error); });
@@ -77,7 +80,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
     const model = clone(body.scene), look = mobVariant(s.character, s.id);
-    model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
+    model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     if (look) dressMob(model, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     v.mixer = new THREE.AnimationMixer(model);
     const act = (name: string) => { const c = THREE.AnimationClip.findByName(body.clips, name); return c ? v.mixer!.clipAction(c) : undefined; };
@@ -90,13 +93,14 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     let v = views.get(i); if (v) return v;
     const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
-    stand.position.y = 0.85; stand.castShadow = true;
+    stand.position.y = 0.85;
     const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height;
     const bang = bangSprite(); bang.position.y = label.position.y + 0.55; bang.visible = false;
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - 0.12, s.aggro, 48), new THREE.MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
-    group.add(stand, label, bang);
-    v = { group, stand, model: null, ring, bang, label, walkW: 0 }; views.set(i, v);
+    const blob = new THREE.Mesh(blobGeometry, blobMaterial); blob.position.y = 0.03; blob.scale.setScalar(look?.scale ?? 1);
+    group.add(stand, label, bang, blob);
+    v = { group, stand, model: null, ring, bang, label, walkW: 0, pending: 0, skip: i }; views.set(i, v);
     root.add(group, ring);
     return v;
   }
@@ -110,6 +114,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
+      // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
+      const nearestOf = new Map<string, number>();
+      for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
       for (const i of shown) {
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
         if (!v.model && body && body !== 'loading' && body !== 'failed') dress(v, s, body);
@@ -118,12 +125,14 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.ring.position.set(m.x, 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
-        v.label.visible = s.id !== hideLabel;   // the info card (creature-card.ts) carries this creature's name and level while it is up
+        v.label.visible = s.id !== hideLabel && nearestOf.get(s.name) === i;   // the info card (creature-card.ts) carries this creature's name and level while it is up
         v.bang.visible = aggro; mat.opacity = aggro ? 0.34 : 0.1; mat.color.set(aggro ? '#e0553a' : '#d8c9a8');
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.mixer && v.idle && v.walk) {
           v.walkW = THREE.MathUtils.damp(v.walkW, m.mode === 'wander' ? 1 : 0, TWEEN, dt);
-          v.walk.setEffectiveWeight(v.walkW); v.idle.setEffectiveWeight(1 - v.walkW); v.mixer.update(dt);
+          v.walk.setEffectiveWeight(v.walkW); v.idle.setEffectiveWeight(1 - v.walkW);
+          if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; v.mixer.update(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)
+          else { v.pending += dt; if (++v.skip % 4 === 0) { v.mixer.update(v.pending); v.pending = 0; } }
         }
       }
     },
@@ -136,6 +145,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const dist = hit.distanceTo(ray.origin);
         if (!best || dist < best.dist) best = { spec: s, x: m.x, z: m.z, dist };
       }
+      return best;
+    },
+    nearest(x, z, within) {
+      let best: MobPick | null = null;
+      for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= within && (!best || d < best.dist)) best = { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }; }
       return best;
     },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },

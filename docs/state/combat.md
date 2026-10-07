@@ -1,5 +1,17 @@
 ## 2026-10-07 (morning) — RV30: three own rows, backstep B (no change), no whiff tax
 
+## 2026-10-07 (evening) — HANDOFF at 546k context: perks + roll release, mob styles/kit, standoff rematch, wolf in progress
+
+**Now (what the next session picks up):**
+1. **1v1 vs multi-attacker feasibility note** (Dom via Strategy/Lead): PvP flag, anti-gank (2nd attacker 50%, 3rd 25%, 4th+ 10%), loot to most damage. Options (a) second parallel 1v1 stream with shared foe health, (b) the creature disengages, (c) a true multi-foe step; sim/record/replay/RV/phone cost each, recommendation; send to Strategy and Lead.
+2. **Wolf** (combat/wolf @76326f12, no PR yet): row, weapon `bite`, blade bake (jaw, scale 1.3: lands from 1.22/1.52/1.64 m, the Goblin's 1.26/1.54/1.66), profile on the Goblin's rates (hero easy 7/24, normal 4/24, capsule scale .8). Switch to Characters' rig10 GLB (sha256 ef8809be04c13ab2e96e2d14428e6a6b3618f7ff9422126939024ea967bfc1dc), rebake, rebase on the #1642/#1660 release for the record bump, stills after their #1671 loader.
+3. Then #7 caster tells + deterministic flee, #4 packs (src/pack.ts, no RV; nothing pauses in the open world), #6 Gothic tactic table (own RV).
+
+**Open PRs, all green on the VPS:** #1642 perks record layer @299c8e05 (full 2597/2595/0/2, draft until Lead's go), #1660 world-mob roll @60d7d491 (one definition in src/roll.ts; full 2601/2599/0/2; needs the Auditor delta for the SIM-list fix), #1670 mob kit @d7ef9d7f (un-drafted for the Auditor; 45/45; battery table in the body), #1658 mob/beast/pack proposal (docs). #1646 mob styles and #1656 standoff rematch are in Deploy folds.
+
+**Rulings today:** perks, roll, then beasts, then packs; #1642 and #1660 ship as ONE release (merge #1642, retarget #1660); the pack walk-in beat is the only rest (stamina and posture recover at normal rates, health never); verification stays client-reported but the per-bout swap tick is designed in; the upright capsule for beasts is OK for v1 if stills show no blade through the back; Dom: ONE engine, world differences are add-on layers on src/, nothing pauses in the open world.
+
+
 **Identities (the spec for the next lane; AI profile numbers only, never move timings, one commit per row so one can be dropped alone):**
 - **Shieldmaiden (shield wall):** the Pitborn's body and stamina game with a guard-first brain: parry .1 (she blocks), aggression .65 normal / .85 hard, `braceHeavy` .6. `guard` stays absent (= 1; a share cannot go higher). `kick` was tried and dropped (it fires only against a roller or backstepper). Open design question, not RV30: "a kick should open a raised guard" needs a rule change.
 - **Knight (armoured, methodical):** the Executioner's archetype and cut-spam answer (anticipate 3, lapse .2, read .75) with a slower eye (reaction 16 normal) and a steadier hand (aggression .7 / .8), heavy-first hard (pressure .3 against the shared .5). Poise 12 and the iron-rush special are his identity.

@@ -1,5 +1,124 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~17:30 (+04): HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom). GO comes from "Frankendom - Lead Dev"; the COO is "COO Task Enabler" (id local_0f681df3-fe67-4324-a9f6-d625aef2281c). Gate for every push, on the VPS: `tsc --noEmit` AND `tsc -p tsconfig.tests.json`, eslint, `node --test tests/origins-*.test.ts origins/*/*.test.ts`.
+
+**MERGED this stretch:** #1669 mob rows, #1676 zone rules (`level-miss` is its own code), #1681 tier rungs, #1682 rarity, #1690 tap-fight guards, #1698 the open world uses the Pit's controls (live in the preview, 53c3b21b).
+**OPEN:** #1700 `expansion/world-roll-guard` @c6622505 (ROLL and GUARD run the Pit's sim, load-say gate, Allegiance in the ☰) GO'd to Deploy, do not push; #1705 `expansion/wildlife-rows` @ddbc7b5a draft (ash wolf / ash boar / cinder hound as `later` beast rows, nothing visible); #1593 X1 presence (Backend's writer blocked on Dom's W2/W3).
+**NEXT:** (1) flip a #1705 row off `later` when Characters lands its body (wolf also needs Combat's roster row and `bite` weapon): MOB_LOOKS entry, cited source, registered loot table; (2) world creature duels must produce a real FightRecord (Lead's queue: pit-duel.ts runs a sparring Match today; record with createRecorder, carry the encounter token, post to settle behind a flag, fail-closed until Backend's encounter_start/settle; 3-line plan before code); (3) fight-flow read is partly done: wins at 375 and 320 and a loss at 375 pass; at 375 the loss card says "try again" while the HUD line says "You fell. Rematch?" with only "Back to the fields" (Web's item); the 320 loss never finished.
+**Rules:** reuse first ("Reused: <PR>" in PR bodies), 30-minute cap then report the blocker to Lead, draft PR at first push, never push to a GO'd PR without telling Lead, say "not on a real phone" (VPS GL is ~3 fps), main screen = combat HUD + ☰ only (Dom).
+**Gotchas:** write a script locally and `ssh ... bash -s < script` (quotes inside `ssh '...'` break); BSD sed needs `-i ''`; after a regex conflict resolution re-read the file (it twice swallowed a closing `});`); touch-end can arrive >1.5 s late on a busy main thread.
+
+## 2026-10-07 ~15:30 (+04): HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom has the full list). GO comes from "Frankendom - Lead Dev". Gate for every push, on the VPS: `tsc --noEmit` AND `tsc -p tsconfig.tests.json`, eslint, `node --test tests/origins-*.test.ts`, `npm test`.
+
+**MERGED this session:** #1636 mobs, #1659 preview feel (sticks x0.5, run on the gait table, spawn among mobs, first-frame camera), #1661 mob fight (tap -> Pit duel -> loot -> Bounty paid), #1647 mobs.md, #1665 server ruling 6, #1666 donor best-in-class doc (top 10 approved by Dom).
+
+**OPEN:**
+- **#1669** `expansion/mob-rows` @2b381ac, GO'd, DO NOT PUSH: mob row format + validator + `populateZone`; camp cap 4 (6 on a `bossCamp` row); Zone 1 regenerated through rows (scavengers 6 -> 4, golden updated); PvP section in `server-save-schema.md`. Sources of the three shipped rows are `{pending}` (Characters & Art cite them; the generator refuses pending).
+- **#1676** `expansion/zone-rules` @c78cd2e (base mob-rows; retarget to trunk after #1669): zone rules as validator checks (45 s across = 234 m, nothing dead for 15 s = 78 m, first fight within 10 s = 52 m), Region 1 passes with two openers added (ferry-landing, cinder-fields; golden 17), PvP flag edit. Stills `stills/expansion-zone1` @433b6693.
+
+**QUEUE (Lead's order, Dom approved the top 10):** #1+#2 tier rungs per body family + zone difficulty dial (row `ladder`/`rung`, validator codes, rung weights from the zone's level window; Zone 1 unchanged) -> #8 rarity + placeholder/rare/named camps -> #4 leader + followers placement (row `leader`, `order`; Combat's `src/pack.ts`, PR #1658) -> #10 quest templates with typed slots (every one ends in a normal Pit duel; turn-ins next to the action; fast travel is a later PR). One PR each, stacked, Zone 1 stills where visible.
+
+**Rulings:** one engine, no dice/auto-attack; nothing pauses in the open world; locked-1v1 dropped; PvP = flag, always a Pit duel, ring one at a time, pays only where other flagged players are, murderer mark -> Bounty, creature loot to most damage (design only).
+**Gotchas:** quotes inside `ssh '...'` break heredocs, so write scripts locally and scp them; the Write hook's eslint error on scratch files is a false alarm; VPS GL is ~3 fps (dt capped 0.05), so never claim m/s from it; never claim "unchanged" without the golden diff; never push to a GO'd PR without telling Lead.
+
+## 2026-10-07 ~13:30 (+04): HANDOFF before /clear. READ FIRST, then memory, then the ~12:30 entry below
+
+Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom). GO comes from "Frankendom - Lead Dev". Session ran in the app worktree `.../worktrees/practical-mccarthy-f624ef` (the restart hook labels it audio; it IS expansion). Gate for every push: `tsc --noEmit` AND `tsc -p tsconfig.tests.json` (the second one went red on #1636 once), eslint, `node --test tests/origins-*.test.ts`, run on the VPS.
+
+**LIVE / in review**
+- **#1636** `expansion/frontier-mobs` @a9d059b8, un-drafted, ONE walk-out PR (#1634 dual sticks was closed as folded in; its stills and two-pointer notes are in #1636's body). Contains: sticks, 17 Frontier creatures wandering (mobs.ts, mobs-view.ts), Characters' #1643 mob-looks + #1644 mob-dress merged in (`dressMob(mobLook(id))`), phone-tier fetch range 28 m, constant-size labels, a test that every creature has a look, and the branded `FRONTIER` export (fixes TS2367). Auditor PASS @807db46d, then my a9d059b8 fix reset the Auditor's one-line re-pass. CI was mostly green (6 pass, browser rows pending) at last look. FROZEN: no more pushes without telling Lead. Deploy publishes the preview after the current release.
+- **#1647** `expansion/spec-mobs` @3764d03a, docs-only: `docs/specs/origins/mobs.md` (848 lines, analyst agent, clean-room; roles brute/skirmisher/caster/beast, section 7 = the mob row format). Mine to review; I have NOT read all of it.
+- #1621 (this state doc) is open on `expansion/state-1007c`; this entry rides on `expansion/state-1007d`.
+
+**In flight: `expansion/mob-fight` @7a7ce081 (NOT a PR yet; stacked on #1633 + #1636)**
+tap a creature -> Combat's `startEncounterDuel` (#1633) -> `hunt.ts` settles through the existing `resolveFight` / `rollLoot` / `intoBackpack` -> the Bounty quest finishes if held. Files: `origins/preview/hunt.ts` + `hunt.test.ts` (pure; 448 tests green at an earlier head), `mobs-view.ts` (`pick`, `find`, `fell`: a felled creature is gone 90 s), `play.ts` (`bountyOpen`, `bountyPaid`), `main.ts` (tap detection, `startMobFight`, result note `#hunt-result`, hooks `tapMob`, `mobScreen`, `hunt`, `tapLog`), `sticks.ts` now imports the Pit's `SPRINT_PUSH`. Bugs found and fixed on the way: mint key with `#` was refused by the inventory (every drop failed); a refused loot was mislabelled "pack is full".
+- **Touch-tap bug (Lead's priority) FIXED**: cause was not an overlay. The browser delivers the touch-end only after the busy main thread acked the touch-start ("hold:600ms" in `originsPreview.tapLog()`), so my 350 ms limit dropped it. Now: up to 1.5 s, and a press counts only if the finger never travelled past 12 px (farthest travel tracked, per Lead's guard). Re-checked with a real CDP touch after the Bounty talk.
+- **Proof still owed: ONE real tap -> win -> loot -> Bounty-paid sequence at 375.** A blind key script lost 4/4 against a scavenger (each loss settled correctly: no kill, no pay, "try again"), so I added the QA flag `?foebar=N` (foe's health bar, like ?gfx=/?dpr=; say so in the PR). A run with `?foebar=12` was running on the VPS at clear: log `/tmp/hunt-a2.log`, stills `/opt/frankendom-shadow/work/expansion/mob-fight/stills/hunt-*.png`, script `hunt-e2e3.mjs` there (`node hunt-e2e3.mjs a` = plain creature; `node hunt-e2e3.mjs b` = take the Bounty from the giver, then fight Hrungnir at the shrine, then journal). The preview server for it is on port 4790 (restart: `npx vite preview --config origins/preview/vite.config.mjs --port 4790 --strictPort` in that dir after `vite build`). Not yet seen: a win, the loot line, "Bounty paid", the journal text.
+- To finish: run both (a, b), look at the stills, copy them onto the `stills/expansion-zone1` branch (force-add: `artifacts/` is gitignored; do it in a scratch worktree), merge the latest `origin/expansion/frontier-mobs` and (once published) trunk, run the full gate incl. `tsc -p tsconfig.tests.json`, open the PR (base trunk; body: stills + the `?foebar` note + the open items below), send Lead the sha. Known cosmetic: the duel HUD calls a scavenger "Nain Rouge" (pit-duel's legend naming; Combat's file, tell them).
+
+**Queue after that (Lead's order, 12:13/12:18/12:21/12:23):** the MOB ROW FORMAT + VALIDATOR + GENERATOR, one PR, owner = me. Do NOT fork a table: row = what is not already elsewhere (source, role, behaviour row, camp size, level band, loot id); look comes from Characters' `MOB_LOOKS`/`MobLook` (#1643), role is Combat's `MOB_STYLE` (#1646 `origins/mobs/styles.ts`: brute/skirmisher/caster/beast, `styleOpponent`, `fleesNow`), loot/names/levels live in Region 1 content (`origins/region1/content.ts` FOES, `local.creatureLoot`). The generator plugs into `origins/world/generate.ts` `generateZone(template, seed, overrides)` via `density.creatures`, `spawns`, `difficulty.levelMin/Max`, `lootTier` (schema in `origins/world/schema.ts`). The analyst's section 7 in #1647 already specs `MobRow`, `validateMobRow` (13 codes) and `populateZone(params, rows, seed)`: implement from that. First batch = the 7 Frontier kinds; first proof = the preview reads generated placements instead of hand-placed ones. Then behaviour layers, one PR each: con colour ring/name by level gap + red "targeting you" bar -> "?"->"!" alert + leash home -> camps of 2-3 -> spawn groups -> loot to Bounty. Scale target (Lead 12:13): ~600 legends / 600+ zones with no one-by-one authoring; Dom approves batches and style, never items.
+
+**Rulings today:** mob roles are brute/skirmisher/caster/beast (ranged "volley" is a parked post-sprint idea). 28 m phone fetch range accepted; the `-phone.glb` looks have NO animation clips (they re-skin the base rig), so the base rig (~4 MB a body kind) is the floor; an animation-only rig goes to Characters via Lead. Page weight, phone tier: 5.8 MB at load, +3.9 MB near the ash pits (one goblin body serves all 13 common mobs), +4.6 MB for a named body. Dress first, then rank-tint (no rank tint on mobs yet; "Felt" is never-tinted cloth). Reuse, never fork: SPRINT_PUSH, FRONTIER, resolveFight/rollLoot/intoBackpack, MobLook, MOB_STYLE, generateZone. Donors: world-of-claudecraft moved to the Mac (`~/Developer/donors/world-of-claudecraft`, MIT); daggerfall-unity, SCAR, CombatPathingRevolution on the VPS donor folder; GPL donors (ModernUO, EQEmu, openmw, REGoth) analyst-only.
+
+**Gotchas:** zsh: never `echo =====` (expands as a command); BSD sed needs `-i ''`; CDP `touchEnd` lists the points RELEASED (empty list = all); VPS software GL ~10 fps (claim behaviour, not speed); `gh pr ready` + close/reopen is what starts CI on a draft (drafts and retargets skip it); a local branch name can be locked by an old agent worktree (`git push origin HEAD:<remote-branch>` from an alias); preview server listens on `localhost` (IPv6 `::1`), not 127.0.0.1; /game/img/fighter.webp 404 on the local preview server is expected. No origins writer on the box yet: HUD "progress is not saved" is right (Strategy says Backend is moving the writer onto the Pit's key, no Dom step).
+
+## 2026-10-07 ~12:30 (+04): PENCILS DOWN (credits at ~3%, out ~5 days). READ FIRST, then memory
+
+Lane "Frankendom - Expansion" (was Lead Dev (Expansion)); the other "Frankendom - Lead Dev" now GOs this lane. Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md`. Dom is unhappy: the Frontier preview is empty (no mobs, no fight, no dressing). Strategy approved a one-hour sprint; it was stopped half-way.
+
+**LIVE (checked 10:5x):** #1629 walk-out + Bounty giver (?region=1), #1627 encounter logic, #1626 Combat flee/one-bar, #1596 save-position CODE only. /preview/origins/ serves the #1629 bundle.
+**WIP, all pushed, nothing verified end to end:**
+- #1634 DRAFT `expansion/dual-stick` @55563fe5: two thumb sticks (left walks/strafes, runs past 1.4x rim; right turns + tilts camera). VPS: 5/5 sticks tests, tsc exit 0, eslint exit 0. OWED: 375 stills + two-pointer touch check (agent killed before stills), Lead's look.
+- #1636 DRAFT `expansion/frontier-mobs` @01a815aa (stacked on #1634): mobs.ts visible+wandering, lazy-loaded bodies. UNVERIFIED: no test run, stills, console or page-weight numbers seen.
+- Combat #1633 `combat/encounter-duel` (startEncounterDuel(host, setup, seed, done, leave); done({result, twistOutcome})) bite 1+2, theirs; I wire tap -> duel after the mobs land.
+- World: #1625/#1630 zone look (cherry-picked onto 90d8a6d5), `world/frontier-dress` @e3c21152 (frontier-dress.ts; +4 lines in main.ts, optional 4th arg to buildFrontier). Characters: mob-looks.ts body-spec table keyed by character id (not mine). Spawn mobs off frontierParts.solids.
+**Next, in order:** verify #1636 then publish via Lead/Deploy preview slot; tap/aggro -> Combat's duel -> resolveFight -> rollLoot -> intoBackpack -> Bounty paid in journal; session refresh in the preview by IMPORTING src/account.ts, lazy-loaded only when a stored token exists and is expired (Lead approved), small PR + expired-token test, send Lead the sha.
+**Saving:** NOT live. No origins writer exists on the box. Needs Dom: `ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18 bash /root/origins-writer-setup.sh` (key is binance_futures_tool), paste the printed `alter role` line into Supabase SQL editor (project Frankendom Origins); then #1463 installer (Auditor + joint GO), flag + --link-writer, #1593. I must never set that password myself.
+**Rules learnt:** after a GO never push to that PR without telling Lead first; mark each fact checked vs relayed; preview HUD "progress is not saved" is correct; licences: OpenGothic/ZenKit/inkjs MIT (may read, add notice); EQEmu/openmw/ModernUO GPL stay clean-room (ruling 8); Skyrim never; ClaudeCraft licence unknown.
+**Housekeeping:** check-in cron deleted; sub-agents stopped; leftover first-slice branch locked in a worktree (agent-a9f51cf1af8c328f8) and VPS dir work/expansion/greybox-world; VPS disk ~42 GB free (floor 40).
+
+## 2026-10-07 ~11:30 (+04): CORRECTION — real saving is NOT coming next
+
+There is no origins writer on the box (checked over ssh: /etc/frankendom holds only duel-relay.env, presence.env, verifier.env; no origins or writer systemd unit). #1596 is live as code only, so "then the writer restarts" in the entries below is wrong. Saving is blocked on Dom's W3 step from #1455 (set the frankendom_origins password in the Supabase SQL editor; create /etc/frankendom/origins-writer.env as root). After that: the #1463 installer (draft @2bc9db54) on an Auditor PASS plus the joint GO (Lead and Strategy gave it conditionally), then flag ON + --link-writer, then #1593 X1. Until then the preview HUD stays "Offline preview: progress is not saved". Never tell Dom his progress saves.
+
+## 2026-10-07 ~10:45 (+04): HANDOFF. READ FIRST, then memory, then the ~10:00 entry below
+
+Lane "Frankendom - Lead Dev (Expansion)". The restart hook calls it lead-catalogue; it IS expansion. Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom).
+
+**1. LIVE 345571fb** (curl release.json). It contains #1513 (62bff8db), #1607 (40c082b4) and #1609 (8f97d10a), all merged 03:39-03:53Z (checked with merge-base). #1596 X2 writer is still OPEN (joint GO @feab306a; apply order 0005→0007→0008→0009, then Deploy merges, then the writer restarts).
+
+**2. /preview/origins/ is UP again, built from 345571fb.** The 404 came from the release switch dropping preview/; Deploy now carries it forward. My 375x812 check: loads at the Pit gate, 0 console errors, 9 resources with no 4xx/5xx, the Journal opens. Lead did their own 375 look and sent Dom the link. Strategy did not send it again.
+- **Not saved:** the HUD line "Offline preview: progress is not saved" is RIGHT. The preview only reads a signed-in career (save.ts, read-only) and never writes. I told Lead and Strategy that my earlier "career saved" was wrong.
+- **Walking:** a held slow drag walks the hero; a quick flick doesn't (emulated touch at 375, not a real phone). Tip for Dom: hold your thumb down.
+
+**3. Slice 1 (Ash Frontier + Bounty, ?region=1):** the first agent died without pushing (`expansion/greybox-world` absent on origin at ~10:15). A NEW background agent was started ~10:20 from the brief in the ~10:00 entry. It works in its own app worktree; step 1 is data-driven Concord to within 1 cm with a pin test, step 2 the ?region=1 zones with ambience.preset per zone. It opens its own PR with 375 stills on `stills/expansion-greybox-world`. NO report yet. If the session is cleared before it reports: `git ls-remote origin expansion/greybox-world`; if empty, restart from that brief. Once it's pushed, send the sha to World (who owns look.ts) and the PR to Strategy.
+
+**4. Check-in cron** was re-armed at :07/:27/:47; it is session-only and dies on /clear, so re-arm it after a restart.
+
+**5. Still owed:** the rejoin nudge (after #1596 + Backend #1599); the #1607 Auditor LOWs follow-up (now against trunk, since #1607 merged); luck HUD placement once a world-mob fight exists. #1593 X1 is held on presence step 2.
+
+## 2026-10-07 ~10:00 (+04): HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md`. The newest lines are at the bottom, and every ruling today is there.
+
+Session folder: the app worktree `.../worktrees/elastic-gates-c6edc0`. The restart hook mislabels it lead-catalogue; it IS expansion. Re-arm the 20-minute check-in cron after the restart. The check-in uses the full open list: `gh pr list --author @me --state open`, filtered to expansion/*.
+
+**1. LIVE:** 385f67a5 had #1518 Region 1 (merged 03:18Z). Trunk tip is 345571fb. Check with curl before stating anything.
+
+**2. DOM'S #1 PRIORITY: play Origins on frankendom.com/preview/origins/ with everything built.**
+- **(A) Republish /preview/origins/ from trunk.** Built on the VPS from 345571fb at `/opt/frankendom-shadow/work/expansion/r1518/artifacts/origins-preview` (69 MB). It went to Deploy for a preview-only publish, in Lead's slot after #1616 + RV29.
+  - NOT checked at 375 by me. After Deploy's published line, open it at 375x812 (0 console errors, no 404s), then send Strategy and Lead a 5-line "what to try" list.
+  - The preview wires: talk, the quest journal, bank/backpack, the smith (banked = Exchange only, story gear OK, quest-item refusal line), the patron picker, the Pit duel and the saved career.
+  - It has NO screens yet for: trade/escrow, boss records, Region 1, rejoin. Lead was told.
+- **(B) Slice 1 = Ash Frontier towns + a Bounty, walkable onward from the Exchange, on the same URL** (behind ?region=1 at first). A background agent is building it on branch `expansion/greybox-world` from trunk, worktree under `.claude/worktrees/agent-*`.
+  - Step 1: data-driven Concord, identical within 1 cm, with a pin test. Step 2: ?region=1 zones.
+  - It opens its own PR with 375 stills on the orphan branch `stills/expansion-greybox-world`.
+  - It sets `ambience.preset` per zone (ash-pit / exchange-dusk / frontier-haze).
+  - NO report from it at clear. If it died: `git ls-remote origin expansion/greybox-world`; restart from this brief if empty.
+  - **World lane owns `origins/preview/look.ts`** (sky/fog/light keyed on ambience.preset + view.fog*, plus one wiring line in main.ts). Send World the greybox-world sha once it's pushed.
+
+**3. GO'D, WAITING ON DEPLOY (do not push):**
+- #1513 combat study @fbcc4aff (luck + stances + mood, Dom-approved).
+- #1607 luck contract @56596112 (world-mob ±10% rolls both ways; Pit/PvP/ladder never; Gambit odds 1/2 ×2).
+- #1609 Region 1 LOWs @0345aa88.
+- #1596 X2 writer @feab306a: joint GO. Apply order 0005 → 0007 → 0008 → 0009, then Deploy merges, then the writer restarts. Undrafted.
+
+**4. HELD:** #1593 X1 waits on presence step 2 (flag on + --link-writer), which needs Backend's writer-key installer.
+
+**5. OWED LATER:**
+- The rejoin nudge, as a follow-up PR after #1596 merges (needs Backend #1599 /internal/rejoin).
+- #1607 Auditor LOWs (seed is uint32: say so; caller odds unchecked).
+- Luck HUD placement once a world-mob fight exists.
+
+**6. RULINGS TODAY (in memory):**
+- **Luck:** Gambit = a 2nd heavy press after the chamber, with a player-only cue, ~1-in-2 for ~2×, EV slightly under a heavy, no kill from >40%, and a PvP roll that cannot be known at press time (Combat). ±10% rolls ONLY vs Origins world mobs, both ways, and they are mine end to end.
+- **Stances (= opponent mood):** Neutral/Aggressive/Defensive/Trickster. ±5% damage to start, 10% ceiling. Weapon-hold poses + versus-card reveal. Hidden simultaneous PvP pick. The AI draws from the seed with a 50% home bias. Exempt from the patron no-arena-damage rule.
+- **Combat order:** RV31 → RV30 → Gambit → stances.
+
 ## 2026-10-07 ~09:50 (+04) — HANDOFF before /clear. READ FIRST, then memory
 
 Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom; every ruling tonight is there with sources). Session folder: app worktree `.../worktrees/elastic-gates-c6edc0` (the restart hook mislabels it lead-catalogue/lead; it IS expansion). Re-arm the 20-min check-in cron after restart. Check-ins MUST use the full open list: `gh pr list --author @me --state open` filtered to `expansion/` (I missed #1457 once by checking a fixed list).

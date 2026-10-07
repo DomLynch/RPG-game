@@ -1,6 +1,7 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
-import { inBufferWindow, initialDuel, legal, withSpecials, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
+import { inBufferWindow, initialDuel, legal, withGambit, withSpecials, withStances, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
+import { asStance, moodOf, type PickedStance } from './stance.ts';
 import { MOVES, OPPONENTS, SKILL_MOVE, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
@@ -148,8 +149,11 @@ export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: I
   };
 }
 // `specials`: the fight has Special Moves (duel.ts withSpecials: the ladder level picks the opponent's share, `aiSkill` names his special).
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }): Practice =>
-  project(specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill), initialAi(seed));
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance): Practice => {   // stance: the fight has stances (RV34, the record's flag): the player's pick, and the opponent's mood drawn from the seed   // gambit: the fight has the Gambit (RV33, the record's flag); its draws are seeded by this number, the fight's own seed
+  const duel = specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill);
+  const armed = gambit === undefined ? duel : withGambit(duel, gambit);
+  return project(stance === undefined ? armed : withStances(armed, asStance(stance), asStance(moodOf(seed, opponent.id))), initialAi(seed));
+};
 // `layer`: a world layer that rewrites the warden's intent AFTER decide() (src/mobkit.ts: signature moves; sparring.ts does the same for the dummy). Absent = today's fight, the same intent object.
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal, layer?: (duel: Duel, warden: Intent) => Intent): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);

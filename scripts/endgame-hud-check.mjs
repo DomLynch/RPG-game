@@ -13,6 +13,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { shareFaults } from './lib/thumb-row.mjs';
 
+const T0 = Date.now(); const lap = (step) => process.stderr.write(`[endgame-hud ${((Date.now() - T0) / 1000).toFixed(1)}s] ${step}\n`);   // per-step timestamps: a hang names its step (Lead 2026-10-07, two silent timeouts)
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
@@ -25,16 +26,21 @@ try {
   await page.route('**/*sentry.io/**', r => r.abort());
   page.on('pageerror', e => receipt.errors.push(String(e)));
   await page.goto(url.href);
+  lap('goto done');
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  lap('attack-button ready');
   { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
   await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
+  lap('welcome hidden');
   const { run, until } = await harnessClock(page);
   await run(200);
   await page.evaluate(() => { window.__finish = null; window.addEventListener('frankendom:combat', e => { const k = e.detail.events.find(x => x.type === 'Killed'); if (k) window.__finish = k; }); });
   await page.getByRole('button', { name: 'Fight', exact: true }).tap();
+  lap('Fight tapped');
   await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
   const died = await until(() => window.__finish !== null, 6000 * 16.7);
   assert.ok(died, 'the fight ends within budget');
+  lap('death (Killed event)');
   receipt.killed = await page.evaluate(() => window.__finish);
   // Middle-of-screen check (brief 3): before the camera settles, nothing new shows — the elements this check gates were hidden or
   // faded a moment ago, so this also proves the fade actually started (endgame-fade set) rather than everything showing at once.
@@ -45,6 +51,7 @@ try {
   const phase = await page.evaluate(() => JSON.parse(document.querySelector('#debug').dataset.finishPhase));
   receipt.settledAge = phase.age;
   assert.ok(!phase.touring, 'settle happens well before the 5 s tour starts');
+  lap('settled');
   // Deterministic sample (lead, deploy #94 flake): the old sample ran at the settle frame and skipped any element whose computed
   // opacity was still '0' — i.e. it raced the 250 ms endgame-fade transition, which runs on the browser's real clock, not the
   // harness clock. Idle: Rematch still at 0, skipped, "pass". Loaded: opacity already rising, counted, "fail" — with the SAME
@@ -53,6 +60,7 @@ try {
   // time), then assert what the brief actually says — (1) the TOP-BAND text never intersects the body ("the text blocks the gore
   // and the finisher"), and (2) the cluster's buttons stay entirely inside the #actions box, never floating over the arena.
   await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 3000 });
+  lap('HUD fade finished');
   const sample = await page.evaluate(() => {
     const fallen = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
     const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
@@ -81,13 +89,29 @@ try {
   const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick, { row: ROW.includes(id) }).map((f) => `${id} ${f}`));
   receipt.shareFaults = faults;
   assert.equal(faults.length, 0, `SHARE, CLIP and the Pit's door stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], pit: sample.cluster['pit-button'], next: sample.cluster['reset-button'], joystick })}`);
-  const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && !inside(r, sample.actions)).map(([id]) => id);
+  const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && id !== 'reset-button' && !inside(r, sample.actions)).map(([id]) => id);
   receipt.overlaps = overlaps; receipt.floating = floating;
   assert.ok(Object.keys(sample.topBand).length > 0, 'the top band shows at least the status line');
   assert.ok(Object.keys(sample.cluster).includes('reset-button'), 'Rematch/Next is shown after the fade');
   assert.equal(overlaps.length, 0, `no top-band text intersects the fallen body; overlapping: ${overlaps.join(', ')}`);
+  // Next anchors the end-screen's right-hand column (style.css --end-gutter, Web 2026-10-07, #1685): it leaves the #actions box on purpose, but never over the move pad.
+  assert.ok(!joystick || !intersects(sample.cluster['reset-button'], joystick), `Next stays clear of the joystick: ${JSON.stringify({ next: sample.cluster['reset-button'], joystick })}`);
   assert.equal(floating.length, 0, `cluster buttons stay inside the #actions box; floating: ${floating.join(', ')}`);
+  lap('geometry assertions done');
   await page.screenshot({ path: `${out}/gate-settle.png` });
+  // The take-one offer (#loot-panel-actions) and Next must never overlap: with the offer up the player taps Next to move on, and release rows 16, 21
+  // and 25 timed out on 2026-10-07 because Take sat over it (Web, #1685 follow-up). Open the offer the way loot-panel.ts does and hit-test Next's centre.
+  const offer = await page.evaluate(() => {
+    const acts = document.getElementById('loot-panel-actions'); acts.hidden = false;
+    // synchronous: the harness clock owns requestAnimationFrame, so waiting on a frame here would hang; getBoundingClientRect forces the layout itself
+    const r = (e) => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+    const next = document.getElementById('reset-button'), n = r(next), hit = document.elementFromPoint(n.x + n.w / 2, n.y + n.h / 2);
+    return { next: n, offer: r(acts), hit: hit && (hit.id || hit.tagName), nextHit: !!hit && (hit === next || next.contains(hit)) };
+  });
+  receipt.offer = offer;
+  assert.ok(offer.nextHit, `Next stays tappable with the take-one offer open; the centre of Next hits ${offer.hit}`);
+  assert.ok(!intersects(offer.next, offer.offer), `the take-one offer clears Next: ${JSON.stringify(offer)}`);
+  lap('take-one offer assertions done');
   // Lead review, 2026-09-22: an invisible Rematch under the tour must not fire. Fake the fade class (this check doesn't wait
   // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
   const pointerEvents = await page.evaluate(() => {
@@ -100,6 +124,7 @@ try {
   receipt.pointerEvents = pointerEvents;
   assert.ok(pointerEvents.faded.every((v) => v === 'none'), `faded buttons must be inert: ${pointerEvents.faded}`);
   assert.ok(pointerEvents.restored.every((v) => v !== 'none'), `buttons must wake once the fade lifts: ${pointerEvents.restored}`);
+  lap('inert/wake assertions done');
   // (1) Evidence (Auditer's ask, 2026-09-22): with NO touch at all, Rematch/Next is live in the window between settle and the
   // tour's start — settle + ~0.6 s, still attached. finishAge advances per rendered frame on the page clock, which the harness
   // owns (scripts/lib/harness-clock.mjs: `until` budgets are page time, stepped 16 ms at a time), so the wait is deterministic —
@@ -118,6 +143,7 @@ try {
   assert.equal(window1.pointerEvents, 'auto', 'Rematch/Next is tappable before the tour without any touch');
   assert.equal(window1.opacity, '1', `Rematch/Next is fully visible before the tour (opacity ${window1.opacity})`);
   assert.ok(window1.hitIsRematch, `a tap at Rematch's centre lands on Rematch, not on ${window1.hit}`);
+  lap('rematch-before-tour assertions done');
   await page.screenshot({ path: `${out}/rematch-live-before-tour.png` });
   // (2) Product: the tour hands the camera back on a touch ANYWHERE, not only on the canvas — a thumb landing where Rematch was
   // hits the inert #actions box during the tour. Wait for the tour, tap that box, and the HUD must be back within its 250 ms fade.
@@ -130,6 +156,7 @@ try {
   const handedBack = await page.evaluate(() => ({ touring: JSON.parse(document.querySelector('#debug').dataset.finishPhase).touring, pointerEvents: getComputedStyle(document.getElementById('reset-button')).pointerEvents }));
   receipt.handedBack = handedBack;
   assert.ok(!handedBack.touring && handedBack.pointerEvents === 'auto', `a touch off the canvas stops the tour and wakes the HUD: ${JSON.stringify(handedBack)}`);
+  lap('handed-back assertions done');
   await page.screenshot({ path: `${out}/hud-back-after-tour-touch.png` });
   await page.locator('#reset-button').tap();   // and now the real tap goes through (Playwright would throw if anything intercepted it)
   receipt.passed = true;

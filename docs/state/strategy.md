@@ -3,6 +3,46 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+
+## 2026-10-07 17:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1735 + project_dom_decided_ledger (16:xx–17:xx).
+
+**Now.** CronList, re-arm the two /checkin advisor-light crons. Live 53c3b21: Pit controls + camera lock in the Zone 1 preview (/preview/origins/?region=1), tap fix live; Dom's phone test pending. ROLL/GUARD in the world = Expansion follow-up.
+**Done.** Legends ladder docs PR #1699 (669 legends ranked, measured fame, 150 new candidates, donor scans); #1688 joint GO; capture priority ruling (#1693, Auditor owner); standing rulings entry above.
+**Open.** Dom: add the 150 names / Shinto out / Native American leaders out / Blender Studio download. Lanes: wolf-first donor pipeline (Characters), Credits page (Web, today), stances flag-off + ?stances=1 preview (Combat).
+**Gotchas.** App restarts stop every lane at once: list_sessions, Lead resumes, Strategy steps in. COO = local_0f681df3…2281c. Use `date` for ledger stamps (16 entries were mis-stamped today and corrected).
+
+## 2026-10-07 16:3x (+04) — STANDING RULINGS (Dom via the COO, plus Strategy). Apply to every lane.
+
+**Throughput over clean handoff (Dom).** Lanes are diligent one by one and slow together, because each optimises for a clean handoff. From now on: open a draft PR as soon as the code exists (stills, gates and the Auditor gate READY, never the PR); don't wait on a VPS slot, a full suite or an Auditor pass to start the next item; reuse first (search merged PRs/helpers for the same shape of problem, write "Reused: <PR>" in the body); a simple change still failing after 30 min goes to Lead, not another retry.
+**Capture tool owner = Auditor (code-quality).** It shipped capture v4 (`scripts/vps-shadow/capture.sh`, 2 slots + orphan sweep). It builds the PRIORITY FLAG this week: Dom live-bug stills > release-gating > cosmetic > cleanup compares. The job owner steps aside for a higher class, gate and stills combine into one job, and the queue says when a retry loses its place.
+**Today's other standing rules (in the ledger):** one combat engine everywhere (Pit controls in the world, camera lock on, toggle in ☰); main screen = combat HUD only, every MMO function in the ☰ menu, plus one context prompt next to interactables; PvP is always a duel (gauntlet), flag with 24 h toggle, 10 min no-combat before switching off, then you leave the zone; COO = session local_0f681df3…2281c (shows as [ace8cc]), speaks with Dom's authority.
+
+## 2026-10-07 12:48 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1248 + project_dom_decided_ledger (11:4x–12:5x).
+
+**Now.** Back on this account. Lanes consolidated to 10 (docs/LANES.md); all running. Re-arm the 40-min light check-in (two crons, see memory). Live a5234895 (curl 12:48); Deploy 5ee0a99 in flight.
+**Done.** Sidebar 22→10 lanes + models; sign-in was a stale tab; Origins saving moved onto the Pit key (#1639 live, POST PASS; #1463 install on CI green, no Dom step); mob design + "generators, not hand-made" rulings; donor library moved to the Hetzner storage box (/mnt/frankendom-donors), 18 classics added, batch 2 running (/root/donor-batch2.log).
+**Open.** Preview link from Lead (wandering mobs); #1463 install; batch 2 finish; 600-zone plan parked for Dom (reference memory).
+**Gotchas.** Dom never does root/SQL steps. Donor box is flat (no per-game folders). OpenXRay/DevilutionX excluded (leaked/decompiled). Armagedom = Dom's separate game, Frankendom primary.
+
+## 2026-10-07 09:56 (+04, `date`) — HANDOFF (Dom: 4% credits, none for 5 days). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0956 + project_dom_decided_ledger.
+
+**Now.** Live 7a6ff569. Standoff (combat/standoff-final @5ae2592d) then RV31 rebuild (@4db8c0e8, Auditor re-probing) as own releases. Origins saving blocked on Dom's W3 (#1455); then #1463 installer → presence step 2 → X1 #1593.
+**Done today.** 6 releases (345571fb, 390cabd3, 4d5aebb4 RV29, d7158986, 63d1e87a RV30, 7a6ff569); DB 0005/0007/0008/0009 applied + POST PASS; VPS disk 42→64 GB; Characters Execution WIP saved as draft #1628.
+**Open.** Dom: W3 password + env file; /clear Characters. Lead: #1604 #1613 #1630 GOs.
+**Gotchas.** No Origins writer exists (never say 'writer restart'). ListAgents 'idle' ≠ idle. RV31 comment edit moved SIM_DIGEST: comment edits in SIM_FILES are not comment-only.
+
+## 2026-10-07 08:22 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0822 + project_dom_decided_ledger (lines 06:5x–08:5x).
+**Now.** CronList, re-arm 8,28,48. Restart the Auditor when it shows fresh (DB applies wait on it). Live 8f97d10a; 345571f in flight (fatigue-read OFF). Next: RV29 → RV30 → standoff → RV31 (p600, Pitborn L6 −8 named exception).
+**Dom today.** Beta = duels + Origins Zone 1 + stances/gambit/luck/Coach (no freeze; SCOPE.md #1618). Fatigue: subtle last-10% pose + red pulsing bar, preview being fixed. Origins preview /preview/origins/ to carry everything built + Ash Frontier walkable.
+**Open.** DB 0005→0007→0008→0009 (fresh Auditor), #1596 merge after 0009, presence step 2, S1 needs VPS GB/month, Dom /clear of Auditor + Characters.
+**Gotchas.** "idle" in ListAgents ≠ no work; peer clock stamps run +1 h.
+
+## 2026-10-07 06:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0635 + project_dom_decided_ledger (lines 05:xx on).
+**Now.** FIRST: CronList, re-arm 8,28,48 /checkin. Then restart Auditor, Expansion and Lead by session id ONLY once each has cleared (a paste sent before the clear blocks it); ids and pastes are in the 0635 memory. Live 578be80c (curl 06:35, no lock): earned victory headline, sparring watchdog, fatigue pose from behind (flag-off), Origins boss records.
+**Done tonight (05:xx-06:3x).** Live in order: 04872863 kick-scale look test → 2fa6f8a2 trident + defence-grades look test → 84e3f08c banked pieces upgrade only at the Exchange → 110e4caa → 54f113df story gear at the smith + presence lookup code → 26f17894 kick-light audit (light already inside the 1.585 m edge, pinned by test; ?look=kick52) → 1c2a0ac9 kick-scale flag removed → 578be80c. Rulings in the ledger: story GEAR upgradeable, quest items refused with a plain line; research #18 closed (9.6% span); S1 load test R2c Exchange cluster gates beta, R6 10 ops/s + 30 ops/s burst, 15 duel pairs; RV31 per-opponent `spamRun` (Shieldmaiden early gate OR old read; Pitborn rerun n=240); X2 no logout escape, no rejoin inside a trade area.
+**Open.** Dom's morning table (0440 memory): RV29 #1549, RV30 #1564, standoff #1535, power words, palette, Concord art, 0008 GO, trading caps, VPS GB/month, test phone. Joint Lead+Strategy GOs in order: #1581 presence install + #1571 nginx → ORIGINS_PRESENCE=1 + --link-writer → X1 #1593 merges; 0005 #1522 after Backend's CI re-run. RV31 #1588 waits on the Auditor's full suite.
+**Gotchas.** Lane handoffs carry wrong dates/times (check with `date`). Research sheet = ~/Downloads/Best combat systems for Frankendom.md (§3, ranks 1-50).
+
 ## 2026-10-07 04:4x (+04, `date`) — HANDOFF. READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0440 + project_dom_decided_ledger (lines from 2026-10-07 00:4x on).
 **Now.** FIRST: CronList, re-arm 8,28,48 (/checkin, nudge rule). Live e0f8d59e (curl 04:30). Dom wakes to the morning table (in the 0440 memory): 11 releases overnight, all merge-base verified by Strategy: fatigue, b4 + foe blood + close-range fix, directional cuts, PvP hit-stop (+ lag-cap fix), refused-press, pace line, school palette, wounded stamina ceiling, Hamstrung (picker), duel records + anti-farm, synctest, trade lock + escrow fix (DB 0003/0004 applied), Origins previews (patrons/clans, Feuds, quests, smith, crowd tokens, launch-gates). Previews: /preview/standoff/?standoff=1, /preview/breakbeat/?look=breakbeat150.
 **Dom's 5 picks (01:4x).** 1C standoff = preview, held for his look. 2C/3B/4 = RV29 #1549 (on #1548): 38/38 caps, special battery posted, hold 60; HELD for the v23-stamp script fix + flatten onto trunk for a real quality run (the Auditor found it never had one). 5 executions: Hamstrung live (picker); Execution next (Characters, 2nd worktree); rotation rides a later RV.

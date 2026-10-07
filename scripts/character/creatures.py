@@ -36,6 +36,11 @@ recipes = {
     # scale. Arm pose solved
     # from the centred scan's hand clusters (±0.32, 0.925 m): 74° and a 0.88 reach put the donor's hand on them (docs/character-references/witch-source-v1.png).
     "witch": ("source/backups/veteran-v1", 74, 0.88, (0, -0.04, -0.025), 1.80, 16),
+    # The giant (Hrungnir, body family `giant`, docs/specs/origins/body-families.md): a mob body fitted at a man's 1.84 m on the hero rig like the
+    # Plague Doctor; the runtime scales it up (x1.85, a per-opponent scale). Arm pose is a first guess, solved by the pose sheet.
+    # Its surface: scripts/character/herolook_bake.py with BAKE_CAGE=0.015 BAKE_RAY=0.06 BAKE_FLAT_MR=0.85 BAKE_NORMALS=smooth, 20000 tris, 2048 (the metal/rough
+    # map speckled white, and the nearest-loop normal transfer lit 30.7% of its triangles backwards; both are off for the giant only).
+    "giant": ("warrior", 75, 1.15, (0, -0.04, -0.025), 1.84, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.

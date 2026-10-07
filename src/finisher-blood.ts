@@ -1,6 +1,7 @@
 import { AddEquation, Color, CustomBlending, DstColorFactor, DynamicDrawUsage, OneMinusSrcAlphaFactor, SRGBColorSpace, TextureLoader, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
 import type { FinisherId } from './finishers.ts';
 import { HAMSTRUNG_BEATS } from './hamstrung.ts';
+import { EXECUTION_BEATS, executionAt } from './execution.ts';
 
 // Blood on the floor multiplies onto the sand: dst × lerp(1, texture, alpha·opacity). Premultiplied output makes alpha and opacity
 // fade it toward "no change" — never toward white, which a plain MultiplyBlending ignores opacity for.
@@ -55,6 +56,12 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
       ...(knee ? [{...source('knee-cut',knee,forward.clone().negate(),1.1),delay:HAMSTRUNG_BEATS.knee*HAMSTRUNG_BEATS.duration,seed:8}] : []),
       {...source('back-entry',chest.clone().addScaledVector(forward,-.13*size),forward.clone().negate().addScaledVector(up,.6),1.4),delay:HAMSTRUNG_BEATS.back*HAMSTRUNG_BEATS.duration+HAMSTRUNG_BEATS.hold,seed:8},
     ];
+  }
+  if (kind === 'execution') {
+    // One wound, at the cut: the nape. He kneels turned away, so the back of his neck faces the killer (`forward`, the actor's heading, points at him).
+    // The jet rises and leans toward the killer; the neck bone then rides him down onto his face, so the seep pools under the head. The head stays whole.
+    const nape = neck.clone().addScaledVector(forward,.025*size);
+    return [{...source('nape-cut',nape,forward.clone().addScaledVector(up,.9),1.2),delay:executionAt(EXECUTION_BEATS.strike),seed:8}];
   }
   if (kind === 'decapitation') {
     const sites = [source('neck-stump',neck.clone().addScaledVector(up,.035*size),up.clone().addScaledVector(forward,.35),1.35)];

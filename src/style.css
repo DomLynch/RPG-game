@@ -1714,6 +1714,9 @@ dialog #account-login { flex-basis: 100%; min-height: 48px; background: #fff; bo
 }
 .howto { border-top: 1px solid var(--jl); margin-top: 12px; }
 .howto summary { cursor: pointer; padding: 12px 0; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jf); }
+.credits ul { margin: 0 0 12px; padding-left: 18px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
+.credits li { margin: 0 0 8px; }
+.credits a { color: inherit; text-decoration: underline; }
 .howto p { margin: 0 0 12px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
 .scorecard {
   white-space: pre-wrap;
@@ -2054,10 +2057,6 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   /* No DUEL (a player not on the admins roster): LINK and CLIP centre as a pair, no empty slot where DUEL would be (Strategy 2026-10-02). */
   :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #share-link { left: calc(50% - 65px); }
   :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #clip-button { left: calc(50% + 5px); }
-  /* A win with gear to take (Strategy 2026-10-02, the win still): the loot panel fills y 190..497 at 375, right where the row sits, so it moves to the
-     sand under the panel (the panel's bottom, then the Next button's band): row-above-the-heads on a loss, row-under-the-panel on a win. */
-  :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] .clip-pick { top: calc(env(safe-area-inset-top, 0px) + 512px); }
-  :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #duel-button { top: calc(env(safe-area-inset-top, 0px) + 508px); }
 }
 /* Until Dom opens duels (Strategy 2026-10-02) only the admins roster (and ?debug on a local build) see DUEL: no player taps it into "admins only". LINK and CLIP stay for everyone. */
 :root:not([data-duel-tools='true']) #duel-button { display: none !important; }
@@ -2245,6 +2244,35 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
   .actions[data-gestures=cluster] #pit-button { position: absolute; left: -155px; top: 98px; width: 134px; height: 44px; padding: 0 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 #pit-button[aria-disabled='true'] { opacity: .7; }
+/* The kill screen's one action column (Web 2026-10-07, Dom's iPhone shots: the Pit pill sat on the move pad, LINK and CLIP collided with it
+   and with Next). Portrait phone: a right-hand column on the footer's 16 px gutter, left edge clear of the 128 px pad (x >= 174, so the walk
+   to the gate keeps its stick), bottom up: Next / Enter the Pit as two matching 48 px buttons, then the LINK + CLIP icon row. One grid, nothing
+   placed off another button's corner, so nothing can overlap at 320, 375 or 430. The viewer page's PLAY NOW keeps its own box. */
+@media (orientation: portrait) and (max-width: 900px), (orientation: portrait) and (pointer: coarse) {
+  :root {
+    --end-gutter: max(16px, env(safe-area-inset-right));
+    --end-base: max(34px, env(safe-area-inset-bottom));
+    --end-width: min(220px, calc(100vw - 190px));
+  }
+  .actions[data-gestures=cluster] #reset-button:not([data-play='1']),
+  .actions[data-gestures=cluster] #pit-button {
+    position: fixed; left: auto; top: auto; right: var(--end-gutter); width: var(--end-width); height: 48px; min-height: 48px;
+    box-sizing: border-box; padding: 0 12px; border-radius: 14px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { bottom: var(--end-base); background: #b7a276; border: 1px solid #e9d9b3; color: #1b1916; font-weight: 700; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 2px 10px #0007; }   /* Next is the primary: solid sand, dark ink */
+  .actions[data-gestures=cluster] #pit-button { bottom: calc(var(--end-base) + 56px); background: #172329e6; border: 1px solid #e9d9b380; color: #f3e9cf; }   /* the Pit is the secondary: the cluster's dark glass */
+  .actions[data-gestures=cluster] .clip-pick { position: fixed; top: auto; left: auto; bottom: calc(var(--end-base) + 112px); }
+  .actions[data-gestures=cluster] #clip-button { left: auto; right: var(--end-gutter); }
+  .actions[data-gestures=cluster] #share-link { left: auto; right: calc(var(--end-gutter) + 66px); }
+  :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #share-link { left: auto; right: calc(var(--end-gutter) + 66px); }
+  :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #clip-button { left: auto; right: var(--end-gutter); }
+  .actions[data-gestures=cluster] #duel-button { top: auto; left: auto; bottom: calc(var(--end-base) + 180px); right: var(--end-gutter); }   /* admin-only: a third row of the column, so it never reaches the pad */
+  .actions[data-gestures=cluster] #share-status { position: fixed; left: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 256px); max-width: var(--end-width); text-align: right; }
+  /* While the take-one offer is up it takes the column's slot above Next (it sat at left 0 / top 137 of the old cluster and covered Next, so Next could not
+     be tapped: release rows 16, 21 and 25, Lead 2026-10-07). The rest of the column waits (visibility: nothing reflows) and returns with the offer's close. */
+  :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; left: auto; top: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 56px); width: var(--end-width); }
+  :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#pit-button, #share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
+}
 /* The door and the move pad share the thumb corner at 375 (Web 2026-09-29): on the kill screen, with the fight over, the stick hides the
    way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
 body:not([data-pit]):has(#pit-button:not([hidden])) #joystick { visibility: hidden; }
