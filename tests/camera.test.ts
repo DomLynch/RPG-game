@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { GATE_CAM, SETTLE, TOUR, FRAMING_SCALE, FRAMING_TALL, cameraPose, finisherSidePose, framingScale, framingTall } from '../src/camera.ts';
+import { GATE_CAM, SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall } from '../src/camera.ts';
 import { createHash } from 'node:crypto';
 import { OPPONENTS } from '../src/moves.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
@@ -404,10 +404,10 @@ test('in a smaller arena the lock looks 0.896 m nearer the camera at 0.36, and t
 
 // Foe-height framing (Combat, 2026-10-07; the Ash Wolf hid behind the hero's head at bite range, the Wraith's head and scythe left the top of the lock frame). Presentation only:
 // the table below is the ONLY place a foe's look-height differs from the sim's scale, and every pose for a foe at or under a man's height is trunk's, byte for byte.
-test('only the wolf (short) and the wraith (tall) have a framing height of their own; every other foe is framed by the sim scale it always had', () => {
-  assert.deepEqual(Object.keys(FRAMING_SCALE), ['wolf']); assert.deepEqual(Object.keys(FRAMING_TALL), ['wraith']);
-  for (const [id, o] of Object.entries(OPPONENTS)) {
-    if (!(id in FRAMING_SCALE)) assert.equal(framingScale(id, o.scale), o.scale, `${id} is framed by its sim scale`);
+test('only the wolf (low) and the wraith (tall) have a framing of their own; every other foe is framed exactly as before', () => {
+  assert.deepEqual(Object.keys(FRAMING_LOW), ['wolf']); assert.deepEqual(Object.keys(FRAMING_TALL), ['wraith']);
+  for (const id of Object.keys(OPPONENTS)) {
+    if (!(id in FRAMING_LOW)) assert.equal(framingLow(id), 0, `${id} gets no low framing`);
     if (!(id in FRAMING_TALL)) assert.equal(framingTall(id), 0, `${id} gets no tall framing`);
   }
 });
@@ -425,5 +425,7 @@ test('a tall foe is framed from further back and higher; an orbit camera and a m
   const state = { x: 0, z: 0 }, foe = { x: 0, z: -2.2 };
   const man = cameraPose(state, 0, 0.45, true, foe, 1), tall = cameraPose(state, 0, 0.45, true, foe, 1, framingTall('wraith'));
   assert.ok(tall.z > man.z && tall.y > man.y, 'backed off and up');
-  assert.deepEqual(cameraPose(state, 0, 0.45, false, foe, 1, framingTall('wraith')), cameraPose(state, 0, 0.45, false, foe, 1), 'the orbit camera ignores foe height');
+  assert.deepEqual(cameraPose(state, 0, 0.45, false, foe, 1, framingTall('wraith'), framingLow('wolf')), cameraPose(state, 0, 0.45, false, foe, 1), 'the orbit camera ignores foe height');
+  const low = cameraPose(state, 0, 0.45, true, foe, 1, 0, framingLow('wolf'));
+  assert.ok(low.y > man.y && Math.abs(low.x - man.x) > 0.5, 'a low foe: the lock steps over the shoulder and lifts');
 });
