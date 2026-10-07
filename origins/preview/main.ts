@@ -38,6 +38,17 @@ const theme = ARENA_THEMES['1'], PHONE = phoneTier();
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, pixelCap(PHONE)));
+// iOS drops a WebGL context under GPU memory pressure and the screen goes black (Dom's iPhone 15, 2026-10-07). Log it, stop the page's default
+// (so a restore is possible) and reload once the context comes back: the creatures' bodies are re-fetched and re-dressed from scratch.
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); console.warn('origins-preview: webgl context lost'); (window as unknown as { __contextLost?: number }).__contextLost = Date.now(); });
+canvas.addEventListener('webglcontextrestored', () => {   // at most one automatic reload a minute (a phone that loses it again must not loop and lose the hero's place each time); private mode: no storage, no reload
+  try {
+    const at = Number(sessionStorage.getItem('origins-preview.reloaded') ?? 0);
+    if (Date.now() - at < 60_000) { console.warn('origins-preview: webgl context restored again within a minute; not reloading'); return; }
+    sessionStorage.setItem('origins-preview.reloaded', String(Date.now()));
+  } catch { return; }
+  console.warn('origins-preview: webgl context restored; reloading'); location.reload();
+});
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = theme.exposure;
 const scene = new THREE.Scene();
@@ -459,6 +470,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
+  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
   mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, rollClip: !!rollAct, guardClip: !!guardAct }),
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
