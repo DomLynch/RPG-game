@@ -75,7 +75,9 @@ export const RECORD_VERSION = 32;   // 32: bump 32 (2026-10-07; Combat, patron p
 // [.., 31] -> [.., 31, 32] with the writer bump to 32: widened, REACH[32] is empty (a patron-less fight writes 31 and steps as before; only a patron record is v32).
 export const READABLE_VERSIONS = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] as const;
 // What a fight with no patron writes: the writer ceiling is RECORD_VERSION (32), but a record names the LOWEST version that can express its fight.
-export const NO_PATRON_VERSION = 31;
+// A literal 31 only while the ceiling is 32 (the v31 bytes a patron-less fight has always written); from the next bump on a no-patron fight is simply the current version, whose
+// header carries a patron byte of 0 (only v32 refuses a zero patron, because a v32 patron-less fight was always written as 31). Pinned by tests/record-version-guard.test.ts, which simulates RV33.
+export const NO_PATRON_VERSION = (RECORD_VERSION as number) === 32 ? 31 : RECORD_VERSION;
 export const FIRST_PATRON_VERSION = 32;
 // Each bump's REACH (the standing rule, Strategy 2026-09-28): the fights bump N can change, as (opponent, from level). A record of version
 // k is refused when any bump after k reaches its opponent at its level; everything else is read. Literals on purpose, not the data they
@@ -219,7 +221,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   const arena = v >= FIRST_ARENA_VERSION ? ARENAS[bytes[o++]] : undefined;   // before version 26 there is no byte: the ladder band decides
   if (v >= FIRST_ARENA_VERSION && bytes[o - 1] >= ARENAS.length) throw Error('Fight record: unknown arena');
   const patron = v >= FIRST_PATRON_VERSION ? bytes[o++] : 0;   // before version 32 there is no byte: no patron; a v32 record always names one (the writer never emits 32 without)
-  if (v >= FIRST_PATRON_VERSION && !patron) throw Error('Fight record: a version 32 record names a patron');
+  if (v === FIRST_PATRON_VERSION && !patron) throw Error('Fight record: a version 32 record names a patron');
   const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (level < 1 || level > LEVELS || !outcome) throw Error('Fight record: unknown level or outcome');
   for (let bump = v + 1; bump <= RECORD_VERSION; bump++) for (const r of REACH[bump] ?? []) if (opponent === r.opponent && level >= r.from)

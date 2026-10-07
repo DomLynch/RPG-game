@@ -7,9 +7,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { READABLE_VERSIONS, REACH, RECORD_VERSION, packRecord, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import type { OpponentId } from '../src/roster.ts';
 
@@ -71,4 +75,35 @@ test('an older record decodes only where no later bump reached its fight', () =>
   for (const [v, opponent, level] of [[28, 'goblin', 1], [27, 'veteran', 46], [26, 'witch', 10], [19, 'plaguedoctor', 1], [18, 'veteran', 6], [18, 'knight', 18], [29, 'knight', 1], [29, 'shieldmaiden', 46], [29, 'plaguedoctor', 10], [30, 'knight', 1], [30, 'veteran', 18], [30, 'pitborn', 46], [30, 'dwarf', 6], [30, 'shieldmaiden', 12], [29, 'veteran', 5], [29, 'dwarf', 46]] as const)
     assert.throws(() => unpackRecord(at(v, opponent, level)), new RegExp(`^Error: Fight record: version ${v} is not supported for the ${opponent} from level \\d+ \\(bump \\d+ changed`), `a v${v} ${opponent} L${level} record replays a fight the RV29 rule batch changed`);
   assert.throws(() => unpackRecord(at(17, 'goblin', 18)), /version 17 is not supported/, 'v17 is outside the window');
+});
+
+// The patron rule must survive the NEXT fight-logic bump (the Auditor's RV33 probe, 2026-10-07): a throwaway copy of src/record.ts with the ceiling at 33 (imports pointed back
+// at the real src/, so the one sim and the one set of era flags). Today the ceiling is 32 and a patron-less fight writes 31; at 33 it must write 33 itself (a patron byte
+// of 0), the build must read its own fresh links, and only v32 refuses a zero patron.
+test('RV33 simulated: a patron-less fight stamps the new ceiling and round-trips; a patron fight too; a v32 record with no patron is still refused', async () => {
+  assert.equal(NO_PATRON_VERSION, RECORD_VERSION === 32 ? 31 : RECORD_VERSION);
+  const src = readFileSync(new URL('../src/record.ts', import.meta.url), 'utf8').replace(/from '\.\//g, `from '${new URL('../src/', import.meta.url).href}`);
+  const bumped = src.replace('export const RECORD_VERSION = 32;', 'export const RECORD_VERSION = 33;').replace('30, 31, 32] as const', '30, 31, 32, 33] as const').replace('  32: [],', '  32: [],\n  33: [],');
+  assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 33') && bumped.includes('32, 33] as const') && bumped.includes('33: [],'), 'the probe edits applied');
+  const dir = mkdtempSync(join(tmpdir(), 'rv33-'));
+  try {
+    const file = join(dir, 'record33.ts'); writeFileSync(file, bumped);
+    const m = await import(pathToFileURL(file).href) as typeof import('../src/record.ts');
+    assert.equal(m.RECORD_VERSION, 33); assert.equal(m.NO_PATRON_VERSION, 33);
+    setPlayScale(playScaleFor('goblin', 33)); setLateNotice(true); setStab(true);
+    const fightOf = (patron?: number) => {
+      const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}) });
+      for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+      return rec.finish('draw');
+    };
+    const none = fightOf(), withPatron = fightOf(5);
+    assert.equal(none.v, 33, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
+    assert.equal(m.packRecord(none)[2], 33);
+    assert.deepEqual(m.unpackRecord(m.packRecord(none)), none, 'a v33 record with patron byte 0 round-trips with no patron');
+    assert.equal(withPatron.v, 33); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
+    const v32 = m.packRecord(withPatron).slice(); v32[2] = 32;
+    const at = v32.length - 6 * 20 - 4 - 4 - 1 - 1 - 1; assert.equal(v32[at], 5); v32[at] = 0;
+    assert.throws(() => m.unpackRecord(v32), /names a patron/, 'a v32 record with no patron is refused: it was always written as v31');
+  } finally { rmSync(dir, { recursive: true, force: true }); setLateNotice(false); setStab(false); setPlayScale(1); }
+  void createRecorder;
 });
