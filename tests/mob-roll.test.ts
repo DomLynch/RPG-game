@@ -42,7 +42,7 @@ test('a rolled blow is the plain blow scaled by its draw, numbered in order, and
     for (const e of hits(b)) {
       const p = rollPercent(seed, n++);
       assert.equal(e.roll, p);
-      assert.equal(e.damage, rolledDamage(hits(a).find(x => x.actor === e.actor)?.damage ?? e.damage, p), 'the rolled blow is the plain one scaled');
+      assert.equal(e.damage, rolledDamage(hits(a).find(x => x.actor === e.actor)?.damage ?? e.damage ?? 0, p), 'the rolled blow is the plain one scaled');
       assert.equal(hpB[e.target!] - b.fighters[e.target!].health, e.damage, 'the health lost is the event\'s damage');
     }
     if (hits(b).length) break;
