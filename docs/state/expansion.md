@@ -1,5 +1,43 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~10:00 (+04): HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md`. The newest lines are at the bottom, and every ruling today is there.
+
+Session folder: the app worktree `.../worktrees/elastic-gates-c6edc0`. The restart hook mislabels it lead-catalogue; it IS expansion. Re-arm the 20-minute check-in cron after the restart. The check-in uses the full open list: `gh pr list --author @me --state open`, filtered to expansion/*.
+
+**1. LIVE:** 385f67a5 had #1518 Region 1 (merged 03:18Z). Trunk tip is 345571fb. Check with curl before stating anything.
+
+**2. DOM'S #1 PRIORITY: play Origins on frankendom.com/preview/origins/ with everything built.**
+- **(A) Republish /preview/origins/ from trunk.** Built on the VPS from 345571fb at `/opt/frankendom-shadow/work/expansion/r1518/artifacts/origins-preview` (69 MB). It went to Deploy for a preview-only publish, in Lead's slot after #1616 + RV29.
+  - NOT checked at 375 by me. After Deploy's published line, open it at 375x812 (0 console errors, no 404s), then send Strategy and Lead a 5-line "what to try" list.
+  - The preview wires: talk, the quest journal, bank/backpack, the smith (banked = Exchange only, story gear OK, quest-item refusal line), the patron picker, the Pit duel and the saved career.
+  - It has NO screens yet for: trade/escrow, boss records, Region 1, rejoin. Lead was told.
+- **(B) Slice 1 = Ash Frontier towns + a Bounty, walkable onward from the Exchange, on the same URL** (behind ?region=1 at first). A background agent is building it on branch `expansion/greybox-world` from trunk, worktree under `.claude/worktrees/agent-*`.
+  - Step 1: data-driven Concord, identical within 1 cm, with a pin test. Step 2: ?region=1 zones.
+  - It opens its own PR with 375 stills on the orphan branch `stills/expansion-greybox-world`.
+  - It sets `ambience.preset` per zone (ash-pit / exchange-dusk / frontier-haze).
+  - NO report from it at clear. If it died: `git ls-remote origin expansion/greybox-world`; restart from this brief if empty.
+  - **World lane owns `origins/preview/look.ts`** (sky/fog/light keyed on ambience.preset + view.fog*, plus one wiring line in main.ts). Send World the greybox-world sha once it's pushed.
+
+**3. GO'D, WAITING ON DEPLOY (do not push):**
+- #1513 combat study @fbcc4aff (luck + stances + mood, Dom-approved).
+- #1607 luck contract @56596112 (world-mob ±10% rolls both ways; Pit/PvP/ladder never; Gambit odds 1/2 ×2).
+- #1609 Region 1 LOWs @0345aa88.
+- #1596 X2 writer @feab306a: joint GO. Apply order 0005 → 0007 → 0008 → 0009, then Deploy merges, then the writer restarts. Undrafted.
+
+**4. HELD:** #1593 X1 waits on presence step 2 (flag on + --link-writer), which needs Backend's writer-key installer.
+
+**5. OWED LATER:**
+- The rejoin nudge, as a follow-up PR after #1596 merges (needs Backend #1599 /internal/rejoin).
+- #1607 Auditor LOWs (seed is uint32: say so; caller odds unchecked).
+- Luck HUD placement once a world-mob fight exists.
+
+**6. RULINGS TODAY (in memory):**
+- **Luck:** Gambit = a 2nd heavy press after the chamber, with a player-only cue, ~1-in-2 for ~2×, EV slightly under a heavy, no kill from >40%, and a PvP roll that cannot be known at press time (Combat). ±10% rolls ONLY vs Origins world mobs, both ways, and they are mine end to end.
+- **Stances (= opponent mood):** Neutral/Aggressive/Defensive/Trickster. ±5% damage to start, 10% ceiling. Weapon-hold poses + versus-card reveal. Hidden simultaneous PvP pick. The AI draws from the seed with a 50% home bias. Exempt from the patron no-arena-damage rule.
+- **Combat order:** RV31 → RV30 → Gambit → stances.
+
 ## 2026-10-07 ~09:50 (+04) — HANDOFF before /clear. READ FIRST, then memory
 
 Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom; every ruling tonight is there with sources). Session folder: app worktree `.../worktrees/elastic-gates-c6edc0` (the restart hook mislabels it lead-catalogue/lead; it IS expansion). Re-arm the 20-min check-in cron after restart. Check-ins MUST use the full open list: `gh pr list --author @me --state open` filtered to `expansion/` (I missed #1457 once by checking a fixed list).
