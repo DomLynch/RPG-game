@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body creature concept for a dark-fantasy game, single animal, centred, plain neutral grey background, even soft light, no cast shadow, whole body in frame from snout to tail, strict side view, standing on all four legs, head level. A cinder boar of the burnt Frontier: heavy, low and broad, thick bristled ash-black hide with scorched scars, two curved yellowed tusks, small ember-red eyes, short tail. Clear readable silhouette, simple shapes, matte materials.",
+  "seed": 31,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1216x832",
+  "seconds": 48.7,
+  "sha256": "54a924bb302104d6af76d54d660b96be6dee3c2cb4675e2fbb6a9f37752179e4"
+}
