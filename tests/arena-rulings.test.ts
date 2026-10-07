@@ -17,7 +17,7 @@ test('Arena 1 stays at 0.36: Dom rejected a further 15 % (0.306)', () => {
 // Dom 2026-10-06 (docs/state/lead.md, Arenas): "every arena = Arena 1 byte-for-byte + ONE painting" (memory feedback_arena_only_backdrop): arenas 2 to 11 are Arena 1 with only the
 // painted far world swapped, so a theme may differ from Arena 1 in its id, its name and its backdrop and in nothing else. The generated looks a-d are a different (older) set and stay out.
 test('every rotation arena is Arena 1 with only the backdrop swapped', () => {
-  const rest = (t: object) => { const { id: _i, name: _n, backdrop: _b, ...others } = t as Record<string, unknown>; return others; };
+  const rest = (t: object) => Object.fromEntries(Object.entries(t).filter(([key]) => !['id', 'name', 'backdrop'].includes(key)));
   const one = ARENA_THEMES['1'];
   const backdrops = new Set<string | undefined>([one.backdrop]);
   for (const key of ARENA_ROTATION.filter((k) => k !== '1')) {
