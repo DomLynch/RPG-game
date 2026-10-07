@@ -253,5 +253,39 @@
   "roam": 6,
   "aggro": 7,
   "named": false
+ },
+ {
+  "id": "opener-ferry-landing-1",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "ferry-landing",
+  "spawn": "opener",
+  "home": {
+   "x": -156.35860600498634,
+   "z": -59.52660108684306
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "opener-cinder-fields-1",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 11,
+  "zone": "cinder-fields",
+  "spawn": "opener",
+  "home": {
+   "x": -66.22086009083846,
+   "z": 47.70880840632668
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
  }
 ]

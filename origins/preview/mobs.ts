@@ -7,7 +7,8 @@
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
-import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
 export type Pos = { x: number; z: number };
@@ -91,6 +92,18 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         });
       }
     }
+  }
+  // The openers: a zone the data leaves without a creature inside the first-fight window gets one lone opener (zone-rules.ts openerSpot), appended last.
+  for (const [zoneId, rowId] of Object.entries(FRONTIER_OPENERS)) {
+    const zone = f.zones.find((z) => z.zone === zoneId), row = rows.find((r) => r.id === rowId), def = f.data.registry.characters.get(rowId as CharacterId);
+    const form = def?.encounterForms.find((x) => x.id === 'mob');
+    if (!zone || !row || !def || !form) continue;
+    const near = out.some((m) => m.zone === zoneId && Math.hypot(m.home.x - zone.mount.x, m.home.z - zone.mount.z) <= MAX_FIRST_FIGHT_M);
+    if (near) continue;
+    let rng = mixSeed(TUNING.seed, 5000 + out.length);
+    const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
+    if (!spot) continue;
+    out.push({ id: `opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   return out;
 }
