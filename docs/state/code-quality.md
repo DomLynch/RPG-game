@@ -1,5 +1,15 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-07 (~08:55 local / 04:55Z) — RESUME HERE (Dom's clear): everything since the 03:25Z entry is posted; no receipts owed; LIVE = trunk = 8f97d10a
+
+**READ FIRST:** memory `frankendom_handoff_2026-10-07h` (its "04:5xZ FINAL before clear" block has the queue in order, every verdict since 03:25Z, the probe scripts and lessons), then `frankendom_audit_loop` (cursor 8f97d10a; re-arm the cron: CronList; `17,47 * * * *`).
+
+**Now, in order.** (1) #1522 applies 0005 → 0007 → 0008 at a6ece7be (all three PASSed there; joint GO per migration; my prod POST between each, read-only via the Supabase MCP). (2) #1581 Origins step 1 apply (presence OFF + nginx include): plan PASSed on the PR with two 404 verify lines added; Lead's half of the GO is with Strategy; Deploy runs it; read the verify receipt. (3) RV31 #1588 re-run at Combat's next head under Strategy's rulings (run resets only on a defence that meets a blow; Shieldmaiden on the run gate alone; guard-once + guard-tap permanent tests): spam ×3 + honest L1/L6/L12 (n=240 at L6/L12), then test:all. (4) #1596 @feab306a PASSed: joint GO, then its rejoin-nudge delta, then the 0009 PRE → GO → apply → POST. (5) #1574 rebase delta + gate receipt, #1552 after. (6) #1593 X1 live checklist when asked. (7) Coming: World's standoff-on PR, RV30 #1564 delta after rebase.
+
+**Done since 03:25Z (all on the PRs).** #1513 docs PASS ×4 heads to @fbcc4aff (luck + stance/mood rulings, Dom-approved). #1599 @70413e5c delta PASS (hello carries x,z, memory dropped on rejoin, friend passed through) → merged. #1581 apply plan PASS. #1607 @56596112 Origins luck PASS (fail-first reproduced) → merged. #1609 @0345aa88 (#1518 LOWs) PASS → merged. Audit ticks: 54f113df → ada573d4 → 385f67a5 → 8f97d10a, every merge a plain merge-tree, no finding; slot src/*.ts n-r clean (five own-file exports to the cleanup backlog; record.ts ones only inside a bump). #1605 (fatigue read pose on by default) merged on Lead's read without this lane's verdict: post-hoc read clean, presentation only.
+
+**Gotchas (new).** zsh `set -- $P` does not word-split (`${P%% *}` / `${P##* }`); `$T:path` is a modifier (`${T}:path`); `--include=*.ts` needs quotes under ugrep; root-owned logs under /opt/frankendom-shadow/work break the frankrows redirect (log to /tmp); BSD sed has no `0,/re/`.
+
 ## 2026-10-07 (~07:25 local / 03:25Z) — RESUME HERE (handoff at a task boundary past the context budget): six gate receipts, RV31 #1588 HOLD + re-probe (Strategy rulings out), #1518 PASS, #1596 PASS + PRE plan, #1522 0008 PASS + prod PRE, #1599 PASS with a protocol finding; audit tick clean to ada573d4
 
 **READ FIRST:** memory `frankendom_handoff_2026-10-07h` (twin: every verdict, the RV31 tables, the PRE plans, probe scripts, lessons), then `frankendom_audit_loop` (cursor ada573d4; re-arm the cron: CronList; `17,47 * * * *`).
