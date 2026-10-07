@@ -25,6 +25,7 @@ import { withBar } from './encounter-duel.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Object3D } from 'three';
+import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
 export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; as?: Shown };   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
@@ -47,7 +48,7 @@ type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; v
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
 let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
-let twist: Twist = noTwist(), dressed = false;
+let twist: Twist = noTwist(), dressed = false, dressedRoot: Object3D | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
 const seen = new Map<string, number>();   // for the test hook: how often the player's inputs started each action, attack and charge this duel
@@ -147,6 +148,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
+  if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
   fight = asked; hooks = page; next = undefined; result = null; twist = noTwist();
   stageFor(host, opponent, asked.level);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
@@ -207,7 +209,7 @@ function frame(now: number) {
   stage.view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha },
     true, paused() ? 0 : dt, match.practice, match.frameEvents, false, match.epoch, match.specialIdentity);   // locked: the live camera, always
   match.frameEvents = [];
-  if (fight!.as?.dress && !dressed && stage.ready) { const root = stage.view.opponentRoot(); if (root) { fight!.as.dress(root); dressed = true; } }
+  if (fight!.as?.dress && !dressed && stage.ready) { const root = stage.view.opponentRoot(); if (root) { fight!.as.dress(root); dressed = true; dressedRoot = root; } }
   hud!.update(match.practice, { legend: fight!.as?.name ?? legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
   if (fight!.as) {   // a creature, not a legend: no rematch
     const again = element('reset-button'), status = element('combat-status');

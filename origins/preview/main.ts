@@ -46,6 +46,7 @@ scene.add(sun, sun.target);
 
 // ?region=1 (Origins slice 1): the Exchange's west gate opens onto the Ash Frontier, laid out from the Region 1 data (frontier-plan.ts).
 // Without the flag none of it is built and the page is the walk out as before.
+const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') === '1';
 const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
 const dress = frontier && frontierParts ? frontierDress(frontier, frontierParts) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
@@ -373,13 +374,13 @@ async function startMobFight(spec: MobSpec) {
   if (!fighting) return;   // left while the chunks loaded
   const run = prepared.value, quest = bountyQuestId(frontier.giver);
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
-  const bar = Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null;
+  const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, run.seed, (end) => {
     const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest));
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
     showResult(out.text);
-  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobLook(spec.character); if (look) dressMob(root, { ...look, scale: 1 }); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
+  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobLook(spec.character); if (look) dressMob(root, look, false); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
   const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
