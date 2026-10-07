@@ -19,18 +19,24 @@ export type Online = {
   settle(end: Ended): Promise<SettleOutcome>;
   stop(): void;   // the player left: stop touching (an unsettled token expires on the server as a loss by abandonment)
 };
-type Deps = { token: string | null; character: string | null; fight: string; setup: Pick<FightSetup, 'opponent'>; fetch?: typeof fetch; base?: string; timeoutMs?: number; now?: () => number; every?: typeof setInterval; clear?: typeof clearInterval; warn?: (message: string) => void; wait?: (ms: number) => Promise<void> };
+export type Held = { get(): string | null; set(token: string | null): void };   // where the page remembers its open fight's token (sessionStorage); injected so this file stays DOM-free
+type Deps = { held?: Held; token: string | null; character: string | null; fight: string; setup: Pick<FightSetup, 'opponent'>; fetch?: typeof fetch; base?: string; timeoutMs?: number; now?: () => number; every?: typeof setInterval; clear?: typeof clearInterval; warn?: (message: string) => void; wait?: (ms: number) => Promise<void> };
 
 export async function beginOnline(d: Deps): Promise<Online | null> {
   if (!d.token || !d.character) return null;
   const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs };
-  const got = await startFight(d.token, d.character, d.fight, opts);
+  let got = await startFight(d.token, d.character, d.fight, opts);
+  if (isOffline(got as never) && (got as { offline: string }).offline === 'http-409' && d.held) {   // "a fight is already open for this account: resume it": the 409 names no token, so resume the one this page remembers
+    const open = d.held.get();
+    if (open) { got = await touchFight(d.token, open, 0, opts); if (isOffline(got as never)) d.held.set(null); }   // touch keeps the token's seed and never moves its tick back; a dead token is forgotten and the page plays offline
+  }
   if (isOffline(got as never)) return null;
   const run = got as Fight;
   if (run.enemy !== d.setup.opponent.body || run.level !== d.setup.opponent.level) {   // the server and the page disagree about the foe: play offline rather than settle another fight
     (d.warn ?? console.warn)(`encounter online: the server resolved ${run.enemy} L${run.level}, the page ${d.setup.opponent.body} L${d.setup.opponent.level}; playing offline. The server's token ${run.token.slice(0, 6)}… stays open until its grace runs out (about 2 min, then a loss by abandonment): the next ?online start is refused until then.`);
     return null;
   }
+  d.held?.set(run.token);
   const now = d.now ?? Date.now, began = now(), tickNow = () => Math.max(0, Math.round((now() - began) / (STEP * 1000)));
   const every = d.every ?? setInterval, clear = d.clear ?? clearInterval;
   let timer: ReturnType<typeof setInterval> | undefined = every(() => { void touchFight(d.token, run.token, tickNow(), opts); }, TOUCH_EVERY_MS), done = false;
@@ -38,7 +44,7 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
   return {
     seed: run.seed, stop,
     async settle(end) {
-      stop();
+      stop(); d.held?.set(null);   // settled or not, this token is spent as far as the page is concerned
       if (done) return 'already';
       if (!end.record) { done = true; return 'no-record'; }
       const wait = d.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));

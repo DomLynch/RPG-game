@@ -67,6 +67,8 @@ scene.add(sun, sun.target);
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') === '1';
 const ONLINE = onlineWanted(location.search);   // ?online=1: a creature fight is played on the server's seed and settled with its record (encounter-online.ts); anything else is the offline path
+const HELD_KEY = 'frankendom:encounter-token';   // the open server fight's token, so a reload or a second try inside its 120 s grace resumes it (a 409 on start names no token)
+const HELD = { get: () => { try { return sessionStorage.getItem(HELD_KEY); } catch { return null; } }, set: (t: string | null) => { try { if (t) sessionStorage.setItem(HELD_KEY, t); else sessionStorage.removeItem(HELD_KEY); } catch { /* private mode: no resume, offline as before */ } } };
 const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
@@ -463,7 +465,7 @@ async function startMobFight(spec: MobSpec) {
   const run = prepared.value, quest = bountyQuestId(frontier.giver);
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
   const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
-  if (ONLINE && !bar) { online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search) }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
+  if (ONLINE && !bar) { online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
     if (online) { void online.settle(end).then((outcome) => console.info('encounter settle:', outcome)); online = null; }
     const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest));
