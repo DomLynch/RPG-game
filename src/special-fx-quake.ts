@@ -2,19 +2,12 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, RIPPLE, SLAM_AT, type Cast } from './special-timing.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // Red Wind's painted-stroke helpers (Nightborn lane, special-fx-wind.ts on #1220), copied here so this preview stacks on #1120 alone, not on Red Wind.
 // SandLook: what the strokes are painted with, a dark core and a pale rim, both linear working-space colours.
 type SandLook = { core: THREE.Color; edge: THREE.Color; dim: boolean };
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const cell = (x: number, y: number, seed: number) => hash(x * 127 + y * 311, seed);
-const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
-  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy);
-  return lerp(lerp(cell(ix, iy, seed), cell(ix + 1, iy, seed), kx), lerp(cell(ix, iy + 1, seed), cell(ix + 1, iy + 1, seed), kx), ky);
-};
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 function paintSheet(seed: number, look: SandLook, wide = false) {
   const w = 64, h = 192, px = new Uint8Array(w * h * 4), core = look.core, edge = look.edge;

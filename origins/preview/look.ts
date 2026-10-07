@@ -26,6 +26,8 @@ export const PRESETS: Record<string, Look> = {
 };
 // ?look=cinder: the Frontier's haze a little thinner and the ground-bounce darker, so the skyline silhouettes (frontier-cinder.ts, 60 to 110 m out) still read against it instead of dissolving at the fog's full strength.
 PRESETS['cinder-haze'] = { ...PRESETS['frontier-haze']!, fogDensity: 0.0095, hemiGround: '#52402c' };
+// The Frontier at night (?look=night with ?region=1): a cold dark haze, a faint moon-blue key and the fire as the light; a look test for the camps' flame and glow.
+PRESETS['frontier-night'] = { fog: '#141a2a', fogDensity: 0.02, hemiSky: '#2a3558', hemiGround: '#14100e', hemiIntensity: 0.45, sunColor: '#6a7ab0', sunIntensity: 0.6, sunPos: PRESETS['frontier-haze']!.sunPos, exposure: 1.1, ground: [0.8, 0.8, 0.9] };
 // Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand
 // out pale against it (they were sand on sand); the paving pulled down and cooler, the masonry lifted and warmer.
 PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#6e5f52', fogDensity: 0.012, sunPos: [-16, 15, 20], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.35, 1.2, 1] };

@@ -3,6 +3,7 @@ import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, shadowPhase, FALL_AT, type Cast, type isHadesShadow } from './special-timing.ts';
+import { clamp01, hash, smooth } from './fx-math.ts';
 
 // The Goblin's boss specials at ranks 8, 9, 10, GREY-BOX (Goblin lane, 2026-10-01; proposal sent to Strategy, who put it to Dom; nothing here is
 // picked or shipped). Same seam as Hades' cloud and Red Wind: it reads the sim's special events and the two bodies' anchors, never the sim, the rig
@@ -15,9 +16,6 @@ import { advanceCast, shadowPhase, FALL_AT, type Cast, type isHadesShadow } from
 //   loki    (rank 10) Three Liars: two darkened snapshots of him (his own colours) slide out beside him for under 0.4 s; the real one is the only solid one and it lands.
 // The caster's own motion (hide, lunge, reappear) is applied by the effect itself to his rig anchor (special-modes.ts hands it over); the sim's body never moves.
 
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
 const PUFFS = 28, SPECKS = 44, PRINTS = 8, GHOST_SINCE = 0.1;   // a ghost shows from k .1 to the end of the 0.4 s build-up: ~0.36 s
 
 // Dirty Fistful's tell is the move itself (Strategy, 2026-10-01): he DROPS and scoops a fistful off the ground for SCOOP_TICKS before the fling, hand to the sand,

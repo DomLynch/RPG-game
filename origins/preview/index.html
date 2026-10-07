@@ -31,6 +31,7 @@
     @media (pointer: coarse), (max-width: 900px) { .stick { opacity: 0.55; } .stick.on { opacity: 1; } }
     #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
     #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
+    #creature-card { margin-top: var(--gap-s); padding: var(--gap-xs) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-shadow: none; pointer-events: none; }   /* in the HUD's flow, under the hint; an overlay, never a pause */
     #hint { margin-top: var(--gap-s); padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; text-shadow: none; pointer-events: none; }   /* in the HUD's flow: always under the status lines, however many they wrap to */
     #panel { position: relative; width: min(100%, var(--panel-w)); max-height: calc(100dvh - 2 * var(--gap-m)); overflow-y: auto; box-sizing: border-box; padding: 18px var(--gap-m) var(--gap-m); border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); }
     #panel h2 { margin: 0 var(--tap) var(--gap-s) 0; font-size: var(--fs-xl); } #panel h3 { margin: 12px 0 var(--gap-xs); font-size: var(--fs-m); color: var(--c-ink-2); }
@@ -57,7 +58,8 @@
 <body>
   <canvas id="view"></canvas>
   <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox preview · not the game</small>
-    <div id="hint" class="glass">Left thumb walks (push to the edge to run), right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div></div>
+    <div id="hint" class="glass">Left thumb walks (push to the edge to run), right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
+    <div id="creature-card" class="glass" hidden></div></div>
   <div id="move-stick" class="stick"><i></i></div><div id="look-stick" class="stick"><i></i></div>
   <button id="prompt" class="glass" hidden></button>
   <button id="walk-journal" class="glass">Journal</button>

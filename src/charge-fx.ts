@@ -3,6 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, type Cast } from './special-timing.ts';
 import { charge, CUE_AT, isCharge, RACE, RACE_FROM, slideAt } from './charge-timing.ts';
+import { hash, smooth } from './fx-math.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the in-game effect (World, 2026-10-01; Strategy's brief
 // docs/briefs/specials/centurion-l8-l10-2026-10-01.md, Dom's pick). Presentation only, like nightfall-fx.ts beside it: it reads the sim's special
@@ -17,8 +18,6 @@ const HOOF = 18, BURST = 20, GRAIN = 20, STREAK = 24;   // STREAK: sprites in th
 const LEAD = 2.0;   // metres the line begins behind the caster, and how far back his body is drawn at the start of the race: near enough that it is on the phone's screen (3.2 ran off the top)
 const WORLD = new THREE.Vector3();   // scratch for the caster's slid anchor, set and consumed within the frame
 const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 
 // A churned blot: a soft disc eaten into by two sine "swirls" and an uneven rim, so each puff is a smear of dust, not a gradient.
 function dustTexture(seed: number, grain: boolean) {

@@ -12,12 +12,15 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
-import { mobLook } from './mob-looks.ts';
+import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobSpecs, spawnAmong, type MobSpec } from './mobs.ts';
+import { createCreatureCard } from './creature-card.ts';
+import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
+import { campFires } from './camp-fire.ts';
 import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
@@ -81,6 +84,7 @@ function environment(sky?: THREE.Texture) {
 environment(); void arena.ready.then(() => environment(arena.sky));
 const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
+const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
 
 // The walker: the game's own hero (src/assets/warrior.glb, Dom 2026-10-06 "use our real char"), Idle and Walk from his rig. The capsule
 // holds his place until the file lands, and stays if it never does.
@@ -113,10 +117,11 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecs(frontier, frontierParts)) : null;
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
-let hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, FRONTIER_ROWS, () => careerLine(session.career).level);
+let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
@@ -184,7 +189,7 @@ addEventListener('keydown', (e) => {
 // Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
 const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REGION || /[?&]look=zones\b/.test(location.search),
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
-  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
+  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
 const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 const WALK = 2.3, RUN = 5.2, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
@@ -221,7 +226,7 @@ function step(dt: number) {
     mobsAsked = true;
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
-  if (mobs) mobs.update(dt, state);
+  if (mobs) { mobs.update(dt, state, cardId); if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
   place.textContent = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
@@ -253,6 +258,7 @@ const clock = new THREE.Clock();
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   step(dt); arena.update(dt, [], camera); exchange.update(time);
+  fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   renderer.render(scene, camera);
@@ -382,7 +388,7 @@ async function startMobFight(spec: MobSpec) {
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
     showResult(out.text);
-  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobLook(spec.character); if (look) dressMob(root, look, false); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
+  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
   const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
