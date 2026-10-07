@@ -2,16 +2,17 @@
 // (origin/expansion/origins-greybox origins/preview/exchange.ts and main.ts) so the greybox can read them from here with no visible change;
 // concord.test.ts pins every one to 1 cm. Region-wide: the Covenant makes the walk out a safe, trading, creature-free place.
 import { fail, ok, type Result } from '../contracts/core.ts';
+import { CONCORD_EXCHANGE } from '../contracts/economy.ts';
 import { toMetres, toWorld, type Mount } from './derive.ts';
 import { resolveZone, SCHEMA_VERSION, type WorldData } from './resolve.ts';
 
-export const CONCORD_REGION = 'region:concord';
+export const CONCORD_REGION: string = CONCORD_EXCHANGE; // one id for the world, the contracts and Trade (region1 spec ruling 7)
 
 export const CONCORD: WorldData = {
   schemaVersion: SCHEMA_VERSION,
   regions: {
     [CONCORD_REGION]: {
-      params: { rules: { safe: true }, density: { creatures: 0 }, ambience: { preset: 'ash-pit', weather: 'dust' } },
+      params: { rules: { safe: true }, density: { creatures: 0 }, ambience: { weather: 'dust' } },
       zones: {
         // The Pit's yard: 50 × 50 u around the arena (parapet outer radius 23.2 m). The gladiator gate's tunnel starts under the stands
         // and runs 9.6 m to the yard's far edge, where the Exchange begins.
@@ -22,6 +23,7 @@ export const CONCORD: WorldData = {
           connections: { exchange: { to: 'exchange', kind: 'gate', here: 'pit-gate', there: 'outer-gate', twoWay: true } },
           density: { npcs: 0, props: 0 },
           terrain: { ground: 'sand' },
+          ambience: { preset: 'ash-pit' }, // the Pit gate: the arena's own light
         },
         // The Exchange: 40 × 50 u of paved terrace. 14 standing figures and 11 props (6 braziers, 4 stalls, the contract board) on
         // 2000 m² give its densities.
@@ -37,6 +39,7 @@ export const CONCORD: WorldData = {
           connections: { pit: { to: 'pit-yard', kind: 'gate', here: 'outer-gate', there: 'pit-gate', twoWay: true } },
           density: { npcs: 0.7, props: 0.55 },
           terrain: { ground: 'paving' },
+          ambience: { preset: 'exchange-dusk' },
         },
       },
     },

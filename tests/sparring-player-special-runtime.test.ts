@@ -122,7 +122,8 @@ for (const kind of ['player', 'foe', 'both', 'none'] as const) test(`${kind}: re
     assert.ok(m.practice.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   }
   for (let t = 0; t < 200 && !m.practice.finish; t++) m.step(() => ({ ...idleIntent(), guard: true }));
-  assert.equal(m.fightLog.some(e => e.type === 'SpecialLanded' && e.actor === 0 && e.target === 1), kind === 'player' || kind === 'both');
-  assert.equal(m.fightLog.some(e => e.type === 'SpecialLanded' && e.actor === 1 && e.target === 0), kind === 'foe' || kind === 'both');
+  const landed = (actor: 0 | 1) => m.fightLog.some(e => e.type === 'SpecialLanded' && e.actor === actor && e.target === 1 - actor), cut = (actor: 0 | 1) => m.fightLog.some(e => e.type === 'SpecialInterrupted' && e.actor === actor);
+  if (kind === 'both') { assert.equal(Number(landed(0)) + Number(landed(1)), 1, 'two casts: the first strike lands'); assert.ok(cut(0) || cut(1), 'and cuts the other (interruptible casts)'); }
+  else { assert.equal(landed(0), kind === 'player'); assert.equal(landed(1), kind === 'foe'); assert.ok(!cut(0) && !cut(1), 'one cast alone is never cut'); }
   assert.equal(m.recorder, null); assert.equal(writes.length, before);
 });
