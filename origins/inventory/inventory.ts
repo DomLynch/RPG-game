@@ -466,8 +466,8 @@ export function consume(state: Holdings, op: ConsumeOp, lookup: Lookup): Result<
   return burn(state, { op: op.op, owner: inv.owner, reason: op.reason, asked, lines }, changes, lookup);
 }
 
-// Apply the blacksmith's result (economy.ts performUpgrade) in one step: the upgraded piece replaces its row in place (same id and slot,
-// version + 1, history grown, provenance kept), and the receipt's material lines burn under its idempotency key, reason 'upgrade-cost'.
+// Apply the blacksmith's result (economy.ts performUpgrade) in one step: the upgraded piece replaces its row in place (same id, item and
+// slot, binding unchanged, version + 1, history grown, provenance kept: a story piece stays the story piece), and the receipt's material lines burn under its idempotency key, reason 'upgrade-cost'.
 // The smith may take materials from the bank (the forge stands at the Exchange), so a bank line needs `place` to be the Exchange. The
 // outcome must match these rows exactly (a stale piece, a stale stack or a disagreeing outcome is refused). A retry carrying the same
 // receipt (the outcome again, or the smith's replay of it) returns the original burn; a different receipt under that key is refused.
@@ -479,7 +479,8 @@ export function applyUpgrade(state: Holdings, outcome: UpgradeOutcome, lookup: L
   const after = outcome.instance;
   const piece = held(inv, after.id, 'outcome.instance');
   if (!piece.ok) return piece;
-  if (receipt.instance !== after.id || after.version !== piece.value.version + 1 || !sameData(after.location, piece.value.location) || checkHistoryKept(piece.value, after).length) {
+  if (receipt.instance !== after.id || after.item !== piece.value.item || after.boundTo !== piece.value.boundTo || after.version !== piece.value.version + 1
+    || !sameData(after.location, piece.value.location) || checkHistoryKept(piece.value, after).length) {
     return fail('version-conflict', 'outcome.instance', `the upgrade was worked on a different copy of ${after.id} (held at version ${piece.value.version})`);
   }
   const picks: { row: ItemInstance; take: number }[] = [];
