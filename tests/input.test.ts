@@ -42,7 +42,7 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /user-scalable\s*=\s*no/);
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
-  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/zoom-guard.ts', import.meta.url), 'utf8');   // the guard lives in zoom-guard.ts, main.ts calls it with its fight surface
   assert.match(main, /gesturestart/);
   assert.match(main, /addEventListener\('touchstart'[^\n]*touches\.length > 1[^\n]*preventDefault/, 'the second finger is refused at touchstart, not only touchmove');
   // iOS Safari zooms the page into any focused form control whose font is under 16px and leaves it zoomed after the control
@@ -66,6 +66,8 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   // A double tap on/near an attack button zoomed the page ~2x on iPhone (owner, 2026-09-26): the second quick touchend is refused at the document.
   assert.match(main, /addEventListener\('touchend', \(event\) => \{[^]*?timeStamp - lastTouchEnd < 350[^]*?event\.preventDefault\(\)[^]*?\}, \{ passive: false \}\)/);
   assert.match(main, /DOUBLE_TAP_SURFACE = '#world, #joystick, #actions'/, 'the refusal is scoped to the fight surface, so click-driven controls keep both taps (Lead, 2026-09-26)');
+  // The Origins preview zoomed on Dom's iPhone (2026-10-07): it had no guard. Every entry calls the one helper.
+  for (const entry of ['../src/main.ts', '../origins/preview/main.ts']) assert.match(readFileSync(new URL(entry, import.meta.url), 'utf8'), /\blockPageZoom\(\{ surface: /, `${entry} locks page zoom`);
 });
 
 test('the journal test tools ship hidden behind the admins roster; the Sparring tab holds the overrides and ships hidden', () => {

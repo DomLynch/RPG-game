@@ -32,6 +32,7 @@ import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/sim.ts';
 import { applyLook, lookAlong } from './look.ts';
 import { creaturesLook } from '../../src/audio/creature.ts';
+import { lockPageZoom } from '../../src/zoom-guard.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -155,6 +156,9 @@ function releaseStick(side: Side) {
   rings[side].style.left = rings[side].style.top = ''; knobs[side].style.transform = '';
 }
 const releaseSticks = () => { releaseStick('move'); releaseStick('look'); };
+// Page zoom locked like the game's (Dom's iPhone, 2026-10-07: the preview zoomed in and cut the left label). The double tap is refused on
+// the world canvas and the two sticks only (they act on pointer events); every click-driven button keeps both taps.
+lockPageZoom({ surface: '#view, #move-stick, #look-stick', clickDriven: '' });
 canvas.addEventListener('pointerdown', (e) => {
   if (kit) return;   // the Pit's kit walks (its own stick); there is no second stick
   const side = sideOf(e.clientX);
