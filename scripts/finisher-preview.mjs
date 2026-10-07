@@ -55,13 +55,15 @@ window.__step = 'ready';
 // A real kill: light to draw, walk in, paced plain heavy overheads (the pacing lets posture drain so the killing blow stays a
 // plain heavy_overhead — the warden is passive, both sides stepped through the real sim). Each seed yields its own kill
 // event; the seeded rotation maps it to a finisher, and we keep the first death window each shipped finisher draws.
+// Execution runs about 3.5 s on screen: its window is kept 320 ticks past the blow (every other outcome keeps the 200 it always had).
+const TAIL = wanted.includes('execution') ? 320 : 200;
 function simulate(seed, hero = false, spare = false) {
   let p = initialPractice(seed, OPPONENTS[opponentId]);
   const frames = [];
   let kill = -1;
   let lastHit = -1e9;
   for (let tick = 0; tick < 60 * 120; tick++) {
-    if (kill >= 0 && p.duel.tick > kill + 200) break;   // the death window itself: 200 ticks (3.3 s) past the blow, corpse held
+    if (kill >= 0 && p.duel.tick > kill + TAIL) break;   // the death window itself: 200 ticks (3.3 s) past the blow (TAIL), corpse held
     const dx = p.enemy.x - p.fighter.x, dz = p.enemy.z - p.fighter.z;
     const dist = Math.hypot(dx, dz);
     const f = p.duel.fighters[0];
@@ -95,7 +97,7 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
   const finisher = selectFinisher(finish, [duel.fighters[0].weapon, duel.fighters[1].weapon]);
   if (finisher && windows[finisher] === undefined) {
     const from = sim.frames.findIndex(f => f.practice.duel.tick >= sim.kill - 45);
-    windows[finisher] = { frames: sim.frames.slice(from, from + 220), killIndex: sim.frames.slice(from, from + 220).findIndex(f => f.events.some(e => e.type === 'Killed')) };
+    windows[finisher] = { frames: sim.frames.slice(from, from + TAIL + 20), killIndex: sim.frames.slice(from, from + TAIL + 20).findIndex(f => f.events.some(e => e.type === 'Killed')) };
     provenance.push({ seed, finisher, finish });
   }
 }
@@ -271,7 +273,9 @@ window.__finisher = {
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     // Hamstrung's clips load lazily when the picker selects it (scene.ts wantHamstrung); the kill must not start before they are in,
     // or the scene (correctly) falls back to the plain death. A player picks it long before the kill; the harness waits for it.
-    const installed = windows[which].override === 'hamstrung' ? (async () => { view.setFinisherOverride('hamstrung'); for (let t = 0; t < 300 && !view.hamstrungInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })() : Promise.resolve();
+    // Execution's clips load the same way: the kill waits for them (view.executionInstalled).
+    const installed = windows[which].override === 'hamstrung' ? (async () => { view.setFinisherOverride('hamstrung'); for (let t = 0; t < 300 && !view.hamstrungInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })()
+      : windows[which].override === 'execution' ? (async () => { view.setFinisherOverride('execution'); for (let t = 0; t < 300 && !view.executionInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })() : Promise.resolve();
     return installed.then(() => new Promise(resolve => requestAnimationFrame(() => {
       view.setFinisherOverride(windows[which].override ?? null);   // the picker's own path for outcomes outside the rotation
       if (which !== cursorWhich) { cursor = Number.MAX_SAFE_INTEGER; cursorWhich = which; }   // the cursor belongs to one window: another window replays from its own tick 0
@@ -315,7 +319,7 @@ try {
     }
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened', hamstrung: 'hamstrung' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened', hamstrung: 'hamstrung', execution: 'execution' };
   const ORDER = order, cameraChecks = [], bloodChecks = [];
   const first = await open(VIEW);
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
@@ -418,9 +422,14 @@ try {
       const page = await open(VIEW);
       const { killIndex, count } = await page.evaluate(w => ({ killIndex: __finisher.killIndex(w), count: __finisher.count(w) }), which);
       const settled = count - 1;
-      for (const [i, suffix] of [[Math.min(killIndex + 26, settled), 'contact'], [Math.min(killIndex + 78, settled), 'drop'], [settled, 'settled']]) {
+      // Execution's four frames (Lead 2026-10-07): kneeling, the held raise (mid-hold, 90 ticks in), the cut, and the settled body. Its drop frame is the fall under way. Every other finisher keeps its three.
+      const frames = which === 'execution'
+        ? [[Math.min(killIndex + 66, settled), 'kneel'], [Math.min(killIndex + 90, settled), 'hold'], [Math.min(killIndex + 119, settled), 'contact'], [Math.min(killIndex + 150, settled), 'drop'], [settled, 'settled']]
+        : [[Math.min(killIndex + 26, settled), 'contact'], [Math.min(killIndex + 78, settled), 'drop'], [settled, 'settled']];
+      for (const [i, suffix] of frames) {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
+        if (mode === 'red' && which === 'execution') console.log(`  execution ${suffix}: ${playing}`);   // what both rigs are playing at each of its frames (a plain-death fallback reads Death here)
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
         if (['runThrough', 'splitCrown'].includes(which) && suffix === 'contact') {
           const { framing } = await page.evaluate(() => __finisher.inspect());
