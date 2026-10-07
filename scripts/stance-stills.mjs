@@ -26,7 +26,7 @@ async function serveDist(dir) {
 await fs.mkdir(OUT, { recursive: true });
 const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
-  for (const s of STANCES) {
+  for (const s of (arg('only', '') ? arg('only', '').split(',') : STANCES)) {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();
     page.on('pageerror', (e) => console.log('pageerror:', e.message));
     await page.goto(`${server.origin}/${QUERY(s)}`);
