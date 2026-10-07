@@ -3,6 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { lightRig, type TitheLight } from './special-lighting.ts';
 import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
+import { clamp01, hash } from './fx-math.ts';
 
 // Blood Tithe, the Centurion's rank-10 boss special (Mars; Finishers, 2026-10-01; brief docs/briefs/specials/centurion-l8-l10-2026-10-01.md). Presentation
 // only, preview-only behind ?special=tithe: it reads the sim's special events (special-timing.ts, the same seam as Hades' Shadow) and the casters' bones,
@@ -15,8 +16,7 @@ export const ARM_OUT = 0.5, ARM_EASE = 16, AIM_HOLD = 14;   // v2.2: the sword a
 const DUST_FROM = LAND_AT - 36;   // the visible build is the last 0.6 s: dust starts to lift here and has to be in the blade on the landing tick
 export const TINTS = ['#5a1410', '#6e1c16', '#7a2018', '#481010'] as const;
 const UP = new THREE.Vector3(0, 1, 0), qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const smooth = (k: number) => k * k * (3 - 2 * k), clamp01 = (k: number) => Math.min(1, Math.max(0, k));
+const smooth = (k: number) => k * k * (3 - 2 * k);   // UNCLAMPED on purpose: not fx-math's smooth (that one clamps to 0..1); kept so this effect renders exactly as before
 
 function dustTexture() {   // a soft clump with torn, uneven edges (domain-warped noise eats the rim), not a round ball
   const size = 128, pixels = new Uint8Array(size * size * 4), n = (x: number, y: number) => Math.sin(x * 0.19 + Math.sin(y * 0.13) * 2.1) * Math.cos(y * 0.23 - Math.sin(x * 0.11) * 1.7);

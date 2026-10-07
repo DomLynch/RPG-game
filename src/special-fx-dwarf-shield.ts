@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, bossClock, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
+import { hash } from './fx-math.ts';
 
 // The Dwarf's and the Shieldmaiden's rank 8-10 special moves (Character lane, 2026-10-01; PREVIEW ONLY, `?special=dwarf8|dwarf9|dwarf10|shield8|shield9|shield10`).
 // Presentation only: it reads the cast's clock and the two fighters' Head bones, never the sim, a rig's root or Math.random (every "random" is an index
@@ -26,10 +27,9 @@ export function setGeo(g: Geo, caster: THREE.Vector3, target: THREE.Vector3) {
   g.px = -g.dz; g.pz = g.dx;
 }
 
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const clamp = (x: number) => Math.min(1, Math.max(0, x));
 const ramp = (rel: number, a: number, b: number) => clamp((rel - a) / (b - a));
-const smooth = (k: number) => k * k * (3 - 2 * k);
+const smooth = (k: number) => k * k * (3 - 2 * k);   // UNCLAMPED on purpose: not fx-math's smooth (that one clamps to 0..1); kept so this effect renders exactly as before
 const out = (k: number) => 1 - (1 - k) * (1 - k);   // ease-out
 const put = (b: Float32Array, i: number, x: number, y: number, z: number, w: number, h: number, rot: number, a: number, tone: number) => {
   const o = i * STRIDE; b[o] = x; b[o + 1] = y; b[o + 2] = z; b[o + 3] = w; b[o + 4] = h; b[o + 5] = rot; b[o + 6] = a; b[o + 7] = tone;
