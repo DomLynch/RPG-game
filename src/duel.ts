@@ -47,6 +47,8 @@ export type Fighter = {
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
   specialRecover?: number;   // ticks left after a release in which the caster starts no attack (RULES.special.recovery); guard, roll and steps stay legal
+  feintEdge?: number;   // a TRICKSTER's feint opens a beat: ticks left in which the next swing he starts is a beating one (RULES.feintBeat, src/stance.ts); absent without that stance
+  beat?: true;   // the swing in hand began inside a feint's beat: it ignores a passively held guard (see the block branch); cleared by the next beginAttack
   stance?: StanceId;   // the fight's stance for this fighter (src/stance.ts, RV34); absent = Neutral or no stances: today's fight, byte for byte
   gambitOn?: true;   // this fighter may arm a Gambit (withGambit); absent = the fight has none, byte for byte
   gambit?: true;   // the swing in hand is an armed Gambit (a second heavy press after the chamber); cleared by the next beginAttack
@@ -79,7 +81,7 @@ export type Finish = { victim: Side; location: HitLocation; move: MoveId; headin
 type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean };   // gambit: a Hit that was a landed Gambit (src/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean };   // gambit: a Hit that was a landed Gambit (src/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
@@ -188,6 +190,7 @@ export function legal(f: Fighter, action: Action): boolean {
 function beginAttack(f: Fighter, id: MoveId, chained: boolean, foe: State): void {
   f.phase = 'attack'; f.age = 0; f.move = id; f.chained = chained; f.landed = false; f.chain = 0; f.lastMove = id; f.attackFrom = { x: f.body.x, z: f.body.z, gap: distance(f.body, foe) }; f.stall = 0;
   f.punish = 0; f.critical = 0; f.counterWindow = 0; f.charge = 0; f.charged = false; f.parrying = false; f.guardDirection = null; delete f.gambit;
+  const beat = f.feintEdge; delete f.feintEdge; delete f.beat; if (beat) f.beat = true;   // a swing begun inside the beat after a trickster's feint is a beating one
 }
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
@@ -195,6 +198,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
   const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
+  for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }   // a trickster's feint beat runs down (RULES.feintBeat)
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}) };
   let gdraws = duel.gambit?.draws ?? 0;
   let hits = duel.roll?.hits ?? 0, lastRoll: number | undefined;   // the world-mob roll: a blow's health loss goes through rolled(); absent roll = the plain number
@@ -251,6 +255,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Feint: the swing already paid for is abandoned into a guard; a fresh press still opens its parry window.
       const fresh = !me.parryCooldown;
       next.phase = 'guard'; next.age = fresh ? 0 : guardOf(me, R).window; next.move = null; next.guardDirection = intent.guardDirection ?? null; next.parrying = fresh; spend(i, stanced(me, 'feint', R.feintCost));
+      if (me.stance === 'trickster') next.feintEdge = R.feintBeat;
       if (fresh) next.parryCooldown = R.parryCooldown;
       events.push({ tick, type: 'ActionStarted', actor: i, action: 'feint' });
     } else if ((action === 'parry' || intent.guard) && me.phase === 'ready' && !me.exhausted && !me.exposed) {
@@ -383,6 +388,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const g = guardOf(d, R), facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= g.arc;
     const dealtPosture = (x: number): number => { const p = stanced(a, 'posture', x); return a.move === 'kick' && d.phase === 'guard' ? stanced(a, 'kickPosture', p) : p; };   // posture this blow deals: the attacker's stance (aggressive +10%; a trickster's kick +50% against a HELD guard only)
     const raised = d.phase === 'guard' && facing, guarding = raised && covers(d, def.direction, R);   // raised: any guard up; guarding: the side covers this attack
+    // A Trickster's beating swing (it began inside the beat after his own feint) ignores a PASSIVELY held guard: one past its parry window and the perfect-block ticks. A timed parry, a perfect block and a
+    // guard that has not yet come up still answer it, which is what a Defensive stance's wider window is for. Only a stance-carrying fighter ever has `beat`.
+    const beaten = !!a.beat && guarding && d.age >= g.window + R.perfectBlock;
     const breaks = (def.breaksGuard || charged || (g.heavyBreaks && def.direction === 'overhead')) && !g.stopsHeavy, blockCost = stanced(d, 'block', perked(d, 'guard', def.staminaDamage * g.costScale));
     const stagger = (ticks: number) => {
       const wall = walledHit ? R.wall.stagger : 0;
@@ -414,7 +422,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       shake(i, R.posture.parry);
     } else if (raised && !guarding && def.vsGuard) {   // a kick into a guard held on any other side: the shove lands as before. The low guard braces it — an ordinary block below.
       const hit = rolled(def.damage); spend(j, def.vsGuard.staminaDamage); wound(hit, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, guarded: true, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, dealtPosture(def.posture));
-    } else if (guarding && !breaks && d.stamina >= (d.age - g.window < R.perfectBlock ? blockCost * R.perfectBlockCost : blockCost)) {
+    } else if (guarding && !beaten && !breaks && d.stamina >= (d.age - g.window < R.perfectBlock ? blockCost * R.perfectBlockCost : blockCost)) {
       // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half and stops the chip; the
       // discounted price is what has to be affordable.
       const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]), taken = chip ? rolled(chip) : 0;
@@ -424,7 +432,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       shake(j, dealtPosture(def.posture * (perfect ? R.posture.perfect : 1)));
     } else {
       const damage = Math.round(stanced(a, 'damage', def.charges ? stanced(a, 'heavyDamage', def.damage) : def.damage) * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { const hit = rolled(damage); spend(j, perked(d, 'guard', R.breakCost)); wound(hit, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
+      if (guarding && !beaten) { const hit = rolled(damage); spend(j, perked(d, 'guard', R.breakCost)); wound(hit, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
         // uncharged is a plain heavy again (armour from its poise tick only).
@@ -449,7 +457,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         if (!def.path) spend(j, def.staminaDamage);
         // Poise: a brute shrugs a plain blow under his threshold — no stagger, no knockback; the wound and the posture still count.
         const shrugged = !g && (poised || (dealt < d.poise && !counter && !stop && !rear && !charged));
-        const hit = rolled(dealt); wound(hit, shrugged ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, counter: counter || stop, rear, charged, ...(g ? { gambit: true } : {}), ...(raised ? { guarded: true } : {}), weapon: weapon.id, material: weapon.material, ...(stop ? { stop: true } : {}), ...(trip ? { trip: true } : {}) });
+        const hit = rolled(dealt); wound(hit, shrugged ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, counter: counter || stop, rear, charged, ...(g ? { gambit: true } : {}), ...(beaten ? { beaten: true } : {}), ...(raised ? { guarded: true } : {}), weapon: weapon.id, material: weapon.material, ...(stop ? { stop: true } : {}), ...(trip ? { trip: true } : {}) });
         if (!shrugged || !D.health) stagger(stun);
         shake(j, dealtPosture(def.posture * (counter ? R.counter.damage : 1) * (rear ? R.rear.posture : 1) * (g ? GAMBIT_ODDS.multiplier : 1)));
       }

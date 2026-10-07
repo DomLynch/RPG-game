@@ -96,3 +96,39 @@ test('a stances fight is recorded as v34, packed and replayed to the very same s
     assert.ok(replay.ok); assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
   }
 });
+
+// A Trickster's feint opens a beat (RULES.feintBeat ticks): the swing he starts inside it is a beating swing that ignores a PASSIVELY held guard. A timed parry still answers it, and a swing with no feint before it is
+// blocked as ever. Heavy, feint at tick 5 (inside the heavy's feint window), a second heavy at tick 8.
+const feintSwing = (stance: StanceId | undefined, feint: boolean, parryAt?: number, guard = true) => {
+  let d: Duel = withStances(arena(), stance, undefined); d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready' }, d.fighters[1]] }; const ev: Duel['events'] = [];
+  for (let i = 0; i < 100; i++) {
+    const mine = i === 0 ? act('heavy') : feint && i === 5 ? act('parry') : i === (feint ? 8 : 40) ? act('heavy') : idle();
+    const side = mirror('overhead');
+    const theirs = parryAt !== undefined ? (i === parryAt ? { ...idle(), action: 'parry' as const, guard: true, guardDirection: side } : i > parryAt ? { ...idle(), guard: true, guardDirection: side } : idle()) : guard ? { ...idle(), guard: true, guardDirection: side } : idle();
+    d = stepDuel(d, [mine, theirs]); ev.push(...d.events);
+  }
+  return ev;
+};
+
+test('a trickster\'s swing begun inside the beat after his own feint ignores a passively held guard; nobody else\'s does', () => {
+  const beaten = feintSwing('trickster', true), plain = feintSwing('trickster', false), neutral = feintSwing(undefined, true);
+  assert.ok(beaten.some(e => e.type === 'Hit' && e.beaten), 'the feint-then-swing lands through the held guard');
+  assert.ok(!beaten.some(e => e.type === 'Blocked' || e.type === 'GuardBroken'), 'and meets no guard at all');
+  assert.ok(plain.some(e => e.type === 'Blocked' || e.type === 'GuardBroken') && !plain.some(e => e.type === 'Hit' && e.beaten), 'a swing with no feint before it meets the guard as ever');
+  assert.ok(neutral.some(e => e.type === 'Blocked' || e.type === 'GuardBroken') && !neutral.some(e => e.type === 'Hit'), 'with no stance the same inputs change nothing: the Pit is as it was');
+});
+
+test('a timed parry still beats the beating swing', () => {
+  const hit = feintSwing('trickster', true).find(e => e.type === 'Hit' && e.beaten)!;
+  const parried = feintSwing('trickster', true, hit.tick - 6);
+  assert.ok(parried.some(e => e.type === 'Parried'), 'a parry pressed to meet the blow answers it');
+  assert.ok(!parried.some(e => e.type === 'Hit' && e.beaten));
+});
+
+test('the feint beat is short and runs down: a swing started after it is blocked', () => {
+  let d: Duel = withStances(arena(), 'trickster', undefined); d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready' }, d.fighters[1]] };
+  const seen: (number | undefined)[] = [];
+  for (let i = 0; i < 30; i++) { d = stepDuel(d, [i === 0 ? act('heavy') : i === 5 ? act('parry') : idle(), idle()]); seen.push(d.fighters[0].feintEdge); }
+  assert.equal(seen[5], RULES.feintBeat); assert.ok(RULES.feintBeat <= 14, 'never above the warden\'s normal reaction');
+  assert.equal(seen[5 + RULES.feintBeat], undefined);
+});

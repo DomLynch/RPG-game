@@ -14,20 +14,24 @@ const BRAINS = { honest: {}, blocker: { parry: .7, dodge: .1, aggression: .35, g
 const BRAIN = process.env.BRAIN ?? 'honest';
 const SEEDS = Number(process.argv[2] ?? 30), FOE = process.argv[3] ?? 'pitborn', LEVEL = Number(process.argv[4] ?? 6);
 const opponent = OPPONENTS[FOE], profile = { ...profileAt(opponent, LEVEL), ...BRAINS[BRAIN] }, base = arena();
+const stat = { fights: 0, feints: 0, beaten: 0 };   // fire rate of the Trickster's beat: feints made and beating swings landed through a held guard, over every fight that had a Trickster
+const ROWS = process.env.ROWS ? process.env.ROWS.split(',') : PICKS;   // ROWS=defensive runs one row (parallel shards); the table prints only those rows
 const fight = (s0, s1, seed) => {
   let d = { ...base, fighters: [opponentFighter(opponent, base.fighters[0].body), opponentFighter(opponent, base.fighters[1].body)] };
   d = withStances(d, asStance(s0), asStance(s1));
   let a0 = initialAi((seed * 2654435761) >>> 0), a1 = initialAi((seed * 40503 + 7) >>> 0);
-  for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a0, profile), y = decide(d, 1, a1, profile); a0 = x.ai; a1 = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
+  for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a0, profile), y = decide(d, 1, a1, profile); a0 = x.ai; a1 = y.ai; d = stepDuel(d, [x.intent, y.intent]); if (s0 === 'trickster' || s1 === 'trickster') for (const e of d.events) { if (e.type === 'ActionStarted' && e.action === 'feint' && d.fighters[e.actor].stance === 'trickster') stat.feints++; if (e.type === 'Hit' && e.beaten) stat.beaten++; } }
+  if (s0 === 'trickster' || s1 === 'trickster') stat.fights++;
   return !d.finish || d.finish.draw ? 0.5 : d.finish.victim === 1 ? 1 : 0;   // side 0's score
 };
 console.log(`${FOE} L${LEVEL}, ${BRAIN} brain, ${SEEDS * 2} fights per cell (row stance's win rate)`);
 console.log(['row \\ col', ...PICKS].map(x => x.padEnd(11)).join(''));
 const mean = [];
-for (const row of PICKS) {
+for (const row of ROWS) {
   const cells = [];
   for (const col of PICKS) { let w = 0; for (let s = 1; s <= SEEDS; s++) { w += fight(row, col, s); w += 1 - fight(col, row, s + 1000); } cells.push(w / (2 * SEEDS)); }
   mean.push(cells.reduce((a, b) => a + b, 0) / cells.length);
   console.log([row.padEnd(11), ...cells.map(c => `${(c * 100).toFixed(0)}%`.padEnd(11))].join(''));
 }
-console.log('mean vs the field:', PICKS.map((p, i) => `${p} ${(mean[i] * 100).toFixed(0)}%`).join('  '));
+console.log('mean vs the field:', ROWS.map((p, i) => `${p} ${(mean[i] * 100).toFixed(0)}%`).join('  '));
+console.log(`beat fire rate over ${stat.fights} fights with a Trickster: ${(stat.feints / Math.max(1, stat.fights)).toFixed(2)} feints and ${(stat.beaten / Math.max(1, stat.fights)).toFixed(3)} beaten hits per fight`);
