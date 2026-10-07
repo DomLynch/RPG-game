@@ -55,7 +55,7 @@ import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { clonesOf } from './arena-materials.ts';
-import { createCameraRig, framingScale } from './camera.ts';
+import { createCameraRig, framingScale, framingTall } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
@@ -1346,7 +1346,7 @@ export function createScene(
         head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
-      } : null, framingScale(opponentId, OPPONENTS[opponentId].scale));
+      } : null, framingScale(opponentId, OPPONENTS[opponentId].scale), framingTall(opponentId));
       // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
       // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
       // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the
