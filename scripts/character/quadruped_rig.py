@@ -252,14 +252,12 @@ def bite(t):
     """Crouch, lunge forward with the jaw open, snap shut, recover."""
     k = math.sin(math.pi * t / .55) if t < .55 else 0.0
     move("root", dy=-.12 * k, dz=-.03 * k)
-    for i in range(5):
-        rot(f"spine{i}", (1, 0, 0), -6 * k)
-    rot("neck", (1, 0, 0), 14 * k)
-    rot("head", (1, 0, 0), 8 * k)
+    rot("neck", (1, 0, 0), 10 * k)   # +pitch is NOSE DOWN (probe, QUAD_PROBE=1): the lunge dips the nose forward
+    rot("head", (1, 0, 0), 6 * k)
     jaw = math.sin(math.pi * (t - .1) / .3) if .1 < t < .4 else 0.0
     rot("jaw", (1, 0, 0), 38 * jaw)
     for side in "LR":
-        rot(f"front_up_{side}", (1, 0, 0), 22 * k)
+        rot(f"front_up_{side}", (1, 0, 0), -22 * k)   # +pitch on a leg swings it BACK, so the lunge reaches with -
         rot(f"hind_up_{side}", (1, 0, 0), 12 * k)
 
 
@@ -269,13 +267,13 @@ clip("Bite", 21, bite, loop=False)
 def hurt(t):
     k = math.sin(math.pi * t)
     for i in range(5):
-        rot(f"spine{i}", (1, 0, 0), 5 * k)
-    rot("neck", (1, 0, 0), -22 * k)
-    rot("head", (1, 0, 0), -14 * k)
+        rot(f"spine{i}", (1, 0, 0), -2 * k)
+    rot("neck", (1, 0, 0), -18 * k)
+    rot("head", (1, 0, 0), -10 * k)
     rot("jaw", (1, 0, 0), 25 * k)
     move("root", dy=.04 * k, dz=-.01 * k)
     for side in "LR":
-        rot(f"front_up_{side}", (1, 0, 0), -14 * k)
+        rot(f"front_up_{side}", (1, 0, 0), 10 * k)
     for i in range(4):
         rot(f"tail{i}", (1, 0, 0), -18 * k)
 
