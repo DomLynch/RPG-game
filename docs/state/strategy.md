@@ -3,6 +3,13 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+## 2026-10-07 09:56 (+04, `date`) — HANDOFF (Dom: 4% credits, none for 5 days). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0956 + project_dom_decided_ledger.
+
+**Now.** Live 7a6ff569. Standoff (combat/standoff-final @5ae2592d) then RV31 rebuild (@4db8c0e8, Auditor re-probing) as own releases. Origins saving blocked on Dom's W3 (#1455); then #1463 installer → presence step 2 → X1 #1593.
+**Done today.** 6 releases (345571fb, 390cabd3, 4d5aebb4 RV29, d7158986, 63d1e87a RV30, 7a6ff569); DB 0005/0007/0008/0009 applied + POST PASS; VPS disk 42→64 GB; Characters Execution WIP saved as draft #1628.
+**Open.** Dom: W3 password + env file; /clear Characters. Lead: #1604 #1613 #1630 GOs.
+**Gotchas.** No Origins writer exists (never say 'writer restart'). ListAgents 'idle' ≠ idle. RV31 comment edit moved SIM_DIGEST: comment edits in SIM_FILES are not comment-only.
+
 ## 2026-10-07 08:22 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0822 + project_dom_decided_ledger (lines 06:5x–08:5x).
 **Now.** CronList, re-arm 8,28,48. Restart the Auditor when it shows fresh (DB applies wait on it). Live 8f97d10a; 345571f in flight (fatigue-read OFF). Next: RV29 → RV30 → standoff → RV31 (p600, Pitborn L6 −8 named exception).
 **Dom today.** Beta = duels + Origins Zone 1 + stances/gambit/luck/Coach (no freeze; SCOPE.md #1618). Fatigue: subtle last-10% pose + red pulsing bar, preview being fixed. Origins preview /preview/origins/ to carry everything built + Ash Frontier walkable.
