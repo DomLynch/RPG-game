@@ -11,7 +11,9 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
-import { bountyQuest, giverTalk } from './bounty.ts';
+import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
+import type { MobSpec } from './mobs.ts';
+import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -49,7 +51,7 @@ if (frontier && frontierParts) {
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
 // steps onto the west road, never on the Pit/Exchange-only page.
-let mobs: { update(dt: number, hero: { x: number; z: number }): void; debug(): unknown } | null = null, mobsAsked = false;
+let mobs: Mobs | null = null, mobsAsked = false;
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
@@ -298,9 +300,58 @@ function settleFight(finish: Finished) {
 }
 function leaveFight() {
   if (!fighting) return;
-  fighting = false; duel?.closeDuel();
+  fighting = false; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
+}
+// ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
+// is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
+// A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
+const REACH = 14, TAP_MS = 350, TAP_PX = 12;   // m a creature may be tapped from; a tap is shorter and stiller than this
+const taps = new Map<number, { t: number; x: number; y: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
+function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
+function showResult(text: string) {
+  document.getElementById('hunt-result')?.remove();
+  const note = document.createElement('div'); note.id = 'hunt-result'; note.className = 'glass'; note.textContent = text;
+  note.style.cssText = 'position:fixed;left:12px;right:12px;top:30%;z-index:5;padding:12px 14px;text-align:center;font:600 17px/1.4 Georgia,serif;pointer-events:none';
+  duelLayer.append(note);
+}
+canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: performance.now(), x: e.clientX, y: e.clientY }); });
+canvas.addEventListener('pointerup', (e) => {
+  const d = taps.get(e.pointerId); taps.delete(e.pointerId);
+  if (!d || !mobs || fighting || open || performance.now() - d.t > TAP_MS || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX) return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  caster.setFromCamera(ndc, camera);
+  const hit = mobs.pick(caster.ray);
+  if (hit) engage(hit.spec, hit.x, hit.z);
+});
+addEventListener('pointercancel', (e) => taps.delete(e.pointerId));
+function engage(spec: MobSpec, x: number, z: number) {
+  if (fighting) return;
+  if (Math.hypot(x - state.x, z - state.z) > REACH) { say(`${spec.name} is too far off: walk closer, then tap.`); return; }
+  void startMobFight(spec);
+}
+async function startMobFight(spec: MobSpec) {
+  if (fighting || !frontier) return;
+  fighting = true;   // claimed first: a second tap while the chunks load does nothing
+  openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
+  duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name}: a duel`;
+  renderer.setAnimationLoop(null);
+  document.getElementById('art-status')!.textContent = 'Loading…';
+  try { duel ??= await import('./pit-duel.ts'); huntMod ??= await import('./hunt.ts'); encDuel ??= await import('./encounter-duel.ts'); hunt ??= huntMod.newHunt(); }
+  catch (error) { console.warn('the fight did not load', error); leaveFight(); say('Could not load the fight. Tap the creature to try again.'); return; }
+  const prepared = huntMod.prepare(hunt, spec);
+  if (!prepared.ok) { console.warn('the fight cannot be set up', prepared.issues); leaveFight(); say('This creature cannot be fought yet.'); return; }
+  if (!fighting) return;   // left while the chunks loaded
+  const run = prepared.value, quest = bountyQuestId(frontier.giver);
+  void encDuel.startEncounterDuel(duelLayer, run.setup, run.seed, (end) => {
+    const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest));
+    if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
+    if (out.won) mobs?.fell(spec.id);
+    showResult(out.text);
+  }, leaveFight);
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
@@ -309,6 +360,9 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   region: () => frontier && { zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   mobs: () => mobs?.debug() ?? null,
+  // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
+  tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
+  hunt: () => hunt && { kills: hunt.kills, metal: hunt.metal, bountyWins: hunt.bountyWins, pack: hunt.inventory.items.map((i) => `${i.item}×${i.quantity}`) },
   bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,
