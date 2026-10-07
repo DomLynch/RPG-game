@@ -5,7 +5,7 @@ import warriorUrl from '../../src/assets/warrior.glb?url';
 import type { Result } from '../contracts/core.ts';
 import { blacksmith, forgeCosts, graveIronDef, helmetDef, helmetInstance, ironInstance, recordDef, recordInstance, ACCOUNT, PC, smith } from '../contracts/fixtures.ts';
 import { parseServiceDefinition, parseUpgradeCostTable, performUpgrade, type UpgradeReceipt } from '../contracts/economy.ts';
-import type { AccountId, CharacterInstanceId, ItemId, QuestId } from '../contracts/ids.ts';
+import type { AccountId, CharacterInstanceId, EncounterId, ItemId, QuestId } from '../contracts/ids.ts';
 import { parseItemDefinition, parseItemInstance, upgradeLevelOf, type ItemDefinition, type ItemInstance } from '../contracts/items.ts';
 import { parseQuestDefinition, type QuestDefinition } from '../contracts/story.ts';
 import { parseCharacterDefinition, type CareerStanding } from '../contracts/world.ts';
@@ -55,8 +55,8 @@ let reply = '', msg = '', picked: string | null = null, ended = false;
 
 const hasItem = (item: ItemId) => inv.items.some((i) => i.item === item);
 const facts = (): Facts => ({ standing: STANDING, quest: (id) => journal.quests.get(id), hasItem });
-const step = (quest: Parameters<typeof advance>[1], stage: string, choice: string | null): Result<Journal> => {
-  const r = advance(journal, quest, stage, { quests: QUESTS, standing: STANDING, at: new Date().toISOString(), choice: choice ?? undefined, hasItem });
+const step = (quest: Parameters<typeof advance>[1], stage: string, choice: string | null, cleared?: (encounter: EncounterId) => boolean): Result<Journal> => {
+  const r = advance(journal, quest, stage, { quests: QUESTS, standing: STANDING, at: new Date().toISOString(), choice: choice ?? undefined, hasItem, cleared });
   return r.ok ? { ok: true, value: r.value.journal } : r;
 };
 const nameOf = (i: ItemInstance) => `${lookup(i.item)?.name ?? i.item}${i.quantity > 1 ? ` ×${i.quantity}` : ''}${upgradeLevelOf(i) ? ` +${upgradeLevelOf(i)}` : ''}`;
@@ -77,6 +77,13 @@ export const play = {
   enableBounty(quest: unknown, giverTalk: unknown, name: string) {
     const q = must(parseQuestDefinition(quest));
     QUESTS.set(q.id, q); GIVER = { talk: must(loadTalk(giverTalk)), name };
+  },
+  // ?region=1: the Bounty is held once its giver has posted it (quest at "posted"); a win over its foe clears the encounter and the quest finishes.
+  bountyOpen: (quest: string) => journal.quests.get(quest as QuestId)?.stage === 'posted',
+  bountyPaid(quest: string, encounter: EncounterId): boolean {
+    const r = step(quest as QuestId, 'won', null, (e) => e === encounter);
+    if (r.ok) journal = r.value;
+    return r.ok;
   },
   say(id: string, kind: Kind = 'talk') {
     const r = pick(talkFor(kind), talk, id, facts(), step);
