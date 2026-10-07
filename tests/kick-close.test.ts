@@ -33,16 +33,27 @@ test('a frame that carried several ticks uses the newest older sample; a tick th
   h.record(7, 1.5); assert.equal(h.retreating(7, 1.5), false, 'tick 3 holds 1.5, so tick 7 at 1.5 is steady');
 });
 
+test('Combat\'s refinement: gap growth while the player was hurt in the window is knockback, not a retreat; hurt before the window does not excuse it', () => {
+  const run = (gaps: number[], hurtAt: number[]) => { const h = createGapHistory(); gaps.forEach((g, i) => h.record(i, g, hurtAt.includes(i))); return h.retreating(gaps.length - 1, gaps[gaps.length - 1]); };
+  const opening = [1.0, 1.0, 1.0, 1.0, 1.0, 1.05, 1.1];   // tick 6 vs tick 2: +10 cm
+  assert.equal(run(opening, []), true, 'no hurt: retreating');
+  assert.equal(run(opening, [5]), false, 'hurt inside the window (ticks 2..6): knockback');
+  assert.equal(run(opening, [2]), false, 'hurt on the first tick of the window still counts');
+  assert.equal(run(opening, [1]), true, 'hurt before the window (tick 1): the growth is the foe\'s');
+  const h = createGapHistory(); h.record(0, 1.0); h.record(4, 1.1, true); h.record(4, 1.1, false);
+  assert.equal(h.retreating(4, 1.1), false, 'a repeated tick keeps the hurt flag it already had');
+});
+
 // The light end to end through the real HUD, flag on and off, fed one tick at a time.
 const FakeEl = class { dataset: Record<string, string> = {}; style = { props: new Map(), setProperty(k: string, v: string) { this.props.set(k, v); } }; children: unknown[] = []; hidden = false; textContent = ''; classList = { toggle() {}, add() {}, remove() {} }; setAttribute() {} firstChild = null; value = 0; max = 0; append() {} };
-const light = (flag: boolean, gaps: number[]) => {
+const light = (flag: boolean, gaps: number[], hurtAt: number[] = []) => {
   const els = new Map<string, InstanceType<typeof FakeEl>>(); const element = (id: string) => { if (!els.has(id)) els.set(id, new FakeEl()); return els.get(id)!; };
   element('dmg-pool').children = [new FakeEl(), new FakeEl()];
   const hud = createHud(element as never), start = initialPractice(731, OPPONENTS.veteran);
   const [me, him] = start.duel.fighters;
   let reach: string | undefined;
   gaps.forEach((gap, tick) => {
-    const duel = { ...start.duel, tick, fighters: [{ ...me, phase: 'ready' as const }, { ...him, body: { ...him.body, x: me.body.x + gap, z: me.body.z } }] as typeof start.duel.fighters };
+    const duel = { ...start.duel, tick, fighters: [{ ...me, phase: hurtAt.includes(tick) ? 'hurt' as const : 'ready' as const }, { ...him, body: { ...him.body, x: me.body.x + gap, z: me.body.z } }] as typeof start.duel.fighters };
     hud.update(project(duel, start.ai), { controlsReady: true, debug: false, opponentId: 'veteran', kickClose: flag } as HudView);
     reach = element('kick-button').dataset.reach;
   });
@@ -52,6 +63,7 @@ test('through the HUD: a foe opening the gap inside 1.5 m un-lights KICK only wi
   const opening = [1.0, 1.0, 1.0, 1.0, 1.0, 1.05, 1.1];
   assert.equal(light(true, opening), 'false', 'flag on, opening: dark');
   assert.equal(light(false, opening), 'true', 'flag off: byte-identical to today, lit at 1.1 m');
+  assert.equal(light(true, opening, [5]), 'true', 'flag on, opening but the player was hurt in the window: knockback, still lit');
   assert.equal(light(true, [1.2, 1.15, 1.1, 1.05, 1.0, 0.95]), 'true', 'closing: lit');
   assert.equal(light(true, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]), 'true', 'steady: lit');
   assert.equal(light(true, [1.6, 1.6, 1.6, 1.6, 1.6]), 'false', 'beyond 1.5 m: dark either way');
@@ -62,7 +74,7 @@ test('through the HUD: a foe opening the gap inside 1.5 m un-lights KICK only wi
 test('wiring pins: the HUD ANDs the window onto the plain 1.5 m rule only when the flag is on, and main.ts passes the flag', () => {
   const hud = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8'), main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(hud, /inKickReach = gap <= KICK_LANDS && !\(view\.kickClose && gaps\.retreating\(practice\.duel\.tick, gap\)\)/);
-  assert.match(hud, /gaps\.record\(practice\.duel\.tick, gap\);/);
+  assert.match(hud, /gaps\.record\(practice\.duel\.tick, gap, practice\.duel\.fighters\[0\]\.phase === 'hurt'\);/);
   assert.match(main, /const KICK_CLOSE = kickCloseFlag\(window\.location\?\.search \?\? ''\)/);
   assert.match(main, /hud\.update\(shown, \{ kickClose: KICK_CLOSE,/);
 });

@@ -54,7 +54,7 @@ export function createHud(element: Lookup) {
       // accepts() is true for every action in a committed action's buffer window, so SKILL refuses its own cooldown here (live c1bda34d).
       const skillOk = practice.duel.fighters[0].skillCooldown === 0 && practice.duel.fighters[0].skill !== null && accepts(practice, 'skill');
       const gap = Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z);
-      gaps.record(practice.duel.tick, gap);   // every update, before the dedup below: the history must not skip a quiet frame
+      gaps.record(practice.duel.tick, gap, practice.duel.fighters[0].phase === 'hurt');   // every update, before the dedup below: the history must not skip a quiet frame
       const inKickReach = gap <= KICK_LANDS && !(view.kickClose && gaps.retreating(practice.duel.tick, gap));   // flag off: the plain 1.5 m light of today
       // A cone skill (path null: reach × the kick's arc) lands only inside its reach, so SKILL says so the way Kick does (Combat,
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
