@@ -5,6 +5,7 @@ import { loadGate, playGate } from './audio/gate.ts';
 import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
 import { createBreath, type Breath } from './audio/breath.ts';
+import { sayPowerWord } from './audio/power-word.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
@@ -47,7 +48,7 @@ export function createFeedback(host?: FeedbackHost) {
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
   let breath: Breath | undefined, room: ConvolverNode | undefined;   // graded fatigue breathing (audio/breath.ts): built on first use, its own seeded rolls so it never shifts the cue variants
-  let breakThud = false, defenceGrades = false;
+  let breakThud = false, defenceGrades = false, wordBus: GainNode | undefined;   // wordBus: ?look=powerwords' chant (audio/power-word.ts), ducked under every landing blow
   let armfeel: Feel | undefined, armfeelLive = 0;   // ?look=armfeel (audio/armfeel-sound.ts): extra body and transient layers on a landed blow; absent = the game's own sound
   let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
   // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
@@ -158,6 +159,11 @@ export function createFeedback(host?: FeedbackHost) {
     unlock,
     armfeel(feel: Feel | undefined) { armfeel = feel; },
     defenceGrades(on: boolean) { defenceGrades = on; },   // ?look=defence (defence-grade.ts)
+    powerWord(word: string, caster: string, gain: number) {   // ?look=powerwords: the wind-up chant, on the combat bus, a quiet look test
+      if (!context || !bus || !noise || !live() || quieted || !enabled) return;
+      wordBus ??= (() => { const g = context!.createGain(); g.gain.value = 1; g.connect(bus!); return g; })();
+      sayPowerWord(context, wordBus, noise, word, caster, now(), gain);
+    },
     breakThud(on: boolean) { breakThud = on; },   // ?look=breakbeat (break-beat.ts)
     // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
     // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
@@ -224,6 +230,7 @@ export function createFeedback(host?: FeedbackHost) {
           breath.update(time, frame.fatigue, frame.opponent);
         }
       }
+      if (wordBus && events.some(e => e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'GuardBroken')) { const g = wordBus.gain; g.cancelScheduledValues(time); g.setValueAtTime(.2, time); g.linearRampToValueAtTime(1, time + .5); }   // a landing blow or a parry/block owns the moment; the chant ducks to -14 dB and comes back
       armfeelPlay(events, time);
       if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity, undefined, breakThud, defenceGrades)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);

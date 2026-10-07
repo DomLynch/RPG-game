@@ -33,7 +33,8 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
 import { breakBeatFrom } from './break-beat.ts';
-import { announcePowerWord } from './power-words.ts';
+import { announcePowerWord, powerWordsLook } from './power-words.ts';
+import { POWER_WORD_LOOK_GAIN } from './audio/power-word.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -92,6 +93,7 @@ document.addEventListener('touchend', (event) => {
   lastTouchEnd = event.timeStamp;
 }, { passive: false });
 const feedback = createFeedback();
+if (powerWordsLook(window.location?.search ?? '')) window.addEventListener('frankendom:powerword', (e) => { const d = (e as CustomEvent<{ word: string; opponent: string }>).detail; feedback.powerWord(d.word, d.opponent, POWER_WORD_LOOK_GAIN); });   // ?look=powerwords (power-word.ts); absent = the event has no listener
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
 for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'])
