@@ -298,11 +298,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         (finisher === 'runThrough' ||
           finisher === 'splitCrown' ||
           finisher === 'opened' ||
-          finisher === 'hamstrung')
+          finisher === 'hamstrung' ||
+          finisher === 'execution')
       ) {
-        // Hamstrung opens early (both blows land low, inside the first 0.64 of the clock) and takes Opened's raised three-quarter view.
+        // Hamstrung opens early (both blows land low, inside the first 0.64 of the clock) and takes Opened's raised three-quarter view; Execution takes the same one.
         const t = THREE.MathUtils.clamp(
-            finisher === 'hamstrung'
+            finisher === 'hamstrung' || finisher === 'execution'
               ? (finish.clock - 0.01) / 0.2
               : finisher === 'opened'
                 ? (finish.clock - 0.04) / (finish.big ? 0.6 : 0.4)
@@ -315,7 +316,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
           state,
           enemy,
           camera.aspect,
-          finisher === 'hamstrung' ? 'opened' : finisher,
+          finisher === 'hamstrung' || finisher === 'execution' ? 'opened' : finisher,
           finish.big ? 1.5 : 1,
           finish.reach ?? 0,
         );
