@@ -56,7 +56,7 @@
     /* World mode (?region=1): the Pit's own kit is the walk's controls. The layer lets the walk's canvas through; only the stick, the buttons and the ☰ take a touch. */
     #duel.world { background: none; pointer-events: none; }
     #duel.world #joystick, #duel.world #actions, #duel.world header { pointer-events: auto; }
-    #duel.world .combat-hud, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
+    #duel.world #opponent-name, #duel.world #target-health, #duel.world #target-posture, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
     #duel.world #mobile-camera { display: revert !important; }
     body.kit #move-stick, body.kit #look-stick { display: none; }
     body.kit #walk-journal { right: calc(var(--gap-m) + 64px); }   /* clear of the game's ☰ in the corner */
