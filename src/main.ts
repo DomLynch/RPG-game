@@ -17,6 +17,7 @@ import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flush
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
+import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { PLAY_SCALE, STEP, wrapAngle } from './sim.ts';
@@ -34,9 +35,9 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
-import { breakBeatFrom } from './break-beat.ts';
+import { announcePowerWord, powerWordsLook } from './power-words.ts';
+import { POWER_WORD_LOOK_GAIN } from './audio/power-word.ts';
 import { breathLook } from './audio/breath.ts';
-import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -95,6 +96,7 @@ document.addEventListener('touchend', (event) => {
   lastTouchEnd = event.timeStamp;
 }, { passive: false });
 const feedback = createFeedback();
+if (powerWordsLook(window.location?.search ?? '')) window.addEventListener('frankendom:powerword', (e) => { const d = (e as CustomEvent<{ word: string; opponent: string }>).detail; feedback.powerWord(d.word, d.opponent, POWER_WORD_LOOK_GAIN); });   // ?look=powerwords (power-word.ts); absent = the event has no listener
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
 for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'])
@@ -758,7 +760,7 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
   Hit: 50,
   Parried: 70,
   GuardBroken: 90,
-  PostureBroken: 120,
+  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
   Killed: 220,
 };
 const HEAVY_HIT = 90,
@@ -780,8 +782,6 @@ function clearPvpHold() { clearHold(pvpHold); }
 const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
-const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
-feedback.breakThud(!!breakBeat?.thud);
 const FATIGUE_PREVIEW = fatiguePreviewFrom(window.location?.search ?? '');
 const fatigueForce = (): number | undefined => (FATIGUE_PREVIEW?.force != null && match.dummy && match.practiceOnly && !match.recorder ? FATIGUE_PREVIEW.force : undefined);   // the dummy-spar gate, one place
 const fatigueShown = <P extends Parameters<typeof previewPractice>[0]>(p: P): P => { const force = fatigueForce(); return force === undefined ? p : previewPractice(p, force); };   // ?stamina=N: the bar, the tired body and the breath read N; the sim's stamina stays real so every button works (dummy spar only)   // ?look=fatigue-preview[&stamina=8]: the red pulsing bar, and a stamina held low in a dummy spar (fatigue-preview.ts); absent = today's game
@@ -797,7 +797,7 @@ function stopFor(events: CombatEvent[]): number {
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
-    const base = e.type === 'PostureBroken' && breakBeat ? breakBeat.holdMs : HIT_STOP[e.type] ?? 0;
+    const base = HIT_STOP[e.type] ?? 0;
     if (!base) continue;
     const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
     ms = Math.max(
@@ -1053,6 +1053,7 @@ function nextFight(): void {
   metAt = tierAt(careerMarks()); view.setTier(shownTier());   // a win may have moved the rung: he comes back dressed for it
   view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   began();
+  view.restartStandoff();   // the draw-in plays on every fight, not once per page (the versus card only lifts at load)
   view.recenter();
   canvas.focus();
 }

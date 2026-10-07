@@ -27,6 +27,25 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## 2026-10-07 13:10 (+04) — five releases after the restart; live 574b1fae, box FREE
+**Live = trunk = `574b1fae`.** No run in flight, no lock, no hold. Each release below ran on Lead's exact-sha GO, merged pinned in the deploy folder, merged-tree `npm test` first, push ff-only, then `scripts/deploy.sh` with every row real.
+| Time | Sha | What | Rows |
+|---|---|---|---|
+| 11:47 | 037627aa | #1535 Standoff, alone | 51 of 51 passed |
+| 11:57 | c1f2ad26 | #1635 keep the outgoing release's recent assets (3-line deploy.sh change) | 5 scoped, passed |
+| (aborted) | 842d7dba | fold of #1632 #1604 #1613 #1639 #1640 #1633 | row 4 audio-preview failed twice: pin 22, actual 23 (#1604 made the break-beat bone_crack thud permanent) |
+| 12:41 | a5234895 | the same fold + #1649 (pin 22 to 23, fix-forward) + #1638 + #1643 | 12 scoped, passed |
+| 12:54 | 5ee0a991 | #1588 RV31, alone | 7 scoped, passed |
+| 13:04 | 574b1fae | #1463 #1611 (presence install files, merged only) #1644 #1646 #1641 #1645 #1615 #1650 | 7 scoped, passed |
+**Rules learned today**
+- Take `deploy_hold` at gate start, not at launch (Lead, 11:51).
+- A fold that aborts after the merge push leaves trunk carrying the red row: fix forward onto trunk (a one-line pin PR), never drop a merged PR; refire the whole fold with the fix.
+- A PR that conflicts once an earlier PR of the same fold is in is dropped and its owner rebases (#1636 vs #1644, tests/origins-preview-mobs.test.ts). Its published preview stays up but trunk does not contain it.
+- Rows 14 and 44 (account-browser, sparring-browser) fail once at load 150+ and pass the solo retry; only an assertion (row 4's pin) is a real failure.
+- Origins preview build: scratch worktree at the PR head, symlink node_modules, `npx vite build --config origins/preview/vite.config.mjs` (outDir artifacts/origins-preview, 68 MB), rsync --delete into `current/preview/origins/`, curl the page and bundle. Republished from #1636 @a9d059b8 at 12:5x: https://frankendom.com/preview/origins/?region=1 (bundle index-BFw_cQ9K.js).
+- Carry previews forward after every release: `cp -al previous/preview current/preview` (fatigue, origins, tutorial today).
+- Mac disk fell from 11 GB to 5 GB across the first four releases (about 1 GB each) before Lead and the Auditor removed clean, fully-pushed worktrees; I only ever removed my own gate and docs worktrees.
+
 ## 2026-10-07 06:55 (+04) — HANDOFF at Dom's /clear. READ FIRST (adds to the 04:30 block below; the batch process there still applies)
 **Now (pick up here)**
 1. **LIVE = trunk = `578be80c`**, deploy checkout clean and detached there, no run in flight, no lock. Overnight total 20 releases, every one 0 FAILED rows; latest 84e3f08c, 110e4caa, 54f113df, 26f17894, 1c2a0ac9, 578be80c.

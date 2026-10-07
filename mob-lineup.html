@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mob line-up</title><style>html,body{margin:0;background:#2b2724;overflow:hidden}canvas{display:block}</style>
+<script type="module">
+// Characters lane review page (never shipped): the Region 1 mobs from mob-looks.ts, dressed by mob-dress.ts on their roster bodies, in one row.
+// ?ids=a,b,c (default: every drawn look) &raw=1 skips the dressing (the "before" frame). Posed at the first Idle clip's frame 0.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone } from 'three/addons/utils/SkeletonUtils.js';
+import { MOB_LOOKS } from '/origins/preview/mob-looks.ts';
+import { dressMob } from '/origins/preview/mob-dress.ts';
+const P = new URLSearchParams(location.search), raw = P.has('raw');
+const ids = (P.get('ids') || Object.entries(MOB_LOOKS).filter(([, l]) => !l.later).map(([k]) => k).join(',')).split(',');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(innerWidth, innerHeight); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3430);
+const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+const sun = new THREE.DirectionalLight(0xfff0dd, 1.6); sun.position.set(2, 4, 5); scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshStandardMaterial({ color: 0x4a423a, roughness: 1 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const loader = new GLTFLoader(), cache = new Map(), STEP = 2.2;
+const glb = (name) => cache.get(name) ?? (cache.set(name, loader.loadAsync(`/src/assets/${name}.glb`)), cache.get(name));
+const errors = [];
+let x = 0;
+for (const id of ids) {
+  const look = MOB_LOOKS[id]; if (!look) { errors.push(`no look ${id}`); continue; }
+  const asset = await glb(look.opponent), root = clone(asset.scene), group = new THREE.Group(); group.add(root);
+  root.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (!raw) o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone(); } });
+  const idle = asset.animations.find(c => /idle/i.test(c.name)) ?? asset.animations[0];
+  if (idle) { const m = new THREE.AnimationMixer(root); m.clipAction(idle).play(); m.update(0); }
+  group.rotation.y = 0; group.position.x = x; x += STEP * Math.max(1, raw ? 1 : look.scale);
+  if (!raw) { const n = dressMob(group, look); if (!n) errors.push(`${id}: no cloth drawn (${look.opponent})`); }
+  scene.add(group);
+}
+const half = x / 2 - STEP / 2; scene.children.forEach(o => { if (o.isGroup) o.position.x -= half; });
+const aspect = innerWidth / innerHeight, camera = new THREE.PerspectiveCamera(30, aspect, .1, 100);
+const span = Math.max(x, 3), dist = Math.max(6, (span / 2) / Math.tan(THREE.MathUtils.degToRad(15)) / aspect * 1.05);
+camera.position.set(0, 1.5, dist); camera.lookAt(0, 1.2, 0);
+renderer.render(scene, camera); window.__lineup = { ready: true, errors, ids, count: scene.children.filter(o => o.isGroup).length };
+</script>

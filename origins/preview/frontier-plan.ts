@@ -36,7 +36,8 @@ export const ZONE_NAMES: Record<string, string> = {
   'east-road': 'The East Road', 'ferry-landing': 'The Grey Ferry', 'cinder-fields': 'The Cinder Fields', 'black-mere': 'The Black Mere',
   'blood-ruin': 'The Blood Ruin', 'cinder-hold': 'Cinder Hold', 'mere-end': 'Mere End',
 };
-const FRONTIER = 'region:ash-frontier' as RegionId, EXCHANGE = CONCORD_REGION as RegionId;
+export const FRONTIER = 'region:ash-frontier' as RegionId;   // the branded id: compare against this, never the plain literal (TS2367)
+const EXCHANGE = CONCORD_REGION as RegionId;
 // The Bounty this slice offers, and who posts it: the warden of the town beside the Bounty's ground.
 export const SLICE_BOUNTY = 'bounty:hrungnir';
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -125,11 +126,21 @@ export const inZone = (z: ZonePlan, x: number, wz: number, margin = 0) => {
 };
 // The Frontier zone you stand in (the Exchange's own two are the greybox's, so they are not looked up here).
 export const frontierZoneAt = (f: Frontier, x: number, z: number) => f.zones.find((q) => q.region === FRONTIER && inZone(q, x, z)) ?? null;
+// A point in the west road's frame: `along` the road from its start (metres, + = on out the way it faces) and `across` its centreline (absolute).
+export function roadFrame(f: Frontier, x: number, z: number): { along: number; across: number } {
+  const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing);
+  return { along: (x - r.from.x) * ux + (z - r.from.z) * uz, across: Math.abs(-(x - r.from.x) * uz + (z - r.from.z) * ux) };
+}
 // On the west road: from 2.5 m inside the Exchange's west wall to the road's end, the road's width less a body.
 export function onRoad(f: Frontier, x: number, z: number): boolean {
-  const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing), len = Math.hypot(r.to.x - r.from.x, r.to.z - r.from.z);
-  const along = (x - r.from.x) * ux + (z - r.from.z) * uz, across = Math.abs(-(x - r.from.x) * uz + (z - r.from.z) * ux);
-  return along >= -2.5 && along <= len + 0.5 && across < r.width / 2 - 0.35;
+  const len = Math.hypot(f.road.to.x - f.road.from.x, f.road.to.z - f.road.from.z), { along, across } = roadFrame(f, x, z);
+  return along >= -2.5 && along <= len + 0.5 && across < f.road.width / 2 - 0.35;
+}
+
+// The walker's first view: the west road's line carried 60 m on (road width + `r` + 10 m either side) and a ring round where it ends. Tall dressing keeps out of it (frontier-dress.ts, frontier-camp.ts).
+export function inFirstView(f: Frontier, x: number, z: number, r: number): boolean {
+  const { along, across } = roadFrame(f, x, z);
+  return (along > -10 && along < 60 && across < f.road.width / 2 + r + 10) || Math.hypot(f.road.to.x - x, f.road.to.z - z) < r + 14;
 }
 
 // ---- the greybox: blocks, signposts, solids ------------------------------------------------------------------------------------

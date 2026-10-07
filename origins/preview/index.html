@@ -24,7 +24,11 @@
     body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
     #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
-    #walk-stick { position: fixed; width: var(--stick); height: var(--stick); margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2); border-radius: 50%; border: 2px solid var(--c-ring); display: none; pointer-events: none; }
+    .stick { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 28px + var(--stick) / 2); margin-bottom: 0; width: var(--stick); height: var(--stick); margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2); border-radius: 50%; border: 2px solid var(--c-ring); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+        #move-stick { left: calc(24px + var(--stick) / 2); } #look-stick { left: calc(100% - 24px - var(--stick) / 2); }
+    .stick.on { opacity: 1; bottom: auto; }
+    .stick i { position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%; border-radius: 50%; background: var(--c-ring); }
+    @media (pointer: coarse), (max-width: 900px) { .stick { opacity: 0.55; } .stick.on { opacity: 1; } }
     #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
     #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
     #hint { margin-top: var(--gap-s); padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; text-shadow: none; pointer-events: none; }   /* in the HUD's flow: always under the status lines, however many they wrap to */
@@ -52,9 +56,9 @@
 </head>
 <body>
   <canvas id="view"></canvas>
-  <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox look prototype · drag (or WASD) to walk · not the game</small>
-    <div id="hint" class="glass">Drag up to walk. Through the gate, the bank is straight ahead and the blacksmith on your left.</div></div>
-  <div id="walk-stick"></div>
+  <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox preview · not the game</small>
+    <div id="hint" class="glass">Left thumb walks (push to the edge to run), right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div></div>
+  <div id="move-stick" class="stick"><i></i></div><div id="look-stick" class="stick"><i></i></div>
   <button id="prompt" class="glass" hidden></button>
   <button id="walk-journal" class="glass">Journal</button>
   <button id="allegiance" class="glass" hidden>Allegiance</button>
