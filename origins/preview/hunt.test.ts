@@ -70,11 +70,11 @@ test("a named creature's own table rolls on the first win only", () => {
   assert.deepEqual(again.drops, [], 'a repeat kill rolls nothing from the boss table');
 });
 
-test('a full pack says so and keeps the kill', () => {
+test('a pack that refuses the loot says so and keeps the kill', () => {
   const h = newHunt();
   assert.equal(PACK, 12);
   h.inventory = { ...h.inventory, packSize: 0 };
   let said = false;
-  for (let i = 0; i < 40 && !said; i++) { h.attempts.set(fightOf(common), i); const { out } = fight(h, common, won); if (/pack is full/i.test(out.text)) { said = true; assert.ok(out.won); assert.deepEqual(out.drops, []); } }
+  for (let i = 0; i < 40 && !said; i++) { h.attempts.set(fightOf(common), i); const { out } = fight(h, common, won); if (/could not take the loot/i.test(out.text)) { said = true; assert.ok(out.won); assert.deepEqual(out.drops, []); } }
   assert.ok(said, 'a pack with no room refuses the drops and tells the player');
 });

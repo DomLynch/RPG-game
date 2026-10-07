@@ -63,12 +63,12 @@ export function settle(h: Hunt, spec: MobSpec, run: { fight: string; attempt: nu
   if (r.payout.lootTable) {
     const rolled = rollLoot(r.payout.lootTable, run.seed, h.content, { foeLevel: spec.level });
     if (rolled.ok) {
-      const got = intoBackpack(h.inventory, rolled.value, { wonBy: PC as never, killId: `${run.fight}#${run.attempt}`, encounter: spec.encounter, at }, h.content);
+      const got = intoBackpack(h.inventory, rolled.value, { wonBy: PC as never, killId: `${run.fight}.${run.attempt}`, encounter: spec.encounter, at }, h.content);
       if (got.ok) {
         h.inventory = got.value.inventory; h.metal += got.value.metal; out.metal += got.value.metal;
         const tally = new Map<string, number>(); for (const d of rolled.value.items) tally.set(d.item, (tally.get(d.item) ?? 0) + d.quantity);
         out.drops = [...tally].map(([id, n]) => line(n, nameOf(h, id)));
-      } else parts.push(`Your pack is full: ${got.issues[0]!.message}.`);
+      } else parts.push(`Your pack could not take the loot (${got.issues[0]!.message}).`);
     }
   }
   if (r.payout.metal > 0) {
