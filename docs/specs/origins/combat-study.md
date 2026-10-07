@@ -23,9 +23,46 @@ Dom picked two of the luck options. Strategy agreed with both, under the five co
 
 **Build split.** Origins goes first behind a flag, then the arena. Combat builds both in `src/`: the Gambit move, the C3 roll with Backend, and the seeded damage roll plus its battery. Expansion wires the Origins side: monster fights read the flag, and the HUD shows the roll.
 
+**Gambit input (Strategy, 2026-10-07).** A second heavy press during the wind-up turns that heavy into a Gambit, with the same tell as the heavy.
+- The arm window opens only after the chamber, not in the first ~8 ticks, so an accidental double-tap on a phone doesn't arm it.
+- Arming gives the player a private cue: a button flash and a small sound that the opponent's screen does not show.
+- The EV counts the cost of being punished after a self-stagger.
+- Odds are one constant. Strategy and Expansion recommend 1 in 2 at ×2; Dom's original was 1 in 3. **Dom to confirm.**
+
+## RULING 2026-10-07: stances and opponent mood (Dom; Strategy's rules; one system)
+
+Dom wants the player to choose a temperament. The AI's opponent mood is the same system: the mood presets **are** these stances.
+
+| Stance | Bonus | Cost | Beats |
+|---|---|---|---|
+| Neutral | none | none | nothing (the safe middle) |
+| Aggressive | +10% damage, +10% posture damage dealt | blocks cost 10% more stamina | Trickster |
+| Defensive | blocks cost 15% less stamina, faster posture recovery | −10% damage | Aggressive |
+| Trickster | feints cost half, kicks deal more posture damage, rear hits +10% | −10% damage on heavies | Defensive |
+
+**Rules**
+- **Never touches timing:** no change to swing speed, parry window, i-frames, reach or input.
+- Stances count inside the 25% "gear tilts" budget, together with gear.
+- **Balance:** every stance pair wins 40–60% in the battery and the bot reruns, and no stance is dominant against the field.
+- **Breakpoint check on the +10% damage:** if it flips common hits-to-kill, it drops to the highest value that doesn't.
+- **Read, not a banner:** the stance shows in the weapon hold (high guard, low crouch, loose and shifting), keeping "nothing over the arena". This needs three ready poses from Characters.
+- **Opponents:** each has a home stance (Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Neutral), and higher rungs switch mid-fight. Mood presets are fixed vectors within ±15% of the profile; the fight seed picks one, so re-sim stays exact.
+- **Mood never touches difficulty:** reaction time, the read/habit knobs and the RV31 spam gate are excluded. The battery runs per preset per opponent: within ±5 points of base on the honest bots, and the ladder overall within ±3.
+- AI opponents only get moods. A player's stance is always the player's own pick.
+
+**Rollout**
+- v1: a pick before the fight, on the Pit / fight-start screen, with no new button.
+- v2: a mid-fight switch by two-finger swipe, costing 10 stamina plus a 1 s lockout, only after v1's data.
+
+**Open:**
+- **Dropping the ±10% damage rolls vs AI** (Strategy proposes it, since stances + mood give the variety). Dom picked the rolls himself this morning, so **Dom to confirm.** Until then the roll stays behind its off flag in #1607.
+- Whether stances (±10% damage in the arena) are exempt, as a chosen trade-off, from the patron rule that arena perks never add damage. Strategy to state.
+
+**Owners:** Combat builds the sim side after RV31/RV30 (luck, then stances and mood), with its own record-version bump. Characters provides the three ready poses. Expansion wires the Origins/HUD side.
+
 ## Page one, for Dom
 
-> **Superseded on luck:** the dice lines on this page are replaced by the RULING above. The Gambit is a chosen roll everywhere, PvP included; ±10% shown rolls apply against AI and monsters, Origins first. Every PvP hit still has no per-hit dice.
+> **Superseded on luck:** the dice lines on this page are replaced by the two RULINGS above (luck; stances and mood). The Gambit is a chosen roll everywhere, PvP included; ±10% shown rolls apply against AI and monsters, Origins first. Every PvP hit still has no per-hit dice.
 
 **What is worth borrowing**
 
