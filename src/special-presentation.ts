@@ -5,6 +5,7 @@ import { classSpecialFor, type ClassSpecialId } from './class-special-identity.t
 import type { OpponentId } from './roster.ts';
 import { bossSpecialId, type BossSpecialId } from './special-identity.ts';
 import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
+import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from './spell-school.ts';
 import { SPECIAL_MODES, type Pose, type SpecialFx, type SpecialMode } from './special-modes.ts';
 
 type Pair<T> = readonly [T, T];
@@ -50,6 +51,8 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
     const token = slot.generation;
     void loader(slot.id, slot.group, slot.opponent, lighting.forGroup(slot.group)).then((fx) => {
       if (slot.generation !== token) { fx.clear(); disposeSpecialGroup(slot.group); return; }
+      const school = schoolsFlag(globalThis.location?.search ?? '') ? SCHOOL_OF[slot.id] : undefined;   // ?look=schools: the spell-school colour test (spell-school.ts)
+      if (school) { const tint = schoolTinter(slot.group, school, schoolsStrength(globalThis.location?.search ?? '')), draw = fx.render.bind(fx); fx.render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; }   // in place: a getter such as `exposure` stays live
       slot.fx = fx;
     }).catch(() => { if (slot.generation === token) { discard(slot); slot.ended = true; } });
   };
@@ -81,10 +84,10 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
           if (slot.id !== id || (slot.ended && !slot.fx)) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);   // (a load that failed or never landed is tried again)
           else if (slot.ended) slot.fx!.clear();
           slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];
-        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled') && event.tick >= slot.start && !slot.ended) {
+        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended) {
           slot.ended = true;
-          if (event.type === 'SpecialFizzled' && !slot.fx) { discard(slot); slot.events = []; }
-          else slot.events.push(casterEvent(event, side));
+          if (event.type !== 'SpecialLanded' && !slot.fx) { discard(slot); slot.events = []; }
+          else slot.events.push(casterEvent(event.type === 'SpecialInterrupted' ? { ...event, type: 'SpecialFizzled' } : event, side));   // a cut cast ends like a fizzled one: charge FX dropped, no payoff
         }
       }
     },

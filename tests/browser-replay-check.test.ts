@@ -19,7 +19,7 @@ test('browser-replay fixture: one record per playable roster opponent in roster 
   // The 2026-09-29 repro (Finishers): Node's hero win at 2,248 on seed 828 v the Dwarf is the number the browser disagreed with.
   const repro = fixture.records.find((r) => r.label && r.opponent === 'dwarf' && r.seed === 828)!;
   assert.ok(repro && REPROS.some((r) => r.opponent === 'dwarf' && r.seed === 828), 'the seed-828 Dwarf repro is pinned');
-  assert.deepEqual({ victim: repro.expect.victim, draw: repro.expect.draw, tick: repro.expect.tick }, { victim: 1, draw: false, tick: 2248 }, 'Node: the hero wins at 2,248 (the fixed sim must keep this number)');
+  assert.deepEqual({ victim: repro.expect.victim, draw: repro.expect.draw, tick: repro.expect.tick }, { victim: 0, draw: false, tick: 1926 }, 'Node: the hero loses at 1,926 (RV29 re-pin, 2026-10-07: was a hero win at 2,248; the fixed sim must keep this number)');
 });
 
 test('browser-replay fixture: every record decodes and the page-path Node replay reaches its pinned outcome, hash for hash', async () => {

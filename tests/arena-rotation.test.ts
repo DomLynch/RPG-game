@@ -58,7 +58,7 @@ test('record v26: the arena byte round-trips, and an unnamed arena stays unnamed
   const plain = createRecorder({ build: 'b', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 9 });
   setLateNotice(false); setStab(false);
   const r = named.finish('abandoned'), p = plain.finish('abandoned');
-  assert.equal(RECORD_VERSION, 26); assert.equal(r.v, 26);
+  assert.ok(RECORD_VERSION >= 26); assert.equal(r.v, RECORD_VERSION);
   assert.equal(unpackRecord(packRecord(r)).arena, '10'); assert.equal((await decodeRecord(await encodeRecord(r))).arena, '10');
   assert.equal('arena' in unpackRecord(packRecord(p)), false);
   assert.equal((await peekRecordHeader(await encodeRecord(r)))?.outcome, 'abandoned', 'the header peek skips the arena byte');
@@ -67,16 +67,13 @@ test('record v26: the arena byte round-trips, and an unnamed arena stays unnamed
   assert.ok(ARENAS.length === 16 && ARENAS[0] === undefined);
 });
 
-test('record v25 and older: a link minted before the arena byte decodes unchanged and names no arena, so it replays in its ladder band', async () => {
-  const old = await decodeRecord(V25);
-  assert.equal(old.v, 25); assert.equal(old.arena, undefined); assert.equal(old.ticks, 12); assert.equal(old.opponent, 'goblin'); assert.equal(old.seed, 731);
-  const band = arenaFor(old.opponent).id;
-  assert.equal(band, arenaFor(old.opponent, undefined).id);
-  assert.equal(band, arenaFor('goblin').id, 'the default for a record with no arena is the opponent\'s ladder band, exactly as before');
+test('record v25 and older: a link minted before the arena byte is refused at decode (REACH[29]: the RV29 rules changed every fight), and an arena-less record still names the ladder band', async () => {
+  await assert.rejects(decodeRecord(V25), /version 25 is not supported for the goblin from level 1 \(bump 29 changed that fight/);
+  const band = arenaFor('goblin').id;
+  assert.equal(band, arenaFor('goblin', undefined).id);
   assert.equal(arenaFor('veteran').id, '1');
   assert.ok(LADDER.length >= 10);
-  assert.deepEqual(unpackRecord(packRecord(old)), old, 'repacking a v25 record keeps its layout and its version');
-  assert.equal((await peekRecordHeader(V25))?.outcome, 'abandoned');
+  assert.equal((await peekRecordHeader(V25))?.outcome, 'abandoned');   // the page still reads the header of a retired link to show its warden (main.ts)
 });
 
 test('a v26 rotation fight replays in its named arena, not the band', () => {

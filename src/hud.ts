@@ -1,17 +1,20 @@
 // The combat HUD: meters, labels, the combat buttons' enabled/hidden/label state, and the floating damage numbers. Pure DOM
 // binding over the practice state — it never decides anything about the fight. `element` is injected so the entry point's
 // own lookup (and the VM test harness's fake document) is what it binds to.
-import { accepts, counterLine, practiceHint, type CombatEvent, type Practice } from './combat.ts';
+import { accepts, counterLine, practiceHint, type ClarityEvent, type CombatEvent, type Practice } from './combat.ts';
+import { defenceGrade, GRADE_LABEL } from './defence-grade.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
-import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonId } from './lessons.ts';
+import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from './lessons.ts';
+import { createGapHistory } from './kick-close.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
-const KICK_LANDS = 1.5;
+// Lit = a kick pressed from here lands on a guard-raised foe. Measured 2026-10-07 (tests/hud.test.ts): the true far edge is 1.585 m (the 1.2 m cone plus the kick's .55 stride), so 1.5 keeps a margin for the foe's step.
+export const KICK_LANDS = 1.5;
 
-export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonId; lessonFight?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null; kickClose?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -27,12 +30,14 @@ export function createHud(element: Lookup) {
   const stamina = element<HTMLMeterElement>('stamina');
   const health = element<HTMLMeterElement>('target-health');
   const combatStatus = element('combat-status');
+  let defendedTimer: ReturnType<typeof setTimeout> | undefined;
   // Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
   // bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
   // positions come from the scene's world→screen projection. Presentation-only.
   const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
   let dmgCursor = 0;
   let lastHud = '';
+  const gaps = createGapHistory();   // ?look=kickclose (kick-close.ts): the last few ticks of the gap
   return {
     // Force the next update to write everything (the debug toggle relabels the buttons).
     invalidate() {
@@ -40,7 +45,7 @@ export function createHud(element: Lookup) {
     },
     update(practice: Practice, view: HudView) {
       // The sparring dummy never attacks (src/sparring.ts), so the sheathed line's "will counterattack" is false there (Strategy 2026-09-26).
-      const foe = bareName(view.opponentId), line = practiceHint(practice, foe, view.legend),
+      const foe = bareName(view.opponentId), line = view.headline ? practiceHint(practice, foe, view.legend).replace(' Ready for a rematch?', ` ${view.headline} Ready for a rematch?`) : practiceHint(practice, foe, view.legend),   // ?look=headline (victory-headline.ts): the earned line sits before the rematch prompt of a win
         hint = view.lesson ? lessonText(view.lesson) : view.lessonFight && !practice.playerHealth ? LESSON_FELL : view.dummy ? line.replace(counterLine(foe, view.legend), 'The dummy never attacks.') : line,   // lesson: a teaching beat the fight set (lessons.ts) wins the line while it is up
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
@@ -48,7 +53,9 @@ export function createHud(element: Lookup) {
       );
       // accepts() is true for every action in a committed action's buffer window, so SKILL refuses its own cooldown here (live c1bda34d).
       const skillOk = practice.duel.fighters[0].skillCooldown === 0 && practice.duel.fighters[0].skill !== null && accepts(practice, 'skill');
-      const gap = Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z), inKickReach = gap <= KICK_LANDS;
+      const gap = Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z);
+      gaps.record(practice.duel.tick, gap, practice.duel.fighters[0].phase === 'hurt');   // every update, before the dedup below: the history must not skip a quiet frame
+      const inKickReach = gap <= KICK_LANDS && !(view.kickClose && gaps.retreating(practice.duel.tick, gap));   // flag off: the plain 1.5 m light of today
       // A cone skill (path null: reach × the kick's arc) lands only inside its reach, so SKILL says so the way Kick does (Combat,
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
       const me = practice.duel.fighters[0], skillMove = me.skill ? weaponOf(me.weapon).moves[SKILL_MOVE[me.skill]] : null;
@@ -69,6 +76,7 @@ export function createHud(element: Lookup) {
       ] as const)
         meter.style.setProperty('--fill', `${(value / max) * 100}%`);
       stamina.style.setProperty('--max', `${practice.maxStamina}%`);
+      stamina.dataset.capped = String(practice.maxStamina < 100);   // a wound has lowered the ceiling: the bar draws a solid cap and a notch at --max (style.css)
       stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
       stamina.value = practice.stamina;
       element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
@@ -137,6 +145,25 @@ export function createHud(element: Lookup) {
     // The journal's damage-numbers toggle turning off: whatever is floating disappears.
     hideDamage() {
       for (const span of dmgPool) span.hidden = true;
+    },
+    // Clarity cue 3 (Lead's brief): a press the sim refused dims and shakes its button for a moment, no text. The CSS class restarts on each refusal.
+    refused(clarity: readonly ClarityEvent[]) {
+      for (const c of clarity) {
+        if (c.type !== 'PressRefused' || c.actor !== 0) continue;
+        const button = c.action === 'heavy' ? heavyButton : c.action === 'thrust' ? thrustButton : c.action === 'kick' ? kickButton : c.action === 'skill' ? skillButton
+          : c.action === 'dodge' || c.action === 'backstep' ? dodgeButton : c.action === 'parry' ? guardButton : attackButton;
+        button.classList.remove('refused'); void button.offsetWidth; button.classList.add('refused');
+        setTimeout(() => button.classList.remove('refused'), 260);
+      }
+    },
+    // ?look=defence (defence-grade.ts): the GUARD button rings once in the colour of the grade the player's own defence just earned, and names it. Transform/ring only, nothing over the fighters.
+    defended(events: readonly CombatEvent[]) {
+      for (const e of events) {
+        const grade = defenceGrade(e); if (!grade) continue;
+        guardButton.dataset.defence = grade; guardButton.dataset.defenceLabel = GRADE_LABEL[grade];
+        guardButton.classList.remove('defended'); void guardButton.offsetWidth; guardButton.classList.add('defended');
+        clearTimeout(defendedTimer); defendedTimer = setTimeout(() => { guardButton.classList.remove('defended'); delete guardButton.dataset.defence; delete guardButton.dataset.defenceLabel; }, 520);
+      }
     },
     floatDamage(
       events: CombatEvent[],

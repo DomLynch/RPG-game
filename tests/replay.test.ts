@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
-import { createRecorder, decodeRecord, type FightRecord } from '../src/record.ts';
+import { decodeRecord, type FightRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { MAX_SHARE_CHARS, replayParam, shareUrl, verifyRecord } from '../src/replay.ts';
 
 const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {}): Intent => ({
@@ -13,7 +14,7 @@ const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {})
 
 // The same scripted fight as tests/record.test.ts: busy stick, drifting yaw, bursts of attacks, against the Veteran on his own profile.
 function scriptedFight(seed = 731, ticks = 1800) {
-  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
+  const opponent = OPPONENTS.veteran, rec = liveRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
   // The level-18 body and table, as the game and the verifier build them (replay.ts opponentAt): the gladius + scutum from level 6.
   const body = opponentAt(opponent, 18), table = profileAt(opponent, 18);
   let practice = initialPractice(seed, body), yaw = 0.6;
@@ -62,14 +63,14 @@ test('replay: the share link carries the opponent as its own parameter and the r
   }
   assert.equal(replayParam('?opponent=veteran'), null);
   assert.equal(replayParam('?replay=abc*def'), 'abc', 'the parameter stops at the first non-base64url character');
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = liveRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   for (let i = 0; i < 40000; i++) rec.push(intent({ move: { x: Math.random() * 2 - 1, z: Math.random() * 2 - 1, yaw: Math.random() * 6 - 3, run: i % 2 === 0 }, action: (['light', 'heavy', 'thrust', null] as const)[i % 4] }));
   const noisy = await shareUrl(rec.finish('abandoned'), 'https://frankendom.com');
   assert.ok('tooLong' in noisy && noisy.tooLong > MAX_SHARE_CHARS, 'random noise over ten minutes does not fit a link');
 });
 
 test('replay: a record this build cannot step is a refusal with a reason, never a throw (a crafted link must not kill the frame loop)', () => {
-  const rec = createRecorder({ weapon: 'reaper', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = liveRecorder({ weapon: 'reaper', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   for (let i = 0; i < 120; i++) rec.push({ move: { x: 0, z: -1, yaw: 0, run: false }, action: i % 30 === 0 ? 'light' : null, guard: false, lock: true });
   const v = verifyRecord(rec.finish('abandoned'));
   assert.equal(v.ok, false); if (!v.ok) assert.match(v.reason, /cannot step the record/);

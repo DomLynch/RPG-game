@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
-import { BadRequest, handlers, openAccount, type Ctx } from '../origins/server/handlers.ts';
+import { Refused } from '../origins/server/errors.ts';
+import { BadRequest, handlers, openAccount, type Ctx, type Handler } from '../origins/server/handlers.ts';
 import { pitBatch } from '../origins/server/career.ts';
 import type { CareerRow, PitClaim, Snapshot } from '../origins/server/store.ts';
 import { creditFromMarks, legendKey, levelOfCredit } from '../origins/progression/model.ts';
@@ -19,28 +20,34 @@ function script(replies: { open: () => Snapshot[]; pending?: PitClaim[]; snapsho
   let n = 0;
   const db: Db = {
     async run(sql, vars = {}) {
-      const fn = /origins_\w+/.exec(sql)![0];
-      calls.push({ fn, vars });
-      if (fn === 'origins_open') return JSON.stringify(opens[Math.min(n++, opens.length - 1)]);
-      if (fn === 'origins_snapshot') return replies.snapshot ? replies.snapshot() : '';
-      if (fn === 'origins_pit_pending') return JSON.stringify(replies.pending ?? []);
-      if (fn === 'origins_commit') return JSON.stringify(replies.commit ? replies.commit(JSON.parse(vars.b)) : []);
-      if (fn === 'origins_create_character') return 'pc:abc';
-      throw Error(`unscripted ${fn}`);
+      // A statement pair is answered in order, like psql: the first refusal throws before the second runs.
+      const answers: string[] = [];
+      for (const fn of [...sql.matchAll(/public\.(origins_\w+)\(/g)].map(m => m[1])) {
+        calls.push({ fn, vars });
+        if (fn === 'origins_open') answers.push(JSON.stringify(opens[Math.min(n++, opens.length - 1)]));
+        else if (fn === 'origins_snapshot') answers.push(replies.snapshot ? replies.snapshot() : '');
+        else if (fn === 'origins_pit_pending') answers.push(JSON.stringify((replies.pending ?? []).slice(0, Number(vars.n ?? Infinity))));
+        else if (fn === 'origins_commit') answers.push(JSON.stringify(replies.commit ? replies.commit(JSON.parse(vars.b)) : []));
+        else if (fn === 'origins_create_character') answers.push('pc:abc');
+        else if (fn === 'origins_set_active') continue;   // create_character's second statement: psql prints only the created id (\gset pair)
+        else throw Error(`unscripted ${fn}`);
+      }
+      return answers.join('\n');
     },
   };
   return { db, calls };
 }
 const snap = (career: CareerRow | null, marks = 4): Snapshot => ({ marks, career, characters: [], items: [], quests: [], journal: [], talk: [] });
 
-async function serve(db: Db) {
-  const server = createWriter({ db, verify: async t => (t === 'tok' ? A : null) });
+async function serve(db: Db, ops?: Record<string, Handler>) {
+  const server = createWriter({ db, verify: async t => (t === 'tok' ? A : null), ...(ops ? { handlers: ops } : {}) });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/`;
   const call = async (op: string, init: RequestInit & { token?: string | null } = {}) => {
     const { token = 'tok', ...rest } = init;
     const res = await fetch(url + op, { method: 'POST', ...rest, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}) } });
-    return { status: res.status, body: await res.json() as { ok: boolean; result?: unknown; error?: string } };
+    const text = await res.text();
+    return { status: res.status, text, body: JSON.parse(text) as { ok: boolean; result?: unknown; error?: string } };
   };
   return { call, close: () => server.close() };
 }
@@ -85,6 +92,18 @@ test('database refusals map to statuses and a failure is a fixed 500', async () 
   try {
     const res = await call('open', { body: '{}' });
     assert.deepEqual([res.status, JSON.stringify(res.body).includes('secret')], [500, false]);
+  } finally { close(); }
+});
+
+test('a Refused answers its status, with its code in the body only when it has one (the smith\'s 501; the story ops\' 503 carries none)', async () => {
+  const { db } = script({ open: () => [snap(row())] });
+  const { call, close } = await serve(db, {
+    smith: async () => { throw new Refused(501, 'coin costs need the metals ledger, not built yet', 'not-implemented'); },
+    story: async () => { throw new Refused(503, 'the story content is not loaded: the writer is not ready for this op'); },
+  });
+  try {
+    assert.deepEqual([(await call('smith', { body: '{}' })).status, (await call('smith', { body: '{}' })).text], [501, '{"ok":false,"error":"coin costs need the metals ledger, not built yet","code":"not-implemented"}']);
+    assert.deepEqual([(await call('story', { body: '{}' })).status, (await call('story', { body: '{}' })).text], [503, '{"ok":false,"error":"the story content is not loaded: the writer is not ready for this op"}']);
   } finally { close(); }
 });
 
@@ -134,4 +153,16 @@ test('openAccount pays at most 50 pending claims per open', async () => {
   const many = script({ open: () => [snap(row())], pending: Array.from({ length: 60 }, (_, i) => claim(i + 1)) });
   await openAccount({ db: many.db, account: A });
   assert.equal(many.calls.filter(c => c.fn === 'origins_commit').length, 50);
+});
+
+test('openAccount costs one psql spawn plus one per pending claim, never two per claim', async () => {
+  const three = script({ open: () => [snap(row())], pending: [claim(1), claim(2), claim(3)] });
+  let runs = 0;
+  const counted: Db = { run: (sql, vars) => { runs++; return three.db.run(sql, vars); } };
+  await openAccount({ db: counted, account: A });
+  assert.equal(runs, 1 + 3);
+  const none = script({ open: () => [snap(row())] });
+  runs = 0;
+  await openAccount({ db: { run: (sql, vars) => { runs++; return none.db.run(sql, vars); } }, account: A });
+  assert.equal(runs, 1);
 });

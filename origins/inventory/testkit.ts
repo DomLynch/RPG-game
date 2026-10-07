@@ -27,6 +27,8 @@ export const DEFS: readonly ItemDefinition[] = [
   gear('witch.Helmet', 'Helmet', "The Witch's hood"),
   mustDef(F.graveIronDef()), // stackable material, stack 50
   mustDef(F.recordDef()), // story-critical quest item, binds on acquire
+  mustDef(F.exchangeOreDef()), // stackable material, stack 50: quest hand-ins
+  mustDef(F.oathGauntletsDef()), // story-critical gear, binds on acquire: the smith may upgrade it, never spend it
 ];
 const DEF_MAP: ReadonlyMap<string, ItemDefinition> = new Map(DEFS.map((d) => [d.id, d]));
 export const lookup: Lookup = (id: ItemId) => DEF_MAP.get(id);
@@ -45,7 +47,9 @@ export function pitPiece(id: string, lootId: string, claimId: number, rung: numb
 export function ironStack(id: string, quantity: number, mint: string): ItemInstance {
   return mustInst({ ...F.ironInstance(), id, quantity, location: MINT, provenance: { ...F.ironInstance().provenance, mintKey: `loot:ruin-vigil:${mint}` } });
 }
+export const oreStack = (id: string, quantity: number, mint: string): ItemInstance => mustInst({ ...ironStack(id, quantity, mint), item: 'item:exchange-ore' });
 export const record = (): ItemInstance => mustInst({ ...F.recordInstance(), location: MINT, boundTo: null });
+export const gauntlets = (): ItemInstance => mustInst({ ...F.gauntletsInstance(), location: MINT, boundTo: null });
 
 export const helm = (): ItemInstance => pitPiece('inst:helm-0001', 'veteran.Helmet', 1001, 3, 'Gladiator');
 export const helmCopy = (): ItemInstance => pitPiece('inst:helm-0002', 'veteran.Helmet', 1002, 1, 'Recruit');
@@ -58,7 +62,7 @@ export const gift = (offered: string[]): Trade => value(parseTrade({
   sides: [{ character: RIVAL, account: RIVAL_ACCOUNT, offered, accepted: true }, { character: PC, account: ACCOUNT, offered: [], accepted: true }],
 }));
 export const escrowed = (inst: ItemInstance): ItemInstance => ({ ...inst, location: { kind: 'trade-escrow', container: 'container:trade.7' as never, from: RIVAL } });
-export const LATER = '2026-10-07T09:30:00Z';
+export const LATER = '2026-10-09T12:00:00Z'; // 72 h after F.AT: a fresh piece's first-trade delay (economy.ts FIRST_TRADE_DELAY_S) has run
 
 export function empty(packSize = 4, bankSize = 4, owner = PC, account = ACCOUNT): Inventory {
   const r = openInventory({ owner, account, items: [], packSize, bankSize }, lookup);

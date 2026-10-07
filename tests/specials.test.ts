@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/moves.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
+import { RECORD_VERSION, decodeRecord, encodeRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { recordSpecials, verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
@@ -63,11 +64,11 @@ test('specials: a release on the tick its caster falls still lands; lethal both 
   assert.deepEqual([next.fighters[0].health, next.fighters[1].health, next.finish?.draw], [0, 0, true]);
 });
 
-test('specials: a fight with them records the flag (v22: a headless fight in the old circle), and the replay builds the same fight from it', async () => {
+test('specials: a fight with them records the flag (the current version: a live fight), and the replay builds the same fight from it', async () => {
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
+  const rec = liveRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });   // first: it sets the live era (circle, late notice, stab) the fight is stepped in
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
-  const rec = createRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });
   let landed = 0;
   for (let i = 0; i < 7200 && !p.finish; i++) {
     const f = p.duel.fighters[0], intent = rec.push(legal(f, 'skill') ? act('skill') : f.phase === 'sheathed' ? act('light') : STRATEGIES['light spam'](p.duel));   // the special whenever it is ready, else the battery's light spam
@@ -76,7 +77,7 @@ test('specials: a fight with them records the flag (v22: a headless fight in the
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
-  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [22, true, { level: 12, aiSkill: 'shove' }]);
+  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [RECORD_VERSION, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });
@@ -119,7 +120,7 @@ const SETS: Record<string, [string, string, string]> = {
   knight: ['thesling', 'wrath', 'stormfollowshim'],
 };
 for (const [id, set] of Object.entries(SETS)) {
-  for (const [level, name] of [[35, undefined], [36, set[0]], [40, set[0]], [41, set[1]], [45, set[1]], [46, set[2]]] as Array<[number, string | undefined]>) {
+  for (const [level, name] of [[35, undefined], [36, set[0]], [40, set[0]], [41, set[1]], [45, set[1]], [46, set[2]], [50, set[2]]] as Array<[number, string | undefined]>) {
     test(`specials: ${id} at level ${level} casts ${name ?? 'his class skill'}, named in SpecialStarted and SpecialLanded, on the shared rule`, () => {
       const spec = recordSpecials({ specials: true, level, opponent: id as never })!;
       assert.equal(spec.name, name);
@@ -150,7 +151,8 @@ test('specials: 25 % of max health at ranks 8-10 (levels 36-50), 20 % at ranks 1
 });
 test('specials: a hit in the windup, even a lethal one on the caster\'s foe-side, never stops it; the release can be the kill shot', () => {
   const d = ready(); d.fighters[1].health = Math.round(S.damage * d.fighters[1].maxHealth);   // one special from death
-  let x = stepDuel(d, [act('skill'), idle()]); const cast0 = x.tick;
+  d.fighters[0].maxHealth = d.fighters[0].health = 9999;   // a caster the foe's blow cannot bring to interruptAt (tests/interruptible-casts.test.ts: at the threshold it cuts the cast)
+  const x = stepDuel(d, [act('skill'), idle()]); const cast0 = x.tick;
   const out = run(x, S.windup + 2, y => [idle(), y.fighters[0].phase === 'ready' && !y.fighters[1].special ? act('heavy') : idle()]);
   assert.ok(out.events.some(e => e.type === 'Hit' && e.actor === 1 && e.target === 0 && e.tick < cast0 + S.windup), "the foe's blow connected on the caster inside the windup (else this test proves nothing)");
   assert.ok(out.events.some(e => e.type === 'SpecialLanded' && e.actor === 0), 'the special landed through whatever the target threw');

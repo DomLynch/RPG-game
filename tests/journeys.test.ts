@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createRecorder, decodeRecord } from '../src/record.ts';
+import { decodeRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { createSaveQueue, profileDiffers, readFighter, writeFighter } from '../src/cloud-profile.ts';
 import { mergeLoot, recordTaken, store, unwear, wear, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
@@ -36,7 +37,7 @@ function fakeCloud() {
   return { db: { from } as unknown as SupabaseClient, tables, rest };
 }
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };
-const fight = (opponent: 'veteran' | 'goblin', seed = 3) => { const rec = createRecorder({ build: 'dev', opponent, weapon: 'longsword', level: 18, seed }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('killed'); };
+const fight = (opponent: 'veteran' | 'goblin', seed = 3) => { const rec = liveRecorder({ build: 'dev', opponent, weapon: 'longsword', level: 18, seed }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('killed'); };
 
 test('journey: earn a piece → wear it → automatic cloud save → sign in on another device and it is worn there', async () => {
   const cloud = fakeCloud(), user = 'user-1';

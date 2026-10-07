@@ -29,10 +29,10 @@
 import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
 import { paperdollOf, type Paperdoll } from '../../src/loot.ts';
 import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
-import { CONCORD_EXCHANGE, settleTrade, type Trade } from '../contracts/economy.ts';
+import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../contracts/economy.ts';
 import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';
 import {
-  BANK_SLOTS, PACK_SLOTS, checkCustody, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
+  BANK_SLOTS, PACK_SLOTS, checkCustody, checkHistoryKept, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
   type ItemDefinition, type ItemInstance, type Location,
 } from '../contracts/items.ts';
 import { verifiedTier, type CareerStanding } from '../contracts/world.ts';
@@ -123,22 +123,22 @@ export function checkInventory(inv: Inventory, lookup: Lookup): Issue[] {
 // Every key in one split family shares its ROOT, the key the server minted. Server-minted keys must not contain SPLIT_MARK.
 export const SPLIT_MARK = '::s';
 export const mintRoot = (key: string): string => key.split(SPLIT_MARK, 1)[0]!;
+const addTo = (totals: Map<string, number>, key: string, quantity: number): void => void totals.set(mintRoot(key), (totals.get(mintRoot(key)) ?? 0) + quantity);
 // Quantity per root mint key over some rows (an inventory, an escrow, a whole table).
 export function mintTotals(rows: readonly ItemInstance[]): Map<string, number> {
   const out = new Map<string, number>();
-  for (const r of rows) {
-    const root = mintRoot(r.provenance.mintKey);
-    out.set(root, (out.get(root) ?? 0) + r.quantity);
-  }
+  for (const r of rows) addTo(out, r.provenance.mintKey, r.quantity);
   return out;
 }
-// Conservation: across ALL rows of a mint, the quantities sum to exactly what was minted. `minted` is the server's ledger (root key →
-// quantity minted). Split, merge, bank moves and trades must keep this; only a mint or a burn changes `minted`.
-export function checkConservation(rows: readonly ItemInstance[], minted: ReadonlyMap<string, number>): Issue[] {
-  const held = mintTotals(rows), issues: Issue[] = [];
-  for (const key of new Set([...held.keys(), ...minted.keys()])) {
-    const have = held.get(key) ?? 0, want = minted.get(key) ?? 0;
-    if (have !== want) issues.push({ code: 'rule-violation', path: key, message: `mint ${key} holds ${have} units across its rows; ${want} were minted` });
+// Conservation: per root mint key, the units held across ALL rows plus the units burned (the ledger, `consume` below) equal exactly what
+// was minted. `minted` is the server's ledger (root key → quantity minted). Split, merge, bank moves and trades keep the held total; a
+// burn moves units from held to burned; only a mint changes `minted`.
+export function checkConservation(rows: readonly ItemInstance[], minted: ReadonlyMap<string, number>, burned: readonly Burn[] = []): Issue[] {
+  const held = mintTotals(rows), gone = new Map<string, number>(), issues: Issue[] = [];
+  for (const line of burned.flatMap((b) => b.lines)) addTo(gone, line.mintKey, line.quantity);
+  for (const key of new Set([...held.keys(), ...minted.keys(), ...gone.keys()])) {
+    const have = held.get(key) ?? 0, spent = gone.get(key) ?? 0, want = minted.get(key) ?? 0;
+    if (have + spent !== want) issues.push({ code: 'rule-violation', path: key, message: `mint ${key} holds ${have} units across its rows${spent ? ` and ${spent} burned` : ''}; ${want} were minted` });
   }
   return issues;
 }
@@ -155,8 +155,10 @@ export function openInventory(
 
 // The plan/apply step: build the next item list from replacements (null = leaves this inventory) and additions, check the whole result,
 // and only then hand it out. The input is never written to. Every operation except a crossing of the border (receive, remove, settle)
-// must also conserve each mint's units inside this inventory.
-function commit(inv: Inventory, lookup: Lookup, changes: ReadonlyMap<string, ItemInstance | null>, added: readonly ItemInstance[] = [], conserve = true): Result<Inventory> {
+// must also conserve each mint's units inside this inventory, counting what it `burned` (consume, applyUpgrade).
+function commit(
+  inv: Inventory, lookup: Lookup, changes: ReadonlyMap<string, ItemInstance | null>, added: readonly ItemInstance[] = [], conserve = true, burned: readonly Burn[] = [],
+): Result<Inventory> {
   const items: ItemInstance[] = [];
   for (const inst of inv.items) {
     if (!changes.has(inst.id)) items.push(inst);
@@ -167,7 +169,7 @@ function commit(inv: Inventory, lookup: Lookup, changes: ReadonlyMap<string, Ite
   }
   items.push(...added);
   const next: Inventory = { ...inv, items };
-  const issues = [...checkInventory(next, lookup), ...(conserve ? checkConservation(items, mintTotals(inv.items)) : [])];
+  const issues = [...checkInventory(next, lookup), ...(conserve ? checkConservation(items, mintTotals(inv.items), burned) : [])];
   return issues.length ? { ok: false, issues } : ok(next);
 }
 
@@ -380,6 +382,129 @@ export function merge(inv: Inventory, fromId: unknown, intoId: unknown, lookup: 
   if (a.boundTo !== b.boundTo || a.tier !== b.tier || (a.upgradeLevel ?? 0) !== (b.upgradeLevel ?? 0)) return fail('rule-violation', 'intoId', 'these stacks differ in binding, tier or upgrade level');
   if (a.quantity + b.quantity > def.value.stack) return fail('out-of-range', 'intoId', `${a.quantity} + ${b.quantity} is more than one stack of ${def.value.stack}`);
   return commit(inv, lookup, new Map<string, ItemInstance | null>([[a.id, null], [b.id, { ...b, quantity: a.quantity + b.quantity, version: b.version + 1 }]]));
+}
+
+// ---- burns: units spent for good (a quest hand-in, the smith's material cost) ----------------------------------------------------
+
+// Every burn is one ledger entry naming the rows it took from, by their own mint key, so conservation reads minted = held + burned. The
+// ledger is the server's append-only table; `op` is the operation's idempotency key (Strategy, 2026-10-06): the same key with the same
+// request returns the ORIGINAL burn and changes nothing (a retry after a client timeout), the same key with a different request is
+// refused. Either way a key spends once.
+export const BURN_REASONS = ['quest-handin', 'upgrade-cost'] as const;
+export type BurnReason = (typeof BURN_REASONS)[number];
+export type BurnLine = { readonly instance: ItemInstanceId; readonly item: ItemId; readonly mintKey: string; readonly quantity: number };
+// What was asked for, compared on a retry: a hand-in's selector and count, or the smith's whole receipt.
+export type ConsumeAsk = { readonly qty: number; readonly itemId?: ItemId; readonly mintKey?: string; readonly consumesStoryItem?: ItemId };
+export type Burn = {
+  readonly op: string; readonly owner: CharacterInstanceId; readonly reason: BurnReason; readonly asked: ConsumeAsk | UpgradeReceipt; readonly lines: readonly BurnLine[];
+};
+export type Holdings = { readonly inventory: Inventory; readonly ledger: readonly Burn[] };
+// The new holdings, the burn that op id stands for, and whether this call was a retry that changed nothing.
+export type Burned = Holdings & { readonly burn: Burn; readonly replayed: boolean };
+// Name the units by definition (`itemId`: any stack of that item) or by mint (`mintKey`: the root key, so a whole split family). One of
+// the two, never both. A story-critical piece burns only on a quest step that names it in `consumesStoryItem` (no wildcard).
+export type ConsumeOp = ConsumeAsk & { op: string; owner: CharacterInstanceId; reason: BurnReason };
+
+// Check the op id, owner and reason; then, if the ledger already has this op id, answer the retry: the original burn when the request is
+// the same, a refusal when it is not. `ok(null)` means a fresh op.
+function burnHeader(state: Holdings, op: unknown, owner: unknown, reason: unknown, asked: ConsumeAsk | UpgradeReceipt): Result<Burned | null> {
+  if (typeof op !== 'string' || !MINT_KEY_PATTERN.test(op)) return fail('wrong-type', 'op', 'an operation id is an idempotency key (8..128 of a-z 0-9 : . _ -)');
+  if (owner !== state.inventory.owner) return fail('rule-violation', 'owner', `this inventory is ${state.inventory.owner}'s`);
+  if (!BURN_REASONS.includes(reason as BurnReason)) return fail('wrong-type', 'reason', `expected one of ${BURN_REASONS.join(', ')}`);
+  const prior = state.ledger.find((b) => b.op === op);
+  if (!prior) return ok(null);
+  if (prior.reason !== reason || !sameData(prior.asked, asked)) return fail('duplicate-id', 'op', `${op} was already used for a different burn; an op id names one request`);
+  return ok({ ...state, burn: prior, replayed: true });
+}
+// Take `take` units from each row: an emptied row leaves, a partial one keeps its id, slot and key at version + 1.
+function burnFrom(picks: readonly { row: ItemInstance; take: number }[]): { changes: Map<string, ItemInstance | null>; lines: BurnLine[] } {
+  const changes = new Map<string, ItemInstance | null>(), lines: BurnLine[] = [];
+  for (const { row, take } of picks) {
+    changes.set(row.id, take === row.quantity ? null : { ...row, quantity: row.quantity - take, version: row.version + 1 });
+    lines.push({ instance: row.id, item: row.item, mintKey: row.provenance.mintKey, quantity: take });
+  }
+  return { changes, lines };
+}
+function burn(state: Holdings, entry: Burn, changes: ReadonlyMap<string, ItemInstance | null>, lookup: Lookup): Result<Burned> {
+  const next = commit(state.inventory, lookup, changes, [], true, [entry]);
+  return next.ok ? ok({ inventory: next.value, ledger: [...state.ledger, entry], burn: entry, replayed: false }) : next;
+}
+const isStory = (lookup: Lookup, inst: ItemInstance): boolean => defOf(lookup, inst.item)?.story === 'story-critical';
+
+// Burn `qty` units from the BACKPACK only (what the character hands over is what they carry; the bank stays shut away from the
+// Exchange, and worn pieces are never spent), lowest slot first. All or nothing: too few units, an unknown item, a story-critical piece
+// not named by its quest step, or an op id reused for a different request is refused with the state untouched.
+export function consume(state: Holdings, op: ConsumeOp, lookup: Lookup): Result<Burned> {
+  if (op === null || typeof op !== 'object') return fail('wrong-type', 'op', 'expected a consume operation');
+  const { qty, itemId, mintKey, consumesStoryItem } = op, inv = state.inventory;
+  // Only the fields given, so a stored request compares (and serialises) the same on a retry.
+  const asked = Object.fromEntries(Object.entries({ qty, itemId, mintKey, consumesStoryItem }).filter(([, v]) => v !== undefined)) as ConsumeAsk;
+  const header = burnHeader(state, op.op, op.owner, op.reason, asked);
+  if (!header.ok || header.value) return header as Result<Burned>;
+  if (typeof qty !== 'number' || !Number.isInteger(qty) || qty < 1) return fail('out-of-range', 'qty', 'burn a whole number of units, at least 1');
+  if ((itemId === undefined) === (mintKey === undefined)) return fail('wrong-type', 'itemId', 'name either an itemId or a mintKey');
+  const byItem = itemId !== undefined, key = byItem ? itemId : mintKey;
+  const named = (i: ItemInstance): boolean => (byItem ? i.item === key : mintRoot(i.provenance.mintKey) === key);
+  if (typeof key !== 'string' || (byItem ? !defOf(lookup, key as ItemId) : !inv.items.some(named))) {
+    return fail('unknown-id', byItem ? 'itemId' : 'mintKey', `${typeof key === 'string' ? JSON.stringify(key) : 'that'} names nothing ${byItem ? 'defined in this content' : 'this character holds'}`);
+  }
+  const rows = inv.items.filter((i) => i.location.kind === 'pack' && named(i)).sort((a, b) => indexOf(a) - indexOf(b));
+  // Story pieces (Strategy, 2026-10-06): only a quest step that names the very item it burns; naming any other item is refused too.
+  if (consumesStoryItem !== undefined && (op.reason !== 'quest-handin' || rows.some((r) => r.item !== consumesStoryItem))) {
+    return fail('rule-violation', 'consumesStoryItem', `${String(consumesStoryItem)} is not the item this quest step burns`);
+  }
+  if (rows.some((r) => isStory(lookup, r) && r.item !== consumesStoryItem)) return fail('rule-violation', 'itemId', `${key} is story-critical; only a quest step that names it may spend it`);
+  const have = rows.reduce((n, r) => n + r.quantity, 0);
+  if (have < qty) return fail('rule-violation', 'qty', `needs ${qty} of ${key}; the backpack holds ${have}`);
+  let need = qty;
+  const picks = rows.flatMap((row) => {
+    const take = Math.min(need, row.quantity);
+    need -= take;
+    return take ? [{ row, take }] : [];
+  });
+  const { changes, lines } = burnFrom(picks);
+  return burn(state, { op: op.op, owner: inv.owner, reason: op.reason, asked, lines }, changes, lookup);
+}
+
+// Apply the blacksmith's result (economy.ts performUpgrade) in one step: the upgraded piece replaces its row in place (same id, item and
+// slot, binding unchanged, version + 1, history grown, provenance kept: a story piece stays the story piece), and the receipt's material lines burn under its idempotency key, reason 'upgrade-cost'.
+// The smith may take materials from the bank (the forge stands at the Exchange), so a bank line needs `place` to be the Exchange. The
+// outcome must match these rows exactly (a stale piece, a stale stack or a disagreeing outcome is refused). A retry carrying the same
+// receipt (the outcome again, or the smith's replay of it) returns the original burn; a different receipt under that key is refused.
+export function applyUpgrade(state: Holdings, outcome: UpgradeOutcome, lookup: Lookup, place?: unknown): Result<Burned> {
+  const { receipt } = outcome, inv = state.inventory;
+  const header = burnHeader(state, receipt.idempotencyKey, receipt.character, 'upgrade-cost', receipt);
+  if (!header.ok || header.value) return header as Result<Burned>;
+  if (outcome.replayed) return fail('rule-violation', 'outcome', `${receipt.idempotencyKey} is the smith's replay of an upgrade this inventory never applied`);
+  const after = outcome.instance;
+  const piece = held(inv, after.id, 'outcome.instance');
+  if (!piece.ok) return piece;
+  if (receipt.instance !== after.id || after.item !== piece.value.item || after.boundTo !== piece.value.boundTo || after.version !== piece.value.version + 1
+    || !sameData(after.location, piece.value.location) || checkHistoryKept(piece.value, after).length) {
+    return fail('version-conflict', 'outcome.instance', `the upgrade was worked on a different copy of ${after.id} (held at version ${piece.value.version})`);
+  }
+  const picks: { row: ItemInstance; take: number }[] = [];
+  for (const [i, line] of receipt.materials.entries()) {
+    const row = held(inv, line.instance, `receipt.materials[${i}]`);
+    if (!row.ok) return row;
+    if (row.value.item !== line.item || row.value.location.kind === 'equipped' || line.quantity > row.value.quantity) {
+      return fail('version-conflict', `receipt.materials[${i}]`, `${line.instance} does not hold ${line.quantity} × ${line.item} to spend`);
+    }
+    if (isStory(lookup, row.value)) return fail('rule-violation', `receipt.materials[${i}]`, `${line.item} is story-critical; the smith never takes it`);
+    if (row.value.location.kind === 'bank') {
+      const gate = bankGate(place);
+      if (!gate.ok) return gate;
+    }
+    picks.push({ row: row.value, take: line.quantity });
+  }
+  const { changes, lines } = burnFrom(picks);
+  const emptied = [...changes].filter(([, v]) => v === null).map(([id]) => id);
+  const kept = [...changes.values()].filter((v) => v !== null);
+  if (!sameData(emptied.sort(), [...outcome.consumed].sort()) || !sameData(kept, outcome.materials)) {
+    return fail('version-conflict', 'outcome.materials', 'the outcome and its receipt disagree about what the smith took');
+  }
+  changes.set(after.id, after);
+  return burn(state, { op: receipt.idempotencyKey, owner: inv.owner, reason: 'upgrade-cost', asked: receipt, lines }, changes, lookup);
 }
 
 // ---- wearing ----------------------------------------------------------------------------------------------------------------------

@@ -269,7 +269,10 @@ window.__finisher = {
   play(which, i, mode) {
     // Render inside a rAF double-tick: without preserveDrawingBuffer a synchronous render never reaches the compositor,
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
-    return new Promise(resolve => requestAnimationFrame(() => {
+    // Hamstrung's clips load lazily when the picker selects it (scene.ts wantHamstrung); the kill must not start before they are in,
+    // or the scene (correctly) falls back to the plain death. A player picks it long before the kill; the harness waits for it.
+    const installed = windows[which].override === 'hamstrung' ? (async () => { view.setFinisherOverride('hamstrung'); for (let t = 0; t < 300 && !view.hamstrungInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })() : Promise.resolve();
+    return installed.then(() => new Promise(resolve => requestAnimationFrame(() => {
       view.setFinisherOverride(windows[which].override ?? null);   // the picker's own path for outcomes outside the rotation
       if (which !== cursorWhich) { cursor = Number.MAX_SAFE_INTEGER; cursorWhich = which; }   // the cursor belongs to one window: another window replays from its own tick 0
       if (i <= cursor) view.setPreviousFinisher(null);   // every captured window is a first fight (the no-repeat rule reads the previous one)
@@ -277,7 +280,7 @@ window.__finisher = {
       if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
       for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+60) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
       requestAnimationFrame(() => resolve(view.playing()));
-    }));
+    })));
   },
 };
 </script></body></html>`;
@@ -312,7 +315,7 @@ try {
     }
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened', hamstrung: 'hamstrung' };
   const ORDER = order, cameraChecks = [], bloodChecks = [];
   const first = await open(VIEW);
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));

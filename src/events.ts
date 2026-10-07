@@ -9,7 +9,7 @@ import type { CombatEvent, Side } from './duel.ts';
 export function struck(e: CombatEvent): Side | null {
   if (!e.damage) return null;
   if (e.type === 'Blocked') return e.actor;
-  if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Killed' || e.type === 'Whipped') return e.target ?? null;
+  if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Killed' || e.type === 'Whipped' || e.type === 'SpecialLanded') return e.target ?? null;   // a Special Move's strike is its own event (duel.ts), hurting its target like a hit (GPT audit 2026-10-06, finding A)
   return null;
 }
 // The blows a fighter took from the OPPONENT: hits, broken guards and chip through a block. The whip is the wall's, not the warden's.

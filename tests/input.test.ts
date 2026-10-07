@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import { GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, guardSide } from '../src/input.ts';
+import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, guardSide } from '../src/input.ts';
 import type { Direction } from '../src/moves.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
@@ -214,4 +214,37 @@ test('the fighter card keeps Rename on the sheet: the rank row shrinks its bar, 
   assert.match(css, /#journal-rank \.rank-bar \{ min-width: 0; overflow: hidden; \}/, 'the bar takes the shrink');
   assert.match(css, /#journal-rank \.rank-seg \{ flex: 0 1 14px; min-width: 4px; \}/, 'its segments narrow to 4 px');
   assert.doesNotMatch(css, /#journal-rank[^{]*\{[^}]*text-overflow/, 'no ellipsis on a class name');
+});
+
+test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to a side cuts that side, neutral keeps the alternating light', () => {
+  assert.equal(cutAction(0), 'light'); assert.equal(cutAction(0.12), 'light'); assert.equal(cutAction(CUT_PUSH - 0.01), 'light', 'a wobble is not a cut');
+  assert.equal(cutAction(-CUT_PUSH), 'light_left'); assert.equal(cutAction(-1), 'light_left');
+  assert.equal(cutAction(CUT_PUSH), 'light_right'); assert.equal(cutAction(1.4), 'light_right');
+  const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(lateral\(\)\)\)/, 'the LIGHT press reads the held side');
+  assert.match(src, /const arrowKey = \(code: string\) => !keys\.has\('KeyQ'\)/, 'Q + an arrow is the guard side, never a cut');
+  assert.match(src, /attackButton\.dataset\.cut = cutSide/, 'the button shows the chosen side');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(css, /#attack-button\[data-cut=left\]:not\(\[data-held\]\) \.side-left/, 'the lit side tick still marks the chosen side');
+  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /#attack-button\[data-cut[^\]]*\][^,{]*::after/, 'Dom 2026-10-07: the arc is removed (it also replaced the Slash label)');
+});
+
+test('a refusal card over a stalled page quiets the fight controls behind it, and PLAY NOW stays (Lead 2026-10-07)', () => {
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(main, /classList\.toggle\('card-up', match\.stalled && replayBanner\.dataset\.stale === '1'\)/, 'set from the stalled page and the stale banner');
+  const rule = /:root\.card-up #joystick,[^{]*#actions button:not\(#reset-button\)\s*\{[^}]*visibility: hidden !important; pointer-events: none !important;/.exec(css);
+  assert.ok(rule, 'the stick, hint, run toggle and every action but #reset-button are hidden and inert');
+  assert.doesNotMatch(rule![0], /#reset-button\s*[,{]\s*$/m, 'PLAY NOW is exempt');
+});
+
+test('the Slash label survives every directional-cut state: nothing may repaint the attack button\'s ::after, which IS the mobile label', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  const label = rules.filter((r) => /button\[data-mobile\]::after/.test(r.selector) && /content:\s*attr\(data-mobile\)/.test(r.body));
+  assert.ok(label.length >= 1, 'the label is drawn by button[data-mobile]::after (content: attr(data-mobile))');
+  const clobbers = rules.filter((r) => /#attack-button[^,]*::(after|before)/.test(r.selector) && /\bcontent\s*:/.test(r.body));
+  assert.deepEqual(clobbers.map((r) => r.selector), [], 'an #attack-button ::after/::before rule with its own content would replace the label (it did, with data-cut set: no text, only the arc)');
+  assert.ok(!/#attack-button\[data-cut[^\]]*\][^,{]*::after/.test(css), 'the directional-cut arc is gone (Dom 2026-10-07); the cut stays in input.ts (data-cut) and the lit tick');
+  const input = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
+  assert.match(input, /cutAction\(lateral\(\)\)/, 'the cut itself is untouched'); assert.match(input, /attackButton\.dataset\.cut = cutSide/);
 });

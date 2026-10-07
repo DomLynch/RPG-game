@@ -48,7 +48,7 @@ test('gates: titles are cap-parametric — floor((level - 1) / 5), Origin at the
   assert.deepEqual([titleForLevel(1), titleForLevel(5), titleForLevel(6), titleForLevel(11), titleForLevel(45), titleForLevel(MAX_LEVEL)], ['Recruit', 'Recruit', 'Legionary', 'Gladiator', 'Invictus', 'Origin']);
   assert.deepEqual([titleForLevel(46, 50), titleForLevel(50, 50)], ['Origin', 'Origin']);
   assert.deepEqual(checkCareerStanding(server(50), 50), []);
-  assert.equal(checkCareerStanding(server(50))[0]?.code, 'out-of-range', 'past the default cap of src/career.ts MAX_LEVEL');
+  assert.equal(checkCareerStanding(server(51))[0]?.code, 'out-of-range', 'past the default cap of src/career.ts MAX_LEVEL');
 });
 
 test('gates: an out-of-range or non-integer career level is rejected and opens nothing', () => {
@@ -118,7 +118,7 @@ test('character definition: every rejection path', () => {
   refused(parseCharacterDefinition({ ...c, encounterForms: [{ id: 'x', opponent: null, level: null, encounter: null }] }), 'rule-violation', 'encounterForms[0]');
   refused(parseCharacterDefinition({ ...c, encounterForms: [{ id: 'x', opponent: 'veteran', level: null, encounter: null }] }), 'rule-violation', 'encounterForms[0].level');
   refused(parseCharacterDefinition({ ...c, encounterForms: [{ id: 'x', opponent: 'dragon', level: 5, encounter: null }] }), 'legacy-unknown', 'encounterForms[0].opponent');
-  refused(parseCharacterDefinition({ ...c, encounterForms: [{ id: 'x', opponent: 'veteran', level: 47, encounter: null }] }), 'out-of-range', 'encounterForms[0].level');
+  refused(parseCharacterDefinition({ ...c, encounterForms: [{ id: 'x', opponent: 'veteran', level: 51, encounter: null }] }), 'out-of-range', 'encounterForms[0].level');
   refused(parseCharacterDefinition({ ...c, lore: { source: 'original' } }), 'missing-field', 'lore.summary');
   const { faction: _f, ...noFaction } = c;
   void _f;
@@ -210,4 +210,7 @@ test('encounter definition: fixture parses; every rejection path', () => {
   refused(parseEncounterDefinition({ ...e, decay: { windowSeconds: 10, keepProgressPercent: 20 } }), 'out-of-range', 'decay.windowSeconds');
   refused(parseEncounterDefinition({ ...e, rewards: { minContributionPercent: 101 } }), 'out-of-range', 'rewards.minContributionPercent');
   refused(parseEncounterDefinition({ ...e, boss: { character: 'character:legend.nightborn-3' } }), 'missing-field', 'boss.loot');
+  assert.deepEqual(must(parseEncounterDefinition({ ...e, boss: { ...e.boss, level: 12, health: 9000 } })).boss, { ...e.boss, level: 12, health: 9000 });
+  refused(parseEncounterDefinition({ ...e, boss: { ...e.boss, level: MAX_LEVEL + 1 } }), 'out-of-range', 'boss.level');
+  refused(parseEncounterDefinition({ ...e, boss: { ...e.boss, health: 0 } }), 'out-of-range', 'boss.health');
 });
