@@ -1,6 +1,13 @@
 # Lead — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+## 2026-10-07 17:45 (+04) — HANDOFF before /clear (Dom). READ FIRST, then memory project_handoff_2026-10-07_1745
+**Now.** LIVE **53c3b21b** (my curl): #1698 Pit controls in Zone 1, #1687 Cinder Fields, #1688 encounter verify (flag unset; migration 202610080002 applied, Auditor POST PASS). Earlier today after 15:00: 2589e4ec Gambit RV33 #1686; d9eeafcd #1681 #1682 #1673; 75560978 #1690 tap fix + #1693 capture --prio v5; e2373805 #1684 hood, #1668 sounds, #1695 row-9 re-pin, #1671 #1677 #1648 #1679. Preview bundle ClVc2r0L.
+**GO'd to Deploy (exact heads, on green):** #1700 @c6622505 + #1683 @205e10e1, then #1689 stances @be5bd2d4 (retargeted to trunk by me; flag-OFF + ?stances= preview for Dom) → preview rebuild → link to Dom.
+**Open.** #1685 end-screen stills; #1702 Credits (draft); #1704 boar rig; #1705 wildlife rows (later); #1692 S1 quiet auto-run armed; World crowd favour; Combat ash-wolf roster row + bite (PR + ETA asked); Characters Cry Wolf BLOCKED on Dom's Sketchfab login/token.
+**Dom owes.** Slash swipe ruling (sideways = side cut, feint → drag down, decide 50→100 ms); world lock-on within 9 m; Cry Wolf download.
+**Gotchas.** App restarts (~15:42, ~17:14) stop every lane: resume each by id. Desktop caps a session at ~10 peer sends until Dom types: batch, use PR comments. Row-9 polearm check had a latent local-build failure (Standoff draw) — re-pinned in #1695, #1671 was innocent.
+
 ## 2026-10-07 15:00 (+04) — HANDOFF before /clear (Dom). READ FIRST, then memory project_handoff_2026-10-07_1500 + project-origins-mob-fights-are-pit-duels-2026-10-07 + project-origins-top10-approved-2026-10-07
 **Now.** LIVE **a3675a77** (my curl 15:00): #1661 mob fight + #1666 donor doc. Before: 14f973db (#1663 #1655 #1664 #1665 #1647), af998c6f (#1656 #1654 #1657 #1652 #1659), 84897408 (#1636), 574b1fae, 5ee0a991 RV31. **IN FLIGHT: record-v32 release** (#1642 @299c8e05 patron perks, then #1660 @60d7d491 mob ±10% roll; own run, all rows real), log ~/Developer/deploy-1eeea833.log. trunk 1eeea833 (merged, deploy.sh running; Deploy reports gate 2619/0). On restart: curl; if != 1eeea833, read the log.
 **Preview** /preview/origins/?region=1 = trunk a3675a77 (bundle C5rnMHg4): spawn among creatures, tap → Pit duel "CINDER SCAVENGER Lv 12", "Back to the fields" (my browser 375, 0 errors). Fight still renders in the Pit arena.
