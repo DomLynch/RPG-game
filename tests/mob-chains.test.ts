@@ -36,20 +36,19 @@ const fight = (style: MobStyle, chains: readonly ChainRow[], ticks = 2400) => {
   return { d, chained, plain, longest };
 };
 
-test('with chain rows the mob throws chained follow-ups inside the window; without them it never does', () => {
+test('with chain rows the mob throws more chained follow-ups inside the window than its own warden does (the warden chains on its own now and then)', () => {
   for (const s of ['brute', 'skirmisher', 'beast'] as const) {
     const withRows = fight(s, CHAINS[s]), without = fight(s, []);
-    assert.equal(without.chained, 0, `${s}: the plain warden never chains`);
-    assert.ok(withRows.chained > 0, `${s}: the layer chained ${withRows.chained} times over ${withRows.plain + withRows.chained} swings`);
+    assert.ok(withRows.chained > without.chained, `${s}: the layer chained ${withRows.chained} times against the warden's ${without.chained}`);
     assert.ok(withRows.longest <= CHAIN_CAP, `${s}: a run is never longer than the cap (${withRows.longest})`);
   }
 });
 
-test('a chance of 1 chains every window it is live in, a chance of 0 never does, and the same duel chains the same way twice', () => {
+test('a chance of 1 chains more than no rows, a chance of 0 changes nothing, and the same duel chains the same way twice', () => {
   const link = (chance: number): ChainRow[] => [{ from: 'light_right', to: 'light', chance, startsAfter: 2, endsBefore: 12 }, { from: 'light_left', to: 'light', chance, startsAfter: 2, endsBefore: 12 }];
-  assert.equal(fight('beast', link(0)).chained, 0);
-  const all = fight('beast', link(1));
-  assert.ok(all.chained > 0);
+  const none = fight('beast', []), zero = fight('beast', link(0)), all = fight('beast', link(1));
+  assert.equal(hashDuel(zero.d), hashDuel(none.d), 'a chance of 0 is the layer without rows');
+  assert.ok(all.chained > none.chained);
   assert.equal(hashDuel(fight('beast', link(1)).d), hashDuel(all.d));
 });
 
