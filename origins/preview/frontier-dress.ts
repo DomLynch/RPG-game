@@ -48,8 +48,13 @@ export function frontierDress(f: Frontier, b: Build): Dress {
     lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub);
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
+    // The walker's first view: the west road's line carried on past its end, kept clear of props (the camera trails 6 m behind), plus a ring round where it ends.
+    const rd = f.road, ux = Math.sin(rd.facing), uz = Math.cos(rd.facing), sight = (x: number, zz: number, r: number) => {
+      const along = (x - rd.from.x) * ux + (zz - rd.from.z) * uz, across = Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux);
+      return (along > -10 && along < 60 && across < rd.width / 2 + r + 6) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
+    };
     const free = (x: number, zz: number, r: number) => inZone(z, x, zz, r + 2)
-      && !onRoad(f, x, zz) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
+      && !onRoad(f, x, zz) && !sight(x, zz, r) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
       && !keep.some((k) => Math.hypot(k.x - x, k.z - zz) < r + 6) && !b.solids.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 1.5)
       && !placed.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 0.6);
     const spot = (r: number) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r)) return p; } return null; };
