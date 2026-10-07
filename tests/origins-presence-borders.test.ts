@@ -85,6 +85,7 @@ test('borders: leaving from a border cell, and a player placed by a first pose, 
   const centre = put(w2, 1, RULES.zoneCm / 2, RULES.zoneCm / 2);
   const late = w2.join(acct(2), 0)!;   // no `at`: the spawn, where the centre player sees it
   assert.deepEqual(inRange(w2, centre), [2], 'at the spawn it is where the centre player sees it');
+  // 100 cm per 100 ms step is 10 m/s: 5 cm inside the speed clamp's reach for a 100 ms step (7 m/s x 1.5 = 105 cm), so every step is accepted but only just.
   for (let s = 1; s <= 5000; s++) { if (late.x >= 15000 + 4500) break; assert.equal(w2.move(late, pose(late.x + 100, late.z), s * 100), 'ok'); }
   assert.ok(late.x >= 15000 + 4500, 'it walked 45 m east, across several cell borders');
   assert.deepEqual(inRange(w2, centre), [], 'once past 40 m it is gone from the centre player\'s view: no ghost left in the cells it crossed');

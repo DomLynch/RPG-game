@@ -78,7 +78,7 @@ test('reconnect: a remembered position anywhere in the Exchange rejoins on the P
     const p = w.join(acct(n), 0, undefined, saved)!;   // test fixture: an explicit start at a service landmark
     w.leave(p, 100);
     const back = w.join(acct(n), 200)!;
-    assert.deepEqual([back.x, back.z], [REJOIN_EDGE.x, REJOIN_EDGE.z], `a spot at the ${name} rejoins at the edge`);
+    assert.deepEqual([back.x, back.z], [REJOIN_EDGE.x, REJOIN_EDGE.z], `a spot at the ${name} (in the Exchange) rejoins at REJOIN_EDGE: 50 cm into the Pit yard outside the Exchange's outer gate`);
     assert.equal(zoneAt(back.x, back.z), 'pit-yard', 'in the Pit yard');
     assert.equal(inTradeArea(back.x, back.z), false, 'so inZone(where, exchange) would be false: the player has to walk in fresh');
   }
