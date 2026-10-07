@@ -1,13 +1,14 @@
-// `?look=fatigue-read` (a look test, presentation only): the tired body made to READ from behind the hero at the 375 fight camera. The live layer
+// The tired-body read pose (presentation only; on by default, `?look=no-fatigue-read` turns it off; it began as the `?look=fatigue-read` look test): the tired body made to READ from behind the hero at the 375 fight camera. The live layer
 // (fatigue-layer.ts) hunches spine_01 by about 10 degrees and heaves the chest by ~3, which from behind is a foreshortened nothing; only the sword
 // arm's sag shows. This pose pitches the whole spine ~34 degrees at gassed, ~15 winded (spine_01..03; measured at the fight camera: under ~25 it does not read from behind), drops the head, raises and lowers the shoulders on a slow breath
-// and sinks the guard hand. Bones only: no sim state, no hitbox, no blade table; the sword arm keeps the live layer's sag. No flag = fatigueLayer alone.
+// and sinks the guard hand. Bones only: no sim state, no hitbox, no blade table; the sword arm keeps the live layer's sag. With the off flag = fatigueLayer alone.
 // Reads `Fatigue.level` (band 1 starts at .5; w is 0 at .2, 1 at .85, so stamina 10 -> level .9 is full), `gassed` (forces full) and `second`
 // (the second wind straightens it), via the `tired` value characters.ts already holds (fed by scene.ts from practice.fatigue[side]).
 import type { Fatigue } from './fatigue.ts';
 import type { FatigueTune } from './fatigue-layer.ts';
 
-export const fatigueReadFrom = (search: string): boolean => (new URLSearchParams(search).get('look') ?? '').split(',').includes('fatigue-read');
+// On by default (Dom, 2026-10-07); `?look=no-fatigue-read` restores the live layer alone (the pre-flag frame).
+export const fatigueReadFrom = (search: string): boolean => !(new URLSearchParams(search).get('look') ?? '').split(',').includes('no-fatigue-read');
 
 type In = Pick<Fatigue, 'level' | 'gassed' | 'second'>;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));

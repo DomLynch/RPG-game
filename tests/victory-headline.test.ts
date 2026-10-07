@@ -26,7 +26,7 @@ test('after a hit taken: two parries, two perfect blocks, two posture breaks, th
   assert.equal(victoryHeadline([hitOnMe, parry, perfect], 70), null, 'one of each earns nothing');
   assert.equal(victoryHeadline([hitOnMe, perfect, perfect], 70), 'Won on 2 perfect blocks.');
   assert.equal(victoryHeadline([hitOnMe, parry, parry, perfect, perfect], 70), 'Won on 2 parries.', 'parries rank above perfect blocks');
-  assert.equal(victoryHeadline([hitOnMe, brokeHim, brokeHim], 70), 'You broke his posture 2 times.');
+  assert.equal(victoryHeadline([hitOnMe, brokeHim, brokeHim], 70), 'You broke their posture 2 times.');
   assert.equal(victoryHeadline([ev('PostureBroken', 1, 0), ev('PostureBroken', 1, 0), hitOnMe], 70), null, 'his breaks of the player earn nothing');
   assert.equal(victoryHeadline([hitOnMe], 9.6), 'Won with 10 HP left.');
   assert.equal(victoryHeadline([hitOnMe], 21), null, 'nothing earned, nothing said');

@@ -15,7 +15,7 @@ export function victoryHeadline(log: CombatEvent[], playerHealth: number): strin
   const perfect = count(log, e => e.type === 'Blocked' && e.actor === 0 && !!e.perfect);
   if (perfect >= 2) return `Won on ${perfect} perfect blocks.`;
   const broke = count(log, e => e.type === 'PostureBroken' && e.target === 1);
-  if (broke >= 2) return `You broke his posture ${broke} times.`;
+  if (broke >= 2) return `You broke their posture ${broke} times.`;
   if (playerHealth > 0 && playerHealth <= 20) return `Won with ${Math.round(playerHealth)} HP left.`;
   return null;
 }

@@ -54,7 +54,7 @@ try {
     if (hit) await page.screenshot({ path: `${OUT}/${f === fresh ? 'fresh' : 'gassed'}.jpg`, type: 'jpeg', quality: 90, timeout: 180000 });
     if (inClip) { const file = `${OUT}/clip/${String(clipFiles.length).padStart(4, '0')}.jpg`; await page.screenshot({ path: file, type: 'jpeg', quality: 88, timeout: 180000 }); clipFiles.push(file); }
     if (fresh && gassed && !CLIP && f > Math.max(fresh, gassed)) break;
-    if (fresh && gassed && CLIP && f > 480) break;
+    if (fresh && gassed && CLIP && f > Math.max(480, fresh, gassed)) break;
   }
   await fs.writeFile(`${OUT}/frames.json`, JSON.stringify({ fresh, gassed })); await fs.writeFile(`${OUT}/log.json`, JSON.stringify(log));
   console.log('frames', JSON.stringify({ fresh, gassed }), 'stamina', JSON.stringify([log[fresh]?.stamina, log[gassed]?.stamina]), 'phase', JSON.stringify([log[fresh]?.phase, log[gassed]?.phase]));

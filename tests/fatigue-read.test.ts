@@ -17,11 +17,12 @@ test('flag off: the layer is exactly the live layer for every band, and the read
   assert.equal(breathe(BANDS[3], { read: true }), breathe(BANDS[3]));
 });
 
-test('the flag is the ?look=fatigue-read token and nothing else', () => {
-  assert.equal(fatigueReadFrom(''), false);
+test('the pose is on by default and ?look=no-fatigue-read (alone or in a list) turns it off', () => {
+  assert.equal(fatigueReadFrom(''), true);
   assert.equal(fatigueReadFrom('?look=fatigue-read'), true);
-  assert.equal(fatigueReadFrom('?look=souls,fatigue-read'), true);
-  assert.equal(fatigueReadFrom('?look=fatigue'), false);
+  assert.equal(fatigueReadFrom('?look=fatigue'), true);
+  assert.equal(fatigueReadFrom('?look=no-fatigue-read'), false);
+  assert.equal(fatigueReadFrom('?look=souls,no-fatigue-read'), false);
 });
 
 test('the read pose grows with the band: nothing fresh, partial winded, full gassed, lifted by the second wind', () => {
