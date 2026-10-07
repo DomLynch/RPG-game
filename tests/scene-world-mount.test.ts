@@ -10,7 +10,7 @@ const lines = source.split('\n').map((l) => l.replace(/\s*\/\/.*$/, '')).filter(
 const reads = lines.filter((l) => /\bworld\b/.test(l) && !/const world = new THREE\.Vector3|take = \(world: THREE\.Vector3\)|v\.copy\(world\)|take\(o\.getWorldPosition\(world\)\)|take\(world\.set|, world\)/.test(l));
 
 test('createScene takes the world mount last and optional', () => {
-  assert.match(source, /peerKit\?: Promise<[^\n]*\n  world\?: WorldMount,\n\) \{/);
+  assert.match(source, /peerKit\?: Promise<[^\n]*\n {2}world\?: WorldMount,\n\) \{/);
 });
 
 test('every read of the world mount is a guarded form, so no mount means the Pit exactly', () => {
