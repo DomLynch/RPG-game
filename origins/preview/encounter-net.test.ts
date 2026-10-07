@@ -86,8 +86,8 @@ test('round trip against the real writer: start -> touch -> play on the server s
   const clock = { t: 1e6 }, w = await serve(clock);
   try {
     const started = await startFight('tok', CHAR, 'encounter:knight', { base: w.base });
-    assert.ok(!isOffline(started as never), JSON.stringify(started));
-    const run = started as Awaited<ReturnType<typeof startFight>> & { seed: number; token: string };
+    if ('offline' in started) assert.fail(`the real writer did not start the fight: ${JSON.stringify(started)}`);
+    const run = started;   // narrowed to the Fight
     assert.equal(run.enemy, 'knight'); assert.equal(run.level, 6);
     clock.t += 30_000;
     const touched = await touchFight('tok', run.token, 300, { base: w.base });
