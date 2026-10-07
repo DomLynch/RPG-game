@@ -3,7 +3,7 @@
 //    and caps how often the hero meets its worst move;
 //  - a MODE is a small DELTA on the warden's own AiProfile numbers (shy, bold, ambusher): the fight-side half of Expansion's `mode` preset (the world half, aggro ring and leash, is theirs).
 import { profileAt, OPPONENTS, type AiProfile } from '../../src/moves.ts';
-import { initialKit, kitIntent, type KitRow } from '../../src/mobkit.ts';
+import { initialKit, kitIntent, type ChainRow, type KitRow } from '../../src/mobkit.ts';
 import type { Duel, Intent } from '../../src/duel.ts';
 import { MOB_STYLE, type MobStyle } from './styles.ts';
 
@@ -12,6 +12,14 @@ export const KITS: Readonly<Record<MobStyle, readonly KitRow[]>> = {
   skirmisher: [{ move: 'thrust', trigger: 'afterHit', cooldown: 240 }],   // poke again right after it lands: the second blow of a hit-and-run
   caster: [{ move: 'skill', trigger: 'opener', cooldown: 1e9 }],   // the witchfire opener (only where the fight has specials; legal() refuses it otherwise)
   beast: [{ move: 'thrust', trigger: 'opener', cooldown: 1e9 }, { move: 'heavy', trigger: 'heroExhausted', cooldown: 600 }],   // the pounce to open; the maul on a winded hero
+};
+
+// Chains (C4): the authored follow-ups on the engine's 16-18 tick chain window, one short list per style (src/mobkit.ts validateChains refuses a row that reaches past its weapon's window).
+export const CHAINS: Readonly<Record<MobStyle, readonly ChainRow[]>> = {
+  brute: [{ from: 'light_right', to: 'heavy', chance: 0.5, startsAfter: 3, endsBefore: 12 }, { from: 'light_left', to: 'heavy', chance: 0.5, startsAfter: 3, endsBefore: 12 }],   // cut, then the maul: the heavy finisher winds up quicker inside the window
+  skirmisher: [{ from: 'thrust', to: 'thrust', chance: 0.45, startsAfter: 3, endsBefore: 13 }],   // the double poke
+  caster: [],
+  beast: [{ from: 'light_right', to: 'light', chance: 0.6, startsAfter: 2, endsBefore: 12 }, { from: 'light_left', to: 'light', chance: 0.6, startsAfter: 2, endsBefore: 12 }],   // the quick double slash
 };
 
 export const MODES = ['shy', 'bold', 'ambusher'] as const;
@@ -26,8 +34,8 @@ export const MODE: Readonly<Record<Mode, Partial<Record<Knob, number>>>> = {
 
 // The layer a mob of this style fights under (src/combat.ts stepPractice's `layer`, src/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
 export function mobLayer(style: MobStyle): (duel: Duel, warden: Intent) => Intent {
-  const rows = KITS[style]; let state = initialKit(rows);
-  return (duel, warden) => { if (duel.tick === 0) state = initialKit(rows); const r = kitIntent(duel, 1, warden, rows, state); state = r.state; return r.intent; };
+  const rows = KITS[style], chains = CHAINS[style]; let state = initialKit(rows);
+  return (duel, warden) => { if (duel.tick === 0) state = initialKit(rows); const r = kitIntent(duel, 1, warden, rows, state, chains); state = r.state; return r.intent; };
 }
 
 // The profile a mob of this style fights with at `level`: the style's own opponent row, then the mode's delta. Everything else is the shared engine's.
