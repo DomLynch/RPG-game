@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 // Credits (Dom GO 2026-10-07, via Lead): the menu names each borrowed asset, its author and its licence. The 0 A.D. row stays hidden until the
 // first 0 A.D. model ships, and then carries the download of our edited CC-BY-SA models (docs/research/legends-600-bodies-and-donors.md, AMBER row).
@@ -17,6 +17,7 @@ test('every shipped asset names its author and licence', () => {
   assert.match(credits, /World of ClaudeCraft by Levy Street[\s\S]*MIT licence/);
   assert.match(credits, /Infinite, 3D Head Scan" by Lee Perry-Smith[\s\S]*CC BY 3\.0/, 'the shipped face carries the scan\'s skin grain (src/assets/README.md): CC BY 3.0 needs the line');
   for (const f of ['meshoptimizer', 'world-of-claudecraft']) assert.match(credits, new RegExp(`href="/licenses/${f}\\.txt"`), `the ${f} licence notice stays linked`);
+  for (const f of ['meshoptimizer', 'world-of-claudecraft']) assert.ok(existsSync(new URL(`../public/licenses/${f}.txt`, import.meta.url)), `public/licenses/${f}.txt ships (Vite copies public/ into dist), so the link is not dead`);
 });
 
 test('0 A.D. is credited with the edited-model download, hidden until its model ships', () => {
