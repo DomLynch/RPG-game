@@ -881,6 +881,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           clip = clip.clone();
           for (const track of clip.tracks) if (track.name === 'pelvis.position') track.values = track.values.map(v => v * rest / sourcePelvis);
         }
+        if (!clip.uuid) (clip as { uuid: string }).uuid = MathUtils.generateUUID();   // clip JSON ships without one (the build is byte-stable) and parse() leaves it undefined: the mixer keys its actions by uuid, so two adopted clips would be ONE action
         clips[role] = clip; roles.push(role);
         const action = actions[role] = mixer.clipAction(clip).play(); action.setEffectiveWeight(0); action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true;
         const track = fitFloor && clip.tracks.find(t => t.name === 'pelvis.position');

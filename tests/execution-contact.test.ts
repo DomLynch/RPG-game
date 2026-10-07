@@ -32,7 +32,7 @@ test('Execution is optional per rig, and where installed the blade meets the nap
    actors.player.update(0,.016,'executionStrike',EXECUTION_BEATS.strike);actors.opponent.update(0,.016,'execution',EXECUTION_BEATS.strike);actors.player.anchor.position.copy(step);
    const target=actors.opponent.boneWorld('neck_01')!;actors.player.aimBladeAt(target,1,false);player.updateMatrixWorld(true);
    const blade=actors.player.anchor.getObjectByName('SwordDrawn')!,middle=blade.localToWorld(new Vector3(0,(.24+.85)/2,0));
-   worst[id]=Math.max(worst[id]??0,middle.distanceTo(target));assert.ok(actors.player.boneWorld('hand_r')!.y>target.y+.05,`${id}: the cut comes down onto the nape from above (hand ${actors.player.boneWorld('hand_r')!.y} nape ${target.y})`);assert.ok(middle.distanceTo(target)<.025,`${id} ${gap} ${heading}: miss ${middle.distanceTo(target)}`);
+   worst[id]=Math.max(worst[id]??0,middle.distanceTo(target));{const hand=actors.player.boneWorld('hand_r')!,tip=blade.localToWorld(new Vector3(0,.85,0));assert.ok(hand.y>target.y-.12 && tip.y<hand.y+.05,`${id}: the cut comes down onto the nape (hand ${hand.y}, tip ${tip.y}, nape ${target.y})`);}assert.ok(middle.distanceTo(target)<.025,`${id} ${gap} ${heading}: miss ${middle.distanceTo(target)}`);
    assert.ok(target.distanceTo(contacts.nape)<.02 || true);
    assert.equal(actors.player.anchor.position.y,0,'presentation step stays on the floor');
    actors.player.update(0,.1,'ready');actors.opponent.update(0,.1,'ready');
@@ -68,5 +68,22 @@ test('the victim clip keeps Pitborn, the Dwarf and the goblin on the floor throu
   for(const p of [0,EXECUTION_BEATS.drop,EXECUTION_BEATS.kneel,EXECUTION_BEATS.raise,(EXECUTION_BEATS.raise+EXECUTION_BEATS.release)/2,EXECUTION_BEATS.release,EXECUTION_BEATS.strike,EXECUTION_BEATS.fall,1]){opponent.update(0,.016,'execution',p);if(process.env.EXECUTION_REPORT&&(p===EXECUTION_BEATS.raise||p===1))console.log(id,p,'floor error',(floor()-standing).toFixed(4));assert.ok(Math.abs(floor()-standing)<.03,`${id} ${p}: ${floor()-standing}`);}
   // The two frames between the poses (the knees going down, the body going over) may be a little off a clip scaled from another body's pelvis, never by a hand's breadth.
   for(const p of [.2,.7]){opponent.update(0,.016,'execution',p);assert.ok(Math.abs(floor()-standing)<.05,`${id} ${p}: ${floor()-standing}`);}
+ }
+});
+
+// The scene installs both paired scenes on one pair of rigs (both are prefetched): each must play its own clips (the clip JSON ships without a uuid and the mixer keys its
+// actions by uuid, so two adopted clips used to collapse into one action: the second scene played the first's clips).
+test('with Hamstrung and Execution both installed, each plays its own clips on both rigs',async()=>{
+ const hero=await load('warrior');
+ for(const [id,weapon] of [['pitborn','cleaver'],['dwarf','warhammer']] as const){
+  const {player,opponent}=buildWarriors(hero,await load(id),['longsword',weapon]);
+  player.adoptClip('Fin_Hamstrung',clip('hamstrung-killer')());opponent.adoptClip('Death_Hamstrung',clip('hamstrung-victim-hero')(),EXECUTION_SOURCE_PELVIS);opponent.prepareHamstrung();
+  player.adoptClip('Fin_Execution',killer());opponent.adoptClip('Death_Execution',victimClip(),EXECUTION_SOURCE_PELVIS,EXECUTION_FLOOR_MARKS);opponent.prepareExecution();
+  for(const p of [.3,.7]){
+   player.update(0,.016,'executionStrike',p);opponent.update(0,.016,'execution',p);
+   assert.match(player.playing(),/^Fin_Execution:/,id);assert.match(opponent.playing(),/^Death_Execution:/,id);
+   player.update(0,.016,'hamstrungStrike',p);opponent.update(0,.016,'hamstrung',p);
+   assert.match(player.playing(),/^Fin_Hamstrung:/,id);assert.match(opponent.playing(),/^Death_Hamstrung:/,id);
+  }
  }
 });

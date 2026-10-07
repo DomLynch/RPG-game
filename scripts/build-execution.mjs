@@ -21,8 +21,12 @@ export function executionClips(scene,clips) {
  },[drop,kneel,raise,release,strike,fall]);
  // The killer: steps in on the Armed stance, raises the Heavy's overhead pose and holds it, cuts down, follows through and stays down on the blade.
  rig.sample('Heavy',.3);const planted=rig.feet();
- const pose=(name,phase,lean=0,crouch=0)=>{rig.sample(name,phase);if(name!=='Armed'){if(crouch){const pelvis=rig.bone('pelvis'),position=rig.point(pelvis);position.y-=.2*rig.scale*crouch;pelvis.position.copy(pelvis.parent.worldToLocal(position));}if(lean)rig.lean(lean);rig.plant(planted);}return rig.capture();};
- const keys=[[0,pose('Armed',0)],[.16,pose('Armed',.25)],[raise,pose('Heavy',.3,.08)],[release,pose('Heavy',.3,.08)],[strike,pose('Heavy',.4,.25,.2)],[.7,pose('Heavy',.5,.3,.3)],[1,pose('Heavy',.5,.3,.3)]].map(([time,p])=>({time,pose:p}));
+ // The wrist turns the blade onto a given direction (the Heavy's own wrist leaves it sideways): up over his shoulder for the hold, then over and down in front of him.
+ const bladeTo=(x,y,z)=>{const hand=rig.bone('hand_r'),blade=rig.bone('SwordDrawn');scene.updateMatrixWorld(true);const now=new T.Vector3(0,1,0).applyQuaternion(blade.getWorldQuaternion(new T.Quaternion())),q=new T.Quaternion().setFromUnitVectors(now,new T.Vector3(x,y,z).normalize());hand.quaternion.copy(hand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(q).multiply(hand.getWorldQuaternion(new T.Quaternion())));scene.updateMatrixWorld(true);};
+ const pose=(name,phase,lean=0,crouch=0,up=null)=>{rig.sample(name,phase);if(name!=='Armed'){if(crouch){const pelvis=rig.bone('pelvis'),position=rig.point(pelvis);position.y-=.2*rig.scale*crouch;pelvis.position.copy(pelvis.parent.worldToLocal(position));}if(lean)rig.lean(lean);rig.plant(planted);}if(up)bladeTo(...up);return rig.capture();};
+ // The cut: the blade swings over from the vertical to down-and-forward in four even steps of the wrist, so no frame turns it more than the rig's own heavy does.
+ const swing=[1,2,3].map(i=>{const a=(-16.7+i*37.9)*Math.PI/180;return [release+(strike-release)*i/4,pose('Heavy',.3+.1*i/4,.08+.17*i/4,.2*i/4,[0,Math.cos(a),Math.sin(a)])];});
+ const keys=[[0,pose('Armed',0)],[.16,pose('Armed',.25)],[raise,pose('Heavy',.3,.08,0,[0,1,-.3])],[release,pose('Heavy',.3,.08,0,[0,1,-.3])],...swing,[strike,pose('Heavy',.4,.25,.2,[0,-.7,.7])],[.7,pose('Heavy',.5,.3,.3)],[1,pose('Heavy',.5,.3,.3)]].map(([time,p])=>({time,pose:p}));
  const killer=rig.make('Fin_Execution',duration,p=>rig.interpolate(keys,p),keys.map(k=>k.time));
  rig.restore();return[victim,killer];
 }

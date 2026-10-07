@@ -1323,6 +1323,12 @@ export function createScene(
           }
         }
         openedReach = Math.min(Math.max(openedReach, measured), openedReach + 0.015);   // ≤ 1.5 cm of reach per frame
+      } else if (finisher === 'execution' && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
+        // He pitches forward a body's length away from the killer: the side view must have room for where he lands (the same measure, over his extremities).
+        const anchor = warriors.opponent.anchor, origin = anchor.getWorldPosition(new THREE.Vector3());
+        let measured = 0;
+        for (const name of ['Head', 'hand_l', 'hand_r', 'foot_l', 'foot_r']) { const p = warriors.opponent.boneWorld(name); if (p) measured = Math.max(measured, Math.hypot(p.x - origin.x, p.z - origin.z)); }
+        openedReach = Math.min(Math.max(openedReach, measured), openedReach + 0.015);
       } else if (!practice.finish) openedReach = 0;
       rig.update(dt, state, practice.enemy, locked, practice.finish ? {
         finisher, posed: !!finisherPose, draw: !!practice.finish.draw, victim: practice.finish.victim, clock: finishClock,

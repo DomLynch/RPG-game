@@ -429,6 +429,7 @@ try {
       for (const [i, suffix] of frames) {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
+        if (mode === 'red' && which === 'execution') console.log(`  execution ${suffix}: ${playing}`);   // what both rigs are playing at each of its frames (a plain-death fallback reads Death here)
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
         if (['runThrough', 'splitCrown'].includes(which) && suffix === 'contact') {
           const { framing } = await page.evaluate(() => __finisher.inspect());

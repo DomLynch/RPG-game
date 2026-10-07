@@ -19,8 +19,8 @@ export const EXECUTION_BEATS = {
   kneel: .3,       // forced down and turned away, head bowed
   raise,           // the blade is overhead
   release: raise + (hold * speed) / duration,   // the held half-second ends: the cut comes down
-  strike: .56,     // the blade meets the nape
-  fall: .86,       // he is down on his face
+  strike: .62,     // the blade meets the nape
+  fall: .92,       // he is down on his face
   duration, speed, hold,
 } as const;
 // Where on the scene's own clock (on-screen seconds from the kill) a beat lands.
@@ -30,7 +30,7 @@ export const executionAt = (beat: number): number => (beat * duration) / speed;
 export const EXECUTION_VICTIMS: readonly OpponentId[] = HAMSTRUNG_VICTIMS;
 export const EXECUTION_SOURCE_PELVIS = HAMSTRUNG_SOURCE_PELVIS;
 // Where adoptClip measures the body's own skin against the floor (the kneel and the fall differ in feet, chest and face from one body to the next): the pelvis path is lifted between these.
-export const EXECUTION_FLOOR_MARKS: readonly number[] = [.15, .2, EXECUTION_BEATS.kneel, EXECUTION_BEATS.strike, .64, .7, .76, .8, .83, EXECUTION_BEATS.fall];
+export const EXECUTION_FLOOR_MARKS: readonly number[] = [.15, .2, EXECUTION_BEATS.kneel, EXECUTION_BEATS.strike, .66, .72, .78, .84, .87, EXECUTION_BEATS.fall];
 
 // resolveHamstrung's rule for the other paired pick: the picker never overrides kill eligibility, and a body without the clip plays no ceremony for it.
 export function resolveExecution(id: OpponentId, finish: Finish, weapons: readonly [WeaponId, WeaponId], override: FinisherId | null, previous: FinisherId | null, resolved: FinisherId | null): FinisherId | null {

@@ -21,9 +21,10 @@ test('Execution authored motion: kneel turned away, a held half-second with both
  assert.ok(Math.abs((EXECUTION_BEATS.release-EXECUTION_BEATS.raise)*executionAt(1)-EXECUTION_BEATS.hold)<1e-9,'the held beat is 0.5 s on screen');
  assert.equal(EXECUTION_BEATS.hold,.5);
  assert.ok(EXECUTION_BEATS.drop<EXECUTION_BEATS.kneel && EXECUTION_BEATS.kneel<=EXECUTION_BEATS.raise && EXECUTION_BEATS.raise<EXECUTION_BEATS.release && EXECUTION_BEATS.release<EXECUTION_BEATS.strike && EXECUTION_BEATS.strike<EXECUTION_BEATS.fall && EXECUTION_BEATS.fall<1);
+ // The wrist alone may turn faster than a radian a frame: it is the one cut, a sword's turn over in a quarter second.
  for(const clip of [victim,killer])for(const track of clip.tracks){
   assert.ok([...track.values].every(Number.isFinite),`${clip.name} ${track.name} finite`);
-  if(track.name.endsWith('.quaternion'))for(let i=4;i<track.values.length;i+=4){const a=new Quaternion().fromArray(track.values,i-4),b=new Quaternion().fromArray(track.values,i);assert.ok(Math.abs(b.length()-1)<1e-5);assert.ok(a.angleTo(b)<.7,`${clip.name} ${track.name} snap ${a.angleTo(b)} key ${i/4}`);}
+  if(track.name.endsWith('.quaternion'))for(let i=4;i<track.values.length;i+=4){const a=new Quaternion().fromArray(track.values,i-4),b=new Quaternion().fromArray(track.values,i);assert.ok(Math.abs(b.length()-1)<1e-5);assert.ok(a.angleTo(b)<(clip===killer && track.name==='hand_r.quaternion' ? 1 : .7),`${clip.name} ${track.name} snap ${a.angleTo(b)} key ${i/4}`);}
  }
  const mixer=new AnimationMixer(asset.scene),play=(clip:typeof victim,p:number)=>{mixer.stopAllAction();const action=mixer.clipAction(clip);action.setLoop(LoopOnce,1);action.clampWhenFinished=true;action.play();mixer.setTime(clip.duration*p);asset.scene.updateMatrixWorld(true);};
  const point=(name:string)=>asset.scene.getObjectByName(name)!.getWorldPosition(new Vector3());
