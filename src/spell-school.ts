@@ -14,12 +14,13 @@ export const SCHOOL_OF: Readonly<Record<string, School>> = {
   mist: 'frost', storm: 'frost',
 };
 const looks = (search: string) => (new URLSearchParams(search).get('look') ?? '').split(',');
-export const schoolsFlag = (search: string) => looks(search).some((l) => l === 'schools' || l === 'schools2' || l === 'schools3');
+// Dom's pick (Strategy, 2026-10-07): SOFT is the shipped default. `?look=schools-off` is today's own colours (the before frame); `?look=schools` plain and `schools3` dark stay for comparison.
+export const schoolsFlag = (search: string) => !looks(search).includes('schools-off');
 // Three strengths of the same hues, so Dom picks in one look (Lead 2026-10-07: his rulings want specials grey/dark/unsaturated): ?look=schools is the plain school colour,
 // schools2 half the saturation and half the lightness (a soft lavender haze), schools3 a violet-black smoke (saturation x0.4, lightness x0.28).
 export const STRENGTH = { plain: { saturation: 1, lightness: 1 }, soft: { saturation: 0.5, lightness: 0.5 }, dark: { saturation: 0.4, lightness: 0.28 } } as const;
 export type Strength = keyof typeof STRENGTH;
-export const schoolsStrength = (search: string): Strength => { const l = looks(search); return l.includes('schools3') ? 'dark' : l.includes('schools2') ? 'soft' : 'plain'; };
+export const schoolsStrength = (search: string): Strength => { const l = looks(search); return l.includes('schools3') ? 'dark' : l.includes('schools') ? 'plain' : 'soft'; };
 
 // The effects paint dark ink into DataTexture maps, and a material colour only multiplies its map (black x any hue is black), so a mapped material's pixels are recoloured in
 // place: the school hue at the pixel's own shading (relative to the map's brightest), alpha untouched, so the shape, tear and fade stay the effect's own. An unmapped material

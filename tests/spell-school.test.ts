@@ -5,8 +5,8 @@ import { SCHOOLS, SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from '
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 
 test('the flag is ?look=schools only, alone or in a list', () => {
-  assert.equal(schoolsFlag(''), false);
-  assert.equal(schoolsFlag('?look=souls'), false);
+  assert.equal(schoolsFlag(''), true); assert.equal(schoolsStrength(''), 'soft', 'soft is the default');
+  assert.equal(schoolsFlag('?look=souls'), true); assert.equal(schoolsFlag('?look=schools-off'), false, 'the old colours stay one flag away');
   assert.equal(schoolsFlag('?look=schools'), true);
   assert.equal(schoolsFlag('?look=schools2'), true); assert.equal(schoolsFlag('?look=schools3'), true); assert.equal(schoolsStrength('?look=schools'), 'plain'); assert.equal(schoolsStrength('?look=schools2'), 'soft'); assert.equal(schoolsStrength('?look=schools3'), 'dark');
   assert.equal(schoolsFlag('?special=hades&look=pit,schools'), true);
