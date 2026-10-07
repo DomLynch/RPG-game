@@ -22,8 +22,6 @@ export const CAMP_KIT = {
 // Warmer and lighter than the ruin rubble (cool grey-brown, 0.55-0.9), so a camp's seats, bedrolls and crate read as a camp at 375.
 const WOOD: Tint = [1.15, 0.78, 0.48], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[1.0, 0.32, 0.22], [0.42, 0.62, 0.95], [0.95, 0.8, 0.4]], ROCK: Tint = [1.25, 1.1, 0.95];
 
-};
-
 // The kit at a point: n members (2 or 3) around the fire. `heading` turns the whole camp; nothing here checks the ground (placeCamp does).
 export function campKit(at: { x: number; z: number }, n: 2 | 3, seed: string, heading = 0): Camp {
   const K = CAMP_KIT, R = rng(seed), pieces: Piece[] = [], solids: Solid[] = [], spots: Spot[] = [];
