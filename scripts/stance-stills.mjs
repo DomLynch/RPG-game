@@ -33,7 +33,10 @@ try {
     await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 240000, polling: 200 });
     await page.addStyleTag({ content: '#debug{display:none!important}' });
     const clock = await harnessClock(page);
-    for (let f = 0; f < 150; f++) { await skipDraws(page, f < 149); await clock.run(16); }
+    for (let f = 0; f < 150; f++) {   // the first tap draws the sword; stances apply in ready / guard only
+      if (f === 0) await page.locator('#attack-button').tap({ force: true, timeout: 3000 }).catch((e) => console.log('tap failed', e.message.slice(0, 120)));
+      await skipDraws(page, f < 149); await clock.run(16);
+    }
     console.log(s, 'phase', await page.evaluate(() => globalThis.__special().fighters[0].phase), await page.evaluate(() => location.search));
     await page.screenshot({ path: `${OUT}/${s}.jpg`, type: 'jpeg', quality: 90, timeout: 180000 });
     await context.close();
