@@ -1,5 +1,21 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~10:45 (+04): HANDOFF. READ FIRST, then memory, then the ~10:00 entry below
+
+Lane "Frankendom - Lead Dev (Expansion)". The restart hook calls it lead-catalogue; it IS expansion. Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom).
+
+**1. LIVE 345571fb** (curl release.json). It contains #1513 (62bff8db), #1607 (40c082b4) and #1609 (8f97d10a), all merged 03:39-03:53Z (checked with merge-base). #1596 X2 writer is still OPEN (joint GO @feab306a; apply order 0005→0007→0008→0009, then Deploy merges, then the writer restarts).
+
+**2. /preview/origins/ is UP again, built from 345571fb.** The 404 came from the release switch dropping preview/; Deploy now carries it forward. My 375x812 check: loads at the Pit gate, 0 console errors, 9 resources with no 4xx/5xx, the Journal opens. Lead did their own 375 look and sent Dom the link. Strategy did not send it again.
+- **Not saved:** the HUD line "Offline preview: progress is not saved" is RIGHT. The preview only reads a signed-in career (save.ts, read-only) and never writes. I told Lead and Strategy that my earlier "career saved" was wrong.
+- **Walking:** a held slow drag walks the hero; a quick flick doesn't (emulated touch at 375, not a real phone). Tip for Dom: hold your thumb down.
+
+**3. Slice 1 (Ash Frontier + Bounty, ?region=1):** the first agent died without pushing (`expansion/greybox-world` absent on origin at ~10:15). A NEW background agent was started ~10:20 from the brief in the ~10:00 entry. It works in its own app worktree; step 1 is data-driven Concord to within 1 cm with a pin test, step 2 the ?region=1 zones with ambience.preset per zone. It opens its own PR with 375 stills on `stills/expansion-greybox-world`. NO report yet. If the session is cleared before it reports: `git ls-remote origin expansion/greybox-world`; if empty, restart from that brief. Once it's pushed, send the sha to World (who owns look.ts) and the PR to Strategy.
+
+**4. Check-in cron** was re-armed at :07/:27/:47; it is session-only and dies on /clear, so re-arm it after a restart.
+
+**5. Still owed:** the rejoin nudge (after #1596 + Backend #1599); the #1607 Auditor LOWs follow-up (now against trunk, since #1607 merged); luck HUD placement once a world-mob fight exists. #1593 X1 is held on presence step 2.
+
 ## 2026-10-07 ~10:00 (+04): HANDOFF before /clear. READ FIRST, then memory
 
 Lane "Frankendom - Lead Dev (Expansion)". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md`. The newest lines are at the bottom, and every ruling today is there.
