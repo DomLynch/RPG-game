@@ -39,9 +39,9 @@ Dom asked for an audit of all 862 ladder names before the COO decides keep/renam
 
 | Name | Risk | Severity | Why | COO decision |
 |---|---|---|---|---|
-| Azazel | living religion/scripture | high | The name appears in canonical scripture (Leviticus 16, the scapegoat 'for Azazel'), so the Enoch exception does not cover it. A safe original name would be 'Ashmantle'. | KEEP (honourable figure only, never a villain; Dom 10-06) |
+| Azazel | living religion/scripture | high | The name appears in canonical scripture (Leviticus 16, the scapegoat 'for Azazel'), so the Enoch exception does not cover it. A safe original name would be 'Ashmantle'. | RENAME → Ashmantle (Dom 10-07, overrides COO keep) |
 | Isis | living organisation | medium | The same name as the modern terrorist group ISIS, so 'kill Isis' could be misread in store listings, ads and search; rename to Aset, her Egyptian name. | RENAME → Aset |
-| Gogmagog | living religion/scripture | medium | The name comes from Gog and Magog in Ezekiel and Revelation and Yajuj and Majuj in the Quran. Suggested rename: 'The Hoe Giant'. | KEEP (honourable figure only, never a villain; Dom 10-06) |
+| Gogmagog | living religion/scripture | medium | The name comes from Gog and Magog in Ezekiel and Revelation and Yajuj and Majuj in the Quran. Suggested rename: 'The Hoe Giant'. | RENAME → The Hoe Giant (Dom 10-07, overrides COO keep) |
 | The Rosicrucians | living organisation | medium | Living organisations such as AMORC and the Rosicrucian Fellowship use this name today; if renamed, use 'The Brethren of the Rose Cross' or an original order. | RENAME → The Brethren of the Rose Cross |
 | Nike | copyright/franchise | medium | The Nike Inc. trademark dominates this name; if renamed, use 'Winged Victory'. | RENAME → Winged Victory |
 | Hercules | copyright/franchise | low | The Latin spelling Hercules is strongly tied to the Disney film and Marvel; the row id is already heracles, so rename to Heracles, the Greek spelling. | RENAME → Heracles |
