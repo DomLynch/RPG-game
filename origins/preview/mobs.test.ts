@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -150,4 +150,15 @@ test("every creature on the Frontier has a look in Characters' mob-looks table, 
     assert.ok(look, `${s.id} (${s.character}) has no mob look`);
     assert.equal(look.opponent, s.body, `${s.id}: the look dresses a ${look.opponent}, the plan gives it a ${s.body}`);
   }
+});
+
+test('the hero spawns among the creatures: on his feet in a Frontier zone, inside the crowd, but outside every notice ring', () => {
+  const at = spawnAmong(F, B, SPECS)!;
+  assert.ok(at, 'a spawn exists');
+  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 30)!.zone)!;
+  assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
+  const nearest = Math.min(...SPECS.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
+  assert.ok(nearest >= TUNING.aggro, `no creature already has him (${nearest.toFixed(1)} m)`);
+  assert.ok(SPECS.filter((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 20).length >= 4, 'at least four creatures within 20 m');
+  assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
 });

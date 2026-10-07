@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildArena } from '../../src/arena.ts';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
+import { gaitWeights } from '../../src/characters.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../src/quality.ts';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
@@ -11,6 +12,7 @@ import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
+import { mobSpecs, spawnAmong } from './mobs.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { demoCamps } from './frontier-camp.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
@@ -91,19 +93,22 @@ const orla = new THREE.Mesh(new THREE.CapsuleGeometry(T.orla.radius, T.orla.leng
 orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.castShadow = true;
 const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(T.orePile.radius, 0), arena.materials.stone); ore.scale.y = 0.5;
 ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow = true; scene.add(orla, ore);
-let mixer: THREE.AnimationMixer | undefined, idle: THREE.AnimationAction | undefined, walk: THREE.AnimationAction | undefined;
+let mixer: THREE.AnimationMixer | undefined, gait: THREE.AnimationAction[] = [];   // the clips in gaitWeights() order: Idle, Walk, Jog, Run
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then((gltf) => {
   gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   if (PHONE) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);   // the game's iPhone black-fighters guard (characters.ts loadFighter)
   mixer = new THREE.AnimationMixer(gltf.scene);
   const clip = (name: string) => { const c = THREE.AnimationClip.findByName(gltf.animations, name); return c ? mixer!.clipAction(c) : undefined; };
-  idle = clip('Idle'); walk = clip('Walk');
-  idle?.play(); walk?.play(); walk?.setEffectiveWeight(0);
+  gait = ['Idle', 'Walk', 'Jog', 'Run'].map(clip).filter((a): a is THREE.AnimationAction => !!a);
+  gait.forEach((a, i) => { a.play(); a.setEffectiveWeight(i === 0 ? 1 : 0); });
   hero.remove(body, cap); hero.add(gltf.scene);
 }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
-let heading = Math.PI, pitchNow = 0;
+let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
+// ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
+const start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecs(frontier, frontierParts)) : null;
+if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 let hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks around. Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty. Creatures roam the fields now: they stop and watch when you come near.';
@@ -175,7 +180,7 @@ const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REG
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
   LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
 const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
-const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
+const WALK = 2.3, RUN = 5.2, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let forward = held('KeyW', 'ArrowUp') * (held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
@@ -184,17 +189,23 @@ function step(dt: number) {
   heading += turn * TURN * dt;
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
-  const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * WALK * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * WALK * dt;
+  // A push up to a full walk is 2.3 m/s at the rim; a run (the move stick pushed past SPRINT_PUSH, or Shift) is the gait table's Run knot, 5.2 m/s.
+  const px = state.x, pz = state.z, ground = Math.hypot(forward, strafe) > 1.2 ? RUN / 2 : WALK;
+  const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
   if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, lookAlong(HAZE ? state.x : state.z, LOOK_STOPS), GROUNDS, STONES).sunPos);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
-  if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) + Math.abs(strafe) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = (forward < 0 ? -1 : 1) * (forward > 1.2 || Math.abs(strafe) > 1.2 ? 1.6 : 1); mixer.update(dt); }
+  // The gait follows the speed he actually covers (collisions included): the Pit's own table, characters.ts gaitWeights (Idle/Walk/Jog/Run).
+  if (mixer && gait.length === 4) {
+    gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, 1e-3) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
+    const w = gaitWeights(gaitSpeed); gait.forEach((a, i) => { a.setEffectiveWeight(w[i]!); if (i) a.timeScale = forward < 0 ? -1 : 1; }); mixer.update(dt);
+  }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
   const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9;   // the right stick's up lowers the camera and raises the gaze
   eye.set(state.x - Math.sin(heading) * back, up, state.z - Math.cos(heading) * back);
-  camAt.lerp(eye, 1 - Math.exp(-dt * 4));
+  if (camSnap) { camAt.copy(eye); camSnap = false; } else camAt.lerp(eye, 1 - Math.exp(-dt * 4));   // the first frame starts behind the hero, not at the old start easing over (slow phones showed a wall for ~10 s)
   look.set(state.x + Math.sin(heading) * 3, 1.5 + pitchNow * 1.6, state.z + Math.cos(heading) * 3);
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
