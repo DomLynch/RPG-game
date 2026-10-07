@@ -573,6 +573,23 @@ export function createScene(
   return {
     renderer,
     ready,
+    // A world-mounted fight (pit-duel.ts stageFor) builds a scene per creature on the page's ONE renderer, which is never disposed: let go of this scene's GPU memory (every geometry,
+    // material, texture, skeleton and the environment map under it) and its resize listener. The caller has taken the world's holder out of the scene first, so the world is never
+    // touched; the renderer is not disposed here.
+    dispose() {
+      window.removeEventListener('resize', resize);
+      scene.traverse((o) => {
+        const m = o as THREE.Mesh & { skeleton?: THREE.Skeleton };
+        m.geometry?.dispose();
+        m.skeleton?.dispose();
+        for (const material of Array.isArray(m.material) ? m.material : m.material ? [m.material] : []) {
+          for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
+          material.dispose();
+        }
+      });
+      environmentTarget?.dispose();
+      scene.environment = null;
+    },
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
     // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),

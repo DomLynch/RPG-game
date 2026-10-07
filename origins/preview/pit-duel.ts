@@ -49,7 +49,7 @@ const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as read
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
 type View = ReturnType<typeof createScene>;
-type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean };
+type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
 export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; at: { x: number; z: number }; toward: { x: number; z: number } };
@@ -148,7 +148,7 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?
     if (stage.ready) element('art-status').textContent = '';
     return stage;
   }
-  if (stage?.mounted) mount?.holder.parent?.remove(mount.holder);   // the old world-mounted scene lets go of the holder; the page's renderer is never disposed here
+  if (stage?.mounted) { stage.holder?.parent?.remove(stage.holder); stage.view.dispose(); }   // the old world-mounted scene lets go of the holder, then of its own GPU memory and resize listener (scene.ts dispose); the page's renderer is never disposed here
   else if (stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); }   // one GL context at a time
   stage = null;
   const canvas = mount?.canvas ?? document.createElement('canvas');
@@ -157,7 +157,7 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?
     host.prepend(canvas);
   }
   const status = document.getElementById('art-status');
-  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount };
+  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
   made.view = createScene(canvas, (line, kind) => {
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
