@@ -154,6 +154,8 @@ test("every creature on the Frontier has a look in Characters' mob-looks table, 
   }
 });
 
+// Dom's spawn ruling (2026-10-07, "simplest"; the bundle's spawnAmong uses 25/35 and [15, 25]): the Zone 1 hero starts 25-35 m from the nearest creature (past the 14 m tap reach and every notice ring, close enough to see them);
+// under ?wolf the nearest wolf is 15-25 m ahead and the hero faces the wolf camp. The bounds are the ruling, so they are written out here and not derived from the constants.
 test('the hero spawns in sight of the creatures but outside their reach: 25-35 m from the nearest, never inside a notice ring; under ?wolf 15-25 m from the nearest wolf, facing it', () => {
   const at = spawnAmong(F, B, SPECS)!;
   assert.ok(at, 'a spawn exists');
