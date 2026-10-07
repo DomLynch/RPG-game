@@ -8,6 +8,8 @@ import pitbornUrl from '../../src/assets/pitborn.glb?url';
 import witchUrl from '../../src/assets/witch.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
+import { dressMob } from './mob-dress.ts';
+import { mobLook } from './mob-looks.ts';
 import { TUNING, mobSpecs, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -17,10 +19,7 @@ import { TUNING, mobSpecs, mobStand, newMob, pickVisible, stepMob, type Mob, typ
 const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl };
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
-// Per character: a multiply on the body's colours so one goblin rig reads as scavenger, brood or ghoul. Named creatures keep their own look.
-const TINT: Record<string, string> = {
-  'character:cinder-scavenger': '#d9a173', 'character:mere-brood': '#79b59a', 'character:ruin-ghoul': '#b9a6c9', 'character:court-thrall': '#c98a8a',
-};
+// How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
 const TWEEN = 6;   // 1/s: how quickly a walk/idle blend and a turn settle
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
@@ -68,14 +67,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   };
 
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
-    const model = clone(body.scene), tint = TINT[s.character] && new THREE.Color(TINT[s.character]);
-    model.traverse((o) => {
-      const m = o as THREE.Mesh; if (!m.isMesh) return;
-      m.castShadow = true; m.frustumCulled = false;
-      if (!tint) return;
-      const tinted = (mat: THREE.Material) => { const c = mat.clone(); if ('color' in c) (c.color as THREE.Color).multiply(tint); return c; };
-      m.material = Array.isArray(m.material) ? m.material.map(tinted) : tinted(m.material);
-    });
+    const model = clone(body.scene), look = mobLook(s.character);
+    model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
+    if (look) dressMob(model, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     v.mixer = new THREE.AnimationMixer(model);
     const act = (name: string) => { const c = THREE.AnimationClip.findByName(body.clips, name); return c ? v.mixer!.clipAction(c) : undefined; };
     v.idle = act('Idle'); v.walk = act('Walk'); v.idle?.play(); v.walk?.play(); v.walk?.setEffectiveWeight(0);
@@ -85,10 +79,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   function viewOf(i: number): View {
     let v = views.get(i); if (v) return v;
-    const s = specs[i]!, group = new THREE.Group();
-    const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: TINT[s.character] ?? '#5a4a3a', roughness: 0.9 }));
+    const s = specs[i]!, group = new THREE.Group(), look = mobLook(s.character), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
+    const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
     stand.position.y = 0.85; stand.castShadow = true;
-    const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = s.named ? 2.75 : 2.35;
+    const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height;
     const bang = bangSprite(); bang.position.y = label.position.y + 0.55; bang.visible = false;
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - 0.12, s.aggro, 48), new THREE.MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
