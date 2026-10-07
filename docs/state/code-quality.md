@@ -1,4 +1,12 @@
-# Code quality lane (Auditer + fixer)
+# Code quality lane (Auditor)
+
+## 2026-10-07 ~22:4x (+04) — HANDOFF before self-clear (context 502k). READ FIRST, then memory `frankendom_handoff_2026-10-07r` (its appended lines carry the evening)
+
+1. **LIVE = 4931b343** (release.json, read ~22:0x). **Trunk = 1d9269c8** (fold: #1708 #1720 #1722 #1728 #1706 #1726 #1731 #1729), not yet audited: the audit cursor is still 4931b343. Next tick: check that each merge of `4931b343..1d9269c8` is a plain merge of the head PASSed here, plus a `git diff --name-only` vs SIM_FILES. Then the rotation slot `src/*.ts h-m`.
+2. **Owed prod steps (my PRE/POST + joint GO):** migration `202610080003_wolf_encounter` (#1706 is merged, so the migration is now due: PRE when Deploy pings); writer reinstall after #1727 merges (`consume` goes live).
+3. **Verdicts posted this evening, all on threads:** #1724 c7f2be26 PASS (LIVE); #1725 36dc6087 PASS (resolution read; stacked on #1710); #1710 06a0088c full PASS + 2 LOWs (dead `wolf.glb?url` import, stale comment; **retarget needed**, base `combat/wolf` is merged); #1727 b7d3484e PASS (keeps 8793 AND itemOps); #1730 PASS; #1731/#1733 PASS (GLB byte-diff: only images); #1701 ced7dfad PASS; #1734 4ec1d39d PASS (kit tag; **whichever of #1701/#1734 lands second adds CHAINS to kitTables + re-pins**); #1735 PASS; #1737 5af5c404 PASS (bisect verified on x64; follow-up: per-record strict digest on CI); #1726, #1728, #1729 PASS.
+4. **Standing findings:** #1725 leak residue: a ~10-fight same-creature series before `?worldfight` goes default-on. Cleanup batch for Lead (unsent): witchfire Maps → WeakMap; pit glow decal catch; pit fitting light toggle; lobby `call()` res.ok.
+5. Re-arm the audit cron `17,47 * * * *`. Session: app worktree `trusting-elgamal-b9c6bf`; reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
 
 ## 2026-10-07 ~19:5x (+04) — HANDOFF before Dom's /clear. READ FIRST, then memory `frankendom_handoff_2026-10-07r`
 
