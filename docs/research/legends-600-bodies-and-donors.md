@@ -89,7 +89,7 @@ The ~60-per-rank target was not met because the pool is 673: ranks 1-8 have 67 e
 
 **Proposed draw rule for the random levels 1-50 ladder.**
 - Draw by the fight's rung (`rungOf(level)`), uniform over the legends of that rung that are `challengeable=yes`.
-- **Band guarantee:** each 5-level band (one rung) must include at least one household or known name in every run of 5 fights: draw the first fight of a rung from household+known only, the next four from the whole rung. This keeps ranks 3-10 familiar and still lets obscure names appear.
+- **Level guarantee (owner 2026-10-07, replaces the band rule):** EVERY level from L2 to L50 includes a few household or known names; only L1 may be all obscure. Each level's fight draw takes at least 2 opponents from household+known at that rank (or 1 when the level has fewer than 4 fights), the rest from the whole rank. Rank 2 has 4 household + 18 known, enough for L6-L10.
 - No repeat of the same person within the last 10 fights; never draw the same name twice in a rung until the rung's household/known pool is exhausted.
 - Origin (rung 10, levels 46-50) draws patrons plus apex figures; the rank-10 rows are all Origin fights.
 - Honourable folk heroes use the "You stood against ..." win line (section 6 conflict 6); the draw must carry that flag.
@@ -236,3 +236,9 @@ Still open or newly flagged:
 ## Files
 - `docs/research/legends-600-ladder.csv` (673 rows)
 - `docs/research/legends-600-bodies-and-donors.md` (this file)
+
+
+## 7. Owner decisions after audit (2026-10-07)
+- Cain unblocked: Dom override 2026-10-06 (legends-500.md rule 15), legend only, never a patron. Blocked rows now 10.
+- Giant is NOT a new family: the 17 giant legends use the knight or executioner body scaled about 2x (as the Hrungnir mob look already does at 1.5x). New-body legends drop from 67 to 50.
+- Restyling donor bodies to our painted look: Blender on the VPS (CPU, free) for fitting/retarget; texture repaint via the image pipeline on Hugging Face GPU; the paid 32 GB HF CPU is the fallback when the VPS is busy.
