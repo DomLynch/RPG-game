@@ -25,6 +25,8 @@ Dom picked two of the luck options. Strategy agreed with both, under the five co
 
 ## Page one, for Dom
 
+> **Superseded on luck:** the dice lines on this page are replaced by the RULING above. The Gambit is a chosen roll everywhere, PvP included; ±10% shown rolls apply against AI and monsters, Origins first. Every PvP hit still has no per-hit dice.
+
 **What is worth borrowing**
 
 1. **Take turns in a crowd.** When several enemies attack you in the open world, only one fights you at a time and the rest circle,
