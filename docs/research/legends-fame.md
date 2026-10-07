@@ -271,3 +271,10 @@ Flags: the Japanese kami rows (Amaterasu, Susanoo, Izanagi, Raijin, Tsukuyomi) a
 Groups: historical 56, greek 36, east-asian-folklore 19, european-folklore 10, egyptian 6, literary 6, norse 6, persian 3, mesopotamian 3, celtic 3, roman 1, lost-civilisations 1. Kinds: 139 legends, 11 patrons (gods). Suggested ranks: r1: 0, r2: 6, r3: 15, r4: 18, r5: 25, r6: 36, r7: 22, r8: 14, r9: 10, r10: 4.
 
 Where they help: ranks 4-8 gain the most (generals, emperors and kings fit the knight body), and the Odyssey-cast names (Helen, Calypso, Telemachus, Menelaus) give ranks 2-4 a household brand, but their July-2026 spike will fade, so treat them as a short marketing window. None of the new list sits at rank 1 (rank 1 still has to be filled from existing folklore). The steadiest big brands in the new list are Napoleon, Genghis Khan, Augustus, Charlemagne, Marcus Aurelius, Cromwell, Henry V, Nero, Richard III and Saladin.
+
+## 2026-10-07 18:xx: Dom's three rulings applied
+Dom answered yes to all three (via Strategy):
+- **The 150 new candidates are added**, less the five below: 145 rows appended to `legends-600-ladder.csv` (now 814 rows). Each has `body_family=tbd` for Characters to set; `status` in `legends-new-candidates.csv` records the outcome per name.
+- **Shinto kami out** (a living religion, like the Hindu rule): Amaterasu and Susanoo. Japanese yokai and folklore monsters (oni, kappa, tengu, Yamata no Orochi, Kitsune) stay.
+- **Native American leaders out:** Sitting Bull, Crazy Horse and Tecumseh.
+- The ladder CSV's fame block (10 columns) had been appended twice with identical values; the duplicate copy is removed.
