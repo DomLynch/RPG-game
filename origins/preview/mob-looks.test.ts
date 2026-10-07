@@ -68,3 +68,14 @@ test('visual spread: a creature always gets the same variant, a camp of four mos
   const [scav, brood, ghoul] = ['character:cinder-scavenger', 'character:mere-brood', 'character:ruin-ghoul'].map(band) as [number[], number[], number[]];
   assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - scav[1]! >= .01, `the three goblin kinds keep their height order: ${brood} < ${scav} < ${ghoul}`);
 });
+
+// Dom 2026-10-07 (the Ash Wolf): a creature is the same size walking and fighting, or it shrinks or grows when the fight starts. The walk draws the roster
+// body x look.scale (mobs-view.ts dressMob); the duel draws the roster body as built (main.ts dress: dressMob(root, look, false)), so any scale but 1 changes
+// size at the fight. These were drawn that way before the ruling and each needs one (match the fight to the walk in the sim, or the walk to 1); the list
+// may only shrink, and a new look cannot join it.
+const SIZE_CHANGES_AT_FIGHT: Readonly<Record<string, number>> = { 'character:mere-mother': 1.35, 'character:hrungnir': 1.5, 'character:peg-powler': .95, 'character:cinder-scavenger': .9,
+  'character:mere-brood': .75, 'character:ruin-ghoul': 1.1, 'character:lambton-worm': 1.2 };
+test('every look is the same size walking and fighting (Dom 2026-10-07), apart from the listed ones awaiting a ruling', () => {
+  for (const [id, look] of Object.entries(MOB_LOOKS)) assert.equal(look.scale, SIZE_CHANGES_AT_FIGHT[id] ?? 1, `${id} walks at ${look.scale}x its fight body (the duel draws it at 1)`);
+  for (const id of Object.keys(SIZE_CHANGES_AT_FIGHT)) assert.ok(MOB_LOOKS[id], `${id} is gone: drop it from the list`);
+});
