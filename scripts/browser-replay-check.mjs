@@ -40,7 +40,7 @@ import process from 'node:process';
 import console from 'node:console';
 import { initialPractice, stepPractice, PROFILES } from '../src/combat.ts';
 import { recordSpecials } from '../src/replay.ts';
-import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord, NO_PATRON_VERSION, RECORD_VERSION } from '../src/record.ts';
 import { underPlayScale } from '../src/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
@@ -185,7 +185,7 @@ async function main() {
   if (process.argv.includes('--write')) {
     const records = await generateFixture();
     const note = loadFixture().note;
-    writeFileSync(FIXTURE, `${JSON.stringify({ note, generated: { revision: git('rev-parse', '--short', 'HEAD'), recordVersion: RECORD_VERSION, by: 'scripts/browser-replay-check.mjs --write' }, records }, null, 1)}\n`);
+    writeFileSync(FIXTURE, `${JSON.stringify({ note, generated: { revision: git('rev-parse', '--short', 'HEAD'), recordVersion: NO_PATRON_VERSION, by: 'scripts/browser-replay-check.mjs --write' }, records }, null, 1)}\n`);
     console.log(records.map((f) => `${f.opponent} seed ${f.seed}: victim ${f.expect.victim}${f.expect.draw ? ' (draw)' : ''} at ${f.expect.tick}${f.label ? ` [${f.label.slice(0, 40)}…]` : ''}`).join('\n'));
     return;
   }

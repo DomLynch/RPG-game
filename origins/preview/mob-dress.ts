@@ -33,14 +33,20 @@ export function dressedMaterial(source: MeshStandardMaterial, look: MobLook): Me
 }
 
 /** Dress one body: its scale, and every cloth draw. Returns how many draws changed (0 for a body with no cloth: the caller may then say so). */
-export function dressMob(root: Object3D, look: MobLook): number {
-  root.scale.multiplyScalar(look.scale);
+export function dressMob(root: Object3D, look: MobLook, scaled = true): number {
+  if (scaled) root.scale.multiplyScalar(look.scale);   // scaled=false: the duel keeps the sim's own scale, only the cloth is dressed (and the look object stays the clone cache's key)
   let changed = 0;
   root.traverse((node) => {
     const mesh = node as Mesh; if (!mesh.isMesh) return;
-    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const original = (mesh.userData.undressed ??= mesh.material) as typeof mesh.material;   // the body as loaded: a scene reused for the next fight dresses from THIS, never from the last clone
+    const list = Array.isArray(original) ? original : [original];
     const next = list.map((m) => { const d = dressedMaterial(m as MeshStandardMaterial, look); if (d !== m) changed++; return d; });
-    mesh.material = Array.isArray(mesh.material) ? next : next[0]!;
+    mesh.material = Array.isArray(original) ? next : next[0]!;
   });
   return changed;
+}
+
+/** Put a dressed body back as loaded (a Pit legend fighting on the same body and level must not wear a creature's cloth). */
+export function undressMob(root: Object3D): void {
+  root.traverse((node) => { const mesh = node as Mesh; if (mesh.isMesh && mesh.userData.undressed) mesh.material = mesh.userData.undressed; });
 }

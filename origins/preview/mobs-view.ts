@@ -46,7 +46,15 @@ function bangSprite(): THREE.Sprite {
   s.scale.set(0.045, 0.045, 1); return s;
 }
 
-export type Mobs = { update(dt: number, hero: { x: number; z: number }): void; debug(): unknown };
+export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
+export type Mobs = {
+  update(dt: number, hero: { x: number; z: number }): void; debug(): unknown;
+  pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
+  find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
+  fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
+};
+const RESPAWN = 90;   // s
+const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean }): Mobs {
   const specs = mobSpecs(frontier, build), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
@@ -55,6 +63,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let shown: number[] = [];
+  const down = new Map<number, number>();   // creature index -> seconds until it is back
 
   const fetchBody = (kind: string) => {
     if (bodies.has(kind) || !URLS[kind]) return;
@@ -95,7 +104,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   return {
     update(dt, hero) {
       mobs.forEach((m, i) => { mobs[i] = stepMob(m, specs[i]!, hero, dt, stands[i]!); });
-      shown = pickVisible(mobs, hero, cap);
+      for (const [i, t] of down) { if (t - dt <= 0) down.delete(i); else down.set(i, t - dt); }
+      shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
       // Fetch a body kind the first time one of its creatures is near.
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
@@ -116,8 +126,21 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         }
       }
     },
+    pick(ray) {
+      const sphere = new THREE.Sphere(), hit = new THREE.Vector3(); let best: MobPick | null = null;
+      for (const i of shown) {
+        const m = mobs[i]!, s = specs[i]!;
+        sphere.set(new THREE.Vector3(m.x, 1, m.z), s.named ? HIT.named : HIT.common);
+        if (!ray.intersectSphere(sphere, hit)) continue;
+        const dist = hit.distanceTo(ray.origin);
+        if (!best || dist < best.dist) best = { spec: s, x: m.x, z: m.z, dist };
+      }
+      return best;
+    },
+    find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
+    fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); },
     debug: () => ({
-      total: specs.length, drawn: shown.length, cap, bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
+      total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
       mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model })),
     }),
   };
