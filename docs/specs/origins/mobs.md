@@ -13,7 +13,7 @@
 ## Non-negotiable: nothing pauses in the open world (Dom, 2026-10-07)
 
 1. Every intro or overlay beat (standoff, versus card, Journal, bag, map, menus) is visual only, over a running clock; the hero stays vulnerable.
-2. A creature fight is locked 1v1 when it begins: other creatures may watch but cannot hit the hero or the foe or steal the kill. World PvP exceptions come later as their own proposal.
+2. A creature fight is locked 1v1 when it begins: any third party, other creatures and players alike, may watch but cannot hit the hero or the foe or steal the kill. A world-PvP exception (feuds, outlaw areas) is a later proposal to Dom, never a default.
 3. No escape by pause, backgrounding or disconnect: the fight resolves on the server's terms (the X2 no-logout-escape ruling).
 4. Offline single-player previews may keep the Pit's pause. The present preview does (it is offline and writes nothing).
 
