@@ -1,3 +1,5 @@
-// CI entry for Origins slice 1, bite 1 (?region=1, origins/preview/mobs.ts): the Frontier's creatures, placed from the Region 1 data, wandering,
-// noticing the hero. Pure: no DOM.
+// CI entry for the Region 1 mobs. origins/preview/mobs.ts: the Frontier's creatures, placed from the Region 1 data, wandering, noticing the hero (pure, no DOM).
+// origins/preview/mob-looks.ts, mob-dress.ts: the look table and the dressing of a roster body. The origins/ tests only run when a tests/ file imports them.
 import '../origins/preview/mobs.test.ts';
+import '../origins/preview/mob-looks.test.ts';
+import '../origins/preview/mob-dress.test.ts';

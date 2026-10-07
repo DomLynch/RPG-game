@@ -13,8 +13,10 @@ export const powerWordFor = (opponent: string, castTick: number): string | undef
   const words = (POWER_WORDS as Record<string, readonly string[]>)[opponent];
   return words ? words[Math.abs(Math.trunc(castTick)) % words.length] : undefined;
 };
+// ?look=powerwords (audio/power-word.ts): the whispered-chant look test Dom is to hear; absent = muted as above.
+export const powerWordsLook = (search: string): boolean => /[?&]look=powerwords(?=&|$)/i.test(search);
 // Announce the word of this cast (main.ts, at the wind-up): a window event, nothing audible while POWER_WORD_GAIN is 0.
 export const announcePowerWord = (opponent: string, tick: number, target: Pick<EventTarget, 'dispatchEvent'> | undefined = typeof window === 'undefined' ? undefined : window): void => {
   const word = powerWordFor(opponent, tick);
-  if (word && target) target.dispatchEvent(new CustomEvent('frankendom:powerword', { detail: { word, actor: 1, tick, gain: POWER_WORD_GAIN } }));
+  if (word && target) target.dispatchEvent(new CustomEvent('frankendom:powerword', { detail: { word, actor: 1, tick, gain: POWER_WORD_GAIN, opponent } }));
 };
