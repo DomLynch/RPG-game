@@ -1398,6 +1398,12 @@ dialog>p {
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .arc-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .arc-overhead,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .arc-low{ opacity: var(--arc-o,.7); }
+  /* directional-cut flash (Dom 2026-10-07): a faint gold edge glow on the chosen side the instant the cut fires, gone in 230 ms. ::before only: the label is the ::after and is never touched. */
+  .actions[data-gestures=cluster] #attack-button::before{ content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; }
+  .actions[data-gestures=cluster] #attack-button[data-flash=left]::before{ box-shadow: inset 7px 0 9px -5px #f2c14e; animation: cut-flash 230ms ease-out forwards; }
+  .actions[data-gestures=cluster] #attack-button[data-flash=right]::before{ box-shadow: inset -7px 0 9px -5px #f2c14e; animation: cut-flash 230ms ease-out forwards; }
+  @keyframes cut-flash{ from{ opacity: .6; } to{ opacity: 0; } }
+  @media (prefers-reduced-motion: reduce){ .actions[data-gestures=cluster] #attack-button[data-flash]::before{ animation: none; } }
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side, .actions[data-gestures=cluster] button .arc{ transition: none; }

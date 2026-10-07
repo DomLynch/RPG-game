@@ -41,6 +41,7 @@ export const cutAction = (lateral: number): Action => (lateral <= -CUT_PUSH ? 'l
 // therefore gets up to SLASH_DECIDE_MS later; change the one constant to trade it. Intent only: the sim already takes light_left / light_right.
 export const SLASH_SLIDE_PX = 14, SLASH_DECIDE_MS = 50;
 export const slashSlide = (dx: number): 'left' | 'right' | null => (dx <= -SLASH_SLIDE_PX ? 'left' : dx >= SLASH_SLIDE_PX ? 'right' : null);
+export const cutSideOf = (action: Action): 'left' | 'right' | null => (action === 'light_left' ? 'left' : action === 'light_right' ? 'right' : null);   // the side a cut press goes to; neutral LIGHT is null (no flash)
 const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
@@ -97,6 +98,13 @@ export function createInput(env: InputEnv) {
   function request(next: Action) {
     if (!paused() && env.ready() && accepts(env.practice(), next)) action = next;
   }
+  // Directional-cut flash (Dom 2026-10-07: "an indicator which comes at the same time, not before, but faint"): restart the CSS animation on the chosen edge; it removes itself.
+  function flashCut(next: Action) {
+    const side = cutSideOf(next);
+    if (!side) return;
+    delete attackButton.dataset.flash; void attackButton.offsetWidth; attackButton.dataset.flash = side;
+  }
+  attackButton.addEventListener('animationend', (event) => { if ((event as AnimationEvent).animationName === 'cut-flash') delete attackButton.dataset.flash; });
   function requestKick() {
     request('kick');
   }
@@ -143,11 +151,16 @@ export function createInput(env: InputEnv) {
   }
   function fireSlash(side: 'left' | 'right' | null) {
     slashWait = null;
-    if (side) { attackButton.dataset.slide = side; request(side === 'left' ? 'light_left' : 'light_right'); }
+    if (side) { attackButton.dataset.slide = side; take(side === 'left' ? 'light_left' : 'light_right'); }
     else requestStrike();
   }
+  // Every strike press goes through here: when it is TAKEN, a brief edge flash on the cut side (a thumb slide fires through fireSlash, keys and sticks through requestStrike).
+  function take(next: Action) {
+    request(next);
+    if (action === next) flashCut(next);
+  }
   function requestStrike(isHeavy = false) {
-    request(isHeavy ? 'heavy' : cutAction(cutLateral()));
+    take(isHeavy ? 'heavy' : cutAction(cutLateral()));   // the press goes through take(): flashed only when taken
   }
   env.window.addEventListener('keydown', (event) => {
     if (paused() || (event.target as { tagName?: string } | null)?.tagName === 'INPUT') return; // typing a name is not fighting
@@ -433,7 +446,7 @@ export function createInput(env: InputEnv) {
       const guardDirection = guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null);
       const sideLabel = guardDirection ?? 'straight';
       if (guardId === null && guardButton.dataset.side !== sideLabel) guardButton.dataset.side = sideLabel;   // write only on change: no style invalidation 60× a second
-      const x = lateral(), cut = cutAction(cutLateral()), cutSide = cut === 'light_left' ? 'left' : cut === 'light_right' ? 'right' : null;
+      const x = lateral(), cut = cutAction(cutLateral()), cutSide = cutSideOf(cut);
       if ((attackButton.dataset.cut ?? null) !== cutSide) { if (cutSide) attackButton.dataset.cut = cutSide; else delete attackButton.dataset.cut; }   // the button lights the side the next LIGHT will cut (style.css)
       return {
         x,
