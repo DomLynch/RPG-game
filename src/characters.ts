@@ -17,6 +17,7 @@ import type { Opening } from './combat.ts';
 import { GUARD_DROP } from './fatigue-tune.ts';
 import type { Fatigue } from './fatigue.ts';
 import { type FatigueTune, breathe, fatigueLayer } from './fatigue-layer.ts';
+import { fatigueRead, readRate } from './fatigue-read.ts';
 import { HAMSTRUNG_BEATS } from './hamstrung.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
 import { tinted } from './rank-tint.ts';
@@ -446,7 +447,11 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       uncarried.forEach((q, i) => q.copy(offHand[i]!.quaternion)); carried = true;
       root.updateWorldMatrix(true, false);
       const frame = root.getWorldQuaternion(new Quaternion()), { carry: c, raised: r, strike: s } = SHIELD_CARRY;
-      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize().applyQuaternion(frame);
+      const toward = (key: 'elbow' | 'wrist') => {
+        const v = c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize();
+        if (readGuard) { v.y -= (key === 'elbow' ? .3 : .45) * readGuard; v.normalize(); }   // ?look=fatigue-read: the guard hand sinks with the tiredness (0 without the flag)
+        return v.applyQuaternion(frame);
+      };
       const elbow = toward('elbow'), wrist = toward('wrist');
       aimBone(upperL, lowerL, elbow, amount);
       aimBone(lowerL, handL, wrist, amount);
@@ -467,6 +472,15 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
     let open: Opening | null = null, openW = 0;   // opening-pose.ts: the sim's open stagger on this body, and its eased weight
     let tired: Pick<Fatigue, 'level' | 'gassed' | 'second'> = { level: 0, gassed: 0, second: 0 }, tune: FatigueTune | undefined, breath = 0, calmWeight = 0;   // fatigue.ts: the tired-body layer (presentation only), its body's tuning, the breath clock and how calm the pose is
+    // ?look=fatigue-read (fatigue-read.ts): the extra bones its pose moves, restored before every update like the guard tilt; empty and untouched without the flag.
+    const FORWARD = new Vector3(0, 0, 1);
+    const readBones = ['spine_03', 'neck_01', 'Head', 'clavicle_l', 'clavicle_r'].map(n => root.getObjectByName(n)), readSaved = readBones.map(() => new Quaternion());
+    let readApplied = false, readBreath = 0, readGuard = 0;
+    const turnAbout = (bone: Object3D | null | undefined, axis: Vector3, angle: number) => {   // a world-axis turn of a bone (the clavicles' own axes are not the fighter's)
+      if (!bone?.parent || !angle) return;
+      const parent = bone.parent.getWorldQuaternion(new Quaternion()), turn = new Quaternion().setFromAxisAngle(axis.clone().applyQuaternion(root.getWorldQuaternion(new Quaternion())), angle);
+      bone.quaternion.premultiply(parent.clone().invert().multiply(turn).multiply(parent));
+    };
     let leaning = 0, leanDrive = 0;   // the charged-heavy lean's weight, 0..1, and the ease that drives it
     let tiltApplied = false;   // the mixer rewrites a bone only when its clip value changes (a held guard's does not), so the tilt is undone by hand before every update
     let speed = 0;
@@ -675,6 +689,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         if (aimedOffHand) { offHand[0]!.quaternion.copy(aimedOffHand[0]); offHand[1]!.quaternion.copy(aimedOffHand[1]); aimedOffHand = undefined; }
+        if (readApplied) { readBones.forEach((b, i) => b?.quaternion.copy(readSaved[i])); readApplied = false; }
         if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         if (carried) { offHand.forEach((b, i) => b!.quaternion.copy(uncarried[i])); carried = false; }
         mixer.update(step);
@@ -687,7 +702,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const l = lean ?? NO_LEAN;
         // The tired body (fatigue.ts): breathing in the chest, a hunch, the sword arm sagging; only while the pose is calm (a swing's contact pose is the sim's blade).
         calmWeight += (Number(!dead && (pose === 'ready' || pose === 'guard' || pose === 'sheathed')) - calmWeight) * ease;
-        breath += step * breathe(tired, tune);
+        breath += step * breathe(tired, tune); readBreath += step * readRate(tired, tune);
         const layer = tired.level > 0 || tired.gassed > 0 || calmWeight > .001 ? fatigueLayer(tired, breath, calmWeight, tune) : null;
         openW += (openWeight(open) - openW) * (1 - Math.exp(-step * 30));   // quick: it follows the sim's own ramp, which is already eased
         if (openW < 1e-3 && !open) openW = 0;
@@ -698,7 +713,19 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
           if (upperArm) { upperArm.rotation.x += tilt.arm + leaning * (l.lift ?? 0); upperArm.rotation.y += leaning * l.arm; }
           if (gap !== NO_OPEN) { if (spine1) { spine1.rotation.x += gap.lean; spine1.rotation.z += gap.tilt; } if (upperArm) upperArm.rotation.x += gap.arm; }
-          if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
+          if (layer && tune?.read) {   // ?look=fatigue-read: the whole spine, head and shoulders carry the tell; the sword arm keeps the live sag
+            const r = fatigueRead(tired, readBreath, calmWeight, layer, tune); readGuard = r.guard;
+            if (spine1) spine1.rotation.x += r.spine1; if (spine2) spine2.rotation.x += r.spine2; if (upperArm) upperArm.rotation.x += r.arm;
+            readBones.forEach((b, i) => b && readSaved[i].copy(b.quaternion)); readApplied = true;
+            if (readBones[0]) readBones[0].rotation.x += r.spine3;
+            if (readBones[1]) readBones[1].rotation.x += r.neck;
+            if (readBones[2]) readBones[2].rotation.x += r.head;
+            root.updateWorldMatrix(true, true);
+            turnAbout(readBones[3], FORWARD, r.shrug + r.heave); turnAbout(readBones[4], FORWARD, -(r.shrug + r.heave));
+          } else {
+            readGuard = 0;
+            if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
+          }
         }
         const shieldHeld = shieldArm && armed && !dead, guardUp = shieldHeld && (pose === 'guard' || pose === 'block' || pose === 'parry'), cutting = shieldHeld && (pose === 'attack' || pose === 'kick' || pose === 'deflected' || pose === 'roll');   // a deflect throws the arm open; a roll tucks it
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;

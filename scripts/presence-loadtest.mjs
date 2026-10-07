@@ -12,11 +12,14 @@ import { once } from 'node:events';
 import console from 'node:console';
 import process from 'node:process';
 import { clearInterval, setInterval, setTimeout } from 'node:timers';
+import { tickStats } from '../origins/presence/ticks.ts';
 /* global WebSocket, fetch */
 
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? Number(hit.split('=')[1]) : fallback; };
 const BOTS = arg('bots', 100), SECONDS = arg('seconds', 30), WARMUP = arg('warmup', 5), CROWD_CM = arg('crowd-m', 60) * 100, CAP = arg('layer-cap', 100), PORT = arg('port', 18788), MAX_LAYERS = arg('max-layers', 8);
 const ZONE = 30000, STEP_MS = 100, SPEED_CMS = 500;   // bots walk at 5 m/s, uploading at 10 Hz like a real client
+// Presence starts every fresh join at the zone centre and treats a first pose far away as a teleport (X2 stage 1), so every bot starts there and walks out to its wander square;
+// give the crowd time to spread (--warmup) before reading numbers from a wide --crowd-m.
 
 const server = spawn(process.execPath, ['origins/presence/main.ts'], {
   env: { ...process.env, ORIGINS_PRESENCE: '1', ORIGINS_PRESENCE_TEST_AUTH: '1', PRESENCE_PORT: String(PORT), PRESENCE_HOST: '127.0.0.1', PRESENCE_SOFT: String(CAP), PRESENCE_HARD: String(CAP), PRESENCE_MAX_LAYERS: String(MAX_LAYERS), PRESENCE_LOG_MS: '3600000', SUPABASE_URL: '', SUPABASE_ANON_KEY: '' },
@@ -36,7 +39,7 @@ let measuring = false;
 const up = (b) => { const m = new Uint8Array(8), v = new DataView(m.buffer); m[0] = 2; v.setUint16(1, Math.round(b.x), true); v.setUint16(3, Math.round(b.z), true); m[5] = b.heading; m[6] = 1; m[7] = 0; return m; };
 const lo = (ZONE - CROWD_CM) / 2, hi = lo + CROWD_CM;
 for (let i = 0; i < BOTS; i++) {
-  const b = { i, x: lo + Math.random() * CROWD_CM, z: lo + Math.random() * CROWD_CM, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
+  const b = { i, x: ZONE / 2, z: ZONE / 2, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
   const pick = () => { b.tx = lo + Math.random() * CROWD_CM; b.tz = lo + Math.random() * CROWD_CM; };
   pick(); bots.push(b);
   b.ws = new WebSocket(`ws://127.0.0.1:${PORT}/origins/presence`, ['frankendom.presence.v1', `token.bot-${(i + 1).toString(36)}`]);
@@ -60,17 +63,18 @@ const failed = bots.filter(b => b.failed || !b.ready).length;
 console.log(`connected ${BOTS - failed}/${BOTS} bots; warming up ${WARMUP}s, measuring ${SECONDS}s`);
 await new Promise(r => setTimeout(r, WARMUP * 1000));
 
-const health = async () => (await fetch(`http://127.0.0.1:${PORT}/origins/presence/health`)).json();
+const health = async (ticks = 0) => (await fetch(`http://127.0.0.1:${PORT}/origins/presence/health${ticks ? `?ticks=${ticks}` : ''}`)).json();
 const cpu0 = cpuSeconds(), t0 = Date.now(), h0 = await health();
 measuring = true;
 await new Promise(r => setTimeout(r, SECONDS * 1000));
 measuring = false;
 const wall = (Date.now() - t0) / 1000, cpu = cpuSeconds() - cpu0, h1 = await health(), rss = rssMb();
+const measuredTicks = h1.ticks - (h0.ticks ?? 0), tick = tickStats((await health(measuredTicks)).tickMs ?? []);   // every tick of the measuring window, so p99 is exact (and the ring holds 40,000: a 30-minute soak is about 18,000)
 
 const layers = new Map();
 for (const b of bots) { if (!b.ready) continue; const l = layers.get(b.layer) ?? { bots: 0, packets: 0, bytes: 0, entities: 0, sent: 0 }; l.bots++; l.packets += b.packets; l.bytes += b.bytes; l.entities += b.entities; l.sent += b.sent; layers.set(b.layer, l); }
 const rows = [...layers].map(([id, l]) => ({ layer: id, players: l.bots, packetsPerSec: +(l.packets / wall).toFixed(0), downKBpsTotal: +(l.bytes / wall / 1024).toFixed(1), downKBpsPerClient: +(l.bytes / wall / 1024 / l.bots).toFixed(2), downKbitPerClient: +(l.bytes / wall * 8 / 1000 / l.bots).toFixed(1), entitiesPerPacket: +(l.entities / Math.max(1, l.packets)).toFixed(1), upMsgPerSecTotal: +(l.sent / wall).toFixed(0) }));
-const result = { bots: BOTS, connected: BOTS - failed, crowdM: CROWD_CM / 100, layerCap: CAP, seconds: +wall.toFixed(1), serverCpuPercentOfOneCore: +(cpu / wall * 100).toFixed(1), serverRssMb: +rss.toFixed(0), maxTickMs: +h1.maxTickMs.toFixed(2), ticks: h1.ticks - (h0.ticks ?? 0), refused: h1.refused, layers: rows };
+const result = { bots: BOTS, connected: BOTS - failed, crowdM: CROWD_CM / 100, layerCap: CAP, seconds: +wall.toFixed(1), serverCpuPercentOfOneCore: +(cpu / wall * 100).toFixed(1), serverRssMb: +rss.toFixed(0), maxTickMs: +h1.maxTickMs.toFixed(2), tickMs: { n: tick.n, p50: tick.p50 === null ? null : +tick.p50.toFixed(2), p99: tick.p99 === null ? null : +tick.p99.toFixed(2), max: tick.max === null ? null : +tick.max.toFixed(2) }, ticks: measuredTicks, refused: h1.refused, layers: rows };
 console.log(JSON.stringify(result, null, 2));
 for (const b of bots) { clearInterval(b.walk); b.ws.close(); }
 server.kill(); await once(server, 'exit').catch(() => {});

@@ -27,6 +27,16 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## 2026-10-07 06:55 (+04) — HANDOFF at Dom's /clear. READ FIRST (adds to the 04:30 block below; the batch process there still applies)
+**Now (pick up here)**
+1. **LIVE = trunk = `578be80c`**, deploy checkout clean and detached there, no run in flight, no lock. Overnight total 20 releases, every one 0 FAILED rows; latest 84e3f08c, 110e4caa, 54f113df, 26f17894, 1c2a0ac9, 578be80c.
+2. **Next batch (Lead's GOs at exact shas; re-check each head + CI at merge time, then local merge, `npm test`, push ff-only, gate, `scripts/deploy.sh`):** #1572 @d1c69465 (presence ticks, 11 pass; tested locally 2427/2425/0 then the unpushed merge was discarded for the clear) and #1590 @87b805a7 (docs/state/code-quality.md only; only the no-op 'release rows' job pending, covered by Lead's ruling). Then, as CI goes green: #1581 @25228045 (presence install files: MERGE ONLY, never apply or run on a server, that is the morning joint GO), #1594 @ed3efa4a (defence audio, flag off), #1577 @50ced788 (presence X2 stage 1), #1595 @c2de1443 (?look=kickclose, flag off), #1597 @524b126d (docs/state/expansion.md).
+3. **Not GO'd:** #1549 RV29 and #1564 RV30 (wait for Dom's word in the morning; RV29 needs the Mac fight-records.json regen plus the account-browser and rank-look rows), #1535 standoff (held for Dom). Never merge #1534.
+**Gotchas**
+- A moved head voids the GO until Lead re-GOs at the new sha (#1590 and #1576 moved several times). A conflicting PR is dropped from the batch; its owner rebases (#1572 conflicted after #1571).
+- Some PRs show quality/load-time/duel-two-page SKIPPED by a path filter; the local `npm test` is then the unit gate. `gh run rerun --failed` is refused while the run is still in progress.
+- Mac df was 22 GB and falls about 1 GB per batch (floor 8 GB). Prune only your own scratch.
+
 ## 2026-10-07 04:30 (+04) — HANDOFF after the overnight run. READ FIRST (supersedes #1521's 00:35 block; older rules below still apply)
 **Now (pick up here)**
 1. **LIVE = trunk = `e0f8d59e`** (04:2x). No run in flight, no lock, no deploy_hold. Nothing GO'd-and-green is waiting. Open, not GO'd or held: #1556 (head moved to d22bf779, needs Lead's re-GO after the Auditor's merge-delta), #1558 @9c656ba5 (rows pending, undrafted), #1549 (RV29/RV28 pair, not GO'd; ships with #1548 behind the forced-rollback synctest, regenerate fight-records.json on the Mac), #1535 standoff (Auditor PASS but HELD from release until Dom has looked at /preview/standoff/). Never merge #1534 (review probe).
