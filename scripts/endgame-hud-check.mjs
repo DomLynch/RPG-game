@@ -94,11 +94,10 @@ try {
   // and 25 timed out on 2026-10-07 because Take sat over it (Web, #1685 follow-up). Open the offer the way loot-panel.ts does and hit-test Next's centre.
   const offer = await page.evaluate(() => {
     const acts = document.getElementById('loot-panel-actions'); acts.hidden = false;
-    return new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => {
-      const r = (e) => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
-      const next = document.getElementById('reset-button'), n = r(next), hit = document.elementFromPoint(n.x + n.w / 2, n.y + n.h / 2);
-      res({ next: n, offer: r(acts), hit: hit && (hit.id || hit.tagName), nextHit: !!hit && (hit === next || next.contains(hit)) });
-    })));
+    // synchronous: the harness clock owns requestAnimationFrame, so waiting on a frame here would hang; getBoundingClientRect forces the layout itself
+    const r = (e) => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+    const next = document.getElementById('reset-button'), n = r(next), hit = document.elementFromPoint(n.x + n.w / 2, n.y + n.h / 2);
+    return { next: n, offer: r(acts), hit: hit && (hit.id || hit.tagName), nextHit: !!hit && (hit === next || next.contains(hit)) };
   });
   receipt.offer = offer;
   assert.ok(offer.nextHit, `Next stays tappable with the take-one offer open; the centre of Next hits ${offer.hit}`);
