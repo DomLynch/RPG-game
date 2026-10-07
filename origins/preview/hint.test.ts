@@ -13,3 +13,8 @@ test('the preview header is one short line at 375: the controls live in the hint
   const line = /<small class="walk-only">([^<]*)<\/small>/.exec(html)?.[1] ?? '';
   assert.equal(line, 'Greybox preview · not the game'); assert.ok(line.length <= 32, 'fits the ~239 px header column at 12 px');
 });
+
+test('the health and stamina bars sit under the hint and creature card, never over their text (Lead 2026-10-07, 375 wide)', () => {
+  assert.match(main, /setProperty\('--hud-bottom'/, 'main.ts measures the HUD stack');
+  assert.match(html, /#duel\.world \.combat-hud \{ top: max\([^;]*var\(--hud-bottom/, 'the bars start below that measure');
+});

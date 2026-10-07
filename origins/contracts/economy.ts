@@ -443,7 +443,7 @@ export type UpgradeInput = {
   materialDefs: (id: ItemId) => ItemDefinition | undefined;
   receipts: ReadonlyMap<string, UpgradeReceipt>; // receipts already committed, by idempotency key
   now: string;
-  place?: RegionId; // where the requester stands, as the writer passes it (client-stated today, to be derived from presence: launch gate X1); a piece kept in the bank is worked only at the Concord Exchange
+  place?: RegionId; // where the requester stands, as the writer passes it (derived from presence, never the request: launch gate X1, origins/server/upgrade.ts); a piece kept in the bank is worked only at the Concord Exchange
 };
 export type UpgradeOutcome =
   | { replayed: true; receipt: UpgradeReceipt }

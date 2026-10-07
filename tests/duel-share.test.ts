@@ -40,16 +40,19 @@ test('the DUEL gate has its own attribute: lobby.ts writes its two-page probe JS
   for (const [name, text] of [['account.ts', read('../src/account.ts')], ['main.ts', main], ['style.css', read('../src/style.css')]]) assert.doesNotMatch(text.replace(/duel-tools|duelTools/g, ''), /(dataset\.duel\s*=\s*(String|'true')|\[data-duel=)/, `${name} does not gate DUEL on the probe's attribute`);
 });
 
-test('with the loot panel on, the portrait row moves under the panel instead of behind it', () => {
+test('the end screen is one bottom-anchored right-hand column: LINK + CLIP above Enter the Pit above Next, no loot-panel override', () => {
   const css = read('../src/style.css');
-  assert.match(css, /:root:has\(#loot-panel\[data-on='1'\]\) \.actions\[data-gestures=cluster\] \.clip-pick \{ top: calc\(env\(safe-area-inset-top, 0px\) \+ 512px\); \}/);
-  assert.ok(html.includes('id="loot-panel"'), 'the panel the rule keys on exists');
+  assert.match(css, /\.actions\[data-gestures=cluster\] \.clip-pick \{ position: fixed; top: auto; left: auto; bottom: calc\(var\(--end-base\) \+ 112px\); \}/, 'the icon row sits 112 px above the base, on the column');
+  assert.doesNotMatch(css, /:root:has\(#loot-panel\[data-on='1'\]\)[^{]*\.clip-pick/, 'no loot-panel override moves LINK/CLIP mid-screen any more');
+  assert.match(css, /#duel-button \{ top: auto; left: auto; bottom: calc\(var\(--end-base\) \+ 180px\); right: var\(--end-gutter\); \}/, 'DUEL (admin) is a third row of the column, clear of the 128 px pad');
+  assert.match(css, /--end-width: min\(220px, calc\(100vw - 190px\)\)/, 'the column\'s left edge stays right of the pad (column left = vw - 16 - (vw - 190) = 174 up to 410 wide; the pad ends at 158)');
+  assert.ok(html.includes('id="loot-panel"'), 'the loot panel exists above the column');
 });
 
-test('without DUEL the portrait pair centres: LINK and CLIP leave no empty slot', () => {
+test('without DUEL the portrait pair sits on the same column: LINK and CLIP leave no empty slot', () => {
   const css = read('../src/style.css');
-  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) \.actions\[data-gestures=cluster\] #share-link \{ left: calc\(50% - 65px\); \}/);
-  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) \.actions\[data-gestures=cluster\] #clip-button \{ left: calc\(50% \+ 5px\); \}/);
+  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) \.actions\[data-gestures=cluster\] #share-link \{ left: auto; right: calc\(var\(--end-gutter\) \+ 66px\); \}/);
+  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) \.actions\[data-gestures=cluster\] #clip-button \{ left: auto; right: var\(--end-gutter\); \}/);
   assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) #duel-button \{ display: none !important; \}/, 'DUEL is out of the layout (display:none), not visibility:hidden');
   assert.doesNotMatch(css, /#duel-button[^{]*\{[^}]*visibility: hidden/);
 });
