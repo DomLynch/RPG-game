@@ -178,6 +178,15 @@ def clip(name, frames, pose, loop=True):
         pose((f % frames) / frames if loop else f / frames)
         key(f + 1)
     actions[name] = act
+    # numbers for the pose review: where the nose ends up (armature space, fraction of the rest height/length) at five points of the clip
+    out = []
+    for q in range(5):
+        f = 1 + round(frames * q / 4)
+        bpy.context.scene.frame_set(f)
+        bpy.context.view_layer.update()
+        t = (arm.matrix_world @ pb["head"].tail)
+        out.append((round((t.y - lo.y) / L, 2), round(t.z / H, 2)))
+    print("nose (y/L, z/H)", name, out, flush=True)
 
 
 TAU = 2 * math.pi
