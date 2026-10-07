@@ -24,7 +24,8 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
+import { encodeRecord } from '../src/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
 import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
@@ -107,7 +108,7 @@ async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${
 // One winning fight vs the opponent (the first seed the AI-driven hero wins), as herolook-kill-record.mjs.
 async function winningRecord() {
   for (let s = 0; s < 40; s++) {
-    const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
+    const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = liveRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
     let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
     while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
     if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) return { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };

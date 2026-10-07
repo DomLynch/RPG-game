@@ -15,7 +15,8 @@ import { idleIntent } from '../src/duel.ts';
 import { levelOf, tierAt } from '../src/grades.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { gzipSync } from 'node:zlib';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { psqlAdapter, verifyClaims } from './verify-loot.mjs';
 
 const D3 = '202609230001_server_awards.sql';
@@ -74,7 +75,7 @@ try {
   const nudges = new Map(), nudge = build => (nudges.has(build) || nudges.set(build, nudges.size + 1), nudges.get(build) / 127);
   const fight = async (opponent, preset, seed, intent, build, claimed) => {
     const level = typeof preset === 'number' ? preset : LEVEL_ANCHORS[preset], o = OPPONENTS[opponent];   // records carry a ladder level since the 46-level ladder (replay.ts)
-    const rec = createRecorder({ build, opponent, weapon: 'longsword', level, seed }), dx = nudge(build);
+    const rec = liveRecorder({ build, opponent, weapon: 'longsword', level, seed }), dx = nudge(build);
     let practice = initialPractice(seed, opponentAt(o, level));
     for (let t = 0; t < 20000 && !practice.finish; t++) { const i = intent(t); practice = stepPractice(practice, rec.push(t ? i : { ...i, move: { ...i.move, x: i.move.x + dx } }), profileAt(o, level)); }
     return encodeRecord(rec.finish(claimed ?? (practice.finish.victim === 1 ? 'killed' : 'died')));   // `claimed`: a record that lies
