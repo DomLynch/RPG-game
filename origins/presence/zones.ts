@@ -40,6 +40,8 @@ export const zoneAt = (xCm: number, zCm: number): string | null => {
 // Where every fresh join starts (Lead, 2026-10-07): the Pit yard's centre, a constant the server chooses, never the client's first pose.
 export const SPAWN: Pt = { x: CENTRE_CM, z: CENTRE_CM };
 
+// TODO(X1): the Exchange's trade area below is a PROVISIONAL rectangle, NOT the definition. Launch gate X1 (Expansion) must replace it with the real trade area before anything
+// treats it as one; until then the spawn and rejoin rules are only tested against this stand-in.
 // The Exchange's trade area, PROVISIONAL (Expansion owns the real one, X1): the bounding box of its service landmarks (covenant stone, contract board, forge, bank; not the
 // outer gate) plus a 3 m margin, in presence centimetres. Kept here so the spawn and rejoin rules are tested against one definition that Expansion can replace.
 export type Rect = { minX: number; maxX: number; minZ: number; maxZ: number };
