@@ -29,7 +29,7 @@ function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<
     readFighter: async (_db: unknown, id: string) => users[id] ?? null, readAdmin: async () => admin,
     writeFighter: (_db: unknown, id: string, written: profile.Profile, revision: number | null) => new Promise<cloudProfile.CloudProfile>(answer => { writes.push({ userId: id, revision, profile: written, answer }); }),
   };
-  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './timed-signal.ts': timedSignal, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
+  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './timed-signal.ts': { timedSignal }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
     './loot-claims.ts': { ...lootClaims, flushThenStanding: async () => null }, '@sentry/browser': { captureException() {} } };   // no claims to post here: the outbox has its own tests
   const win = new EventTarget(), exports: { mountAccount?: (url: string, key: string) => Promise<void> } = {};
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports, window: win, Event, URL, localStorage, crypto: { randomUUID: () => 'test' },
