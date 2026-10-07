@@ -2,9 +2,9 @@
 // against a throwaway root with stub systemctl/nginx/curl/openssl, so nothing here touches a real server. The installer is for the Linux VPS (GNU install -D), so the script tests skip elsewhere.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, readlinkSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { presenceFiles } from '../ops/presence-files.mjs';
 
@@ -16,6 +16,37 @@ test('presence-files: the closure holds the service and its world data, every fi
   assert.ok(files.every(f => existsSync(join(repo, f))), 'every listed file exists');
   assert.ok(files.every(f => /^(origins|src)\//.test(f) && !f.includes('node_modules') && !f.includes('.test.')), 'only origins/ and src/ sources, never a test');
   assert.deepEqual(files, [...files].sort(), 'sorted, so the list is stable');
+});
+
+test('presence-files: a multi-line import/export clause is followed, and no listed file imports something outside the list', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'presence-files-'));
+  try {
+    mkdirSync(join(dir, 'a'), { recursive: true });
+    writeFileSync(join(dir, 'a/main.ts'), "import {\n  one,\n  two,\n} from './b.ts';\nexport {\n  three\n} from './c.ts';\nexport type {\n  T } from './d.ts';\n");
+    for (const f of ['b', 'c', 'd']) writeFileSync(join(dir, `a/${f}.ts`), 'export const x = 1;\n');
+    assert.deepEqual(presenceFiles(dir, 'a/main.ts'), ['a/b.ts', 'a/c.ts', 'a/d.ts', 'a/main.ts']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  // the real entry: economy.ts imports items.ts across lines; and every relative import of every listed file resolves inside the list
+  const files: string[] = presenceFiles(repo);
+  assert.ok(files.includes('origins/contracts/items.ts'), 'the multi-line import of items.ts is in the closure');
+  for (const f of files) {
+    for (const m of readFileSync(join(repo, f), 'utf8').matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
+      const target = relative(repo, resolve(repo, dirname(f), m[1]!));
+      assert.ok(files.includes(target), `${f} imports ${target}, which the install would not copy`);
+    }
+  }
+});
+
+test('presence-files: the installed list STARTS: exactly the listed files, in a bare directory, load origins/presence/main.ts (flag OFF: every import must resolve, nothing listens)', () => {
+  const files: string[] = presenceFiles(repo);
+  const dir = mkdtempSync(join(tmpdir(), 'presence-start-'));
+  try {
+    for (const f of files) { mkdirSync(join(dir, dirname(f)), { recursive: true }); copyFileSync(join(repo, f), join(dir, f)); }
+    // The box has no package.json, no node_modules, no other file: a missed import fails at link time with ERR_MODULE_NOT_FOUND, before the flag check runs, whatever the import syntax.
+    const r = spawnSync(process.execPath, ['origins/presence/main.ts'], { cwd: dir, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', ORIGINS_PRESENCE: '0' } });
+    assert.equal(r.status, 0, `presence did not start from its own file list: ${r.stderr.split('\n').find(l => /Cannot find|Error/.test(l)) ?? r.stderr.slice(0, 300)}`);
+    assert.match(r.stdout, /presence: OFF/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('presence-files: an npm import, a missing file and an import inside a comment are told apart', () => {
