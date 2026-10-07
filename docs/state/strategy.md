@@ -3,6 +3,12 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+## 2026-10-07 08:22 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0822 + project_dom_decided_ledger (lines 06:5x–08:5x).
+**Now.** CronList, re-arm 8,28,48. Restart the Auditor when it shows fresh (DB applies wait on it). Live 8f97d10a; 345571f in flight (fatigue-read OFF). Next: RV29 → RV30 → standoff → RV31 (p600, Pitborn L6 −8 named exception).
+**Dom today.** Beta = duels + Origins Zone 1 + stances/gambit/luck/Coach (no freeze; SCOPE.md #1618). Fatigue: subtle last-10% pose + red pulsing bar, preview being fixed. Origins preview /preview/origins/ to carry everything built + Ash Frontier walkable.
+**Open.** DB 0005→0007→0008→0009 (fresh Auditor), #1596 merge after 0009, presence step 2, S1 needs VPS GB/month, Dom /clear of Auditor + Characters.
+**Gotchas.** "idle" in ListAgents ≠ no work; peer clock stamps run +1 h.
+
 ## 2026-10-07 06:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_0635 + project_dom_decided_ledger (lines 05:xx on).
 **Now.** FIRST: CronList, re-arm 8,28,48 /checkin. Then restart Auditor, Expansion and Lead by session id ONLY once each has cleared (a paste sent before the clear blocks it); ids and pastes are in the 0635 memory. Live 578be80c (curl 06:35, no lock): earned victory headline, sparring watchdog, fatigue pose from behind (flag-off), Origins boss records.
 **Done tonight (05:xx-06:3x).** Live in order: 04872863 kick-scale look test → 2fa6f8a2 trident + defence-grades look test → 84e3f08c banked pieces upgrade only at the Exchange → 110e4caa → 54f113df story gear at the smith + presence lookup code → 26f17894 kick-light audit (light already inside the 1.585 m edge, pinned by test; ?look=kick52) → 1c2a0ac9 kick-scale flag removed → 578be80c. Rulings in the ledger: story GEAR upgradeable, quest items refused with a plain line; research #18 closed (9.6% span); S1 load test R2c Exchange cluster gates beta, R6 10 ops/s + 30 ops/s burst, 15 duel pairs; RV31 per-opponent `spamRun` (Shieldmaiden early gate OR old read; Pitborn rerun n=240); X2 no logout escape, no rejoin inside a trade area.
