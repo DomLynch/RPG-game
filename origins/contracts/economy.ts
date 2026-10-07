@@ -443,6 +443,7 @@ export type UpgradeInput = {
   materialDefs: (id: ItemId) => ItemDefinition | undefined;
   receipts: ReadonlyMap<string, UpgradeReceipt>; // receipts already committed, by idempotency key
   now: string;
+  place?: RegionId; // where the requester stands, as the writer passes it (client-stated today, to be derived from presence: launch gate X1); a piece kept in the bank is worked only at the Concord Exchange
 };
 export type UpgradeOutcome =
   | { replayed: true; receipt: UpgradeReceipt }
@@ -467,6 +468,8 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   if (def.category !== 'gear' || def.power !== 'slot-weight' || def.slot === null) return fail('rule-violation', 'item', `${def.id} has no power budget to upgrade`);
   const weapon = isWeaponSlot(def.slot);
   if ((service.accepts === 'armour' && weapon) || (service.accepts === 'weapons' && !weapon)) return fail('rule-violation', 'item', `${service.name} does not work ${weapon ? 'weapons' : 'armour'}`);
+  // A banked piece is reached through the bank, which opens only at the Exchange (Strategy, 2026-10-06); worn or packed, it upgrades wherever the smith is.
+  if (instance.location.kind === 'bank' && input.place !== CONCORD_EXCHANGE) return fail('rule-violation', 'place', `${instance.id} is in the bank, which opens only at the Concord Exchange`);
   const from = upgradeLevelOf(instance);
   if (request.toLevel !== from + 1) return fail('rule-violation', 'toLevel', `one level at a time: the piece is at ${from}, so the next is ${from + 1}`);
   // No effect = refused (and never charged): a 0-weight slot, or a piece already counting at Origin.

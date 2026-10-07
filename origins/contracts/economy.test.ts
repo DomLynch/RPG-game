@@ -5,11 +5,11 @@ import test from 'node:test';
 import { CAPS } from '../../src/gear-stats.ts';
 import type { Result } from './core.ts';
 import {
-  MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
+  CONCORD_EXCHANGE, MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
   type ServiceDefinition, type Trade, type UpgradeCostTable, type UpgradeInput, type UpgradeReceipt, type UpgradeRequest,
 } from './economy.ts';
 import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
+import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId, RegionId } from './ids.ts';
 import {
   PACK_SLOTS, checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
 } from './items.ts';
@@ -244,6 +244,17 @@ test('upgrade: a zero-weight slot gains nothing, so the smith refuses it', () =>
   const crestDef = must(parseItemDefinition({ ...F.helmetDef(), id: 'item:loot.veteran.Crest', slot: 'Crest' }));
   const crest = must(parseItemInstance({ ...F.helmetInstance(), item: 'item:loot.veteran.Crest', location: { kind: 'pack', owner: F.PC, index: 0 }, provenance: { ...F.helmetInstance().provenance, lootId: 'veteran.Crest' } }));
   refused(performUpgrade(input({ instance: crest, def: crestDef })), 'rule-violation', 'toLevel');
+});
+
+test('upgrade: a piece kept in the bank is worked only at the Concord Exchange; worn or packed, anywhere the smith is', () => {
+  const banked = must(parseItemInstance({ ...F.helmetInstance(), location: { kind: 'bank', owner: F.PC, index: 0 } }));
+  refused(performUpgrade(input({ instance: banked })), 'rule-violation', 'place');
+  refused(performUpgrade(input({ instance: banked, place: 'region:grey-ferry' as RegionId })), 'rule-violation', 'place');
+  const out = must(performUpgrade(input({ instance: banked, place: CONCORD_EXCHANGE })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([out.instance.upgradeLevel, out.instance.location], [1, banked.location], 'upgraded where it lies, in the bank');
+  const packed = must(parseItemInstance({ ...F.helmetInstance(), location: { kind: 'pack', owner: F.PC, index: 0 } }));
+  for (const piece of [input().instance, packed]) assert.equal(must(performUpgrade(input({ instance: piece, place: 'region:grey-ferry' as RegionId }))).replayed, false, `${piece.location.kind}: no Exchange needed`);
 });
 
 test('upgrade: every refusal path', () => {

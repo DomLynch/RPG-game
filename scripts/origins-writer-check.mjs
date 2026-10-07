@@ -50,7 +50,8 @@ try {
   // Example content (the contracts' fixtures): exchange ore and the story-critical Record of Names. The writer is built with its content; no body names a definition.
   // The smith: the fixtures' forge, materials only (level 1 costs 5 grave iron and 0 coin; level 2 still prices coin, so it is a 501).
   const defs = new Map([F.exchangeOreDef(), F.recordDef(), F.helmetDef(), F.graveIronDef(),
-    { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+    { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } },
+    { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, handlers: { ...withContent({
     lookup: id => defs.get(id),
@@ -178,6 +179,18 @@ try {
   eq([smithRace.map(r => r.status), smithRace.map(r => r.json.result?.replayed).sort()], [[200, 200], [false, true]], 'upgrade race: one upgrade, one replay');
   eq([psql(`select upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:body-wc'`), irons(), upgrades(), conserved()],
     ['1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade race: upgraded and burned once, at the Exchange, conserved');
+  // a third piece kept in the BANK, paid from pack iron: refused away from the Exchange (the piece itself, not its materials), upgraded in place at it
+  psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
+    mint('inst:greaves-wc', 'item:loot.veteran.Greaves', 1, 'bank', 2, 'claim:9003', { kind: 'arena-award', claimId: 9003, lootId: 'veteran.Greaves', fromLegend: 'veteran-1', atRank: 'Recruit' }, { tier: 'Recruit' }),
+  ])}$j$::jsonb);`);
+  const greavesRow = () => psql(`select loc_kind || ':' || upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:greaves-wc'`);
+  const bankedPiece = over => smithAsk({ op: 'smith:greaves-wc:l1', instance: 'inst:greaves-wc', materials: ['inst:iron-d'], ...over });
+  const bankedAway = await call('apply_upgrade', 'ta', bankedPiece());
+  eq([bankedAway.status, /bank, which opens only at the Concord Exchange/.test(bankedAway.json.error)], [400, true], 'upgrade: a banked piece is refused away from the Exchange');
+  eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:0:v1:0', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade: the banked refusal changed nothing');
+  const bankedAt = await call('apply_upgrade', 'ta', bankedPiece({ place: 'exchange' }));
+  eq([bankedAt.status, bankedAt.json.result?.replayed, bankedAt.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-d', 5]]], 'upgrade: a banked piece is upgraded at the Exchange');
+  eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the banked piece stays in the bank at level 1, pack iron burned, conserved');
 
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
