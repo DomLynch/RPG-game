@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { OPPONENTS } from '../src/moves.ts';
-import { createRecorder, decodeRecord } from '../src/record.ts';
+import { decodeRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { MAX_STORED_CHARS, SHORT_ID, dressFor, fetchSharedRecord, mintShare, publishRecord, sharedIdFrom, shortId, shortLink, shortParam } from '../src/share-store.ts';
 
-const record = (ticks = 60) => { const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: OPPONENTS.veteran.id, level: 18, seed: 9 }); for (let i = 0; i < ticks; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('abandoned'); };
+const record = (ticks = 60) => { const rec = liveRecorder({ weapon: 'longsword', build: 'dev', opponent: OPPONENTS.veteran.id, level: 18, seed: 9 }); for (let i = 0; i < ticks; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('abandoned'); };
 // A fake client: records every insert and answers as told.
 const fakeDb = (answers: ({ code?: string; message?: string } | null)[]) => { const inserts: Record<string, unknown>[] = []; const db = { from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { assert.equal(table, 'fight_records'); inserts.push(row); return { error: answers.shift() ?? null }; } }) } as unknown as SupabaseClient; return { db, inserts }; };
 
@@ -34,7 +35,7 @@ test('share store: publish inserts the owner\'s row with the encoded record, dra
   const exhausted = fakeDb([{ code: '23505' }, { code: '23505' }, { code: '23505' }]);
   await assert.rejects(publishRecord(exhausted.db, 'user-1', record()), /could not store/);
   const huge = fakeDb([null]);
-  const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = liveRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 1 });
   for (let i = 0; i < 60000; i++) rec.push({ move: { x: Math.random() * 2 - 1, z: Math.random() * 2 - 1, yaw: Math.random() * 6 - 3, run: i % 2 === 0 }, action: (['light', 'heavy', 'thrust', null] as const)[i % 4], guard: false, lock: true });
   await assert.rejects(publishRecord(huge.db, 'user-1', rec.finish('abandoned')), /too long to store/);
   assert.equal(huge.inserts.length, 0, 'nothing is sent for a record over the cap');

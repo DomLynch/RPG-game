@@ -9,7 +9,8 @@
 // The player is driven by the same brain the AI uses (src/ai.ts decide for side 0) so the fights are real: both sides
 // attack, guard, parry and kill. Usage: node scripts/kill-link-check.mjs [--seeds N] [--profile normal|hard|easy]
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { createRecorder, decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
+import { decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { decide, initialAi } from '../src/ai.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
@@ -28,7 +29,7 @@ const fail = (where, detail) => { failures.push(`${where}: ${detail}`); console.
 // Record one fight exactly as the live loop does: push, step the quantized intent, finish on the first finish.
 function record(opponent, seed) {
   const meta = { build: 'kill-link-check', opponent, weapon: 'longsword', level: LEVEL, seed };   // record v2 (#324) names the player's weapon; the check fights with the longsword
-  const recorder = createRecorder(meta);
+  const recorder = liveRecorder(meta);
   // The level's body, as main.ts / match.ts build it (opponentAt): from level 6 the Centurion carries the gladius + scutum (RV18).
   let practice = initialPractice(seed, opponentAt(OPPONENTS[opponent], LEVEL)), hero = initialAi(seed ^ 0x5bd1e995);
   while (!practice.finish && practice.duel.tick < MAX_TICKS) {

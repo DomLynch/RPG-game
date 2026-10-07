@@ -84,10 +84,10 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
           if (slot.id !== id || (slot.ended && !slot.fx)) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);   // (a load that failed or never landed is tried again)
           else if (slot.ended) slot.fx!.clear();
           slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];
-        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled') && event.tick >= slot.start && !slot.ended) {
+        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended) {
           slot.ended = true;
-          if (event.type === 'SpecialFizzled' && !slot.fx) { discard(slot); slot.events = []; }
-          else slot.events.push(casterEvent(event, side));
+          if (event.type !== 'SpecialLanded' && !slot.fx) { discard(slot); slot.events = []; }
+          else slot.events.push(casterEvent(event.type === 'SpecialInterrupted' ? { ...event, type: 'SpecialFizzled' } : event, side));   // a cut cast ends like a fizzled one: charge FX dropped, no payoff
         }
       }
     },
