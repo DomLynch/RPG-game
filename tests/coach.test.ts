@@ -36,7 +36,7 @@ async function coachedFight(stance: PickedStance, seed: number, level = 6) {
   const rec = createRecorder({ build: 'coach-test', opponent: opponent.id, weapon: 'longsword', level, seed, ...(stance === 'neutral' ? {} : { stances: stance }) });
   const coach = createCoach(stance, seed);
   let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, undefined, undefined, stance === 'neutral' ? undefined : stance);
-  for (let t = 0; t < 2400 && !p.finish; t++) p = stepPractice(p, rec.push(coach.step(p.duel)), profileAt(opponent, level));
+  for (let t = 0; t < 7200 && !p.finish; t++) p = stepPractice(p, rec.push(coach.step(p.duel)), profileAt(opponent, level));
   const record = rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   return { record, live: p };
 }

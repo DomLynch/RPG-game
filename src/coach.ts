@@ -6,7 +6,7 @@
 // Human reaction, by construction identical to the AI's: the coach never overrides `reaction`, `tellReaction`, `anticipate`, `accuracy` or `discipline`, so it notices a cut after the same ticks the
 // warden does at that level, and `decide()` applies the same reaction cap. tests/coach.test.ts pins that no stance brain touches them and that none is faster than the quickest AI profile.
 import { decide, initialAi, type AiState } from './ai.ts';
-import type { Duel, Intent } from './duel.ts';
+import { idleIntent, type Duel, type Intent } from './duel.ts';
 import { PROFILES, type AiProfile, type Level } from './moves.ts';
 import type { PickedStance } from './stance.ts';
 
@@ -29,6 +29,7 @@ export function createCoach(stance: PickedStance, seed: number, level: Level = '
   let ai: AiState = initialAi((seed * 2654435761) >>> 0);
   return {
     stance, level,
-    step(duel) { const r = decide(duel, side, ai, profile); ai = r.ai; return r.intent; },
+    // A player starts sheathed and taps Fight: any attack press draws (src/duel.ts), so the coach opens with a light press, then the brain takes over (decide() idles against a sheathed side).
+    step(duel) { if (duel.fighters[side].phase === 'sheathed') return { ...idleIntent(), action: 'light' }; const r = decide(duel, side, ai, profile); ai = r.ai; return r.intent; },
   };
 }
