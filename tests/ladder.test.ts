@@ -7,10 +7,10 @@ import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 
 test('the ladder is the encounter order minus the held recipes: the four creatures wait for after beta, the five men keep their order', () => {
   assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden']);
-  assert.deepEqual(ENCOUNTERS.filter(o => o.hold).map(o => o.id), ['minotaur', 'wraith', 'werewolf', 'skeleton'], 'held recipes stay listed for the journal, greyed');
+  assert.deepEqual(ENCOUNTERS.filter(o => o.hold).map(o => o.id), ['minotaur', 'wolf', 'wraith', 'werewolf', 'skeleton'], 'held recipes stay listed for the journal, greyed');
   for (const rung of LADDER) assert.ok(OPPONENTS[rung.id], `${rung.id} exists in the roster`);
   // A saved encounter that was put on hold after it was saved resolves to the first rung, never to the held man.
-  for (const held of ['minotaur', 'wraith', 'werewolf', 'skeleton'] as const) assert.equal(opponentFor(held), OPPONENTS.veteran, `${held} saved before the hold`);
+  for (const held of ['minotaur', 'wolf', 'wraith', 'werewolf', 'skeleton'] as const) assert.equal(opponentFor(held), OPPONENTS.veteran, `${held} saved before the hold`);
   assert.equal(opponentFor('executioner'), OPPONENTS.executioner);
   // Held GLBs are out of the beta bundle: scene.ts's glob (a literal, so it cannot read the roster) must exclude exactly the held bodies.
   const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
