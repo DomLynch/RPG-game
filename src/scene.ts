@@ -818,7 +818,7 @@ export function createScene(
       previewEpoch = specialEpoch; previewTick = practice.duel.tick;
       if (specialId && !specialFx) for (const event of events) {
         if (event.type === 'SpecialStarted' && event.actor === 1) previewBlocked = false;
-        if (event.type === 'SpecialFizzled' && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
+        if ((event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');

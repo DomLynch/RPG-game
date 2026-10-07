@@ -910,7 +910,7 @@ test('gladiator identity (slice Q): the thrust is the stop-hit — into a swing 
 });
 
 test('gladiator identity (slice Q): posture pins — a gain pauses the drain for posture.hold ticks, then it drains at .2, a parry puts 25 on the attacker, cut 20 / heavy 32 / thrust 16 (swept to ~one break per two duels at normal)', () => {
-  assert.deepEqual([RULES.posture.decay, RULES.posture.hold, RULES.posture.parry], [.2, 45, 25]);
+  assert.deepEqual([RULES.posture.decay, RULES.posture.hold, RULES.posture.parry], [.2, 60, 25]);   // hold 45 -> 60 in RV29 (Dom 2026-10-07)
   assert.deepEqual([MOVES.light_right.posture, MOVES.heavy_overhead.posture, MOVES.thrust.posture], [20, 32, 16]);
   const blocked = run(stepDuel(duel(), [act('light'), hold()]), light.windup, idle(), hold());
   const gained = blocked.fighters[1].posture; assert.ok(gained > 0);
