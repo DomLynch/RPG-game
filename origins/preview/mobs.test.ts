@@ -126,7 +126,7 @@ test('named creatures notice from further off than the common ones', () => {
 });
 
 test('turnToward swings the short way round and never overshoots', () => {
-  assert.equal(turnToward(0, 1, 0.3), 0.3);
+  assert.ok(Math.abs(turnToward(0, 1, 0.3) - 0.3) < 1e-9);
   assert.ok(Math.abs(turnToward(Math.PI - 0.1, -Math.PI + 0.1, 0.05) - (Math.PI - 0.05)) < 1e-9, 'across the ±π seam, the short way');
   assert.ok(Math.abs(turnToward(0.2, 0.25, 1) - 0.25) < 1e-9);
   assert.ok(Math.abs(headingTo(at(0, 0), at(0, 5))) < 1e-9, 'facing +z is heading 0');
