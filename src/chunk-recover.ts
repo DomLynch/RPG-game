@@ -26,7 +26,7 @@ export function reloadBar(doc: Document, reload: () => void) {
 // The lazy chunks that nothing awaits (prefetches, fire-and-forget imports) fail as vite:preloadError or an unhandled rejection: say so, do not reload mid-fight.
 export function installChunkRecovery(win: Pick<Window, 'addEventListener' | 'document' | 'location'>) {
   const reload = () => win.location.reload();
-  win.addEventListener('vite:preloadError', (event) => { event.preventDefault?.(); reloadBar(win.document, reload); });
+  win.addEventListener('vite:preloadError', () => reloadBar(win.document, reload));
   win.addEventListener('unhandledrejection', (event) => { if (isChunkError((event as PromiseRejectionEvent).reason)) reloadBar(win.document, reload); });
 }
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && typeof document !== 'undefined') installChunkRecovery(window);

@@ -8,7 +8,8 @@ test('the account chunk failing to load offers a reload, not a dead retry; a mou
   const src = readFileSync(new URL('../src/account-entry.ts', import.meta.url), 'utf8');
   const imp = src.match(/try \{ \(\{ mountAccount \} = await import\('\.\/account\.ts'\)\); \}\s*catch \{([^}]*)\}/);
   assert.ok(imp, 'the dynamic import has its own catch');
-  assert.match(imp![1], /stale = true/); assert.match(imp![1], /tapped && autoReload\(/, 'only a tap may reload by itself (the idle start could be mid-fight)'); assert.match(imp![1], /A new version is ready\. Tap to reload/); assert.match(imp![1], /retry\.textContent = 'Reload'/); assert.match(imp![1], /getElementById\('account-login'\)!\.hidden = true/, 'no greyed Google button');
+  assert.match(imp![1], /stale = true/); assert.match(imp![1], /tapped && !fightOn\(\) && autoReload\(/, 'only a tap, and never while a fight is in progress (frankendom.fight.v1), may reload by itself'); assert.match(imp![1], /A new version is ready\. Tap to reload/); assert.match(imp![1], /retry\.textContent = 'Reload'/); assert.match(imp![1], /getElementById\('account-login'\)!\.hidden = true/, 'no greyed Google button');
+  assert.match(src, /frankendom\.fight\.v1/, 'the fight-in-progress key is main.ts AFK_KEY');
   assert.match(src, /retry\.addEventListener\('click', \(\) => \{ if \(stale\) location\.reload\(\); else if \(!started\) void start\(true\); \}\)/, 'stale: the button reloads');
   assert.match(src, /try \{ await mountAccount\(url, key\); \}\s*catch \{ started = false; status\.textContent = 'Account unavailable\./, 'a mount failure keeps the ordinary retry');
   assert.doesNotMatch(src, /location\.reload\(\);\s*\n\s*(const|let)/, 'never an automatic reload (it could land mid-fight)');
@@ -38,7 +39,7 @@ test('a chunk that 404s with nothing awaiting it shows the Tap-to-reload bar, ne
   installChunkRecovery({ addEventListener: (t: string, f: (e: Event) => void) => { listeners.set(t, f); }, document: doc as unknown as Document, location: { reload: () => { reloads++; } } as unknown as Location });
   listeners.get('unhandledrejection')!({ reason: new Error('boring') } as unknown as Event); assert.equal(added.length, 0, 'an unrelated rejection is left alone');
   let prevented = false; listeners.get('vite:preloadError')!({ preventDefault: () => { prevented = true; } } as unknown as Event);
-  assert.equal(added.length, 1); assert.match(added[0].text, /Tap to reload/); assert.equal(prevented, true); assert.equal(reloads, 0, 'no automatic reload mid-fight');
+  assert.equal(added.length, 1); assert.match(added[0].text, /Tap to reload/); assert.equal(prevented, false, 'the real import error still reaches its caller'); assert.equal(reloads, 0, 'no automatic reload mid-fight');
   listeners.get('unhandledrejection')!({ reason: new TypeError('Failed to fetch dynamically imported module: /assets/pit-x.js') } as unknown as Event); assert.equal(added.length, 1, 'one bar, not a stack');
   added[0].click!(); assert.equal(reloads, 1, 'the tap reloads');
 });

@@ -1,6 +1,8 @@
 // Guest startup never waits for an account request or downloads the account SDK.
 import { api } from './api.ts';
 import { autoReload } from './chunk-recover.ts';
+// main.ts AFK_KEY: set on a career fight's first stepped tick, cleared when it ends; non-empty = a fight is in progress, and a reload would lose it.
+const fightOn = () => { try { return !!localStorage.getItem('frankendom.fight.v1'); } catch { return false; } };
 const safeStorage = () => { try { return sessionStorage; } catch { return null; } };
 if (api) {
   const { url, key } = api;
@@ -15,7 +17,7 @@ if (api) {
     let mountAccount: typeof import('./account.ts').mountAccount;
     // A tab opened before a publish asks for the previous release's hashed account chunk, which now 404s: a retry would 404 again, a reload fetches the new index.
     try { ({ mountAccount } = await import('./account.ts')); }
-    catch { started = false; stale = true; if (tapped && autoReload(safeStorage(), Date.now(), () => location.reload())) return; status.textContent = 'A new version is ready. Tap to reload. Your local fighter is safe.'; retry.textContent = 'Reload'; retry.hidden = false; document.getElementById('account-login')!.hidden = true; return; }
+    catch { started = false; stale = true; if (tapped && !fightOn() && autoReload(safeStorage(), Date.now(), () => location.reload())) return; status.textContent = 'A new version is ready. Tap to reload. Your local fighter is safe.'; retry.textContent = 'Reload'; retry.hidden = false; document.getElementById('account-login')!.hidden = true; return; }
     try { await mountAccount(url, key); }
     catch { started = false; status.textContent = 'Account unavailable. Your local fighter is safe.'; retry.hidden = false; }
   };
