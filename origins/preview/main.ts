@@ -308,7 +308,7 @@ function leaveFight() {
 // is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
 // A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
 const REACH = 14, TAP_MS = 500, TAP_PX = 12;   // m a creature may be tapped from; a tap is shorter and stiller than this (event time, not handler time: a long frame must not turn a tap into a hold)
-const taps = new Map<number, { t: number; x: number; y: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 function showResult(text: string) {
@@ -320,7 +320,9 @@ function showResult(text: string) {
 canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY }); });
 canvas.addEventListener('pointerup', (e) => {
   const d = taps.get(e.pointerId); taps.delete(e.pointerId);
-  if (!d || !mobs || fighting || open || e.timeStamp - d.t > TAP_MS || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX) return;
+  const why = !d ? 'no-down' : !mobs ? 'no-mobs' : fighting ? 'fighting' : open ? `panel:${open}` : e.timeStamp - d.t > TAP_MS ? `hold:${Math.round(e.timeStamp - d.t)}ms` : Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX ? 'moved' : '';
+  tapLog.push(why || 'tap'); if (tapLog.length > 20) tapLog.shift();
+  if (why || !d) return;
   const r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   caster.setFromCamera(ndc, camera);
@@ -360,6 +362,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   region: () => frontier && { zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   mobs: () => mobs?.debug() ?? null,
+  tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
