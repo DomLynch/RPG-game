@@ -32,6 +32,26 @@ Probe patches (scratch clone only): a per-fight habit `run` (consecutive lights)
 
 **Where this leaves RV31:** the read gate (item 2) is the only lever that clears the spam target for all five, Shieldmaiden included, and it nearly clears the honest rule, but it is a SHARED RULE (ai.ts `readOpponent`: a different spammer definition for every opponent and level), not a per-opponent profile number, so it needs an RV bump whose REACH names every opponent (like RV29) and the full gate suite (battery, ladder-battery, ladder-human, opponents, player-weapons) rerun before it can be called safe; and it still misses the rule for the Shieldmaiden blocker (-9 / -11) and, at the edge of noise, the Pitborn skilled bot. Decision needed from Strategy: accept the Shieldmaiden / Pitborn cells as a one-off exception, or take the per-opponent route (a profile knob `spamRun` read by the same gate, absent = today's read) and tune Shieldmaiden separately.
 
+## FINAL (Strategy ruling 2026-10-07: per-opponent `spamRun`, no exception; built on `combat/rv31` off #1564)
+
+**Knob:** `AiProfile.spamRun` (absent = today's read, byte for byte) and `spamBoth` (1 = keep the old read as well). Early gate = `spamRun` consecutive lights before the player has guarded, parried, rolled or stepped once; it REPLACES the old read except where `spamBoth` is set (the Shieldmaiden). Set on all three tiers via `OWN_KNOBS`, so every level carries it. REACH[31] = those five from level 1; every other opponent (goblin, nightborn, executioner, witch, plaguedoctor, ...) reads exactly as before.
+
+**Per-opponent table, measured on the real branch (VPS, light spam n = 120, honest bots n = 120; base = #1564 head a592dc7f):**
+
+| Opponent | spamRun | light spam L6 (cap 96/120 = 80 %) | blocker L6 / L12 | skilled L6 / L12 | honest rule (down at most 5 at L1, L6, L12) |
+|---|---|---|---|---|---|
+| veteran | 5 | 107 -> 40 | 90/63 -> 98/83 | 98/91 -> 95/91 | pass (L6 skilled -3) |
+| knight | 5 | 120 -> 84 | 63/38 -> 68/42 | 62/25 -> 68/43 | pass |
+| dwarf | 5 | 102 -> 66 | 83/50 -> 83/59 | 52/24 -> 70/40 | pass |
+| shieldmaiden | 5 + old read | 119 -> 81 | 81/82 -> 80/81 | 94/97 -> 93/90 | pass at n = 120 except skilled L12 -7; re-measured at n = 240: skilled L12 94 -> 90 (-4), blocker L12 79 -> 75 (-4): pass |
+| pitborn | 6 | 116 -> 88 | 58/40 -> 63/53 | 63/54 -> 58/56 | **MISS by 1 point, reported**: skilled L6 at n = 240: base 70, gate 5 -> 61 (-9), gate 6 -> 64 (-6), gate 7 -> 66 (-4) but light spam 47/48 (98 %, over the cap). Gate 6 is the smallest change that clears the cap (88/120 = 73 %) and it is -6 +/- 3 (one standard error at n = 240) on one cell |
+
+L1 is untouched everywhere (light spam 48/48 and the tap-attack first-timer unchanged, blocker 100 / skilled 100 at L1 in every row). Light spam target (under 80 % at L6 for every opponent, Shieldmaiden included): met for all five.
+
+**Not measured:** L18-L50 honest bots (the gate is on every level; the full gate suite below is the check), and the human-like bots at L1/L6/L12 for the five only; the other nine opponents are unchanged by construction (absent knob).
+
+**Ruling needed from Strategy:** the Pitborn skilled L6 cell is -6 (one point over the rule, within one standard error). Accept it, or go to gate 7 and lose the spam cap on her (98 %); there is no gate between 6 and 7.
+
 **Plan.** (1) A probe per opponent at L1/L6/L12/L18 with `scripts/own-row-battery.mjs` style output for 'light spam', 'tap attack' and the skilled human-like bots (ladder-human), before/after, 24 seeds (48 where a cell sits within 3 of the cap). (2) Start from `reaction` (the measured lever; anticipate/parry do nothing at L6), then `lapse` / `parry`, smallest change that clears 80 %. (3) One commit per opponent so one can be dropped. (4) RV31 bump with REACH[31] naming exactly the opponents changed, from level 1. (5) The 'light spam' cap per opponent at L6 becomes a test row so it cannot drift back.
 
 **Risks.** Easy rows are the ladder's friendliest rungs: lowering the win rate of a mashing first-timer must not push the L1 tap-attack gate (the first-timer's win rate) under its floor. Evidence-first means a spam that mixes in a heavy or a thrust resets the read: the fix helps pure mashers only, which is the script in the cap.
