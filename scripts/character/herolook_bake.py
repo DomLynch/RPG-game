@@ -38,6 +38,14 @@ bpy.ops.mesh.select_all(action="SELECT")
 if os.environ.get("BAKE_WELD", "0") == "1":   # off: welding fuses armour to the body under it (tested 2026-09-26)
     bpy.ops.mesh.remove_doubles(threshold=height * 0.0002)   # TRELLIS splits vertices along its UV seams: weld them so collapse sees one surface
 bpy.ops.object.mode_set(mode="OBJECT")
+# BAKE_REMESH=<voxel size as a fraction of height>: a muscular sculpt decimates into triangle soup (each triangle its own UV island, so the
+# bake speckles white). Voxel-remeshing first gives one clean manifold surface; the baked maps still carry the fine detail.
+remesh = float(os.environ.get("BAKE_REMESH", "0"))
+if remesh:
+    rm = low.modifiers.new("Remesh", "REMESH")
+    rm.mode = "VOXEL"
+    rm.voxel_size = height * remesh
+    bpy.ops.object.modifier_apply(modifier=rm.name)
 tris = sum(len(p.vertices) - 2 for p in low.data.polygons)
 mod = low.modifiers.new("Reduce", "DECIMATE")
 mod.ratio = min(1.0, TRIS / tris)
@@ -47,16 +55,26 @@ bpy.ops.object.shade_smooth()
 # NORMALS: the reconstruction's triangle winding is inconsistent (open, layered shells), so normals Blender rebuilds from it after the
 # collapse point every which way, and on metal each wrong one is a bright shard. Recomputing them "outside" flips half the shells (tried,
 # 2026-09-26). The 495k carries its own vertex normals: transfer those onto the low mesh instead of deriving new ones.
-dt = low.modifiers.new("HiNormals", "DATA_TRANSFER")
-dt.object = hi
-dt.use_loop_data = True
-dt.data_types_loops = {"CUSTOM_NORMAL"}
-dt.loop_mapping = "POLYINTERP_NEAREST"
-bpy.ops.object.modifier_apply(modifier=dt.name)
+# BAKE_NORMALS=smooth (default off, the legionary and every other bake are unchanged): skip the transfer and make the winding consistent outward,
+# so Blender derives one smooth normal per vertex from a coherent surface. On the giant the nearest-loop transfer picked the wrong shell's normal on
+# muscle folds and the cape (30.7% of triangles lit backwards, measured), which read as snow-camo patches at the game camera.
+if os.environ.get("BAKE_NORMALS") == "smooth":
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.shade_smooth()
+else:
+    dt = low.modifiers.new("HiNormals", "DATA_TRANSFER")
+    dt.object = hi
+    dt.use_loop_data = True
+    dt.data_types_loops = {"CUSTOM_NORMAL"}
+    dt.loop_mapping = "POLYINTERP_NEAREST"
+    bpy.ops.object.modifier_apply(modifier=dt.name)
 low.data.uv_layers.new(name="UVMap")
 bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.select_all(action="SELECT")
-bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.002, area_weight=1.0)
+bpy.ops.uv.smart_project(angle_limit=float(os.environ.get("BAKE_ANGLE", "1.15")), island_margin=0.002, area_weight=1.0)
 bpy.ops.uv.pack_islands(margin=0.002)
 bpy.ops.object.mode_set(mode="OBJECT")
 low_tris = sum(len(p.vertices) - 2 for p in low.data.polygons)
@@ -79,6 +97,10 @@ tm = nt.nodes.new("ShaderNodeTexImage")
 tm.image = mr_img
 sep = nt.nodes.new("ShaderNodeSeparateColor")
 nt.links.new(tc.outputs["Color"], bsdf.inputs["Base Color"])
+# BAKE_FLAT_MR=<roughness>: the metal/rough map is NOT baked but filled with one constant (metal 0, roughness r). The giant's baked MR map speckled
+# the body white (ray distance, UV angle, weld and voxel remesh did not fix it; with the map flat the colour is clean). A map is still written, not
+# a material factor: the game's loader wants a creature body to carry map AND roughnessMap (characters.ts missingMap), and creature_pack reads both.
+flat = os.environ.get("BAKE_FLAT_MR")
 nt.links.new(tm.outputs["Color"], sep.inputs["Color"])
 nt.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])   # glTF packing: G roughness, B metallic
 nt.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
@@ -107,14 +129,15 @@ scene.cycles.device = "CPU"
 scene.cycles.samples = 1
 bake = scene.render.bake
 bake.use_selected_to_active = True
-bake.cage_extrusion = height * 0.004
-bake.max_ray_distance = height * 0.02
+# BAKE_CAGE / BAKE_RAY (fractions of height): a bulky decimated body (the giant) needs longer rays than the legionary to reach the raw surface.
+bake.cage_extrusion = height * float(os.environ.get("BAKE_CAGE", "0.004"))
+bake.max_ray_distance = height * float(os.environ.get("BAKE_RAY", "0.02"))
 bake.margin = 8
 bpy.ops.object.select_all(action="DESELECT")
 hi.select_set(True)
 low.select_set(True)
 bpy.context.view_layer.objects.active = low
-for src, img in ((hi_colour, colour_img), (hi_mr, mr_img)):
+for src, img in ((hi_colour, colour_img),) if flat else ((hi_colour, colour_img), (hi_mr, mr_img)):
     hm.links.new(src.outputs["Color"], emit.inputs["Color"])
     hm.links.new(emit.outputs["Emission"], out.inputs["Surface"])
     for n in nt.nodes:
@@ -125,6 +148,19 @@ for src, img in ((hi_colour, colour_img), (hi_mr, mr_img)):
     bpy.ops.object.bake(type="EMIT")
     print(f"baked {img.name} {SIZE}px at {time.time() - t0:.0f}s", flush=True)
 
+if flat:
+    import numpy as np
+    px = np.zeros((SIZE * SIZE, 4), dtype=np.float32)
+    px[:, 1], px[:, 3] = float(flat), 1.0
+    mr_img.pixels.foreach_set(px.ravel())
+    print(f"filled metal/rough with constant roughness {flat}", flush=True)
+# BAKE_FINAL=<px>: bake at SIZE (the argv size, e.g. 4096), then scale both maps down to this size. More texels per UV island at bake time means less
+# colour bleeding from the neighbouring islands (the giant's snow-camo mottle), and the downsample averages what is left.
+final = int(os.environ.get("BAKE_FINAL", "0"))
+if final and final != SIZE:
+    for img in (colour_img, mr_img):
+        img.scale(final, final)
+    print(f"scaled maps {SIZE} -> {final}", flush=True)
 # BAKE_LIFT=<gamma> (family mobs, Lead 2026-10-07: a near-black wolf must read in daylight): raise the baked colour's value, v -> v ** (1 / gamma).
 lift = float(os.environ.get("BAKE_LIFT", "1"))
 if lift != 1:

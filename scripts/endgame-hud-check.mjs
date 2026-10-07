@@ -81,11 +81,13 @@ try {
   const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick, { row: ROW.includes(id) }).map((f) => `${id} ${f}`));
   receipt.shareFaults = faults;
   assert.equal(faults.length, 0, `SHARE, CLIP and the Pit's door stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], pit: sample.cluster['pit-button'], next: sample.cluster['reset-button'], joystick })}`);
-  const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && !inside(r, sample.actions)).map(([id]) => id);
+  const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && id !== 'reset-button' && !inside(r, sample.actions)).map(([id]) => id);
   receipt.overlaps = overlaps; receipt.floating = floating;
   assert.ok(Object.keys(sample.topBand).length > 0, 'the top band shows at least the status line');
   assert.ok(Object.keys(sample.cluster).includes('reset-button'), 'Rematch/Next is shown after the fade');
   assert.equal(overlaps.length, 0, `no top-band text intersects the fallen body; overlapping: ${overlaps.join(', ')}`);
+  // Next anchors the end-screen's right-hand column (style.css --end-gutter, Web 2026-10-07, #1685): it leaves the #actions box on purpose, but never over the move pad.
+  assert.ok(!joystick || !intersects(sample.cluster['reset-button'], joystick), `Next stays clear of the joystick: ${JSON.stringify({ next: sample.cluster['reset-button'], joystick })}`);
   assert.equal(floating.length, 0, `cluster buttons stay inside the #actions box; floating: ${floating.join(', ')}`);
   await page.screenshot({ path: `${out}/gate-settle.png` });
   // Lead review, 2026-09-22: an invisible Rematch under the tour must not fire. Fake the fade class (this check doesn't wait

@@ -1,9 +1,11 @@
-// POST /origins/apply_upgrade {character, op, instance, toLevel, materials?: [instance ids], place?: 'exchange'}: the smith raises one piece one level.
+// POST /origins/apply_upgrade {character, op, instance, toLevel, materials?: [instance ids]}: the smith raises one piece one level.
 // The server derives everything: it reads the piece, the offered material stacks and the career row, and runs the contracts' performUpgrade
-// itself against the cost table in its content, then the inventory module's applyUpgrade (bank gate, story pieces, conservation). `place` reaches both:
-// a banked piece (performUpgrade) and a bank material line (applyUpgrade) need it to be 'exchange'. It is CLIENT-STATED today (read from the body),
-// so both Exchange rules hold against honest clients only until the writer derives the place from presence (launch gate X1). Nothing in the body is a cost, an amount,
-// an outcome, a level the piece is at or an account; extra fields are ignored.
+// itself against the cost table in its content, then the inventory module's applyUpgrade (bank gate, story pieces, conservation). The place reaches both:
+// a banked piece (performUpgrade) and a bank material line (applyUpgrade) need the player at the Exchange. The place comes from PRESENCE, never from the
+// request (launch gate X1, Lead 2026-10-07): the writer asks presence where the token's account stands and counts it at the Exchange only when it is placed,
+// in zone 'exchange' and its last pose is at most PRESENCE_FRESH_MS old. A presence that is down, slow, refuses or answers badly counts as not there (fail
+// closed): Exchange-only actions are refused with their normal messages, everything else still works. A `place` in the body is ignored (old clients still
+// send it; it means nothing). Nothing in the body is a cost, an amount, an outcome, a level the piece is at, a place or an account; extra fields are ignored.
 // Materials only (Strategy, 2026-10-06): there is no coin balance anywhere, so the smith runs with balance 0 and a cost row that charges coin
 // is a 501 until the metals ledger exists. Idempotency is consume's: the piece's put, the burns and the event upgrade:<character>:<op> commit
 // in ONE batch; the stored receipt answers an identical retry (replayed: true), a different request under that op id is a 409.
@@ -14,6 +16,7 @@ import {
 import type { Location } from '../contracts/items.ts';
 import { applyUpgrade, BANK_PLACE, find } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../progression/model.ts';
+import { inZone, type WhereFn } from '../presence/where.ts';
 import { DbError } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
@@ -21,6 +24,15 @@ import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
 
 export const COIN_NOT_BUILT = 'coin costs need the metals ledger, not built yet';
+// How old presence's last pose may be and still place the player (presence drops an idle socket at 30 s; a walking client poses many times a second).
+export const PRESENCE_FRESH_MS = 5000;
+
+// X1: the bank's place when presence holds the account freshly in the Exchange zone, else nothing. Any failure to ask is "not there".
+export async function exchangePlace(where: WhereFn | undefined, account: string): Promise<typeof BANK_PLACE | undefined> {
+  if (!where) return undefined;
+  try { return inZone(await where(account), 'exchange', PRESENCE_FRESH_MS) ? BANK_PLACE : undefined; }
+  catch (e) { console.error('origins-writer: presence did not answer, the player counts as away from the Exchange:', e instanceof Error ? e.message : e); return undefined; }
+}
 
 // The forge's content, through the contracts' own parsers (so the server takes exactly the cost rows the contracts take, coin 0 included).
 export function smithContent(service: unknown, costs: unknown): NonNullable<Content['smith']> {
@@ -48,15 +60,14 @@ function refusal(issues: readonly Issue[]): Error {
 const locOf = (l: Location): store.Json => (l.kind === 'equipped' ? { kind: l.kind, owner: l.owner, slot: l.slot } : { ...l });
 
 export function upgradeHandler(content: Content, now: () => string = () => new Date().toISOString()): Handler {
-  return async ({ db, account }, body) => {
+  return async ({ db, account, where }, body) => {
     const smith = content.smith;
     if (!smith) throw new Refused(501, 'there is no smith in this content', 'not-implemented');
-    const { character, op, instance, toLevel, materials = [], place } = body;
+    const { character, op, instance, toLevel, materials = [] } = body;   // a `place` in the body is never read (X1)
     if (typeof op !== 'string' || op.length > 120) throw new BadRequest('op: an operation id (8..120 of a-z 0-9 : . _ -)');   // the event id must fit 200
     if (typeof character !== 'string') throw new BadRequest('character: a character id');   // checked before it is spliced into the event id
     if (!Array.isArray(materials) || materials.some(m => typeof m !== 'string')) throw new BadRequest('materials: a list of item instance ids');
-    if (place !== undefined && place !== 'exchange') throw new BadRequest('place: \'exchange\' (the bank opens only there) or nothing');
-    const at = place === 'exchange' ? BANK_PLACE : undefined;
+    const at = await exchangePlace(where, account);   // asked once per request, after the cheap shape checks, before anything is read
     const eventId = `upgrade:${character}:${op}`;
 
     // Read the holdings, the career and any stored receipt for this op id, and let the contracts decide: a fresh upgrade, the original, or a refusal.
