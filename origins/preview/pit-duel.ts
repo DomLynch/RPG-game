@@ -10,7 +10,7 @@
 import { type Fighter } from '../../src/duel.ts';
 import { createFeedback } from '../../src/feedback.ts';
 import { createHud } from '../../src/hud.ts';
-import { initialPractice } from '../../src/combat.ts';
+import { initialPractice, stepPractice } from '../../src/combat.ts';
 import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
 import { Match } from '../../src/match.ts';
@@ -70,7 +70,13 @@ const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.mov
 // World mode (Dom 2026-10-07: the open world uses the Pit's controls exactly): the same kit and the same createInput drive the WALK. No duel is
 // running, so the input reads an idle practice (every press is accepted) and the page turns the stick into walking and a press into an engage.
 let world = false;
-const idle = initialPractice();
+// The idle fighter has his weapon DRAWN (the Pit's own state after the first FIGHT tap), so the kit shows STAB, SLASH, KICK and HEAVY as it does mid-fight.
+const idle = (() => {
+  const rest = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: false } as unknown as Parameters<typeof stepPractice>[1];
+  let p = stepPractice(initialPractice(), { ...rest, action: 'light' });
+  for (let i = 0; i < 240 && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
+  return p;
+})();
 const paused = () => world ? document.hidden || !!journal?.open : !running || !stage?.ready || document.hidden || !!journal?.open;
 
 function bind(leave: () => void) {
