@@ -6,6 +6,7 @@ import { captureException } from '@sentry/browser';
 import { marksOf } from './career.ts';
 import { keepsLoot, mergeLoot } from './loot.ts';
 import { session } from './session.ts';
+import { timedSignal } from './timed-signal.ts';
 import { flushThenStanding, saveStanding } from './loot-claims.ts';
 
 export async function mountAccount(url: string, key: string) {
@@ -15,7 +16,7 @@ export async function mountAccount(url: string, key: string) {
   const retry = get<HTMLButtonElement>('account-retry');
   const db = createClient(url, key, {
     auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: 'frankendom.auth.v1' },
-    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(10000)]) }) },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: timedSignal(init?.signal) }) },
   });
   session.db = db;   // Share (main.ts) stores a signed-in fighter's record through this client
   const tools = get('test-tools');
