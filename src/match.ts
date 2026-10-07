@@ -265,7 +265,7 @@ export class Match {
     const over = this.replay && this.replay.cursor >= this.replay.record.ticks;
     if (over && !((this.mode === 'replay' || this.clipLevel !== null) && this.practice.finish)) { this.stalled = true; return 'stalled'; }
     const stepped = over ? idleIntent() : this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
-    const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level), this.layer ?? undefined);
+    const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level), this.mode === 'replay' ? undefined : this.layer ?? undefined);
     this.practice = this.tutorial ? this.tutorial.step(this.practice, stepped) : this.lesson ? this.lesson.step(this.practice, stepped) : this.dummy ? stepSparring(this.practice, stepped) : this.replay ? underRecord(this.replay.record, step) : step();   // a replay or clip steps on its record's math
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
