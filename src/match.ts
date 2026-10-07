@@ -111,7 +111,7 @@ export class Match {
     this.practice = initialPractice(seed, opponentAt(opponent, this.level), this.weapon, this.skill);
     this.begin('career');
   }
-  get practiceOnly(): boolean { return this.mode !== 'career' || this.tested; }
+  get practiceOnly(): boolean { return this.mode !== 'career' || this.tested || this.stances !== undefined; }   // a stances fight (the ?stances= preview, RV34) is a +-5% trade-off no ladder count was made on: recorded and replayable, never awarded, no loot offer
   get specialIdentity(): SpecialIdentity {
     const identity = this.replay?.record ?? this.fightIdentity;
     return { opponent: identity.opponent, level: identity.level, ...(this.mode === 'sparring' && this.clipLevel === null && this.sparSelection ? { presets: [this.sparSelection.player, this.sparSelection.opponent === undefined ? (this.practice.duel.fighters[1].specialShare === undefined ? null : bossSpecialFor(identity.opponent, this.sparSpecials?.level ?? identity.level) ?? classSpecialFor(identity.opponent, this.sparSpecials?.level ?? identity.level)) : this.sparSelection.opponent] as const } : {}) };

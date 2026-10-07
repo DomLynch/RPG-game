@@ -31,5 +31,7 @@ test('Match: no preview pick = no stances anywhere; a pick reaches a career figh
   m.stancePref = 'defensive'; m.rematch();
   assert.equal(m.stances, 'defensive'); assert.equal(m.practice.duel.fighters[0].stance, 'defensive');
   assert.equal(m.practice.duel.fighters[1].stance, moodOf(m.seed, m.opponent.id) === 'neutral' ? undefined : moodOf(m.seed, m.opponent.id));
+  assert.equal(m.practiceOnly, true, 'a stances fight counts for nothing: no marks, no scorecard row, no loot offer');
+  const plain = match(); plain.rematch(); assert.equal(plain.practiceOnly, false, 'and a fight without the preview is the career fight it always was');
   m.startLesson(() => undefined); assert.equal(m.stances, undefined, 'a lesson never carries stances');
 });
