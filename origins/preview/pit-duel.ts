@@ -219,7 +219,7 @@ export function closeDuel(release = false) {
   running = false; cancelAnimationFrame(frameId); controls?.clear(); feedback?.quiet();
   if (journal?.open) journal.close();
   liveLook(false);
-  if (release && stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); stage = null; }
+  if (release && stage) { stage.view.dispose(); stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); stage = null; }   // dispose() first: the scene's resize listener and CPU-side geometry/textures go with it (scene.ts, #1725's)
 }
 
 function frame(now: number) {

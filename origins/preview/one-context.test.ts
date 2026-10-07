@@ -9,6 +9,13 @@ const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
 test('closeDuel(release) disposes the duel renderer, loses its context and drops the stage; main.ts releases only in the open world', () => {
   const duel = read('./pit-duel.ts'), body = duel.slice(duel.indexOf('export function closeDuel('), duel.indexOf('function frame('));
   assert.match(body, /closeDuel\(release = false\)/, 'off by default: the Pit keeps its stage for the rematch');
-  assert.match(body, /if \(release && stage\) \{ stage\.view\.renderer\.dispose\(\); stage\.view\.renderer\.forceContextLoss\(\); stage\.canvas\.remove\(\); stage = null; \}/);
+  assert.match(body, /if \(release && stage\) \{ stage\.view\.dispose\(\); stage\.view\.renderer\.dispose\(\); stage\.view\.renderer\.forceContextLoss\(\); stage\.canvas\.remove\(\); stage = null; \}/);
   assert.match(read('./main.ts'), /duel\?\.closeDuel\(!!frontier\)/, 'leaveFight releases when the page has a frontier');
+});
+
+test('a released stage runs the scene\'s own dispose, which removes the window resize listener (the CPU-side leak)', () => {
+  const scene = read('../../src/scene.ts'), dispose = scene.slice(scene.indexOf('    dispose() {'), scene.indexOf('    // Load the rigs again'));
+  assert.match(dispose, /window\.removeEventListener\('resize', resize\)/);
+  assert.match(dispose, /m\.geometry\?\.dispose\(\)/);
+  assert.doesNotMatch(dispose, /renderer\./, 'the renderer is closed by the caller, never here');
 });
