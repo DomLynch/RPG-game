@@ -28,7 +28,7 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
   let got = await startFight(d.token, d.character, d.fight, opts);
   if (isOffline(got as never) && (got as { offline: string }).offline === 'http-409' && d.held) {   // "a fight is already open for this account: resume it": the 409 names no token, so resume the one this page remembers
     const open = d.held.get();
-    if (open) { got = await touchFight(d.token, open, 0, opts); if (isOffline(got as never)) d.held.set(null); }   // touch keeps the token's seed and never moves its tick back; a dead token is forgotten and the page plays offline
+    if (open) { got = await touchFight(d.token, open, 0, opts); if (isOffline(got as never) || (got as Fight).lastTick !== 0) { d.held.set(null); if (!isOffline(got as never)) got = { offline: 'played' }; } }   // resume only a fight nothing has played of (lastTick 0): resuming a played one would let a loser replay it from tick 0 on the same seed. A dead or played token is forgotten and the page plays offline
   }
   if (isOffline(got as never)) return null;
   const run = got as Fight;

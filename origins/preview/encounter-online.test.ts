@@ -138,3 +138,11 @@ test('a 409 with nothing remembered, or a remembered token the server no longer 
   assert.deepEqual(dead.calls, ['encounter_start', 'encounter_touch']);
   assert.equal(held, null);
 });
+
+test('a 409 whose remembered token has been played (lastTick > 0) is NOT resumed: the token is forgotten and the page plays offline (a loser must not replay the same seed)', async () => {
+  let held: string | null = 'P'.repeat(32);
+  const s = server((op) => (op === 'encounter_start' ? reply(409, { ok: false }) : reply(200, { ok: true, result: { ...run, token: held, lastTick: 90 } })));
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, held: { get: () => held, set: (t) => { held = t; } } }), null);
+  assert.deepEqual(s.calls, ['encounter_start', 'encounter_touch']);
+  assert.equal(held, null, 'forgotten, so no later 409 can resume it either');
+});
