@@ -1,5 +1,15 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-07 ~17:4x (+04) — HANDOFF before Dom's /clear. READ FIRST, then memory `frankendom_handoff_2026-10-07q`
+
+1. **LIVE = trunk = 53c3b21b** (release.json). Audit cursor 53c3b21b: #1686 Gambit, #1698 Pit controls, #1687 Cinder, #1688 encounter runs all merged as plain merges of the heads this lane PASSed (#1688 also carries 101f1a66, a pure `withBar` move to origins/shared/with-bar.ts after my delta PASS: read post-hoc, no behaviour change).
+2. **capture v5 (`--prio 1..4`) LIVE on the VPS** since 12:52Z: live file = trunk `scripts/vps-shadow/capture.sh` byte for byte (sha256 15986a79...), v4 kept as `bin/capture.v4.bak`; receipt on #1693; vps-heavy-jobs skill updated.
+3. **#1688 prod POST PASS** (0002 encounter_runs; applied bytes = approved bytes; ACL server roles only).
+4. **Open PRs, all PASSed, waiting on Deploy:** #1700 ROLL/GUARD @c6622505; #1689 stances @be5bd2d4 (my VPS receipt: tsc x2, eslint src, test:all 2724/0/2; flag OFF; Strategy owes the Defensive parry-window "timing" line); #1683 stance poses @205e10e1 (Lead's stills line owed).
+5. **Queue next:** #1702 Credits and #1704 boar rig when they leave draft (Lead). Lock-on-walks-into-creature is Dom's call (Lead put it to him).
+6. **Hooks lane (Codex-Hooks):** #88 #90 #91 #92 #93 PASS; #89 @e56fdc2 needs one fold-in (JSONC: a commented tsconfig.json is blocked as a failed json.loads; make it not_run). Merge order 88, 92, 93, 90, 91, 89; close #87. #88/#92 wait on Dom's merge word. Follow-up asked: surface PASS-with-Warnings on non-sensitive paths.
+7. Audit cron `17,47 * * * *` dies with the clear: re-arm. Session: app worktree `trusting-elgamal-b9c6bf`; reopen on `~/Developer/frankendom-code-quality` with the worktree switch off when Dom is home.
+
 ## 2026-10-07 ~16:2x (+04) — HANDOFF before self-clear (context 500k). READ FIRST, then memory `frankendom_handoff_2026-10-07o`
 
 1. **COO:** Dom's COO is session `local_0f681df3-fe67-4324-a9f6-d625aef2281c` (ListAgents shows it as [ace8cc]; one session). Review order (COO via Strategy): Backend > Web > combat/sim > Zone 1 > cosmetic, ~15 min each; reuse-first; 30-min cap to Lead.
