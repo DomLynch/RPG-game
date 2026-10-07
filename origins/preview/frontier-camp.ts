@@ -5,6 +5,7 @@
 // returns null. Deterministic per seed; no hand-placed camps.
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
+import { footprintOf } from './frontier-dress.ts';
 import { frontierZoneAt, inFirstView, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type Spot = { x: number; z: number; facing: number; pose: 'sit' | 'stand' };   // where a member of the camp is; facing in radians (0 = +z), toward the fire for a sitter, out for a lookout
@@ -56,21 +57,26 @@ export function campKit(at: { x: number; z: number }, n: 2 | 3, seed: string, he
 }
 
 // Drop a camp of n at (or as near as fits to) a point: the point first, then rings of nudges outward. null = no room inside a Frontier zone, off the road, clear of the first view and the buildings.
-export function placeCamp(f: Frontier, b: Build, at: { x: number; z: number }, n: 2 | 3, seed: string, others: readonly Camp[] = []): Camp | null {
+export function placeCamp(f: Frontier, b: Build, at: { x: number; z: number }, n: 2 | 3, seed: string, others: readonly Camp[] = [], litter: readonly Piece[] = []): Camp | null {
   const r = CAMP_KIT.radius, fits = (x: number, z: number) => !!frontierZoneAt(f, x, z) && [0, 1, 2, 3].every((k) => { const a = k * Math.PI / 2; return !!frontierZoneAt(f, x + Math.sin(a) * r, z + Math.cos(a) * r); })
     && !onRoad(f, x, z) && !inFirstView(f, x, z, r) && !b.solids.some((s) => Math.hypot(s.x - x, s.z - z) < s.r + r) && !others.some((o) => Math.hypot(o.at.x - x, o.at.z - z) < r * 2);
-  for (let ring = 0; ring <= 6; ring++) for (let k = 0; k < (ring ? 8 : 1); k++) {
-    const a = (k / 8) * Math.PI * 2, p = { x: at.x + Math.sin(a) * ring * 3, z: at.z + Math.cos(a) * ring * 3 };
-    if (fits(p.x, p.z)) return campKit(p, n, seed, rng(seed + 'h')() * Math.PI * 2);
+  // The dressing's non-solid rubble (heaps, scrub, low blocks): a camp piece may not stand on one. Only the dressing near the camp is looked at.
+  const rubble = (x: number, z: number) => litter.filter((p) => Math.hypot(p.x - x, p.z - z) < r + 4).map(footprintOf);
+  const onRubble = (c: Camp, near: readonly Solid[]) => c.pieces.some((p) => { const q = footprintOf(p); return near.some((l) => Math.hypot(l.x - q.x, l.z - q.z) < l.r + q.r); });
+  for (let ring = 0; ring <= 8; ring++) for (let k = 0; k < (ring ? 12 : 1); k++) {
+    const a = (k / 12) * Math.PI * 2, p = { x: at.x + Math.sin(a) * ring * 3, z: at.z + Math.cos(a) * ring * 3 };
+    if (!fits(p.x, p.z)) continue;
+    const camp = campKit(p, n, seed, rng(seed + 'h')() * Math.PI * 2);
+    if (!onRubble(camp, rubble(p.x, p.z))) return camp;
   }
   return null;
 }
 
 // The preview's stand-in for Expansion's generator (?camps): one camp per Frontier zone, a little off its middle, alternating 2 and 3 members.
-export function demoCamps(f: Frontier, b: Build): Camp[] {
+export function demoCamps(f: Frontier, b: Build, litter: readonly Piece[] = []): Camp[] {
   const camps: Camp[] = [];
   f.zones.filter((z) => z.region.includes('frontier')).forEach((z, i) => {
-    const camp = placeCamp(f, b, toWorld({ x: z.width * 0.22, d: z.depth * 0.4 }, z.mount), i % 2 ? 3 : 2, `camp-${z.zone}`, camps); if (camp) camps.push(camp);
+    const camp = placeCamp(f, b, toWorld({ x: z.width * 0.22, d: z.depth * 0.4 }, z.mount), i % 2 ? 3 : 2, `camp-${z.zone}`, camps, litter); if (camp) camps.push(camp);
   });
   return camps;
 }

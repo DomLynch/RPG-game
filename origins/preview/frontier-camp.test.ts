@@ -1,7 +1,9 @@
 // The camp kit (frontier-camp.ts): deterministic, the right members, and placed only where the dressing's own rules allow.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { frontierDress, footprintOf } from './frontier-dress.ts';
 import { CAMP_KIT, campKit, demoCamps, placeCamp } from './frontier-camp.ts';
+import { toWorld } from '../world/derive.ts';
 import { frontierBuild, frontierPlan, frontierZoneAt, inFirstView, onRoad } from './frontier-plan.ts';
 
 const F = frontierPlan(), B = frontierBuild(F);
@@ -28,4 +30,15 @@ test('placeCamp only drops a camp inside a Frontier zone, off the west road, out
     for (const s of B.solids) assert.ok(Math.hypot(s.x - c.at.x, s.z - c.at.z) >= s.r + CAMP_KIT.radius, 'camp inside a building');
   }
   assert.equal(placeCamp(F, B, { x: 9999, z: 9999 }, 2, 'nowhere'), null);
+});
+
+test('no camp piece stands on the dressing\'s non-solid rubble, over many seeds and starting points', () => {
+  const D = frontierDress(F, B), solids = { ...B, solids: [...B.solids, ...D.solids] }, zones = F.zones.filter((z) => z.region.includes('frontier'));
+  let placed = 0;
+  for (let i = 0; i < 60; i++) {
+    const z = zones[i % zones.length]!, at = toWorld({ x: ((i * 7) % 11 - 5) * z.width / 14, d: z.depth * (0.25 + ((i * 5) % 9) / 14) }, z.mount), c = placeCamp(F, solids, at, i % 2 ? 3 : 2, `seed-${i}`, [], D.pieces);
+    if (!c) continue; placed++;
+    for (const p of c.pieces) { const q = footprintOf(p); for (const d of D.pieces) { const l = footprintOf(d); assert.ok(Math.hypot(l.x - q.x, l.z - q.z) >= l.r + q.r, `seed-${i}: a camp piece at ${q.x.toFixed(1)},${q.z.toFixed(1)} sits on rubble`); } }
+  }
+  assert.ok(placed >= 20, `only ${placed} of 60 camps found room`);
 });

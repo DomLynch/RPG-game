@@ -7,6 +7,12 @@ import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { inFirstView, inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
+// A prop's footprint on the ground: a circle that holds it at any turn (box: half its diagonal; cylinder and cone: the wider radius). frontier-camp.ts keeps its pieces off the dressing's with this.
+export const footprintOf = (p: Piece): Solid => {
+  const sh = p.shape, r = sh[0] === 'box' ? Math.hypot(sh[1], sh[3]) / 2 : sh[0] === 'cylinder' ? Math.max(sh[1], sh[2]) : sh[0] === 'cone' ? sh[1] : sh[1];
+  return { x: p.x, z: p.z, r };
+};
+
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
 const rng = (seed: string) => {   // mulberry32 over a string hash
