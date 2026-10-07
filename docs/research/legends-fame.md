@@ -278,3 +278,9 @@ Dom answered yes to all three (via Strategy):
 - **Shinto kami out** (a living religion, like the Hindu rule): Amaterasu and Susanoo. Japanese yokai and folklore monsters (oni, kappa, tengu, Yamata no Orochi, Kitsune) stay.
 - **Native American leaders out:** Sitting Bull, Crazy Horse and Tecumseh.
 - The ladder CSV's fame block (10 columns) had been appended twice with identical values; the duplicate copy is removed.
+
+## 2026-10-07 18:4x: gap scan (demons, orders, ghosts, witches, fae, ancient), Dom yes
+Dom asked whether every theme is covered and said yes to the safe gaps. 48 new names were checked against Wikipedia 12-month pageviews (Oct 2025–Sep 2026); 46 are added as keep and 2 as park (Bean Nighe 3k, White Lady unmeasured). Apep and Nidhogg were already on the ladder. New groups: `slavic`, `arabian-nights`, `ghosts`, `horror`, `witches`, `fae`. Tartarus's pageview call failed, so it is kept with fame assumed `known` and flagged in notes. Ladder: 862 rows, 788 fightable.
+Left out on purpose, by the existing rules: Bible-named demons (Lucifer, Beelzebub, Asmodeus, Lilith, Leviathan, Behemoth, Witch of Endor); living religions (Hindu, Shinto, Polynesian, Native American incl. Wendigo, Quranic jinn); real murderers and real persecuted people (Jack the Ripper, Elizabeth Báthory, Gilles de Rais, the Pendle witches, Tituba, Agnes Sampson, Isobel Gowdie); copyrighted modern characters (Slender Man, Sadako). Anne Boleyn's ghost (2.4M views) is IN as "The Headless Queen of the Tower" (Dom): the ghost legend, never her name in game.
+- 2026-10-07: "Wicked Witch of the West" renamed **The West Witches**, an original coven with no Oz or Wicked name, look or story (Dom: trademark and film-look risk). Rule: no names that echo a protected modern franchise, even when the source book is public domain.
+- 2026-10-07: Count Orlok removed (Dom): the 2024 Nosferatu film makes the name a franchise risk.
