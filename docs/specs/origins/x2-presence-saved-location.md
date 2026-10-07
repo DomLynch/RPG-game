@@ -23,12 +23,16 @@ A position the server did not observe is never trusted. Presence's position for 
 - *Presence side (Backend):* on leave and every 60 s, `POST` the position to the writer's internal route (key and loopback, same pattern as `GET /internal/where` in #1571; fire-and-forget with a bounded queue, a failed post is retried once and then dropped: a stale save only costs the player a slightly old spot). At join with no in-memory position, presence **asks the writer** for the saved location (500 ms timeout, key + loopback); no answer, no row or any error: the default spawn. It never blocks a join on the writer and never falls back to a client pose.
 - Tests: the Stage 1 test again after a simulated presence restart (memory cleared, saved location served by a fake writer); a down writer gives the default spawn; a forged pose never wins.
 
-## 4. Open questions (need a ruling before Stage 2 is built)
+## 4. Rulings (Lead, 2026-10-07 05:3x)
 
-1. **Presence has one zone; the world has several.** Presence models a single 300 m "town" square per layer. Concord's data has `pit-yard` (50 x 50 m) and `exchange` (40 x 50 m) as separate zones. "At the Exchange" is a zone (or a rectangle in a zone), not a point in the 300 m square, and `GET /internal/where` (#1571) returns no zone. X1 and X2 both need presence to know the zone a player is in. Who rules how zones map into presence (one presence world per zone, or a zone id on every player)?
-2. **Account or character?** Presence identifies a player by account id only; a saved location belongs to a character, and an account can hold several. The join needs the character id from somewhere the client cannot forge (the writer validating the pair, or the writer pushing the active character to presence).
-3. **Spawn constants.** The default spawn per zone (the Exchange's gate, the Pit's gate) is world content; Expansion/World should name it, and it must not be a spot inside the Exchange's trade area, or a fresh connect lands "at the Exchange".
-4. **Window length.** 10 minutes of in-memory memory is Backend's guess. Longer means fewer saved-location reads; it does not change what is trusted.
+Stage 1 is **GO now**; Stage 2 waits until Stage 1 is merged. Expansion may own the writer half of Stage 2.
+
+- **(a) Zones.** Presence must know the zone. The zone id goes into presence state and into the `/internal/where` response (in #1571 or a follow-up, before X1's code uses it). X1 = `zone == exchange` AND inside the Exchange trade area; x and z alone are never enough.
+- **(b) Character, not account.** Presence and the saved location are keyed by (account, character). The join carries the character id and the writer verifies the character belongs to the account; refuse on mismatch. (Stage 1 keys presence's own memory by (account, character); the writer's verification arrives with Stage 2's channel. Stage 1's memory cannot be abused across accounts, because the key includes the account that presented a valid token.)
+- **(c) Spawns.** Every zone's default spawn sits outside any trade area. A test asserts it for every zone.
+- **(d) Window.** 10 minutes for Stage 1. Stage 2's persistence supersedes it: do not tune it.
+
+Open for Expansion (X1's owner): the Exchange's trade area. Stage 1's test needs one to assert against; until X1 states it, Backend's provisional definition is the bounding box of the Exchange's service landmarks (contract board, forge, bank, covenant stone) plus a 3 m margin, kept in one place (`origins/presence/zones.ts`) for Expansion to replace.
 
 ## 5. What this does NOT solve
 
