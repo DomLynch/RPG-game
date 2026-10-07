@@ -44,7 +44,30 @@ export type Fighter = {
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
   specialRecover?: number;   // ticks left after a release in which the caster starts no attack (RULES.special.recovery); guard, roll and steps stay legal
+  perk?: Perk;   // the patron's sidegrade (docs/specs/origins/patron-perks-sim.md), set once at duel start by withPerk; absent = today's fight, byte for byte
 };
+// A patron perk: signed per-mille integers, each scaling ONE quantity by (1000 + d) / 1000, at most two templates and never past ±PERK_MAX (3%).
+// Never a tick count, reach, move timing or an AI input (spec rule 2). The caller pairs a gain with a matching loss; this type does not judge balance.
+export const PERK_MAX = 30;
+export type PerkKey = 'vitality' | 'wind' | 'thrift' | 'guard' | 'poise' | 'stride';
+export type Perk = Readonly<Partial<Record<PerkKey, number>>>;   // vitality: max health; wind: stamina regen; thrift: attack stamina cost; guard: block and guard-break stamina cost; poise: posture taken; stride: pace
+export const PERK_KEYS: readonly PerkKey[] = ['vitality', 'wind', 'thrift', 'guard', 'poise', 'stride'];
+// `perk ? scaled : plain`, never `x * 1`: a fighter with no perk (or a zero on this key) takes the unscaled value untouched, so no float drift.
+const perked = (f: Pick<Fighter, 'perk'>, key: PerkKey, x: number): number => { const d = f.perk?.[key]; return d ? (x * (1000 + d)) / 1000 : x; };
+// Validates and applies a perk at duel start: max health (integer), regen and pace scale once; thrift, guard and poise are read at their sites in stepDuel.
+export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
+  if (!perk) return f;
+  const set = PERK_KEYS.filter(k => perk[k]);
+  if (Object.keys(perk).some(k => !(PERK_KEYS as readonly string[]).includes(k))) throw Error('Perk: unknown template');
+  if (set.length > 2 || set.some(k => !Number.isInteger(perk[k]) || Math.abs(perk[k]!) > PERK_MAX)) throw Error(`Perk: at most two templates, whole per-mille, within ±${PERK_MAX}`);
+  if (!set.length) return f;
+  const out: Fighter = { ...f, perk: Object.fromEntries(set.map(k => [k, perk[k]!])) };
+  if (perk.vitality) { out.maxHealth = Math.round((f.maxHealth * (1000 + perk.vitality)) / 1000); out.health = out.maxHealth; }
+  if (perk.wind) out.regen = (f.regen * (1000 + perk.wind)) / 1000;
+  if (perk.stride) out.speed = (f.speed * (1000 + perk.stride)) / 1000;
+  return out;
+};
+
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
 type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
@@ -68,6 +91,9 @@ export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Duel => ({ tick: 0, fighters: [{ ...createFighter(initialState(), 'sheathed', weapon), skill }, opponentFighter(opponent, { ...initialTarget(), heading: 0, distance: 0 })], finish: null, events: [] });
+
+// The one door a patron fight is built through, after initialDuel (and withSpecials): the player's perk in slot 0, the foe's (PvP only; ladder foes carry none) in slot 1.
+export const withPerks = (duel: Duel, perks: readonly [Perk | undefined, Perk | undefined]): Duel => ({ ...duel, fighters: [withPerk(duel.fighters[0], perks[0]), withPerk(duel.fighters[1], perks[1])] });
 
 // A fight with Special Moves: both fighters carry the rule's share (the opponent's is the boss share from RULES.special.bossFrom) and the first
 // cast waits `first` ticks. `aiSkill`: the opponent's own class skill, which names his special in events and the finish. The one door, so a
@@ -183,7 +209,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}) });
       }
     } else if (action === 'kick') {
-      beginAttack(next, 'kick', false, foe.body); spend(i, movesOf(next).kick.stamina);
+      beginAttack(next, 'kick', false, foe.body); spend(i, perked(me, 'thrift', movesOf(next).kick.stamina));
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
       events.push({ tick, type: 'AttackStarted', actor: i, move: 'kick' });
     } else if (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'skill') {
@@ -192,7 +218,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const id = chooseMove(me, action!), def = movesOf(me)[id];
         // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
         const follows = me.chain > 0 && me.lastMove !== null && !!movesOf(me)[me.lastMove].chain?.follow.includes(id);
-        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, def.stamina);
+        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, perked(me, 'thrift', def.stamina));
         if (action === 'skill') next.skillCooldown = R.skillCooldown;   // spent at commitment, with the stamina: a whiff, a block or a parry all spend it
         events.push({ tick, type: 'AttackStarted', actor: i, move: id, direction: def.direction });   // the side the blow comes from: what a guard must mirror (directional guard; the browser gate reads it)
       }
@@ -275,7 +301,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   const shake = (target: Side, amount: number) => {
     const T = fighters[target], O = fighters[1 - target];
     if (!T.health || amount <= 0) return;
-    T.posture = Math.min(R.posture.max, T.posture + amount); T.postureRest = R.posture.hold;
+    T.posture = Math.min(R.posture.max, T.posture + perked(T, 'poise', amount)); T.postureRest = R.posture.hold;
     if (T.posture < R.posture.max) return;
     T.posture = 0; T.phase = 'hurt'; T.age = 0; T.stun = Math.max(T.stun, R.posture.stun); T.buffer = null; T.counterWindow = 0; T.charge = 0; T.charged = false;
     O.punish = R.posture.stun; O.critical = R.posture.stun;
@@ -332,7 +358,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     A.landed = true;
     const g = guardOf(d, R), facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= g.arc;
     const raised = d.phase === 'guard' && facing, guarding = raised && covers(d, def.direction, R);   // raised: any guard up; guarding: the side covers this attack
-    const breaks = (def.breaksGuard || charged || (g.heavyBreaks && def.direction === 'overhead')) && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
+    const breaks = (def.breaksGuard || charged || (g.heavyBreaks && def.direction === 'overhead')) && !g.stopsHeavy, blockCost = perked(d, 'guard', def.staminaDamage * g.costScale);
     const stagger = (ticks: number) => {
       const wall = walledHit ? R.wall.stagger : 0;
       D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks + wall + (D.exhausted && (def.charges || a.move === 'kick') ? R.exhaustedStun : 0) : R.death; D.buffer = null; D.counterWindow = 0;
@@ -373,7 +399,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       shake(j, def.posture * (perfect ? R.posture.perfect : 1));
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { spend(j, R.breakCost); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage, location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
+      if (guarding) { spend(j, perked(d, 'guard', R.breakCost)); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage, location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
         // uncharged is a plain heavy again (armour from its poise tick only).
