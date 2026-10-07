@@ -14,8 +14,8 @@ import { act, arena, idle, W } from './strategies.ts';
 test('the stance table is Dom\'s: every delta, per mille, and nothing else', () => {
   assert.deepEqual(STANCES, {
     aggressive: { damage: 50, posture: 100, block: 100 },
-    defensive: { damage: -50, block: -150, recover: 250 },
-    trickster: { heavyDamage: -50, feint: -500, kickPosture: 250 },
+    defensive: { damage: -50, block: -150, recover: 1000 },
+    trickster: { heavyDamage: -50, feint: -500, kickPosture: 1000 },
   });
   assert.deepEqual([...PICKS], ['neutral', 'aggressive', 'defensive', 'trickster']);
 });
