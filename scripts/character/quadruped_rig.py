@@ -334,3 +334,16 @@ if SHEET:
             sc.render.filepath = os.path.join(SHEET, f"{BODY}-{name}-{i}.png")
             bpy.ops.render.render(write_still=True)
     print("sheet frames in", SHEET, flush=True)
+
+if os.environ.get("QUAD_PROBE"):   # which way is +pitch? rotate one bone +20 deg about world x and print where the nose goes
+    arm.animation_data.action = None
+    for tr in arm.animation_data.nla_tracks:
+        tr.mute = True
+    for nm in ("spine0", "spine3", "neck", "head", "front_up_L", "hind_up_L"):
+        clear()
+        rot(nm, (1, 0, 0), 20)
+        bpy.context.view_layer.update()
+        t = arm.matrix_world @ pb["head"].tail
+        f = arm.matrix_world @ pb["front_paw_L"].tail
+        h = arm.matrix_world @ pb["hind_paw_L"].tail
+        print("probe +20 x on", nm, "nose y/z", round((t.y - lo.y) / L, 2), round(t.z / H, 2), "frontpaw y", round((f.y - lo.y) / L, 2), "hindpaw y", round((h.y - lo.y) / L, 2), flush=True)
