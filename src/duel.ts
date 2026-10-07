@@ -73,11 +73,22 @@ export type Finish = { victim: Side; location: HitLocation; move: MoveId; headin
 type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName };   // name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName };   // name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
-export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
+// `roll`: the world-mob damage roll (Origins luck ruling, Dom 2026-10-07: +/-10% on every blow in both directions, in a world-mob fight only). Absent = the Pit, PvP and the
+// ladder: today's fight byte for byte. `hits` numbers the fight's blows in the order they resolve, so the draw is a pure function of (seed, hit) and a replay reproduces it.
+export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; roll?: { seed: number; hits: number } };
+export const ROLL_BAND = 10;
+// The same draw and the same arithmetic as origins/luck/luck.ts (seededSource + rollDamage), pinned equal by tests/mob-roll.test.ts: ONE engine, the world layer reads it.
+export const rollPercent = (seed: number, hit: number): number => {
+  let h = Math.imul((seed >>> 0) ^ Math.imul(hit + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return Math.min(ROLL_BAND, Math.floor((((h ^ (h >>> 16)) >>> 0) / 2 ** 32) * (2 * ROLL_BAND + 1)) - ROLL_BAND);
+};
+export const rolledDamage = (base: number, percent: number): number => Math.max(1, Math.round(base * (1 + percent / 100)));
+export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
 
 // Which sixth of the ring wall a lorarius stands in, from the position of the man he is whipping: the six guards are drawn at 60-degree
 // intervals, so the sim and the world lane agree on which one moved without either reaching into the other.
@@ -179,7 +190,10 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
   const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
-  if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
+  if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}) };
+  let hits = duel.roll?.hits ?? 0, lastRoll: number | undefined;   // the world-mob roll: a blow's health loss goes through rolled(); absent roll = the plain number
+  const rolled = (base: number): number => { if (!duel.roll) return base; lastRoll = rollPercent(duel.roll.seed, hits++); return rolledDamage(base, lastRoll); };
+  const rollTag = () => (duel.roll && lastRoll !== undefined ? { roll: lastRoll } : {});
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
     if (!f.stamina && !f.exhausted) { f.exhausted = true; events.push({ tick, type: 'StaminaExhausted', actor: i }); }
@@ -388,18 +402,18 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       events.push({ tick, type: 'Parried', actor: j, target: i, move: a.move, weapon: weapon.id, material: weapon.material }, { tick, type: 'Staggered', actor: i, ticks: R.parryStun });
       shake(i, R.posture.parry);
     } else if (raised && !guarding && def.vsGuard) {   // a kick into a guard held on any other side: the shove lands as before. The low guard braces it — an ordinary block below.
-      spend(j, def.vsGuard.staminaDamage); wound(def.damage, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: def.damage, location, heading: a.body.heading, guarded: true, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, def.posture);
+      const hit = rolled(def.damage); spend(j, def.vsGuard.staminaDamage); wound(hit, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, guarded: true, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, def.posture);
     } else if (guarding && !breaks && d.stamina >= (d.age - g.window < R.perfectBlock ? blockCost * R.perfectBlockCost : blockCost)) {
       // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half and stops the chip; the
       // discounted price is what has to be affordable.
-      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]);
+      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]), taken = chip ? rolled(chip) : 0;
       spend(j, cost); D.counterWindow = R.guardCounter;   // a block opens the guard-counter window
-      events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect, weapon: weapon.id, material: weapon.material, ...(chip ? { damage: chip } : {}) });
-      if (chip) { wound(chip, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
+      events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect, weapon: weapon.id, material: weapon.material, ...(chip ? { damage: taken, ...rollTag() } : {}) });
+      if (chip) { wound(taken, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
       shake(j, def.posture * (perfect ? R.posture.perfect : 1));
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { spend(j, perked(d, 'guard', R.breakCost)); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage, location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
+      if (guarding) { const hit = rolled(damage); spend(j, perked(d, 'guard', R.breakCost)); wound(hit, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
         // uncharged is a plain heavy again (armour from its poise tick only).
@@ -415,7 +429,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         if (!def.path) spend(j, def.staminaDamage);
         // Poise: a brute shrugs a plain blow under his threshold — no stagger, no knockback; the wound and the posture still count.
         const shrugged = poised || (dealt < d.poise && !counter && !stop && !rear && !charged);
-        wound(dealt, shrugged ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: dealt, location, heading: a.body.heading, counter: counter || stop, rear, charged, ...(raised ? { guarded: true } : {}), weapon: weapon.id, material: weapon.material, ...(stop ? { stop: true } : {}), ...(trip ? { trip: true } : {}) });
+        const hit = rolled(dealt); wound(hit, shrugged ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, counter: counter || stop, rear, charged, ...(raised ? { guarded: true } : {}), weapon: weapon.id, material: weapon.material, ...(stop ? { stop: true } : {}), ...(trip ? { trip: true } : {}) });
         if (!shrugged || !D.health) stagger(stun);
         shake(j, def.posture * (counter ? R.counter.damage : 1) * (rear ? R.rear.posture : 1));
       }
@@ -456,6 +470,6 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     }
     A.special--;
   }
-  return { tick, fighters, finish, events };
+  return { tick, fighters, finish, events, ...(duel.roll ? { roll: { seed: duel.roll.seed, hits } } : {}) };
 }
 
