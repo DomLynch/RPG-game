@@ -56,7 +56,6 @@ import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
-import * as breakBeat from '../src/break-beat.ts';
 import * as breathAudio from '../src/audio/breath.ts';
 import * as powerWords from '../src/power-words.ts';
 import * as touchRouter from '../src/touch-router.ts';
@@ -120,7 +119,6 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
   modules['./audio/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
-  modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports
@@ -465,7 +463,7 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
   const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }, undefined, {}, '?opponent=dwarf'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // the full circle (a dwarf, not Arena 1: its circle is smaller now, play-radius.ts); level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
-  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
+  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 150, 'heavy Hit': 90, 'heavy Blocked': 50 };
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
   const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
