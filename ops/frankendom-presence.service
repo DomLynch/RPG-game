@@ -1,0 +1,47 @@
+# The Origins presence service (origins/presence/main.ts): who is where in the one Concord world, in memory, on 127.0.0.1:8788 behind nginx (ops/nginx/frankendom-presence.conf).
+# It writes no rows and decides nothing that pays. OFF unless /etc/frankendom/presence.env says ORIGINS_PRESENCE=1: with the flag off main.ts prints so and exits 0, and Restart=on-failure
+# leaves it stopped. Not enabled by the repo: ops/install-presence.sh installs it on a joint Lead + Strategy GO.
+[Unit]
+Description=Frankendom Origins presence
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/frankendom-presence/current
+# PRESENCE_INTERNAL_KEY, SUPABASE_URL, SUPABASE_ANON_KEY and the flag live in this file (root 0600, written by the installer, never in git or a log).
+EnvironmentFile=/etc/frankendom/presence.env
+ExecStart=/usr/bin/env node origins/presence/main.ts
+Restart=on-failure
+RestartSec=3
+# A guard, not a measured figure: the S1 load test (docs/specs/origins/s1-load-test.md) replaces it with the measured RSS plus headroom.
+MemoryMax=512M
+CPUWeight=300
+# Network-facing and holding the internal key: its own ephemeral user, a read-only filesystem apart from its private /tmp, no capabilities (as the duel relay and the writer). It needs the
+# outside world for one thing (Supabase Auth, to check a player's token), so no IPAddressDeny; nginx is its only way in because it binds 127.0.0.1. MemoryDenyWriteExecute stays off (V8).
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+StandardOutput=append:/var/log/frankendom-presence.log
+StandardError=append:/var/log/frankendom-presence.log
+
+[Install]
+WantedBy=multi-user.target
