@@ -1,3 +1,17 @@
+## 2026-10-07 (morning) — HANDOFF: #1549 + #1564 Auditor-passed, #1588 RV31 draft, kick-light probe
+
+**Now (what the next session picks up):**
+1. **Wait for Dom's morning pick on #1549 (RV28+RV29 combined, combat/rv29-batch @531fa58b) and #1564 (RV30 own rows, combat/rv30 @a592dc7f, stacked on #1549).** Merge order #1549 -> #1564 -> #1588; Deploy regenerates `tests/fixtures/fight-records.json` on the Mac. If Dom changes RV29 or RV30, REBASE #1588 and re-run its tables (scripts below) before review.
+2. **#1588 RV31 DRAFT** (combat/rv31 @9615829e, base combat/rv30): per-opponent `spamRun` early spammer gate; full VPS run 2435/2433/0/2. **Open ruling (Strategy):** Pitborn skilled L6 at n=240 is -6 (gate 5: -9, gate 7: -4 but light spam 47/48 over the cap); I set gate 6. Design + final table: docs/specs/combat/l6-anti-spam.md on combat/rv31-design.
+3. **Kick light** (Web's #1595, `?look=kickclose`): Lead ruled no sim change. I sent Web the rule and my probe table; refinement offered (ignore gap growth while the player was hurt in the window: -427 whiffs / -75 landings instead of -519 / -199). Nothing owed unless Web asks for a sim pin (method = a lit-press probe: kick whenever gap <= 1.5 m, classify by gap trend over the previous 4 ticks, count Hit/Blocked/GuardBroken vs AttackMissed).
+4. Still owed: the 375 still of the old-link refusal banner ("Recorded on an older version of the game"); patron perks and #6/#5 specs wait behind RV29-31.
+
+**Done today (heads):** #1549 combined head 531fa58b (trunk merged, base = trunk, #1548 closed as shipped inside it; Auditor PASS, hosted gate green, awards-database + kill-link scripts record through `liveRecorder`). #1564 a592dc7f (Shieldmaiden / Knight / Plague Doctor own AI rows, RV30, REACH[30]; Auditor PASS; Knight needs tellReaction 10: reaction 16 alone put estoc/gladius thrust-from-range at 21/16 of 24). Rulings: backstep vs Executioner heavy = B (no change), whiff tax = none. RV31 design doc final on combat/rv31-design (214791de). Probes (VPS scratch, scripts committed on combat/rv30: backstep-probe, own-row-battery, light-spam-l6).
+
+**Open (blocked on whom):** Dom (morning pick on #1549 / #1564); Strategy (Pitborn cell on #1588); Web (#1595 kick light); the code-quality lane (sparring-browser-check fails on trunk too, not RV30).
+
+**Gotchas:** stacked PRs get no quality.yml (only PRs into trunk). A headless `createRecorder` stamps v23 and REACH refuses it: scripts use tests/lib/live-recorder.ts `liveRecorder`. awards-database-check needs initdb as a non-root user (runuser -u postgres, PG_BIN=/usr/lib/postgresql/16/bin). Every RV bump = sim digest + ladder-tail digest + rng fingerprint + browser-replay + fight-records fixtures (g.sh on the VPS) + version asserts (interruptible-casts, player-weapons, verify-loot) + REACH literals typed as `{ opponent: '..', from: 1 }` for tsc. `pkill -f` inside an ssh command kills its own shell. t.sh and g.sh re-clone combat-t / combat-g (scratch files there are wiped). `guard` in AiProfile is a 0-1 share, absent = 1. Keep VPS scratch lean (delete combat-* after use; floor 40 GB). This entry lives on combat/rv31-design: when it meets the RV30 entry on combat/rv30 in combat.md, keep both.
+
 ## 2026-10-06 (night) — HANDOFF: clarity item 1, fatigue, item 2 pose, 50 levels re-pinned, patron spec; full test:all runs in flight on the VPS
 
 **Now (what the next session picks up):**
