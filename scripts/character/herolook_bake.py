@@ -87,16 +87,13 @@ tm = nt.nodes.new("ShaderNodeTexImage")
 tm.image = mr_img
 sep = nt.nodes.new("ShaderNodeSeparateColor")
 nt.links.new(tc.outputs["Color"], bsdf.inputs["Base Color"])
-# BAKE_FLAT_MR=<roughness>: no metal/rough map, constant roughness and metallic 0. The giant's baked MR map speckled the body white (metal/low-rough
-# pixels where the cage rays hit other shells; ray distance, UV angle, weld and voxel remesh did not fix it); with the map removed the colour is clean.
+# BAKE_FLAT_MR=<roughness>: the metal/rough map is NOT baked but filled with one constant (metal 0, roughness r). The giant's baked MR map speckled
+# the body white (ray distance, UV angle, weld and voxel remesh did not fix it; with the map flat the colour is clean). A map is still written, not
+# a material factor: the game's loader wants a creature body to carry map AND roughnessMap (characters.ts missingMap), and creature_pack reads both.
 flat = os.environ.get("BAKE_FLAT_MR")
-if flat:
-    bsdf.inputs["Roughness"].default_value = float(flat)
-    bsdf.inputs["Metallic"].default_value = 0.0
-else:
-    nt.links.new(tm.outputs["Color"], sep.inputs["Color"])
-    nt.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])   # glTF packing: G roughness, B metallic
-    nt.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
+nt.links.new(tm.outputs["Color"], sep.inputs["Color"])
+nt.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])   # glTF packing: G roughness, B metallic
+nt.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
 low.data.materials.clear()
 low.data.materials.append(mat)
 
@@ -141,6 +138,12 @@ for src, img in ((hi_colour, colour_img),) if flat else ((hi_colour, colour_img)
     bpy.ops.object.bake(type="EMIT")
     print(f"baked {img.name} {SIZE}px at {time.time() - t0:.0f}s", flush=True)
 
+if flat:
+    import numpy as np
+    px = np.zeros((SIZE * SIZE, 4), dtype=np.float32)
+    px[:, 1], px[:, 3] = float(flat), 1.0
+    mr_img.pixels.foreach_set(px.ravel())
+    print(f"filled metal/rough with constant roughness {flat}", flush=True)
 # BAKE_LIFT=<gamma> (family mobs, Lead 2026-10-07: a near-black wolf must read in daylight): raise the baked colour's value, v -> v ** (1 / gamma).
 lift = float(os.environ.get("BAKE_LIFT", "1"))
 if lift != 1:
