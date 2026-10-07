@@ -11,3 +11,6 @@ export class Refused extends Error {
 
 // The same op id already stands for a different request (Strategy, 2026-10-06): never applied, answered 409.
 export class Conflict extends Error {}
+
+// A rule the server cannot serve yet (the smith's coin costs: no metals ledger). Answered 501 with code 'not-implemented', never faked.
+export class NotImplemented extends Error {}

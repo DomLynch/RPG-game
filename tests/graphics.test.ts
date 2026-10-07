@@ -16,6 +16,8 @@ import { atGateLine, doorHidden, DOOR_STILL, GATE_LINE } from '../src/pit-coordi
 import * as ladder from '../src/ladder.ts';
 import * as arenaThemes from '../src/arena-themes.ts';
 import * as roster from '../src/roster.ts';
+import * as hamstrungAssets from '../src/hamstrung-assets.ts';
+import * as hamstrung from '../src/hamstrung.ts';   // the pure Hamstrung resolution main.ts reads for the audio's finisher
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
@@ -50,6 +52,7 @@ import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
+import * as breakBeat from '../src/break-beat.ts';
 import * as powerWords from '../src/power-words.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
@@ -60,6 +63,9 @@ import * as legends from '../src/legends.ts';
 import * as postWalk from '../src/post-walk.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
+// Every `./x.ts` main.ts requires that no test registered in `modules` (boot below): a stub of `{}`, so an import that main.ts reads at
+// boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
+const unstubbed = new Set<string>();
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
@@ -88,10 +94,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {}, finisherOverride: string | null = null;
   let sceneArena: unknown;
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, hamstrungInstalled: () => true, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ['frankendom.firstloss.v1', '1'] /* the one-time first loss (lessons.ts) is behind every harness fighter; seed '' to meet it */, ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ['frankendom.firstloss.v1', '1'] /* the one-time first loss (lessons.ts) is behind every harness fighter; seed '' to meet it */, ['frankendom.lesson.pace.v1', '1'] /* the one-time pace line (first FatigueBand >= 2) is behind every harness fighter; seed '' to meet it */, ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); }, snapshot: () => [...stored], sessionSnapshot: () => [...sessionStored], arena: () => sceneArena, finisher: () => finisherOverride };
@@ -101,8 +107,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
+  modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports
@@ -113,7 +121,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const makeScene = sceneModule.createScene;
   sceneModule.createScene = (...args: unknown[]) => { sceneArena = args[3]; return makeScene(...args); };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
-  const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
+  const context = { require: (id: string) => { if (!(id in modules)) unstubbed.add(id); return modules[id] || {}; }, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, hostname, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
@@ -2176,4 +2184,16 @@ test('actual main new-form legacy Miasma remains SKILL and explicit preset off; 
       assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch); assert.deepEqual(invalid.storage.snapshot(), before);
     }
   } finally { matchModule.Match = Original; }
+});
+
+// The harness stubs every import main.ts makes through `modules` (boot). An import left out resolves to `{}`, so whatever main.ts takes from it is
+// `undefined` at boot and the 'actual main' tests run against a main that never calls it: #1535, #1536 and #1542 each shipped a new src module that
+// way and CI only caught it later. The five below are the known gaps whose values main.ts only reads in paths no test here reaches (gate light, arena
+// layout, the stylesheet side effect, monitoring); anything else that appears must be registered, e.g. `modules['./x.ts'] = x;` beside the others.
+test('every src module main.ts imports is registered in the harness (a new import names itself here)', () => {
+  unstubbed.clear(); boot();
+  const known = ['./arena.ts', './gate-light.ts', './gate-rise.ts', './monitoring.ts', './style.css'];
+  const fresh = [...unstubbed].filter((id) => id.startsWith('.') && !known.includes(id)).sort();
+  assert.deepEqual(fresh, [], `main.ts imports ${fresh.join(', ')} but tests/graphics.test.ts does not register ${fresh.length === 1 ? 'it' : 'them'} in \`modules\` (boot), so the actual-main tests boot with ${fresh.length === 1 ? 'it' : 'them'} stubbed to {}: add \`modules['<path>'] = <import>;\` beside the others`);
+  assert.deepEqual([...unstubbed].filter((id) => id.startsWith('.')).sort(), known, 'a known gap was closed: remove it from `known` so the list stays exact');
 });

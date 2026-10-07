@@ -30,6 +30,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { breakBeatFrom } from './break-beat.ts';
 import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
@@ -47,10 +48,11 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
+import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
-import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
+import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
@@ -455,14 +457,15 @@ opponentSelect.value = opponent.id;
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened — plus Plain death as the
-// no-finisher control. The rest of the spec table (hamstrung/execution) has no clip yet and would silently
-// play the plain Death, which reads as a bug in a test menu. Add each back the day its clip ships.
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung — plus Plain death as the
+// no-finisher control. Execution has no clip yet and would silently play the plain Death, which reads as a bug in a test menu.
+// Add it back the day its clip ships. Hamstrung plays on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS); any other body keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
   ['opened', 'Opened'],
+  ['hamstrung', 'Hamstrung'],
   ['plainDeath', 'Plain death'],
 ];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
@@ -771,6 +774,8 @@ function clearPvpHold() { clearHold(pvpHold); }
 const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
+const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
+feedback.breakThud(!!breakBeat?.thud);
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
@@ -778,7 +783,7 @@ function stopFor(events: CombatEvent[]): number {
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
-    const base = HIT_STOP[e.type] ?? 0;
+    const base = e.type === 'PostureBroken' && breakBeat ? breakBeat.holdMs : HIT_STOP[e.type] ?? 0;
     if (!base) continue;
     const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
     ms = Math.max(
@@ -803,8 +808,9 @@ function winFace(src: string | null) {
 }
 // The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
 const LESSON_MS = 4000;
-let lessonNow: LessonId | undefined, lessonTimer = 0;
-export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+const PACE_STILL = /[?&]pacestill=1(&|$)/.test(window.location?.search ?? '');   // stills only (PR #1484): shows the pace line at tick 120 without fatiguing a real fight; inert without the query
+let lessonNow: LessonLine | undefined, lessonTimer = 0;
+export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
@@ -1825,18 +1831,21 @@ function frame(now: number) {
           }),
         );
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
+      const deathWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
+      const deathPick = hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
       const deathAudio =
         practice.finish && practice.events.some((e) => e.type === 'Killed')
           ? {
               finish: practice.finish,
-              weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const,
+              weapons: deathWeapons,
               override:
-                resolveFinisher(
+                resolveHamstrung(
                   opponent.id,
                   practice.finish,
-                  [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
-                  finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
+                  deathWeapons,
+                  deathPick,
                   view.previousFinisher(),
+                  resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick, view.previousFinisher()),
                 ) ?? 'plainDeath',
               gore: true,
             }
@@ -1870,6 +1879,10 @@ function frame(now: number) {
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
       if (!quiet) hud.refused(practice.clarity);
+      if (!quiet && match.mode !== 'lesson' && (PACE_STILL ? practice.duel.tick === 120 : practice.clarity.some((c) => c.type === 'FatigueBand' && c.actor === 0 && (c.band ?? 0) >= 2))) {   // once ever: the first time the player is tired
+        let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
+        if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
+      }
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;
