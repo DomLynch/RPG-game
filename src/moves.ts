@@ -661,13 +661,13 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     normal: { reaction: 11, accuracy: .7, parry: 0, dodge: .4, aggression: .85, pressure: .6, discipline: 20, lapse: .2, feint: .3, guard: 0, disengage: .6, circle: .8, step: .8, interrupt: .6, kick: .6, dash: 1, read: .5, stab: .6 },
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .65, discipline: 15, lapse: .08, feint: .4, guard: 0, disengage: .7, circle: 1, step: .8, interrupt: .8, kick: .7, dash: 1, read: .65, stab: 1 },
   } },
-  // The Ash Wolf (Combat, 2026-10-07): the Goblin's hit-and-run on four legs. Smaller capsule (.62: a shoulder height of about a metre against the man's 1.8), the fastest body in the roster
+  // The Ash Wolf (Combat, 2026-10-07): the Goblin's hit-and-run on four legs. Smaller capsule (.8: at .62 the hero's brain could not hit the low body and won 24 of 24; .8 puts the easy and normal rows on the Goblin's own rates, 7 and 4 of 24), the fastest body in the roster
   // (speed 1.45, regen 1.4), little health (90) and no poise: it dies in a few clean cuts and punishes a slow one. Never guards, never kicks, never feints: it lunges (the thrust, with
   // `dash` closing the gap), bites (the light), mauls (the heavy, rare), circles and hops out after a landed bite (`disengage`) and evades by backstep, not roll (`step`). The rest is the twist
   // layer's flee-at in the world (a beast flees under 30%); in the Pit it fights to the end.
-  wolf: { scale: .62, health: 90, poise: 0, regen: 1.4, speed: 1.45, profiles: {
+  wolf: { scale: .8, health: 90, poise: 0, regen: 1.4, speed: 1.45, profiles: {
     easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .3, aggression: .7, pressure: .6, discipline: 25, lapse: .4, feint: 0, guard: 0, disengage: .5, circle: .6, step: .7, interrupt: .3, kick: 0, dash: .6, read: .35 },
-    normal: { reaction: 11, accuracy: .7, parry: 0, dodge: .4, aggression: .85, pressure: .65, discipline: 20, lapse: .2, feint: 0, guard: 0, disengage: .7, circle: .9, step: .8, interrupt: .6, kick: 0, dash: 1, read: .5, stab: .7 },
+    normal: { reaction: 11, accuracy: .55, parry: 0, dodge: .4, aggression: .85, pressure: .65, discipline: 20, lapse: .3, feint: 0, guard: 0, disengage: .7, circle: .9, step: .8, interrupt: .6, kick: 0, dash: 1, read: .5, stab: .7 },
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .7, discipline: 15, lapse: .08, feint: 0, guard: 0, disengage: .8, circle: 1, step: .8, interrupt: .8, kick: 0, dash: 1, read: .65, stab: 1 },
   } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's

@@ -76,5 +76,5 @@ function wins(o: Opponent, hero: AiProfile, level: 'easy' | 'normal', seeds = 24
 test('against the hero\'s brain the wolf is neither a pushover nor a wall (the Goblin\'s band)', () => {
   const rows = { easy: [wins(wolf, PROFILES.easy, 'easy'), wins(OPPONENTS.goblin, PROFILES.easy, 'easy')], normal: [wins(wolf, PROFILES.normal, 'normal'), wins(OPPONENTS.goblin, PROFILES.normal, 'normal')] };
   console.log(`wolf vs goblin wins of 24 (the warden's side): hero easy brain ${rows.easy}, hero normal brain ${rows.normal}`);
-  for (const [w] of [rows.easy, rows.normal]) assert.ok(w >= 2 && w <= 20, `the wolf won ${w}/24`);
+  for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 3, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
 });
