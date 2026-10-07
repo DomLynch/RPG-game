@@ -44,6 +44,7 @@ import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fatigue-tune.ts';
+import { fatigueReadFrom } from './fatigue-read.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
 import { bloodGrow, foeBurstPull } from './blood-style.ts';
@@ -157,6 +158,7 @@ export function createScene(
   // `?look=armfeel&feel=high|low|off` (armfeel.ts): the victim's flinch on a visual pivot between the fighter's root and its rig. Absent or `off`: no pivot, today's frame.
   const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
+  const fatigueRead = typeof location !== 'undefined' && fatigueReadFrom(location.search);   // ?look=fatigue-read (fatigue-read.ts): the tired pose made legible from behind; absent = today's frame
   const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   const burstPool = flinches ? createBurstPool(scene) : null;
@@ -1116,10 +1118,10 @@ export function createScene(
       );
       warriors?.player.opening(practice.opening?.side === 0 ? practice.opening : null);   // opening-pose.ts
       warriors?.opponent.opening(practice.opening?.side === 1 ? practice.opening : null);
-      warriors?.player.fatigue(practice.fatigue[0]);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
+      warriors?.player.fatigue(practice.fatigue[0], fatigueRead ? { read: true } : undefined);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
       warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
       warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
-      warriors?.opponent.fatigue(practice.fatigue[1], FOE_TUNE[opponentId]);   // fatigue-tune.ts: this body's own breathing
+      warriors?.opponent.fatigue(practice.fatigue[1], fatigueRead ? { ...FOE_TUNE[opponentId], read: true } : FOE_TUNE[opponentId]);   // fatigue-tune.ts: this body's own breathing
       const theirGait = runtimeSpecial ? runtimeSpecial.gait(1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose)) : gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
       warriors?.opponent.update(
         theirGait.travel,
