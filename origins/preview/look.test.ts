@@ -77,3 +77,10 @@ test('ZONE_ROW_FALLBACK pins the four draft rows (and is deleted once the zone d
   assert.equal(fogs.size, 4, 'four rows, four fogs (cinder-fields keeps the Frontier\'s haze colour)');
   for (const id of ['black-mere', 'blood-ruin', 'ferry-landing']) assert.notEqual(PRESETS[id]!.fog, PRESETS['frontier-haze']!.fog, id);
 });
+
+test('frontier-duel lifts the cinder ground and bounce and softens the key, and leaves the fog alone', () => {
+  const d = PRESETS['frontier-duel']!, c = PRESETS['cinder-haze']!;
+  d.ground.forEach((v, i) => assert.ok(Math.abs(v - c.ground[i]! * 1.15) < 1e-9));
+  assert.equal(d.hemiGround, '#6a5238'); assert.ok(Math.abs(d.sunIntensity - c.sunIntensity * 0.9) < 1e-9);
+  assert.equal(d.fog, c.fog); assert.equal(d.fogDensity, c.fogDensity); assert.equal(d.exposure, c.exposure);
+});
