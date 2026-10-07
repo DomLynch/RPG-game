@@ -5,8 +5,9 @@
 #     The two are the project's PUBLIC url and anon key (the ones the page ships), used to check a player's token. Needed on the first install; kept in the env file after.
 #     Presence stays OFF: the env file is written with ORIGINS_PRESENCE=0 and the unit is enabled but not started. Turn it on with the flag GO: set ORIGINS_PRESENCE=1 in the env file
 #     and run this again (it restarts the unit and runs the health checks).
-#   bash ops/install-presence.sh --link-writer     append PRESENCE_INTERNAL_KEY to /etc/frankendom/origins-writer.env when that file exists and lacks it (the key is never printed;
-#                                                  the writer is not restarted)
+#   bash ops/install-presence.sh --link-writer     EXPLICIT OPT-IN, never a default: WRITES A SECRET (PRESENCE_INTERNAL_KEY) into /etc/frankendom/origins-writer.env when that file exists and
+#                                                  lacks it. The key is never printed; the writer is not restarted (restart it as a separate, logged step). Undo: --unlink-writer.
+#   bash ops/install-presence.sh --unlink-writer   undo --link-writer: remove the PRESENCE_INTERNAL_KEY line from the writer's env file (the writer is not restarted)
 #   bash ops/install-presence.sh --rollback        undo everything this script did: stop + disable the unit, remove the include, delete the snippet and the unit, reload nginx
 # Touches only: /opt/frankendom-presence/<revision> (+ `current`; the files listed by ops/presence-files.mjs, nothing else), /etc/frankendom/presence.env (the internal key is generated once,
 # root 0600, never printed), the unit, /etc/nginx/snippets/frankendom-presence.conf and ONE include line in the frankendom.com :443 server block (its prior copy kept as
@@ -36,6 +37,14 @@ if [ "${1:-}" = "--rollback" ]; then
   exit 0
 fi
 
+if [ "${1:-}" = "--unlink-writer" ]; then
+  [ -f "$writer_env" ] || { echo "install-presence: $writer_env does not exist: nothing to unlink"; exit 0; }
+  grep -v '^PRESENCE_INTERNAL_KEY=' "$writer_env" > "$writer_env.tmp" || true
+  cat "$writer_env.tmp" > "$writer_env"; rm -f "$writer_env.tmp"
+  echo "install-presence: removed PRESENCE_INTERNAL_KEY from $writer_env (the writer is not restarted: do that as a separate, logged step)"
+  exit 0
+fi
+
 if [ "${1:-}" = "--link-writer" ]; then
   [ -s "$env" ] || { echo "install-presence: $env does not exist yet: install first" >&2; exit 1; }
   [ -f "$writer_env" ] || { echo "install-presence: $writer_env does not exist: nothing to link (the writer's env is Dom's W3 step)" >&2; exit 1; }
@@ -46,7 +55,7 @@ if [ "${1:-}" = "--link-writer" ]; then
   exit 0
 fi
 
-revision="${1:?usage: install-presence.sh <revision> | --link-writer | --rollback}"
+revision="${1:?usage: install-presence.sh <revision> | --link-writer | --unlink-writer | --rollback}"
 files="$(cd "$here" && node ops/presence-files.mjs)"   # fails (and so does the install) if presence imports an npm package
 [ -n "$files" ] || { echo "install-presence: ops/presence-files.mjs listed nothing" >&2; exit 1; }
 while IFS= read -r f; do install -D -m 0644 "$here/$f" "$opt/$revision/$f"; done <<< "$files"

@@ -146,12 +146,18 @@ test('rollback and --link-writer: rollback removes the include, snippet and unit
     assert.doesNotMatch(linked.stdout + linked.stderr, /0{63}7/, 'the key is not printed');
     s.run(['--link-writer']);
     assert.equal(s.read('etc/frankendom/origins-writer.env').split('PRESENCE_INTERNAL_KEY').length - 1, 1, 'appended once');
+    const unlinked = s.run(['--unlink-writer']);
+    assert.equal(unlinked.status, 0, unlinked.stderr);
+    assert.equal(s.read('etc/frankendom/origins-writer.env'), 'DATABASE_URL=postgres://x\n', '--unlink-writer leaves the writer\'s env exactly as it was');
+    assert.doesNotMatch(unlinked.stdout + unlinked.stderr, /0{63}7/);
+    assert.equal(s.run(['--link-writer']).status, 0, 'and it can be linked again');
     const back = s.run(['--rollback']);
     assert.equal(back.status, 0, back.stderr);
     assert.equal(s.read('etc/nginx/sites-enabled/frankendom.com'), SITE, 'the site file is exactly what it was');
     assert.equal(existsSync(join(s.root, 'etc/nginx/snippets/frankendom-presence.conf')), false);
     assert.equal(existsSync(join(s.root, 'etc/systemd/system/frankendom-presence.service')), false);
     assert.ok(existsSync(join(s.root, 'etc/frankendom/presence.env')), 'the env file is kept for a re-install');
+    assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_INTERNAL_KEY=/m, 'a presence rollback does not touch the writer\'s env: --unlink-writer is the explicit undo');
     assert.match(s.calls(), /systemctl disable --now frankendom-presence.service/);
   } finally { s.clean(); }
 });
