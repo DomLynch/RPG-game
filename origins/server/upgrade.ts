@@ -1,7 +1,8 @@
 // POST /origins/apply_upgrade {character, op, instance, toLevel, materials?: [instance ids], place?: 'exchange'}: the smith raises one piece one level.
 // The server derives everything: it reads the piece, the offered material stacks and the career row, and runs the contracts' performUpgrade
-// itself against the cost table in its content, then the inventory module's applyUpgrade (bank gate, story pieces, conservation). Nothing in
-// the body is a cost, an amount, an outcome, a level the piece is at or an account; extra fields are ignored.
+// itself against the cost table in its content, then the inventory module's applyUpgrade (bank gate, story pieces, conservation). `place` reaches both:
+// a banked piece (performUpgrade) and a bank material line (applyUpgrade) need it to be 'exchange'. Nothing in the body is a cost, an amount,
+// an outcome, a level the piece is at or an account; extra fields are ignored.
 // Materials only (Strategy, 2026-10-06): there is no coin balance anywhere, so the smith runs with balance 0 and a cost row that charges coin
 // is a 501 until the metals ledger exists. Idempotency is consume's: the piece's put, the burns and the event upgrade:<character>:<op> commit
 // in ONE batch; the stored receipt answers an identical retry (replayed: true), a different request under that op id is a 409.
@@ -75,7 +76,7 @@ export function upgradeHandler(content: Content, now: () => string = () => new D
       const out = performUpgrade({
         request: request.value, service: smith.service, costs: smith.costs, instance: piece!, def: piece ? content.lookup(piece.item)! : undefined!,
         standing: { source: 'server', careerLevel: levelOfCredit(Number(snap.career.total_credit)) }, balance: 0,
-        materials: offered, materialDefs: content.lookup, receipts: new Map(prior ? [[op, prior]] : []), now: now(),
+        materials: offered, materialDefs: content.lookup, receipts: new Map(prior ? [[op, prior]] : []), now: now(), place: at,
       });
       if (!out.ok) throw refusal(out.issues);
       return { inventory, outcome: out.value };
