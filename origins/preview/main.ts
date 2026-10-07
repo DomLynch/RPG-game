@@ -9,7 +9,7 @@ import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
-import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, type Frontier } from './frontier-plan.ts';
+import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
@@ -46,6 +46,9 @@ if (frontier && frontierParts) {
   buildFrontier(scene, arena.materials, frontierParts);
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
+// ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
+// steps onto the west road, never on the Pit/Exchange-only page.
+let mobs: { update(dt: number, hero: { x: number; z: number }): void; debug(): unknown } | null = null, mobsAsked = false;
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
@@ -95,7 +98,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
 let heading = Math.PI, pitchNow = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
-if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks around. Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty.';
+if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks around. Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty. Creatures roam the fields now: they stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
@@ -183,6 +186,11 @@ function step(dt: number) {
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
+  if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
+    mobsAsked = true;
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+  }
+  if (mobs) mobs.update(dt, state);
   place.textContent = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
@@ -295,6 +303,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
+  mobs: () => mobs?.debug() ?? null,
   bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,
