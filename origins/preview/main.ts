@@ -397,7 +397,7 @@ function settleFight(finish: Finished) {
 function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
-  fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
+  fighting = false; online?.stop(); online = null; duel?.closeDuel(!!frontier); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);

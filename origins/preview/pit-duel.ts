@@ -212,10 +212,14 @@ export function worldIntent(): ControlIntent {
   const i = controls!.intent(); controls!.consumed([]); return i;
 }
 
-export function closeDuel() {
+// `release`: back to the open world, where the walk has its own renderer. The duel's second WebGL context and the ~100 textures on it would otherwise live for the page's life
+// (Web, 2026-10-07: +10 MB in WebKit, +16 MB in Chromium, the likeliest cost behind the iPhone's black screen), so the stage is let go: renderer disposed, context lost, canvas removed.
+// The next fight builds a fresh one (stageFor); the Pit page keeps its stage for the rematch.
+export function closeDuel(release = false) {
   running = false; cancelAnimationFrame(frameId); controls?.clear(); feedback?.quiet();
   if (journal?.open) journal.close();
   liveLook(false);
+  if (release && stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); stage = null; }
 }
 
 function frame(now: number) {
