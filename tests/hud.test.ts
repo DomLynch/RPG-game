@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/hud.ts';
@@ -9,6 +10,7 @@ class FakeElement {
   hidden = false; value: string | number = ''; max: number | string = ''; textContent = ''; className = '';
   attributes = new Map<string, string>(); dataset: Record<string, string> = {}; children: FakeElement[] = [];
   writes = 0;
+  classes = new Set<string>(); classList = { add: (c: string) => this.classes.add(c), remove: (c: string) => this.classes.delete(c) };
   style = { props: new Map<string, string>(), left: '', top: '', setProperty(k: string, v: string) { this.props.set(k, v); } };
   setAttribute(k: string, v: string) { this.attributes.set(k, v); this.writes++; }
 }
@@ -29,6 +31,10 @@ test('update binds meters, values, labels and the combat buttons from the practi
   assert.equal(get('player-health-value').textContent, `${practice.playerHealth} / ${practice.maxHealth}`);
   assert.equal(get('stamina').style.props.get('--fill'), `${practice.stamina}%`);
   assert.equal(get('stamina').style.props.get('--max'), `${practice.maxStamina}%`);
+  assert.equal(get('stamina').dataset.capped, 'false', 'a full ceiling draws no cap');
+  hud.invalidate(); hud.update({ ...practice, maxStamina: 70 }, view()); assert.equal(get('stamina').dataset.capped, 'true'); assert.equal(get('stamina').style.props.get('--max'), '70%');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.equal((css.match(/#stamina\[data-capped=true\]/g) ?? []).length, 2, 'the cap is drawn on the desktop and the phone bar');
   assert.equal(get('stamina-value').textContent, `${Math.floor(practice.stamina)} / 100`);
   assert.equal(get('posture').dataset.critical, 'false'); assert.equal(get('target-posture').style.props.get('--fill'), `${practice.enemyPosture}%`);
   assert.equal(get('stamina-label').dataset.mobile, 'Stamina');
@@ -153,4 +159,56 @@ test('a lesson the fight sets wins the combat-status line, and the line returns 
   assert.equal(get('combat-status').textContent, 'Roll sideways, then step back in.');
   hud.update(practice, view());
   assert.equal(get('combat-status').textContent, plain);
+});
+
+test('refused presses dim the matching button only for the player, and mark nothing else', () => {
+  const { element, get } = dom(), hud = createHud(element as never);
+  const press = (action: 'heavy' | 'parry' | 'light' | 'dodge', actor: 0 | 1 = 0) => ({ tick: 1, type: 'PressRefused' as const, actor, action, reason: 'hurt' as const });
+  hud.refused([press('heavy'), press('parry'), press('dodge'), press('light', 1)]);
+  assert.ok(get('heavy-button').classes.has('refused') && get('guard-button').classes.has('refused') && get('dodge-button').classes.has('refused'));
+  assert.ok(!get('attack-button').classes.has('refused'));   // the foe's refusal (actor 1) is not shown
+  hud.refused([{ tick: 2, type: 'AttackInterrupted', actor: 0 }]);   // other clarity events do nothing here
+  assert.ok(!get('attack-button').classes.has('refused'));
+});
+
+// Research #9 (Strategy 2026-10-07): the KICK button lights at KICK_LANDS; the kick cone is 1.2 m but the kick strides .55 m into its
+// 18-tick wind-up, so from a standing foe with his guard up it lands out to ~1.585 m. The light must mean "a kick lands from here":
+// never lit where it whiffs, and not so timid that it hides a landing kick. Measured against the sim itself, every opponent.
+test('KICK lights only where a kick lands on a guard-raised foe, within 0.15 m of the true edge', async () => {
+  const { createFighter, opponentFighter, stepDuel, idleIntent: idleI } = await import('../src/duel.ts');
+  const { OPPONENTS: ALL, PLAYER_WEAPONS } = await import('../src/moves.ts');
+  const { TARGET } = await import('../src/sim.ts');
+  const { KICK_LANDS } = await import('../src/hud.ts');
+  const idle = () => ({ ...idleI(), lock: false });
+  const guard = (dir: 'left' | 'right') => ({ ...idle(), guard: true, guardDirection: dir, lock: true });
+  const lands = (opp: (typeof ALL)[keyof typeof ALL], weapon: (typeof PLAYER_WEAPONS)[number], dir: 'left' | 'right', gap: number) => {
+    let d = { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon), opponentFighter(opp, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] } as ReturnType<typeof stepDuel>;
+    for (let i = 0; i < 12; i++) d = stepDuel(d, [idle(), guard(dir)]);
+    d = stepDuel(d, [{ ...idle(), action: 'kick', lock: true }, guard(dir)]);
+    for (let i = 0; i < 70; i++) { d = stepDuel(d, [idle(), guard(dir)]); if (d.events.some(e => e.type === 'Hit' && e.actor === 0)) return true; }
+    return false;
+  };
+  for (const opp of Object.values(ALL)) for (const dir of ['left', 'right'] as const) {
+    const weapon = PLAYER_WEAPONS[0];
+    let lo = 0.8, hi = 2.2;   // lands at lo, not at hi: bisect the far edge
+    assert.ok(lands(opp, weapon, dir, lo), `${opp.id}: lands point-blank-ish`);
+    for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (lands(opp, weapon, dir, mid)) lo = mid; else hi = mid; }
+    assert.ok(KICK_LANDS <= lo, `${opp.id}/${dir}: lit at ${KICK_LANDS} m but the kick's true edge is ${lo.toFixed(3)} m (a lit button must land)`);
+    assert.ok(lo - KICK_LANDS <= 0.15, `${opp.id}/${dir}: the edge ${lo.toFixed(3)} m is over 0.15 m beyond the light at ${KICK_LANDS} m (the light hides a landing kick)`);
+  }
+});
+
+test('?look=kick52: the KICK button is 52 px about the same centre, flag off it stays 44 px, and it still clears every other cluster button (GUARD included)', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const rule = (sel: string) => css.match(new RegExp(`${sel} \\{([^}]*)\\}`))![1];
+  const num = (r: string, k: string) => Number(r.match(new RegExp(`(?:^|\\s)${k}: (-?[\\d.]+)(?:px)?;`))![1]);
+  const rect = (r: string) => ({ l: num(r, 'left'), t: num(r, 'top'), r: num(r, 'left') + num(r, 'width'), b: num(r, 'top') + num(r, 'height'), w: num(r, 'width') });
+  const base = rect(rule('\\.actions\\[data-gestures=cluster\\] #kick-button')), look = rect(rule(':root\\.look-kick52 \\.actions\\[data-gestures=cluster\\] #kick-button'));
+  assert.equal(base.w, 44, 'flag off: today\'s 44 px');
+  assert.equal(look.w, 52);
+  assert.ok(Math.abs((look.l + look.r) / 2 - (base.l + base.r) / 2) <= 1 && Math.abs((look.t + look.b) / 2 - (base.t + base.b) / 2) <= 4, 'centred within 1 px sideways and 4 px up of the 44 px button');
+  for (const sel of ['#thrust-button:not\\(\\[hidden\\]\\)', '#attack-button', '#heavy-button', '#dodge-button', '#guard-button', '#skill-button']) {
+    const o = rect(rule(`\\.actions\\[data-gestures=cluster\\] ${sel}`));
+    assert.ok(look.r <= o.l || o.r <= look.l || look.b <= o.t || o.b <= look.t, `the 52 px KICK box overlaps ${sel}`);
+  }
 });

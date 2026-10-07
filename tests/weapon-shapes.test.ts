@@ -66,13 +66,23 @@ test('the Knight\'s maul: the plain and ornate atlases are flat grey, so ranks 1
   for (const level of [4, 5, 6, 7]) assert.equal(shapeFor('maul', level, SHIPPING_SHAPES, 'knight'), '/weapons/shapes/maul-crafted.glb', `rank ${level}: GPT's painted crafted maul`);
   assert.equal(SHIPPING_SHAPES.maul?.filter(Boolean).length, 4);
 });
+test('the Centurion\'s trident: the plain file read as flat tan planks, so ranks 1–3 keep the rig\'s own graded trident; crafted and ornate are unchanged', () => {
+  for (const level of [1, 2, 3]) {
+    assert.equal(shapeFor('trident', level, SHIPPING_SHAPES, 'veteran'), undefined, `rank ${level} Centurion: no shape file, the rig's own trident`);
+    assert.equal(shapeFor('trident', level), undefined, `rank ${level} player: the shipped trident too`);
+  }
+  for (const level of [4, 5, 6, 7]) assert.equal(shapeFor('trident', level, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-crafted.glb', `rank ${level}`);
+  for (const level of [8, 9, 10]) assert.equal(shapeFor('trident', level, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', `rank ${level}`);
+  assert.equal(SHIPPING_SHAPES.trident?.filter(Boolean).length, 7);
+  assert.deepEqual([1, 2, 3].map(level => shapeFor('trident', level, SHIPPING_SHAPES, 'witch')), [1, 2, 3].map(() => '/weapons/shapes/witch-staff-plain.glb'), 'the Witch keeps her staff');
+});
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
   for (const [weapon, ranks] of Object.entries(SHIPPING_SHAPES)) {
     assert.equal(ranks?.length, 10, `${weapon}: ten entries, rank 1 at index 0`);
     for (const level of RANK_LEVELS) {
       const file: string | undefined = ranks?.[level - 1];
-      if (weapon === 'maul' && !file) continue;   // the maul's flat-grey plain and ornate are out (see the Knight test above)
+      if ((weapon === 'maul' || weapon === 'trident') && !file) continue;   // the maul's flat-grey plain and ornate, and the trident's plain, are out (see the Knight and trident tests)
       assert.ok(file, `${weapon}: rank ${level} has no entry`);
       assert.ok(SHA[file], `${weapon}: rank ${level} names ${file}, which has no sha pin`);
       const bytes: Uint8Array = readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url));
@@ -83,6 +93,7 @@ test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: 
 test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–10 ornate; other weapons keep their parts', () => {
   for (const weapon of Object.keys(SHIPPING_SHAPES) as WeaponId[]) {
     if (weapon === 'maul') { assert.deepEqual(SHIPPING_SHAPES.maul, byBand('maul', ['crafted'])); continue; }   // crafted only, see the Knight test
+    if (weapon === 'trident') { assert.deepEqual(SHIPPING_SHAPES.trident, byBand('trident', ['crafted', 'ornate'])); continue; }   // crafted and ornate only, see the trident test
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }

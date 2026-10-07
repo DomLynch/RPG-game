@@ -9,7 +9,9 @@ import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
-import { CHECKING, fetchOpen, isOffline, previewCp, saveLine, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { picker, pickerOpen } from './allegiance.ts';
+import { loadFailure } from './fight-load.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -72,7 +74,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
 
 let heading = Math.PI, stick: { x0: number; y0: number; x: number; y: number } | null = null;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
-const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('stick')!;
+const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('walk-stick')!;
 canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { if (stick) { stick.x = e.clientX; stick.y = e.clientY; } });
 for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, () => { stick = null; ring.style.display = 'none'; });
@@ -82,14 +84,23 @@ const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 // Tap-to-open: the prompt opens what you stand near; panels are play.ts's (rules modules) built with the ui.ts kit.
 const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
 const NEAR: Partial<Record<Kind | 'fight', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit' };
-let near: Kind | 'fight' | null = null, open: Kind | null = null;
-const show = (kind: Kind | null) => { open = kind; shade.hidden = !kind; if (kind) card.innerHTML = play.render(kind); };
-function openPanel(kind: Kind | null) {
-  play.fresh(); if (kind === 'ore') play.takeOre();
+type Panel = Kind | 'allegiance';
+let near: Kind | 'fight' | null = null, open: Panel | null = null;
+const show = (kind: Panel | null) => { open = kind; shade.hidden = !kind; if (kind) card.innerHTML = kind === 'allegiance' ? picker.render(allegiance, playerName) : play.render(kind); };
+function openPanel(kind: Panel | null) {
+  play.fresh(); picker.reset(); if (kind === 'ore') play.takeOre();
   show(kind); if (kind) { keys.clear(); stick = null; ring.style.display = 'none'; }
 }
-card.addEventListener('click', (e) => { if (open) show(play.act((e.target as Element).closest<HTMLElement>('[data-say],[data-item],[data-do],[data-go]'), open)); });
-document.getElementById('journal')!.addEventListener('click', () => openPanel('journal'));
+card.addEventListener('click', (e) => {
+  if (open === 'allegiance') {
+    const el = (e.target as Element).closest<HTMLElement>('[data-view],[data-choose]');
+    const next = el && picker.act(el.dataset, allegiance, careerLine(session.career).level, Date.now() / 1000);
+    if (next) { allegiance = next; storeAllegiance(storage, next); }
+    show('allegiance');
+  } else if (open) show(play.act((e.target as Element).closest<HTMLElement>('[data-say],[data-item],[data-do],[data-go]'), open));
+});
+document.getElementById('allegiance')!.addEventListener('click', () => openPanel('allegiance'));
+document.getElementById('walk-journal')!.addEventListener('click', () => openPanel('journal'));
 for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
 prompt.addEventListener('click', () => { if (near === 'fight') void startFight(); else openPanel(near); });
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
@@ -147,13 +158,19 @@ renderer.setAnimationLoop(walkLoop);
 // The Pit duel: the arena's real fight (pit-duel.ts, its own chunk, loaded on the first fight) over the walk, which stops drawing meanwhile.
 // The rules are origins/pit/pit.ts: the legend at the career level, and a win settled through the progression model's award(). All of it is
 // this page's memory. The one thing read from outside is the player's saved career (save.ts: the writer's `open`, read-only, with the stored
-// session's token); nothing here writes the game's storage, account or fight results, and no duel result is ever sent anywhere.
+// session's token); nothing here writes the game's storage, account or fight results, and no duel result is ever sent anywhere. The one
+// thing the page keeps is its own: the graduation allegiance, under save.ts ALLEGIANCE_KEY (never a `frankendom.*` key).
 let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null, last: Settled | null = null, fighting = false;
 let source: Source = CHECKING;
-let duel: typeof import('./pit-duel.ts') | null = null;
-const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('journal')!;
-const saveNote = document.getElementById('save')!;
+let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
+const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
+const saveNote = document.getElementById('save')!, allegianceButton = document.getElementById('allegiance')!;
+// The graduation picker (allegiance.ts): only on the SAVED career at Gladiator or above; the choice lives in the preview's own save.
+let storage: Storage | null = null;
+try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
+let allegiance = loadAllegiance(storage), playerName = 'You';
 function showCareer() {
+  allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
   career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${extra ? ` · +${extra} CP (preview)` : ''}`;
   saveNote.textContent = saveLine(source);
@@ -161,25 +178,36 @@ function showCareer() {
 showCareer();
 // The saved career, once, in the background: the walk and the Pit never wait on it. It is adopted only while no duel has started, so a
 // preview fight is never re-based under the player; otherwise (or on any failure) the in-memory preview career stands, marked offline.
-let storage: Storage | null = null;
-try { storage = localStorage; } catch { /* storage blocked: no session */ }
 void fetchOpen(storedToken(storage, Date.now()), { base: writerBase(location.search) }).then((opened) => {
   if (isOffline(opened)) source = opened;
   else if (session.fights > 0 || fighting) source = { offline: 'late' };
-  else { session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; play.standAt(careerLine(session.career).level); }
+  else { session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; playerName = opened.characters[0]?.name ?? playerName; play.standAt(careerLine(session.career).level); }
   showCareer();
 });
 async function startFight(pick?: string): Promise<PitFight | null> {
+  if (duelFailed) { location.reload(); return null; }   // a browser keeps a failed import's error for the page's life, so the retry is a fresh page
   const next = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins, pick);
   if (!next) return null;
+  const before = session;
   session = started(session); fight = next; last = null; showCareer();
   openPanel(null); keys.clear(); stick = null; ring.style.display = 'none'; prompt.hidden = true; hint.hidden = true;
-  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = true; place.textContent = 'The Pit — a duel';
+  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
-  duelLayer.querySelector('[data-ctl="art-status"]')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
-  duel ??= await import('./pit-duel.ts');
+  document.getElementById('art-status')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
+  try { duel ??= await import('./pit-duel.ts'); } catch {
+    // the chunk did not load (offline, a stale deploy): the fight not counted (even if the player left meanwhile), back to the walk with the
+    // retry hint if still in the duel; a failure for a fight since replaced does nothing (fight-load.ts)
+    const failed = loadFailure(fight === next, fighting);
+    if (failed !== 'none') {
+      duelFailed = true; session = before; fight = null;
+      if (failed === 'restore-and-hint') leaveFight();
+      showCareer();
+      if (failed === 'restore-and-hint') { hint.textContent = 'Could not load the duel. Tap “Fight in the Pit” to retry.'; hint.hidden = false; }
+    }
+    return null;
+  }
   if (!fighting || fight !== next) return next;   // left (or restarted) while the chunk loaded
-  duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() });
+  duel.openDuel(duelLayer, next, { ended: settleFight, again: () => void startFight() }, leaveFight);
   return next;
 }
 function settleFight(finish: Finished) {
@@ -193,7 +221,7 @@ function settleFight(finish: Finished) {
 function leaveFight() {
   if (!fighting) return;
   fighting = false; duel?.closeDuel();
-  duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; keys.clear();
+  duelLayer.hidden = true; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
@@ -201,6 +229,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   pos: state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,
+  allegiance: () => ({ open: !allegianceButton.hidden, state: allegiance }), pickAllegiance: () => openPanel('allegiance'),
   // The Pit duel: fight() starts one (a legend id picks it, else the Pit's next); duel() is the fight now; career() the Origins career and
   // the last settlement; leave() goes back to the walk; reset(level) starts the preview career over at a level (test setup, memory only).
   fight: (pick?: string) => startFight(pick),

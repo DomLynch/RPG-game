@@ -12,7 +12,7 @@
       --c-btn: #3a2c1f; --c-glass: rgba(28, 20, 14, 0.82); --c-shade: rgba(0, 0, 0, 0.45); --c-ring: rgba(243, 230, 210, 0.45); --c-shadow: #000;
       --f-serif: Georgia, serif; --fs-xs: 11px; --fs-s: 12px; --fs-m: 14px; --fs-l: 15px; --fs-xl: 18px; --fs-x: 24px;
       --gap-xs: 6px; --gap-s: 10px; --gap-m: 16px; --gap-l: 22px; --r-s: 6px; --r-m: 10px; --r-pill: 24px;
-      --tap: 44px; --tap-l: 48px; --panel-w: 360px; --stick: 96px; --knob: 40px; --pad: 58px; --meter-h: 6px; --c-meter: #8c2a1c; --c-meter-2: #ad9365;
+      --tap: 44px; --tap-l: 48px; --panel-w: 360px; --stick: 96px;
     }
     html, body { margin: 0; height: 100%; background: var(--c-sand); overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
     canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; }
@@ -21,11 +21,13 @@
     .glass { border: 1px solid var(--c-brass); background: var(--c-glass); color: var(--c-ink); }
     #hud { position: fixed; z-index: 1; left: 0; right: calc(var(--tap) * 2 + var(--gap-m)); top: env(safe-area-inset-top); padding: var(--gap-s) var(--gap-m); font: 600 var(--fs-m)/1.3 var(--f-serif); color: var(--c-ink); text-shadow: 0 1px 3px var(--c-shadow); pointer-events: none; }
     #hud small { display: block; font-weight: 400; opacity: 0.8; }
-    #journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
-    #stick { position: fixed; width: var(--stick); height: var(--stick); margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2); border-radius: 50%; border: 2px solid var(--c-ring); display: none; pointer-events: none; }
+    body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
+    #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    #walk-stick { position: fixed; width: var(--stick); height: var(--stick); margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2); border-radius: 50%; border: 2px solid var(--c-ring); display: none; pointer-events: none; }
     #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
     #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
-    #hint { position: fixed; left: var(--gap-m); right: var(--gap-m); top: 64px; padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; pointer-events: none; }
+    #hint { margin-top: var(--gap-s); padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; text-shadow: none; pointer-events: none; }   /* in the HUD's flow: always under the status lines, however many they wrap to */
     #panel { position: relative; width: min(100%, var(--panel-w)); max-height: calc(100dvh - 2 * var(--gap-m)); overflow-y: auto; box-sizing: border-box; padding: 18px var(--gap-m) var(--gap-m); border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); }
     #panel h2 { margin: 0 var(--tap) var(--gap-s) 0; font-size: var(--fs-xl); } #panel h3 { margin: 12px 0 var(--gap-xs); font-size: var(--fs-m); color: var(--c-ink-2); }
     #panel .say { margin: var(--gap-s) 0 0; } #panel .muted { margin: var(--gap-s) 0 0; font-size: var(--fs-s); opacity: 0.7; }
@@ -36,46 +38,33 @@
     .slot.on, .piece.on { border-color: var(--c-brass); box-shadow: inset 0 0 0 1px var(--c-brass); }
     .act { display: block; width: 100%; min-height: var(--tap); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-btn); font: 600 var(--fs-l) var(--f-serif); }
     .act:disabled { opacity: 0.5; }
-    /* Kit pieces the Pit duel uses (src/input.ts and src/hud.ts bind to them by data-ctl): a layer over the page, meters, a stick and a pad of round buttons. */
-    .layer { position: fixed; inset: 0; background: var(--c-shadow); }
-    .meters { position: fixed; left: var(--gap-m); right: var(--gap-m); top: calc(env(safe-area-inset-top) + 92px); display: grid; grid-template-columns: auto 1fr; gap: 2px var(--gap-s); align-items: center; padding: var(--gap-xs) var(--gap-s); border-radius: var(--r-s); font: var(--fs-xs)/1.3 var(--f-serif); pointer-events: none; }
-    .meters meter { width: 100%; height: var(--meter-h); accent-color: var(--c-meter); }
-    .meters meter.thin { grid-column: 2; height: 3px; accent-color: var(--c-meter-2); }
-    .meters p { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--fs-s); }
-    .joy { position: fixed; left: var(--gap-m); bottom: calc(var(--gap-m) + env(safe-area-inset-bottom)); width: var(--stick); height: var(--stick); border-radius: 50%; border: 2px solid var(--c-ring); touch-action: none; display: grid; place-items: center; }
-    .joy > * { width: var(--knob); height: var(--knob); border-radius: 50%; background: var(--c-ring); }
-    .pad { position: fixed; right: var(--gap-m); bottom: calc(var(--gap-m) + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, var(--pad)); gap: var(--gap-xs); justify-items: center; }
-    .pad button { width: var(--pad); height: var(--pad); padding: 0; border-radius: 50%; font: 600 var(--fs-xs)/1.1 var(--f-serif); touch-action: none; overflow: hidden; }
-    .pad button[aria-disabled="true"] { opacity: 0.5; }
-    .pad button[aria-pressed="true"], .pad button[data-held] { box-shadow: inset 0 0 0 2px var(--c-ink); }
-    .pad .wide { grid-column: 1 / -1; width: auto; height: var(--tap); padding: 0 var(--gap-l); border-radius: var(--r-pill); font-size: var(--fs-m); }
+    /* The Pit duel: a layer over the walk. Its fight kit is the game's own (src/style.css, switched on with the duel); only the preview's pieces are styled here. */
+    .layer { position: fixed; inset: 0; z-index: 3; background: var(--c-shadow); }   /* over the walk's own HUD */
+    /* Leave the Pit: clear of the game's kit — above the stick on a phone (the bars and ☰ own the top), under the ☰ on a desktop. */
+    #leave { position: fixed; z-index: 2; left: max(16px, env(safe-area-inset-left)); bottom: calc(max(30px, env(safe-area-inset-bottom)) + 136px); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    @media (min-width: 901px) and (not (pointer: coarse)) { #leave { left: auto; bottom: auto; right: max(32px, env(safe-area-inset-right)); top: calc(max(28px, env(safe-area-inset-top)) + 64px); } }
+    /* The game's menu in a preview: the career, the account and the fighter's gear are the game's, not this page's, so the menu keeps
+       Settings (Sound, How to fight) and the app nav's Arena and The Pit (= Leave the Pit). The camera is the game's locked one, always:
+       its lock and recenter controls are not offered. */
+    #duel .fighter, #duel #account, #duel .tab-profile, #duel .tab-fighter, #duel .tab-arena, #duel .pane-profile, #duel .pane-fighter, #duel .pane-arena, #duel #test-tools,
+    #duel #nav-gear, #duel #nav-note, #duel #mobile-camera, #duel #camera-button, #duel #recenter-button { display: none !important; }
   </style>
 </head>
 <body>
   <canvas id="view"></canvas>
-  <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small>Greybox look prototype · drag (or WASD) to walk · not the game</small></div>
-  <div id="hint" class="glass">Drag up to walk. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
-  <div id="stick"></div>
+  <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox look prototype · drag (or WASD) to walk · not the game</small>
+    <div id="hint" class="glass">Drag up to walk. Through the gate, the bank is straight ahead and the blacksmith on your left.</div></div>
+  <div id="walk-stick"></div>
   <button id="prompt" class="glass" hidden></button>
-  <button id="journal" class="glass">Journal</button>
+  <button id="walk-journal" class="glass">Journal</button>
+  <button id="allegiance" class="glass" hidden>Allegiance</button>
   <div id="shade" hidden><div id="panel" role="dialog"><button id="shut" aria-label="Close">×</button><div id="card"></div></div></div>
-  <!-- The Pit duel (pit-duel.ts, its own chunk): the arena's input and HUD bind to these by data-ctl; its canvas is added on the first fight. -->
+  <!-- The Pit duel (pit-duel.ts, its own chunk): the live game's own fight kit — its controls, HUD bars and ☰ menu — is cut from the game's
+       index.html at build time (live-kit.mjs) and lands at the marker; src/style.css comes with the duel's chunk and is on only while it is
+       up. Its canvas (#world) is added on the first fight. Leave the Pit is the preview's own. -->
   <section id="duel" class="layer" aria-label="The Pit duel" hidden>
-    <div class="meters glass">
-      <span data-ctl="opponent-label">Opponent</span><meter data-ctl="target-health" min="0" max="150" value="150" aria-label="Opponent health"></meter><meter class="thin" data-ctl="target-posture" min="0" max="100" value="0" aria-label="Opponent posture"></meter>
-      <span>You <span data-ctl="player-health-value"></span></span><meter data-ctl="player-health" min="0" max="150" value="150" aria-label="Your health"></meter><meter class="thin" data-ctl="posture" min="0" max="100" value="0" aria-label="Your posture"></meter>
-      <span data-ctl="stamina-label">Stamina <span data-ctl="stamina-value"></span></span><meter data-ctl="stamina" min="0" max="100" value="100" aria-label="Stamina"></meter>
-      <span hidden data-ctl="health-value"></span>
-      <p data-ctl="combat-status" role="status"></p><p data-ctl="art-status" role="status"></p>
-    </div>
-    <div class="joy" data-ctl="joystick" aria-label="Movement pad"><i data-ctl="stick"></i></div>
-    <div class="pad">
-      <button class="glass" data-ctl="kick-button" aria-label="Kick" hidden>Kick</button><button class="glass" data-ctl="thrust-button" aria-label="Thrust" hidden>Stab</button><button class="glass" data-ctl="skill-button" aria-label="Skill" hidden>Skill</button>
-      <button class="glass" data-ctl="guard-button" aria-label="Hold guard">Guard</button><button class="glass" data-ctl="heavy-button" aria-label="Heavy attack, hold to charge">Heavy</button><button class="glass" data-ctl="attack-button" aria-label="Fight">Fight</button>
-      <button class="glass" data-ctl="run-button" aria-pressed="false">Run</button><button class="glass" data-ctl="dodge-button" aria-label="Roll, tap to step back">Roll</button><button class="glass" data-ctl="recenter-button" aria-label="Recenter camera" hidden>R</button>
-      <button class="glass wide" data-ctl="reset-button" hidden>Rematch</button><button class="glass wide" id="leave">Leave the Pit</button>
-    </div>
-    <div data-ctl="dmg-pool" hidden></div><pre data-ctl="debug" hidden></pre>
+    <!-- live:fight-kit -->
+    <button id="leave" class="glass">Leave the Pit</button>
   </section>
   <script type="module" src="./main.ts"></script>
 </body>

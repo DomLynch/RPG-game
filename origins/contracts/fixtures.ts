@@ -15,6 +15,12 @@ export const recordDef = () => ({
   kind: 'item-definition', schemaVersion: 1, id: 'item:stolen-name-record', name: 'The Record of Names', category: 'quest', rarity: 'relic',
   slot: null, power: 'none', material: 'bone', appearance: { asset: 'items/record-of-names.glb' }, story: 'story-critical', binding: 'on-acquire', stack: 1,
 });
+// Story-critical GEAR (a quest reward with a power budget): the smith may upgrade it, keeping its story flag, binding and provenance
+// (Strategy, 2026-10-07). Not in `bundle()`: the registry tests pin its record indexes.
+export const oathGauntletsDef = () => ({
+  kind: 'item-definition', schemaVersion: 1, id: 'item:stolen-name-gauntlets', name: 'The Oath Gauntlets', category: 'gear', rarity: 'common',
+  slot: 'Gloves', power: 'slot-weight', material: 'iron', appearance: { asset: 'items/oath-gauntlets.glb' }, story: 'story-critical', binding: 'on-acquire', stack: 1,
+});
 export const graveIronDef = () => ({
   kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine',
   slot: null, power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,
@@ -45,6 +51,13 @@ export const recordInstance = () => ({
   kind: 'item-instance', schemaVersion: 1, id: 'inst:5f0c2d4e-0003', item: 'item:stolen-name-record', version: 0, quantity: 1, tier: null,
   location: { kind: 'pack', owner: PC, index: 0 }, boundTo: PC,
   provenance: { kind: 'quest-reward', mintKey: 'quest:stolen-name:ruin:dom-1', at: AT, wonBy: PC, quest: 'quest:stolen-name', stage: 'ruin' },
+  history: [],
+});
+
+export const gauntletsInstance = () => ({
+  kind: 'item-instance', schemaVersion: 1, id: 'inst:5f0c2d4e-0004', item: 'item:stolen-name-gauntlets', version: 0, quantity: 1, tier: 'Recruit',
+  location: { kind: 'pack', owner: PC, index: 1 }, boundTo: PC,
+  provenance: { kind: 'quest-reward', mintKey: 'quest:stolen-name:oath:dom-1', at: AT, wonBy: PC, quest: 'quest:stolen-name', stage: 'oath' },
   history: [],
 });
 
