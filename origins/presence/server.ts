@@ -73,7 +73,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   });
   // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
   // from here and never from a request body. Not under /origins/presence, so the public nginx route does not reach it, and it needs the key and a loopback caller besides. The answer
-  // is the service's own state: a player never placed by a first pose is `placed: false` with no position, and `ageMs` is the time since its last pose was handled.
+  // is the service's own state: every player has a position (a fresh join starts at the spawn, never at a client's first pose), and `ageMs` is the time since its last pose was handled.
   const loopback = (a: string | undefined): boolean => a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
   const where = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
     const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
@@ -85,7 +85,6 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
     const p = world.byAccount.get(account);
     if (!p) return reply(200, { online: false });
-    if (!p.placed) return reply(200, { online: true, layer: p.layer.id, placed: false });
     reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.movedAt) });
   };
 

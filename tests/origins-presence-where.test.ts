@@ -17,15 +17,15 @@ const start = async (internalKey: string | undefined, clock: { t: number }) => {
 const get = (base: string, account: string, auth?: string) => fetch(`${base}/internal/where?account=${account}`, { headers: auth ? { authorization: auth } : {} });
 const pose = (x: number, z: number) => ({ x, z, heading: 0, anim: 0, flags: 0 });
 
-test('where: the service answers from its own state, offline, unplaced and placed, and the client round-trips it', async () => {
+test('where: the service answers from its own state, offline and in the world, and the client round-trips it', async () => {
   const clock = { t: 1_000_000 };
   const { p, base } = await start(KEY, clock);
   try {
     const placed = p.world.join(acct(1), clock.t, undefined, { x: 15000, z: 16000 })!;
-    p.world.join(acct(2), clock.t)!;   // no known position: placed by its first pose
+    p.world.join(acct(2), clock.t)!;   // no known position: it starts at the spawn, the Pit yard centre
     const where = presenceWhere(base, KEY);
     assert.deepEqual(await where(acct(3)), { online: false }, 'an account that is not in presence');
-    assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: false }, 'in the world but never placed: no position is given');
+    assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 15000, zone: 'pit-yard', ageMs: 0 }, 'a fresh join is at the spawn, never at an unknown position');
     clock.t += 750;
     assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 16000, zone: 'pit-yard', ageMs: 750 }, 'placed: the position, the zone presence computed from it, and the time since its last pose');
     p.world.move(placed, pose(15100, 16000), clock.t);

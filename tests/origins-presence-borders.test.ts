@@ -80,15 +80,16 @@ test('borders: leaving from a border cell, and a player placed by a first pose, 
   w.leave(onBorder, 100);
   assert.deepEqual(inRange(w, watcher), [], 'the watcher no longer sees a player who left from a border cell');
   assertGrid(w, 'after leave');
-  // A player who joined with no known position starts at the zone centre and is placed by its first pose: the old centre cell must not keep it.
+  // A player who joined with no known position starts at the spawn (the zone centre) and walks away in clamp-sized steps: the old cells must not keep it.
   const w2 = new World(RULES, 1);
   const centre = put(w2, 1, RULES.zoneCm / 2, RULES.zoneCm / 2);
-  const late = w2.join(acct(2), 0)!;   // no `at`: placed at the zone centre until the first pose says where it really stands
-  assert.deepEqual(inRange(w2, centre), [2], 'before its first pose it is at the centre, where the centre player sees it');
-  assert.equal(w2.move(late, pose(3000, 3000), 100), 'ok');
-  assert.deepEqual(inRange(w2, centre), [], 'after the first pose it is gone from the centre: no ghost there');
+  const late = w2.join(acct(2), 0)!;   // no `at`: the spawn, where the centre player sees it
+  assert.deepEqual(inRange(w2, centre), [2], 'at the spawn it is where the centre player sees it');
+  for (let s = 1; s <= 5000; s++) { if (late.x >= 15000 + 4500) break; assert.equal(w2.move(late, pose(late.x + 100, late.z), s * 100), 'ok'); }
+  assert.ok(late.x >= 15000 + 4500, 'it walked 45 m east, across several cell borders');
+  assert.deepEqual(inRange(w2, centre), [], 'once past 40 m it is gone from the centre player\'s view: no ghost left in the cells it crossed');
   assert.deepEqual(inRange(w2, late), [], 'and it sees nobody from where it now stands');
-  assertGrid(w2, 'after first pose');
+  assertGrid(w2, 'after walking away from the spawn');
 });
 
 test('borders: a crowd random-walking across the whole zone matches a brute-force distance scan every tick, with no duplicate entity in any packet', () => {

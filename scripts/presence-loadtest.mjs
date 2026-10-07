@@ -17,6 +17,8 @@ import { clearInterval, setInterval, setTimeout } from 'node:timers';
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? Number(hit.split('=')[1]) : fallback; };
 const BOTS = arg('bots', 100), SECONDS = arg('seconds', 30), WARMUP = arg('warmup', 5), CROWD_CM = arg('crowd-m', 60) * 100, CAP = arg('layer-cap', 100), PORT = arg('port', 18788), MAX_LAYERS = arg('max-layers', 8);
 const ZONE = 30000, STEP_MS = 100, SPEED_CMS = 500;   // bots walk at 5 m/s, uploading at 10 Hz like a real client
+// Presence starts every fresh join at the zone centre and treats a first pose far away as a teleport (X2 stage 1), so every bot starts there and walks out to its wander square;
+// give the crowd time to spread (--warmup) before reading numbers from a wide --crowd-m.
 
 const server = spawn(process.execPath, ['origins/presence/main.ts'], {
   env: { ...process.env, ORIGINS_PRESENCE: '1', ORIGINS_PRESENCE_TEST_AUTH: '1', PRESENCE_PORT: String(PORT), PRESENCE_HOST: '127.0.0.1', PRESENCE_SOFT: String(CAP), PRESENCE_HARD: String(CAP), PRESENCE_MAX_LAYERS: String(MAX_LAYERS), PRESENCE_LOG_MS: '3600000', SUPABASE_URL: '', SUPABASE_ANON_KEY: '' },
@@ -36,7 +38,7 @@ let measuring = false;
 const up = (b) => { const m = new Uint8Array(8), v = new DataView(m.buffer); m[0] = 2; v.setUint16(1, Math.round(b.x), true); v.setUint16(3, Math.round(b.z), true); m[5] = b.heading; m[6] = 1; m[7] = 0; return m; };
 const lo = (ZONE - CROWD_CM) / 2, hi = lo + CROWD_CM;
 for (let i = 0; i < BOTS; i++) {
-  const b = { i, x: lo + Math.random() * CROWD_CM, z: lo + Math.random() * CROWD_CM, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
+  const b = { i, x: ZONE / 2, z: ZONE / 2, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
   const pick = () => { b.tx = lo + Math.random() * CROWD_CM; b.tz = lo + Math.random() * CROWD_CM; };
   pick(); bots.push(b);
   b.ws = new WebSocket(`ws://127.0.0.1:${PORT}/origins/presence`, ['frankendom.presence.v1', `token.bot-${(i + 1).toString(36)}`]);

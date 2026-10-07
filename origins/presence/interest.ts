@@ -1,6 +1,7 @@
 // Layers and spatial interest management (docs/specs/origins/one-shard.md §2, §4, §5). Pure: no sockets, no clock of its own, so the rules are
 // testable and the load test can drive them. All numbers are the note's *est.* planning figures until the load test replaces them.
 import { ENTITY_BYTES, HEAD_BYTES, encodeDown, type Entity, type Pose } from './wire.ts';
+import { SPAWN, clearOfTradeAreas } from './zones.ts';
 
 export const RULES = {
   zoneCm: 30000,                 // one town zone, 300 m square (u16 centimetres allow up to 655 m)
@@ -16,10 +17,12 @@ export const RULES = {
   strikesToDrop: 5,
   strikeWindowMs: 10_000,
   emptyLayerMs: 5 * 60_000,
+  memoryMs: 10 * 60_000,         // a leaver's last server-observed position is kept this long for a reconnect (X2 stage 1; the saved location of stage 2 supersedes it)
+  memoryMax: 10_000,             // accounts remembered at once, oldest dropped first
 };
 export type Rules = typeof RULES;
 
-export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; strikes: number; strikeAt: number; placed: boolean };
+export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; strikes: number; strikeAt: number };
 export class Layer {
   readonly players = new Map<number, Player>();
   readonly cells = new Map<number, Set<Player>>();
@@ -34,13 +37,15 @@ const cellOf = (r: Rules, x: number, z: number): number => Math.floor(x / r.cell
 export class World {
   readonly layers = new Map<number, Layer>();
   readonly byAccount = new Map<string, Player>();
+  readonly memory = new Map<string, { x: number; z: number; at: number }>();   // account -> where it was last seen, in insertion order (oldest first)
   private nextLayer = 1;
   readonly rules: Rules;
   readonly maxLayers: number;
   constructor(rules: Rules = RULES, maxLayers = 8) { this.rules = rules; this.maxLayers = maxLayers; }
 
   // Join: the friend's layer if they are online and it has room, else the fullest layer under the soft cap (fill first), else a new layer.
-  // `at` is where the character stands (the writer's saved location); the zone centre when none. Null when every layer is at its cap and no more may open (the capacity decision, §5), or the account is already in.
+  // Where it starts (X2 stage 1): `at` when given, else the position this account was last seen at here (kept `memoryMs` after it left, moved clear of any trade area),
+  // else SPAWN, the Pit yard's centre. A client's first pose never places anyone: it is one more move through the speed clamp. Null when every layer is at its cap and no more may open (the capacity decision, §5), or the account is already in.
   join(account: string, now: number, friend?: string, at?: { x: number; z: number }): Player | null {
     if (this.byAccount.has(account)) return null;
     const { softCap, hardCap, zoneCm } = this.rules;
@@ -53,8 +58,9 @@ export class World {
       layer = new Layer(this.nextLayer++); this.layers.set(layer.id, layer);
     }
     let id = 1; while (layer.players.has(id)) id++;
-    const x = Math.min(zoneCm, Math.max(0, Math.round(at?.x ?? zoneCm / 2))), z = Math.min(zoneCm, Math.max(0, Math.round(at?.z ?? zoneCm / 2)));
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, strikes: 0, strikeAt: now, placed: at !== undefined };
+    const from = at ?? this.recall(account, now) ?? SPAWN;
+    const x = Math.min(zoneCm, Math.max(0, Math.round(from.x))), z = Math.min(zoneCm, Math.max(0, Math.round(from.z)));
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, strikes: 0, strikeAt: now };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -65,6 +71,15 @@ export class World {
     layer.cells.get(cellOf(this.rules, p.x, p.z))?.delete(p);
     layer.players.delete(p.id); this.byAccount.delete(p.account);
     if (!layer.players.size) layer.emptySince = now;
+    this.memory.delete(p.account); this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
+    if (this.memory.size > this.rules.memoryMax) this.memory.delete(this.memory.keys().next().value!);
+  }
+  // The remembered position of an account that left at most `memoryMs` ago, moved clear of any trade area; undefined when there is none or it has expired.
+  private recall(account: string, now: number): { x: number; z: number } | undefined {
+    const m = this.memory.get(account);
+    if (!m) return undefined;
+    if (now - m.at > this.rules.memoryMs) { this.memory.delete(account); return undefined; }
+    return clearOfTradeAreas(m.x, m.z);
   }
   // The client's claimed pose, clamped: inside the zone, at most the sprint speed (with slack). A jump past that keeps the old position
   // ("snapped": the client is told nothing, it simply sees itself pulled back by the next packet) and counts a strike; repeated, the player is dropped.
@@ -74,10 +89,6 @@ export class World {
     const dt = Math.max(100, Math.min(1000, now - p.movedAt)) / 1000, reach = maxSpeedCmS * speedSlack * dt;
     const x = Math.min(zoneCm, Math.max(0, pose.x)), z = Math.min(zoneCm, Math.max(0, pose.z));
     p.movedAt = now;
-    // A player joined without a known position (no `at`) is placed by its FIRST pose: the page has loaded the character's saved location and says where
-    // it stands. Known gap, cosmetic only (presence decides nothing that pays): a reconnect can pick a new spot. Closing it means the writer hands the
-    // saved location to this service (the `at` of join), a follow-up once the writer holds a world location.
-    if (!p.placed) { p.placed = true; return this.place(p, x, z, pose); }
     if (Math.hypot(x - p.x, z - p.z) > reach) {
       if (++p.strikes > strikesToDrop) return 'drop';
       return 'snapped';
