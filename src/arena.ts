@@ -529,7 +529,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     if (mood === 'cheer') { const u = t - phase * 0.12; return [u > 0 && u < 0.55 ? 0.06 * Math.sin(Math.PI * u / 0.55) : 0, 0]; }
     if (mood === 'lean') { const k = smooth(0, 0.15, t) * (1 - smooth(0.8, 1.1, t)); return [0.04 * k, 0.12 * k]; }
     if (mood === 'recoil') { const k = smooth(0, 0.2, t) * (1 - smooth(1.4, 2, t)); return [-0.035 * k, -0.14 * k]; }
-    if (mood === 'roar') { const k = smooth(0, 0.12, t) * (1 - smooth(FAVOUR.roarSeconds - 0.4, FAVOUR.roarSeconds, t)); return [0.09 * k * Math.abs(Math.sin(Math.PI * 2.2 * (t - phase * 0.03))), -0.06 * k]; }   // crowd favour (arena-favour.ts): near in unison, two bobs and a lean back, under the same cap
+    if (mood === 'roar') { const k = smooth(0, 0.12, t) * (1 - smooth(FAVOUR.roarSeconds - 0.4, FAVOUR.roarSeconds, t)); return [0.08 * k * Math.abs(Math.sin(Math.PI * 2.2 * (t - phase * 0.03))), -0.06 * k]; }   // crowd favour (arena-favour.ts): near in unison, two bobs and a lean back; 0.08 m plus the idle sway 0.012 stays under the 0.1 m cap (tests/arena.test.ts)
     return [0, 0];
   }
   function place(instanced: THREE.InstancedMesh, i: number, x: number, y: number, z: number, tilt: number, yaw: number, s: number, width = 1) {
