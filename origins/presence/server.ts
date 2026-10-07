@@ -75,7 +75,10 @@ export function createPresence(opts: PresenceOptions): Presence {
   };
   const server = createServer((req, res) => {
     if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/health') {
-      const n = Number(new URL(req.url, 'http://presence').searchParams.get('ticks') ?? 0);
+      // The tick samples (up to ~700 KB) are for the load test only: honoured for a DIRECT loopback caller, never for a proxied one (behind nginx the socket peer is 127.0.0.1 too, so a
+      // proxy header, which nginx sets, means "not direct"). The ops nginx snippet does not proxy this path at all; this is the second lock.
+      const direct = (req.socket.remoteAddress === '127.0.0.1' || req.socket.remoteAddress === '::1' || req.socket.remoteAddress === '::ffff:127.0.0.1') && !req.headers['x-real-ip'] && !req.headers['x-forwarded-for'];
+      const n = direct ? Number(new URL(req.url, 'http://presence').searchParams.get('ticks') ?? 0) : 0;
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       return void res.end(JSON.stringify(n > 0 ? { ...stats(), tickMs: recentTicks(n) } : stats()));
     }
