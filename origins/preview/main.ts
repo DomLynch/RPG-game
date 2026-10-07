@@ -9,7 +9,7 @@ import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
-import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, type Frontier } from './frontier-plan.ts';
+import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
@@ -17,6 +17,7 @@ import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } f
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
+import { STICK_R, intent, type Pad } from './sticks.ts';
 import { applyLook, lookAlong } from './look.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
@@ -49,6 +50,9 @@ if (frontier && frontierParts) {
   buildFrontier(scene, arena.materials, frontierParts, dress);
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
+// ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
+// steps onto the west road, never on the Pit/Exchange-only page.
+let mobs: { update(dt: number, hero: { x: number; z: number }): void; debug(): unknown } | null = null, mobsAsked = false;
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
@@ -95,13 +99,38 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
   hero.remove(body, cap); hero.add(gltf.scene);
 }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
-let heading = Math.PI, stick: { x0: number; y0: number; x: number; y: number } | null = null;
+let heading = Math.PI, pitchNow = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
-const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('walk-stick')!;
-if (frontier) hint.textContent = 'Drag up to walk (drag further to run). Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty.';
-canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointermove', (e) => { if (stick) { stick.x = e.clientX; stick.y = e.clientY; } });
-for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, () => { stick = null; ring.style.display = 'none'; });
+const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
+if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks around. Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty. Creatures roam the fields now: they stop and watch when you come near.';
+// Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
+// by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
+type Side = 'move' | 'look';
+const pads: Record<Side, Pad> = { move: null, look: null }, padIds: Record<Side, number> = { move: -1, look: -1 };
+const rings: Record<Side, HTMLElement> = { move: document.getElementById('move-stick')!, look: document.getElementById('look-stick')! };
+const knobs: Record<Side, HTMLElement> = { move: rings.move.firstElementChild as HTMLElement, look: rings.look.firstElementChild as HTMLElement };
+const sideOf = (x: number): Side => x < innerWidth / 2 ? 'move' : 'look';
+function releaseStick(side: Side) {
+  pads[side] = null; padIds[side] = -1; rings[side].classList.remove('on');
+  rings[side].style.left = rings[side].style.top = ''; knobs[side].style.transform = '';
+}
+const releaseSticks = () => { releaseStick('move'); releaseStick('look'); };
+canvas.addEventListener('pointerdown', (e) => {
+  const side = sideOf(e.clientX);
+  if (pads[side]) return;   // that thumb is already down; a second finger on the same half is ignored
+  pads[side] = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; padIds[side] = e.pointerId;
+  rings[side].classList.add('on'); Object.assign(rings[side].style, { left: `${e.clientX}px`, top: `${e.clientY}px` });
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* no live pointer (a synthetic event): the pad still works without capture */ }
+});
+canvas.addEventListener('pointermove', (e) => {
+  for (const side of ['move', 'look'] as const) {
+    const pad = pads[side]; if (!pad || padIds[side] !== e.pointerId) continue;
+    pad.x = e.clientX; pad.y = e.clientY;
+    const dx = pad.x - pad.x0, dy = pad.y - pad.y0, len = Math.hypot(dx, dy), k = len > STICK_R ? STICK_R / len : 1;   // the knob stops at the rim
+    knobs[side].style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+  }
+});
+for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, (e) => { for (const side of ['move', 'look'] as const) if (padIds[side] === e.pointerId) releaseStick(side); });
 addEventListener('keydown', (e) => keys.add(e.code)); addEventListener('keyup', (e) => keys.delete(e.code)); addEventListener('blur', () => keys.clear());
 const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
@@ -117,7 +146,7 @@ const tapNear = () => { if (near === 'fight') void startFight(); else if (near =
 const show = (kind: Panel | null) => { open = kind; shade.hidden = !kind; if (kind) card.innerHTML = kind === 'allegiance' ? picker.render(allegiance, playerName) : play.render(kind); };
 function openPanel(kind: Panel | null) {
   play.fresh(); picker.reset(); if (kind === 'ore') play.takeOre();
-  show(kind); if (kind) { keys.clear(); stick = null; ring.style.display = 'none'; }
+  show(kind); if (kind) { keys.clear(); releaseSticks(); }
 }
 card.addEventListener('click', (e) => {
   if (open === 'allegiance') {
@@ -144,30 +173,34 @@ const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REG
 const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
-  let forward = held('KeyW', 'ArrowUp') * (REGION && held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');
+  let forward = held('KeyW', 'ArrowUp') * (held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
-  else if (stick) {
-    const sx = (stick.x - stick.x0) / 48, sy = (stick.y0 - stick.y) / 48;
-    forward = Math.max(-0.6, Math.min(REGION ? 2 : 1, sy)); turn = -Math.max(-1, Math.min(1, sx));
-  }
-  if (forward || turn) hint.hidden = true;   // the first-load hint goes once you move (Lead 2026-10-06)
+  else if (pads.move || pads.look) ({ forward, strafe, turn, pitch } = intent(pads.move, pads.look));   // the sticks win while a thumb is down
+  if (forward || turn || strafe) hint.hidden = true;   // the first-load hint goes once you move (Lead 2026-10-06)
   heading += turn * TURN * dt;
-  const nx = state.x + Math.sin(heading) * forward * WALK * dt, nz = state.z + Math.cos(heading) * forward * WALK * dt;
+  pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
+  // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
+  const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * WALK * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * WALK * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
   if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, lookAlong(HAZE ? state.x : state.z, LOOK_STOPS), GROUNDS, STONES).sunPos);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
-  if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = forward < 0 ? -1 : 1; mixer.update(dt); }
+  if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) + Math.abs(strafe) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = (forward < 0 ? -1 : 1) * (forward > 1.2 || Math.abs(strafe) > 1.2 ? 1.6 : 1); mixer.update(dt); }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
-  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = inPassage ? 2.1 : 2.7;
+  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9;   // the right stick's up lowers the camera and raises the gaze
   eye.set(state.x - Math.sin(heading) * back, up, state.z - Math.cos(heading) * back);
   camAt.lerp(eye, 1 - Math.exp(-dt * 4));
-  look.set(state.x + Math.sin(heading) * 3, 1.5, state.z + Math.cos(heading) * 3);
+  look.set(state.x + Math.sin(heading) * 3, 1.5 + pitchNow * 1.6, state.z + Math.cos(heading) * 3);
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
+  if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
+    mobsAsked = true;
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+  }
+  if (mobs) mobs.update(dt, state);
   place.textContent = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
@@ -240,7 +273,7 @@ async function startFight(pick?: string): Promise<PitFight | null> {
   if (!next) return null;
   const before = session;
   session = started(session); fight = next; last = null; showCareer();
-  openPanel(null); keys.clear(); stick = null; ring.style.display = 'none'; prompt.hidden = true; hint.hidden = true;
+  openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
   document.getElementById('art-status')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
@@ -280,6 +313,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
+  mobs: () => mobs?.debug() ?? null,
   bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,
