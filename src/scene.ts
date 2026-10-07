@@ -493,7 +493,7 @@ export function createScene(
   const hamstrungOk = () => hamstrungAssets.ready(warriors);
   let hamstrungLatch: boolean | null = null;   // hamstrungOk() as it stood on the first frame of this finish: the picture and the audio keep one answer for the whole kill
   // The kill picks its finisher (once Hamstrung is in the rotation), so the clips are fetched in the background once the fight is ready, on idle. Silent on failure: hamstrungPick keeps the plain death.
-  const prefetchHamstrung = () => { const start = () => { wantHamstrung(true); wantExecution(true); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 4000 }); else setTimeout(start, 1500); };
+  const prefetchHamstrung = () => { const start = () => { wantHamstrung(true); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 4000 }); else setTimeout(start, 1500); };
   const wantHamstrung = (prefetch = false) => { if ((prefetch || finisherOverride === 'hamstrung') && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
   // Execution (src/execution.ts) loads exactly as Hamstrung does: on the picker's choice or on idle after ready, never as part of ready, and a failure is the plain death.
   const executionAssets = createHamstrungAssets(
