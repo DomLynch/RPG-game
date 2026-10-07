@@ -144,7 +144,8 @@ test('rollback and --link-writer: rollback removes the include, snippet and unit
   try {
     assert.equal(s.run(['rev1'], PUBLIC).status, 0);
     assert.notEqual(s.run(['--link-writer']).status, 0, 'no writer env: nothing to link');
-    writeFileSync(join(s.root, 'etc/frankendom/origins-writer.env'), 'DATABASE_URL=postgres://x\n');
+    writeFileSync(join(s.root, 'etc/frankendom/verifier.env'), 'DATABASE_URL=postgres://x\n');   // the verifier's own file (the writer's DATABASE_URL): never touched
+    writeFileSync(join(s.root, 'etc/frankendom/origins-writer.env'), 'SUPABASE_URL=https://x\n');   // writer-only: the one file the keys go into
     const linked = s.run(['--link-writer']);
     assert.equal(linked.status, 0, linked.stderr);
     assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_INTERNAL_KEY=0{63}7$/m);
@@ -160,7 +161,8 @@ test('rollback and --link-writer: rollback removes the include, snippet and unit
     assert.equal(s.read('etc/frankendom/origins-writer.env').split('PRESENCE_INTERNAL_KEY').length - 1, 1, 'appended once');
     const unlinked = s.run(['--unlink-writer']);
     assert.equal(unlinked.status, 0, unlinked.stderr);
-    assert.equal(s.read('etc/frankendom/origins-writer.env'), 'DATABASE_URL=postgres://x\n', '--unlink-writer leaves the writer\'s env exactly as it was');
+    assert.equal(s.read('etc/frankendom/verifier.env'), 'DATABASE_URL=postgres://x\n', 'verifier.env is never written by --link-writer or --unlink-writer');
+    assert.equal(s.read('etc/frankendom/origins-writer.env'), 'SUPABASE_URL=https://x\n', '--unlink-writer leaves the writer\'s env exactly as it was');
     assert.doesNotMatch(unlinked.stdout + unlinked.stderr, /0{63}7/);
     assert.equal(s.run(['--link-writer']).status, 0, 'and it can be linked again');
     const back = s.run(['--rollback']);

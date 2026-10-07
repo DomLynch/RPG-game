@@ -6,7 +6,7 @@
 #     Presence stays OFF: the env file is written with ORIGINS_PRESENCE=0 and the unit is enabled but not started. Turn it on with the flag GO: set ORIGINS_PRESENCE=1 in the env file
 #     and run this again (it restarts the unit and runs the health checks).
 #   bash ops/install-presence.sh --link-writer     EXPLICIT OPT-IN, never a default: WRITES A SECRET (PRESENCE_INTERNAL_KEY) into /etc/frankendom/origins-writer.env when that file exists and
-#                                                  lacks it. The key is never printed; the writer is not restarted (restart it as a separate, logged step). Undo: --unlink-writer.
+#                                                  lacks it. Only that writer-only file is written: never verifier.env (the verify units share it). The key is never printed; the writer is not restarted (restart it as a separate, logged step). Undo: --unlink-writer.
 #                                                  Also places ORIGINS_WRITER_INTERNAL_KEY (presence -> writer saved-location routes; generated at install, a SEPARATE secret) and PRESENCE_URL there.
 #   bash ops/install-presence.sh --unlink-writer   undo --link-writer: remove PRESENCE_INTERNAL_KEY, PRESENCE_URL and ORIGINS_WRITER_INTERNAL_KEY from the writer's env file (the writer is not restarted)
 #   bash ops/install-presence.sh --rollback        undo everything this script did: stop + disable the unit, remove the include, delete the snippet and the unit, reload nginx
@@ -53,7 +53,7 @@ fi
 
 if [ "${1:-}" = "--link-writer" ]; then
   [ -s "$env" ] || { echo "install-presence: $env does not exist yet: install first" >&2; exit 1; }
-  [ -f "$writer_env" ] || { echo "install-presence: $writer_env does not exist: nothing to link (the writer's env is Dom's W3 step)" >&2; exit 1; }
+  [ -f "$writer_env" ] || { echo "install-presence: $writer_env does not exist: nothing to link (created by the writer install, ops/install-origins-writer.sh: SUPABASE_URL + SUPABASE_ANON_KEY)" >&2; exit 1; }
   key="$(get PRESENCE_INTERNAL_KEY)"; [ -n "$key" ] || { echo "install-presence: no PRESENCE_INTERNAL_KEY in $env" >&2; exit 1; }
   # The writer's own PORT defaults to 8788, so presence has its own (8793) and the writer is told where it is.
   phost="$(get PRESENCE_HOST)"; pport="$(get PRESENCE_PORT)"
