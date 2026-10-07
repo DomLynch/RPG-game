@@ -21,7 +21,7 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   // Small, quick, iron bits: the Goblin in ash brown, its own knife.
   'character:cinder-scavenger': { opponent: 'goblin', tint: 0x6b5a48, scale: .9, dressing: { soot: .7, burnt: .3 } },
   // The mere's spawn: smaller still, reed green, no soot (it is wet, not burnt).
-  'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .8, dressing: { soot: 0, burnt: 0 } },
+  'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
   // Starved servant of the ruin: tall for a goblin, grey and ragged.
   'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
   // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
