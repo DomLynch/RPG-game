@@ -1373,13 +1373,11 @@ dialog>p {
   }
   .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .55; transition: opacity .12s, stroke-width .12s; }   /* the four ticks (owner 2026-09-22: brighter; was .3) */
   .actions[data-gestures=cluster] button .side-straight{ opacity: 0; }   /* the centre ring is invisible at rest (owner 2026-09-22, second look: "remove the inner circle"); it stays in the DOM because the lit rules below raise it to .95 for Stab held / Guard straight */
+  /* Dom 2026-10-07 ("yes slash and guard"): the compass is on SLASH (left/right ticks only) and GUARD (all four + ring) and nowhere else; on the tap buttons the ticks read as swipe hints. Replaces the 2026-09-21 "marks on every button" rule. */
   /* one lit mark per button, and only while that button is being pressed (data-held from input.ts; :active is unreliable on touch) — the same as Guard, so every button rests at the
      same faint weight (owner 2026-09-21: "keep them all standard semi-transparent like the guard one") */
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=left] .side-left,
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=right] .side-right,
-  .actions[data-gestures=cluster] #thrust-button[data-held] .side-straight,
-  .actions[data-gestures=cluster] #heavy-button[data-held] .side-overhead,
-  .actions[data-gestures=cluster] #kick-button[data-held] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .side-left,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .side-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
@@ -1391,9 +1389,18 @@ dialog>p {
   .actions[data-gestures=cluster] #attack-button[data-cut=left][data-held] .side-left,
   .actions[data-gestures=cluster] #attack-button[data-cut=right][data-held] .side-right{ opacity: .95; stroke-width: 2; }
   /* directional cuts: no arc (Dom 2026-10-07: "remove the arc, keep the cuts"). The v2 arc used #attack-button[data-cut]::after, which replaced the Slash label (the label IS that ::after, content: attr(data-mobile)) and hid it whenever the stick was held to a side. The button keeps only the lit tick above. */
+  /* The gold arc (Dom 2026-10-07): while the thumb is slid to a side on SLASH (left/right) or GUARD (left/up/right/down) a thin gold arc shows on that side, over its tick.
+     No slide, no arc. Thinner and fainter than the first arc; --arc-w / --arc-o are the two knobs. It lives in the compass SVG, never in a ::after (that is the SLASH label). */
+  .actions[data-gestures=cluster] button .arc{ fill: none; stroke: #d9b45a; stroke-width: var(--arc-w,2); stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: 0; transition: opacity .12s; }
+  .actions[data-gestures=cluster] #attack-button[data-held][data-slide=left] .arc-left,
+  .actions[data-gestures=cluster] #attack-button[data-held][data-slide=right] .arc-right,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .arc-left,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .arc-right,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .arc-overhead,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .arc-low{ opacity: var(--arc-o,.7); }
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
-    .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
+    .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side, .actions[data-gestures=cluster] button .arc{ transition: none; }
   }
   .actions[data-gestures=cluster] button[data-mobile]::after{
     font: 600 11px/1 Arial;
