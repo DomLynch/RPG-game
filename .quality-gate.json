@@ -77,10 +77,6 @@
     ],
     [
       "node",
-      "scripts/stance-panel-check.mjs"
-    ],
-    [
-      "node",
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
@@ -352,6 +348,10 @@
     [
       "node",
       "scripts/first-loss-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/stance-panel-check.mjs"
     ]
   ],
   "release_triggers": [
