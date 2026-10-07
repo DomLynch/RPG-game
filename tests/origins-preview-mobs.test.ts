@@ -5,3 +5,4 @@ import '../origins/preview/hunt.test.ts';   // bite 2: the hunt (a tapped creatu
 import '../origins/preview/mob-looks.test.ts';
 import '../origins/preview/mob-dress.test.ts';
 import '../origins/preview/frontier-zone-rules.test.ts';
+import '../origins/preview/one-context.test.ts';   // leaving an open-world fight releases the duel's renderer and context (one WebGL context at a time)
