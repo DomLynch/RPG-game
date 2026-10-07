@@ -23,6 +23,8 @@ const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWit
 const BOTS = arg('bots', 100), SECONDS = arg('seconds', 30), WARMUP = arg('warmup', 5), CROWD_CM = arg('crowd-m', 60) * 100, CAP = arg('layer-cap', 100), PORT = arg('port', 18788), MAX_LAYERS = arg('max-layers', 8);
 const CLUSTER = clusterCount(BOTS, arg('cluster', 0)), CLUSTER_CM = arg('cluster-m', 20) * 100, CLUSTER_MOVE_MS = arg('cluster-move-s', 120) * 1000;
 const ZONE = 30000, STEP_MS = 100, SPEED_CMS = 500;   // bots walk at 5 m/s, uploading at 10 Hz like a real client
+// Presence starts every fresh join at the zone centre and treats a first pose far away as a teleport (X2 stage 1), so every bot starts there and walks out to its wander square;
+// give the crowd time to spread (--warmup) before reading numbers from a wide --crowd-m.
 
 const server = spawn(process.execPath, ['origins/presence/main.ts'], {
   env: { ...process.env, ORIGINS_PRESENCE: '1', ORIGINS_PRESENCE_TEST_AUTH: '1', PRESENCE_PORT: String(PORT), PRESENCE_HOST: '127.0.0.1', PRESENCE_SOFT: String(CAP), PRESENCE_HARD: String(CAP), PRESENCE_MAX_LAYERS: String(MAX_LAYERS), PRESENCE_LOG_MS: '3600000', SUPABASE_URL: '', SUPABASE_ANON_KEY: '' },
@@ -44,8 +46,9 @@ const lo = (ZONE - CROWD_CM) / 2, hi = lo + CROWD_CM;
 let square = newSquare(Math.random, ZONE, CLUSTER_CM);   // where the cluster bots gather now
 const clusterBots = [];
 for (let i = 0; i < BOTS; i++) {
-  const inCluster = i < CLUSTER, start = inCluster ? pointIn(square, Math.random) : { x: lo + Math.random() * CROWD_CM, z: lo + Math.random() * CROWD_CM };
-  const b = { i, cluster: inCluster, x: start.x, z: start.z, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
+  const inCluster = i < CLUSTER;
+  // Every bot joins at the spawn (X2 stage 1: a first pose never places anyone) and WALKS to its target, so the cluster bots walk in from the spawn: --warmup covers that walk.
+  const b = { i, cluster: inCluster, x: ZONE / 2, z: ZONE / 2, heading: 0, tx: 0, tz: 0, layer: 0, packets: 0, bytes: 0, entities: 0, sent: 0, ws: null };
   b.pick = () => { const t = b.cluster ? pointIn(square, Math.random) : { x: lo + Math.random() * CROWD_CM, z: lo + Math.random() * CROWD_CM }; b.tx = t.x; b.tz = t.z; };
   const pick = b.pick;
   pick(); bots.push(b); if (inCluster) clusterBots.push(b);

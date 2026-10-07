@@ -49,8 +49,9 @@ try {
 
   // Example content (the contracts' fixtures): exchange ore and the story-critical Record of Names. The writer is built with its content; no body names a definition.
   // The smith: the fixtures' forge, materials only (level 1 costs 5 grave iron and 0 coin; level 2 still prices coin, so it is a 501).
-  const defs = new Map([F.exchangeOreDef(), F.recordDef(), F.helmetDef(), F.graveIronDef(),
-    { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+  const defs = new Map([F.exchangeOreDef(), F.recordDef(), F.helmetDef(), F.graveIronDef(), F.oathGauntletsDef(),
+    { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } },
+    { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, handlers: { ...withContent({
     lookup: id => defs.get(id),
@@ -178,6 +179,43 @@ try {
   eq([smithRace.map(r => r.status), smithRace.map(r => r.json.result?.replayed).sort()], [[200, 200], [false, true]], 'upgrade race: one upgrade, one replay');
   eq([psql(`select upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:body-wc'`), irons(), upgrades(), conserved()],
     ['1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade race: upgraded and burned once, at the Exchange, conserved');
+  // a third piece kept in the BANK, paid from pack iron: refused away from the Exchange (the piece itself, not its materials), upgraded in place at it
+  psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
+    mint('inst:greaves-wc', 'item:loot.veteran.Greaves', 1, 'bank', 2, 'claim:9003', { kind: 'arena-award', claimId: 9003, lootId: 'veteran.Greaves', fromLegend: 'veteran-1', atRank: 'Recruit' }, { tier: 'Recruit' }),
+  ])}$j$::jsonb);`);
+  const greavesRow = () => psql(`select loc_kind || ':' || upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:greaves-wc'`);
+  const bankedPiece = over => smithAsk({ op: 'smith:greaves-wc:l1', instance: 'inst:greaves-wc', materials: ['inst:iron-d'], ...over });
+  const bankedAway = await call('apply_upgrade', 'ta', bankedPiece());
+  eq([bankedAway.status, /bank, which opens only at the Concord Exchange/.test(bankedAway.json.error)], [400, true], 'upgrade: a banked piece is refused away from the Exchange');
+  eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:0:v1:0', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade: the banked refusal changed nothing');
+  const bankedAt = await call('apply_upgrade', 'ta', bankedPiece({ place: 'exchange' }));
+  eq([bankedAt.status, bankedAt.json.result?.replayed, bankedAt.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-d', 5]]], 'upgrade: a banked piece is upgraded at the Exchange');
+  eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the banked piece stays in the bank at level 1, pack iron burned, conserved');
+  // a story-critical piece (the fixtures' Oath Gauntlets, bound quest-reward gear): the smith may upgrade it (Strategy, 2026-10-07) and it keeps its story
+  // flag, binding, provenance and place; a story piece is never a material, not even the piece itself; afterwards its quest step still burns it
+  const oathProv = { kind: 'quest-reward', quest: 'quest:stolen-name', stage: 'oath' };
+  psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
+    mint('inst:oath-wc', 'item:stolen-name-gauntlets', 1, 'pack', 0, 'quest:stolen-name:oath:wc', oathProv, { tier: 'Recruit', bound_to: pc }),
+    mint('inst:record-2', 'item:stolen-name-record', 1, 'pack', 2, 'quest:stolen-name:ruin:wc2', { kind: 'quest-reward', quest: 'quest:stolen-name', stage: 'ruin' }, { bound_to: pc }),
+  ])}$j$::jsonb);`);
+  const oathRow = () => psql(`select item || '|' || coalesce(bound_to, '-') || '|' || coalesce(loc_kind || ':' || loc_index, '-') || '|' || (provenance = '${JSON.stringify({ mintKey: 'quest:stolen-name:oath:wc', at: '2026-10-06T12:00:00Z', wonBy: pc, ...oathProv })}'::jsonb) || '|' || upgrade_level || ':v' || version || '|' || coalesce((select string_agg(h ->> 'kind', ',') from jsonb_array_elements(history) h), '-') || '|' || coalesce(retire_reason, 'live') from public.origins_items where id = 'inst:oath-wc'`);
+  const oathAsk = over => smithAsk({ op: 'smith:oath-wc:l1', instance: 'inst:oath-wc', materials: ['inst:iron-b'], ...over });
+  const oathFresh = `item:stolen-name-gauntlets|${pc}|pack:0|true|0:v1|-|live`;
+  eq(oathRow(), oathFresh, 'story piece: minted bound, in the pack, no history');
+  const oathMat = await call('apply_upgrade', 'ta', oathAsk({ op: 'smith:oath-wc:rec', materials: ['inst:record-2', 'inst:iron-b'] }));
+  eq([oathMat.status, /story-critical; the smith never takes it as a material/.test(oathMat.json.error)], [400, true], 'upgrade: a story piece offered as a material is refused');
+  const oathSelf = await call('apply_upgrade', 'ta', oathAsk({ op: 'smith:oath-wc:self', materials: ['inst:oath-wc', 'inst:iron-b'] }));
+  eq([oathSelf.status, /piece being upgraded; it cannot also be spent/.test(oathSelf.json.error)], [400, true], 'upgrade: the piece is never its own material');
+  eq([oathRow(), irons(), upgrades(), conserved()], [oathFresh, 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the story refusals changed nothing');
+  const oathUp = await call('apply_upgrade', 'ta', oathAsk());
+  eq([oathUp.status, oathUp.json.result?.replayed, oathUp.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-b', 5]]], 'upgrade: the story piece is upgraded for 5 iron');
+  eq([oathRow(), irons(), upgrades(), conserved()], [`item:stolen-name-gauntlets|${pc}|pack:0|true|1:v2|upgrade|live`, 'inst:iron-b:3:v3,inst:iron-c:15:v2,inst:iron-d:1:v2', '4', '0'],
+    'upgrade: the story piece keeps item, binding, place and provenance, is level 1, still live; history gained only the upgrade entry');
+  const oathHand = over => handIn({ op: 'quest:stolen-name:oath:handin', itemId: 'item:stolen-name-gauntlets', qty: 1, ...over });
+  eq((await call('consume', 'ta', oathHand({ op: 'quest:oath:generic' }))).status, 400, 'consume: the upgraded story piece is still refused to a step that does not name it');
+  const oathBurn = await call('consume', 'ta', oathHand({ consumesStoryItem: 'item:stolen-name-gauntlets' }));
+  eq([oathBurn.status, oathBurn.json.result?.burn.lines.map(l => [l.instance, l.quantity]), oathRow(), conserved()],
+    [200, [['inst:oath-wc', 1]], `item:stolen-name-gauntlets|${pc}|-|true|1:v3|upgrade|burn`, '0'], 'consume: its quest step burns the upgraded story piece (retired), conserved');
 
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.

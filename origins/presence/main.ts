@@ -1,5 +1,5 @@
 // node origins/presence/main.ts — the presence service. OFF unless ORIGINS_PRESENCE=1 (Lead/Strategy flag GO); with it off nothing listens.
-// Env: SUPABASE_URL + SUPABASE_ANON_KEY (token check), PRESENCE_PORT (default 8788), PRESENCE_HOST (default 127.0.0.1).
+// Env: SUPABASE_URL + SUPABASE_ANON_KEY (token check), PRESENCE_PORT (default 8788), PRESENCE_HOST (default 127.0.0.1), PRESENCE_INTERNAL_KEY (optional: turns on GET /internal/where for the writer; unset, that route does not exist).
 // Load test only: ORIGINS_PRESENCE_TEST_AUTH=1 accepts the token `bot-<name>` as that account, and is refused when SUPABASE_URL is set or the bind is not
 // loopback, so it cannot be left on by mistake in the real service. PRESENCE_SOFT / PRESENCE_HARD / PRESENCE_MAX_LAYERS / PRESENCE_LOG_MS override the layer caps for a run.
 import { supabaseVerify } from '../server/auth.ts';
@@ -20,5 +20,5 @@ if (testAuth === '1') {
 const num = (name: string, fallback: number): number => Number(process.env[name] ?? fallback);
 const rules = { ...RULES, softCap: num('PRESENCE_SOFT', RULES.softCap), hardCap: num('PRESENCE_HARD', RULES.hardCap) };
 const limits = testAuth === '1' ? { ...LIMITS, ipSockets: 1000, ipJoinsPerMinute: 100000 } : LIMITS;
-const presence = createPresence({ verify, rules, limits, logEveryMs: num('PRESENCE_LOG_MS', 60_000), maxLayers: num('PRESENCE_MAX_LAYERS', 8), ipHeader: host === '127.0.0.1' && testAuth !== '1' });
+const presence = createPresence({ verify, rules, limits, internalKey: process.env.PRESENCE_INTERNAL_KEY || undefined, logEveryMs: num('PRESENCE_LOG_MS', 60_000), maxLayers: num('PRESENCE_MAX_LAYERS', 8), ipHeader: host === '127.0.0.1' && testAuth !== '1' });
 presence.server.listen(port, host, () => console.log(`presence listening on ${host}:${presence.port()} (layers: soft ${rules.softCap}, hard ${rules.hardCap})`));

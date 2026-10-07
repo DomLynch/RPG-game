@@ -6,6 +6,8 @@ import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './record.ts';
 import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './defence-grade.ts';
+import { kickCloseFlag } from './kick-close.ts';
+import { headlineFlag, victoryHeadline } from './victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
@@ -65,6 +67,7 @@ const element = <T extends HTMLElement>(id: string) => document.getElementById(i
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
 const canvas = element<HTMLCanvasElement>('world');
 // The HUD layout tier (layout-tier.ts) on <html data-tier>: compact / standard / tablet, set now and on every resize or rotation. Nothing in the CSS keys off it yet.
+if ((new URLSearchParams(window.location?.search ?? '').get('look') ?? '').split(',').includes('kick52')) document.documentElement.classList.add('look-kick52');   // ?look=kick52: the KICK button at 52 px (style.css); absent = today's 44 px
 const setTier = () => { document.documentElement.dataset.tier = layoutTier(window.innerWidth, window.innerHeight); };
 setTier(); window.addEventListener('resize', setTier); window.addEventListener('orientationchange', setTier);
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
@@ -777,6 +780,8 @@ const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia ===
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
 feedback.breakThud(!!breakBeat?.thud);
+const KICK_CLOSE = kickCloseFlag(window.location?.search ?? '');   // ?look=kickclose: the KICK light also goes out while the foe opens the gap (kick-close.ts); absent = today's game
+const HEADLINE = headlineFlag(window.location?.search ?? '');   // ?look=headline: one earned line on a win (victory-headline.ts); absent = today's game
 const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
 feedback.defenceGrades(DEFENCE_GRADES);
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
@@ -819,7 +824,7 @@ function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(shown, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(shown, { kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = shown.finish ? view.finishPhase() : null;

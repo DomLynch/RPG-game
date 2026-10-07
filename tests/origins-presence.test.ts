@@ -97,13 +97,14 @@ test('movement clamp: inside the zone, no faster than sprint; a jump is snapped 
   assert.equal(r.x, 30000, 'a small step past the edge is held at the edge');
 });
 
-test('a player with no known position is placed by its first pose, then clamped like everyone', () => {
+test('a player with no known position starts at the spawn, and its first pose is clamped like every other (X2 stage 1: a first pose never places anyone)', () => {
   const w = new World();
   const p = w.join(acct(1), 0)!;
-  assert.equal(w.move(p, { x: 5000, z: 6000, heading: 0, anim: 0, flags: 0 }, 100), 'ok');
-  assert.deepEqual([p.x, p.z], [5000, 6000], 'the spawn is where the page says it stands');
-  assert.equal(w.move(p, { x: 25000, z: 6000, heading: 0, anim: 0, flags: 0 }, 200), 'snapped', 'the second jump is a teleport');
-  assert.equal(p.layer.cells.get(Math.floor(5000 / 1600) * 4096 + Math.floor(6000 / 1600))!.has(p), true, 'and the grid still holds it at the spawn');
+  assert.deepEqual([p.x, p.z], [15000, 15000], 'the Pit yard centre, chosen by the server');
+  assert.equal(w.move(p, { x: 5000, z: 6000, heading: 0, anim: 0, flags: 0 }, 100), 'snapped', 'a first pose far from the spawn is a teleport, not a placement');
+  assert.deepEqual([p.x, p.z], [15000, 15000], 'and the old position stays');
+  assert.equal(w.move(p, { x: 15100, z: 15000, heading: 0, anim: 0, flags: 0 }, 200), 'ok', 'a first pose within the clamp is an ordinary move');
+  assert.equal(p.layer.cells.get(Math.floor(15100 / 1600) * 4096 + Math.floor(15000 / 1600))!.has(p), true, 'and the grid holds it there');
 });
 
 // The real socket path: Node's built-in WebSocket client against the service on loopback.
