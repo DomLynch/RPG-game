@@ -22,7 +22,9 @@ test('every placed piece of the Exchange matches the pre-switch greybox within 1
     const pin = PINS.pieces[i]!, what = `piece ${i} (${pin.layer} ${pin.shape[0]})`;
     assert.equal(p.layer, pin.layer, `${what} layer`);
     assert.equal(p.shape[0], pin.shape[0], `${what} shape`);
-    p.shape.slice(1).forEach((v, k) => near(v as number, pin.shape[k + 1]!, `${what} size ${k}`));
+    const [, ...size] = p.shape, [, ...pinned] = pin.shape;
+    assert.equal(size.length, pinned.length, `${what} size count`);
+    size.forEach((v, k) => near(v, pinned[k]!, `${what} size ${k}`));
     near(p.x, pin.at[0], `${what} x`); near(p.y, pin.at[1], `${what} y`); near(p.z, pin.at[2], `${what} z`);
     near(p.rotY, pin.rotY, `${what} turn`); near(p.foot, pin.foot, `${what} foot`);
     p.tint.forEach((v, k) => near(v, pin.tint[k]!, `${what} tint`));

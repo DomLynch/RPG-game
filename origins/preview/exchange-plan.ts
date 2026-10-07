@@ -56,6 +56,21 @@ export function exchangeAnchors(data: WorldData = CONCORD): Anchors {
   };
 }
 
+// ?region=1 only: open the left stoa's back wall and the balustrade behind it where the west road leaves (a gap `half` either side of
+// `z`); the doorway that stood there goes. Pieces wholly inside the colonnade or the plaza are not touched. Without it the plan is today's.
+export function openWest(plan: Plan, a: Anchors, z: number, half: number): Plan {
+  const wall = a.gate.x - (a.halfWidth - KERB_INSET) - 1, lo = z - half, hi = z + half, pieces: Piece[] = [];
+  for (const p of plan.pieces) {
+    const depth = p.shape[0] === 'box' ? p.shape[3] : 0, from = p.z - depth / 2, to = p.z + depth / 2;
+    if (p.x > wall || p.shape[0] !== 'box' || to <= lo || from >= hi) { pieces.push(p); continue; }
+    if (depth < half * 2) continue; // a doorway in the gap
+    const [, w, h] = p.shape;
+    if (from < lo) pieces.push({ ...p, shape: ['box', w, h, lo - from], z: (from + lo) / 2 });
+    if (to > hi) pieces.push({ ...p, shape: ['box', w, h, to - hi], z: (hi + to) / 2 });
+  }
+  return { ...plan, pieces };
+}
+
 // Greybox sizes: not world data, the massing's own measurements.
 export const KERB_INSET = 4; // the paved field stops this far inside the zone's edge; the stoas' back walls stand in the gap
 export const STONE_RADIUS = 2.6;

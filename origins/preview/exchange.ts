@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { ArenaMaterials } from '../../src/arena.ts';
-import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Plan, type Shape, type Tint } from './exchange-plan.ts';
+import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 
 // Greybox of the walk out (Origins look prototype, not the build): the passage behind the Pit's gate, the Concord Exchange plaza and the
 // bank's front. Blocking only: massing, scale, light and the arena's own materials, so Dom judges proportion and mood before any asset.
@@ -55,12 +55,23 @@ function inscription(text: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ map, roughness: 0.95 });
 }
 
+// Every piece of a plan, merged into one mesh per layer (stone, iron, dark, coal) named `<prefix>-<layer>`, added to the group.
+export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ArenaMaterials, prefix: string): void {
+  const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], iron: [], soot: [], coal: [] };
+  for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot));
+  const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {
+    if (!parts.length) return;
+    const mesh = new THREE.Mesh(mergeGeometries(parts), material); mesh.name = `${prefix}-${name}`; mesh.castShadow = name !== 'coal'; mesh.receiveShadow = true; group.add(mesh);
+  };
+  add(layers.stone!, m.stone, 'stone'); add(layers.iron!, m.iron, 'iron');
+  add(layers.soot!, new THREE.MeshStandardMaterial({ color: '#0d0b0a', roughness: 1 }), 'dark');
+  add(layers.coal!, m.coal, 'coal');
+}
+
 export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3; update(time: number): void };
 
 export function buildExchange(scene: THREE.Scene, m: ArenaMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
-  const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], iron: [], soot: [], coal: [] };
-  for (const p of plan.pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot));
 
   const awnings: THREE.Mesh[] = [];
   for (const a of plan.awnings) {
@@ -73,12 +84,7 @@ export function buildExchange(scene: THREE.Scene, m: ArenaMaterials, plan: Plan 
     body.position.set(f.x, 0.87, f.z); body.castShadow = true; group.add(body);
   }
 
-  const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {
-    const mesh = new THREE.Mesh(mergeGeometries(parts), material); mesh.name = name; mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh;
-  };
-  add(layers.stone!, m.stone, 'exchange-stone'); add(layers.iron!, m.iron, 'exchange-iron');
-  add(layers.soot!, new THREE.MeshStandardMaterial({ color: '#0d0b0a', roughness: 1 }), 'exchange-dark');
-  add(layers.coal!, m.coal, 'exchange-coal').castShadow = false;
+  meshPieces(group, plan.pieces, m, 'exchange');
   const frieze = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.3), inscription(plan.frieze.text));
   frieze.position.set(plan.frieze.x, plan.frieze.y, plan.frieze.z); group.add(frieze);
 
