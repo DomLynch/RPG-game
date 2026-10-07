@@ -2,7 +2,7 @@
 // fail-closed client (origins/presence/where.ts) and the fixture the writer's tests inject (origins/presence/fixtures.ts).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createPresence } from '../origins/presence/server.ts';
+import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { fakeWhere, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
 import { inZone, parseWhere, presenceWhere, standsWithin } from '../origins/presence/where.ts';
 
@@ -17,15 +17,15 @@ const start = async (internalKey: string | undefined, clock: { t: number }) => {
 const get = (base: string, account: string, auth?: string) => fetch(`${base}/internal/where?account=${account}`, { headers: auth ? { authorization: auth } : {} });
 const pose = (x: number, z: number) => ({ x, z, heading: 0, anim: 0, flags: 0 });
 
-test('where: the service answers from its own state, offline, unplaced and placed, and the client round-trips it', async () => {
+test('where: the service answers from its own state, offline and in the world, and the client round-trips it', async () => {
   const clock = { t: 1_000_000 };
   const { p, base } = await start(KEY, clock);
   try {
     const placed = p.world.join(acct(1), clock.t, undefined, { x: 15000, z: 16000 })!;
-    p.world.join(acct(2), clock.t)!;   // no known position: placed by its first pose
+    p.world.join(acct(2), clock.t)!;   // no known position: it starts at the spawn, the Pit yard centre
     const where = presenceWhere(base, KEY);
     assert.deepEqual(await where(acct(3)), { online: false }, 'an account that is not in presence');
-    assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: false }, 'in the world but never placed: no position is given');
+    assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 15000, zone: 'pit-yard', ageMs: 0 }, 'a fresh join is at the spawn, never at an unknown position');
     clock.t += 750;
     assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 16000, zone: 'pit-yard', ageMs: 750 }, 'placed: the position, the zone presence computed from it, and the time since its last pose');
     p.world.move(placed, pose(15100, 16000), clock.t);
@@ -102,4 +102,22 @@ test('fixtures: fakeWhere answers from a table, an unknown account is offline, a
   assert.deepEqual(await where(acct(2)), { online: true, layer: 1, placed: false });
   assert.deepEqual(await where(acct(9)), { online: false });
   await assert.rejects(fakeWhere({}, true)(acct(1)), /unreachable/);
+});
+
+test('where: a connected player who stands still stays fresh (the socket heartbeat refreshes seenAt); after disconnect it is offline at once', async () => {
+  const clock = { t: 1_000_000 };
+  const p = createPresence({ verify: async t => (t === 'u1' ? acct(1) : null), log: () => {}, internalKey: KEY, now: () => clock.t, limits: { ...LIMITS, beatMs: 20 } });
+  await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${p.port()}`, where = presenceWhere(base, KEY), sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+  const ws = new WebSocket(`ws://127.0.0.1:${p.port()}/origins/presence`, ['frankendom.presence.v1', 'token.u1']);
+  try {
+    await new Promise<void>((res, rej) => { ws.onmessage = ev => { if (typeof ev.data === 'string' && JSON.parse(ev.data).t === 'hello') res(); }; ws.onerror = () => rej(new Error('refused')); });
+    clock.t += 30_000;   // 30 s of no pose at all
+    await sleep(120);    // a few heartbeats
+    const w = await where(acct(1));
+    assert.ok(w.online && w.placed && w.ageMs < 5000, `idle but connected: fresh (ageMs ${w.online && w.placed ? w.ageMs : 'n/a'})`);
+    assert.equal(inZone(w, 'pit-yard', 5000), true, 'so it still reads inZone at the spawn');
+    ws.close(); await sleep(120);
+    assert.deepEqual(await where(acct(1)), { online: false }, 'after disconnect it is gone');
+  } finally { ws.close(); await p.close(); }
 });
