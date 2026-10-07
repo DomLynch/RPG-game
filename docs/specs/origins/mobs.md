@@ -327,7 +327,7 @@ Per today's `stepMob`: a creature in `idle` waits `idle` seconds (1.5 to 4.5 s),
 - Roam never exceeds `leash / 3` (so a legal wander can never trip the leash).
 - After a `return`, the wander timer starts at `idle[0]` (no instant re-wander flicker).
 
-### 3.3 Behaviour: camps of 2 to 3
+### 3.3 Behaviour: camps of up to 4 (a leader and three); a boss camp up to 6
 
 A **camp** is the unit of placement. Today `MOB_PLAN` places `count` creatures scattered over `spread` around the spawn's landmark. Replace with camps:
 
@@ -383,7 +383,7 @@ Each creature form has `activity: 'diurnal' | 'nocturnal' | 'always'` (content; 
 
 ### 3.6 Data-driven content fields
 
-Per form: `activity`, `roam`, `campSize: [min, max]` (default `[2,3]`), `focus: boolean`. Per spawn plan: `camps: number` or `count`, `campRadius`. Proposed Frontier values (content owner confirms): cinder scavenger `diurnal`, ruin ghoul `nocturnal`, mere brood `always`.
+Per form: `activity`, `roam`, `campSize: [min, max]` (default `[2,3]`, at most 4; 6 only on a row flagged `bossCamp`), `focus: boolean`. Per spawn plan: `camps: number` or `count`, `campRadius`. Proposed Frontier values (content owner confirms): cinder scavenger `diurnal`, ruin ghoul `nocturnal`, mere brood `always`.
 
 ### 3.7 Acceptance tests
 
@@ -733,7 +733,7 @@ MobRow {
     hearRadius?: number,         // metres                        (default 4.5)
     leash?: number,              // metres                        (default 26)
     roam?: number,               // home radius, metres           (default 6; never above leash / 3)
-    campSize?: [number, number], // 1..3                          (default [2,3])
+    campSize?: [number, number], // 1..4 (6 on a bossCamp row)       (default [2,3])
     activity?: 'diurnal' | 'nocturnal' | 'always',
     engage?: 'tap' | 'contact'
   },
@@ -782,7 +782,7 @@ Source { kind: 'myth' | 'folklore' | 'history' | 'literature' | 'chronicle',
 | `loot-unknown` | `row.loot` is not a registered loot table | |
 | `loot-tier` | the loot table's tier (`tierOfLootTier`) is above the zone's `difficulty.lootTier` | a creature may not out-drop its zone |
 | `roam-leash` | `behaviour.roam > behaviour.leash / 3` (defaults applied) | sections 2.7 and 3.2 |
-| `camp-size` | `campSize` outside 1 to 3, or min above max | section 3.3 |
+| `camp-size` | `campSize` outside 1 to 4 (1 to 6 on a `bossCamp` row), or min above max | section 3.3; Strategy 2026-10-07: an ordinary camp is a leader and three |
 | `behaviour-range` | any behaviour field outside its section's stated range | ranges are in sections 2 and 3 |
 | `habitat-unknown` | a `habitat` key is not a known biome | schema `terrain.biome` is a `key` |
 | `dup-id` | two rows share an `id` | |
