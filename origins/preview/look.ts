@@ -62,7 +62,7 @@ export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun
   hemi.color.set(look.hemiSky); hemi.groundColor.set(look.hemiGround); hemi.intensity = look.hemiIntensity;
   sun.color.set(look.sunColor); sun.intensity = look.sunIntensity;
   renderer.toneMappingExposure = look.exposure;
-  const tint = (ms: readonly THREE.MeshStandardMaterial[], t: readonly [number, number, number]) => { for (const m of ms) { const base = (m.userData.lookBase ??= m.color.clone()) as THREE.Color; m.color.copy(base).multiply(m.color.clone().setRGB(...t)); } };
+  const tint = (ms: readonly THREE.MeshStandardMaterial[], t: readonly [number, number, number]) => { for (const m of ms) { const base = (m.userData.lookBase ??= m.color.clone()) as THREE.Color; m.color.copy(base); m.color.r *= t[0]; m.color.g *= t[1]; m.color.b *= t[2]; } };   // no allocation: this runs every frame
   tint(grounds, look.ground); tint(stones, look.stone ?? [1, 1, 1]);
   return look;
 }
