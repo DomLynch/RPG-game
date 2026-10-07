@@ -245,8 +245,8 @@ def bite(t):
     move("root", dy=-.12 * k, dz=-.03 * k)
     for i in range(5):
         rot(f"spine{i}", (1, 0, 0), -6 * k)
-    rot("neck", (1, 0, 0), -18 * k)
-    rot("head", (1, 0, 0), -10 * k)
+    rot("neck", (1, 0, 0), 14 * k)
+    rot("head", (1, 0, 0), 8 * k)
     jaw = math.sin(math.pi * (t - .1) / .3) if .1 < t < .4 else 0.0
     rot("jaw", (1, 0, 0), 38 * jaw)
     for side in "LR":
@@ -261,8 +261,8 @@ def hurt(t):
     k = math.sin(math.pi * t)
     for i in range(5):
         rot(f"spine{i}", (1, 0, 0), 5 * k)
-    rot("neck", (1, 0, 0), 20 * k)
-    rot("head", (1, 0, 0), 12 * k)
+    rot("neck", (1, 0, 0), -22 * k)
+    rot("head", (1, 0, 0), -14 * k)
     rot("jaw", (1, 0, 0), 25 * k)
     move("root", dy=.04 * k, dz=-.01 * k)
     for side in "LR":
