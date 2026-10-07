@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dom's picks</title>
+<style>
+:root{--bg:#14110e;--card:#1e1a15;--ink:#eee3cf;--dim:#a99b82;--gold:#d9a441}
+@media (prefers-color-scheme:light){:root{--bg:#f3ecdd;--card:#fffaf0;--ink:#2a2318;--dim:#6d6150;--gold:#9a6a12}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}h1{font-size:22px;margin:4px 0 2px}p.s{margin:0 0 16px;color:var(--dim)}
+section{background:var(--card);border-radius:12px;padding:14px;margin:0 0 14px}
+h2{font-size:17px;margin:0 0 4px;color:var(--gold)}.q{margin:0 0 10px}
+img{width:100%;border-radius:8px;display:block;margin:0 0 6px}.cap{font-size:12px;color:var(--dim);margin:0 0 10px}
+.go{display:flex;flex-wrap:wrap;gap:8px}.go a{flex:1 1 auto;text-align:center;padding:12px 14px;border-radius:10px;background:var(--gold);color:#14110e;font-weight:700;text-decoration:none;min-width:30%}
+.go a.o{background:none;border:2px solid var(--gold);color:var(--gold)}
+</style></head><body><main>
+<h1>Your picks</h1><p class="s">Tap the link, play one fight on your phone, decide. Nothing here changes the live game.</p>
+
+<section><h2>1. Standoff</h2><p class="q">Choosing: do both fighters draw their swords together after the versus card?</p>
+<img src="img/standoff.png" alt="Standoff on (top row) vs off (bottom row)"><p class="cap">Top row: standoff on. Bottom row: today (he stands sheathed until your first press).</p>
+<div class="go"><a href="/preview/standoff/?standoff=1&opponent=veteran&spar=1&difficulty=dummy&skill=none">Standoff ON</a></div></section>
+
+<section><h2>2. Four defence grades</h2><p class="q">Choosing: should plain block, heavy chip, perfect block and parry each look and sound different?</p>
+<img src="img/defence.png" alt="The four defence grades"><p class="cap">Plain, heavy chip, perfect, parry on the Guard button. The sound mixes are first guesses.</p>
+<div class="go"><a href="/?look=defence&opponent=veteran&spar=1&difficulty=dummy&skill=none">Defence grades</a><a class="o" href="/?opponent=veteran&spar=1&difficulty=dummy&skill=none">Today</a></div></section>
+
+<section><h2>3. Tired fighter, readable from behind</h2><p class="q">Choosing: does the tired pose now show clearly from the back camera?</p>
+<img src="img/fat-off.png" alt="Today"><img src="img/fat-on.png" alt="With the look"><p class="cap">Top: today. Bottom: the new pose. Run your stamina down to see it.</p>
+<div class="go"><a href="/?look=fatigue-read&opponent=veteran&spar=1&difficulty=dummy&skill=none">Tired pose</a></div></section>
+
+<section><h2>4. Victory headline</h2><p class="q">Choosing: after a win, one earned line (such as "You never took a hit.") before the rematch prompt?</p>
+<img src="img/hl-before.png" alt="Today"><img src="img/hl-after.png" alt="With the headline"><p class="cap">Top: today. Bottom: with the headline. Nothing earned means nothing said.</p>
+<div class="go"><a href="/?look=headline&opponent=veteran&spar=1&difficulty=dummy&skill=none">Headline on</a></div></section>
+
+<section><h2>5. Break beat</h2><p class="q">Choosing: how long the game freezes when you break their posture (120, 150 or 180 ms), plus a dry thud. Today is 120 ms and silent.</p>
+<p class="cap">No still: it is a timing and sound choice. Break their posture in each and listen.</p>
+<div class="go"><a href="/?look=breakbeat120&opponent=veteran&spar=1&difficulty=dummy&skill=none">120 ms + thud</a><a href="/?look=breakbeat150&opponent=veteran&spar=1&difficulty=dummy&skill=none">150 ms + thud</a><a href="/?look=breakbeat180&opponent=veteran&spar=1&difficulty=dummy&skill=none">180 ms + thud</a></div></section>
+
+<section><h2>6. Spell colours</h2><p class="q">Choosing: how strongly each spell school is tinted (fire, shadow, poison, holy, frost). Today everything stays grey and dark.</p>
+<img src="img/sch-plain.png" alt="Plain"><p class="cap">Plain: full colour</p><img src="img/sch-soft.png" alt="Soft"><p class="cap">Soft: half strength</p><img src="img/sch-dark.png" alt="Dark"><p class="cap">Dark: colour kept deep</p>
+<div class="go"><a href="/?look=schools&opponent=veteran&spar=1&difficulty=dummy&skill=none">Plain</a><a href="/?look=schools2&opponent=veteran&spar=1&difficulty=dummy&skill=none">Soft</a><a href="/?look=schools3&opponent=veteran&spar=1&difficulty=dummy&skill=none">Dark</a></div></section>
+</main></body></html>
