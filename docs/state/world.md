@@ -2,6 +2,21 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 ~06:00 (+04, Mac clock) — HANDOFF #19 (supersedes #18; the VPS clock labels local time "Z": real UTC = Mac -4 h)
+
+### Now: nothing running on the VPS (checked: `capture --status` shows none of mine, no ks/def/trident/audio-preview process, no `world-*` worktree left, disk 34 GB free). Waiting on the Auditor for #1594.
+- **#1594 OPEN** (`world/defence-audio`, base trunk): measured gains for `?look=defence` (flag still off): plain block .85 -> .95, heavy-chip hit_heavy layer .2 -> .35. Phone LUFS today/as shipped/with PR: plain -30.5/-31.0/-30.6, heavy -30.5/-30.7/-30.4, perfect -30.1/-29.9/-29.9, parry -29.7/-29.7/-29.7; peaks -19.3 dBFS everywhere, a foe hit in the same tick moves a grade <= .1 dB. Defence-grade + graphics tests 115/0 and tsc 0 on the VPS. Not heard on a handset (Dom's call). Tables in ~/Desktop/Business/frankendom-defence-audio/. Sent to Lead + Auditor; no verdict yet.
+- **Research #18 CLOSED, "not needed on our camera":** #1561 (`?look=kickscale`, merged, flag off) used a wrong 3.5 m reference; the camera is 4.96-7.2 m from the fight (median 5.38) and the factor at the 10 real hits is 0.93-1.02 (span 9.6%, under the 10% bar). **#1586 MERGED** removes the flag (exact reversal, tests/graphics map cleaned); #1583 (re-reference + `?look=kickscale-sep`) CLOSED, rebuild from its branch only if Strategy asks. Measurements are in the state-doc entry 05:50 on trunk (docs/state/world.md), raw in ~/Desktop/Business/frankendom-kickscale/result3.json. Do not re-run.
+- **Production trident check DONE:** live 2fa6f8a2 (bundle gate-light-f98bab1d.js index-DKNilMt3.js): CRIXUS the Centurion at difficulty 1 shows a dark metal fork, no planks (#1567 confirmed); still ~/Desktop/Business/frankendom-prod-clips/2fa6f8a2/f0210.png, Lead acknowledged.
+- Nothing else owed: no clip for Dom (Lead's ruling on kickscale); #1541/#1535/#1536/#1527 per handoff #18 below.
+
+### Gotchas (new)
+- **Reusable dummy harness (scratch, not committed):** /private/tmp/claude-501/bloodside/ks-dummy.mjs + ks-run2.sh (difficulty=dummy opponent never attacks; hero walks W/S to a chosen separation then strikes; per-frame camera log needs the scratch `globalThis.__cam = rig.camera` line patched into scene.ts on the VPS worktree, never committed). A bare dodge-button tap is a BACKSTEP; hold KeyA first so it becomes a roll. A scripted real fight is NOT deterministic across runs once draws toggle: pick hits from the same run you film.
+- **Audio evidence harness:** scripts/audio-preview.mjs renders probes through the real feedback graph; the scratch def-patch.py (bloodside/) swaps in custom CUE_PROBES with a `defence: true` flag (feedback.defenceGrades(true)); avoid `--check` (its coverage pin counts the shipped probes).
+- VPS disk hit 97% (9 GB free) this morning; I deleted my ten stale `world-*` worktrees (all HEADs were on remotes). Delete each worktree after its job; never touch cleanup-recovery-20261004 (Dom keeps it).
+- The Stop-hook quality gate defers while any deploy/another gate runs; that is not a failure (CI covers the PR). The Mac blocks node --test/tsc during a deploy: use `capture world <script>`.
+- Messaging: ListAgents names are the address (`Frankendom - Lead Dev`, `Frankendom - Auditor`); the short ids in brackets do not resolve in send_message.
+
 ## 2026-10-07 04:40 (+04, Mac clock) — HANDOFF #18 (final, supersedes #17; the VPS clock labels local time "Z": real UTC = Mac -4 h)
 
 ### Now: nothing running on the VPS (verified: capture queue empty of my entries, no prod/ab processes). Waiting only on Lead's OK for research #18.
