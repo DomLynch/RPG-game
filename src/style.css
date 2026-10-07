@@ -1366,13 +1366,11 @@ dialog>p {
   }
   .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .55; transition: opacity .12s, stroke-width .12s; }   /* the four ticks (owner 2026-09-22: brighter; was .3) */
   .actions[data-gestures=cluster] button .side-straight{ opacity: 0; }   /* the centre ring is invisible at rest (owner 2026-09-22, second look: "remove the inner circle"); it stays in the DOM because the lit rules below raise it to .95 for Stab held / Guard straight */
+  /* Dom 2026-10-07 ("yes slash and guard"): the compass is on SLASH (left/right ticks only) and GUARD (all four + ring) and nowhere else; on the tap buttons the ticks read as swipe hints. Replaces the 2026-09-21 "marks on every button" rule. */
   /* one lit mark per button, and only while that button is being pressed (data-held from input.ts; :active is unreliable on touch) — the same as Guard, so every button rests at the
      same faint weight (owner 2026-09-21: "keep them all standard semi-transparent like the guard one") */
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=left] .side-left,
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=right] .side-right,
-  .actions[data-gestures=cluster] #thrust-button[data-held] .side-straight,
-  .actions[data-gestures=cluster] #heavy-button[data-held] .side-overhead,
-  .actions[data-gestures=cluster] #kick-button[data-held] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .side-left,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .side-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,

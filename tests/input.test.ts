@@ -95,15 +95,16 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
 test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): every combat button carries the same five marks; all rest at the same faint weight; one lights only while pressed — Slash the next cut (data-next), Stab the ring, Heavy up, Kick down, Guard the held side (aria-pressed + data-side)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const button = (id: string) => html.match(new RegExp(`<button id="${id}-button"[\\s\\S]*?<\\/button>`))![0];
-  const compass = button('guard').match(/<svg class="[^"]*side-marks[^"]*"[\s\S]*?<\/svg>/)![0].replace(/class="[^"]*side-marks[^"]*"/, '');
-  for (const id of ['guard', 'attack', 'thrust', 'heavy', 'kick']) {
+  // Dom 2026-10-07 ("yes slash and guard"): the compass lives on SLASH (left/right ticks only) and GUARD (all five marks); no other fight button carries one.
+  for (const id of ['guard', 'attack']) {
     const b = button(id);
-    for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(b, new RegExp(`class="side side-${side}"`), `${id}: ${side} mark`);
+    for (const side of id === 'guard' ? ['overhead', 'low', 'left', 'right', 'straight'] : ['left', 'right']) assert.match(b, new RegExp(`class="side side-${side}"`), `${id}: ${side} mark`);
     assert.match(b, /<svg class="[^"]*side-marks[^"]*"[^>]*aria-hidden="true"/, `${id}: decorative, hidden from the accessibility tree`);
-    assert.equal(b.match(/<svg[\s\S]*?<\/svg>/)![0].replace(/class="[^"]*side-marks[^"]*"/, ''), compass, `${id}: the same compass as Guard`);
   }
+  for (const side of ['overhead', 'low', 'straight']) assert.doesNotMatch(button('attack'), new RegExp(`side-${side}`), `Slash has no ${side} mark`);
+  for (const id of ['thrust', 'heavy', 'kick', 'skill']) assert.doesNotMatch(button(id), /side-marks/, `${id}: no compass (it reads as a swipe hint on a tap button)`);
   const rule = css.match(/\/\* one lit mark per button[\s\S]*?\*\/([\s\S]*?)\{ opacity: \.95; stroke-width: 2; \}/)![1];
-  for (const sel of ['#attack-button[data-held][data-next=left] .side-left', '#attack-button[data-held][data-next=right] .side-right', '#thrust-button[data-held] .side-straight', '#heavy-button[data-held] .side-overhead', '#kick-button[data-held] .side-low',
+  for (const sel of ['#attack-button[data-held][data-next=left] .side-left', '#attack-button[data-held][data-next=right] .side-right',
     ...['left', 'right', 'overhead', 'low', 'straight'].map((s) => `#guard-button[aria-pressed=true][data-side=${s}] .side-${s}`), '#guard-button[aria-pressed=true]:not([data-side]) .side-straight'])
     assert.ok(rule.includes(sel), `${sel} lights`);
   // Owner 2026-09-22 (second look, presentation lane, #420): the four ticks rest brighter at .55, and the centre ring is invisible at
