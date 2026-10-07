@@ -21,7 +21,7 @@ export type Habits = {
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 1200,
+  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 1200, plus: 99, decay: 0,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
@@ -31,7 +31,7 @@ export const readOpponent = (h: Habits, profile?: AiProfile): Reads => {
   // RV31: a profile with `spamRun` reads a masher EARLY: that many consecutive lights with no defence that met a blow
   // between them (the gate reads the run alone and REPLACES the old read). Absent = the old read, byte for byte.
   const spam = profile?.spamRun
-    ? ((h.run ?? 0) >= profile.spamRun && h.ticks >= (h.latch ?? 0)) || (!!profile.spamBoth && oldSpam)
+    ? ((h.run ?? 0) >= profile.spamRun + (h.ticks < (h.latch ?? 0) ? READ.plus : 0)) || (!!profile.spamBoth && oldSpam)
     : oldSpam;
   return {
     parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
@@ -94,11 +94,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (opponent.phase === 'backstep' && opponent.age === 0) h.steps++;
   h.hold = opponent.phase === 'guard' ? (h.hold ?? 0) + 1 : 0;
   // a guard held through my windup (up to the tick it ends) is a real commitment: it ends the run with no contact needed; a tap of a few ticks does not (RV31)
-  if (self.phase === 'attack' && self.move && self.age === mine[self.move].windup && h.hold >= READ.holdTicks) { h.run = 0; h.latch = h.ticks + READ.latch; }
+  if (self.phase === 'attack' && self.move && self.age === mine[self.move].windup && h.hold >= READ.holdTicks) { h.run = READ.decay ? Math.max(0, (h.run ?? 0) - 2) : 0; h.latch = h.ticks + READ.latch; }
   // a defence that actually meets a blow ends the masher's run (RV31): a block, parry or roll-dodge event by the player, or one of my swings
   // missing a backstepping player. A bare guard / roll / backstep tick does not (a tap between cuts would otherwise blind the gate).
   // A COUNTED defence (this, or the held guard above) also latches the early gate off for READ.latch ticks: an honest player who defends is not a masher.
-  if (duel.events.some(e => (e.actor === 1 - me && (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')) || (e.actor === me && e.type === 'AttackMissed' && opponent.phase === 'backstep'))) { h.run = 0; h.latch = h.ticks + READ.latch; }
+  if (duel.events.some(e => (e.actor === 1 - me && (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')) || (e.actor === me && e.type === 'AttackMissed' && opponent.phase === 'backstep'))) { h.run = READ.decay ? Math.max(0, (h.run ?? 0) - 2) : 0; h.latch = h.ticks + READ.latch; }
   // the first tick a swing sat at its chamber: age is rewound to the chamber only while parked, and charge stays 1 through the rest of
   // a swing released after a one-tick park, so charge === 1 alone counted every later tick of that swing as a park (bump 9)
   if (opponent.phase === 'attack' && opponent.charge === 1 && opponent.move && opponent.age === theirs[opponent.move].chamber) h.parks++;
