@@ -7,6 +7,7 @@ import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
 import { riseMetres, riseStep } from './gate-rise.ts';
+import { FAVOUR, stepFavour } from './arena-favour.ts';
 import { bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
@@ -521,13 +522,14 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
 
   // Motion. Only dt-driven: a hit-stop passes dt 0 and everything holds its pose with the fighters.
-  let time = 0, flare = 0, mood: 'idle' | 'cheer' | 'lean' | 'recoil' = 'idle', since = 0;
+  let time = 0, flare = 0, mood: 'idle' | 'cheer' | 'lean' | 'recoil' | 'roar' = 'idle', since = 0, favour = 0;
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), euler = new THREE.Euler(), scale = new THREE.Vector3();
   // Reaction curves, all under the readable-brutality cap (≤ 0.1 m, ≤ 8°): a bob on a blow, a lean-in on a parry, a recoil on a kill.
   function reaction(t: number, phase: number): [number, number] {
     if (mood === 'cheer') { const u = t - phase * 0.12; return [u > 0 && u < 0.55 ? 0.06 * Math.sin(Math.PI * u / 0.55) : 0, 0]; }
     if (mood === 'lean') { const k = smooth(0, 0.15, t) * (1 - smooth(0.8, 1.1, t)); return [0.04 * k, 0.12 * k]; }
     if (mood === 'recoil') { const k = smooth(0, 0.2, t) * (1 - smooth(1.4, 2, t)); return [-0.035 * k, -0.14 * k]; }
+    if (mood === 'roar') { const k = smooth(0, 0.12, t) * (1 - smooth(FAVOUR.roarSeconds - 0.4, FAVOUR.roarSeconds, t)); return [0.09 * k * Math.abs(Math.sin(Math.PI * 2.2 * (t - phase * 0.03))), -0.06 * k]; }   // crowd favour (arena-favour.ts): near in unison, two bobs and a lean back, under the same cap
     return [0, 0];
   }
   function place(instanced: THREE.InstancedMesh, i: number, x: number, y: number, z: number, tilt: number, yaw: number, s: number, width = 1) {
@@ -547,11 +549,13 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     if (rise !== was) { gateBars.position.y = riseMetres(rise); props.liftGate(riseMetres(rise)); }   // the portcullis (procedural or authored) rises with the gate's open; props is built after update(0) and a still gate never reads it
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
     if (abyssGround) abyssGround.rotation.y = time * 0.004;   // the land far below turns, slowly: the island drifts over it
+    const roaring = mood === 'roar' && since < FAVOUR.roarSeconds;   // a roar is not cut short by the next blow
     for (const e of events) {
-      if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; }
+      if (!roaring) { if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; } }
       if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'Killed') flare = 1;
     }
-    if (since > 2.2) mood = 'idle';
+    const step = stepFavour(favour, events, dt); favour = step.favour; if (step.roar) { mood = 'roar'; since = 0; }
+    if (since > (mood === 'roar' ? FAVOUR.roarSeconds : 2.2)) mood = 'idle';
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
     bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1) + gust * (0.5 + 0.2 * Math.sin(time * 19 + k * 2.7)) * Math.sin(time * 13 + k * 1.3), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
     drapeAngles.forEach((a, k) => { const [x, z] = polar(drapeR, a); place(banners, bannerAngles.length + k, x, wall.top - 0.05, z, 0.008 * Math.sin(time * 0.9 + k * 2.3), a, drapeDrop, theme.banner[0] / drapeDrop); });   // flat to the stone: a breath, not a sway
