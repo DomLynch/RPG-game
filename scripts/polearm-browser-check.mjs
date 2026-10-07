@@ -56,7 +56,10 @@ try {
       const frames = [];
       const shot = async label => {
         const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth }));
-        assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`${prefix}_`));
+        assert.equal(state.art, ''); assert.equal(state.overflow, false);
+        // Before the fight the rig may still be sheathed (#741, the Standoff's Draw beat): the pre-fight views accept the Draw pair; the fight views
+        // below must show the pole family's own clips, and the until() before them waits for a real High/Reap/Sweep/Thrust.
+        assert.match(state.clips, label.startsWith('fight') ? new RegExp(`${prefix}_`) : new RegExp(`${prefix}_|^Draw:Draw@`));
         const path = `${dir}/${opponent}-${mobile ? 'phone' : 'desktop'}-${label}.png`;
         await page.screenshot({ path }); frames.push({ label, path, pageMs, ...state });
       };
