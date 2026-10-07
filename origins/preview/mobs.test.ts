@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -168,4 +168,11 @@ test('the hero spawns among the creatures: on his feet in a Frontier zone, insid
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
   assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '17 creatures, same ids, bodies, levels, homes, roam and aggro');
+});
+
+test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1')), SPECS, 'no flag: the placed list is the golden one');
+  const wolves = mobSpecs(F, B, previewRows('?region=1&wolf')).filter((s) => s.character === 'character:ash-wolf');
+  assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
+  assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
