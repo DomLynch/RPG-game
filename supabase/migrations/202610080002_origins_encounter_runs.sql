@@ -42,10 +42,10 @@ create function public.origins_encounter_start(p_account uuid, p_character text,
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare grace int := 120;
 begin
+  perform public.origins_issue_encounter(p_account, p_character, p_token, p_seed, p_enemy, p_level, grace);   -- first: a closed origins or a character that is not the account's is O0007 before anything else is revealed
   if exists (select 1 from public.origins_encounter_runs r join public.origins_encounters e on e.token = r.token
-             where e.account = p_account and r.settled_at is null and e.used_at is null and e.expires_at > now()) then
+             where e.account = p_account and e.token <> p_token and r.settled_at is null and e.used_at is null and e.expires_at > now()) then
     raise exception 'a fight is already open for this account: resume it' using errcode = 'O0014'; end if;
-  perform public.origins_issue_encounter(p_account, p_character, p_token, p_seed, p_enemy, p_level, grace);
   insert into public.origins_encounter_runs (token, start_tick, last_tick, bar, flags, layer, instance, grace_s)
     values (p_token, p_start_tick, p_start_tick, p_bar, coalesce(p_flags, '[]'::jsonb), p_layer, p_instance, grace);
   if p_instance is not null then
@@ -112,7 +112,7 @@ end $$;
 
 revoke all on function
   public.origins_encounter_start(uuid, text, text, bigint, text, int, int, int, jsonb, text, text), public.origins_encounter_get(uuid, text),
-  public.origins_encounter_touch(uuid, text, int), public.origins_encounter_settle(uuid, text, text, int, jsonb), public.origins_encounter_expire(int) from public;
+  public.origins_encounter_touch(uuid, text, int), public.origins_encounter_settle(uuid, text, text, int, jsonb), public.origins_encounter_expire(int) from public, anon, authenticated;
 grant execute on function
   public.origins_encounter_start(uuid, text, text, bigint, text, int, int, int, jsonb, text, text), public.origins_encounter_get(uuid, text),
   public.origins_encounter_touch(uuid, text, int), public.origins_encounter_settle(uuid, text, text, int, jsonb), public.origins_encounter_expire(int)
