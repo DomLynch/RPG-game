@@ -8,6 +8,10 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
+import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
+import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, type Frontier } from './frontier-plan.ts';
+import { buildFrontier } from './frontier.ts';
+import { bountyQuest, giverTalk } from './bounty.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -31,7 +35,17 @@ sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 
 Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 90 });
 scene.add(sun, sun.target);
 
-const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials);
+// ?region=1 (Origins slice 1): the Exchange's west gate opens onto the Ash Frontier, laid out from the Region 1 data (frontier-plan.ts).
+// Without the flag none of it is built and the page is the walk out as before.
+const REGION = new URLSearchParams(location.search).get('region') === '1';
+const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
+const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
+const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
+if (frontier && frontierParts) {
+  buildFrontier(scene, arena.materials, frontierParts);
+  play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
+}
+const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
 const GAP = 0.62;   // radians either side of the gate
@@ -56,6 +70,11 @@ const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.15, 4, 12), new THR
 body.position.y = 0.88; body.castShadow = true;
 const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.45 }));
 cap.position.y = 1.62; hero.add(body, cap); scene.add(hero);
+// ?region=1: the Bounty giver, a figure in the townsfolk's capsule style at his hall, facing the town's centre.
+if (frontier) {
+  const g = frontier.giver, giver = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: '#6b3a22', roughness: 0.9 }));
+  giver.position.set(g.at.x, 0.9, g.at.z); giver.castShadow = true; scene.add(giver);
+}
 // Greybox stand-ins for the assets map's null entries: Orla at her anvil (a figure in the envoys' capsule style) and the ore cart's pile.
 const orla = new THREE.Mesh(new THREE.CapsuleGeometry(T.orla.radius, T.orla.length, 4, 10), body.material);
 orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.castShadow = true;
@@ -75,6 +94,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
 let heading = Math.PI, stick: { x0: number; y0: number; x: number; y: number } | null = null;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!, ring = document.getElementById('walk-stick')!;
+if (frontier) hint.textContent = 'Drag up to walk (drag further to run). Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty.';
 canvas.addEventListener('pointerdown', (e) => { stick = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; Object.assign(ring.style, { display: 'block', left: `${e.clientX}px`, top: `${e.clientY}px` }); canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { if (stick) { stick.x = e.clientX; stick.y = e.clientY; } });
 for (const end of ['pointerup', 'pointercancel'] as const) canvas.addEventListener(end, () => { stick = null; ring.style.display = 'none'; });
@@ -83,9 +103,13 @@ const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
 // Tap-to-open: the prompt opens what you stand near; panels are play.ts's (rules modules) built with the ui.ts kit.
 const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
-const NEAR: Partial<Record<Kind | 'fight', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit' };
+const NEAR: Partial<Record<Kind | 'fight' | 'back', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit',
+  bounty: `Talk to ${frontier?.giver.name ?? ''}`, back: 'Take the road back to the Exchange' };
 type Panel = Kind | 'allegiance';
-let near: Kind | 'fight' | null = null, open: Panel | null = null;
+let near: Kind | 'fight' | 'back' | null = null, open: Panel | null = null;
+// ?region=1: the way back, from the Frontier's signpost to the Exchange's west gate, facing into the plaza.
+const goBack = () => { if (!frontier) return; const r = frontier.road; state.x = r.from.x + Math.sin(r.inward) * 2; state.z = r.from.z + Math.cos(r.inward) * 2; heading = r.inward; };
+const tapNear = () => { if (near === 'fight') void startFight(); else if (near === 'back') goBack(); else openPanel(near); };
 const show = (kind: Panel | null) => { open = kind; shade.hidden = !kind; if (kind) card.innerHTML = kind === 'allegiance' ? picker.render(allegiance, playerName) : play.render(kind); };
 function openPanel(kind: Panel | null) {
   play.fresh(); picker.reset(); if (kind === 'ore') play.takeOre();
@@ -102,43 +126,59 @@ card.addEventListener('click', (e) => {
 document.getElementById('allegiance')!.addEventListener('click', () => openPanel('allegiance'));
 document.getElementById('walk-journal')!.addEventListener('click', () => openPanel('journal'));
 for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
-prompt.addEventListener('click', () => { if (near === 'fight') void startFight(); else openPanel(near); });
+prompt.addEventListener('click', tapNear);
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
 addEventListener('keydown', (e) => {
   if (fighting) return;   // the duel's own keys (src/input.ts) own the keyboard while it is up
-  if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) { if (near === 'fight') void startFight(); else openPanel(near); }
+  if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) tapNear();
 });
 
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
-  let forward = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');
+  let forward = held('KeyW', 'ArrowUp') * (REGION && held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');
   if (open) forward = turn = 0;
   else if (stick) {
     const sx = (stick.x - stick.x0) / 48, sy = (stick.y0 - stick.y) / 48;
-    forward = Math.max(-0.6, Math.min(1, sy)); turn = -Math.max(-1, Math.min(1, sx));
+    forward = Math.max(-0.6, Math.min(REGION ? 2 : 1, sy)); turn = -Math.max(-1, Math.min(1, sx));
   }
   if (forward || turn) hint.hidden = true;   // the first-load hint goes once you move (Lead 2026-10-06)
   heading += turn * TURN * dt;
   const nx = state.x + Math.sin(heading) * forward * WALK * dt, nz = state.z + Math.cos(heading) * forward * WALK * dt;
-  if (walkable(nx, nz)) { state.x = nx; state.z = nz; } else if (walkable(nx, state.z)) state.x = nx; else if (walkable(state.x, nz)) state.z = nz;
+  if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = forward < 0 ? -1 : 1; mixer.update(dt); }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
-  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5, back = inPassage ? 3.4 : 5.2, up = inPassage ? 2.1 : 2.7;
+  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = inPassage ? 2.1 : 2.7;
   eye.set(state.x - Math.sin(heading) * back, up, state.z - Math.cos(heading) * back);
   camAt.lerp(eye, 1 - Math.exp(-dt * 4));
   look.set(state.x + Math.sin(heading) * 3, 1.5, state.z + Math.cos(heading) * 3);
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
-  place.textContent = atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
-  near = Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
+  const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
+  showZone(zone ? zone.zone : null);
+  place.textContent = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
+  const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
+  near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
+    : sign && Math.hypot(state.x - sign.at.x, state.z - sign.at.z) < 6 ? 'back'
+    : Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
     : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
   prompt.hidden = !near || !!open; if (near) prompt.textContent = NEAR[near]!;
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
+}
+
+// ?region=1: the zone you stand in and its ambience.preset, for the look (the World lane's look.ts listens for `origins:zone`; this page
+// sets no light, fog or sky). Off the Frontier the Exchange's own data names the preset (exchange-dusk; the Pit's ash-pit).
+let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
+function showZone(id: string | null) {
+  if (!frontier) return;
+  const z = frontier.zones.find((q) => q.zone === (id ?? (state.z > PASSAGE.to ? 'pit-yard' : 'exchange')))!;
+  if (zoneNow?.zone === z.zone) return;
+  zoneNow = { region: z.region, zone: z.zone, name: z.name, preset: z.preset };
+  document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
 function resize() {
@@ -227,6 +267,10 @@ function leaveFight() {
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
   pos: state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
+  // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
+  region: () => frontier && { zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
+    zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
+  bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,
   allegiance: () => ({ open: !allegianceButton.hidden, state: allegiance }), pickAllegiance: () => openPanel('allegiance'),
