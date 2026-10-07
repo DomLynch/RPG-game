@@ -5,7 +5,7 @@
 // Spec: docs/specs/origins/region1-ash-frontier.md §3 (Bounties), §4 (bosses, creatures, boss rules), §5 (loot), §7 (rulings 3, 4, 6,
 // 9, 10). Data: origins/region1 (content.ts + the loader). Loot roll semantics: docs/specs/origins/eqemu-loot.md §5 (clean-room
 // behaviour spec; no donor code was read). The twist outcome mirrors Combat's src/twist.ts (PR #1626, branch combat/twist-flags),
-// which is not on trunk yet and is therefore not imported.
+// which is on trunk and imported below.
 import { Issues, fail, ok, type Issue, type Result } from '../contracts/core.ts';
 import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanceId, LootTableId } from '../contracts/ids.ts';
 import { parseItemInstance, type LootTable } from '../contracts/items.ts';
