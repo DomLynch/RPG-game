@@ -90,6 +90,19 @@ try {
   assert.ok(!joystick || !intersects(sample.cluster['reset-button'], joystick), `Next stays clear of the joystick: ${JSON.stringify({ next: sample.cluster['reset-button'], joystick })}`);
   assert.equal(floating.length, 0, `cluster buttons stay inside the #actions box; floating: ${floating.join(', ')}`);
   await page.screenshot({ path: `${out}/gate-settle.png` });
+  // The take-one offer (#loot-panel-actions) and Next must never overlap: with the offer up the player taps Next to move on, and release rows 16, 21
+  // and 25 timed out on 2026-10-07 because Take sat over it (Web, #1685 follow-up). Open the offer the way loot-panel.ts does and hit-test Next's centre.
+  const offer = await page.evaluate(() => {
+    const acts = document.getElementById('loot-panel-actions'); acts.hidden = false;
+    return new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const r = (e) => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+      const next = document.getElementById('reset-button'), n = r(next), hit = document.elementFromPoint(n.x + n.w / 2, n.y + n.h / 2);
+      res({ next: n, offer: r(acts), hit: hit && (hit.id || hit.tagName), nextHit: !!hit && (hit === next || next.contains(hit)) });
+    })));
+  });
+  receipt.offer = offer;
+  assert.ok(offer.nextHit, `Next stays tappable with the take-one offer open; the centre of Next hits ${offer.hit}`);
+  assert.ok(!intersects(offer.next, offer.offer), `the take-one offer clears Next: ${JSON.stringify(offer)}`);
   // Lead review, 2026-09-22: an invisible Rematch under the tour must not fire. Fake the fade class (this check doesn't wait
   // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
   const pointerEvents = await page.evaluate(() => {
