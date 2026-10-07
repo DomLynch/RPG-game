@@ -111,7 +111,7 @@ const start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mo
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 let hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks around. Region 1: the west road leaves through the left colonnade to the Ash Frontier; Cinder Hold has a Bounty. Creatures roam the fields now: they stop and watch when you come near.';
+if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
