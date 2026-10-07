@@ -13,12 +13,13 @@ const zones = F.zones.filter((z) => z.region.includes('frontier'));
 const tris = (ps: readonly Piece[]) => ps.reduce((n, p) => { const g = geometryOf(p.shape); return n + (g.index ? g.index.count : g.attributes.position!.count) / 3; }, 0);
 const drawCalls = (d: { ground: readonly Piece[]; pieces: readonly Piece[] }) => new Set(d.ground.map((p) => p.layer)).size + new Set(d.pieces.map((p) => p.layer)).size;   // meshPieces merges one mesh per layer, per call
 
-test('the Cinder pass is deterministic and adds ground, pieces and a few solids', () => {
+test('the Cinder pass is deterministic and adds ground and pieces', () => {
   assert.deepEqual(cinderDress(F, B, BASE), C);
-  assert.ok(C.ground.length > 500 && C.pieces.length > 500 && C.solids.length > 10, `${C.ground.length} ground, ${C.pieces.length} pieces, ${C.solids.length} solids`);
+  assert.ok(C.ground.length > 500 && C.pieces.length > 500, `${C.ground.length} ground, ${C.pieces.length} pieces`);
 });
 
-test('its solids stand in a zone, off the west road, clear of every landmark, the first view and the base solids', () => {
+test('it adds NO walk blocker (a camp can sit anywhere and placeCamp checks only the camp\'s own pieces), and anything it did add would stand off roads, landmarks and the first view', () => {
+  assert.equal(C.solids.length, 0, 'the Cinder pass must not add solids');
   const marks = [...zones.flatMap((z) => Object.values(z.landmarks)), F.giver.at], r = F.road;
   for (const s of C.solids) {
     assert.ok(zones.some((z) => inZone(z, s.x, s.z)) && !onRoad(F, s.x, s.z));

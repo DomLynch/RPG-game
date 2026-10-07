@@ -14,7 +14,7 @@ const DARK: Tint = [0.4, 0.37, 0.35], DARKER: Tint = [0.3, 0.28, 0.27], BURNT: T
 export const CINDER = { beyond: 120, skylineGap: [3, 15], skylineStep: [6, 12] } as const;   // metres the ground is carried out; how far outside the edge the skyline stands; the spacing along it
 
 export function cinderDress(f: Frontier, b: Build, base: Dress): Dress {
-  const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [];
+  const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [];   // solids stays empty: see the note above the inside dressing
   const lay = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0) => { ground.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot: -1 }); };
   const put = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0) => { pieces.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot: 0 }); };
   const decal = (r: number, top: number, x: number, z: number, tint: Tint, seg = 10) => lay(['cone', r, top, seg], x, top / 2, z, tint);   // a shallow cone: a hidden base cap and a side that is the rise to the middle, 2*seg triangles where a cylinder's disc is 4*seg
@@ -64,14 +64,13 @@ export function cinderDress(f: Frontier, b: Build, base: Dress): Dress {
       for (let i = 0; i < 3; i++) put(['box', between(1.4, 2.8), 0.1, 0.1], x, h * (0.55 + i * 0.14), zz, tint, rot + i * 1.9);
     };
 
-    // Inside: rubble and dead scrub (low, knee height, walked through like the base's heaps), then a few dead trees and spires that do block (small circles).
+    // Inside: rubble and dead scrub (low, knee height, walked through like the base's heaps), then a few dead trees (a thin trunk, no solid). The pass adds NO walk blocker anywhere, so the camp kit's ring can never lose a step to it (a camp can sit anywhere, placeCamp checks only the camp's own pieces); the tall spires live in the skyline ring, outside the zones.
     for (let c = 0; c < Math.round(area / 380); c++) {
       const o = spot(1.4, true); if (!o) continue;
       if (R() < 0.6) for (let i = 0; i < 3 + Math.floor(R() * 2); i++) { const r = between(0.35, 0.85); put(['cylinder', r * 0.6, r, r * between(0.7, 1.2), 5], o.x + between(-1.6, 1.6), r * 0.35, o.z + between(-1.6, 1.6), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6); }
       else for (let i = 0; i < 4; i++) { const h = between(0.6, 1.3); put(['box', 0.08, h, 0.08], o.x + between(-0.8, 0.8), h / 2, o.z + between(-0.8, 0.8), BURNT, R() * 6); }
     }
-    for (let c = 0; c < Math.round(area / 900); c++) { const o = spot(1.5); if (!o) continue; const h = between(4, 6.5); tree(o.x, o.z, h, R() * 3, BURNT); const s = { x: o.x, z: o.z, r: 0.4 }; solids.push(s); placed.push(s); }
-    for (let c = 0; c < Math.round(area / 1800); c++) { const o = spot(2); if (!o) continue; const h = between(5, 9); put(['cone', between(1, 1.7), h, 5], o.x, h / 2, o.z, DARK, R() * 6); const s = { x: o.x, z: o.z, r: 1 }; solids.push(s); placed.push(s); }
+    for (let c = 0; c < Math.round(area / 900); c++) { const o = spot(1.5); if (!o) continue; tree(o.x, o.z, between(4, 6.5), R() * 3, BURNT); placed.push({ x: o.x, z: o.z, r: 0.4 }); }   // a thin trunk you brush past: no solid
 
     // The skyline: tall dark shapes in a ring just outside the far and side edges, thinned wherever a neighbouring zone, the first view or a landmark is. They sit outside the zone, so they never block a step.
     const edge = (side: 'far' | 'left' | 'right') => {
