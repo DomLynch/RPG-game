@@ -5,7 +5,7 @@
 // west road, the way-on roads it lays itself and the buildings frontierBuild already stands.
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
-import { inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';
+import { inFirstView, inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
@@ -48,13 +48,9 @@ export function frontierDress(f: Frontier, b: Build): Dress {
     lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub);
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
-    // The walker's first view: the west road's line carried on past its end, kept clear of props (the camera trails 6 m behind), plus a ring round where it ends.
-    const rd = f.road, sight = (x: number, zz: number, r: number) => {
-      const { along, across } = roadFrame(f, x, zz);
-      return (along > -10 && along < 60 && across < rd.width / 2 + r + 10) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
-    };
+    const rd = f.road;
     const free = (x: number, zz: number, r: number, low = false) => inZone(z, x, zz, r + 2)
-      && !onRoad(f, x, zz) && (low || !sight(x, zz, r)) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
+      && !onRoad(f, x, zz) && (low || !inFirstView(f, x, zz, r)) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
       && !keep.some((k) => Math.hypot(k.x - x, k.z - zz) < r + 6) && !b.solids.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 1.5)
       && !placed.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 0.6);
     const spot = (r: number, want?: (x: number, z: number) => boolean, low = false) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r, low) && (!want || want(p.x, p.z))) return p; } return null; };

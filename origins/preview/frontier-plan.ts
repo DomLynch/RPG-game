@@ -136,6 +136,12 @@ export function onRoad(f: Frontier, x: number, z: number): boolean {
   return along >= -2.5 && along <= len + 0.5 && across < f.road.width / 2 - 0.35;
 }
 
+// The walker's first view: the west road's line carried 60 m on (road width + `r` + 10 m either side) and a ring round where it ends. Tall dressing keeps out of it (frontier-dress.ts, frontier-camp.ts).
+export function inFirstView(f: Frontier, x: number, z: number, r: number): boolean {
+  const { along, across } = roadFrame(f, x, z);
+  return (along > -10 && along < 60 && across < f.road.width / 2 + r + 10) || Math.hypot(f.road.to.x - x, f.road.to.z - z) < r + 14;
+}
+
 // ---- the greybox: blocks, signposts, solids ------------------------------------------------------------------------------------
 
 export type Solid = { x: number; z: number; r: number }; // the walker keeps out of these circles (buildings, towers)

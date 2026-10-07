@@ -12,6 +12,7 @@ import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierDress } from './frontier-dress.ts';
+import { demoCamps } from './frontier-camp.ts';
 import { bountyQuest, giverTalk } from './bounty.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
@@ -43,10 +44,12 @@ const REGION = new URLSearchParams(location.search).get('region') === '1';
 const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
 const dress = frontier && frontierParts ? frontierDress(frontier, frontierParts) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
+const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
+if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 if (frontier && frontierParts) {
-  buildFrontier(scene, arena.materials, frontierParts, dress);
+  buildFrontier(scene, arena.materials, frontierParts, dress, camps);
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
@@ -278,7 +281,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
   pos: state, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
-  region: () => frontier && { zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
+  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
