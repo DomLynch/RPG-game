@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fingerprints, stream, FIXTURE, LEVEL_SET, SEEDS, TICKS } from '../scripts/rng-fingerprint.mjs';
-import { RECORD_VERSION } from '../src/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION } from '../src/record.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 const pinned = JSON.parse(readFileSync(FIXTURE, 'utf8')) as ReturnType<typeof fingerprints>;
@@ -13,7 +13,7 @@ const pinned = JSON.parse(readFileSync(FIXTURE, 'utf8')) as ReturnType<typeof fi
 test('the fixture covers every opponent x level x seed x scripted player, at the current RECORD_VERSION', () => {
   assert.equal(Object.keys(pinned.cells).length, Object.keys(OPPONENTS).length * LEVEL_SET.length * SEEDS.length * 2);
   assert.deepEqual(pinned.levels, LEVEL_SET); assert.deepEqual(pinned.seeds, SEEDS); assert.equal(pinned.ticks, TICKS);
-  assert.equal(pinned.version, RECORD_VERSION, `RECORD_VERSION is ${RECORD_VERSION} but the fingerprint fixture is for ${pinned.version}: run \`npm run fingerprint:update\` and put the reason for the bump in the PR`);
+  assert.equal(pinned.version, NO_PATRON_VERSION, `the no-patron version is ${NO_PATRON_VERSION} but the fingerprint fixture is for ${pinned.version}: run \`npm run fingerprint:update\` and put the reason for the bump in the PR`);
 });
 
 test('no fight\'s RNG draws or end state changed without a RECORD_VERSION bump', () => {

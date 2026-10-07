@@ -5,6 +5,8 @@
 
 // Where a fight happens. Dom's ruling (2026-10-07): damage rolls apply ONLY to Origins world mobs outside the Pit, in both directions
 // (player -> mob and mob -> player). The Pit (legends and arena AI), PvP and the ladder never roll.
+import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../../src/roll.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
+
 export type FightKind = 'world-mob' | 'pit' | 'pvp' | 'ladder';
 
 // The flag, default OFF. `monsterRolls` = the world-mob damage rolls. Read from the Origins config object; anything that is not exactly `true` is off.
@@ -20,12 +22,12 @@ export function parseLuckFlags(raw: unknown): LuckFlags {
 export type RollSource = (seed: number, hit: number) => number;
 
 // ±10% damage rolls, shown on screen. `percent` is the whole-number roll the HUD shows (−10..+10); `damage` is never below 1.
-export const ROLL_BAND_PERCENT = 10;
+export const ROLL_BAND_PERCENT = ROLL_BAND;
 export type DamageRoll = { base: number; percent: number; damage: number };
 export function rollDamage(base: number, u: number, band = ROLL_BAND_PERCENT): DamageRoll {
   if (!(u >= 0 && u < 1)) throw new RangeError(`roll: u must be in [0, 1), got ${u}`);
-  const percent = Math.min(band, Math.floor(u * (2 * band + 1)) - band);   // a uniform whole percent in −band..+band
-  return { base, percent, damage: Math.max(1, Math.round(base * (1 + percent / 100))) };
+  const percent = percentOf(u, band);   // a uniform whole percent in −band..+band (src/roll.ts, the one definition the duel also applies)
+  return { base, percent, damage: rolledDamage(base, percent) };
 }
 // The scope rule: a roll is applied only in an Origins world-mob fight with the flag on, whichever side strikes. Pit, PvP, ladder: never.
 export const rollsApply = (kind: FightKind, flags: LuckFlags): boolean => kind === 'world-mob' && flags.monsterRolls;
@@ -59,8 +61,4 @@ export function luckHud(kind: FightKind, flags: LuckFlags, last: DamageRoll | nu
 }
 
 // The world-mob roll's source: a hash of (fight seed, hit index), never Math.random, so the same fight replays the same rolls.
-export const seededSource: RollSource = (seed, hit) => {
-  let h = Math.imul((seed >>> 0) ^ Math.imul(hit + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
-  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
-};
+export const seededSource: RollSource = rollUnit;   // src/roll.ts: the same draw the duel's Duel.roll uses
