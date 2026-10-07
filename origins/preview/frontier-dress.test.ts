@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { frontierDress } from './frontier-dress.ts';
-import { frontierBuild, frontierPlan, inZone, onRoad } from './frontier-plan.ts';
+import { frontierBuild, frontierPlan, inZone, onRoad, roadFrame } from './frontier-plan.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B);
 const zones = F.zones.filter((z) => z.region.includes('frontier'));
@@ -34,11 +34,11 @@ test('the walker can still stand on every landmark and along the west road with 
   for (let t = 0; t <= 1; t += 0.05) assert.ok(free(r.from.x + (r.to.x - r.from.x) * t, r.from.z + (r.to.z - r.from.z) * t), 'the west road is blocked');
 });
 
-test("the walker's first view is clear: no solid within the road's width + 6 m of its line, or within 14 m of where it ends", () => {
-  const r = F.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing);
+test("the walker's first view is clear: no solid within the road's width + 10 m of its line, or within 14 m of where it ends", () => {
+  const r = F.road;
   for (const s of D.solids) {
-    const along = (s.x - r.from.x) * ux + (s.z - r.from.z) * uz, across = Math.abs(-(s.x - r.from.x) * uz + (s.z - r.from.z) * ux);
-    assert.ok(!(along > -10 && along < 60 && across < r.width / 2 + s.r + 6), `solid at ${s.x.toFixed(1)},${s.z.toFixed(1)} sits in the first view`);
+    const { along, across } = roadFrame(F, s.x, s.z);
+    assert.ok(!(along > -10 && along < 60 && across < r.width / 2 + s.r + 10), `solid at ${s.x.toFixed(1)},${s.z.toFixed(1)} sits in the first view`);
     assert.ok(Math.hypot(r.to.x - s.x, r.to.z - s.z) >= s.r + 14, 'solid within 14 m of the road end');
   }
 });

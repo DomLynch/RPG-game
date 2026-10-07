@@ -5,7 +5,7 @@
 // west road, the way-on roads it lays itself and the buildings frontierBuild already stands.
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
-import { inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
+import { inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
@@ -49,15 +49,15 @@ export function frontierDress(f: Frontier, b: Build): Dress {
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
     // The walker's first view: the west road's line carried on past its end, kept clear of props (the camera trails 6 m behind), plus a ring round where it ends.
-    const rd = f.road, ux = Math.sin(rd.facing), uz = Math.cos(rd.facing), sight = (x: number, zz: number, r: number) => {
-      const along = (x - rd.from.x) * ux + (zz - rd.from.z) * uz, across = Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux);
-      return (along > -10 && along < 60 && across < rd.width / 2 + r + 6) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
+    const rd = f.road, sight = (x: number, zz: number, r: number) => {
+      const { along, across } = roadFrame(f, x, zz);
+      return (along > -10 && along < 60 && across < rd.width / 2 + r + 10) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
     };
-    const free = (x: number, zz: number, r: number) => inZone(z, x, zz, r + 2)
-      && !onRoad(f, x, zz) && !sight(x, zz, r) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
+    const free = (x: number, zz: number, r: number, low = false) => inZone(z, x, zz, r + 2)
+      && !onRoad(f, x, zz) && (low || !sight(x, zz, r)) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
       && !keep.some((k) => Math.hypot(k.x - x, k.z - zz) < r + 6) && !b.solids.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 1.5)
       && !placed.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 0.6);
-    const spot = (r: number) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r)) return p; } return null; };
+    const spot = (r: number, want?: (x: number, z: number) => boolean, low = false) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r, low) && (!want || want(p.x, p.z))) return p; } return null; };
     const solid = (x: number, zz: number, r: number) => { const s = { x, z: zz, r }; solids.push(s); placed.push(s); };
     const area = z.width * z.depth, nearTown = (x: number, zz: number) => { const c = z.town && z.landmarks[z.town.centre]; return !!c && Math.hypot(c.x - x, c.z - zz) < 24; };
 
@@ -92,6 +92,18 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       }
       for (let i = 0; i < 2; i++) { const x = o.x + ux * between(-4, 5) - uz * between(1, 5), zz = o.z + uz * between(-4, 5) + ux * between(1, 5), h = between(1.2, 3.6); put(['cylinder', 0.42, 0.5, h, 10], x, h / 2, zz, WALL, 0, 0); solid(x, zz, 0.55); }
       for (let i = 0; i < 12; i++) put(['box', between(0.3, 0.9), between(0.2, 0.6), between(0.3, 0.9)], o.x + between(-5, 5), 0.2, o.z + between(-5, 5), ROCK[Math.floor(R() * 3)]!, R() * 6, 0);
+    }
+
+    // Mid-distance fill, 6 to 45 m off the road's line (the bulk 8 to 40): rubble heaps, wall stubs, spires and dead scrub sized to read at phone width. Same free()/sight rule; low pieces (rubble, scrub: knee height) may lie
+    // in the first view but never within 6 m of the line, where the camera and the walker stand; tall ones keep to 18 m and beyond.
+    const lateral = (x: number, zz: number) => roadFrame(f, x, zz).across, farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 45, nearOff = (x: number, zz: number) => lateral(x, zz) > 6 && lateral(x, zz) < 40 && Math.hypot(rd.to.x - x, rd.to.z - zz) > 22;
+    for (let c = 0; c < Math.round(area / 70); c++) {
+      const kind = R(), rot = R() * 3.14, low = kind < 0.5 || kind > 0.85, o = low ? spot(1.6, nearOff, true) : spot(2, farOff);
+      if (!o) continue;
+      if (kind < 0.5) { for (let i = 0; i < 5 + Math.floor(R() * 4); i++) { const r = between(0.4, 1.0); put(['cylinder', r * 0.6, r, r * between(0.7, 1.3), 5], o.x + between(-2, 2), r * 0.35, o.z + between(-2, 2), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
+      else if (kind < 0.7) { const len = between(3, 6), h = between(0.8, 2.2); put(['box', len, h, 0.7], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
+      else if (kind < 0.85) { const h = between(4, 8); put(['cone', between(0.9, 1.6), h, 5], o.x, h / 2, o.z, ROCK[3]!, R() * 6, 0); solid(o.x, o.z, 1.1); }
+      else { for (let i = 0; i < 6; i++) { const h = between(0.7, 1.4); put(['box', 0.09, h, 0.09], o.x + between(-0.8, 0.8), h / 2, o.z + between(-0.8, 0.8), BURNT, R() * 6, 0); } }
     }
 
     // Burnt posts, broken fence runs, dead trees, a charred cart or barrels.
