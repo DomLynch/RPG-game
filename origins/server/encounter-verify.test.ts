@@ -7,7 +7,7 @@ import { recordSpecials } from '../../src/replay.ts';
 import { noTwist, stepTwist, type TwistFlag } from '../../src/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
-import { withBar } from '../preview/encounter-duel.ts';
+import { withBar } from '../shared/with-bar.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;

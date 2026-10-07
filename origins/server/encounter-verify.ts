@@ -17,7 +17,7 @@ import { STEP } from '../../src/sim.ts';
 import { noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import { MOB_STYLES, type MobStyle } from '../mobs/styles.ts';
-import { withBar } from '../preview/encounter-duel.ts';
+import { withBar } from '../shared/with-bar.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null };
