@@ -1456,6 +1456,12 @@ dialog>p {
   .actions[data-gestures=cluster] #skill-button[data-reach=false]{
     opacity: .5;   /* a cone skill out of its reach: the cluster's dim (hud.ts), still pressable (Combat 2026-09-27: the lit Jab whiffed) */
   }
+  :root.look-kick52 .actions[data-gestures=cluster] #kick-button {   /* ?look=kick52 (Strategy research #9): 52 px, grown 4 px each way about the same centre; flag off = the 44 px above */
+    width: 52px;
+    height: 52px;
+    left: 74px;
+    top: 102px;
+  }
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
     background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */
     border-color: #f0e3c9cc;
