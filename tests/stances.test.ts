@@ -26,9 +26,9 @@ test('stanced() leaves a stance-less fighter\'s number untouched (no float drift
 });
 
 // The player starts with the sword drawn and throws one heavy; the opponent stands (or guards the overhead). The first Hit / Blocked is the blow under test.
-const swing = (player?: StanceId, mood?: StanceId, guard = false) => {
+const swing = (player?: StanceId, mood?: StanceId, guard = false, move: 'heavy' | 'light' = 'heavy') => {
   let d: Duel = withStances(arena(), player, mood); d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready' }, d.fighters[1]] }; const ev: Duel['events'] = [];
-  for (let i = 0; i < 90; i++) { d = stepDuel(d, [i === 0 ? act('heavy') : idle(), guard ? { ...idle(), guard: true, guardDirection: mirror('overhead') } : idle()]); ev.push(...d.events); }
+  for (let i = 0; i < 90; i++) { d = stepDuel(d, [i === 0 ? act(move) : idle(), guard ? { ...idle(), guard: true, guardDirection: mirror(move === 'heavy' ? 'overhead' : 'right') } : idle()]); ev.push(...d.events); }
   return { d, ev, hit: ev.find(e => e.type === 'Hit'), blocked: ev.find(e => e.type === 'Blocked') };
 };
 
@@ -37,7 +37,7 @@ test('stances move damage and block cost by their table and never the timing of 
   assert.ok(none.hit && agg.hit && def.hit && tri.hit);
   assert.ok(agg.hit.damage! > none.hit.damage! && def.hit.damage! < none.hit.damage! && tri.hit.damage! < none.hit.damage!, 'aggressive hits harder; defensive and a trickster\'s heavy hit softer');
   for (const s of [agg, def, tri]) assert.equal(s.hit!.tick, none.hit.tick, 'the blow lands on the same tick: a stance never changes timing');
-  const guarded = (mood?: StanceId) => swing(undefined, mood, true).blocked;
+  const guarded = (mood?: StanceId) => swing(undefined, mood, true, 'light').blocked;   // a light cut a guard simply blocks (a heavy breaks it)
   const plain = guarded(), a = guarded('aggressive'), df = guarded('defensive');
   assert.ok(plain && a && df);
   assert.ok(a.stamina! > plain.stamina! && df.stamina! < plain.stamina!, 'an aggressive blocker pays more, a defensive one less');
@@ -61,7 +61,7 @@ test('the AI\'s mood is drawn from the seed: half its home stance, the other hal
 });
 
 test('no stances: the fight grows no stance field and is the plain fight, hash for hash', () => {
-  const plain = swing().d, off = (() => { let d = arena(); for (let i = 0; i < 120; i++) d = stepDuel(d, [i === 0 ? act('light') : i === 40 ? act('heavy') : idle(), idle()]); return d; })();
+  const plain = swing().d, off = (() => { let d = arena(); d = { ...d, fighters: [{ ...d.fighters[0], phase: 'ready' }, d.fighters[1]] }; for (let i = 0; i < 90; i++) d = stepDuel(d, [i === 0 ? act('heavy') : idle(), idle()]); return d; })();
   assert.equal(hashDuel(plain), hashDuel(off)); assert.ok(plain.fighters.every(f => !('stance' in f)));
 });
 
