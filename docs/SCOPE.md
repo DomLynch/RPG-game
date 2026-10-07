@@ -7,6 +7,8 @@ the 30 boss specials, class specials, menu, gear screen) are now in it.*
 
 **2026-10-07 08:1x (+04, `date`), Dom: BETA INCLUDES ORIGINS ZONE 1** (Region 1: the Pit gate, the Concord Exchange with bank, smith and player trade, Ash Frontier towns and Bounties), in addition to the duel game and live duels below. Its launch gates are docs/specs/origins/launch-gates.md (trade, writer route, Exchange-only X1/X2, flag GO, one-shard S1-S4, patrons P1-P5). Also IN beta (Dom, no freeze): stances (incl. AI home stance = mood), the Gambit, luck (±10% rolls vs Zone 1 mobs only) and Coach mode, as approved 2026-10-07 in #1513. The table below predates this line; Zone 1 is the open beta item.
 
+**2026-10-08 ~00:0x (+04), Dom: ONE WORLD, HOSTILE FLAG.** "There is only 1 world. Creatures and NPCs are hostile or they are not, a simple on/off flag. Wolves are hostile." The world creature IS the fighter: no second duel copy swapped in, no hiding, no freezing and no separate fight screen. A hostile creature that sees you attacks with the same combat engine, in the world, wherever you are, and any number can join (2v1, 10v1 in a big mob). A non-hostile one doesn't. It replaces the per-creature Pit duel ("mob fights are Pit duels", 2026-10-07) and the 1-v-1 hide. Packmates stay alive and moving. Plan owed (Combat + Expansion, delivered by Lead to Strategy): owner, hours, phone perf for N attackers, RV impact. Same day, Dom: "it can be 2 vs 1, that is fine".
+
 ## Beta = the base game plus live duels (Dom 2026-09-25, duels added 2026-10-01)
 Beta is the sword-duel game on the ten-title ladder, polished, on mid-range phones, shareable, with 1v1 duels between players.
 Nothing that changes fight numbers through gear or parts ships before Origin.
