@@ -47,6 +47,7 @@ export function createFeedback(host?: FeedbackHost) {
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
   let breath: Breath | undefined, room: ConvolverNode | undefined;   // graded fatigue breathing (audio/breath.ts): built on first use, its own seeded rolls so it never shifts the cue variants
+  let breakThud = false, defenceGrades = false;
   let armfeel: Feel | undefined, armfeelLive = 0;   // ?look=armfeel (audio/armfeel-sound.ts): extra body and transient layers on a landed blow; absent = the game's own sound
   let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
   // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
@@ -156,6 +157,8 @@ export function createFeedback(host?: FeedbackHost) {
   return {
     unlock,
     armfeel(feel: Feel | undefined) { armfeel = feel; },
+    defenceGrades(on: boolean) { defenceGrades = on; },   // ?look=defence (defence-grade.ts)
+    breakThud(on: boolean) { breakThud = on; },   // ?look=breakbeat (break-beat.ts)
     // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
     // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
     // A failed fetch (a dropped connection) is tried once more after GATE_RETRY_MS, and again at the next Pit open: the page is not silent for good.
@@ -222,7 +225,7 @@ export function createFeedback(host?: FeedbackHost) {
         }
       }
       armfeelPlay(events, time);
-      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity)) play(cue, time); return; }
+      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity, undefined, breakThud, defenceGrades)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
       else if (events.some(e => e.type === 'Blocked')) synth('steel', time);

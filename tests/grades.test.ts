@@ -6,7 +6,7 @@ import { TITLES } from '../src/career.ts';
 import { ROSTER } from '../src/roster.ts';
 import { Color, MeshStandardMaterial } from 'three';
 import { tinted } from '../src/rank-tint.ts';
-import { CLASS_OF, GRADES, TIERS, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
+import { CLASS_OF, GRADES, TIERS, WEAPON_METAL, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
 
 const draws = (() => {
   const bytes = readFileSync(new URL('../src/assets/loot.glb', import.meta.url)), length = bytes.readUInt32LE(12);
@@ -113,4 +113,24 @@ test('grades: every beta opponent\'s weapon looks different at rank 1 and rank 1
   const recruit = tinted(stone, 'Recruit'), origin = tinted(stone, 'Origin');
   assert.ok(origin.emissiveIntensity > recruit.emissiveIntensity * 3, `the fire-stone glows harder up the ladder: ${recruit.emissiveIntensity} → ${origin.emissiveIntensity}`);
   assert.equal(origin.roughness, .3, 'stone stays stone: roughness untouched'); assert.equal(origin.metalness, 0, 'and never turns metal');
+});
+
+// The weapon-metal floor (Lead 2026-10-07): a Recruit's trident fork read as tan planks. Weapon blades/heads never grade below iron; armour is untouched.
+test('grades: a weapon-metal blade never grades below iron, armour metal keeps every row, and the rungs from Veteran up are unchanged', () => {
+  const iron = GRADES.Praetorian.metal;
+  for (const material of WEAPON_METAL) {
+    assert.equal(classOf(material), 'metal', `${material} is a metal-class weapon material`);
+    for (const tier of ['Recruit', 'Legionary', 'Gladiator'] as const) {
+      const f = gradeFor(tier, material)!;
+      assert.deepEqual(f, iron, `${tier} ${material} wears iron`);
+      assert.ok(f.metalness >= iron.metalness, `${tier} ${material} metalness ${f.metalness}`);
+    }
+    for (const tier of TIERS.slice(3)) assert.deepEqual(gradeFor(tier, material), GRADES[tier].metal, `${tier} ${material} climbs unchanged`);
+  }
+  // Hard-coded pre-change Recruit/Legionary/Gladiator metal rows, which armour pieces must still wear byte for byte.
+  const before = { Recruit: { color: '#6b5a48', metalness: .30, roughness: .96 }, Legionary: { color: '#5c4a38', metalness: .40, roughness: .90 }, Gladiator: { color: '#cbbd9a', metalness: .05, roughness: .72 } };
+  for (const material of ['Steel', 'Bronze', 'DwarfIron', 'Blade', 'PlaguedoctorIron'])
+    for (const [tier, row] of Object.entries(before)) assert.deepEqual(gradeFor(tier as typeof TIERS[number], material), row, `${tier} ${material} armour is untouched`);
+  assert.deepEqual(gradeFor('Recruit', 'GladiusBronze'), GRADES.Recruit.trim, 'the guard stays trim');
+  assert.equal(gradeFor('Recruit', 'WeaponTridentShaft'), null, 'wood stays wood');
 });

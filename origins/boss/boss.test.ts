@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MINT_KEY_PATTERN } from '../contracts/core.ts';
 import { award, newCareer } from '../progression/model.ts';
-import { MAX_BOSS_ID_LENGTH, dormant, parseBossDefinition, sharePermille, step, type Action, type BossEncounter, type BossState, type Step } from './boss.ts';
+import { dormant, parseBossDefinition, sharePermille, step, type Action, type BossEncounter, type BossState, type Step } from './boss.ts';
 import { matriarch } from './fixtures.ts';
+import { sha256, shortHash } from './hash.ts';
 
 const parsed = parseBossDefinition(matriarch());
 assert.ok(parsed.ok, JSON.stringify(!parsed.ok && parsed.issues));
@@ -38,13 +39,29 @@ test('fixture: the Matriarch parses; a threshold that disagrees, a missing level
   assert.ok(!parseBossDefinition({ ...matriarch(), extra: 1 }).ok);
 });
 
-test('key length: an id at the limit mints its longest key; one character more is refused at parse time', () => {
-  const at = 'encounter:' + 'a'.repeat(MAX_BOSS_ID_LENGTH - 'encounter:'.length);
-  assert.ok(parseBossDefinition({ ...matriarch(), id: at }).ok);
-  assert.ok(MINT_KEY_PATTERN.test(`${at}:999999:pc:${'z'.repeat(96)}`)); // the longest key a defeat can emit
-  assert.ok(!MINT_KEY_PATTERN.test(`${at}a:999999:pc:${'z'.repeat(96)}`));
-  const over = parseBossDefinition({ ...matriarch(), id: `${at}a` });
-  assert.ok(!over.ok && over.issues.some(i => i.code === 'out-of-range' && i.path === 'id'));
+test('sha-256: the standard vectors for "" and "abc"', () => {
+  const hex = (b: Uint8Array): string => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  assert.equal(hex(sha256('')), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  assert.equal(hex(sha256('abc')), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+});
+
+test('keys: the encounter id\'s 12-char base32 sha-256 hash, so any legal id mints; same id same key, different ids differ', () => {
+  assert.equal(shortHash('encounter:matriarch'), 'mgqknfrzhcxw'); // base32(sha256("encounter:matriarch"))[0..12], lowercased
+  const kill = (id: string): string => {
+    const def = parseBossDefinition({ ...matriarch(), id });
+    assert.ok(def.ok, JSON.stringify(!def.ok && def.issues));
+    return go(bossUp(def.value), hit(`pc:${'z'.repeat(96)}`, 12_000), def.value).loot[0]!.mintKey;
+  };
+  const longest = 'encounter:' + 'a'.repeat(96); // the contracts' longest id (ids.ts: a 96-character local part)
+  const [a, b] = [kill(longest), kill(`${longest.slice(0, -1)}b`)];
+  assert.equal(a, `${shortHash(longest)}:1:pc:${'z'.repeat(96)}`);
+  assert.ok(MINT_KEY_PATTERN.test(a) && MINT_KEY_PATTERN.test(`${shortHash(longest)}:${'9'.repeat(15)}:pc:${'z'.repeat(96)}`));
+  assert.notEqual(a, b);
+  assert.equal(kill(longest), a);
+  assert.match(shortHash('x'.repeat(200)), /^[a-z2-7]{12}$/);
+  // The boss sets no length cap of its own: a 200-character id is refused by the contracts' id rule (bad-id), nothing else.
+  const tooLong = parseBossDefinition({ ...matriarch(), id: 'encounter:' + 'a'.repeat(190) });
+  assert.ok(!tooLong.ok && tooLong.issues.every(i => i.code === 'bad-id' && i.path === 'id'), JSON.stringify(tooLong));
 });
 
 test('stage order: dormant → gathering → boss → defeated → dormant after the cooldown', () => {
@@ -108,7 +125,7 @@ test('contribution: 9.9% is not eligible, 10.0% is; one event and one loot reque
   ]);
   const [edge] = done.events;
   assert.deepEqual(edge, {
-    kind: 'kill', id: 'encounter:matriarch:1:pc:edge', at: 200, type: 'world-boss', target: 'encounter:matriarch',
+    kind: 'kill', id: 'mgqknfrzhcxw:1:pc:edge', at: 200, type: 'world-boss', target: 'encounter:matriarch',
     targetLevel: 12, contributionPermille: 100,
   });
   assert.deepEqual(done.loot.map(l => l.character), ['pc:edge', 'pc:top']);
@@ -144,7 +161,7 @@ test('cooldown: reset is refused before restartSeconds and allowed at it; the ne
   s = go(s, { kind: 'wake', at: 3700 }).state;
   for (let i = 0; i < 12; i++) s = go(s, { kind: 'foe-killed', at: 3701 }).state;
   const second = go(s, hit('pc:dom-1', 12_000, 3800));
-  assert.equal(second.events[0]!.id, 'encounter:matriarch:2:pc:dom-1');
+  assert.equal(second.events[0]!.id, 'mgqknfrzhcxw:2:pc:dom-1');
   // The progression model, not this module, makes the second kill pay nothing.
   const paid = award(newCareer(10), first.events[0]!);
   assert.equal(paid.reason, 'ok');
