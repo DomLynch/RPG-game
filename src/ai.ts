@@ -15,13 +15,14 @@ export type Habits = {
   ticks: number; guard: number; parries: number; rolls: number; steps: number;
   lights: number; heavies: number; thrusts: number; kicks: number; attacks: number; parks: number;
   latch?: number;   // `ticks` value until which a counted defence keeps the early spam gate off (RV31)
+  atk?: number;   // `ticks` value when my last swing started (RV31: passive-warden lights do not build the run)
   hold?: number;  // ticks the guard has been held without a break (RV31: a guard held through my windup is a commitment, not a tap)
   run?: number;   // consecutive lights: reset by any other blow that starts and by a defence that meets a blow (RV31, profile.spamRun's early gate)
 };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 450,
+  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 450, passive: 120,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', 'skill_pommel']);
@@ -92,6 +93,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (opponent.phase === 'guard' && opponent.parrying && opponent.age === 0) h.parries++;
   if (opponent.phase === 'roll' && opponent.age === 0) h.rolls++;
   if (opponent.phase === 'backstep' && opponent.age === 0) h.steps++;
+  if (self.phase === 'attack' && self.age === 0) h.atk = h.ticks;
   h.hold = opponent.phase === 'guard' ? (h.hold ?? 0) + 1 : 0;
   // a guard held through my windup (up to the tick it ends) is a real commitment: it ends the run with no contact needed; a tap of a few ticks does not (RV31)
   if (self.phase === 'attack' && self.move && self.age === mine[self.move].windup && h.hold >= READ.holdTicks) { h.run = 0; h.latch = h.ticks + READ.latch; }
@@ -105,7 +107,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (opponent.phase === 'attack' && opponent.age === 0 && opponent.move) {   // ripostes, counters and criticals are earned, not habits
     // a light that PUNISHES my whiff (starts while my swing is past its active frames, or I am hurt) is the honest answer, not a mash: it neither counts nor resets (RV31)
     const punishes = self.phase === 'hurt' || (self.phase === 'attack' && !!self.move && self.age >= mine[self.move].windup + mine[self.move].active);
-    if (opponent.move === 'light_left' || opponent.move === 'light_right') { if (!punishes) h.run = (h.run ?? 0) + 1; } else h.run = 0;
+    if (opponent.move === 'light_left' || opponent.move === 'light_right') { if (!punishes && h.ticks - (h.atk ?? -1e9) <= READ.passive) h.run = (h.run ?? 0) + 1; } else h.run = 0;   // a light cut while I sit passive (no swing of mine in READ.passive ticks) is not pressure on me: it does not build the run
     if (opponent.move === 'heavy_overhead') h.heavies++;
     else if (opponent.move === 'thrust') h.thrusts++;
     else if (opponent.move === 'light_left' || opponent.move === 'light_right') h.lights++;
