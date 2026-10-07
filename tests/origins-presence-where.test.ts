@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPresence } from '../origins/presence/server.ts';
 import { fakeWhere, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
-import { parseWhere, presenceWhere, standsWithin } from '../origins/presence/where.ts';
+import { inZone, parseWhere, presenceWhere, standsWithin } from '../origins/presence/where.ts';
 
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const KEY = 'test-internal-key-0123456789';
@@ -27,10 +27,13 @@ test('where: the service answers from its own state, offline, unplaced and place
     assert.deepEqual(await where(acct(3)), { online: false }, 'an account that is not in presence');
     assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: false }, 'in the world but never placed: no position is given');
     clock.t += 750;
-    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 16000, ageMs: 750 }, 'placed: the position and the time since its last pose');
+    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 16000, zone: 'pit-yard', ageMs: 750 }, 'placed: the position, the zone presence computed from it, and the time since its last pose');
     p.world.move(placed, pose(15100, 16000), clock.t);
     clock.t += 40;
-    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15100, z: 16000, ageMs: 40 }, 'a move updates both');
+    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15100, z: 16000, zone: 'pit-yard', ageMs: 40 }, 'a move updates both');
+    const trader = p.world.join(acct(4), clock.t, undefined, { x: 15000, z: 11000 })!;   // world (0, -40 m): inside the Exchange
+    assert.equal(((await where(acct(4))) as { zone: string | null }).zone, 'exchange', 'the zone comes from the position in the Concord frame');
+    p.world.leave(trader, clock.t);
     assert.equal(((await (await get(base, acct(1).toUpperCase(), `Bearer ${KEY}`)).json()) as { online: boolean }).online, true, 'an upper-case account id is the same account');
     p.world.leave(placed, clock.t);
     assert.deepEqual(await where(acct(1)), { online: false }, 'a player who left is offline at once');
@@ -61,7 +64,9 @@ test('where: fails closed: an unreachable service, a timeout and a malformed ans
   await p.close();
   await assert.rejects(presenceWhere(base, KEY, 300)(acct(1)), /./, 'a service that is down');
   const wrong = (body: unknown, status = 200): typeof fetch => (async () => new Response(JSON.stringify(body), { status })) as typeof fetch;
-  await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({ online: true, layer: 1, placed: true, x: 1, z: 2 }))(acct(1)), /malformed/, 'a placed answer without ageMs');
+  await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({ online: true, layer: 1, placed: true, x: 1, z: 2, zone: null }))(acct(1)), /malformed/, 'a placed answer without ageMs');
+  await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({ online: true, layer: 1, placed: true, x: 1, z: 2, ageMs: 0 }))(acct(1)), /malformed/, 'a placed answer without a zone field');
+  await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({ online: true, layer: 1, placed: true, x: 1, z: 2, zone: 7, ageMs: 0 }))(acct(1)), /malformed/, 'a zone that is neither a string nor null');
   await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({ online: 'yes' }))(acct(1)), /malformed/);
   await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({ online: true, layer: 1, placed: true, x: 'a', z: 2, ageMs: 0 }))(acct(1)), /malformed/, 'a non-numeric position');
   await assert.rejects(presenceWhere('http://x', KEY, 300, wrong({}, 500))(acct(1)), /HTTP 500/);
@@ -80,9 +85,20 @@ test('standsWithin: only a placed, fresh player inside the radius is at the plac
   assert.equal(standsWithin(offline(), area, fresh), false, 'offline');
 });
 
+test('inZone: X1\'s test is zone === the named zone AND fresh; the wrong zone, a null zone, stale, unplaced and offline are all no', () => {
+  const trader = standingAt(15000, 11000, 0), fresh = 8000;   // the Exchange
+  assert.equal(inZone(trader, 'exchange', fresh), true);
+  assert.equal(inZone(standingAt(15000, 11000, fresh), 'exchange', fresh), true, 'exactly maxAge old is fresh');
+  assert.equal(inZone(standingAt(15000, 11000, fresh + 1), 'exchange', fresh), false, 'stale');
+  assert.equal(inZone(standingAt(15000, 15000, 0), 'exchange', fresh), false, 'the Pit yard is not the Exchange');
+  assert.equal(inZone(standingAt(100, 100, 0), 'exchange', fresh), false, 'a null zone (open ground) is not the Exchange');
+  assert.equal(inZone(unplaced(), 'exchange', fresh), false);
+  assert.equal(inZone(offline(), 'exchange', fresh), false);
+});
+
 test('fixtures: fakeWhere answers from a table, an unknown account is offline, and a broken one throws like a down service', async () => {
   const where = fakeWhere({ [acct(1)]: standingAt(10, 20, 30, 2), [acct(2)]: unplaced() });
-  assert.deepEqual(await where(acct(1)), { online: true, layer: 2, placed: true, x: 10, z: 20, ageMs: 30 });
+  assert.deepEqual(await where(acct(1)), { online: true, layer: 2, placed: true, x: 10, z: 20, zone: null, ageMs: 30 }, 'a spot in neither zone has zone null');
   assert.deepEqual(await where(acct(2)), { online: true, layer: 1, placed: false });
   assert.deepEqual(await where(acct(9)), { online: false });
   await assert.rejects(fakeWhere({}, true)(acct(1)), /unreachable/);

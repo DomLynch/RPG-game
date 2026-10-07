@@ -8,6 +8,7 @@ import type { Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
+import { zoneAt } from './zones.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 export const PROTOCOL = 'frankendom.presence.v1';   // the one subprotocol the client offers next to `token.<jwt>`; the server echoes this one, never the token
@@ -85,7 +86,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     const p = world.byAccount.get(account);
     if (!p) return reply(200, { online: false });
     if (!p.placed) return reply(200, { online: true, layer: p.layer.id, placed: false });
-    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, ageMs: Math.max(0, now() - p.movedAt) });
+    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.movedAt) });
   };
 
   server.on('upgrade', (req, socket: Duplex) => {
