@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body creature concept for a dark-fantasy game, single animal, centred, plain neutral grey background, even soft light, no cast shadow, whole body in frame from nose to tail, strict side view, standing on all four legs, head level and slightly lowered, mouth closed. An ash wolf of the burnt Frontier: lean and long-legged, ribs showing, coat of dark ash-grey fur with scorched patches and pale cinder-white flecks, ragged thin tail, pointed ears, faintly glowing ember-orange eyes. Clear readable silhouette, simple shapes, matte materials.",
+  "seed": 21,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1216x832",
+  "seconds": 47.2,
+  "sha256": "487c28a677ef10021dfa5ff705ec3a9706dc7d26ba09f4217388435e8af64109"
+}
