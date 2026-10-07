@@ -1,5 +1,20 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~12:30 (+04): PENCILS DOWN (credits at ~3%, out ~5 days). READ FIRST, then memory
+
+Lane "Frankendom - Expansion" (was Lead Dev (Expansion)); the other "Frankendom - Lead Dev" now GOs this lane. Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md`. Dom is unhappy: the Frontier preview is empty (no mobs, no fight, no dressing). Strategy approved a one-hour sprint; it was stopped half-way.
+
+**LIVE (checked 10:5x):** #1629 walk-out + Bounty giver (?region=1), #1627 encounter logic, #1626 Combat flee/one-bar, #1596 save-position CODE only. /preview/origins/ serves the #1629 bundle.
+**WIP, all pushed, nothing verified end to end:**
+- #1634 DRAFT `expansion/dual-stick` @55563fe5: two thumb sticks (left walks/strafes, runs past 1.4x rim; right turns + tilts camera). VPS: 5/5 sticks tests, tsc exit 0, eslint exit 0. OWED: 375 stills + two-pointer touch check (agent killed before stills), Lead's look.
+- #1636 DRAFT `expansion/frontier-mobs` @01a815aa (stacked on #1634): mobs.ts visible+wandering, lazy-loaded bodies. UNVERIFIED: no test run, stills, console or page-weight numbers seen.
+- Combat #1633 `combat/encounter-duel` (startEncounterDuel(host, setup, seed, done, leave); done({result, twistOutcome})) bite 1+2, theirs; I wire tap -> duel after the mobs land.
+- World: #1625/#1630 zone look (cherry-picked onto 90d8a6d5), `world/frontier-dress` @e3c21152 (frontier-dress.ts; +4 lines in main.ts, optional 4th arg to buildFrontier). Characters: mob-looks.ts body-spec table keyed by character id (not mine). Spawn mobs off frontierParts.solids.
+**Next, in order:** verify #1636 then publish via Lead/Deploy preview slot; tap/aggro -> Combat's duel -> resolveFight -> rollLoot -> intoBackpack -> Bounty paid in journal; session refresh in the preview by IMPORTING src/account.ts, lazy-loaded only when a stored token exists and is expired (Lead approved), small PR + expired-token test, send Lead the sha.
+**Saving:** NOT live. No origins writer exists on the box. Needs Dom: `ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18 bash /root/origins-writer-setup.sh` (key is binance_futures_tool), paste the printed `alter role` line into Supabase SQL editor (project Frankendom Origins); then #1463 installer (Auditor + joint GO), flag + --link-writer, #1593. I must never set that password myself.
+**Rules learnt:** after a GO never push to that PR without telling Lead first; mark each fact checked vs relayed; preview HUD "progress is not saved" is correct; licences: OpenGothic/ZenKit/inkjs MIT (may read, add notice); EQEmu/openmw/ModernUO GPL stay clean-room (ruling 8); Skyrim never; ClaudeCraft licence unknown.
+**Housekeeping:** check-in cron deleted; sub-agents stopped; leftover first-slice branch locked in a worktree (agent-a9f51cf1af8c328f8) and VPS dir work/expansion/greybox-world; VPS disk ~42 GB free (floor 40).
+
 ## 2026-10-07 ~11:30 (+04): CORRECTION — real saving is NOT coming next
 
 There is no origins writer on the box (checked over ssh: /etc/frankendom holds only duel-relay.env, presence.env, verifier.env; no origins or writer systemd unit). #1596 is live as code only, so "then the writer restarts" in the entries below is wrong. Saving is blocked on Dom's W3 step from #1455 (set the frankendom_origins password in the Supabase SQL editor; create /etc/frankendom/origins-writer.env as root). After that: the #1463 installer (draft @2bc9db54) on an Auditor PASS plus the joint GO (Lead and Strategy gave it conditionally), then flag ON + --link-writer, then #1593 X1. Until then the preview HUD stays "Offline preview: progress is not saved". Never tell Dom his progress saves.
