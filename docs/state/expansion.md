@@ -1,5 +1,15 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~17:30 (+04): HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom). GO comes from "Frankendom - Lead Dev"; the COO is "COO Task Enabler" (id local_0f681df3-fe67-4324-a9f6-d625aef2281c). Gate for every push, on the VPS: `tsc --noEmit` AND `tsc -p tsconfig.tests.json`, eslint, `node --test tests/origins-*.test.ts origins/*/*.test.ts`.
+
+**MERGED this stretch:** #1669 mob rows, #1676 zone rules (`level-miss` is its own code), #1681 tier rungs, #1682 rarity, #1690 tap-fight guards, #1698 the open world uses the Pit's controls (live in the preview, 53c3b21b).
+**OPEN:** #1700 `expansion/world-roll-guard` @c6622505 (ROLL and GUARD run the Pit's sim, load-say gate, Allegiance in the ☰) GO'd to Deploy, do not push; #1705 `expansion/wildlife-rows` @ddbc7b5a draft (ash wolf / ash boar / cinder hound as `later` beast rows, nothing visible); #1593 X1 presence (Backend's writer blocked on Dom's W2/W3).
+**NEXT:** (1) flip a #1705 row off `later` when Characters lands its body (wolf also needs Combat's roster row and `bite` weapon): MOB_LOOKS entry, cited source, registered loot table; (2) world creature duels must produce a real FightRecord (Lead's queue: pit-duel.ts runs a sparring Match today; record with createRecorder, carry the encounter token, post to settle behind a flag, fail-closed until Backend's encounter_start/settle; 3-line plan before code); (3) fight-flow read is partly done: wins at 375 and 320 and a loss at 375 pass; at 375 the loss card says "try again" while the HUD line says "You fell. Rematch?" with only "Back to the fields" (Web's item); the 320 loss never finished.
+**Rules:** reuse first ("Reused: <PR>" in PR bodies), 30-minute cap then report the blocker to Lead, draft PR at first push, never push to a GO'd PR without telling Lead, say "not on a real phone" (VPS GL is ~3 fps), main screen = combat HUD + ☰ only (Dom).
+**Gotchas:** write a script locally and `ssh ... bash -s < script` (quotes inside `ssh '...'` break); BSD sed needs `-i ''`; after a regex conflict resolution re-read the file (it twice swallowed a closing `});`); touch-end can arrive >1.5 s late on a busy main thread.
+
 ## 2026-10-07 ~15:30 (+04): HANDOFF before /clear. READ FIRST, then memory
 
 Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom has the full list). GO comes from "Frankendom - Lead Dev". Gate for every push, on the VPS: `tsc --noEmit` AND `tsc -p tsconfig.tests.json`, eslint, `node --test tests/origins-*.test.ts`, `npm test`.
