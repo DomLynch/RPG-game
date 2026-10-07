@@ -626,7 +626,7 @@ test('controls pass: Slash held chambers the cut, a held strike dragged off its 
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60 && !me().exposed); i++) app.tick(); };
   const slash = app.element('attack-button'), heavy = app.element('heavy-button'), step = app.element('dodge-button'), joystick = app.element('joystick');
   // Slash held: the cut parks at its chamber (charge counts) while the thumb stays down; release lets it fly.
-  settle(); slash.dispatchEvent(at('pointerdown', 54, 54)); app.tick(); assert.ok(me().move?.startsWith('light_'), `a cut: ${me().move}`);   // cuts alternate sides
+  settle(); slash.dispatchEvent(at('pointerdown', 54, 54)); let waited = 0; while (!me().move?.startsWith('light_') && waited < 6) { app.tick(); waited++; } assert.ok(me().move?.startsWith('light_'), `a cut: ${me().move}`); assert.ok(waited >= 2 && waited <= 4, `a plain press waits for the slide decision (${waited} ticks of 17 ms; SLASH_DECIDE_MS 50)`);   // cuts alternate sides
   for (let i = 0; i < light.chamber! + 6; i++) app.tick();
   assert.ok(me().charge >= 4 && me().age === light.chamber, `a held Slash parks at its chamber: age ${me().age}, held ${me().charge}`);
   slash.dispatchEvent(at('pointerup', 54, 54)); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > light.chamber, 'released, the cut continues');

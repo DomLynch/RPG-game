@@ -101,6 +101,11 @@ test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): eve
     for (const side of id === 'guard' ? ['overhead', 'low', 'left', 'right', 'straight'] : ['left', 'right']) assert.match(b, new RegExp(`class="side side-${side}"`), `${id}: ${side} mark`);
     assert.match(b, /<svg class="[^"]*side-marks[^"]*"[^>]*aria-hidden="true"/, `${id}: decorative, hidden from the accessibility tree`);
   }
+  for (const side of ['left', 'right']) assert.match(button('attack'), new RegExp(`class="arc arc-${side}"`), `Slash: ${side} arc`);
+  for (const side of ['left', 'right', 'overhead', 'low']) assert.match(button('guard'), new RegExp(`class="arc arc-${side}"`), `Guard: ${side} arc`);
+  assert.match(css, /button \.arc\{[^}]*opacity: 0;/, 'no slide, no arc'); assert.doesNotMatch(css, /\.arc[^{}]*::(after|before)/, 'the arc never uses a pseudo-element (the Slash label is #attack-button::after)');
+  const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /const cutLateral = \(\) => Number\(keys\.has\('KeyD'\)/, 'the on-screen stick is movement only: the cut side never reads moveX'); assert.doesNotMatch(src.match(/const cutLateral[^\n]*/)![0], /moveX/);
   for (const side of ['overhead', 'low', 'straight']) assert.doesNotMatch(button('attack'), new RegExp(`side-${side}`), `Slash has no ${side} mark`);
   for (const id of ['thrust', 'heavy', 'kick', 'skill']) assert.doesNotMatch(button(id), /side-marks/, `${id}: no compass (it reads as a swipe hint on a tap button)`);
   const rule = css.match(/\/\* one lit mark per button[\s\S]*?\*\/([\s\S]*?)\{ opacity: \.95; stroke-width: 2; \}/)![1];
@@ -118,7 +123,7 @@ test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): eve
   assert.match(css, /#heavy-button \{\s*width: 58px;\s*height: 58px;/, 'Heavy is wide enough for its label (owner: smaller than Slash, bigger than 50)');
   assert.match(css, /#thrust-button:not\(\[hidden\]\) \{\s*display: block;\s*width: 56px;\s*height: 56px;/, 'Stab ~10% bigger, spacing kept');
   assert.match(css, /#attack-button \{\s*width: 60px;\s*height: 60px;/, 'Slash -10% (owner)');
-  assert.match(button('guard'), /side-overhead" d="M32-6l/, 'v5: the ticks sit outside the rim (apex past the viewBox)'); assert.match(button('guard'), /side-left" d="M-6 32l/); assert.match(button('guard'), /side-right" d="M70 32l/); assert.match(button('guard'), /side-low" d="M32 70l/);
+  assert.match(button('guard'), /side-overhead" d="M32-6l/, 'v5: the ticks sit outside the rim (apex past the viewBox)'); assert.match(button('guard'), /side-left" d="M-6 32l/); assert.match(button('guard'), /side-right" d="M70 32l/); assert.match(button('guard'), /side-low" d="M25 69h14"/, 'Guard low is a short flat line under the button, not an arrow pointing away');
   assert.match(css, /button \.side-marks\{[^}]*overflow: visible/, 'the SVG may draw past the button');
   assert.match(css, /prefers-reduced-motion: reduce[\s\S]*side-marks/, 'the fade respects reduced motion');
 });
@@ -199,7 +204,7 @@ test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized
   const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
   assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
   assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
-  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
+  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<\/button>/)!;
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
   assert.match(css, /#thrust-button,\n#skill-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row');
   assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
@@ -222,7 +227,7 @@ test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to 
   assert.equal(cutAction(-CUT_PUSH), 'light_left'); assert.equal(cutAction(-1), 'light_left');
   assert.equal(cutAction(CUT_PUSH), 'light_right'); assert.equal(cutAction(1.4), 'light_right');
   const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
-  assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(lateral\(\)\)\)/, 'the LIGHT press reads the held side');
+  assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(cutLateral\(\)\)\)/, 'the LIGHT press reads the keyboard side (the on-screen stick is movement only)');
   assert.match(src, /const arrowKey = \(code: string\) => !keys\.has\('KeyQ'\)/, 'Q + an arrow is the guard side, never a cut');
   assert.match(src, /attackButton\.dataset\.cut = cutSide/, 'the button shows the chosen side');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
@@ -247,5 +252,5 @@ test('the Slash label survives every directional-cut state: nothing may repaint 
   assert.deepEqual(clobbers.map((r) => r.selector), [], 'an #attack-button ::after/::before rule with its own content would replace the label (it did, with data-cut set: no text, only the arc)');
   assert.ok(!/#attack-button\[data-cut[^\]]*\][^,{]*::after/.test(css), 'the directional-cut arc is gone (Dom 2026-10-07); the cut stays in input.ts (data-cut) and the lit tick');
   const input = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
-  assert.match(input, /cutAction\(lateral\(\)\)/, 'the cut itself is untouched'); assert.match(input, /attackButton\.dataset\.cut = cutSide/);
+  assert.match(input, /cutAction\(cutLateral\(\)\)/, 'the cut itself reads the keyboard side only'); assert.match(input, /attackButton\.dataset\.cut = cutSide/);
 });

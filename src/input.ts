@@ -36,6 +36,11 @@ export const guardSide = (dx: number, dy: number, held: Direction | null = null)
 // move stick, A/D or the arrows are held to a side cuts to that side; held neutral keeps the alternating light. Intent only: the sim already accepts light_left and light_right.
 export const CUT_PUSH = 0.4;   // the stick's own dead zone is 0.12; a side cut wants a deliberate push, not a wobble
 export const cutAction = (lateral: number): Action => (lateral <= -CUT_PUSH ? 'light_left' : lateral >= CUT_PUSH ? 'light_right' : 'light');
+// Slash's cut side is the thumb's slide on the SLASH button (Dom 2026-10-07: "slide left, see the gold arc, and then I will slash left"). The swing waits for the thumb:
+// it fires on a slide of SLASH_SLIDE_PX (that side, at once), on release, or after SLASH_DECIDE_MS (the alternating light), whichever comes first. A plain tap
+// therefore gets up to SLASH_DECIDE_MS later; change the one constant to trade it. Intent only: the sim already takes light_left / light_right.
+export const SLASH_SLIDE_PX = 14, SLASH_DECIDE_MS = 50;
+export const slashSlide = (dx: number): 'left' | 'right' | null => (dx <= -SLASH_SLIDE_PX ? 'left' : dx >= SLASH_SLIDE_PX ? 'right' : null);
 const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
@@ -74,6 +79,7 @@ export function createInput(env: InputEnv) {
     guardDir: Direction | null = null,
     cancel = false;
   let dodgeHeld: { since: number; rolled: boolean } | null = null;
+  let slashWait: { since: number; x: number } | null = null;   // a SLASH press still deciding its side (see slashSlide)
   const holders = new Set<Strike>();
   let dragGuard = false;
   // The held level the simulation sees: during a swing, whether the control that threw it is still down; otherwise whether any strike control is.
@@ -109,6 +115,8 @@ export function createInput(env: InputEnv) {
   // that direction, so it rolls at once: the invulnerability arrives with the press, not 150 ms later.
   const arrowKey = (code: string) => !keys.has('KeyQ') && keys.has(code);   // Q held turns the arrows into the guard side
   const lateral = () => moveX + Number(keys.has('KeyD') || arrowKey('ArrowRight')) - Number(keys.has('KeyA') || arrowKey('ArrowLeft'));
+  // The side a cut takes from the KEYBOARD (A/D or the arrows): the on-screen stick is movement only (Dom 2026-10-07); the touch cut side is the thumb's slide on SLASH.
+  const cutLateral = () => Number(keys.has('KeyD') || arrowKey('ArrowRight')) - Number(keys.has('KeyA') || arrowKey('ArrowLeft'));
   const moving = () => moveX !== 0 || moveZ !== 0 || MOVE_KEYS.some((k) => keys.has(k));
   function pressDodge(now: number) {
     if (dodgeHeld) return;
@@ -133,8 +141,13 @@ export function createInput(env: InputEnv) {
   function requestParry() {
     request('parry');
   }
+  function fireSlash(side: 'left' | 'right' | null) {
+    slashWait = null;
+    if (side) { attackButton.dataset.slide = side; request(side === 'left' ? 'light_left' : 'light_right'); }
+    else requestStrike();
+  }
   function requestStrike(isHeavy = false) {
-    request(isHeavy ? 'heavy' : cutAction(lateral()));
+    request(isHeavy ? 'heavy' : cutAction(cutLateral()));
   }
   env.window.addEventListener('keydown', (event) => {
     if (paused() || (event.target as { tagName?: string } | null)?.tagName === 'INPUT') return; // typing a name is not fighting
@@ -202,6 +215,7 @@ export function createInput(env: InputEnv) {
     button: HTMLButtonElement,
     name: Strike,
     start: () => void,
+    deferred = false,   // SLASH: the swing waits for the thumb's slide (fireSlash) instead of starting on the press
   ) {
     let id: number | null = null,
       dragged = false;
@@ -221,13 +235,16 @@ export function createInput(env: InputEnv) {
       }
       hold(name);
       button.dataset.held = ''; // the button's side mark lights while held (see .side-marks in style.css)
-      start();
+      if (deferred) slashWait = { since: env.now(), x: event.clientX };
+      else start();
     });
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId !== id || dragged) return;
+      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (side) { fireSlash(side); return; } }
       const c = radius();
       if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
       dragged = true;
+      if (deferred) slashWait = null;   // dragged off before it decided: the swing is abandoned into the guard press
       unhold(name);
       dragGuard = true;
       requestParry(); // off the circle: the swing is abandoned into a guard press
@@ -236,8 +253,10 @@ export function createInput(env: InputEnv) {
       button.addEventListener(type, (event) => {
         if ((event as PointerEvent).pointerId !== id) return;
         id = null;
+        if (deferred && slashWait) { if (type === 'pointerup' && !dragged) fireSlash(null); else slashWait = null; }   // a release decides the plain light
         unhold(name);
         delete button.dataset.held;
+        if (deferred) delete button.dataset.slide;
         if (dragged) {
           dragged = false;
           dragGuard = false;
@@ -258,7 +277,7 @@ export function createInput(env: InputEnv) {
         delete button.dataset.held;
       });
   }
-  strikeControl(attackButton, 'light', () => requestStrike());
+  strikeControl(attackButton, 'light', () => requestStrike(), true);
   skillButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();
@@ -407,13 +426,14 @@ export function createInput(env: InputEnv) {
     },
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
     intent(): ControlIntent {
+      if (slashWait && env.now() - slashWait.since >= SLASH_DECIDE_MS) fireSlash(null);
       const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
       // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
       // keyboard guard lights the arrow's side too and shows straight again on release.
       const guardDirection = guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null);
       const sideLabel = guardDirection ?? 'straight';
       if (guardId === null && guardButton.dataset.side !== sideLabel) guardButton.dataset.side = sideLabel;   // write only on change: no style invalidation 60× a second
-      const x = lateral(), cut = cutAction(x), cutSide = cut === 'light_left' ? 'left' : cut === 'light_right' ? 'right' : null;
+      const x = lateral(), cut = cutAction(cutLateral()), cutSide = cut === 'light_left' ? 'left' : cut === 'light_right' ? 'right' : null;
       if ((attackButton.dataset.cut ?? null) !== cutSide) { if (cutSide) attackButton.dataset.cut = cutSide; else delete attackButton.dataset.cut; }   // the button lights the side the next LIGHT will cut (style.css)
       return {
         x,
@@ -447,6 +467,7 @@ export function createInput(env: InputEnv) {
       cancel = true;
       dodgeHeld = null;
       holders.clear();
+      slashWait = null; delete attackButton.dataset.slide;
       dragGuard = false;
       env.quiet();
       keys.clear();
