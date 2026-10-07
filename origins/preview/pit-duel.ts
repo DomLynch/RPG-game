@@ -21,13 +21,15 @@ import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene } from '../../src/scene.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
+import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Finished } from '../pit/pit.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number };
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[] };   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel
 export type DuelHooks = {
   ended(finish: Finished): { next?: string } | void;   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
+  twisted?(outcome: TwistOutcome): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
 // In-memory storage for the match's ports: the sparring mode writes nothing, and if it ever did, it would land here, never in localStorage.
@@ -40,6 +42,7 @@ type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; v
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
 let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
+let twist: Twist = noTwist();
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
 const seen = new Map<string, number>();   // for the test hook: how often the player's inputs started each action, attack and charge this duel
@@ -133,7 +136,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
-  fight = asked; hooks = page; next = undefined; result = null;
+  fight = asked; hooks = page; next = undefined; result = null; twist = noTwist();
   stageFor(host, opponent, asked.level);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
@@ -170,7 +173,16 @@ function frame(now: number) {
       controls!.consumed(match.practice.events);
       state = match.practice.fighter;
       accumulator -= STEP;
+      if (fight!.flags?.length && outcome !== 'ended') {
+        const t = stepTwist(p.duel, fight!.flags, twist);
+        twist = t.twist;
+        if (twist.outcome === 'fled' || twist.outcome === 'escaped') {   // no catch window / the window ran out: the fight ends with the foe alive
+          match.end(false); running = false; hooks?.twisted?.(twist.outcome);
+          break;
+        }
+      }
       if (outcome === 'ended') {
+        if (fight!.flags?.length && p.duel.finish?.victim === 1) twist = stepTwist(p.duel, fight!.flags, twist).twist;   // 'caught' inside the window
         match.end(false);   // sparring: no record, no mark, nothing written
         result = match.practice.finish;
         next = hooks?.ended(result)?.next;
@@ -184,6 +196,9 @@ function frame(now: number) {
   hud!.update(match.practice, { legend: legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
   frameId = requestAnimationFrame(frame);
 }
+
+// An encounter's twist state (src/twist.ts): read by encounter-duel.ts when the fight ends.
+export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.
 export function duelState() {
