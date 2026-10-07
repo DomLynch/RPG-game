@@ -21,7 +21,7 @@ test('the wolf is a held roster row on its own rig with the bite, and a profile 
     const p = opponentAt(wolf, level).profiles.normal;
     assert.ok(p.reaction > 0 && p.guard === 0 && p.kick === 0 && p.parry === 0, `L${level}: never guards, parries or kicks`);
   }
-  assert.ok(wolf.speed > 1.2 && wolf.health < OPPONENTS.goblin.health && wolf.poise === 0, 'the fastest, frailest body');
+  assert.ok((wolf.speed ?? 1) > 1.2 && wolf.health < OPPONENTS.goblin.health && wolf.poise === 0, 'the fastest, frailest body');
 });
 
 test('every strike names the one Bite clip, and the role map reaches clips the GLB really has', () => {
