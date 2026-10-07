@@ -8,7 +8,10 @@ import * as hitImpact from '../src/hit-impact.ts';
 import * as pvpHold from '../src/pvp-hold.ts';
 import * as armfeelModule from '../src/armfeel.ts';
 import * as defenceGradeModule from '../src/defence-grade.ts';
+import * as chunkRecoverModule from '../src/chunk-recover.ts';
+import * as kickCloseModule from '../src/kick-close.ts';
 import * as victoryHeadlineModule from '../src/victory-headline.ts';
+import * as fatiguePreviewModule from '../src/fatigue-preview.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
@@ -55,8 +58,9 @@ import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
-import * as breakBeat from '../src/break-beat.ts';
+import * as breathAudio from '../src/audio/breath.ts';
 import * as powerWords from '../src/power-words.ts';
+import * as powerWordSynth from '../src/audio/power-word.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
 import * as tutorialUi from '../src/tutorial-ui.ts';
@@ -97,7 +101,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {}, finisherOverride: string | null = null;
   let sceneArena: unknown;
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, hamstrungInstalled: () => true, executionInstalled: () => true, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, startStandoff() {}, restartStandoff() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, hamstrungInstalled: () => true, executionInstalled: () => true, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ['frankendom.firstloss.v1', '1'] /* the one-time first loss (lessons.ts) is behind every harness fighter; seed '' to meet it */, ['frankendom.lesson.pace.v1', '1'] /* the one-time pace line (first FatigueBand >= 2) is behind every harness fighter; seed '' to meet it */, ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
@@ -112,10 +116,14 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./execution.ts'] = execution; modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
+  modules['./chunk-recover.ts'] = chunkRecoverModule;   // the stale-chunk bar (its install is guarded: the harness window has no real listeners)
   modules['./defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
+  modules['./kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
+  modules['./fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
-  modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
+  modules['./audio/power-word.ts'] = powerWordSynth;
+  modules['./audio/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports
@@ -460,13 +468,13 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
   const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }, undefined, {}, '?opponent=dwarf'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // the full circle (a dwarf, not Arena 1: its circle is smaller now, play-radius.ts); level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
-  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
+  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 150, 'heavy Hit': 90, 'heavy Blocked': 50 };
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
   const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
   const measured: Record<string, number[]> = {}, expected: Record<string, number[]> = {};
   let needTick = true;
-  for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
+  for (let frame = 0; frame < 30000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
     const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
     if (needTick) { if (hitsDone) { app.key('KeyQ'); app.key('ArrowUp'); } else if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }   // Q + up: the overhead guard that meets a heavy (directional guard)
     needTick = true;
@@ -625,7 +633,7 @@ test('controls pass: Slash held chambers the cut, a held strike dragged off its 
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60 && !me().exposed); i++) app.tick(); };
   const slash = app.element('attack-button'), heavy = app.element('heavy-button'), step = app.element('dodge-button'), joystick = app.element('joystick');
   // Slash held: the cut parks at its chamber (charge counts) while the thumb stays down; release lets it fly.
-  settle(); slash.dispatchEvent(at('pointerdown', 54, 54)); app.tick(); assert.ok(me().move?.startsWith('light_'), `a cut: ${me().move}`);   // cuts alternate sides
+  settle(); slash.dispatchEvent(at('pointerdown', 54, 54)); let waited = 0; while (!me().move?.startsWith('light_') && waited < 6) { app.tick(); waited++; } assert.ok(me().move?.startsWith('light_'), `a cut: ${me().move}`); assert.ok(waited >= 2 && waited <= 4, `a plain press waits for the slide decision (${waited} ticks of 17 ms; SLASH_DECIDE_MS 50)`);   // cuts alternate sides
   for (let i = 0; i < light.chamber! + 6; i++) app.tick();
   assert.ok(me().charge >= 4 && me().age === light.chamber, `a held Slash parks at its chamber: age ${me().age}, held ${me().charge}`);
   slash.dispatchEvent(at('pointerup', 54, 54)); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > light.chamber, 'released, the cut continues');
@@ -1020,9 +1028,13 @@ test('kill links: a finished fight offers Share; the link replays the same fight
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // A headless record is stamped with an older era (play-radius.ts: no circle, no late notice, no stab), and every pre-29 version is refused (REACH[29]): stamp this one as a live fight is.
+  const pr = await import('../src/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
+  const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('goblin', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);
   const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
+  pr.setPlayScale(was); pr.setLateNotice(false); setStab(false);
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(wrong.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line, never a raw error over the HUD (owner 2026-09-22)
   assert.equal(wrong.element('reset-button').hidden, false, 'a refused link still offers PLAY NOW'); assert.equal(wrong.element('reset-button').textContent, 'PLAY NOW');
@@ -1047,8 +1059,8 @@ test('kill links: a record that runs out before its finish freezes on the last f
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const v = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
   await settle(() => v.element('replay-banner').textContent !== 'Loading the fight…');
-  for (let i = 0; i < 400 && v.element('replay-banner').textContent !== 'Recorded on an older build'; i++) v.tick();
-  assert.equal(v.element('replay-banner').textContent, 'Recorded on an older build');
+  for (let i = 0; i < 400 && v.element('replay-banner').textContent !== 'Recorded on an older version of the game'; i++) v.tick();
+  assert.equal(v.element('replay-banner').textContent, 'Recorded on an older version of the game');
   assert.equal(v.element('replay-banner').dataset.stale, '1', 'a record that ran out is the page\'s own message, not a fight status');
   assert.equal(v.element('reset-button').hidden, false, 'the frozen viewer page offers the way on');
   assert.equal(v.element('reset-button').textContent, 'PLAY NOW');
@@ -1320,7 +1332,7 @@ test('kill links: a retired record version converts — the warden\'s still, who
   await settle(() => /Your turn/.test(s.element('replay-banner').textContent));
   assert.equal(s.element('replay-still').hidden, false, `the warden's still shows; banner=${s.element('replay-banner').textContent}`);
   assert.equal((s.element('replay-still') as unknown as HTMLImageElement).src, '/game/img/nightborn.webp'); assert.equal((s.element('replay-still') as unknown as HTMLImageElement).alt, 'The Nightborn');
-  assert.equal(s.element('replay-banner').textContent, 'The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
+  assert.equal(s.element('replay-banner').textContent, 'Recorded on an older version of the game. The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
   assert.equal(s.element('welcome').hidden, true, 'no name form: a viewer needs no name');
   assert.equal(s.element('reset-button').hidden, false); assert.equal(s.element('reset-button').dataset.play, '1', 'PLAY NOW under it');
   s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
@@ -1332,12 +1344,12 @@ test('kill links: a retired record version converts — the warden\'s still, who
   assert.equal(v.replaced.length, 1); assert.match(v.replaced[0], /opponent=nightborn/);
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
   await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
-  assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
+  assert.equal(d.element('replay-banner').textContent, 'Recorded on an older version of the game. The Nightborn won, against a knife. Your turn.');
   const odd = legacy(record.packRecord({ ...fight, weapon: 'banana' as never })); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
-  await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
-  assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
+  await settle(() => u.element('replay-banner').textContent === 'Recorded on an older version of the game');
+  assert.equal(u.element('replay-banner').textContent, 'Recorded on an older version of the game'); assert.equal(u.element('welcome').hidden, true);
 });
 // A ?tier= pinned tab (grades.ts tierPin, Strategy 2026-09-28) says so on the fight rank row; the account panel keeps his real rank.
 test('?tier= pin: the fight rank row reads "<Rank> · test look" while the tab is pinned, and the career row otherwise', () => {

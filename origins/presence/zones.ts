@@ -36,3 +36,26 @@ export const zoneAt = (xCm: number, zCm: number): string | null => {
   const p = worldMetres(xCm, zCm);
   return zones.find(z => inside(z.corners, p))?.id ?? null;
 };
+
+// Where every fresh join starts (Lead, 2026-10-07): the Pit yard's centre, a constant the server chooses, never the client's first pose.
+export const SPAWN: Pt = { x: CENTRE_CM, z: CENTRE_CM };
+
+// A landmark's position in presence centimetres, from the zone data (the same frame as zoneAt).
+const mountOf = (zone: 'pit-yard' | 'exchange') => (zone === 'pit-yard' ? mounts.value.pit : mounts.value.exchange);
+export function landmarkCm(zone: 'pit-yard' | 'exchange', name: string): Pt {
+  const params = resolveZone(CONCORD, CONCORD_REGION, zone);
+  const l = params.ok ? toMetres(params.value).landmarks[name] : undefined;
+  if (!l) throw new Error(`presence: no landmark ${zone}/${name}`);
+  const w = toWorld({ x: l.x, d: l.d }, mountOf(zone));
+  return { x: Math.round(CENTRE_CM + w.x * 100), z: Math.round(CENTRE_CM + w.z * 100) };
+}
+
+// The trade area IS the whole `exchange` zone (Expansion's rule for launch gate X1, adopted: bank, smith and trade are Exchange-wide, so a smaller box would let a rejoin land
+// "at the Exchange" without walking in). The edge between the Pit yard and the Exchange belongs to the Pit yard (zoneAt), so it is outside.
+export const inTradeArea = (x: number, z: number): boolean => zoneAt(x, z) === 'exchange';
+
+// Where a rejoin goes when its remembered or saved spot is in a trade area (Strategy's rule f; Lead's ruling 2026-10-07): just outside the Exchange's outer gate on the Pit side, 50 cm
+// into the Pit yard, so a rejoin is never "at the Exchange" at all and the player must walk in fresh (the stricter of the two edges Expansion offered).
+const OUTER_GATE = landmarkCm('exchange', 'outer-gate');
+export const REJOIN_EDGE: Pt = { x: OUTER_GATE.x, z: OUTER_GATE.z + 50 };
+export const clearOfTradeAreas = (x: number, z: number): Pt => (inTradeArea(x, z) ? REJOIN_EDGE : { x, z });

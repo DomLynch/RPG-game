@@ -5,15 +5,15 @@ import warriorUrl from '../../src/assets/warrior.glb?url';
 import type { Result } from '../contracts/core.ts';
 import { blacksmith, forgeCosts, graveIronDef, helmetDef, helmetInstance, ironInstance, recordDef, recordInstance, ACCOUNT, PC, smith } from '../contracts/fixtures.ts';
 import { parseServiceDefinition, parseUpgradeCostTable, performUpgrade, type UpgradeReceipt } from '../contracts/economy.ts';
-import type { AccountId, CharacterInstanceId, ItemId } from '../contracts/ids.ts';
+import type { AccountId, CharacterInstanceId, EncounterId, ItemId, QuestId } from '../contracts/ids.ts';
 import { parseItemDefinition, parseItemInstance, upgradeLevelOf, type ItemDefinition, type ItemInstance } from '../contracts/items.ts';
-import { parseQuestDefinition } from '../contracts/story.ts';
+import { parseQuestDefinition, type QuestDefinition } from '../contracts/story.ts';
 import { parseCharacterDefinition, type CareerStanding } from '../contracts/world.ts';
 import { BANK_PLACE, deposit, find, gridView, openInventory, receive, remove, unequip, withdraw, type Grid } from '../inventory/inventory.ts';
 import { concordCommission } from '../quests/fixtures.ts';
 import { advance, entries, newJournal, type Journal } from '../quests/journal.ts';
 import { orla } from '../talk/fixtures.ts';
-import { choices, loadTalk, newTalkState, pick, type Facts } from '../talk/talk.ts';
+import { choices, loadTalk, newTalkState, pick, type Facts, type Talk } from '../talk/talk.ts';
 import { BANK_STEP_Z, FORGE } from './exchange.ts';
 import { ui, type Cell } from './ui.ts';
 
@@ -26,13 +26,16 @@ export const WORLD_TUNING = {
 // Every model the preview loads, id → URL; null = a greybox stand-in built in main.ts. Swapping art is a one-line change here.
 export const ASSETS: Record<'hero' | 'orla' | 'ore', string | null> = { hero: warriorUrl, orla: null, ore: null };
 
-export type Kind = 'talk' | 'journal' | 'bank' | 'blacksmith' | 'ore';
+export type Kind = 'talk' | 'journal' | 'bank' | 'blacksmith' | 'ore' | 'bounty';   // bounty: the ?region=1 Bounty giver (enableBounty)
 const must = <T>(r: Result<T>): T => { if (!r.ok) throw new Error(JSON.stringify(r.issues)); return r.value; };
 const why = (r: Result<unknown>) => (r.ok ? '' : r.issues[0]!.message);
 
 // Content, from the modules' fixtures. The ore is the item Orla's talk and the quest name; no fixture defines it (an API gap, reported),
 // so it is the grave-iron material re-keyed to that id.
-const TALK = must(loadTalk(orla())), QUEST = must(parseQuestDefinition(concordCommission())), QUESTS = new Map([[QUEST.id, QUEST]]);
+const TALK = must(loadTalk(orla())), QUEST = must(parseQuestDefinition(concordCommission())), QUESTS = new Map<QuestId, QuestDefinition>([[QUEST.id, QUEST]]);
+// ?region=1 only: the Bounty giver's talk and name (play.enableBounty); null keeps the page as it is without the flag.
+let GIVER: { talk: Talk; name: string } | null = null;
+const talkFor = (kind: Kind): Talk => (kind === 'bounty' && GIVER ? GIVER.talk : TALK);
 const ORE = (QUEST.stages.flatMap((s) => s.transitions.flatMap((t) => t.when)).find((c) => c.kind === 'has-item') as { item: ItemId }).item;
 const DEFS = new Map([helmetDef(), recordDef(), graveIronDef(), { ...graveIronDef(), id: ORE, name: 'Exchange ore' }].map((r) => must(parseItemDefinition(r))).map((d) => [d.id, d]));
 const lookup = (id: ItemId): ItemDefinition | undefined => DEFS.get(id);
@@ -52,8 +55,8 @@ let reply = '', msg = '', picked: string | null = null, ended = false;
 
 const hasItem = (item: ItemId) => inv.items.some((i) => i.item === item);
 const facts = (): Facts => ({ standing: STANDING, quest: (id) => journal.quests.get(id), hasItem });
-const step = (quest: Parameters<typeof advance>[1], stage: string, choice: string | null): Result<Journal> => {
-  const r = advance(journal, quest, stage, { quests: QUESTS, standing: STANDING, at: new Date().toISOString(), choice: choice ?? undefined, hasItem });
+const step = (quest: Parameters<typeof advance>[1], stage: string, choice: string | null, cleared?: (encounter: EncounterId) => boolean): Result<Journal> => {
+  const r = advance(journal, quest, stage, { quests: QUESTS, standing: STANDING, at: new Date().toISOString(), choice: choice ?? undefined, hasItem, cleared });
   return r.ok ? { ok: true, value: r.value.journal } : r;
 };
 const nameOf = (i: ItemInstance) => `${lookup(i.item)?.name ?? i.item}${i.quantity > 1 ? ` ×${i.quantity}` : ''}${upgradeLevelOf(i) ? ` +${upgradeLevelOf(i)}` : ''}`;
@@ -69,9 +72,21 @@ export const play = {
     if (r.ok) inv = r.value;
     msg = r.ok ? 'You take 5 Exchange ore from the cart.' : why(r);
   },
-  lines: () => choices(TALK, talk, facts()),
-  say(id: string) {
-    const r = pick(TALK, talk, id, facts(), step);
+  lines: (kind: Kind = 'talk') => choices(talkFor(kind), talk, facts()),
+  // ?region=1: register the Bounty (a quest record wrapping it, bounty.ts) and the talk of the figure who gives it.
+  enableBounty(quest: unknown, giverTalk: unknown, name: string) {
+    const q = must(parseQuestDefinition(quest));
+    QUESTS.set(q.id, q); GIVER = { talk: must(loadTalk(giverTalk)), name };
+  },
+  // ?region=1: the Bounty is held once its giver has posted it (quest at "posted"); a win over its foe clears the encounter and the quest finishes.
+  bountyOpen: (quest: string) => journal.quests.get(quest as QuestId)?.stage === 'posted',
+  bountyPaid(quest: string, encounter: EncounterId): boolean {
+    const r = step(quest as QuestId, 'won', null, (e) => e === encounter);
+    if (r.ok) journal = r.value;
+    return r.ok;
+  },
+  say(id: string, kind: Kind = 'talk') {
+    const r = pick(talkFor(kind), talk, id, facts(), step);
     if (!r.ok) { msg = why(r); return; }
     talk = r.value.state; journal = r.value.journal ?? journal; reply = r.value.reply; msg = '';
     ended = r.value.effects.some((e) => e.kind === 'end');
@@ -82,7 +97,7 @@ export const play = {
   // A tap inside the open panel: returns the panel to show next (null = close).
   act(el: HTMLElement | null, open: Kind): Kind | null {
     const d = el?.dataset ?? {};
-    if (d.say) play.say(d.say);
+    if (d.say) play.say(d.say, open);
     else if (d.go) { play.fresh(); return d.go as Kind; }
     else if (d.item) { picked = d.item === picked ? null : d.item; msg = ''; }
     else if (d.do === 'move' && picked) {
@@ -110,6 +125,7 @@ export const play = {
     const sel = picked ? find(inv, picked) : undefined;
     switch (kind) {
       case 'ore': return ui.panel('Quarry cart', ui.text(msg));
+      case 'bounty': return ui.panel(GIVER?.name ?? 'Nobody', ui.text(reply || 'He looks up from the Roll of the hold.'), ended ? '' : ui.choices(play.lines('bounty')), ui.text(msg, true));
       case 'talk': return ui.panel(SMITH_NAME, ui.text(reply || 'She looks up from the anvil.'), ended ? '' : ui.choices(play.lines()), ui.text(msg, true), ui.button('Upgrade a piece', { go: 'blacksmith' }));
       case 'journal': return ui.panel('Journal', ...(journal.quests.size ? [...journal.quests.values()].map((s) =>
         ui.heading(`${QUESTS.get(s.quest)?.title ?? s.quest} — ${s.status}`) + entries(journal).filter((e) => e.quest === s.quest).map((e) => ui.text(e.text)).join('')) : [ui.text('No quests yet.', true)]));

@@ -2,3 +2,4 @@
 import '../origins/world/concord.test.ts';
 import '../origins/world/generate.test.ts';
 import '../origins/world/resolve.test.ts';
+import '../origins/world/zone-rules.test.ts';

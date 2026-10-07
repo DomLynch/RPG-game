@@ -3,6 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
 import { DRAG_FROM, STEP_BEATS, walkLateral, walkOffset, type ClassSpecial } from './special-class-timing.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // The class specials of the Witch, the Plague Doctor and the Knight, ranks 1-3 (slot A) and 4-7 (slot B), GREY-BOX PREVIEWS (Weapons lane; Dom picked the six ★ takes on
 // 2026-10-01: docs/briefs/specials/class-specials-witch-pd-knight-2026-10-01.md). Same seam as Red Wind and the Shield Quake (special-timing.ts): it reads the sim's special events,
@@ -18,14 +19,7 @@ import { DRAG_FROM, STEP_BEATS, walkLateral, walkOffset, type ClassSpecial } fro
 // Any cast of the opponent's side: a page that asks for this effect has no other special running (Hades' own test stays the default everywhere else).
 export const isClassCast: typeof isHadesShadow = (_opponent, actor) => actor === 1;
 
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
-  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy), c = (a: number, b: number) => hash(a * 127 + b * 311, seed);
-  return lerp(lerp(c(ix, iy), c(ix + 1, iy), kx), lerp(c(ix, iy + 1), c(ix + 1, iy + 1), kx), ky);
-};
 
 // A torn dark blob, white so the material's colour tints it: alpha falls off from a noise-bitten rim and reaches nothing at the sprite's edge. `long` stretches it along its length.
 function blob(seed: number, long = 1, tapered = false) {

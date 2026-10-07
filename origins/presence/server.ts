@@ -15,6 +15,7 @@ export const PROTOCOL = 'frankendom.presence.v1';   // the one subprotocol the c
 const UUID = /^[0-9a-f-]{36}$/;
 export const LIMITS = { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 };
 export type Limits = typeof LIMITS;
+const TICK_RING = 40_000;   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
 
 function frame(opcode: number, payload: Uint8Array): Buffer {
   const n = payload.length, head = n < 126 ? Buffer.from([0x80 | opcode, n]) : Buffer.from([0x80 | opcode, 126, n >> 8, n & 255]);
@@ -25,6 +26,7 @@ export type PresenceOptions = {
   verify: (token: string) => Promise<string | null>;   // the client's access token -> its account id (origins/server/auth.ts supabaseVerify)
   rules?: Rules; limits?: Limits; maxLayers?: number;
   now?: () => number; log?: (line: string) => void; logEveryMs?: number; sweepEveryMs?: number; ipHeader?: boolean;   // ipHeader: trust nginx's X-Real-IP (only behind nginx on 127.0.0.1)
+  locate?: (account: string) => Promise<{ x: number; z: number } | null>;   // where a rejoining account should stand (the writer's saved spot of its now-active character); any error or null: the default placement
   internalKey?: string;   // the shared secret of GET /internal/where (the writer asks where an account stands); unset: that route does not exist
 };
 export type Presence = { server: Server; world: World; port: () => number; stats: () => Record<string, unknown>; close: () => Promise<void> };
@@ -38,6 +40,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   const perLayerOut = new Map<number, { packets: number; bytes: number }>();
   const refused = (why: string): void => { counts.refused[why] = (counts.refused[why] ?? 0) + 1; };
   let tickNo = 0;
+  const tickRing = new Float64Array(TICK_RING); let tickRingN = 0;   // every tick's duration in ms, newest overwrites oldest
 
   // The tick is aimed at the wall clock (not setInterval's drift) so a slow tick does not stretch every later one; the time each took is reported.
   let next = now() + rules.tickMs;
@@ -55,8 +58,10 @@ export function createPresence(opts: PresenceOptions): Presence {
     }
     const took = performance.now() - started;
     counts.ticks++; if (took > counts.maxTickMs) counts.maxTickMs = took;
+    tickRing[tickRingN++ % TICK_RING] = took;
   }, Math.max(5, Math.floor(rules.tickMs / 4)));
-  const beats = setInterval(() => { world.sweep(now()); for (const s of sockets.values()) if (!s.destroyed) s.write(frame(1, Buffer.from('{"t":"beat"}'))); }, limits.beatMs);
+  // seenAt on the heartbeat: a connected player standing still is still here.
+  const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); } }, limits.beatMs);
   const reporter = setInterval(() => {
     log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)}`);
     counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
@@ -66,14 +71,31 @@ export function createPresence(opts: PresenceOptions): Presence {
   for (const t of [ticker, beats, reporter, sweeper]) t.unref();
 
   const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut) });
+  // The hello carries where the server placed the player, so a client adopts it before its first pose (a rejoin or a recalled spot must not look like a teleport).
+  const hello = (p: Player): Buffer => frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: p.id, layer: p.layer.id, x: p.x, z: p.z })));
+  const rejoiners = new Map<string, () => Promise<boolean>>();   // account -> re-place that connected account (set per socket, removed when it goes)
+  // The last `n` tick durations (ms), oldest first, at most what the ring holds.
+  const recentTicks = (n: number): number[] => {
+    const have = Math.min(tickRingN, TICK_RING, Math.max(0, Math.floor(n))), out: number[] = [];
+    for (let i = tickRingN - have; i < tickRingN; i++) out.push(tickRing[i % TICK_RING]!);
+    return out;
+  };
   const server = createServer((req, res) => {
-    if (req.method === 'GET' && req.url === '/origins/presence/health') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return void res.end(JSON.stringify(stats())); }
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/health') {
+      // The tick samples (up to ~700 KB) are for the load test only: honoured for a DIRECT loopback caller, never for a proxied one (behind nginx the socket peer is 127.0.0.1 too, so a
+      // proxy header, which nginx sets, means "not direct"). The ops nginx snippet does not proxy this path at all; this is the second lock.
+      const direct = (req.socket.remoteAddress === '127.0.0.1' || req.socket.remoteAddress === '::1' || req.socket.remoteAddress === '::ffff:127.0.0.1') && !req.headers['x-real-ip'] && !req.headers['x-forwarded-for'];
+      const n = direct ? Number(new URL(req.url, 'http://presence').searchParams.get('ticks') ?? 0) : 0;
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      return void res.end(JSON.stringify(n > 0 ? { ...stats(), tickMs: recentTicks(n) } : stats()));
+    }
     if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
+    if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/rejoin') return void rejoin(req, res);
     res.writeHead(404); res.end();
   });
   // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
   // from here and never from a request body. Not under /origins/presence, so the public nginx route does not reach it, and it needs the key and a loopback caller besides. The answer
-  // is the service's own state: a player never placed by a first pose is `placed: false` with no position, and `ageMs` is the time since its last pose was handled.
+  // is the service's own state: every player has a position (a fresh join starts at the spawn, never at a client's first pose), and `ageMs` is the time since the player was last seen: a pose, or the socket heartbeat while it stays connected (a player standing still is still here).
   const loopback = (a: string | undefined): boolean => a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
   const where = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
     const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
@@ -85,8 +107,26 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
     const p = world.byAccount.get(account);
     if (!p) return reply(200, { online: false });
-    if (!p.placed) return reply(200, { online: true, layer: p.layer.id, placed: false });
-    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.movedAt) });
+    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.seenAt) });
+  };
+
+  // POST /internal/rejoin {account} (Bearer <internalKey>, loopback): the writer says this account's ACTIVE CHARACTER changed (create or switch). Presence drops the old
+  // character's presence and places the new one where `locate` says it was left (default placement if that fails), on the same socket with a fresh hello. Same guards as /internal/where.
+  const rejoin = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (!key) { req.resume(); res.writeHead(404); return void res.end(); }
+    const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
+    if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) { req.resume(); return reply(401, { error: 'unauthorised' }); }
+    let size = 0; const parts: Buffer[] = [];
+    req.on('data', (c: Buffer) => { size += c.length; if (size <= 1024) parts.push(c); });
+    req.on('end', () => {
+      let account = ''; try { account = String((JSON.parse(size <= 1024 ? Buffer.concat(parts).toString('utf8') : '{}') as { account?: unknown }).account ?? '').toLowerCase(); } catch { /* 400 below */ }
+      if (!UUID.test(account)) return reply(400, { error: 'account: a uuid' });
+      const again = rejoiners.get(account);
+      if (!again) return reply(200, { rejoined: false });
+      again().then(ok => reply(200, { rejoined: ok }), () => reply(200, { rejoined: false }));
+    });
   };
 
   server.on('upgrade', (req, socket: Duplex) => {
@@ -105,16 +145,30 @@ export function createPresence(opts: PresenceOptions): Presence {
     socket.on('error', () => {});
     void verify(token).then(account => {
       if (!account || socket.destroyed) { bucket.sockets--; return refuse(403, 'token'); }
-      const player = world.join(account, now(), friend);
-      if (!player) { bucket.sockets--; return refuse(503, world.byAccount.has(account) ? 'already-in' : 'world-full'); }
+      const first = world.join(account, now(), friend);
+      if (!first) { bucket.sockets--; return refuse(503, world.byAccount.has(account) ? 'already-in' : 'world-full'); }
+      let player: Player = first;   // re-pointed by a rejoin
       sockets.set(player, socket); counts.joined++;
+      const me = account;
       socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\nSec-WebSocket-Protocol: ${PROTOCOL}\r\n\r\n`);
       (socket as Socket).setNoDelay(true);
-      socket.write(frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: player.id, layer: player.layer.id }))));
+      socket.write(hello(player));
       let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout;
       const close = (code: number, why?: string): void => { if (why) refused(why); if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); } };
       const touch = (): void => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), limits.idleMs); };
       touch();
+      rejoiners.set(me, async () => {
+        if (socket.destroyed || sockets.get(player) !== socket) return false;
+        const at = await (opts.locate?.(me) ?? Promise.resolve(null)).catch(() => null) ?? undefined;
+        if (socket.destroyed || sockets.get(player) !== socket) return false;
+        const old = player; sockets.delete(old); world.leave(old, now());
+        world.memory.delete(me);   // a rejoin is a different character: with no saved spot it starts at the spawn, never where the old one left
+        const fresh = world.join(me, now(), friend, at);
+        if (!fresh) { bucket.sockets--; rejoiners.delete(me); close(1013, 'world-full'); return false; }
+        player = fresh; sockets.set(fresh, socket);
+        socket.write(hello(fresh));
+        return true;
+      });
       socket.on('data', (chunk: Buffer) => {
         buffered = Buffer.concat([buffered, chunk]);
         for (;;) {
@@ -142,7 +196,7 @@ export function createPresence(opts: PresenceOptions): Presence {
           if (world.move(player, pose, nowMs) === 'drop') return close(4009, 'teleport');
         }
       });
-      const gone = (): void => { clearTimeout(idle); if (sockets.get(player) !== socket) return; sockets.delete(player); world.leave(player, now()); bucket.sockets--; };
+      const gone = (): void => { clearTimeout(idle); rejoiners.delete(me); if (sockets.get(player) !== socket) return; sockets.delete(player); world.leave(player, now()); bucket.sockets--; };
       socket.on('close', gone); socket.on('error', gone);
     }, () => { bucket.sockets--; refuse(403, 'token'); });
   });

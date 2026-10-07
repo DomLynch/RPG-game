@@ -27,6 +27,35 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## 2026-10-07 13:10 (+04) — five releases after the restart; live 574b1fae, box FREE
+**Live = trunk = `574b1fae`.** No run in flight, no lock, no hold. Each release below ran on Lead's exact-sha GO, merged pinned in the deploy folder, merged-tree `npm test` first, push ff-only, then `scripts/deploy.sh` with every row real.
+| Time | Sha | What | Rows |
+|---|---|---|---|
+| 11:47 | 037627aa | #1535 Standoff, alone | 51 of 51 passed |
+| 11:57 | c1f2ad26 | #1635 keep the outgoing release's recent assets (3-line deploy.sh change) | 5 scoped, passed |
+| (aborted) | 842d7dba | fold of #1632 #1604 #1613 #1639 #1640 #1633 | row 4 audio-preview failed twice: pin 22, actual 23 (#1604 made the break-beat bone_crack thud permanent) |
+| 12:41 | a5234895 | the same fold + #1649 (pin 22 to 23, fix-forward) + #1638 + #1643 | 12 scoped, passed |
+| 12:54 | 5ee0a991 | #1588 RV31, alone | 7 scoped, passed |
+| 13:04 | 574b1fae | #1463 #1611 (presence install files, merged only) #1644 #1646 #1641 #1645 #1615 #1650 | 7 scoped, passed |
+**Rules learned today**
+- Take `deploy_hold` at gate start, not at launch (Lead, 11:51).
+- A fold that aborts after the merge push leaves trunk carrying the red row: fix forward onto trunk (a one-line pin PR), never drop a merged PR; refire the whole fold with the fix.
+- A PR that conflicts once an earlier PR of the same fold is in is dropped and its owner rebases (#1636 vs #1644, tests/origins-preview-mobs.test.ts). Its published preview stays up but trunk does not contain it.
+- Rows 14 and 44 (account-browser, sparring-browser) fail once at load 150+ and pass the solo retry; only an assertion (row 4's pin) is a real failure.
+- Origins preview build: scratch worktree at the PR head, symlink node_modules, `npx vite build --config origins/preview/vite.config.mjs` (outDir artifacts/origins-preview, 68 MB), rsync --delete into `current/preview/origins/`, curl the page and bundle. Republished from #1636 @a9d059b8 at 12:5x: https://frankendom.com/preview/origins/?region=1 (bundle index-BFw_cQ9K.js).
+- Carry previews forward after every release: `cp -al previous/preview current/preview` (fatigue, origins, tutorial today).
+- Mac disk fell from 11 GB to 5 GB across the first four releases (about 1 GB each) before Lead and the Auditor removed clean, fully-pushed worktrees; I only ever removed my own gate and docs worktrees.
+
+## 2026-10-07 06:55 (+04) — HANDOFF at Dom's /clear. READ FIRST (adds to the 04:30 block below; the batch process there still applies)
+**Now (pick up here)**
+1. **LIVE = trunk = `578be80c`**, deploy checkout clean and detached there, no run in flight, no lock. Overnight total 20 releases, every one 0 FAILED rows; latest 84e3f08c, 110e4caa, 54f113df, 26f17894, 1c2a0ac9, 578be80c.
+2. **Next batch (Lead's GOs at exact shas; re-check each head + CI at merge time, then local merge, `npm test`, push ff-only, gate, `scripts/deploy.sh`):** #1572 @d1c69465 (presence ticks, 11 pass; tested locally 2427/2425/0 then the unpushed merge was discarded for the clear) and #1590 @87b805a7 (docs/state/code-quality.md only; only the no-op 'release rows' job pending, covered by Lead's ruling). Then, as CI goes green: #1581 @25228045 (presence install files: MERGE ONLY, never apply or run on a server, that is the morning joint GO), #1594 @ed3efa4a (defence audio, flag off), #1577 @50ced788 (presence X2 stage 1), #1595 @c2de1443 (?look=kickclose, flag off), #1597 @524b126d (docs/state/expansion.md).
+3. **Not GO'd:** #1549 RV29 and #1564 RV30 (wait for Dom's word in the morning; RV29 needs the Mac fight-records.json regen plus the account-browser and rank-look rows), #1535 standoff (held for Dom). Never merge #1534.
+**Gotchas**
+- A moved head voids the GO until Lead re-GOs at the new sha (#1590 and #1576 moved several times). A conflicting PR is dropped from the batch; its owner rebases (#1572 conflicted after #1571).
+- Some PRs show quality/load-time/duel-two-page SKIPPED by a path filter; the local `npm test` is then the unit gate. `gh run rerun --failed` is refused while the run is still in progress.
+- Mac df was 22 GB and falls about 1 GB per batch (floor 8 GB). Prune only your own scratch.
+
 ## 2026-10-07 04:30 (+04) — HANDOFF after the overnight run. READ FIRST (supersedes #1521's 00:35 block; older rules below still apply)
 **Now (pick up here)**
 1. **LIVE = trunk = `e0f8d59e`** (04:2x). No run in flight, no lock, no deploy_hold. Nothing GO'd-and-green is waiting. Open, not GO'd or held: #1556 (head moved to d22bf779, needs Lead's re-GO after the Auditor's merge-delta), #1558 @9c656ba5 (rows pending, undrafted), #1549 (RV29/RV28 pair, not GO'd; ships with #1548 behind the forced-rollback synctest, regenerate fight-records.json on the Mac), #1535 standoff (Auditor PASS but HELD from release until Dom has looked at /preview/standoff/). Never merge #1534 (review probe).

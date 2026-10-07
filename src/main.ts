@@ -6,6 +6,8 @@ import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './record.ts';
 import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './defence-grade.ts';
+import { kickCloseFlag } from './kick-close.ts';
+import { fatiguePreviewFrom, previewPractice } from './fatigue-preview.ts';
 import { headlineFlag, victoryHeadline } from './victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
@@ -15,6 +17,7 @@ import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flush
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
+import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { PLAY_SCALE, STEP, wrapAngle } from './sim.ts';
@@ -32,8 +35,9 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
-import { breakBeatFrom } from './break-beat.ts';
-import { announcePowerWord } from './power-words.ts';
+import { announcePowerWord, powerWordsLook } from './power-words.ts';
+import { POWER_WORD_LOOK_GAIN } from './audio/power-word.ts';
+import { breathLook } from './audio/breath.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -93,6 +97,7 @@ document.addEventListener('touchend', (event) => {
   lastTouchEnd = event.timeStamp;
 }, { passive: false });
 const feedback = createFeedback();
+if (powerWordsLook(window.location?.search ?? '')) window.addEventListener('frankendom:powerword', (e) => { const d = (e as CustomEvent<{ word: string; opponent: string }>).detail; feedback.powerWord(d.word, d.opponent, POWER_WORD_LOOK_GAIN); });   // ?look=powerwords (power-word.ts); absent = the event has no listener
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
 for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'])
@@ -756,7 +761,7 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
   Hit: 50,
   Parried: 70,
   GuardBroken: 90,
-  PostureBroken: 120,
+  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
   Killed: 220,
 };
 const HEAVY_HIT = 90,
@@ -778,11 +783,14 @@ function clearPvpHold() { clearHold(pvpHold); }
 const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
-const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
-feedback.breakThud(!!breakBeat?.thud);
+const FATIGUE_PREVIEW = fatiguePreviewFrom(window.location?.search ?? '');
+const fatigueForce = (): number | undefined => (FATIGUE_PREVIEW?.force != null && match.dummy && match.practiceOnly && !match.recorder ? FATIGUE_PREVIEW.force : undefined);   // the dummy-spar gate, one place
+const fatigueShown = <P extends Parameters<typeof previewPractice>[0]>(p: P): P => { const force = fatigueForce(); return force === undefined ? p : previewPractice(p, force); };   // ?stamina=N: the bar, the tired body and the breath read N; the sim's stamina stays real so every button works (dummy spar only)   // ?look=fatigue-preview[&stamina=8]: the red pulsing bar, and a stamina held low in a dummy spar (fatigue-preview.ts); absent = today's game
+const KICK_CLOSE = kickCloseFlag(window.location?.search ?? '');   // ?look=kickclose: the KICK light also goes out while the foe opens the gap (kick-close.ts); absent = today's game
 const HEADLINE = headlineFlag(window.location?.search ?? '');   // ?look=headline: one earned line on a win (victory-headline.ts); absent = today's game
 const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
 feedback.defenceGrades(DEFENCE_GRADES);
+feedback.breathing(breathLook(window.location?.search ?? ''));   // ?look=fatigue-preview: the winded/tired/gassed breath on, a look test; absent = silent
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
@@ -790,7 +798,7 @@ function stopFor(events: CombatEvent[]): number {
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
-    const base = e.type === 'PostureBroken' && breakBeat ? breakBeat.holdMs : HIT_STOP[e.type] ?? 0;
+    const base = HIT_STOP[e.type] ?? 0;
     if (!base) continue;
     const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
     ms = Math.max(
@@ -823,7 +831,7 @@ function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(shown, { headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(shown, { fatiguePreview: !!FATIGUE_PREVIEW, staminaShown: fatigueForce(), kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = shown.finish ? view.finishPhase() : null;
@@ -1046,6 +1054,7 @@ function nextFight(): void {
   metAt = tierAt(careerMarks()); view.setTier(shownTier());   // a win may have moved the rung: he comes back dressed for it
   view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   began();
+  view.restartStandoff();   // the draw-in plays on every fight, not once per page (the versus card only lifts at load)
   view.recenter();
   canvas.focus();
 }
@@ -1210,7 +1219,7 @@ if (replayText || sharedId) {
     if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): the link converts into a fight against the same warden, never a dead page
       void text.then(peekRecordHeader).then((header) => {
         const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? header.opponent : null;   // a link is public input: name only an opponent and weapon this game knows
-        if (!header || !foe) { match.stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
+        if (!header || !foe) { match.stalled = true; banner('Recorded on an older version of the game', true); updateHud(); return; }
         if (epoch !== match.epoch) { banner(null); return; }
         if (foe !== opponent.id && !urlOpponent) {   // once, as a readable link does: the re-opened page boots that warden's rig, so PLAY NOW fights them
           const target = new URL(location.href); target.searchParams.set('opponent', foe); location.replace(target.href); return;
@@ -1221,7 +1230,7 @@ if (replayText || sharedId) {
         const name = ROSTER[foe].name, title = `${name[0].toUpperCase()}${name.slice(1)}`, weapon = `a ${header.weapon}`;
         replayStill.src = `/game/img/${foe}.webp`; replayStill.alt = title; replayStill.hidden = false;
         match.stalled = true; updateHud();
-        banner(header.outcome === 'killed' ? `${title} fell to ${weapon}. Your turn.` : header.outcome === 'died' ? `${title} won, against ${weapon}. Your turn.` : `${title} against ${weapon}. Nobody fell. Your turn.`, true);
+        banner(`Recorded on an older version of the game. ${header.outcome === 'killed' ? `${title} fell to ${weapon}.` : header.outcome === 'died' ? `${title} won, against ${weapon}.` : `${title} against ${weapon}. Nobody fell.`} Your turn.`, true);
       });
       return;
     }
@@ -1564,6 +1573,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
+      if (kind === 'ready') view?.startStandoff();
       if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
@@ -1827,7 +1837,7 @@ function frame(now: number) {
       if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
       if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
-        banner('Recorded on an older build', true); accumulator = 0; updateHud();
+        banner('Recorded on an older version of the game', true); accumulator = 0; updateHud();
         break;
       }
       const practice = match.practice;
@@ -1868,7 +1878,7 @@ function frame(now: number) {
       if (!quiet) {
         if (specialCue && !match.specialIdentity.presets) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
           if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
-          else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+          else if ((e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') && e.actor === 1) feedback.cutSpecial();
         }
       }
       if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) for (const e of practice.events) {
@@ -1879,7 +1889,7 @@ function frame(now: number) {
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
           if (!quiet && e.actor === 1) announcePowerWord(opponent, e.tick);   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, an event only; once per accepted cast, like the cue
-        } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
+        } else if (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
       feedback.update(quiet ? [] : practice.events, deathAudio, {
@@ -1888,7 +1898,7 @@ function frame(now: number) {
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
         holding: foeHolding(practice.duel.fighters[1]),
-        fatigue: practice.fatigue,
+        fatigue: fatigueShown(practice).fatigue,
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       }, quiet ? [] : practice.clarity);
@@ -1982,7 +1992,7 @@ function frame(now: number) {
       },
       locked,
       paused() ? 0 : dt,
-      pvpShown ? pvpShown.practice : clip?.fresh ?? match.practice,
+      pvpShown ? pvpShown.practice : clip?.fresh ?? fatigueShown(match.practice),
       shownEvents,
       hitStop > 0 || held,
       match.epoch,

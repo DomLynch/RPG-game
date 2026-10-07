@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, opponentAt, profileAt, type SkillId } from '../src/moves.ts';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
@@ -118,7 +119,7 @@ test('skill_witchfire: refused with no skill equipped; every default fighter and
 
 // A live fight with Witch-fire equipped against the Veteran on his own profile: walk in, draw, cast whenever SKILL is lit.
 function witchfireFight(seed = 731, ticks = 6000) {
-  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', skill: 'witchfire', build: 'skill', opponent: 'veteran', level: 18, seed });
+  const opponent = OPPONENTS.veteran, rec = liveRecorder({ weapon: 'longsword', skill: 'witchfire', build: 'skill', opponent: 'veteran', level: 18, seed });
   // The level-18 body and table, as the game and the verifier build them (replay.ts opponentAt): from level 6 he carries the gladius + scutum.
   const body = opponentAt(opponent, 18), table = profileAt(opponent, 18);
   let practice = initialPractice(seed, body, 'longsword', 'witchfire'), casts = 0;
@@ -135,7 +136,7 @@ function witchfireFight(seed = 731, ticks = 6000) {
 
 test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/decode, and replays to the identical fight', async () => {
   const { record, practice, casts, log } = witchfireFight();
-  assert.ok(casts >= 2, `the player cast ${casts} times`);
+  assert.ok(casts >= 1, `the player cast ${casts} times`);   // 2 before RV29: his rear and downed hits end this scripted walk-in sooner
   assert.ok(log.some(e => e.actor !== undefined && e.move === 'skill_witchfire' && (e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' || e.type === 'AttackMissed')), 'a cast resolved');
   assert.equal(record.skill, 'witchfire');
   const encoded = await encodeRecord(record), decoded = await decodeRecord(encoded);
@@ -153,7 +154,7 @@ test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/
 });
 
 test('record v12: the header carries the skill; none is absent, an unknown skill byte is refused', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
+  const rec = liveRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   rec.push({ ...idleIntent(), action: 'skill' });
   const naked = rec.finish('abandoned'), bytes = packRecord(naked);
   assert.deepEqual(unpackRecord(bytes), naked, 'no skill: the key stays absent');
@@ -170,7 +171,7 @@ test('a naked fight is unchanged: the v11 reference fights replay to the same ti
   const { records } = JSON.parse(readFileSync(new URL('./fixtures/fight-records.json', import.meta.url), 'utf8')) as { records: { name: string; encoded: string; expect: { ticks: number; outcome: string; killedTick: number } }[] };
   // Re-pinned 2026-09-28 (record v19, fix-forward): the reference fights are at level 18, where the Centurion now carries the gladius + scutum
   // (RV18 content), so the naked walk-in ends at 1407 (was 1677) and the scripted fight at 1584 (was 1452). The skill still changes nothing.
-  const V11 = { 'veteran-walk-in': { ticks: 1407, outcome: 'died', killedTick: 1407 }, 'veteran-scripted': { ticks: 1584, outcome: 'died', killedTick: 1584 } } as const;   // pinned from the v11 fixture before this change
+  const V11 = { 'veteran-walk-in': { ticks: 1159, outcome: 'died', killedTick: 1159 }, 'veteran-scripted': { ticks: 1100, outcome: 'died', killedTick: 1100 } } as const;   // re-pinned 2026-10-07 (RV29 rule batch; was 1407 / 1584 at v19)   // pinned from the v11 fixture before this change
   for (const [name, want] of Object.entries(V11)) {
     const entry = records.find(r => r.name === name);
     assert.ok(entry, `${name} is still a reference`);
