@@ -52,7 +52,7 @@ function bangSprite(): THREE.Sprite {
 
 export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 export type Mobs = {
-  update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
+  update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null, hideBody?: string | null): void; debug(): unknown;   // hideBody: the world duel's foe (the duel draws it)
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
   nearest(x: number, z: number, within: number): MobPick | null;   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
@@ -112,7 +112,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   }
 
   return {
-    update(dt, hero, hideLabel) {
+    update(dt, hero, hideLabel, hideBody) {
       mobs.forEach((m, i) => { mobs[i] = stepMob(m, specs[i]!, hero, dt, stands[i]!); });
       for (const [i, t] of down) { if (t - dt <= 0) down.delete(i); else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
@@ -126,7 +126,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const i of shown) {
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
         if (!v.model && body && body !== 'loading' && body !== 'failed') dress(v, s, body);
-        v.group.visible = v.ring.visible = true;
+        v.group.visible = v.ring.visible = s.id !== hideBody;
         v.group.position.set(m.x, 0, m.z); v.group.rotation.y = m.facing;
         v.ring.position.set(m.x, 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
