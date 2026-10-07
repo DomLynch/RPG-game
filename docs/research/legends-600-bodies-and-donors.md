@@ -242,3 +242,5 @@ Still open or newly flagged:
 - Cain unblocked: Dom override 2026-10-06 (legends-500.md rule 15), legend only, never a patron. Blocked rows now 10.
 - Giant is NOT a new family: the 17 giant legends use the knight or executioner body scaled about 2x (as the Hrungnir mob look already does at 1.5x). New-body legends drop from 67 to 50.
 - Restyling donor bodies to our painted look: Blender on the VPS (CPU, free) for fitting/retarget; texture repaint via the image pipeline on Hugging Face GPU; the paid 32 GB HF CPU is the fallback when the VPS is busy.
+- Cut as unrecognisable (owner 2026-10-07: "if not well known and unrecognisable then no point"): The Wulver, Mmoatia, Onini the Python, Osebo the Leopard (sources 1930-32). Pool now 669.
+- Owner principle: the names are BRANDS that bring players in on their fame. Recognisability is the main reason a name is on the list.
