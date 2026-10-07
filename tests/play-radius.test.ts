@@ -44,8 +44,8 @@ test('fighters start inside the smaller circle, shrunk with it but never closer 
   setPlayScale(1);
 });
 
-test('a record states the circle its fight was fought in: this build\'s version in the live circle, the old-circle version otherwise, and both round-trip', () => {
-  const stamp = (opponent: 'veteran' | 'goblin') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); assert.deepEqual(unpackRecord(packRecord(r)), r); return r.v; };
+test('a record states the circle its fight was fought in: this build\'s version in the live circle, the old-circle version otherwise, and the current one round-trips (an older era is refused, REACH[29])', () => {
+  const stamp = (opponent: 'veteran' | 'goblin') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); if (r.v === RECORD_VERSION) assert.deepEqual(unpackRecord(packRecord(r)), r); else assert.throws(() => unpackRecord(packRecord(r)), /bump 29 changed/, 'an older era is refused at decode (REACH[29])'); return r.v; };
   setLateNotice(true); setStab(true);
   setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), RECORD_VERSION); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION - 1, 'a goblin fought in the small circle was not fought in his own');
   setPlayScale(1); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'a veteran fought in the old circle is an old-circle record'); assert.equal(stamp('goblin'), RECORD_VERSION);

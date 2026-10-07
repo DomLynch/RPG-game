@@ -6,7 +6,8 @@ import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { rankFor } from '../src/career.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
+import { encodeRecord } from '../src/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
 await build({ logLevel: 'error', build: { outDir }, define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(api), 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify('sb_publishable_test_only') } });
 console.log(execFileSync(process.execPath, ['scripts/check-budget.mjs', outDir], { encoding: 'utf8' }));
@@ -205,7 +206,7 @@ try {
   // the same level-1 link; both pages must show the FIGHT: its rank on the HUD (Lead 2026-09-30) and no worn loot on the replayed hero.
   // Before the fix the signed-in page dressed both rigs and the HUD from his own save (main.ts careerMarks / wornIds).
   // encodeRecord is async: the stored text is the awaited string (run AV row 14: the un-awaited Promise went up as {}, the page read 'no such fight').
-  const linkRecord = await (() => { const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'longsword', level: 1, seed: 731 }); for (let i = 0; i < 90; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return encodeRecord(rec.finish('abandoned')); })();
+  const linkRecord = await (() => { const rec = liveRecorder({ build: 'dev', opponent: 'veteran', weapon: 'longsword', level: 1, seed: 731 }); for (let i = 0; i < 90; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return encodeRecord(rec.finish('abandoned')); })();
   const viewers = {};
   for (const signedIn of [true, false]) {
     const who = signedIn ? 'signed-in' : 'guest';

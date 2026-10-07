@@ -81,7 +81,7 @@ for (const [player, foe] of [[true, false], [false, true], [true, true]] as cons
   const { m } = cast(player, foe);
   for (const actor of [0, 1] as const) {
     const start = m.fightLog.find(e => e.type === 'SpecialStarted' && e.actor === actor), land = m.fightLog.find(e => e.type === 'SpecialLanded' && e.actor === actor);
-    assert.equal(!!start, actor === 0 ? player : foe); assert.equal(!!land, !!start);
+    assert.equal(!!start, actor === 0 ? player : foe); const cut = m.fightLog.find(e => e.type === 'SpecialInterrupted' && e.actor === actor); assert.equal(!!land, !!start && !(player && foe && cut)); assert.equal(!!cut, !!start && player && foe && !land, 'two casts: the first strike cuts the other (interruptible casts); one cast alone is never cut');
     if (start && land) { assert.equal(land.tick - start.tick, RULES.special.windup - 1); assert.equal(land.target, 1 - actor); assert.equal(land.damage, Math.round(0.2 * m.practice.duel.fighters[1 - actor].maxHealth)); }
   }
   assert.equal(m.weapon, 'estoc'); assert.equal(m.practice.duel.fighters[0].weapon, 'estoc');

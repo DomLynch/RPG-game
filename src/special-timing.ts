@@ -53,7 +53,7 @@ export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], f
     if (e.type === 'SpecialStarted' && !yielding && is(opponent, e.actor ?? -1, e.move)) cast = { actor: e.actor!, start: e.tick, landed: null, fizzled: null };
     else if (cast && e.actor === cast.actor && cast.landed === null && cast.fizzled === null) {
       if (e.type === 'SpecialLanded') cast = { ...cast, landed: e.tick };
-      else if (e.type === 'SpecialFizzled') cast = { ...cast, fizzled: e.tick };
+      else if (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted') cast = { ...cast, fizzled: e.tick };
     }
   }
   const caster = fighters[1];
