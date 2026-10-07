@@ -16,9 +16,9 @@ export const CAMP_KIT = {
   fire: { stones: 9, ring: 0.75, stone: [0.2, 0.17, 0.3], coal: [0.55, 0.12], logs: 3 },   // stone [w, h, d]; coal [radius, height]
   seat: { ring: 2.6, log: [1.5, 0.38, 0.42], standOut: 4.2 },
   bedroll: [0.85, 0.14, 2.0], crate: [0.8, 0.7, 0.8], barrel: [0.38, 0.9],
-  glow: { radius: 5.5, color: '#ff8a3a', opacity: 0.32 },
+  glow: { radius: 5.5, color: '#ff8a3a', opacity: 0.5 },
 } as const;
-const WOOD: Tint = [0.5, 0.36, 0.24], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[0.7, 0.28, 0.2], [0.3, 0.38, 0.5], [0.55, 0.5, 0.3]], ROCK: Tint = [0.7, 0.66, 0.62];
+const WOOD: Tint = [0.5, 0.36, 0.24], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[0.3, 0.1, 0.07], [0.1, 0.14, 0.2], [0.22, 0.2, 0.1]], ROCK: Tint = [0.7, 0.66, 0.62];
 
 const rng = (seed: string) => {   // the same string-seeded mulberry32 as frontier-dress.ts
   let h = 1779033703 ^ seed.length;
