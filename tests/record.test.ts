@@ -177,7 +177,7 @@ test('record: only a gambit fight is v33 (flag bit 1 of the specials byte); ever
 test('record: the gambit is refused where it cannot be (a v31/v32 header, a v33 record without it, an unknown flag bit)', () => {
   const none = fight(), gambit = fight(undefined, true);
   assert.throws(() => packRecord({ ...none, v: NO_PATRON_VERSION, gambit: true }), /gambit/);
-  assert.equal(packRecord({ ...gambit, gambit: undefined })[2], NO_PATRON_VERSION, 'a record that lost its flag is written as the lowest version that expresses it (v31), never as a flagless v33');
+  assert.equal(packRecord({ ...gambit, v: RECORD_VERSION, gambit: undefined })[2], NO_PATRON_VERSION, 'a record that lost its flag is written as the lowest version that expresses it (v31), never as a flagless v33');
   const bytes = packRecord(gambit).slice(), flagAt = (b: Uint8Array) => { let o = 3; for (let k = 0; k < 3; k++) o += 1 + b[o]; return o + 1; };
   assert.equal(bytes[flagAt(bytes)], 2);
   const noFlag = bytes.slice(); noFlag[flagAt(noFlag)] = 0; assert.throws(() => unpackRecord(noFlag), /names the gambit/);
