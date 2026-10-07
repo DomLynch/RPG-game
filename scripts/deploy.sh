@@ -123,6 +123,9 @@ set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
 if test -L current; then ln -sfn "$(readlink current)" previous; fi
+# A tab opened on the outgoing release still lazy-loads its hashed chunks (/assets/ is try_files =404): hard-link the outgoing
+# release's recent assets (built within 2 days, so history does not pile up) into the new one, never overwriting a file (2026-10-07).
+if test -d current/assets; then (cd current/assets && find . -type f -mtime -2 -exec cp -al --update=none --parents {} "$1/assets/" \;); fi
 ln -sfn "$1" next
 mv -Tf next current
 REMOTE
