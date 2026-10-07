@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { RULES, World, type Player } from '../origins/presence/interest.ts';
 import { createPresence } from '../origins/presence/server.ts';
-import { clearOfTradeAreas, inTradeArea, SPAWN, tradeAreas, zoneAt } from '../origins/presence/zones.ts';
+import { clearOfTradeAreas, inTradeArea, landmarkCm, REJOIN_EDGE, SPAWN, zoneAt } from '../origins/presence/zones.ts';
 import { encodeUp } from '../origins/presence/wire.ts';
 
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -22,8 +22,9 @@ test('spawn: every fresh join starts at the Pit yard centre, which is in the Pit
   assert.deepEqual([p.x, p.z], [SPAWN.x, SPAWN.z]);
   assert.equal(zoneAt(SPAWN.x, SPAWN.z), 'pit-yard', 'the spawn is the Pit yard centre');
   assert.equal(inTradeArea(SPAWN.x, SPAWN.z), false, 'and never inside a trade area (Lead (c))');
-  assert.ok(tradeAreas.length > 0 && tradeAreas.every(a => a.minX < a.maxX && a.minZ < a.maxZ), 'there is a trade area to be outside of');
-  assert.ok(tradeAreas.every(a => zoneAt((a.minX + a.maxX) / 2, (a.minZ + a.maxZ) / 2) === 'exchange'), 'the provisional trade area is in the Exchange');
+  const bank = landmarkCm('exchange', 'bank'), board = landmarkCm('exchange', 'contract-board'), forge = landmarkCm('exchange', 'forge'), gate = landmarkCm('exchange', 'outer-gate');
+  for (const [name, at] of [['bank', bank], ['contract board', board], ['forge', forge]] as const) assert.equal(inTradeArea(at.x, at.z), true, `the ${name} is inside the trade area, which is the whole Exchange zone`);
+  assert.equal(inTradeArea(gate.x, gate.z), false, 'the outer gate sits on the shared edge, which belongs to the Pit yard');
   const q = w.join(acct(2), 0, undefined, undefined)!;
   assert.deepEqual([q.x, q.z], [SPAWN.x, SPAWN.z], 'a second fresh join starts at the same spawn');
 });
@@ -69,19 +70,25 @@ test('reconnect: the memory is the account\'s own, expires after ten minutes, an
   assert.equal(tiny.join(acct(1), 2000)!.x, SPAWN.x, 'the oldest was dropped: back to the spawn');
 });
 
-test('reconnect: a remembered position inside a trade area is moved to its edge, outside it (Strategy rule f)', () => {
+test('reconnect: a remembered position anywhere in the Exchange rejoins on the Pit side of the gate, never in the Exchange (Strategy rule f, Expansion\'s trade-area rule)', () => {
   const w = new World();
-  const a = tradeAreas[0]!, inside = { x: Math.round((a.minX + a.maxX) / 2), z: Math.round((a.minZ + a.maxZ) / 2) };
-  assert.equal(inTradeArea(inside.x, inside.z), true, 'the middle of the trade area is in it');
-  const p = w.join(acct(1), 0, undefined, inside)!;   // test fixture: an explicit start inside the area
-  w.leave(p, 100);
-  const back = w.join(acct(1), 200)!;
-  assert.equal(inTradeArea(back.x, back.z), false, 'the rejoin is not inside the trade area');
-  const toEdge = Math.min(back.x - a.minX, a.maxX - back.x, back.z - a.minZ, a.maxZ - back.z);
-  assert.ok(Math.abs(toEdge) <= 50, `and it is at the area's edge (${toEdge} cm off)`);
-  assert.equal(zoneAt(back.x, back.z), 'exchange', 'still in the Exchange, just outside the trade area');
-  assert.deepEqual(clearOfTradeAreas(SPAWN.x, SPAWN.z), SPAWN, 'a position outside every trade area is left alone');
-  assert.deepEqual(clearOfTradeAreas(a.minX, a.minZ), { x: a.minX, z: a.minZ }, 'the edge itself is outside');
+  for (const [n, name] of [[1, 'bank'], [2, 'forge'], [3, 'contract-board'], [4, 'covenant-stone']] as const) {
+    const saved = landmarkCm('exchange', name);
+    assert.equal(zoneAt(saved.x, saved.z), 'exchange', `the ${name} is in the Exchange`);
+    const p = w.join(acct(n), 0, undefined, saved)!;   // test fixture: an explicit start at a service landmark
+    w.leave(p, 100);
+    const back = w.join(acct(n), 200)!;
+    assert.deepEqual([back.x, back.z], [REJOIN_EDGE.x, REJOIN_EDGE.z], `a spot at the ${name} rejoins at the edge`);
+    assert.equal(zoneAt(back.x, back.z), 'pit-yard', 'in the Pit yard');
+    assert.equal(inTradeArea(back.x, back.z), false, 'so inZone(where, exchange) would be false: the player has to walk in fresh');
+  }
+  const gate = landmarkCm('exchange', 'outer-gate');
+  assert.ok(Math.hypot(REJOIN_EDGE.x - gate.x, REJOIN_EDGE.z - gate.z) <= 50, 'the rejoin point is within 50 cm of the Exchange\'s outer gate, on the Pit side');
+  const justInside = { x: SPAWN.x, z: SPAWN.z - 2510 }, justOutside = { x: SPAWN.x, z: SPAWN.z - 2490 };
+  assert.equal(inTradeArea(justInside.x, justInside.z), true, '10 cm past the shared edge is the Exchange');
+  assert.equal(inTradeArea(justOutside.x, justOutside.z), false, 'and 10 cm before it is the Pit yard');
+  assert.deepEqual(clearOfTradeAreas(justOutside.x, justOutside.z), justOutside, 'a position outside the Exchange is left alone');
+  assert.deepEqual(clearOfTradeAreas(justInside.x, justInside.z), REJOIN_EDGE);
 });
 
 // The real socket path: a reconnect with a forged first pose lands at the remembered spot.
