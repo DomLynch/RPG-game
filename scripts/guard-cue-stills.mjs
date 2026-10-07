@@ -42,7 +42,7 @@ try {
       const st = await page.evaluate(() => { const g = globalThis.__special().fighters[1]; return { phase: g.phase, dir: g.guardDirection }; });
       if (st.phase === 'guard' && !seen.has(st.dir) && found.length < 3) { seen.add(st.dir); found.push({ f: f + 1, dir: st.dir }); }
       if (found.length === 3) break;
-    } else if (shot) await page.screenshot({ path: `${OUT}/guard-${shot.dir ?? 'thrust'}.jpg`, type: 'jpeg', quality: 90, timeout: 180000 });
+    } else if (shot) { console.log('cue dom', JSON.stringify(await page.evaluate(() => { const e = document.getElementById('guard-cue'); return e && { text: e.textContent, hidden: e.hidden, display: getComputedStyle(e).display, size: getComputedStyle(e).fontSize, w: e.getBoundingClientRect().width }; }))); await page.screenshot({ path: `${OUT}/guard-${shot.dir ?? 'thrust'}.jpg`, type: 'jpeg', quality: 90, timeout: 180000 }); }
   }
   if (!want) { await fs.writeFile(`${OUT}/frames.json`, JSON.stringify(found)); console.log('frames', JSON.stringify(found)); }
 } finally { await browser.close(); await server.close(); }
