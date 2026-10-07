@@ -56,7 +56,8 @@ export function createPresence(opts: PresenceOptions): Presence {
     const took = performance.now() - started;
     counts.ticks++; if (took > counts.maxTickMs) counts.maxTickMs = took;
   }, Math.max(5, Math.floor(rules.tickMs / 4)));
-  const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); }   // seenAt: a connected player standing still is still here }, limits.beatMs);
+  // seenAt on the heartbeat: a connected player standing still is still here.
+  const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); } }, limits.beatMs);
   const reporter = setInterval(() => {
     log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)}`);
     counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
