@@ -248,20 +248,27 @@ def flee(t):
 clip("Flee", 14, flee)
 
 
+def ease(x):
+    x = max(0.0, min(1.0, x))
+    return x * x * (3 - 2 * x)
+
+
 def bite(t):
-    """Crouch, lunge forward with the jaw open, snap shut, recover."""
-    k = math.sin(math.pi * t / .55) if t < .55 else 0.0
-    move("root", dy=-.12 * k, dz=-.03 * k)
-    rot("neck", (1, 0, 0), 10 * k)   # +pitch is NOSE DOWN (probe, QUAD_PROBE=1): the lunge dips the nose forward
-    rot("head", (1, 0, 0), 6 * k)
-    jaw = math.sin(math.pi * (t - .1) / .3) if .1 < t < .4 else 0.0
+    """Wind-up, lunge, snap, recover. The first quarter pulls the head up and back and the weight onto the haunches: the readable TELL a fighter
+    needs before the lunge (Combat's windup/recovery timings stretch the clip, so the pull-back must be a visible pose, not a blur)."""
+    wind = ease(t / .22) * (1 - ease((t - .26) / .1))
+    lunge = ease((t - .26) / .18) * (1 - ease((t - .58) / .42))
+    jaw = ease((t - .3) / .12) * (1 - ease((t - .5) / .07))
+    move("root", dy=.05 * wind - .12 * lunge, dz=-.03 * lunge)
+    rot("neck", (1, 0, 0), -14 * wind + 10 * lunge)   # +pitch is NOSE DOWN (probe): wind-up lifts the nose, the lunge dips it forward
+    rot("head", (1, 0, 0), -8 * wind + 6 * lunge)
     rot("jaw", (1, 0, 0), 38 * jaw)
     for side in "LR":
-        rot(f"front_up_{side}", (1, 0, 0), -22 * k)   # +pitch on a leg swings it BACK, so the lunge reaches with -
-        rot(f"hind_up_{side}", (1, 0, 0), 12 * k)
+        rot(f"front_up_{side}", (1, 0, 0), 10 * wind - 22 * lunge)   # +pitch on a leg swings it BACK: gather, then reach
+        rot(f"hind_up_{side}", (1, 0, 0), 12 * lunge)
 
 
-clip("Bite", 21, bite, loop=False)
+clip("Bite", 27, bite, loop=False)
 
 
 def hurt(t):
