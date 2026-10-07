@@ -1,11 +1,11 @@
 // RV31 (docs/specs/combat/l6-anti-spam.md): `spamRun` reads a masher early; absent = the old read, byte for byte.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readOpponent, initialAi, decide, type Habits } from '../src/ai.ts';
+import { readOpponent, initialAi, decide, READ, type Habits } from '../src/ai.ts';
 import { OPPONENTS } from '../src/combat.ts';
 import { movesOf, type Duel } from '../src/duel.ts';
 import { profileAt, type AiProfile } from '../src/moves.ts';
-import { STRATEGIES, battery, arena, act, ready, gap, k } from './strategies.ts';
+import { STRATEGIES, battery, arena, act, ready, gap, k, guard } from './strategies.ts';
 
 const habits = (over: Partial<Habits> = {}): Habits => ({ ...initialAi().habits, ...over });
 const gate = (spamRun: number): AiProfile => ({ ...OPPONENTS.veteran.profiles.normal, spamRun });
@@ -87,5 +87,24 @@ test('spam + one backstep every 4 lights to force our whiff stays under the 80 %
   for (const id of GATED) {
     const r = battery(6, 120, 7200, OPPONENTS[id], { 'spam + backstep': strategy })['spam + backstep'];
     assert.ok(r.wins / 120 <= .8, `${id}: spam + a backstep every 4 lights wins ${r.wins}/120 at L6 (cap 96)`);
+  }
+});
+
+test('the latch: a counted defence switches the early gate off for READ.latch ticks, then it reads again', () => {
+  const masher = habits({ lights: 5, attacks: 5, run: 5, ticks: 1000, latch: 1000 + READ.latch });
+  assert.equal(readOpponent(masher, gate(5)).spammer, false, 'inside the latch');
+  assert.equal(readOpponent({ ...masher, ticks: 1000 + READ.latch }, gate(5)).spammer, true, 'latch over');
+  const d = arena(OPPONENTS.veteran); d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: 3 }; d.events = [ev('Blocked', 0)];
+  assert.equal(decide(d, 1, { ...initialAi(), habits: habits({ ticks: 50, run: 4 }) }, gate(5)).ai.habits.latch, 51 + READ.latch, 'a block sets it');
+  d.events = [];
+  assert.equal(decide(d, 1, { ...initialAi(), habits: habits({ ticks: 50, run: 4 }) }, gate(5)).ai.habits.latch, undefined, 'a bare guard tick does not');
+});
+
+// RV31 (Strategy 2026-10-07): the latch must not become a back door: a masher who makes one REAL block every READ.latch ticks must still read as one.
+test('spam + one real block every K ticks stays under the 80 % cap at L6 against every gated opponent (120 seeds)', () => {
+  const strategy = (d: Duel) => (d.tick % READ.latch < 90 ? guard(d) : STRATEGIES['light spam'](d));
+  for (const id of GATED) {
+    const r = battery(6, 120, 7200, OPPONENTS[id], { 'spam + block': strategy })['spam + block'];
+    assert.ok(r.wins / 120 <= .8, `${id}: spam + a real block every ${READ.latch} ticks wins ${r.wins}/120 at L6 (cap 96)`);
   }
 });
