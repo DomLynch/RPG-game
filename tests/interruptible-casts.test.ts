@@ -115,5 +115,5 @@ test('record: a specials fight packs and unpacks at the bumped version', () => {
   const back = unpackRecord(packRecord(rec.finish('abandoned')));
   assert.equal(back.specials, true);
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(back.v) && back.v <= RECORD_VERSION);
-  assert.equal(RECORD_VERSION, 29);   // RV29 (the rule batch) stacks on #1507's 28
+  assert.equal(RECORD_VERSION, 30);   // RV30 (the three own rows) stacks on RV29 (the rule batch), which stacks on #1507's 28
 });
