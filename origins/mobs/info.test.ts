@@ -24,7 +24,7 @@ test('how common comes from the row weight against the zone rows; named is uniqu
 });
 
 test('the group is the row camp size, never a constant', () => {
-  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 6', 'Packs of 4', 'Packs of 3']);
+  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3']);
   assert.equal(groupOf(row({ behaviour: { campSize: [2, 3] } })), 'Packs of 2 to 3'); assert.equal(groupOf(row({ behaviour: { campSize: [1, 1] } })), 'Alone');
   assert.equal(groupOf(row()), 'Packs of 2 to 3', 'the row default'); assert.equal(groupOf(row({ named: true })), 'Alone'); assert.equal(groupOf(undefined), 'Alone');
 });
@@ -33,6 +33,13 @@ test('the card: the nearest noticing creature, three lines, marks carry the band
   const seen = [{ id: 'a', x: 0, z: 9, mode: 'aggro' }, { id: 'b', x: 0, z: 3, mode: 'wander' }, { id: 'c', x: 0, z: 5, mode: 'aggro' }];
   assert.equal(nearestNoticing(seen, { x: 0, z: 0 })?.id, 'c'); assert.equal(nearestNoticing(seen.filter((m) => m.mode !== 'aggro'), { x: 0, z: 0 }), null);
   const info = creatureInfo({ name: 'Cinder scavenger', level: 12 }, FRONTIER_ROWS[0], 16, FRONTIER_ROWS);
-  assert.deepEqual(cardLines(info), ['Cinder scavenger · Lv 12', '▰▰▱▱▱▱ Comfortable', 'Common · Packs of 6']);
+  assert.deepEqual(cardLines(info), ['Cinder scavenger · Lv 12', '▰▰▱▱▱▱ Comfortable', 'Common · Packs of 4']);
   assert.equal(cardLines(creatureInfo({ name: 'x', level: 1 }, undefined, 30, []))[1], '▱▱▱▱▱▱ Trivial'); assert.equal(cardLines(creatureInfo({ name: 'x', level: 30 }, undefined, 1, []))[1], '▰▰▰▰▰▰ Dangerous');
+});
+
+test('while the card is up the creature\'s own name label is hidden (no overlap at 375): the card reports its creature, the view hides that label', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (f: string) => readFileSync(new URL(`../preview/${f}`, import.meta.url), 'utf8');
+  assert.match(read('main.ts'), /mobs\.update\(dt, state, cardId\)[\s\S]*cardId = creatureCard\.update\(/, 'main hands the card\'s creature to the view');
+  assert.match(read('mobs-view.ts'), /v\.label\.visible = s\.id !== hideLabel/, 'the view hides that creature\'s label only');
 });

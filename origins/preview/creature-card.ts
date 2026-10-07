@@ -20,13 +20,14 @@ export function createCreatureCard(el: HTMLElement, specs: readonly MobSpec[], r
   let shown = '';
   return {
     // Called a few times a second, not every frame (debug() builds a list).
-    update(seen: readonly Seen[], hero: { x: number; z: number }) {
+    update(seen: readonly Seen[], hero: { x: number; z: number }): string | null {
       const m = nearestNoticing(seen, hero), spec = m && byId.get(m.id);
-      if (!spec) { if (shown) { el.hidden = true; shown = ''; } return; }
+      if (!spec) { if (shown) { el.hidden = true; shown = ''; } return null; }
       if (shown !== spec.id) {
         const info = creatureInfo(spec, rows.find((r) => r.id === spec.character), heroLevel(), rows), [a, b, c] = cardLines(info);
         l1.textContent = a; l2.textContent = b; l2.style.color = info.color; l3.textContent = c; el.hidden = false; shown = spec.id;
       }
+      return spec.id;   // main.ts hides this creature's own name label while the card is up
     },
   };
 }
