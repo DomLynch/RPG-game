@@ -45,5 +45,5 @@ test('budget: the Cinder pass adds no draw call (all on the stone layer the base
   assert.equal(drawCalls(ALL), drawCalls(BASE), 'a new layer means a new draw call');
   const before = tris(BASE.ground) + tris(BASE.pieces), after = tris(ALL.ground) + tris(ALL.pieces);
   console.log(`cinder budget: draw calls ${drawCalls(BASE)} -> ${drawCalls(ALL)}, triangles ${before} -> ${after}`);
-  assert.ok(after - before < 60000 && after < before * 2.2, `${before} -> ${after} triangles`);
+  assert.ok(after - before < 0.4 * before, `${before} -> ${after} triangles`);
 });
