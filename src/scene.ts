@@ -243,7 +243,7 @@ export function createScene(
   // Hero preview (hero-preview.ts): a fitted set under /herolook/ stands in for the player's rig. It wears its armour on the rig itself, so
   // the player's loot pieces are never layered over it (the opponent still wears his kit); a file that fails to load falls back to warrior.glb.
   const heroUrl = heroPreview(typeof location === 'undefined' ? '' : location.search);
-  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/wolf.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
+  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
   const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
