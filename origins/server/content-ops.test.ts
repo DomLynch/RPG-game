@@ -59,6 +59,8 @@ test('content that does not load is a warning and the base ops, never a throw', 
 import { readFileSync } from 'node:fs';
 test('the writer entry point serves the item ops from the loaded Region 1 content', () => {
   const src = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8').split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n');
-  assert.match(src, /\.\.\.itemOps\(loadEncounterContent\(\)\)/);
+  assert.match(src, /\.\.\.itemOps\(loadEncounterContent\(\)\)/, 'the item ops are spread into the writer\'s handlers');
+  assert.match(src, /import \{ itemOps \} from '\.\.\/origins\/server\/content-ops\.ts'/, 'and itemOps is imported (a call without its import is a boot failure)');
+  assert.match(src, /import \{ loadEncounterContent \} from '\.\.\/origins\/encounters\/encounters\.ts'/);
   assert.doesNotMatch(src, /\.\.\.handlers\b/, 'the bare base ops would drop consume and apply_upgrade');
 });
