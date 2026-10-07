@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { idleIntent, initialDuel, stepDuel, withPerk, withPerks, createFighter, type Duel, type Intent, type Perk } from '../src/duel.ts';
 import { OPPONENTS, RULES } from '../src/moves.ts';
 import { hashDuel } from '../src/net/rollback.ts';
-import { initialState } from '../src/sim.ts';
+import { initialState, TARGET } from '../src/sim.ts';
 
 // Patron perks in the sim (docs/specs/origins/patron-perks-sim.md): a fight with no perk is the fight it always was; each template moves its own number.
 const fought = (perks: readonly [Perk | undefined, Perk | undefined] | null, seed: number): string => {
@@ -57,16 +57,17 @@ test('thrift prices an attack', () => {
   assert.ok(Math.abs(cost({ thrift: 20 }) - plain * 1.02) < 1e-9);
 });
 
-// The first contact of a seeded fight lands on the same tick with or without a perk that touches only what it costs to be hit; compare that tick.
+// Two men stand a sword apart: one swings every 40 ticks, the other holds a guard. The first block lands on the same tick with or without a perk that
+// only prices a block or posture, so the first one is compared.
 const firstContact = (perk: Perk | undefined, pick: (d: Duel, prev: Duel) => number): number => {
-  let d = withPerks(initialDuel(OPPONENTS.veteran), [perk, perk]), s = 11;
-  const rnd = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32);
-  for (let i = 0; i < 4000; i++) {
-    const mk = (): Intent => ({ move: { x: 0, z: rnd() * .5, yaw: 0, run: false }, action: rnd() < .08 ? 'light' : null, guard: rnd() < .5, lock: true });
-    const prev = d; d = stepDuel(d, [mk(), mk()]);
+  const body = (z: number, heading: number) => ({ x: 0, z, heading, distance: 0 });
+  let d: Duel = withPerks({ tick: 0, fighters: [createFighter(body(TARGET.z + 1.2, Math.PI), 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] }, [perk, perk]);
+  for (let i = 0; i < 2000; i++) {
+    const prev = d;
+    d = stepDuel(d, [{ ...idleIntent(), action: i % 40 === 0 ? 'light' : null }, { ...idleIntent(), guard: true }]);
     const v = pick(d, prev); if (v) return v;
   }
-  throw Error('no contact in the seeded fight');
+  throw Error(`no contact; events ${JSON.stringify(d.events)} ${d.fighters.map(f => f.phase)}`);
 };
 
 test('guard prices a block and poise prices posture, each by its own per-mille', () => {
