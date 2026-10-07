@@ -1,3 +1,17 @@
+## 2026-10-07 (afternoon) — HANDOFF (pencils down, credits out ~5 days): RV31 ready for GO, twist flags merged-ready, encounter duel #1633, standoff staged
+
+**Now (what the next session picks up):**
+1. **RV31 #1588** (combat/rv31 = combat/rv31-final @4db8c0e8, base trunk, ready): Auditor PASS, VPS 2551/2549/0/2, waits for Lead's GO and ships AFTER the standoff. If the standoff lands first and touches the same files, cherry-pick again (do not merge). Old head kept: combat/rv31-old @966cc1d4. The `quality` CI job showed skipped on it: check why.
+2. **#1633 encounter duel** (combat/encounter-duel @3e47ba4d, preview only): `startEncounterDuel(host, setup, seed, done, leave)` in origins/preview/encounter-duel.ts; `done({result:'won'|'lost', twistOutcome})`. Full VPS run at e3c53e5e 2568/2566/0/2; the run on 3e47ba4d (/tmp/encduel2-full.log on the VPS) and CI were still in flight: read both, send Expansion and Lead the counts. Expansion owns the mob/tap/resolveFight/loot; they wire it from main.ts (not mine).
+3. **Standoff #1535:** World resets world/standoff to combat/standoff-final @5ae2592d (VPS 2543/2541/0/2); Auditor delta, then Lead's GO.
+4. **#1626 twist flags** (@067bfa32): Auditor PASS, Lead GO'd to Deploy. Wiring notes given to Expansion (null outcome + duel.finish = lost; oneBarHealth needs at least one foe).
+
+**Done today:** RV29 #1549 live (4d5aebb4), RV30 #1564 live (63d1e87a, rebased as combat/rv30 @8411804d), RV31 p600 built + re-pinned, twist flags, VPS prune (64 GB free), Slash-side delay ruling (50 ms, no backdating).
+
+**Open:** Lead GO for #1588 and #1535; CI for #1633; patron perks, #6 parry-into-strike, #5 combo window, luck=Gambit stay queued behind RV31.
+
+**Gotchas:** `record.ts` is in SIM_FILES, so even a comment edit moves SIM_DIGEST (my 7f4513cd miss). Stacked PRs get no quality.yml, so only a full VPS run catches pin drift. A trunk merge into a branch carrying old RV30 copies conflicts in 9 files: build a new branch off trunk and cherry-pick the net diff (check `git patch-id --stable` equals). VPS: full.sh/full2.sh/full3.sh in /opt/frankendom-shadow/work clone into combat-t / combat-t2 / combat-t3 (separate dirs for parallel runs; delete when done); never `cat >` without a heredoc in a command that may wait on stdin. Scratch worktrees to remove: ~/Developer/frankendom-combat-{rv31w,doc,twist,rv30,rv31s,standoff}.
+
 ## 2026-10-07 (morning) — RV30: three own rows, backstep B (no change), no whiff tax
 
 **Identities (the spec for the next lane; AI profile numbers only, never move timings, one commit per row so one can be dropped alone):**
