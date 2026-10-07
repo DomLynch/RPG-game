@@ -449,8 +449,8 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
   const holder = new THREE.Group(); let moved: THREE.Object3D[] = [];
   return {
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
-    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); },
-    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; duelLayer.classList.remove('infight'); },
+    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
+    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
   };
 }
 async function startMobFight(spec: MobSpec) {

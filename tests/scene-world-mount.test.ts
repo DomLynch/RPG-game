@@ -26,6 +26,7 @@ test('every read of the world mount is a guarded form, so no mount means the Pit
     "  const arena = world ? worldArena() : buildArena(scene, theme),",
     "  if (world) scene.add(world.holder);",
     "    if (!world) renderer.setSize(width, height, false);",
+    "        if (!world) renderer.setPixelRatio(ratio);",
   ];
   assert.deepEqual(reads.map((l) => l.trimEnd()), expected);
 });

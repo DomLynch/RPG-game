@@ -765,7 +765,7 @@ export function createScene(
     lowerResolution() {
       if (ratio > 1) {
         ratio = 1;
-        renderer.setPixelRatio(ratio);
+        if (!world) renderer.setPixelRatio(ratio);   // a world mount keeps the page's renderer as it is
         resize();
       }
     },
