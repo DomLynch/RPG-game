@@ -7,6 +7,22 @@
   [feuds.md](feuds.md), [progression-proposal.md](progression-proposal.md), [frankendom-baseline.md](frankendom-baseline.md),
   [patron-perks-sim.md](patron-perks-sim.md).
 
+## RULING 2026-10-07: combat luck (Dom, agreed by Strategy)
+
+Dom picked two of the luck options. Strategy agreed with both, under the five conditions below. This ruling supersedes "no luck roll" in §5's recommendation. Every PvP and ladder hit keeps **no** per-hit dice. Luck changes odds and damage, never timing.
+
+**1. The Gambit, everywhere including PvP.** This is a move the player chooses to make, with visible odds: about 1 in 3 lands a devastating blow, and otherwise the player staggers themself.
+- (C1) **EV-neutral or slightly worse than a normal heavy.** On average, 1 in 3 × "devastating" must not beat a heavy. "Devastating" is capped: big damage plus posture, but never a kill from above about 40% health in one hit.
+- (C2) **A real tell, with the same timing as a heavy.** The opponent can see it coming and punish or parry it. Nothing changes timing.
+- (C3) **The PvP roll cannot be known when the player presses.** A plain seeded roll that both clients can compute ahead lets a modded client throw only the gambits that will land. The roll therefore comes from the seed plus something neither side knows at press time: the opponent's input on the resolve tick, or a server commit-reveal. Combat and Backend own this, and it is the main build risk.
+- (C4) A future **Luck** stat that improves the odds stays inside the 25% "gear tilts" cap. It is **normalised** to a fixed value on the ladder and daily duel, like the fixed kit.
+
+**2. ±10% damage rolls against AI and monsters, with the roll shown on screen.** The roll is a percentage, not a fixed ±5.
+- (C5) Rolls come from the fight's seed, so the Pit's replay/hash re-sim still reproduces them exactly. The battery checks hits-to-kill breakpoints: ±10% must not turn a 3-hit kill into a 2-hit kill often enough to break the fight-length pins.
+- **Scope order:** Origins world monsters first. The Pit legends get it only after a battery shows ladder win rates move by 3 points or less and the "beaten once" progression still feels earned. That step is its own record-version bump, after RV29–31.
+
+**Build split.** Origins goes first behind a flag, then the arena. Combat builds both in `src/`: the Gambit move, the C3 roll with Backend, and the seeded damage roll plus its battery. Expansion wires the Origins side: monster fights read the flag, and the HUD shows the roll.
+
 ## Page one, for Dom
 
 **What is worth borrowing**
