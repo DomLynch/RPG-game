@@ -1,6 +1,7 @@
 // Origins slice 1, bite 1 (?region=1): the Frontier's creatures. Placement from the Region 1 data, the seeded wander, the aggro test with its
 // hysteresis, the facing, the cap and the cull. Pure: no DOM.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
@@ -12,12 +13,13 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 6);
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 5, 'a camp of four (a leader and three, Strategy) and one lone opener near the entry (zone-rules)');
+  assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
   assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
   assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul']);
   assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
-  for (const quiet of ['cinder-hold', 'mere-end', 'ferry-landing']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it`);
+  for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
   assert.equal(SPECS.length, 17);
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
@@ -161,4 +163,9 @@ test('the hero spawns among the creatures: on his feet in a Frontier zone, insid
   assert.ok(nearest >= TUNING.aggro, `no creature already has him (${nearest.toFixed(1)} m)`);
   assert.ok(SPECS.filter((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 20).length >= 4, 'at least four creatures within 20 m');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
+});
+
+test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
+  const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '17 creatures, same ids, bodies, levels, homes, roam and aggro');
 });

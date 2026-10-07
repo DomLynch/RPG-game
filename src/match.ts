@@ -22,7 +22,7 @@ import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark, levelOf, marksOf, turnDial, RANK_STEPS, TITLES } from './career.ts';
 import { autopsy } from './autopsy.ts';
 import { readOpponent } from './ai.ts';
-import { idleIntent } from './duel.ts';
+import { idleIntent, type Duel } from './duel.ts';
 import { nextArena, nextOpponent, passKey, won } from './ladder.ts';
 import type { ArenaKey } from './arena-themes.ts';
 import type { RecordArena } from './record.ts';
@@ -72,6 +72,7 @@ export class Match {
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–50 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
   recorder: Recorder | null = null;
+  layer: ((duel: Duel, warden: Intent) => Intent) | null = null;   // a world layer on the live warden (src/mobkit.ts, set by the creature encounter / a ?mob= spar); never set for a ladder fight or a replay
   recorded = false;
   private ended: Ended | null = null;   // end() once: a second call hands back the same result with nothing re-awarded
   activeMs = 0;   // real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
@@ -266,7 +267,7 @@ export class Match {
     const over = this.replay && this.replay.cursor >= this.replay.record.ticks;
     if (over && !((this.mode === 'replay' || this.clipLevel !== null) && this.practice.finish)) { this.stalled = true; return 'stalled'; }
     const stepped = over ? idleIntent() : this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
-    const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level));
+    const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level), this.replay ? undefined : this.layer ?? undefined);
     this.practice = this.tutorial ? this.tutorial.step(this.practice, stepped) : this.lesson ? this.lesson.step(this.practice, stepped) : this.dummy ? stepSparring(this.practice, stepped) : this.replay ? underRecord(this.replay.record, step) : step();   // a replay or clip steps on its record's math
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';

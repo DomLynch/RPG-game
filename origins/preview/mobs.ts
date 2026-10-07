@@ -6,6 +6,9 @@
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
+import type { MobRow } from '../mobs/row.ts';
+import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
 export type Pos = { x: number; z: number };
@@ -16,13 +19,7 @@ export type MobSpec = {
 export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
-// This preview's numbers, in one place. count/spread: how many stand round the landmark and how far they scatter; pull: metres the home
-// point is pulled toward the zone's centre first (a gate landmark sits on the zone's edge); roam: how far one wanders from home.
-export const MOB_PLAN: Record<string, { count: number; spread: number; pull: number; roam: number }> = {
-  scavengers: { count: 6, spread: 16, pull: 0, roam: 8 },
-  brood: { count: 4, spread: 9, pull: 0, roam: 6 },
-  ghouls: { count: 3, spread: 7, pull: 9, roam: 6 },
-};
+// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/mobs/frontier-rows.ts. Named creatures keep these:
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
 export const TUNING = {
   walk: 0.9,            // m/s: a creature's amble, well under the hero's 2.3
@@ -56,7 +53,7 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-export function mobSpecs(f: Frontier, b: Build): MobSpec[] {
+export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
   for (const sp of reg.spawns) {
     const zone = f.zones.find((z) => z.region === FRONTIER && Object.hasOwn(z.landmarks, sp.at));
@@ -72,11 +69,12 @@ export function mobSpecs(f: Frontier, b: Build): MobSpec[] {
       const form = def && def.encounterForms.find((x) => x.encounter === sp.encounter);
       if (def && form) who.push({ id: def.id, form });
     }
-    const plan = MOB_PLAN[sp.id], at = zone.landmarks[sp.at]!, stand = mobStand(b, zone), mid = zoneCentre(zone);
+    const at = zone.landmarks[sp.at]!, stand = mobStand(b, zone), mid = zoneCentre(zone);
     for (const w of who) {
-      const named = !!sp.encounter, p = named ? NAMED : plan;
-      if (!p) continue;
-      const count = named ? 1 : plan!.count, def = f.data.registry.characters.get(w.id)!;
+      const named = !!sp.encounter, row = named ? undefined : rows.find((r) => r.id === w.id);
+      if (!named && !row) continue;   // a kind with no row stands nowhere
+      const bh = row?.behaviour, p = named ? NAMED : { spread: bh!.spread ?? 6, pull: bh!.pull ?? 0, roam: bh!.roam ?? 6 };
+      const count = named ? 1 : bh!.campSize![1], def = f.data.registry.characters.get(w.id)!;
       const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
       for (let i = 0; i < count; i++) {
         const id = `${sp.id}-${i + 1}`;
@@ -89,11 +87,23 @@ export function mobSpecs(f: Frontier, b: Build): MobSpec[] {
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: (w.form.level ?? 11) + (named ? 0 : i % 2),
-          zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : TUNING.aggro, named,
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? 11) : row!.level[0] + (i % (row!.level[1] - row!.level[0] + 1)),
+          zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
     }
+  }
+  // The openers: a zone the data leaves without a creature inside the first-fight window gets one lone opener (zone-rules.ts openerSpot), appended last.
+  for (const [zoneId, rowId] of Object.entries(FRONTIER_OPENERS)) {
+    const zone = f.zones.find((z) => z.zone === zoneId), row = rows.find((r) => r.id === rowId), def = f.data.registry.characters.get(rowId as CharacterId);
+    const form = def?.encounterForms.find((x) => x.id === 'mob');
+    if (!zone || !row || !def || !form) continue;
+    const near = out.some((m) => m.zone === zoneId && Math.hypot(m.home.x - zone.mount.x, m.home.z - zone.mount.z) <= MAX_FIRST_FIGHT_M);
+    if (near) continue;
+    let rng = mixSeed(TUNING.seed, 5000 + out.length);
+    const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
+    if (!spot) continue;
+    out.push({ id: `opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   return out;
 }
