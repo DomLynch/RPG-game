@@ -17,6 +17,7 @@ import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, st
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
+import { applyLook, lookAlong } from './look.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -30,7 +31,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
-scene.add(new THREE.HemisphereLight(...theme.hemisphere));
+const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 90 });
@@ -162,6 +163,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) tapNear();
 });
 
+// Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
+const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || /[?&]look=zones\b/.test(location.search), LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];
+const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let forward = held('KeyW', 'ArrowUp') * (held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
@@ -174,6 +178,7 @@ function step(dt: number) {
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * WALK * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * WALK * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
+  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, lookAlong(state.z, LOOK_STOPS), GROUNDS, STONES).sunPos);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   if (mixer && idle && walk) { const w = THREE.MathUtils.damp(walk.getEffectiveWeight(), Math.abs(forward) + Math.abs(strafe) > 0.05 ? 1 : 0, 8, dt); walk.setEffectiveWeight(w); idle.setEffectiveWeight(1 - w); walk.timeScale = (forward < 0 ? -1 : 1) * (forward > 1.2 || Math.abs(strafe) > 1.2 ? 1.6 : 1); mixer.update(dt); }
