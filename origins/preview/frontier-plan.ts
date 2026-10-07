@@ -125,11 +125,15 @@ export const inZone = (z: ZonePlan, x: number, wz: number, margin = 0) => {
 };
 // The Frontier zone you stand in (the Exchange's own two are the greybox's, so they are not looked up here).
 export const frontierZoneAt = (f: Frontier, x: number, z: number) => f.zones.find((q) => q.region === FRONTIER && inZone(q, x, z)) ?? null;
+// A point in the west road's frame: `along` the road from its start (metres, + = on out the way it faces) and `across` its centreline (absolute).
+export function roadFrame(f: Frontier, x: number, z: number): { along: number; across: number } {
+  const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing);
+  return { along: (x - r.from.x) * ux + (z - r.from.z) * uz, across: Math.abs(-(x - r.from.x) * uz + (z - r.from.z) * ux) };
+}
 // On the west road: from 2.5 m inside the Exchange's west wall to the road's end, the road's width less a body.
 export function onRoad(f: Frontier, x: number, z: number): boolean {
-  const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing), len = Math.hypot(r.to.x - r.from.x, r.to.z - r.from.z);
-  const along = (x - r.from.x) * ux + (z - r.from.z) * uz, across = Math.abs(-(x - r.from.x) * uz + (z - r.from.z) * ux);
-  return along >= -2.5 && along <= len + 0.5 && across < r.width / 2 - 0.35;
+  const len = Math.hypot(f.road.to.x - f.road.from.x, f.road.to.z - f.road.from.z), { along, across } = roadFrame(f, x, z);
+  return along >= -2.5 && along <= len + 0.5 && across < f.road.width / 2 - 0.35;
 }
 
 // ---- the greybox: blocks, signposts, solids ------------------------------------------------------------------------------------

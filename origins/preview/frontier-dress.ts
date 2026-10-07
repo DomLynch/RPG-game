@@ -5,7 +5,7 @@
 // west road, the way-on roads it lays itself and the buildings frontierBuild already stands.
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
-import { inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
+import { inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
@@ -49,8 +49,8 @@ export function frontierDress(f: Frontier, b: Build): Dress {
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
     // The walker's first view: the west road's line carried on past its end, kept clear of props (the camera trails 6 m behind), plus a ring round where it ends.
-    const rd = f.road, ux = Math.sin(rd.facing), uz = Math.cos(rd.facing), sight = (x: number, zz: number, r: number) => {
-      const along = (x - rd.from.x) * ux + (zz - rd.from.z) * uz, across = Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux);
+    const rd = f.road, sight = (x: number, zz: number, r: number) => {
+      const { along, across } = roadFrame(f, x, zz);
       return (along > -10 && along < 60 && across < rd.width / 2 + r + 10) || Math.hypot(rd.to.x - x, rd.to.z - zz) < r + 14;
     };
     const free = (x: number, zz: number, r: number, low = false) => inZone(z, x, zz, r + 2)
@@ -96,7 +96,7 @@ export function frontierDress(f: Frontier, b: Build): Dress {
 
     // Mid-distance fill, 6 to 45 m off the road's line (the bulk 8 to 40): rubble heaps, wall stubs, spires and dead scrub sized to read at phone width. Same free()/sight rule; low pieces (rubble, scrub: knee height) may lie
     // in the first view but never within 6 m of the line, where the camera and the walker stand; tall ones keep to 18 m and beyond.
-    const lateral = (x: number, zz: number) => Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux), farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 45, nearOff = (x: number, zz: number) => lateral(x, zz) > 6 && lateral(x, zz) < 40 && Math.hypot(rd.to.x - x, rd.to.z - zz) > 22;
+    const lateral = (x: number, zz: number) => roadFrame(f, x, zz).across, farOff = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 45, nearOff = (x: number, zz: number) => lateral(x, zz) > 6 && lateral(x, zz) < 40 && Math.hypot(rd.to.x - x, rd.to.z - zz) > 22;
     for (let c = 0; c < Math.round(area / 70); c++) {
       const kind = R(), rot = R() * 3.14, low = kind < 0.5 || kind > 0.85, o = low ? spot(1.6, nearOff, true) : spot(2, farOff);
       if (!o) continue;
