@@ -48,7 +48,10 @@ function campGlow(c: Camp): THREE.Mesh {
 export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = []): THREE.Group {
   const group = new THREE.Group(); group.name = 'ash-frontier'; scene.add(group);
   meshPieces(group, b.pieces, m, 'frontier');
-  if (dress) { meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial() }); meshPieces(group, dress.pieces, m, 'frontier-dress'); }   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
+  if (dress) {   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
+    meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial(), castShadow: false });   // flat on the ground: its shadow is invisible, and it was ~30 % of the shadow pass
+    meshPieces(group, dress.pieces, m, 'frontier-dress');
+  }
   if (camps.length) { meshPieces(group, camps.flatMap((c) => c.pieces), m, 'camp'); for (const c of camps) group.add(campGlow(c)); }   // frontier-camp.ts: fire, seats, bedrolls, crates and the soft ground glow
   for (const f of b.people) {
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95 }));
