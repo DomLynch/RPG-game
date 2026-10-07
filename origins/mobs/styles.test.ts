@@ -24,5 +24,5 @@ test('only the beast flees, and only strictly below its threshold; a dead or zer
   assert.equal(fleesNow('beast', 1, 100), true);
   assert.equal(fleesNow('beast', 0, 100), false);
   assert.equal(fleesNow('beast', 5, 0), false);
-  for (const s of ['brute', 'archer', 'caster'] as const) assert.equal(fleesNow(s, 1, 100), false);
+  for (const s of ['brute', 'skirmisher', 'caster'] as const) assert.equal(fleesNow(s, 1, 100), false);
 });

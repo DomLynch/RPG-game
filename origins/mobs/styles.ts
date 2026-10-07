@@ -3,7 +3,7 @@
 // No new tuning table and no sim file touched: the duel never reads this, so there is no record bump. Expansion's mob rows reference `MobStyle`.
 import type { OpponentId } from '../../src/roster.ts';
 
-export const MOB_STYLES = ['brute', 'archer', 'caster', 'beast'] as const;
+export const MOB_STYLES = ['brute', 'skirmisher', 'caster', 'beast'] as const;
 export type MobStyle = (typeof MOB_STYLES)[number];
 
 export type MobStyleRow = {
@@ -13,7 +13,7 @@ export type MobStyleRow = {
 
 export const MOB_STYLE: Readonly<Record<MobStyle, MobStyleRow>> = {
   brute: { opponent: 'pitborn' },          // slow heavy-hitter: the cleaver, poise and stamina game
-  archer: { opponent: 'nightborn' },       // no ranged opponent exists (combat-study.md: ranged roles are out): the nearest is poke-and-withdraw at the estoc's reach
+  skirmisher: { opponent: 'nightborn' },       // NOT a bowman: ranged stays out of the duel (combat-study.md), so this is the Nightborn's poke-and-withdraw at the estoc's reach
   caster: { opponent: 'witch' },           // the Witch's witchfire special and her read-and-guard brain
   beast: { opponent: 'goblin', fleeBelow: 0.3 },   // quick, hit-and-run; flees under 30%, the same share as the `flee-at` twist's default percent
 };
