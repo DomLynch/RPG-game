@@ -19,7 +19,7 @@ export const NO_STANCE: StancePose = { drop: 0, sway: 0, hip: 0, knee: 0, spine1
 const FULL: Record<Stance, Partial<StancePose>> = {
   neutral: {},
   aggressive: { spine1: .1, spine2: .1, spine3: .06, neck: -.08, head: -.1, arm: -.55, fore: -.5, hip: -.12, knee: .24, drop: .035, offArm: -.2 },
-  defensive: { drop: .17, hip: -.6, knee: 1.2, spine1: .18, spine2: .12, spine3: .08, neck: -.05, head: -.12, arm: .15, fore: -.35, offArm: -.15 },
+  defensive: { drop: .09, hip: -.3, knee: .6, spine1: .18, spine2: .12, spine3: .08, neck: -.05, head: -.12, arm: .15, fore: -.35, offArm: -.15 },
   trickster: { arm: .3, fore: .2, spine1: .04, headTilt: .12, hip: -.1, knee: .2, drop: .03, offArm: .25, sway: .06, lean: .1 },
 };
 /** 0..1 weight (eased by the caller) -> the stance's offsets; `t` is the stance clock in seconds (only the Trickster moves). */
