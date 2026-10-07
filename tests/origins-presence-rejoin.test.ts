@@ -8,7 +8,7 @@ import { presenceWhere } from '../origins/presence/where.ts';
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const KEY = 'test-internal-key-0123456789';
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-const post = (base: string, body: unknown, auth: string | undefined = `Bearer ${KEY}`) => fetch(`${base}/internal/rejoin`, { method: 'POST', headers: auth ? { authorization: auth } : {}, body: typeof body === 'string' ? body : JSON.stringify(body) });
+const post = (base: string, body: unknown, auth: string | null = `Bearer ${KEY}`) => fetch(`${base}/internal/rejoin`, { method: 'POST', headers: auth ? { authorization: auth } : {}, body: typeof body === 'string' ? body : JSON.stringify(body) });
 const start = async (locate?: (a: string) => Promise<{ x: number; z: number } | null>, internalKey: string | null = KEY) => {
   const p = createPresence({ verify: async t => (t === 'u1' ? acct(1) : null), log: () => {}, internalKey: internalKey ?? undefined, locate });
   await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
@@ -26,7 +26,7 @@ test('rejoin: guarded like /internal/where: no key configured is a 404, a wrong 
   const { p, base } = await start();
   try {
     assert.equal((await post(base, { account: acct(1) }, 'Bearer wrong')).status, 401);
-    assert.equal((await post(base, { account: acct(1) }, undefined)).status, 401);
+    assert.equal((await post(base, { account: acct(1) }, null)).status, 401);
     assert.equal((await post(base, { account: 'nope' })).status, 400);
     assert.equal((await post(base, '{not json')).status, 400);
     assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: false }, 'nobody connected');
