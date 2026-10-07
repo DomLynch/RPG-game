@@ -2263,8 +2263,8 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
   .actions[data-gestures=cluster] #share-link { left: auto; right: calc(var(--end-gutter) + 66px); }
   :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #share-link { left: auto; right: calc(var(--end-gutter) + 66px); }
   :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #clip-button { left: auto; right: var(--end-gutter); }
-  .actions[data-gestures=cluster] #duel-button { top: auto; left: auto; bottom: calc(var(--end-base) + 108px); right: calc(var(--end-gutter) + 132px); }
-  .actions[data-gestures=cluster] #share-status { position: fixed; left: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 180px); max-width: var(--end-width); text-align: right; }
+  .actions[data-gestures=cluster] #duel-button { top: auto; left: auto; bottom: calc(var(--end-base) + 180px); right: var(--end-gutter); }   /* admin-only: a third row of the column, so it never reaches the pad */
+  .actions[data-gestures=cluster] #share-status { position: fixed; left: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 256px); max-width: var(--end-width); text-align: right; }
 }
 /* The door and the move pad share the thumb corner at 375 (Web 2026-09-29): on the kill screen, with the fight over, the stick hides the
    way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
