@@ -17,7 +17,7 @@ Dom picked two of the luck options. Strategy agreed with both, under the five co
 - (C3) **The PvP roll cannot be known when the player presses.** A plain seeded roll that both clients can compute ahead lets a modded client throw only the gambits that will land. The roll therefore comes from the seed plus something neither side knows at press time: the opponent's input on the resolve tick, or a server commit-reveal. Combat and Backend own this, and it is the main build risk.
 - (C4) A future **Luck** stat that improves the odds stays inside the 25% "gear tilts" cap. It is **normalised** to a fixed value on the ladder and daily duel, like the fixed kit.
 
-**2. ±10% damage rolls against AI and monsters, with the roll shown on screen.** The roll is a percentage, not a fixed ±5.
+**2. ±10% damage rolls, shown on screen (scope narrowed by Dom below: Origins world mobs only, both directions).** The roll is a percentage, not a fixed ±5.
 - (C5) Rolls come from the fight's seed, so the Pit's replay/hash re-sim still reproduces them exactly. The battery checks hits-to-kill breakpoints: ±10% must not turn a 3-hit kill into a 2-hit kill often enough to break the fight-length pins.
 - **Scope order:** Origins world monsters first. The Pit legends get it only after a battery shows ladder win rates move by 3 points or less and the "beaten once" progression still feels earned. That step is its own record-version bump, after RV29–31.
 
@@ -57,13 +57,17 @@ Dom wants the player to choose a temperament. The AI's opponent mood is the same
 - v1: a pick before the fight, on the Pit / fight-start screen, with no new button.
 - v2: one switch, after a posture break, only after v1's data.
 
-**Open:** dropping the ±10% damage rolls vs AI (Strategy proposes it, since stances and mood give the variety). Dom picked the rolls himself this morning, so **Dom to confirm**; Strategy is asking him. Until then the roll stays behind its off flag in #1607.
+**Damage rolls: RULED by Dom (his own words, 07:5x, relayed by Strategy).**
+- **DROPPED** in the Pit (legends and arena AI), PvP and the ladder.
+- **KEPT** for Origins world mobs outside the Pit, in **both directions** (player → mob and mob → player). Fixed damage reads as boring: "you are hit for 23, 23, 23".
+- Conditions stand: the roll comes from the fight seed (re-sim exact), the number is shown on screen, the battery runs a hits-to-kill breakpoint check on common mobs, and luck never changes timing.
+- #1607 scopes the roll to Origins world encounters, and a test gates it off the Pit and PvP paths.
 
 **Owners:** Combat builds the sim side in the order RV31 → RV30 → Gambit → stances, each with its own record-version bump. Characters provides the three guard poses. Expansion wires the Origins/HUD side.
 
 ## Page one, for Dom
 
-> **Superseded on luck:** the dice lines on this page are replaced by the two RULINGS above (luck; stances and mood). The Gambit is a chosen roll everywhere, PvP included; ±10% shown rolls apply against AI and monsters, Origins first. Every PvP hit still has no per-hit dice.
+> **Superseded on luck:** the dice lines on this page are replaced by the two RULINGS above (luck; stances and mood). The Gambit is a chosen roll everywhere, PvP included. ±10% shown damage rolls apply only to Origins world mobs outside the Pit, both directions. The Pit, PvP and the ladder have no per-hit dice.
 
 **What is worth borrowing**
 
