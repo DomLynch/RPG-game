@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const source = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
-const lines = source.split('\n').filter((l) => !l.trim().startsWith('//'));
+const lines = source.split('\n').map((l) => l.replace(/\s*\/\/.*$/, '')).filter((l) => l.trim());   // code only, comments dropped
 const reads = lines.filter((l) => /\bworld\b/.test(l) && !/const world = new THREE\.Vector3|take = \(world: THREE\.Vector3\)|v\.copy\(world\)|take\(o\.getWorldPosition\(world\)\)|take\(world\.set|, world\)/.test(l));
 
 test('createScene takes the world mount last and optional', () => {
@@ -17,14 +17,14 @@ test('every read of the world mount is a guarded form, so no mount means the Pit
   const expected = [
     "  world?: WorldMount,",
     "  const renderer = world?.renderer ?? new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });",
-    "  if (!world) {   // a world mount keeps the page's renderer as it is",
+    "  if (!world) {",
     "  scene.background = world ? world.background : new THREE.Color(theme.fog);",
     "  scene.fog = world ? world.fog : new THREE.FogExp2(theme.fog, theme.fogDensity);",
-    "  if (!world) scene.add(hemisphere);   // a world mount is lit by the world's own lights (inside `holder`)",
+    "  if (!world) scene.add(hemisphere);",
     "  if (!world) scene.add(sun);",
     "  const arena = world ? worldArena() : buildArena(scene, theme),",
     "  if (world) scene.add(world.holder);",
-    "    if (!world) renderer.setSize(width, height, false);   // the page sizes its own renderer",
+    "    if (!world) renderer.setSize(width, height, false);",
   ];
   assert.deepEqual(reads.map((l) => l.trimEnd()), expected);
 });
