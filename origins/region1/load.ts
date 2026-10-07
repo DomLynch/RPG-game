@@ -211,6 +211,7 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
     if (!registry.encounters.has(r.encounter as EncounterId)) issues.add('unknown-id', `bossLoot[${i}].encounter`, `${r.encounter} is not an encounter in Region 1`);
     if ((r.rule === 'weekly-cap') !== (r.perWeek !== undefined)) issues.add('rule-violation', `bossLoot[${i}].perWeek`, 'perWeek is set exactly on a weekly-cap rule');
   });
+  const rawById = new Map((bundle as Obj[]).map((r) => [r.id, r]));
   for (const e of registry.encounters.values()) {
     const p = e.id, r = rule.get(e.id), row = local.killRows[e.boss.character];
     if (!r) { issues.add('missing-field', p, 'every encounter names how its boss table is rolled'); continue; }
@@ -222,7 +223,7 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
     const isBounty = bounties.some((b) => b.encounter === e.id);
     if (isBounty !== (r.rule === 'never')) issues.add('rule-violation', p, 'a Bounty pays metal only (rule never), and only a Bounty does');
     // A public boss runs on origins/boss: level and health present, the progression model's contribution threshold, a short id.
-    if (e.scope === 'public') issues.absorb(parseBossDefinition(e as unknown, p));
+    if (e.scope === 'public') issues.absorb(parseBossDefinition(rawById.get(e.id), p));   // the raw bundle record, not the parsed one
   }
   const neverTables = new Set<LootTableId>(), rolledTables = new Set<LootTableId>();
   for (const e of registry.encounters.values()) (rule.get(e.id)?.rule === 'never' ? neverTables : rolledTables).add(e.boss.loot);
@@ -341,6 +342,7 @@ function readRifts(issues: Issues, records: readonly Obj[], registry: Registry, 
       const band = Math.max(...[...(zones.get(e.region)?.values() ?? [])].map((z) => z.difficulty.levelMax));
       if (levelOver !== undefined && e.boss.level !== band + levelOver) issues.add('rule-violation', join(p, 'levelOver'), `the rift boss fights at the band top ${band} + ${levelOver}, not ${e.boss.level}`);
       if (e.scope !== 'public') issues.add('rule-violation', join(p, 'encounter'), 'a rift is a public fight');
+      if (boss) issues.add('duplicate-id', p, 'Region 1 has one rift boss');
       boss = obj;
     } else if (raw.kind === 'rift-scheduler') {
       const obj = readObject(issues, raw, p, ['kind', 'schemaVersion', 'id', 'region', 'perDayMin', 'perDayMax', 'minGapSeconds', 'warnSeconds', 'openSeconds', 'siteCooldownSeconds', 'townClearanceMetres', 'lootRollsPerWeek']);
@@ -355,6 +357,7 @@ function readRifts(issues: Issues, records: readonly Obj[], registry: Registry, 
       for (const k of ['warnSeconds', 'openSeconds', 'siteCooldownSeconds']) readInt(issues, obj, k, p, 60, 604_800);
       readInt(issues, obj, 'townClearanceMetres', p, 0, 1000);
       readInt(issues, obj, 'lootRollsPerWeek', p, 1, 50);
+      if (scheduler) issues.add('duplicate-id', p, 'Region 1 has one rift scheduler');
       scheduler = obj;
     } else issues.add('unknown-kind', join(p, 'kind'), `unknown rift kind ${JSON.stringify(raw.kind)}`);
   });

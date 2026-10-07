@@ -156,7 +156,7 @@ export function createScene(
   // `?look=armfeel&feel=high|low|off` (armfeel.ts): the victim's flinch on a visual pivot between the fighter's root and its rig. Absent or `off`: no pivot, today's frame.
   const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
-  const fatigueRead = typeof location !== 'undefined' && fatigueReadFrom(location.search);   // the tired pose made legible from behind (fatigue-read.ts): on unless ?look=no-fatigue-read
+  const fatigueRead = typeof location !== 'undefined' && fatigueReadFrom(location.search);   // ?look=fatigue-read (fatigue-read.ts): the tired pose made legible from behind; absent = today's frame
   const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   const burstPool = flinches ? createBurstPool(scene) : null;
@@ -818,7 +818,7 @@ export function createScene(
       previewEpoch = specialEpoch; previewTick = practice.duel.tick;
       if (specialId && !specialFx) for (const event of events) {
         if (event.type === 'SpecialStarted' && event.actor === 1) previewBlocked = false;
-        if (event.type === 'SpecialFizzled' && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
+        if ((event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');

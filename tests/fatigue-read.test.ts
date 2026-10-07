@@ -5,7 +5,8 @@ import { fatigueRead, fatigueReadFrom, readRate, readWeight } from '../src/fatig
 
 // The live layer, copied verbatim from before ?look=fatigue-read existed: the flag-off output must equal it for every band.
 function liveLayer(f: { level: number; gassed: number; second: number }, phase: number, calm: number, t?: { rate?: number; depth?: number; sag?: number }) {
-  const depth = (t?.depth ?? 1) * calm, sag = (t?.sag ?? 1) * calm, winded = Math.max(0, Math.min(1, (f.level - .25) / .5)), ragged = Math.sin(phase * .37) * .35 * f.gassed;
+  const show = Math.max(f.gassed, Math.max(0, Math.min(1, (f.level - .9) / .1)));   // Dom 2026-10-07: the body tires only in the last tenth or exhausted
+  const depth = (t?.depth ?? 1) * calm * show, sag = (t?.sag ?? 1) * calm * show, winded = Math.max(0, Math.min(1, (f.level - .25) / .5)), ragged = Math.sin(phase * .37) * .35 * f.gassed;
   const chest = (Math.sin(phase) * (1 + ragged) * .1 * winded + Math.sin(phase * 2) * .02 * f.gassed) * depth, arch = f.second * .14 * depth;
   return { hunch: (f.level * .2 + f.gassed * .3) * depth - arch * .5, chest: chest - arch, arm: (f.level * .26 + f.gassed * .3) * sag };
 }
@@ -17,12 +18,11 @@ test('flag off: the layer is exactly the live layer for every band, and the read
   assert.equal(breathe(BANDS[3], { read: true }), breathe(BANDS[3]));
 });
 
-test('the pose is on by default and ?look=no-fatigue-read (alone or in a list) turns it off', () => {
-  assert.equal(fatigueReadFrom(''), true);
+test('the flag is the ?look=fatigue-read token and nothing else', () => {
+  assert.equal(fatigueReadFrom(''), false);
   assert.equal(fatigueReadFrom('?look=fatigue-read'), true);
-  assert.equal(fatigueReadFrom('?look=fatigue'), true);
-  assert.equal(fatigueReadFrom('?look=no-fatigue-read'), false);
-  assert.equal(fatigueReadFrom('?look=souls,no-fatigue-read'), false);
+  assert.equal(fatigueReadFrom('?look=souls,fatigue-read'), true);
+  assert.equal(fatigueReadFrom('?look=fatigue'), false);
 });
 
 test('the read pose grows with the band: nothing fresh, partial winded, full gassed, lifted by the second wind', () => {

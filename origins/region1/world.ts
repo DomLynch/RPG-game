@@ -42,6 +42,7 @@ const EXCHANGE_LAYER = {
       rules: { safe: false, tradeAllowed: false },
       density: { npcs: 0.4, props: 0.4, creatures: 0 },
       terrain: { ground: 'ash' },
+      ambience: { preset: 'exchange-dusk' }, // the Exchange's look, as the square
     },
   },
 };
@@ -54,7 +55,7 @@ const FRONTIER = {
     rules: { safe: false, pvp: false, tradeAllowed: false, restAllowed: true },
     density: { npcs: 0.05, props: 0.4, creatures: 0.25 },
     spawns: { respawnSeconds: 300 },
-    ambience: { preset: 'ash-pit', weather: 'dust', sound: 'wind' },
+    ambience: { weather: 'dust', sound: 'wind' }, // the look preset is set zone by zone (frontier-haze)
     terrain: { biome: 'ash-waste', ground: 'ash' },
   },
   zones: {
@@ -72,6 +73,7 @@ const FRONTIER = {
         fields: { to: 'cinder-fields', kind: 'road', here: 'fields-turn', there: 'road-gate' },
       },
       difficulty: { levelMin: 11, levelMax: 12 },
+      ambience: { preset: 'frontier-haze' },
     },
     'ferry-landing': {
       zoneSize: { width: 60, depth: 60 },
@@ -88,6 +90,7 @@ const FRONTIER = {
         'night-boat': { to: 'blood-ruin', kind: 'portal', here: 'dock', there: 'ruin-jetty' },
       },
       density: { npcs: 0.4, creatures: 0 },
+      ambience: { preset: 'frontier-haze' },
     },
     'cinder-fields': {
       zoneSize: { width: 120, depth: 120 },
@@ -104,6 +107,7 @@ const FRONTIER = {
       density: { creatures: 0.35 },
       spawns: { respawnSeconds: 240 },
       difficulty: { levelMin: 11, levelMax: 13 },
+      ambience: { preset: 'frontier-haze' },
     },
     'black-mere': {
       zoneSize: { width: 100, depth: 140 },
@@ -122,6 +126,7 @@ const FRONTIER = {
       spawns: { boss: 'mere-hollow' },
       density: { creatures: 0.2 },
       difficulty: { levelMin: 12, levelMax: 15 },
+      ambience: { preset: 'frontier-haze' },
     },
     'blood-ruin': {
       zoneSize: { width: 60, depth: 80 },
@@ -138,6 +143,7 @@ const FRONTIER = {
       spawns: { boss: 'crypt' },
       density: { creatures: 0.15 },
       difficulty: { levelMin: 13, levelMax: 14 },
+      ambience: { preset: 'frontier-haze' },
     },
     // Cinder Hold: a village (living-world §12) beside the Cinder Fields. No creatures inside the town.
     'cinder-hold': {
@@ -153,6 +159,7 @@ const FRONTIER = {
       connections: { fields: { to: 'cinder-fields', kind: 'road', here: 'hold-gate', there: 'hold-road' } },
       density: { npcs: 0.3, creatures: 0 },
       difficulty: { levelMin: 11, levelMax: 13 },
+      ambience: { preset: 'frontier-haze' },
     },
     // Mere End: a hamlet (living-world §12) at the foot of the causeway.
     'mere-end': {
@@ -167,6 +174,7 @@ const FRONTIER = {
       connections: { mere: { to: 'black-mere', kind: 'road', here: 'end-gate', there: 'causeway-foot' } },
       density: { npcs: 0.2, creatures: 0 },
       difficulty: { levelMin: 12, levelMax: 15 },
+      ambience: { preset: 'frontier-haze' },
     },
   },
 };
