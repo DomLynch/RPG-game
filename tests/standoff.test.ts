@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { idleIntent, initialDuel, stepDuel } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
-import { STANDOFF_MS, standoffFlag, standoffPose } from '../src/standoff.ts';
+import { STANDOFF_MS, standoffClock, standoffFlag, standoffPose } from '../src/standoff.ts';
 
 test('the standoff is on by default; ?standoff=0 or off turns it off', () => {
   assert.equal(standoffFlag(''), true);
@@ -30,4 +30,18 @@ test('the hidden cost: from a sheathed start the first swing begins RULES.draw t
   const ms = Math.round(swing * 1000 / 60);
   console.log(`first swing after ${swing} ticks = ${ms} ms (RULES.draw ${RULES.draw})`);
   assert.equal(swing, RULES.draw + 2);   // 44 ticks = 733 ms at 60 Hz (measured 2026-10-07)
+});
+
+test('a rematch restarts the draw-in from 0, but a second start (a re-fired ready mid-fight) does not', () => {
+  const clock = standoffClock(), sheathed = { pose: 'sheathed', progress: 0 };
+  assert.equal(clock.age, -1);
+  clock.advance(100); assert.equal(clock.age, -1, 'the clock does not run before the first start');
+  clock.start(); clock.advance(STANDOFF_MS + 50);
+  assert.deepEqual(standoffPose(sheathed, clock.age), { pose: 'ready', progress: 1 }, 'the first fight: armed once the window is over');
+  clock.start();   // an art retry re-emits ready mid-fight
+  assert.equal(clock.age, STANDOFF_MS + 50, 'a second start does not reset the window');
+  assert.deepEqual(standoffPose(sheathed, clock.age), { pose: 'ready', progress: 1 }, 'both rigs stay armed mid-fight');
+  clock.restart();   // nextFight
+  assert.equal(clock.age, 0);
+  assert.deepEqual(standoffPose(sheathed, clock.age), { pose: 'draw', progress: 0 }, 'the second fight: the first frame is the draw, not the armed pose');
 });
