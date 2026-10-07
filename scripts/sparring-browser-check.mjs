@@ -205,11 +205,11 @@ async function check() {
   async function castLifecycle(label, requireLand = true) {
     const finished = await page.waitForFunction(land => {
       const state = globalThis.__special();
-      return state.events.some(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!land && e.type === 'SpecialFizzled'))) ? state : false;
+      return state.events.some(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!land && (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted')))) ? state : false;
     }, requireLand, { timeout: 15000, polling: 25 });
     const terminal = await finished.jsonValue();
     await finished.dispose();
-    const ended = terminal.events.find(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!requireLand && e.type === 'SpecialFizzled')));
+    const ended = terminal.events.find(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!requireLand && (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted'))));
     let recovery = null;
     if (requireLand) assert.equal(ended.type, 'SpecialLanded', 'primary player proof must land');
     if (ended.type === 'SpecialLanded') {
@@ -246,7 +246,9 @@ async function check() {
   await openForm(); await page.selectOption('#spar-skill', 'special:wake');
   await page.selectOption('#difficulty-select', '50'); await page.selectOption('#opponent-select', 'witch');
   assert.equal(await page.locator('#spar-skill').inputValue(), 'special:wake', 'foe class/rank preserve Your preset');
-  await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'none');
+  // RV28 (interruptible casts): damage taken during the 2 s windup cuts the cast at 10 % of max health, and a difficulty-10 Witch hits the idle player inside it
+  // (SpecialStarted 194, SpecialInterrupted 258), so this lifecycle case runs against the dummy like its neighbours: it proves the cast LANDS, not that it survives pressure.
+  await page.selectOption('#difficulty-select', 'dummy');   // the dummy's special-move select is disabled (it never casts)
   await startForm(); await manualSkill();
   await page.waitForFunction(() => globalThis.__special().stages[0]?.stage === 'windup');
   receipt.playerClass = await page.evaluate(() => globalThis.__special());
