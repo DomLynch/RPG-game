@@ -14,7 +14,7 @@ type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 export type Habits = {
   ticks: number; guard: number; parries: number; rolls: number; steps: number;
   lights: number; heavies: number; thrusts: number; kicks: number; attacks: number; parks: number;
-  run?: number;   // consecutive lights: reset by any other blow that starts (RV31, profile.spamRun's early gate)
+  run?: number;   // consecutive lights: reset by any other blow that starts and by any defence (RV31, profile.spamRun's early gate)
 };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
 export const READ = {
@@ -26,10 +26,10 @@ const TELLS = new Set<string>(['thrust', 'skill_pommel']);
 export const readOpponent = (h: Habits, profile?: AiProfile): Reads => {
   const swings = h.lights + h.heavies + h.thrusts;
   const oldSpam = swings >= READ.swings && h.lights / swings >= READ.lightShare;
-  // RV31: a profile with `spamRun` reads a masher EARLY: that many consecutive lights before the player has guarded, parried, rolled or
-  // stepped once (the early gate REPLACES the old read; `spamBoth` keeps the old read too). Absent = the old read, byte for byte.
+  // RV31: a profile with `spamRun` reads a masher EARLY: that many consecutive lights with no defence between them
+  // (a guard, parry, roll or step resets the run; the gate reads the run alone; the early gate REPLACES the old read; `spamBoth` keeps the old read too). Absent = the old read, byte for byte.
   const spam = profile?.spamRun
-    ? (h.guard === 0 && h.parries === 0 && h.rolls === 0 && h.steps === 0 && (h.run ?? 0) >= profile.spamRun) || (!!profile.spamBoth && oldSpam)
+    ? (h.run ?? 0) >= profile.spamRun || (!!profile.spamBoth && oldSpam)
     : oldSpam;
   return {
     parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
@@ -90,6 +90,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (opponent.phase === 'guard' && opponent.parrying && opponent.age === 0) h.parries++;
   if (opponent.phase === 'roll' && opponent.age === 0) h.rolls++;
   if (opponent.phase === 'backstep' && opponent.age === 0) h.steps++;
+  if (opponent.phase === 'guard' || opponent.phase === 'roll' || opponent.phase === 'backstep') h.run = 0;   // any defence ends the masher's run (RV31)
   // the first tick a swing sat at its chamber: age is rewound to the chamber only while parked, and charge stays 1 through the rest of
   // a swing released after a one-tick park, so charge === 1 alone counted every later tick of that swing as a park (bump 9)
   if (opponent.phase === 'attack' && opponent.charge === 1 && opponent.move && opponent.age === theirs[opponent.move].chamber) h.parks++;

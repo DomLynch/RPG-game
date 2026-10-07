@@ -1,22 +1,32 @@
 // RV31 (docs/specs/combat/l6-anti-spam.md): `spamRun` reads a masher early; absent = the old read, byte for byte.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readOpponent, initialAi, type Habits } from '../src/ai.ts';
+import { readOpponent, initialAi, decide, type Habits } from '../src/ai.ts';
 import { OPPONENTS } from '../src/combat.ts';
 import { profileAt, type AiProfile } from '../src/moves.ts';
-import { STRATEGIES, battery } from './strategies.ts';
+import { STRATEGIES, battery, arena } from './strategies.ts';
 
 const habits = (over: Partial<Habits> = {}): Habits => ({ ...initialAi().habits, ...over });
 const gate = (spamRun: number, spamBoth?: number): AiProfile => ({ ...OPPONENTS.veteran.profiles.normal, spamRun, ...(spamBoth ? { spamBoth } : {}) });
 const GATED = ['veteran', 'pitborn', 'dwarf', 'knight', 'shieldmaiden'] as const;
 
-test('the early gate: spamRun consecutive lights before any defence reads a spammer; a defence, or one fewer light, does not', () => {
-  const masher = habits({ lights: 5, attacks: 5, run: 5 });
-  assert.equal(readOpponent(masher, gate(5)).spammer, true);
+test('the early gate reads the run alone: spamRun consecutive lights reads a spammer, one fewer or a reset run does not', () => {
+  assert.equal(readOpponent(habits({ lights: 5, attacks: 5, run: 5 }), gate(5)).spammer, true);
   assert.equal(readOpponent(habits({ lights: 4, attacks: 4, run: 4 }), gate(5)).spammer, false, 'one light short');
-  for (const defence of [{ guard: 1 }, { parries: 1 }, { rolls: 1 }, { steps: 1 }])
-    assert.equal(readOpponent({ ...masher, ...defence }, gate(5)).spammer, false, `${Object.keys(defence)[0]} ends the early read`);
   assert.equal(readOpponent(habits({ lights: 5, heavies: 1, attacks: 6, run: 0 }), gate(5)).spammer, false, 'a heavy resets the run');
+  assert.equal(readOpponent(habits({ lights: 9, attacks: 9, guard: 1, run: 5 }), gate(5)).spammer, true, 'a guard long ago does not blind the gate: only the run counts');
+});
+
+test('guard once, then spam: any defence resets the run, so the gate needs spamRun fresh lights after it (decide-driven)', () => {
+  const d = arena(OPPONENTS.veteran), p = gate(5);
+  let ai = { ...initialAi(), habits: habits({ lights: 4, attacks: 4, run: 4 }) };
+  d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: 3 };
+  ai = decide(d, 1, ai, p).ai;
+  assert.equal(ai.habits.run, 0, 'a guard tick ends the run');
+  for (const phase of ['roll', 'backstep'] as const) {
+    d.fighters[0] = { ...d.fighters[0], phase, age: 0 };
+    assert.equal(decide(d, 1, { ...initialAi(), habits: habits({ run: 4 }) }, p).ai.habits.run, 0, `${phase} ends the run`);
+  }
 });
 
 test('absent spamRun is the old read: 11 swings at 70 % lights, whatever the run', () => {
@@ -28,7 +38,7 @@ test('absent spamRun is the old read: 11 swings at 70 % lights, whatever the run
 });
 
 test('the early gate REPLACES the old read; spamBoth keeps it (the Shieldmaiden)', () => {
-  const defended = habits({ lights: 8, heavies: 3, attacks: 11, guard: 4, run: 2 });   // the old read fires, the early gate does not (he has defended)
+  const defended = habits({ lights: 8, heavies: 3, attacks: 11, guard: 4, run: 2 });   // the old read fires, the early gate does not (run 2 < 5)
   assert.equal(readOpponent(defended, gate(5)).spammer, false);
   assert.equal(readOpponent(defended, gate(5, 1)).spammer, true);
   assert.equal(readOpponent(habits({ lights: 5, attacks: 5, run: 5 }), gate(5, 1)).spammer, true, 'the early gate still fires with spamBoth');
