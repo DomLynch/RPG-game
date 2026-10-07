@@ -57,7 +57,7 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       && !onRoad(f, x, zz) && !sight(x, zz, r) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + 3.2)
       && !keep.some((k) => Math.hypot(k.x - x, k.z - zz) < r + 6) && !b.solids.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 1.5)
       && !placed.some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 0.6);
-    const spot = (r: number) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r)) return p; } return null; };
+    const spot = (r: number, want = (_x: number, _z: number) => true) => { for (let i = 0; i < 24; i++) { const p = world(between(-z.width / 2, z.width / 2), between(0, z.depth)); if (free(p.x, p.z, r) && want(p.x, p.z)) return p; } return null; };
     const solid = (x: number, zz: number, r: number) => { const s = { x, z: zz, r }; solids.push(s); placed.push(s); };
     const area = z.width * z.depth, nearTown = (x: number, zz: number) => { const c = z.town && z.landmarks[z.town.centre]; return !!c && Math.hypot(c.x - x, c.z - zz) < 24; };
 
@@ -92,6 +92,17 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       }
       for (let i = 0; i < 2; i++) { const x = o.x + ux * between(-4, 5) - uz * between(1, 5), zz = o.z + uz * between(-4, 5) + ux * between(1, 5), h = between(1.2, 3.6); put(['cylinder', 0.42, 0.5, h, 10], x, h / 2, zz, WALL, 0, 0); solid(x, zz, 0.55); }
       for (let i = 0; i < 12; i++) put(['box', between(0.3, 0.9), between(0.2, 0.6), between(0.3, 0.9)], o.x + between(-5, 5), 0.2, o.z + between(-5, 5), ROCK[Math.floor(R() * 3)]!, R() * 6, 0);
+    }
+
+    // Mid-distance fill: 18 to 70 m off the road's line the ground was bare. Low rubble heaps, wall stubs, a few tall spires and dead scrub, reusing the same free() and sight rule.
+    const lateral = (x: number, zz: number) => Math.abs(-(x - rd.from.x) * uz + (zz - rd.from.z) * ux), mid = (x: number, zz: number) => lateral(x, zz) > 18 && lateral(x, zz) < 70;
+    for (let c = 0; c < Math.round(area / 230); c++) {
+      const o = spot(1.6, mid); if (!o) continue;
+      const kind = R(), rot = R() * 3.14;
+      if (kind < 0.45) { for (let i = 0; i < 4 + Math.floor(R() * 3); i++) { const r = between(0.25, 0.7); put(['cylinder', r * 0.6, r, r * between(0.6, 1.2), 5], o.x + between(-1.4, 1.4), r * 0.3, o.z + between(-1.4, 1.4), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
+      else if (kind < 0.7) { const len = between(2.4, 5), h = between(0.5, 1.6); put(['box', len, h, 0.6], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
+      else if (kind < 0.85) { const h = between(3.5, 7); put(['cone', between(0.7, 1.3), h, 5], o.x, h / 2, o.z, ROCK[3]!, R() * 6, 0); solid(o.x, o.z, 0.9); }
+      else { for (let i = 0; i < 4; i++) { const h = between(0.6, 1.3); put(['box', 0.06, h, 0.06], o.x + between(-0.5, 0.5), h / 2, o.z + between(-0.5, 0.5), BURNT, R() * 6, 0); } }
     }
 
     // Burnt posts, broken fence runs, dead trees, a charred cart or barrels.
