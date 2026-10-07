@@ -5,12 +5,14 @@ import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/moves.ts';
 import { createRecorder, type FightRecord } from '../../src/record.ts';
 import { recordSpecials } from '../../src/replay.ts';
 import { noTwist, stepTwist, type TwistFlag } from '../../src/twist.ts';
+import { mobLayer } from '../mobs/kits.ts';
+import type { MobStyle } from '../mobs/styles.ts';
 import { withBar } from '../preview/encounter-duel.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
 const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32; };
-type Spec = { enemy: 'knight' | 'veteran'; level: number; seed: number; bar?: number; flags?: TwistFlag[] };
+type Spec = { enemy: 'knight' | 'veteran'; level: number; seed: number; bar?: number; flags?: TwistFlag[]; layer?: MobStyle };
 
 // The client side, as the preview host plays it (pit-duel.ts): initialPractice, withBar, then per tick the quantized intent, stepPractice and stepTwist; recorded by the Pit's recorder.
 function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; twist: string | null } {
@@ -19,16 +21,17 @@ function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightR
   const rec = createRecorder({ build: 'test', opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}) });
   let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }));
   if (spec.bar && flags.some((f) => f.kind === 'one-health-bar')) p = withBar(p, spec.bar);
+  const layer = spec.layer ? mobLayer(spec.layer) : undefined;
   let twist = noTwist(), outcome: 'killed' | 'died' | 'draw' | 'abandoned' = 'abandoned';
   for (let i = 0; i < maxTicks; i++) {
     const intent = rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: rand() < 0.4 }, action: rand() < 0.5 ? ACTIONS[Math.floor(rand() * ACTIONS.length)]! : null, guard: rand() < 0.1, lock: true });
-    p = stepPractice(p, intent, profile);
+    p = stepPractice(p, intent, profile, layer);
     if (p.finish) { if (flags.length && p.finish.victim === 1) twist = stepTwist(p.duel, flags, twist).twist; outcome = p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died'; break; }
     if (flags.length) { twist = stepTwist(p.duel, flags, twist).twist; if (twist.outcome === 'fled' || twist.outcome === 'escaped') break; }
   }
   return { record: rec.finish(outcome), twist: twist.outcome };
 }
-const params = (s: Spec, over: Partial<EncounterParams> = {}): EncounterParams => ({ seed: s.seed, enemy: s.enemy, level: s.level, bar: s.bar ?? null, flags: s.flags ?? [], layer: null, ...over });
+const params = (s: Spec, over: Partial<EncounterParams> = {}): EncounterParams => ({ seed: s.seed, enemy: s.enemy, level: s.level, bar: s.bar ?? null, flags: s.flags ?? [], layer: s.layer ?? null, ...over });
 const finished = (spec: Spec) => { for (let k = 1; k < 60; k++) { const r = play(spec, k); if (r.record.outcome !== 'abandoned') return r; } throw new Error('no finished fight found'); };
 
 test('a legitimate record verifies: the result is the sim\'s, win or loss', () => {
@@ -81,7 +84,14 @@ test('a flee-at twist: the foe runs, both standing, a record with outcome "aband
   assert.equal(verifyEncounter(found!.record, params(spec, { flags: [] })).ok, false, 'without the twist the fight goes on past the record\'s last tick');
 });
 
-test('a mob layer is refused (fail closed until the verifier can step it)', () => {
+test('a mob layer is the server\'s: a record played under the layer verifies with it and not without; an unknown layer is refused', () => {
+  let diverged = 0;
+  for (const layer of ['brute', 'skirmisher', 'caster', 'beast'] as const) {
+    const spec: Spec = { enemy: 'knight', level: 20, seed: 4242, layer }, { record } = finished(spec);
+    const v = verifyEncounter(record, params(spec)); assert.equal(v.ok, true, `${layer}: ${v.ok ? '' : v.reason}`);
+    if (!verifyEncounter(record, params(spec, { layer: null })).ok) diverged++;
+  }
+  assert.ok(diverged >= 1, 'at least one style changes the fight enough that its record fails without the layer');
   const spec: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record } = finished(spec);
   const v = verifyEncounter(record, params(spec, { layer: 'wolf-pack' })); assert.equal(v.ok, false); if (!v.ok) assert.match(v.reason, /mob layer/);
 });

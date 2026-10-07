@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { Match } from '../src/match.ts';
+import { mobLayer } from '../origins/mobs/kits.ts';
 import { LEVELS, OPPONENTS, opponentAt, profileAt, type WeaponId } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { quantizeIntent } from '../src/record.ts';
@@ -18,9 +19,10 @@ const intentAt = (rand: () => number, tick: number): Intent => quantizeIntent({
   action: rand() < 0.35 ? ACTIONS[1 + Math.floor(rand() * (ACTIONS.length - 1))] : null, guard: rand() < 0.2, lock: true,
 });
 const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32; };
-const sparring = (opponent: keyof typeof OPPONENTS, seed: number, level: number, weapon: WeaponId) => {
+const sparring = (opponent: keyof typeof OPPONENTS, seed: number, level: number, weapon: WeaponId, layer?: 'brute' | 'skirmisher' | 'caster' | 'beast') => {
   const data = new Map<string, string>(), storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v); } };
   const m = new Match(OPPONENTS[opponent], 'test', { storage, profile: loadProfile(storage, () => 'test').profile, trial: loadTrial(storage), scorecard: loadScorecard(storage) }, seed, weapon, null, level);
+  if (layer) m.layer = mobLayer(layer);   // as origins/preview/pit-duel.ts sets it before startSparring
   m.startSparring({ weapon, skill: null, difficulty: level });
   return m;
 };
@@ -37,6 +39,21 @@ for (const [opponent, level, seed] of [['knight', 10, 731], ['knight', 24, 9001]
       p = stepPractice(p, intent, profileAt(OPPONENTS[opponent], level));
       assert.deepEqual(p.duel, m.practice.duel, `first diverging tick: ${tick + 1}`);
       assert.equal(!!p.finish, !!m.practice.finish, `finish at tick ${tick + 1}`);
+      if (outcome === 'ended') break;
+    }
+  });
+}
+for (const layer of ['brute', 'skirmisher', 'caster', 'beast'] as const) {
+  test(`world fight under the ${layer} mob layer == initialPractice + stepPractice(.., layer)`, () => {
+    const seed = 555, level = 24, m = sparring('knight', seed, level, 'longsword', layer), rand = lcg(seed ^ level), mine = mobLayer(layer);
+    let p = initialPractice(seed, opponentAt(OPPONENTS.knight, level), 'longsword', null, recordSpecials({ specials: m.specials, level, opponent: 'knight' }));
+    assert.deepEqual(p.duel, m.practice.duel, 'tick 0');
+    for (let tick = 0; tick < 900; tick++) {
+      const intent = intentAt(rand, tick);
+      if (m.practice.finish) break;
+      const outcome = m.step(() => intent);
+      p = stepPractice(p, intent, profileAt(OPPONENTS.knight, level), mine);
+      assert.deepEqual(p.duel, m.practice.duel, `first diverging tick: ${tick + 1}`);
       if (outcome === 'ended') break;
     }
   });

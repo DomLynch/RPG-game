@@ -5,7 +5,8 @@
 //   - the foe's one-health-bar pool: withBar(practice, bar) after initialPractice, only when a one-health-bar flag is present;
 //   - the twist, read after every step that did not finish the fight (stepTwist), and once more on the foe's defeat (the catch window): 'fled' / 'escaped' end the fight with both standing.
 // tests/world-fight-determinism.test.ts pins that a sparring Match (what the client runs) and initialPractice + stepPractice are the same fight tick for tick.
-// Fail closed: a mob layer (combat/mob-kit, not on trunk) is refused until the verifier can step it; so is anything this build cannot step. A refusal is a normal loss, never a reward.
+// A mob layer (src/mobkit.ts via origins/mobs/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
+// build cannot step. A refusal is a normal loss, never a reward.
 import { initialPractice, stepPractice } from '../../src/combat.ts';
 import { RANK_STEPS, TITLES } from '../../src/career.ts';
 import { underRecord } from '../../src/detmath.ts';
@@ -14,6 +15,8 @@ import type { FightRecord } from '../../src/record.ts';
 import { recordSpecials } from '../../src/replay.ts';
 import { STEP } from '../../src/sim.ts';
 import { noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
+import { mobLayer } from '../mobs/kits.ts';
+import { MOB_STYLES, type MobStyle } from '../mobs/styles.ts';
 import { withBar } from '../preview/encounter-duel.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
@@ -27,10 +30,11 @@ export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer t
 const SPECIALS_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');
 export const liveSpecials = (level: number): boolean => Number.isInteger(level) && level >= SPECIALS_FROM && level <= LEVELS;
 
+export const knownLayer = (layer: string): layer is MobStyle => (MOB_STYLES as readonly string[]).includes(layer);
 const refuse = (reason: string): Verified => ({ ok: false, reason });
 
 export function verifyEncounter(record: FightRecord, p: EncounterParams): Verified {
-  if (p.layer !== null) return refuse(`the mob layer ${p.layer} cannot be stepped by this verifier yet`);   // fail closed until the layer export is on trunk
+  if (p.layer !== null && !knownLayer(p.layer)) return refuse(`the mob layer ${p.layer} is not one this verifier knows`);
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
   if (!!record.specials !== liveSpecials(p.level)) return refuse('the record\'s special-move phase is not the one this warden fights in');
   if (!Number.isInteger(record.ticks) || record.ticks < 1 || record.intents.length !== record.ticks || record.ticks > MAX_FIGHT_TICKS) return refuse('the record\'s length is not a fight');
@@ -44,10 +48,11 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   const profile = profileAt(opponent, p.level), flags = p.flags;
   let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record));
   if (p.bar !== null && flags.some((f) => f.kind === 'one-health-bar')) practice = withBar(practice, p.bar);
+  const layer = p.layer === null ? undefined : mobLayer(p.layer as MobStyle);   // fresh per fight: its state resets on tick 0, as the client's does
   let twist = noTwist(), endedAt = 0;
   for (let i = 0; i < record.intents.length; i++) {
     if (endedAt) return refuse(`the fight ended at tick ${endedAt}, before the record's last tick ${record.ticks}`);
-    practice = stepPractice(practice, record.intents[i]!, profile);
+    practice = stepPractice(practice, record.intents[i]!, profile, layer);
     if (practice.finish) {
       if (flags.length && practice.finish.victim === 1) twist = stepTwist(practice.duel, flags, twist).twist;   // 'caught' inside the catch window
       endedAt = i + 1;

@@ -51,12 +51,13 @@ const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer: null,
 const deps = (over: Partial<EncounterDeps> = {}): EncounterDeps => ({ resolve: (_w, id) => (id === 'encounter:knight' ? RESOLVED : null), verify: verifyEncounter, now: () => clock.t, ...over });
 
 // The client: plays the fight with the server's seed, records it as the Pit's recorder does, packs it for the wire.
-function fight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight'): string {
+function fight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false): string {
   let s = intentSeed >>> 0; const rand = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
   const specials = liveSpecials(level), profile = profileAt(OPPONENTS[enemy], level);
   const rec = createRecorder({ build: 'test', opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}) });
   let p = initialPractice(seed, opponentAt(OPPONENTS[enemy], level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }));
   for (let i = 0; i < 1500 && !p.finish; i++) p = stepPractice(p, rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: false }, action: rand() < 0.5 ? 'light' : null, guard: rand() < 0.1, lock: true }), profile);
+  if (onlyFinished && !p.finish) return '';   // a scripted fight that never ended has no verifiable record
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   return toBase64Url(gzipSync(packRecord({ ...record, v: RECORD_VERSION })));   // as verify-loot packs a claim: the current version
 }
@@ -78,7 +79,7 @@ test('start: the server resolves the fight and picks the seed; the body names no
   await assert.rejects(async () => ops.encounter_start!(ctx(db), { character: 'x', encounter: 'encounter:knight' }), BadRequest);
   await assert.rejects(async () => ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }), Conflict, 'a second open fight is refused: resume the first');
   const layered = encounterOps(deps({ resolve: () => ({ ...RESOLVED, layer: 'wolf' }) }));
-  await assert.rejects(async () => layered.encounter_start!(ctx(fakeDb({ t: 0 }).db), { character: CHAR, encounter: 'encounter:knight' }), (e: unknown) => e instanceof Refused && /mob-layer/.test(e.message));
+  await assert.rejects(async () => layered.encounter_start!(ctx(fakeDb({ t: 0 }).db), { character: CHAR, encounter: 'encounter:knight' }), (e: unknown) => e instanceof Refused && /mob layer/.test(e.message));
 });
 
 test('touch inside the grace continues the SAME token and seed; after the expiry it is refused', async () => {
@@ -107,7 +108,9 @@ test('settle: a verified record writes the event enc:<token> and the reward line
 test('settle with the REAL verifier: a record played on the issued seed settles with the sim\'s result (a loss pays nothing)', async () => {
   const { db, events } = fakeDb({ t: 1e6 }), rewards: string[] = [], ops = encounterOps(deps({ rewards: (f) => { rewards.push(f.token); return []; } }));
   const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
-  const out = await ops.encounter_settle!(ctx(db), { token: start.token, record: fight(start.seed, 7) }) as Record<string, unknown>;
+  let record = ''; for (let k = 1; k < 120 && !record; k++) record = fight(start.seed, k, 6, 'knight', true);
+  assert.ok(record, 'a finished scripted fight exists for the server\'s seed');
+  const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
   assert.equal(out.verified, true, String(out.reason)); assert.equal(events.length, 1);
   assert.equal(rewards.length, out.result === 'won' ? 1 : 0);
 });

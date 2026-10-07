@@ -6,7 +6,7 @@
 //                                          anything: the event `enc:<token>` (kind 'mob') and the reward lines `rewards` returns, in one transaction with the token's consumption. An unverified record is
 //                                          a normal loss (the token is consumed, nothing is paid), never a reward and never a harsher penalty. An open fight whose grace runs out is settled by the sweep
 //                                          (store.encounterExpire) as a loss by abandonment.
-// Fail closed: with no deps (the flag off, or no verifier installed) every op answers 503 "encounter verify not installed"; a mob layer or a non-empty `swaps` (Combat's swap hook is not
+// Fail closed: with no deps (the flag off, or no verifier installed) every op answers 503 "encounter verify not installed"; an unknown mob layer or a non-empty `swaps` (Combat's swap hook is not
 // shipped) is refused rather than guessed; a database without the migration answers 503.
 import { randomBytes, randomInt } from 'node:crypto';
 import { decodeRecord } from '../../src/record.ts';
@@ -15,7 +15,7 @@ import { DbError } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
-import type { VerifyEncounter } from './encounter-verify.ts';
+import { knownLayer, type VerifyEncounter } from './encounter-verify.ts';
 
 // What `resolve` returns for a fight the character may start (Expansion's FightSetup, reduced to what the server holds and re-simulates).
 export type Resolved = { enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; instance: string | null };
@@ -25,7 +25,6 @@ export type EncounterDeps = {
   // Extra batch lines for a VERIFIED fight (XP/loot/Bounty ops built from the server's own result); none by default. Never called for a loss.
   rewards?(fight: { account: string; character: string; token: string; enemy: string; level: number; twist: string | null }): store.Json[];
   now?: () => number;   // the clock the expiry pre-check reads (tests); the database's now() decides at settle regardless
-  layerSupported?: boolean;   // true once the verifier can step a mob layer; false: a fight with a layer is refused at start
 };
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, FIGHT = /^[a-z0-9._:-]{1,64}$/;
@@ -50,10 +49,10 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     const startTick = tick(body.tick, 'tick');
     const fight = resolve({ account, character }, encounter);
     if (!fight) throw new BadRequest('encounter: unknown, or not open to this character');
-    if (fight.layer !== null && !deps.layerSupported) throw new Refused(503, 'encounter verify not installed for mob-layer fights');   // fail closed: it could never verify
+    if (fight.layer !== null && !knownLayer(fight.layer)) throw new Refused(503, `encounter verify does not know the mob layer ${fight.layer}`);   // fail closed: it could never verify
     const token = randomBytes(24).toString('base64url'), seed = randomInt(1, 2 ** 31);
     let run: store.EncounterRun | null;
-    try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags as store.Json[], layer: fight.layer, instance: fight.instance }); }
+    try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags, layer: fight.layer, instance: fight.instance }); }
     catch (e) { if (e instanceof DbError && e.code === 'O0014') throw new Conflict(e.message); throw e; }
     if (!run) throw new Refused(503, 'encounters are not installed yet');
     return view(run);
