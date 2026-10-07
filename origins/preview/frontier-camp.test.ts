@@ -12,7 +12,7 @@ test('a camp of 2 or 3 has a fire, a seat per member (the third stands), bedroll
     assert.equal(spots.length, n);
     assert.equal(spots.filter((s) => s.pose === 'stand').length, n === 3 ? 1 : 0);
     assert.ok(c.pieces.some((p) => p.layer === 'coal'), 'no coals in the fire');
-    assert.ok(c.pieces.filter((p) => p.layer === 'iron').length === n, 'one bedroll per member');
+    assert.ok(c.pieces.filter((p) => p.shape[0] === 'box' && p.shape[1] === CAMP_KIT.bedroll[0] && p.shape[3] === CAMP_KIT.bedroll[2]).length === n, 'one bedroll per member');
     assert.ok(c.glow.radius === CAMP_KIT.glow.radius && c.glow.opacity > 0);
     assert.deepEqual(campKit({ x: 0, z: 0 }, n, 'k'), c);
     for (const s of spots.filter((q) => q.pose === 'sit')) assert.ok(Math.hypot(s.x, s.z) < CAMP_KIT.seat.ring + 0.1, 'a sitter off the fire');
