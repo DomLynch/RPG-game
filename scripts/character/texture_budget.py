@@ -19,6 +19,11 @@ def read(p):
     return json.loads(r[20 : 20 + n]), r[28 + n :]
 
 
+def source_of(d, index):
+    t = d["textures"][index]
+    return t["source"] if "source" in t else next(v["source"] for v in t.get("extensions", {}).values() if "source" in v)   # EXT_texture_webp
+
+
 def slots(d):
     out = {}
     for m in d["materials"]:
@@ -26,11 +31,11 @@ def slots(d):
         for slot, t in (("map", pbr.get("baseColorTexture")), ("mr", pbr.get("metallicRoughnessTexture")), ("normal", m.get("normalTexture")),
                         ("occ", m.get("occlusionTexture")), ("emis", m.get("emissiveTexture"))):
             if t:
-                out.setdefault(d["textures"][t["index"]]["source"], f'{m.get("name", "?")}.{slot}')
+                out.setdefault(source_of(d, t["index"]), f'{m.get("name", "?")}.{slot}')
         for ext, v in m.get("extensions", {}).items():
             for k, t in v.items():
                 if isinstance(t, dict) and "index" in t:
-                    out.setdefault(d["textures"][t["index"]]["source"], f'{m.get("name", "?")}.{ext.replace("KHR_materials_", "")}.{k}')
+                    out.setdefault(source_of(d, t["index"]), f'{m.get("name", "?")}.{ext.replace("KHR_materials_", "")}.{k}')
     return out
 
 
@@ -57,6 +62,8 @@ def main(src, dst, policy):
             buf = io.BytesIO()
             if im.get("mimeType") == "image/png":
                 img.save(buf, "PNG", optimize=True)
+            elif im.get("mimeType") == "image/webp":
+                img.save(buf, "WEBP", quality=90, method=6)
             else:
                 img.convert("RGB").save(buf, "JPEG", quality=90, optimize=True)
             new[i] = buf.getvalue()
