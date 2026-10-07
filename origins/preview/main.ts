@@ -101,7 +101,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
   hero.remove(body, cap); hero.add(gltf.scene);
 }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
-let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
+let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecs(frontier, frontierParts)) : null;
@@ -201,7 +201,7 @@ function step(dt: number) {
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
   const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9;   // the right stick's up lowers the camera and raises the gaze
   eye.set(state.x - Math.sin(heading) * back, up, state.z - Math.cos(heading) * back);
-  camAt.lerp(eye, 1 - Math.exp(-dt * 4));
+  if (camSnap) { camAt.copy(eye); camSnap = false; } else camAt.lerp(eye, 1 - Math.exp(-dt * 4));   // the first frame starts behind the hero, not at the old start easing over (slow phones showed a wall for ~10 s)
   look.set(state.x + Math.sin(heading) * 3, 1.5 + pitchNow * 1.6, state.z + Math.cos(heading) * 3);
   camera.position.copy(camAt); camera.lookAt(look);
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
