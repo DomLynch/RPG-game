@@ -9,7 +9,8 @@ import { Match, type PvpDriver } from '../src/match.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
 import { MESSAGE_CAP, PvpDuel, SILENCE, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent } from '../src/net/rollback.ts';
-import { metricsRow, reportBody, startBody, closeLater, RETIRE_MS } from '../src/net/lobby.ts';
+import { metricsRow, recordBody, reportBody, reportCalls, RECORD_MAX_BYTES, startBody, closeLater, RETIRE_MS } from '../src/net/lobby.ts';
+import { verifyDuel } from '../src/net/verify-duel.ts';
 import { readFileSync } from 'node:fs';
 import { viewAs } from '../src/net/view.ts';
 import { loadProfile } from '../src/profile.ts';
@@ -333,6 +334,33 @@ test('duel report: both settled pages build agreeing reports (opposite results, 
   assert.equal(ra.p_hash, rb.p_hash);
   assert.match(String(ra.p_hash), /^[0-9a-f]{16}$/);
   assert.equal(reportBody(a, 'x'), null);
+});
+
+test('duel record upload: each settled page builds a record body the sweep replays to the reported result; order, cap and the no-build case hold', () => {
+  // before any settled finish (the helper's pair has no kits either): nothing to send
+  const early = finishingPair().pages[0];
+  assert.equal(recordBody(early, 'room0000', 'abc1234'), null, 'nothing before the finish settles');
+  assert.deepEqual(reportCalls(early, 'room0000', 'abc1234'), [], 'no calls before the finish settles');
+  // a real two-page fight (the jittered-link test's pair): both settle, both hold their kits, so each can build its record
+  const [a, b] = duelOver({ latencyMs: 15, jitterMs: 10, loss: 0.02 }, 7200, 3);
+  assert.ok(a.settled && b.settled, 'both pages settled a finish');
+  const ra = recordBody(a, 'room0000', 'abc1234')!, rb = recordBody(b, 'room0000', 'abc1234')!;
+  assert.ok(ra && rb);
+  assert.deepEqual([ra.p_side, rb.p_side].sort(), [0, 1], 'each page sends its own side');
+  assert.equal(recordBody(a, 'x', 'abc1234'), null, 'a bad room sends nothing');
+  assert.equal(recordBody(a, 'room0000', null), null, 'a page that does not know its build sends no record (it still reports)');
+  // the order: the record needs this page's report row, so it follows report_duel; without a build only the report goes
+  assert.deepEqual(reportCalls(a, 'room0000', 'abc1234').map((c) => c.fn), ['report_duel', 'report_duel_record']);
+  assert.deepEqual(reportCalls(a, 'room0000', null).map((c) => c.fn), ['report_duel']);
+  // what the sweep does with them: claims from the two pages' own report and record bodies replay clean
+  const claim = (page: typeof a) => { const rep = reportBody(page, 'room0000')!, rec = recordBody(page, 'room0000', 'abc1234')!; return { side: rec.p_side as 0 | 1, won: rep.p_result === 'win', hash: String(rep.p_hash), record: rec.p_record as never }; };
+  const verdict = verifyDuel([claim(a), claim(b)]);
+  assert.equal(verdict.ok, true, `the two uploaded records replay to the reported result: ${JSON.stringify(verdict)}`);
+  // a record over the table's cap is never sent (the page still reports)
+  const fat = Object.create(a) as typeof a;
+  fat.record = () => ({ ...a.record('abc1234')!, intents: ['x'.repeat(RECORD_MAX_BYTES), ''] as [string, string] });
+  assert.equal(recordBody(fat, 'room0000', 'abc1234'), null);
+  assert.deepEqual(reportCalls(fat, 'room0000', 'abc1234').map((c) => c.fn), ['report_duel']);
 });
 
 test('duel report over a jittered link: both pages report the same checkpoint hash for the same finish (Auditor #1368 B1)', () => {

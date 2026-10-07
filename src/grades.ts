@@ -114,8 +114,18 @@ export const GRADES: Record<Tier, Grade> = {
 // The factors to write onto one draw's material, or null to leave it alone (bone, authored artwork, and cloth — cloth is the house dye).
 export function gradeFor(tier: Tier, material: string): Finish | null {
   const group = classOf(material);
-  return group && group !== 'cloth' && group !== 'stone' ? GRADES[tier][group] : null;
+  if (!group || group === 'cloth' || group === 'stone') return null;
+  // The weapon-metal floor (Lead, 2026-10-07): below Veteran — the ladder's first genuinely metal rung — the 'metal' row is leather, bone-ivory
+  // or dull scrap, which put the Recruit Centurion's trident fork on screen as three tan wooden planks. An opponent's BLADE or HEAD never grades
+  // below plain iron (Praetorian's metal row, the ladder's grey iron between bronze and steel), so a bottom-rung blade reads as dull metal and
+  // Veteran upward climb exactly as before. Weapons only: armour on the same 'metal' class (Steel, Bronze, DwarfIron, Blade) keeps every row.
+  if (group === 'metal' && WEAPON_METAL.has(material) && levelOf(tier) < levelOf(WEAPON_METAL_FROM)) return GRADES[WEAPON_IRON].metal;
+  return GRADES[tier][group];
 }
+// The opponents' weapon materials of class 'metal' (blades, heads, bands), and the rung they stop being floored at.
+export const WEAPON_METAL: ReadonlySet<string> = new Set(['WeaponLongsword', 'WeaponCleaver', 'WeaponKnife', 'WeaponEstoc', 'WeaponTrident', 'GladiusSteel', 'MaulIronBands', 'ScytheIron', 'WarhammerIron']);
+export const WEAPON_METAL_FROM: Tier = 'Veteran';
+export const WEAPON_IRON: Tier = 'Praetorian';
 // The house dye for a draw, or null if the draw is not cloth. Kept beside gradeFor so a caller walks a piece's draws once.
 export function houseFor(house: string, material: string): string | null {
   return classOf(material) === 'cloth' ? house : null;

@@ -31,7 +31,7 @@ async function check() {
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
   await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
-  assert.deepEqual(await page.locator('#arena-select option').evaluateAll(os => os.map(o => o.value)), ['', '1', '2', '3', 'a', 'b', 'c', 'd'], 'only the known arena choices remain');   // Arena 3 (Sunset Legion) joined the Stage list with #1425 (Dom 2026-10-06 "arena 3 looks good"): the pin follows the list on purpose   // Arena 2 (The Skull Gate) joined the Stage list with #1421 (Dom 2026-10-06 "ship arena 2 live")
+  assert.deepEqual(await page.locator('#arena-select option').evaluateAll(os => os.map(o => o.value)), ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'], 'only the known arena choices remain');   // Arena 11 (Bloodfall Keep) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 10 (The Pale Gate) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 9 (The Reaper Gate) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 8 (Legion Heights) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 7 (Cloud Reach) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 6 (The Goblin King) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 5 (The Bone Camp) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 4 (Heaven's Breach) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 3 (Sunset Legion) joined the Stage list with #1425 (Dom 2026-10-06 "arena 3 looks good"): the pin follows the list on purpose   // Arena 2 (The Skull Gate) joined the Stage list with #1421 (Dom 2026-10-06 "ship arena 2 live")
   let loads = 0; page.on('load', () => { loads++; });
 
   // The admin Sparring tab (admins and ?debug see it; no Ladder/Sparring switch, Dom 2026-09-29), then every pick. None of them may navigate.
@@ -40,7 +40,7 @@ async function check() {
   assert.ok(await page.locator('#sparring-row').isVisible(), 'the Sparring tab shows the Start sparring row');
   const levels = await page.locator('#difficulty-select option').evaluateAll((os) => os.map((o) => o.value));
   // Re-pinned (Sparring layout A, Dom 2026-09-29): the Opponent's ten ranks (a fresh fighter's rank 1 at its level 1, the others at their top) and the dummy.
-  assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
+  assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '50', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
   const matrix = {
     veteran: ['setfoot', 'standfast', 'shield', 'centurion', 'tithe'], nightborn: ['lunge', 'cuts', 'set', 'hades', 'nyx'],
     witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
@@ -60,10 +60,10 @@ async function check() {
     disabled += groups.flatMap(g => g.options).filter(o => o.disabled).length;
     receipt.catalog[opponent] = groups;
     assert.equal(await page.locator('#spar-special').inputValue(), expected[0] ?? 'none', `${opponent}: class change resets A`);
-    await page.selectOption('#difficulty-select', '46');
+    await page.selectOption('#difficulty-select', '50');
     assert.equal(await page.locator('#spar-special').inputValue(), expected[4], `${opponent}: L10 default`);
     await page.selectOption('#spar-special', expected[2]);
-    assert.equal(await page.locator('#difficulty-select').inputValue(), '46', 'manual preview preserves Difficulty');
+    assert.equal(await page.locator('#difficulty-select').inputValue(), '50', 'manual preview preserves Difficulty');
     await page.selectOption('#difficulty-select', '35');
     assert.equal(await page.locator('#spar-special').inputValue(), expected[1] ?? 'none', `${opponent}: Difficulty resets B`);
     await page.selectOption('#difficulty-select', 'dummy');
@@ -116,7 +116,7 @@ async function check() {
   const groups = await page.locator('#spar-special optgroup').evaluateAll(os => os.map(o => o.label));
   assert.deepEqual(groups, ['L1–3', 'L4–7', 'L8', 'L9', 'L10']);
   assert.equal(await page.locator('#spar-special').inputValue(), 'lunge', 'approved class A is the matching default');
-  await page.selectOption('#difficulty-select', '46');
+  await page.selectOption('#difficulty-select', '50');
   assert.equal(await page.locator('#spar-special').inputValue(), 'nyx', 'Nightborn10 auto-selects Nyx');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'nyx');
   await page.selectOption('#spar-weapon', 'estoc'); await page.selectOption('#spar-skill', 'none');
@@ -244,7 +244,7 @@ async function check() {
   assert.deepEqual(await storageSnapshot(), beforeStartStorage, 'legacy player-only cast writes nothing');
 
   await openForm(); await page.selectOption('#spar-skill', 'special:wake');
-  await page.selectOption('#difficulty-select', '46'); await page.selectOption('#opponent-select', 'witch');
+  await page.selectOption('#difficulty-select', '50'); await page.selectOption('#opponent-select', 'witch');
   assert.equal(await page.locator('#spar-skill').inputValue(), 'special:wake', 'foe class/rank preserve Your preset');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'none');
   await startForm(); await manualSkill();

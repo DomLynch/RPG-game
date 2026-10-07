@@ -1,8 +1,8 @@
 {
  "note": "Browser replay vs Node sim (release row scripts/browser-replay-check.mjs, Strategy via Lead 2026-09-29). One pinned record per playable roster opponent, recorded by Combat on trunk fc2254aa the way rank-look-check records (L18, AI hero, tick 0 forced light, first seed of 731+97k that ends). Regenerate ONLY on a record bump or an intentional rules change: node scripts/browser-replay-check.mjs --write (the PR carrying the new fixture is the receipt).",
  "generated": {
-  "revision": "d9a10b8",
-  "recordVersion": 25,
+  "revision": "cd8c37b87",
+  "recordVersion": 27,
   "by": "scripts/browser-replay-check.mjs --write"
  },
  "records": [

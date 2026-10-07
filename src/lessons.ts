@@ -21,7 +21,11 @@ const TEXT: Record<LessonId, string> = {
   tapStepHoldRoll: 'Tap to step. Hold to roll.',
 };
 
-export const lessonText = (id: LessonId): string => TEXT[id];
+/** The one fatigue line (Combat's FatigueBand, #1483): shown once, the first time the player's band reaches 2 (tired); the flag is its own key, read and written like LESSON_DONE_KEY. */
+export type LessonLine = LessonId | 'pace';
+export const PACE_KEY = 'frankendom.lesson.pace.v1';
+export const PACE_LINE = 'Pace yourself. A tired fighter loses won fights.';
+export const lessonText = (id: LessonLine): string => (id === 'pace' ? PACE_LINE : TEXT[id]);
 
 /** The next lesson not yet shown, in order; null when all five have been. */
 export const nextLesson = (shown: ReadonlySet<LessonId>): LessonId | null => LESSON_ORDER.find((id) => !shown.has(id)) ?? null;

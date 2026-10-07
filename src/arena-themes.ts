@@ -47,7 +47,7 @@ export type ArenaTheme = {
   spectators?: boolean;   // false: no crowd
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
-export type ArenaKey = '1' | '2' | '3' | 'a' | 'b' | 'c' | 'd';
+export type ArenaKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | 'a' | 'b' | 'c' | 'd';
 
 const ONE: RGB = [1, 1, 1];
 // Arena 1's numbers, exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes: its maps are byte-identical.
@@ -67,6 +67,22 @@ const ARENA_1: ArenaTheme = {
 const ARENA_2: ArenaTheme = { ...ARENA_1, id: '2', name: 'The Skull Gate', backdrop: '/arena/backdrop-2.webp' };
 // Arena 3, Sunset Legion (Dom 2026-10-06, his own painting): the same rule, Arena 1 with only the far world swapped. On the ladder for rungs 5–6 (ARENA_PICK); ?arena=3 forces it.
 const ARENA_3: ArenaTheme = { ...ARENA_1, id: '3', name: 'Sunset Legion', backdrop: '/arena/backdrop-3.webp' };
+// Arena 4, Heaven's Breach (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=4; not on the ladder yet.
+const ARENA_4: ArenaTheme = { ...ARENA_1, id: '4', name: "Heaven's Breach", backdrop: '/arena/backdrop-4.webp' };
+// Arena 5, The Bone Camp (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=5; not on the ladder yet.
+const ARENA_5: ArenaTheme = { ...ARENA_1, id: '5', name: 'The Bone Camp', backdrop: '/arena/backdrop-5.webp' };
+// Arena 6, The Goblin King (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=6; not on the ladder (five bands, so it needs rotation: Lead's call).
+const ARENA_6: ArenaTheme = { ...ARENA_1, id: '6', name: 'The Goblin King', backdrop: '/arena/backdrop-6.webp' };
+// Arena 7, Cloud Reach (Dom 2026-10-06, the first painting made to the daylight brief; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=7; not on the ladder.
+const ARENA_7: ArenaTheme = { ...ARENA_1, id: '7', name: 'Cloud Reach', backdrop: '/arena/backdrop-7.webp' };
+// Arena 8, Legion Heights (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=8; not on the ladder.
+const ARENA_8: ArenaTheme = { ...ARENA_1, id: '8', name: 'Legion Heights', backdrop: '/arena/backdrop-8.webp' };
+// Arena 9, The Reaper Gate (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped (the strip is cropped above his painted ground). Reached by ?arena=9; not on the ladder.
+const ARENA_9: ArenaTheme = { ...ARENA_1, id: '9', name: 'The Reaper Gate', backdrop: '/arena/backdrop-9.webp' };
+// Arena 10, The Pale Gate (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped (the strip is cropped above his painted marsh). Reached by ?arena=10; not on the ladder.
+const ARENA_10: ArenaTheme = { ...ARENA_1, id: '10', name: 'The Pale Gate', backdrop: '/arena/backdrop-10.webp' };
+// Arena 11, Bloodfall Keep (Dom 2026-10-06, the last painting for now; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=11; not on the ladder.
+const ARENA_11: ArenaTheme = { ...ARENA_1, id: '11', name: 'Bloodfall Keep', backdrop: '/arena/backdrop-11.webp' };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
 const BRICK: WallStyle = { courses: 14, blocks: [6, 9], mortar: 0.62, hues: [[1.08, 0.94, 0.88], [1, 0.9, 0.84], [1.12, 0.98, 0.9], [0.94, 0.86, 0.82], [1.04, 0.96, 0.9], [0.9, 0.84, 0.8]] };
@@ -74,6 +90,14 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
   '1': ARENA_1,
   '2': ARENA_2,
   '3': ARENA_3,
+  '4': ARENA_4,
+  '5': ARENA_5,
+  '6': ARENA_6,
+  '7': ARENA_7,
+  '8': ARENA_8,
+  '9': ARENA_9,
+  '10': ARENA_10,
+  '11': ARENA_11,
   // A — The Night Pit (2A evolved): no sun. A starless night; the braziers are the only warm light, one low firelight that sways
   // and flickers so the fighters' shadows run long and move; embers rise off the coals instead of ash. Red clay, brick wall.
   a: {
@@ -133,6 +157,10 @@ export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2',
 // random would be this one line: `return ARENA_THEMES[ARENA_PICK[(1 + Math.floor(Math.random() * 5)) as 1 | 2 | 3 | 4 | 5]]`.
 // Next reloads the page (main.ts), so a band change swaps the arena inside the same load that fetches the next rig: never mid-fight,
 // never on a rematch, and only one arena is ever resident.
+// The painted arenas a career fight can come up in (Lead + Dom 2026-10-06, "all live"): Arena 1 and Dom's ten paintings. The first fight is always
+// Arena 1 (no stored arena); after that a shuffle-bag, no arena twice in a row (ladder.ts nextArena). 'a'-'d' are the older generated looks and stay out.
+export const ARENA_ROTATION: readonly ArenaKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+export const isRotationArena = (k: unknown): k is ArenaKey => ARENA_ROTATION.includes(k as ArenaKey);
 export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(5, Math.ceil(rung / 2))) as 1 | 2 | 3 | 4 | 5;
 // True when a theme's sand maps are Arena 1's own (the plain gravelled sand: no clay or flags laid over it, no tint, the same seed). The glow Pit's yard
 // is always that sand, whatever arena the fight was in (scene.ts pitStage arenaMaterials).

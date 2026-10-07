@@ -14,7 +14,7 @@ import type { OpponentId } from './roster.ts';
 import { FIRST_LATE_NOTICE_VERSION, FIRST_SCALED_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor } from './play-radius.ts';
 import { STAB_ON } from './stab-rule.ts';
 
-export const RECORD_VERSION = 25;   // 25: bump 25 (2026-10-07; Combat, COMBAT-001 3/3) — the Goblin's stab (AiProfile.stab: an opening he cannot cut is answered with the knife's 12-tick thrust; easy absent, normal .6, hard 1). A record's version picks it, as it picks the circle and the late notice: below FIRST_STAB_VERSION (stab-rule.ts, set by underRecord) the stab is off, so every older Goblin link replays its own fight and REACH[25] is empty. 24: bump 24 (2026-10-07, Lead; Backend, COMBAT-001) — late notice (ai.ts READ.lateNotice): on the in-between ladder levels from L12 up (moves.ts softNotice) a cut noticed with 1–5 ticks to spare is answered only (spare − 1) / 5 of the time. A record's version says whether its fight had the ramp (play-radius.ts LATE_NOTICE: v23 and older replay without it, detmath.ts underRecord, match.ts), so REACH[24] is empty and every shared link still replays its own fight. 23: bump 23 (2026-10-06, Dom via Lead) — Arena 1's play circle comes inward to 0.6 of 8.55 m (play-radius.ts; the veteran and the pitborn, every level). A record's version picks its circle: v22 and older replay in the old 8.55 m (detmath.ts underRecord, match.ts), so REACH[23] is empty and every shared link still replays its own fight. 22: bump 22 (2026-10-02; Combat, #1280, with #1114 not live) — Dom's final special rule in the sim (RULES.special: boss share .25, the cooldown re-arms from the release, a 45-tick no-attack recovery; duel.ts specialRecover). Only a fight with the specials flag steps differently, so a v21 specials record would replay another fight: 21 stays readable beside 22 (Lead: v21 is the writer on the specials base); a flag-off fight is bit for bit as v20, so v18–v20 stay readable and REACH[22] is empty.
+export const RECORD_VERSION = 27;   // 27: bump 27 (2026-10-06; Combat, Lead GO + Dom via Strategy: the 50-level ladder) — levels 47–50 (Origin II–V) exist: the tail past hard (moves.ts tailApex, skill knobs only) and the level ceiling LEVELS 46 -> 50. Levels 1–46 are untouched (the hard anchor stays at 46), so REACH[27] is empty and every older link replays exactly as it did. 26: bump 26 (2026-10-06; World, Lead + Dom: all eleven painted arenas ride the ladder) — the header names the arena the fight was fought in (one byte after the specials flag; 0 = the ladder band, as every record up to 25). SAME SIM: only the codec changed, so REACH[26] is empty and every older link decodes and replays exactly as it did. 25: bump 25 (2026-10-07; Combat, COMBAT-001 3/3) — the Goblin's stab (AiProfile.stab: an opening he cannot cut is answered with the knife's 12-tick thrust; easy absent, normal .6, hard 1). A record's version picks it, as it picks the circle and the late notice: below FIRST_STAB_VERSION (stab-rule.ts, set by underRecord) the stab is off, so every older Goblin link replays its own fight and REACH[25] is empty. 24: bump 24 (2026-10-07, Lead; Backend, COMBAT-001) — late notice (ai.ts READ.lateNotice): on the in-between ladder levels from L12 up (moves.ts softNotice) a cut noticed with 1–5 ticks to spare is answered only (spare − 1) / 5 of the time. A record's version says whether its fight had the ramp (play-radius.ts LATE_NOTICE: v23 and older replay without it, detmath.ts underRecord, match.ts), so REACH[24] is empty and every shared link still replays its own fight. 23: bump 23 (2026-10-06, Dom via Lead) — Arena 1's play circle comes inward to 0.6 of 8.55 m (play-radius.ts; the veteran and the pitborn, every level). A record's version picks its circle: v22 and older replay in the old 8.55 m (detmath.ts underRecord, match.ts), so REACH[23] is empty and every shared link still replays its own fight. 22: bump 22 (2026-10-02; Combat, #1280, with #1114 not live) — Dom's final special rule in the sim (RULES.special: boss share .25, the cooldown re-arms from the release, a 45-tick no-attack recovery; duel.ts specialRecover). Only a fight with the specials flag steps differently, so a v21 specials record would replay another fight: 21 stays readable beside 22 (Lead: v21 is the writer on the specials base); a flag-off fight is bit for bit as v20, so v18–v20 stay readable and REACH[22] is empty.
 // 21: bump 21 (2026-09-29, Dom's GO via Lead; Combat) — Special Moves on the SKILL slot (duel.ts withSpecials, RULES.special), behind a per-fight flag the header now carries (one byte after the skill). With the flag off a v21 fight steps bit for bit as v20 (every new branch reads a field only withSpecials sets), so v20 stays readable (REACH[21] is empty).
 // 20: bump 20 (2026-09-28, Dom via Strategy / Lead) — the Plague Doctor fights with the estoc, not the longsword (roster.ts; his archetype row is the Nightborn's, who fights with it). REACH[20]: the Plague Doctor at every level. Inside the same unreleased bump (2026-09-29): his easy tellReaction 15 (moves.ts), closing the estoc's L6 thrust-from-range hole. And the sim's math (2026-09-29, Strategy ruling (b)): v20 on steps on src/detmath.ts (sin/cos/atan2/hypot on + − * / sqrt, the same bits in every engine; Node's V8 and Chromium's had split a Dwarf link on a 1-ulp atan2); v18/v19 records replay on the engine's own Math, frozen, picked by this version field through detmath.underRecord, so no shared link becomes a fresh fight.
 // 19: bump 19 (2026-09-28, RV18 content rebased on RV19; SCOPE shield line, Lead split from RV17) — the Centurion carries gladius + scutum from Legionary (moves.ts LOADOUT_FROM, level 6 on; the Recruit keeps the trident); the scutum is a guard profile only (wide: both flanks, stops heavies, costScale .75, posture drains ×1.5).
@@ -68,7 +68,7 @@ export const RECORD_VERSION = 25;   // 25: bump 25 (2026-10-07; Combat, COMBAT-0
 // [.., 22] -> [.., 22, 23] with the writer bump to 23: widened, REACH[23] is empty (the play circle is keyed on the record's version, so an older record steps in the circle it was fought in).
 // [.., 23] -> [.., 23, 24] with the writer bump to 24: widened, REACH[24] is empty (late notice is keyed on the record's version, so an older record steps without the ramp).
 // [.., 24] -> [.., 24, 25] with the writer bump to 25: widened, REACH[25] is empty (the stab is keyed on the record's version, so an older Goblin record steps without it).
-export const READABLE_VERSIONS = [18, 19, 20, 21, 22, 23, 24, 25] as const;
+export const READABLE_VERSIONS = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27] as const;
 // Each bump's REACH (the standing rule, Strategy 2026-09-28): the fights bump N can change, as (opponent, from level). A record of version
 // k is refused when any bump after k reaches its opponent at its level; everything else is read. Literals on purpose, not the data they
 // describe (LOADOUT_FROM, ROSTER): a reach records what that bump changed and must not move when the data moves later (that change bumps
@@ -81,17 +81,24 @@ export const REACH: Readonly<Record<number, readonly { opponent: OpponentId; fro
   23: [],   // Arena 1's smaller play circle: a record below 23 replays in the old circle (underRecord), so no older fight is reached
   24: [],   // late notice: a record below 24 replays without the ramp (underRecord), so no older fight is reached
   25: [],   // the Goblin's stab: a record below 25 replays without it (underRecord, stab-rule.ts), so no older fight is reached
+  26: [],   // the arena byte: presentation only, a record below 26 names no arena and replays in its ladder band, so no older fight is reached
+  27: [],   // the 50-level ladder: levels 47–50 are new fights (the tail past hard); levels 1–46 profile and body are byte-identical (tests/ladder-tail.test.ts digest), so no older fight is reached
 };
 // A record states the era its fight was fought in (play-radius.ts): this build's version when the circle in force is the one this build fights `opponent` in AND late
 // notice is on (a live fight); the version before the ramp when the circle is right but the ramp was never turned on; the version before the circle when neither is
 // (a headless run that never set them, a script). Each replays to the fight it recorded, because the version picks both (detmath.ts underRecord). (N4: the pre-circle
 // version is a constant; the old circle WITH the ramp has no version, and no live fight or shared link is that: only a script that turns the ramp on without the circle.)
 const OLD_CIRCLE_VERSION = FIRST_SCALED_VERSION - 1;
+const STAB_VERSION = 25;   // the last version without the arena byte; still written by nothing, still packable so a fixture can pin the old layout
 const stampedVersion = (opponent: string): number => PLAY_SCALE !== playScaleFor(opponent, RECORD_VERSION) ? OLD_CIRCLE_VERSION : !LATE_NOTICE ? FIRST_SCALED_VERSION : STAB_ON ? RECORD_VERSION : FIRST_LATE_NOTICE_VERSION;   // the Goblin's stab is the newest era flag: late notice without it is the version before
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
-export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; skill?: SkillId; level: number; seed: number; specials?: boolean };   // specials: the fight had Special Moves (version 21; absent = off)   // skill: the player's equipped skill; absent = none. level: the opponent's ladder level, 1–46 (moves.ts profileAt; version 16)
+// The arena a fight was fought in (version 26; append only, a code never changes meaning; 0 = none named, the ladder band decides, as every v<=25 record). Literals on purpose: a record's table must not move when the themes do.
+export const ARENAS = [undefined, '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'] as const;
+export type RecordArena = Exclude<(typeof ARENAS)[number], undefined>;
+export const FIRST_ARENA_VERSION = 26;
+export type RecordMeta = { arena?: RecordArena; build: string; opponent: OpponentId; weapon: WeaponId; skill?: SkillId; level: number; seed: number; specials?: boolean };   // specials: the fight had Special Moves (version 21; absent = off)   // skill: the player's equipped skill; absent = none. level: the opponent's ladder level, 1–46 (moves.ts profileAt; version 16)
 export type FightRecord = RecordMeta & { v: RecordVersion; ticks: number; outcome: Outcome; intents: Intent[] };
 
 // Quantization: the stick to 1/127 per axis, the camera yaw to 1/128 of a half-turn (about 1.4°). The live game steps the
@@ -121,6 +128,7 @@ export function quantizeIntent(intent: Intent): Intent {
 // Records one fight from its first tick. push() returns the quantized intent the caller must step with.
 export function createRecorder(meta: RecordMeta) {
   const version = stampedVersion(meta.opponent);   // the circle in force when the fight BEGINS names the record, not whatever is set when it ends
+  if (version < FIRST_ARENA_VERSION && meta.arena) { meta = { ...meta }; delete meta.arena; }   // an older era has no arena byte: a script run in the old circle names none
   const intents: Intent[] = [];
   let done: FightRecord | null = null;
   return {
@@ -141,24 +149,27 @@ export function createRecorder(meta: RecordMeta) {
 }
 
 // ---- binary layout ---------------------------------------------------------------------------------------------------------
-// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | skill u8 (version 12; 0 = none) | specials u8 (version 21; 0 = off, 1 = on) | profile u8 (version 16: the level, 1–46) | seed u32 LE | ticks u32 LE | outcome u8
+// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | skill u8 (version 12; 0 = none) | specials u8 (version 21; 0 = off, 1 = on) | arena u8 (version 26; 0 = none, else an index into ARENAS) | profile u8 (version 16: the level, 1–46) | seed u32 LE | ticks u32 LE | outcome u8
 // then six columns of `ticks` bytes each: x i8, z i8, yaw-delta u8 (byte yaw minus previous byte yaw, mod 256), action u8, dir u8, flags u8.
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
 export function packRecord(r: FightRecord): Uint8Array {
-  if (r.v !== RECORD_VERSION && r.v !== FIRST_LATE_NOTICE_VERSION && r.v !== FIRST_SCALED_VERSION && r.v !== OLD_CIRCLE_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
+  if (r.v !== RECORD_VERSION && r.v !== STAB_VERSION && r.v !== FIRST_LATE_NOTICE_VERSION && r.v !== FIRST_SCALED_VERSION && r.v !== OLD_CIRCLE_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
   if (r.intents.length !== r.ticks) throw Error('Fight record: ticks does not match the intent count');
   const build = ascii(r.build), opp = ascii(r.opponent), wpn = ascii(r.weapon);
   if (build.length > 255 || opp.length > 255 || wpn.length > 255) throw Error('Fight record: build, opponent or weapon id too long');
   const level = r.level, outcome = OUTCOMES.indexOf(r.outcome), skill = SKILLS.indexOf(r.skill ?? null);
   if (!Number.isInteger(level) || level < 1 || level > LEVELS || outcome < 0) throw Error('Fight record: unknown level or outcome');
   if (skill < 0) throw Error('Fight record: unknown skill');
-  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 1 + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
+  const arenaCode = ARENAS.indexOf(r.arena);
+  if (arenaCode < 0 || (arenaCode > 0 && r.v < FIRST_ARENA_VERSION)) throw Error('Fight record: unknown arena, or an arena on a version that has no byte for it');
+  const withArena = r.v >= FIRST_ARENA_VERSION ? 1 : 0;
+  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 1 + withArena + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
   let o = 0;
   out[o++] = 0x46; out[o++] = 0x4b; out[o++] = r.v;
   out[o++] = build.length; out.set(build, o); o += build.length;
   out[o++] = opp.length; out.set(opp, o); o += opp.length; out[o++] = wpn.length; out.set(wpn, o); o += wpn.length;
-  out[o++] = skill; out[o++] = r.specials ? 1 : 0; out[o++] = level; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
+  out[o++] = skill; out[o++] = r.specials ? 1 : 0; if (withArena) out[o++] = arenaCode; out[o++] = level; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
   const col = (k: number) => head + k * n;
   let prevYaw = 0;
   for (let i = 0; i < n; i++) {
@@ -182,11 +193,13 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
   const build = str(), opponent = str() as OpponentId, weapon = str() as WeaponId;
   if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
-  if (o + 1 + (v >= 21 ? 1 : 0) + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
+  if (o + 1 + (v >= 21 ? 1 : 0) + (v >= FIRST_ARENA_VERSION ? 1 : 0) + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const skill = SKILLS[bytes[o++]];   // undefined past the table: an unknown skill is refused, never read as none
   if (skill === undefined) throw Error('Fight record: unknown skill');
   const flag = v >= 21 ? bytes[o++] : 0;   // before version 21 there is no byte: no specials
   if (flag > 1) throw Error('Fight record: unknown specials flag');
+  const arena = v >= FIRST_ARENA_VERSION ? ARENAS[bytes[o++]] : undefined;   // before version 26 there is no byte: the ladder band decides
+  if (v >= FIRST_ARENA_VERSION && bytes[o - 1] >= ARENAS.length) throw Error('Fight record: unknown arena');
   const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (level < 1 || level > LEVELS || !outcome) throw Error('Fight record: unknown level or outcome');
   for (let bump = v + 1; bump <= RECORD_VERSION; bump++) for (const r of REACH[bump] ?? []) if (opponent === r.opponent && level >= r.from)
@@ -208,7 +221,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   }
   // The version PARSED, not the constant: returning `RECORD_VERSION` here would let a decode-then-repack silently relabel an older
   // record as this build's, and packRecord's guard above would then throw on a record this function had just called well-formed.
-  return { v: v as RecordVersion, build, opponent, weapon, ...(skill ? { skill } : {}), level, seed, ...(flag ? { specials: true } : {}), ticks: n, outcome, intents };
+  return { v: v as RecordVersion, build, opponent, weapon, ...(skill ? { skill } : {}), ...(arena ? { arena } : {}), level, seed, ...(flag ? { specials: true } : {}), ticks: n, outcome, intents };
 }
 
 // ---- transport: gzip + base64url (no padding). CompressionStream is in every browser the game targets and in Node ≥ 18. --------

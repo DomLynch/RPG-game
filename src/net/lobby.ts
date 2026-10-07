@@ -27,6 +27,23 @@ export function reportBody(driver: PvpDuel, room: string): Record<string, unknow
   return v ? { p_room: room, p_result: v.won ? 'win' : 'loss', p_hash: v.hash } : null;
 }
 export const roomOf = (token: string): string => token.split('.')[0];
+// `report_duel_record` (migration 202610070002) stores this page's PvpRecord and side so the verifier sweep can replay the fight. It goes only after a
+// SETTLED finish (a forfeit has no fingerprint to check) and only when the record fits the table's cap: a page that cannot send it still reports through
+// the old `report_duel`, the fight just stays unverified. The server trusts neither the side nor the record (the sweep replays and compares).
+export const RECORD_MAX_BYTES = 262144;
+export function recordBody(driver: PvpDuel, room: string, build: string | null | undefined): Record<string, unknown> | null {
+  if (!validRoom(room) || !build || driver.result !== 'finished') return null;
+  const record = driver.record(build);
+  if (!record || JSON.stringify(record).length > RECORD_MAX_BYTES) return null;
+  return { p_room: room, p_side: driver.side, p_record: record };
+}
+// The database calls a finished or forfeited duel makes, IN ORDER: the record needs this page's report row, so it follows `report_duel`.
+export function reportCalls(driver: PvpDuel, room: string, build: string | null | undefined): { fn: string; body: Record<string, unknown> }[] {
+  const report = reportBody(driver, room);
+  if (!report) return [];
+  const record = recordBody(driver, room, build);
+  return record ? [{ fn: 'report_duel', body: report }, { fn: 'report_duel_record', body: record }] : [{ fn: 'report_duel', body: report }];
+}
 
 // One side's row for public.duel_metrics (migration 202609300001), in its column names; null when the duel never played a frame.
 export type MetricsRow = {
@@ -82,16 +99,19 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     page.say('Measuring the connection');
     page.start(driver);
     // A signed-in page's calls to the database, fire and forget: a guest (no access token), an offline page or an unapplied migration changes nothing.
-    const call = (fn: string, body: Record<string, unknown>): void => {
+    const call = (fn: string, body: Record<string, unknown>, then?: () => void): void => {
       const api = page.api;
-      if (api) void page.session().then((access) => (access ? fetch(`${api.url}/rest/v1/rpc/${fn}`, { method: 'POST', keepalive: true, headers: { apikey: api.key, Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) : null)).catch(() => undefined);
+      if (api) void page.session().then((access) => (access ? fetch(`${api.url}/rest/v1/rpc/${fn}`, { method: 'POST', keepalive: true, headers: { apikey: api.key, Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) : null)).catch(() => undefined).then(() => then?.());
     };
     let retired = false;
     const retire = (): void => { if (!retired) { retired = true; closeLater(transport); } };
     let sent = false, posted = false, registered = false, heardEnd: DuelResult | null = null;
     const report = () => {
       if (driver.result && driver.result !== heardEnd) { heardEnd = driver.result; page.ended?.(driver.result); }
-      if (!posted && (driver.result === 'finished' || driver.result === 'forfeit-win')) { const body = reportBody(driver, roomOf(token)); if (body) { posted = true; call('report_duel', body); } }
+      if (!posted && (driver.result === 'finished' || driver.result === 'forfeit-win')) {
+        const calls = reportCalls(driver, roomOf(token), page.revision);
+        if (calls.length) { posted = true; const run = (i: number): void => { if (i < calls.length) call(calls[i].fn, calls[i].body, () => run(i + 1)); }; run(0); }   // the record only after its report; a failed upload changes nothing on screen
+      }
       if (sent) return;
       const row = metricsRow(driver.metrics(), { revision: page.revision, room: roomOf(token), side, path: transport.path, candidate: transport.candidate, ua: navigator.userAgent, result: driver.result, reconnects: transport.reconnects });
       if (!row || !page.api) return;

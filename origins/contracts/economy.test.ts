@@ -5,13 +5,13 @@ import test from 'node:test';
 import { CAPS } from '../../src/gear-stats.ts';
 import type { Result } from './core.ts';
 import {
-  MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
+  CONCORD_EXCHANGE, MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
   type ServiceDefinition, type Trade, type UpgradeCostTable, type UpgradeInput, type UpgradeReceipt, type UpgradeRequest,
 } from './economy.ts';
 import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
+import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId, RegionId } from './ids.ts';
 import {
-  checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
+  PACK_SLOTS, checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
 } from './items.ts';
 
 type Raw = Record<string, unknown>;
@@ -27,17 +27,20 @@ const accountOf = (pc: CharacterInstanceId): AccountId | undefined => ACCOUNTS[p
 const DEFS = new Map<ItemId, ItemDefinition>([F.helmetDef(), F.graveIronDef(), F.recordDef(), F.tokenDef()].map((raw) => { const d = must(parseItemDefinition(raw)); return [d.id, d]; }));
 const lookup = (id: ItemId): ItemDefinition | undefined => DEFS.get(id);
 const helmetDef = DEFS.get('item:loot.veteran.Helmet' as ItemId)!;
-const LATER = '2026-10-07T09:30:00Z';
+const LATER = '2026-10-09T12:00:00Z'; // exactly FIRST_TRADE_DELAY_S (72 h) after F.AT, when a fresh piece may first trade
+const packs = (): number => PACK_SLOTS;
 
 // ---- trade ------------------------------------------------------------------------------------------------------------------------
 
 const TRADE = 'container:trade.42';
 const escrow = (from: string) => ({ kind: 'trade-escrow', container: TRADE, from });
 const offeredHelmet = (patch: Raw = {}): ItemInstance => must(parseItemInstance({ ...F.helmetInstance(), id: 'inst:h', location: escrow(F.PC), upgradeLevel: 2, ...patch }));
-const offeredIron = (patch: Raw = {}): ItemInstance => must(parseItemInstance({ ...F.ironInstance(), id: 'inst:i', location: escrow(F.OTHER_PC), provenance: { ...F.ironInstance().provenance, wonBy: F.OTHER_PC }, ...patch }));
+// The other side's piece: a single-copy cosmetic (stackables never trade, Dom 2026-10-07), looted by the rival at F.AT.
+const offeredToken = (patch: Raw = {}): ItemInstance => must(parseItemInstance({ ...F.ironInstance(), id: 'inst:t', item: 'item:ferry-token', quantity: 1, location: escrow(F.OTHER_PC), provenance: { ...F.ironInstance().provenance, wonBy: F.OTHER_PC }, ...patch }));
+const held = (): ItemInstance[] => [offeredHelmet(), offeredToken()];
 const tradeRaw = (patch: Raw = {}): Raw => ({
   kind: 'trade', schemaVersion: 1, id: TRADE, region: 'region:concord-exchange', version: 2,
-  sides: [{ character: F.PC, account: F.ACCOUNT, offered: ['inst:h'], accepted: true }, { character: F.OTHER_PC, account: F.OTHER_ACCOUNT, offered: ['inst:i'], accepted: true }],
+  sides: [{ character: F.PC, account: F.ACCOUNT, offered: ['inst:h'], accepted: true }, { character: F.OTHER_PC, account: F.OTHER_ACCOUNT, offered: ['inst:t'], accepted: true }],
   ...patch,
 });
 const trade = (patch: Raw = {}): Trade => must(parseTrade(tradeRaw(patch)));
@@ -55,18 +58,18 @@ test('trade: parses, and refuses malformed trades', () => {
 
 test('trade: any offer change clears both accepts and bumps the version; a stale accept is refused', () => {
   const t = trade();
-  const changed = must(changeOffer(t, OTHER, [], 2));
+  const changed = must(changeOffer(t, OTHER, [], 2, held(), lookup, LATER));
   assert.deepEqual([changed.version, changed.sides[0].accepted, changed.sides[1].accepted, changed.sides[1].offered], [3, false, false, []]);
-  refused(changeOffer(t, OTHER, [], 1), 'version-conflict', 'version');
-  refused(changeOffer(t, 'pc:stranger' as CharacterInstanceId, [], 2), 'rule-violation', 'character');
+  refused(changeOffer(t, OTHER, [], 1, held(), lookup, LATER), 'version-conflict', 'version');
+  refused(changeOffer(t, 'pc:stranger' as CharacterInstanceId, [], 2, held(), lookup, LATER), 'rule-violation', 'character');
   refused(acceptTrade(changed, PC, 2), 'version-conflict', 'version'); // accepted the offer before it changed
   const accepted = must(acceptTrade(changed, PC, 3));
   assert.deepEqual([accepted.sides[0].accepted, accepted.version], [true, 3]);
 });
 
 test('trade: settles at the Exchange; provenance and upgrade level travel; history gains one trade entry', () => {
-  const h = offeredHelmet(), i = offeredIron();
-  const moved = must(settleTrade(trade(), [h, i], lookup, accountOf, LATER));
+  const h = offeredHelmet(), i = offeredToken();
+  const moved = must(settleTrade(trade(), [h, i], lookup, accountOf, LATER, packs));
   const newH = moved.find((m) => m.id === h.id)!, newI = moved.find((m) => m.id === i.id)!;
   assert.deepEqual(newH.location, { kind: 'pack', owner: OTHER, index: 0 });
   assert.deepEqual(newI.location, { kind: 'pack', owner: PC, index: 0 });
@@ -79,22 +82,22 @@ test('trade: settles at the Exchange; provenance and upgrade level travel; histo
 
 test('trade: a gift is a trade with one empty side', () => {
   const t = trade({ sides: [{ character: F.PC, account: F.ACCOUNT, offered: ['inst:h'], accepted: true }, { character: F.OTHER_PC, account: F.OTHER_ACCOUNT, offered: [], accepted: true }] });
-  const moved = must(settleTrade(t, [offeredHelmet()], lookup, accountOf, LATER));
+  const moved = must(settleTrade(t, [offeredHelmet()], lookup, accountOf, LATER, packs));
   assert.equal(moved.length, 1);
 });
 
 test('trade: refused anywhere but the Concord Exchange, unaccepted, or with a forged side', () => {
-  refused(settleTrade(trade({ region: 'region:ash-frontier' }), [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'region');
+  refused(settleTrade(trade({ region: 'region:ash-frontier' }), [offeredHelmet(), offeredToken()], lookup, accountOf, LATER, packs), 'rule-violation', 'region');
   const t = trade();
   const unaccepted: Trade = { ...t, sides: [t.sides[0], { ...t.sides[1], accepted: false }] };
-  refused(settleTrade(unaccepted, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[1].accepted');
+  refused(settleTrade(unaccepted, [offeredHelmet(), offeredToken()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[1].accepted');
   const forged: Trade = { ...t, sides: [{ ...t.sides[0], account: 'account:11111111-2222-4333-8444-555555555555' as AccountId }, t.sides[1]] };
-  refused(settleTrade(forged, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[0].account');
+  refused(settleTrade(forged, [offeredHelmet(), offeredToken()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].account');
 });
 
 test('trade: one of each — a trade that would give a player a second copy is invalid and moves nothing', () => {
   const theirs = must(parseItemInstance({ ...F.helmetInstance(), id: 'inst:theirs', location: { kind: 'bank', owner: F.OTHER_PC, index: 3 }, provenance: { ...F.helmetInstance().provenance, mintKey: 'claim:5555', wonBy: F.OTHER_PC } }));
-  const r = settleTrade(trade(), [offeredHelmet(), offeredIron(), theirs], lookup, accountOf, LATER);
+  const r = settleTrade(trade(), [offeredHelmet(), offeredToken(), theirs], lookup, accountOf, LATER, packs);
   refused(r, 'rule-violation');
   assert.ok(!r.ok && r.issues[0]!.message.includes('one of each'));
 });
@@ -102,30 +105,33 @@ test('trade: one of each — a trade that would give a player a second copy is i
 test('trade: escrow, binding and capacity rules', () => {
   // A piece in this trade's escrow that is not on the offer.
   const stray = must(parseItemInstance({ ...F.ironInstance(), id: 'inst:stray', location: escrow(F.OTHER_PC), provenance: { ...F.ironInstance().provenance, mintKey: 'loot:stray-0001' } }));
-  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), stray], lookup, accountOf, LATER), 'rule-violation', 'inst:stray');
+  refused(settleTrade(trade(), [offeredHelmet(), offeredToken(), stray], lookup, accountOf, LATER, packs), 'rule-violation', 'inst:stray');
   // An offered piece that is not in escrow, or not in the holdings at all.
-  refused(settleTrade(trade(), [offeredHelmet({ location: { kind: 'bank', owner: F.PC, index: 0 } }), offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
-  refused(settleTrade(trade(), [offeredIron()], lookup, accountOf, LATER), 'unknown-id', 'sides[0].offered[0]');
+  refused(settleTrade(trade(), [offeredHelmet({ location: { kind: 'bank', owner: F.PC, index: 0 } }), offeredToken()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].offered[0]');
+  refused(settleTrade(trade(), [offeredToken()], lookup, accountOf, LATER, packs), 'unknown-id', 'sides[0].offered[0]');
   // A bound piece cannot change hands.
   const token = must(parseItemInstance({ ...F.ironInstance(), id: 'inst:h', item: 'item:ferry-token', quantity: 1, location: escrow(F.PC), boundTo: null }));
-  refused(settleTrade(trade(), [{ ...token, boundTo: PC }, offeredIron()], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
+  refused(settleTrade(trade(), [{ ...token, boundTo: PC }, offeredToken()], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].offered[0]');
   // A full pack refuses the trade instead of dropping the piece on the floor.
-  const full: ItemInstance[] = Array.from({ length: 64 }, (_, k) => must(parseItemInstance({ ...F.ironInstance(), id: `inst:fill-${k}`, location: { kind: 'pack', owner: F.OTHER_PC, index: k }, provenance: { ...F.ironInstance().provenance, mintKey: `loot:fill-${String(k).padStart(4, '0')}` } })));
-  refused(settleTrade(trade(), [offeredHelmet(), offeredIron(), ...full], lookup, accountOf, LATER), 'rule-violation', 'sides[0].offered[0]');
+  const full: ItemInstance[] = Array.from({ length: PACK_SLOTS }, (_, k) => must(parseItemInstance({ ...F.ironInstance(), id: `inst:fill-${k}`, location: { kind: 'pack', owner: F.OTHER_PC, index: k }, provenance: { ...F.ironInstance().provenance, mintKey: `loot:fill-${String(k).padStart(4, '0')}` } })));
+  refused(settleTrade(trade(), [offeredHelmet(), offeredToken(), ...full], lookup, accountOf, LATER, packs), 'rule-violation', 'sides[0].offered[0]');
+  // The receiver's real pack size counts, never an assumed 64: one used slot in a 1-slot pack is full; a bad size is refused.
+  refused(settleTrade(trade(), [offeredHelmet(), offeredToken(), full[0]!], lookup, accountOf, LATER, () => 1), 'rule-violation', 'sides[0].offered[0]');
+  for (const bad of [0, PACK_SLOTS + 1, 1.5, Number.NaN]) refused(settleTrade(trade(), [offeredHelmet(), offeredToken()], lookup, accountOf, LATER, () => bad), 'out-of-range');
 });
 
 test('trade: a piece listed twice is refused (duplicate-id) wherever the list comes from, and never moves twice', () => {
   const t = trade();
   const ids = (...xs: string[]): ItemInstanceId[] => xs as ItemInstanceId[];
-  refused(changeOffer(t, PC, ids('inst:h', 'inst:h'), 2), 'duplicate-id', 'offered');
-  refused(changeOffer(t, OTHER, ids('inst:i', 'inst:h'), 2), 'duplicate-id', 'offered'); // already on the other side
+  refused(changeOffer(t, PC, ids('inst:h', 'inst:h'), 2, held(), lookup, LATER), 'duplicate-id', 'offered');
+  refused(changeOffer(t, OTHER, ids('inst:t', 'inst:h'), 2, held(), lookup, LATER), 'duplicate-id', 'offered'); // already on the other side
   // A trade built without parseTrade (a server object, a bug elsewhere) is still refused at settlement.
   const doubled: Trade = { ...t, sides: [{ ...t.sides[0], offered: ids('inst:h', 'inst:h') }, t.sides[1]] };
-  refused(settleTrade(doubled, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'sides');
-  const crossed: Trade = { ...t, sides: [t.sides[0], { ...t.sides[1], offered: ids('inst:i', 'inst:h') }] };
-  refused(settleTrade(crossed, [offeredHelmet(), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'sides');
+  refused(settleTrade(doubled, [offeredHelmet(), offeredToken()], lookup, accountOf, LATER, packs), 'duplicate-id', 'sides');
+  const crossed: Trade = { ...t, sides: [t.sides[0], { ...t.sides[1], offered: ids('inst:t', 'inst:h') }] };
+  refused(settleTrade(crossed, [offeredHelmet(), offeredToken()], lookup, accountOf, LATER, packs), 'duplicate-id', 'sides');
   // The same holding passed twice (two rows for one id) is refused, not resolved by whichever copy wins.
-  refused(settleTrade(t, [offeredHelmet(), offeredHelmet({ version: 9 }), offeredIron()], lookup, accountOf, LATER), 'duplicate-id', 'holdings');
+  refused(settleTrade(t, [offeredHelmet(), offeredHelmet({ version: 9 }), offeredToken()], lookup, accountOf, LATER, packs), 'duplicate-id', 'holdings');
 });
 
 // ---- service, cost table, request and receipt contracts ---------------------------------------------------------------------------
@@ -141,7 +147,7 @@ test('service and cost table: fixtures parse; costs are data with a revision', (
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), currency: 'gold' }), 'wrong-type', 'currency');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [...rows, rows[0]] }), 'duplicate-id', 'rows[3]');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [rows[1]] }), 'rule-violation', 'rows'); // level 2 with no level 1
-  refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], coin: 0 }] }), 'out-of-range', 'rows[0].coin');
+  refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], coin: -1 }] }), 'out-of-range', 'rows[0].coin');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], level: 10 }] }), 'out-of-range', 'rows[0].level');
   refused(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ ...rows[0], materials: [{ item: 'item:grave-iron', quantity: 1 }, { item: 'item:grave-iron', quantity: 2 }] }] }), 'duplicate-id', 'rows[0].materials');
 });
@@ -178,6 +184,14 @@ test('upgrade: one level, charged from the table, stamped with a receipt and a h
   assert.ok(piecePoints(out.instance, helmetDef) > piecePoints(before, helmetDef));
   assert.deepEqual([out.receipt.fromLevel, out.receipt.toLevel, out.receipt.coin, out.receipt.costTable, out.receipt.costRevision, out.receipt.smith], [0, 1, 100, 'costtable:forge', 1, 'character:smith-orla']);
   assert.deepEqual(must(parseUpgradeReceipt(out.receipt)), out.receipt, 'the receipt round-trips through its own contract');
+});
+
+test('upgrade: a materials-only table (coin 0) upgrades with no coin and charges none', () => {
+  const free = must(parseUpgradeCostTable({ ...F.forgeCosts(), rows: F.forgeCosts().rows.map(r => ({ ...r, coin: 0 })) }));
+  const out = must(performUpgrade(input({ costs: free, balance: 0 })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([out.instance.upgradeLevel, out.balance, out.receipt.coin], [1, 0, 0]);
+  assert.deepEqual(must(parseUpgradeReceipt(out.receipt)), out.receipt);
 });
 
 test('upgrade: idempotent — a repeated request returns the same receipt and changes nothing; a reused key for another request is refused', () => {
@@ -232,6 +246,17 @@ test('upgrade: a zero-weight slot gains nothing, so the smith refuses it', () =>
   refused(performUpgrade(input({ instance: crest, def: crestDef })), 'rule-violation', 'toLevel');
 });
 
+test('upgrade: a piece kept in the bank is worked only at the Concord Exchange; worn or packed, anywhere the smith is', () => {
+  const banked = must(parseItemInstance({ ...F.helmetInstance(), location: { kind: 'bank', owner: F.PC, index: 0 } }));
+  refused(performUpgrade(input({ instance: banked })), 'rule-violation', 'place');
+  refused(performUpgrade(input({ instance: banked, place: 'region:grey-ferry' as RegionId })), 'rule-violation', 'place');
+  const out = must(performUpgrade(input({ instance: banked, place: CONCORD_EXCHANGE })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([out.instance.upgradeLevel, out.instance.location], [1, banked.location], 'upgraded where it lies, in the bank');
+  const packed = must(parseItemInstance({ ...F.helmetInstance(), location: { kind: 'pack', owner: F.PC, index: 0 } }));
+  for (const piece of [input().instance, packed]) assert.equal(must(performUpgrade(input({ instance: piece, place: 'region:grey-ferry' as RegionId }))).replayed, false, `${piece.location.kind}: no Exchange needed`);
+});
+
 test('upgrade: every refusal path', () => {
   refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 11 } })), 'rule-violation', 'toLevel'); // +1 needs Veteran; you are Gladiator
   refused(performUpgrade(input({ standing: { source: 'device', careerLevel: 46 } })), 'rule-violation', 'standing');
@@ -257,7 +282,7 @@ test('upgrade receipt: contract rejections', () => {
   const raw = { ...receipt.receipt } as Raw;
   refused(parseUpgradeReceipt({ ...raw, toLevel: 3 }), 'rule-violation', 'toLevel');
   refused(parseUpgradeReceipt({ ...raw, schemaVersion: 2 }), 'unsupported-version');
-  refused(parseUpgradeReceipt({ ...raw, coin: 0 }), 'out-of-range', 'coin');
+  refused(parseUpgradeReceipt({ ...raw, coin: -1 }), 'out-of-range', 'coin');
   const req: UpgradeRequest = must(parseUpgradeRequest(requestRaw()));
   assert.equal(req.kind, 'upgrade-request');
 });
@@ -298,6 +323,6 @@ test('upgrade receipt: the emitter and the parser agree at the maximum, and an o
 
 test('upgrade: an out-of-range or non-integer career level is refused', () => {
   refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 0 } })), 'out-of-range', 'standing.careerLevel');
-  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 47 } })), 'out-of-range', 'standing.careerLevel');
+  refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 51 } })), 'out-of-range', 'standing.careerLevel');
   refused(performUpgrade(input({ standing: { source: 'server', careerLevel: 16.5 } })), 'wrong-type', 'standing.careerLevel');
 });

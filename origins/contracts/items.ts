@@ -25,6 +25,7 @@ import {
 import {
   legacyLootOfItemId, readId, readOptionalId,
   type AccountId, type CharacterId, type CharacterInstanceId, type ContainerId, type EncounterId, type ItemId, type ItemInstanceId, type LootTableId, type QuestId,
+  type ServiceId,
 } from './ids.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
 
@@ -137,6 +138,9 @@ export const LOCATION_KINDS = ['equipped', 'pack', 'bank', 'account-vault', 'gui
 // inspect. `mintKey` is the idempotency key of the transaction that minted it; two instances never share one (checkCustody), so a
 // retried reward or a double-clicked claim cannot mint twice. A Pit-won piece names who won it, which legend it was taken from
 // (`<opponent>-<rung>`, today's persisted key), the rank it was won at, and when (`at`).
+// Dom, 2026-10-07 (trade cooldown, economy.ts tradeCooldown): a piece bought from an NPC shop with bound metal is 'shop' (who bought it,
+// at which shop service); shop GEAR trades under the same cooldown as earned gear, anything else a shop sells never trades. A piece
+// bought for real money is 'cash-shop' (which account, which catalogue entry) and never trades.
 type Minted = { mintKey: string; at: string };
 export type PitOrigin = { wonBy: CharacterInstanceId; fromLegend: string; atRank: Tier };
 export type Provenance =
@@ -144,8 +148,10 @@ export type Provenance =
   | (Minted & { kind: 'legacy-unlock'; account: AccountId; lootId: LootId; wonBy: CharacterInstanceId; fromLegend: string | null; atRank: Tier | null })
   | (Minted & { kind: 'loot'; wonBy: CharacterInstanceId; table: LootTableId; encounter: EncounterId | null })
   | (Minted & { kind: 'quest-reward'; wonBy: CharacterInstanceId; quest: QuestId; stage: string })
-  | (Minted & { kind: 'creator-mint'; creator: AccountId });
-export const PROVENANCE_KINDS = ['arena-award', 'legacy-unlock', 'loot', 'quest-reward', 'creator-mint'] as const;
+  | (Minted & { kind: 'creator-mint'; creator: AccountId })
+  | (Minted & { kind: 'shop'; boughtBy: CharacterInstanceId; shop: ServiceId })
+  | (Minted & { kind: 'cash-shop'; account: AccountId; sku: string });
+export const PROVENANCE_KINDS = ['arena-award', 'legacy-unlock', 'loot', 'quest-reward', 'creator-mint', 'shop', 'cash-shop'] as const;
 
 // Append-only history: what happened to the piece after it was minted. A trade and an upgrade each add one entry; nothing removes or
 // edits one (checkHistoryKept).
@@ -252,7 +258,7 @@ function checkPitOrigin(issues: Issues, lootId: LootId, fromLegend: string, atRa
 }
 
 function readProvenance(issues: Issues, raw: unknown, path: string): Provenance | undefined {
-  if (!readObject(issues, raw, path, ['kind', 'mintKey', 'at', 'claimId', 'lootId', 'wonBy', 'fromLegend', 'atRank', 'table', 'encounter', 'quest', 'stage', 'creator', 'account'])) return undefined;
+  if (!readObject(issues, raw, path, ['kind', 'mintKey', 'at', 'claimId', 'lootId', 'wonBy', 'fromLegend', 'atRank', 'table', 'encounter', 'quest', 'stage', 'creator', 'account', 'boughtBy', 'shop', 'sku'])) return undefined;
   const obj = raw as Obj;
   const kind = readEnum(issues, obj, 'kind', path, PROVENANCE_KINDS);
   const mintKey = readString(issues, obj, 'mintKey', path, { pattern: MINT_KEY_PATTERN });
@@ -306,6 +312,16 @@ function readProvenance(issues: Issues, raw: unknown, path: string): Provenance 
       only(['creator']);
       const creator = readId(issues, obj, 'creator', path, 'account');
       return creator ? { kind, mintKey, at, creator } : undefined;
+    }
+    case 'shop': {
+      only(['boughtBy', 'shop']);
+      const boughtBy = readId(issues, obj, 'boughtBy', path, 'pc'), shop = readId(issues, obj, 'shop', path, 'service');
+      return boughtBy && shop ? { kind, mintKey, at, boughtBy, shop } : undefined;
+    }
+    case 'cash-shop': {
+      only(['account', 'sku']);
+      const account = readId(issues, obj, 'account', path, 'account'), sku = readString(issues, obj, 'sku', path, { pattern: LOCAL_KEY });
+      return account && sku ? { kind, mintKey, at, account, sku } : undefined;
     }
     default:
       return undefined;

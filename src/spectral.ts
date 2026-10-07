@@ -65,11 +65,11 @@ export function spectralAppearance(root: Object3D) {
   smoke.frustumCulled = false; root.add(smoke);
   const pelvis = root.getObjectByName('pelvis'), position = new Vector3();
   let openedTime = 0;
-  return (dt: number, dead: boolean, progress: number, opened = false) => {
+  return (dt: number, dead: boolean, progress: number, opened = false, hold = 3.6) => {   // hold: seconds the ghost stays whole after the death starts (a longer scene holds it longer)
     openedTime = dead && opened ? openedTime + dt : 0;
     phase.value += dt;
     // The body must separate and land before the ghost disappears. Zero-dt freezes this clock.
-    life.value = dead ? opened ? Math.max(0, 1 - Math.max(0, openedTime - 3.6) / 1.4) : Math.max(0, 1 - progress * 1.3) : 1;
+    life.value = dead ? opened ? Math.max(0, 1 - Math.max(0, openedTime - hold) / 1.4) : Math.max(0, 1 - progress * 1.3) : 1;
     material.opacity = .86 * life.value;
     if (pelvis) { root.updateWorldMatrix(true, true); root.worldToLocal(pelvis.getWorldPosition(position)); smoke.position.copy(position); smoke.position.y -= .85; }
     return life.value;

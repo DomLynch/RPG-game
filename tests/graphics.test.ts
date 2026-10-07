@@ -5,7 +5,9 @@ import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as feedback from '../src/feedback.ts';
 import * as hitImpact from '../src/hit-impact.ts';
+import * as pvpHold from '../src/pvp-hold.ts';
 import * as armfeelModule from '../src/armfeel.ts';
+import * as defenceGradeModule from '../src/defence-grade.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
@@ -13,7 +15,10 @@ const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
 import { atGateLine, doorHidden, DOOR_STILL, GATE_LINE } from '../src/pit-coordinator.ts';   // the D2 gate helpers are pure: main.ts reads them through this stub
 import * as ladder from '../src/ladder.ts';
+import * as arenaThemes from '../src/arena-themes.ts';
 import * as roster from '../src/roster.ts';
+import * as hamstrungAssets from '../src/hamstrung-assets.ts';
+import * as hamstrung from '../src/hamstrung.ts';   // the pure Hamstrung resolution main.ts reads for the audio's finisher
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
@@ -48,14 +53,21 @@ import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
+import * as breakBeat from '../src/break-beat.ts';
+import * as kickScale from '../src/kick-scale.ts';
+import * as powerWords from '../src/power-words.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
+import * as tutorialUi from '../src/tutorial-ui.ts';
 import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
 import * as postWalk from '../src/post-walk.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
+// Every `./x.ts` main.ts requires that no test registered in `modules` (boot below): a stub of `{}`, so an import that main.ts reads at
+// boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
+const unstubbed = new Set<string>();
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
@@ -84,10 +96,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {}, finisherOverride: string | null = null;
   let sceneArena: unknown;
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, hamstrungInstalled: () => true, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ['frankendom.firstloss.v1', '1'] /* the one-time first loss (lessons.ts) is behind every harness fighter; seed '' to meet it */, ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ['frankendom.firstloss.v1', '1'] /* the one-time first loss (lessons.ts) is behind every harness fighter; seed '' to meet it */, ['frankendom.lesson.pace.v1', '1'] /* the one-time pace line (first FatigueBand >= 2) is behind every harness fighter; seed '' to meet it */, ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); }, snapshot: () => [...stored], sessionSnapshot: () => [...sessionStored], arena: () => sceneArena, finisher: () => finisherOverride };
@@ -96,9 +108,15 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
+  modules['./defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
+  modules['./kick-scale.ts'] = kickScale;   // ?look=kickscale's pure core (scene.ts scales the camera kick and the roll shift)
+  modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
+  modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
+  modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports
   modules['./sparring-specials.ts'] = sparringSpecials;
   modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
@@ -107,7 +125,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const makeScene = sceneModule.createScene;
   sceneModule.createScene = (...args: unknown[]) => { sceneArena = args[3]; return makeScene(...args); };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
-  const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
+  const context = { require: (id: string) => { if (!(id in modules)) unstubbed.add(id); return modules[id] || {}; }, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, hostname, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
@@ -522,7 +540,7 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
-  assert.deepEqual(devPick.children.map(o => o.value), ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'ten ranks (the current rank at its level, the others at their top) and the dummy (Dom\'s layout A)');
+  assert.deepEqual(devPick.children.map(o => o.value), ['1', '10', '15', '20', '25', '30', '35', '40', '45', '50', 'dummy'], 'ten ranks (the current rank at its level, the others at their top) and the dummy (Dom\'s layout A)');
   assert.equal(devPick.disabled, false);
   devPick.value = '46'; devPick.dispatchEvent(new Event('change')); dev.tick();
   assert.deepEqual([dev.replaced, dev.reloads], [[], 0], 'the pick waits for Start sparring: nothing reloads');
@@ -541,7 +559,7 @@ test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then t
   assert.equal(pick.value, '7', '6 wins: level 7, on the rank-2 line');
   opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change'));
   assert.deepEqual(pick.children.map((o) => o.textContent), [...Array.from({ length: 10 }, (_, i) => `${i + 1} – ${legends.legendAt('veteran', i + 1).name}`), 'Dummy']);
-  assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
+  assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '50', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
   assert.equal(pick.children[5]!.textContent, '6 – Hannibal'); assert.equal(pick.children[9]!.textContent, '10 – Mars');
   assert.equal(pick.children[1]!.textContent, '2 – Ragnar Lothbrok', 'the fight\'s own level rides the value only: the text never shows it');
   app.element('spar-start').click();
@@ -643,7 +661,7 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
   app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
 });
 
-test('online clock ignores stored solo tempo and every contact pause while continuing input sampling', () => {
+test('online clock ignores stored solo tempo; a contact holds only the drawn frame while input sampling never pauses', () => {
   const Match = matchModule.Match;
   try {
     for (const tempo of ['50', '60']) {
@@ -653,14 +671,16 @@ test('online clock ignores stored solo tempo and every contact pause while conti
       app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
       let samples = 0;
       let events: combat.Practice['events'] = [];
-      live.startPvp({ frame: () => { samples++; return { ...live.practice, events }; },
+      live.startPvp({ frame: () => { samples++; const now = events; events = []; return { ...live.practice, events: now }; },   // a contact is one tick's event, delivered once (a hit that repeated every tick would hold every tick)
         get practice() { return live.practice; }, settled: false });
       // Actual main frame loop and Match wiring, including each ordinary/heavy/kill contact.
       for (const type of ['Hit', 'Blocked', 'Parried', 'GuardBroken', 'PostureBroken', 'Killed', 'SpecialLanded'] as const) {
         events = [{ type, tick: 1, actor: 0, target: 1, move: 'heavy_overhead', charged: true }];
         const before = samples;
-        for (let i = 0; i < 60; i++) { app.tick(1000 / 60); assert.equal(app.renderedFrozen, false, type); }
-        assert.ok(samples - before >= 59 && samples - before <= 61, `${tempo} Hz preference, ${type}: ${samples - before} online samples/sec`);
+        let frozen = 0;
+        for (let i = 0; i < 60; i++) { app.tick(1000 / 60); if (app.renderedFrozen) frozen++; }
+        assert.ok(samples - before >= 59 && samples - before <= 61, `${tempo} Hz preference, ${type}: ${samples - before} online samples/sec`);   // the net cadence never pauses...
+        assert.ok(frozen >= 1 && frozen <= 20, `${type}: the DRAWN frame holds for the contact (${frozen} frames), then the screen is live again`);   // ...only the picture is held (src/pvp-hold.ts), for the solo ms
       }
       // Even changing the solo preference during the duel cannot alter network cadence.
       app.element('tempo-mode').click();
@@ -2168,4 +2188,16 @@ test('actual main new-form legacy Miasma remains SKILL and explicit preset off; 
       assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch); assert.deepEqual(invalid.storage.snapshot(), before);
     }
   } finally { matchModule.Match = Original; }
+});
+
+// The harness stubs every import main.ts makes through `modules` (boot). An import left out resolves to `{}`, so whatever main.ts takes from it is
+// `undefined` at boot and the 'actual main' tests run against a main that never calls it: #1535, #1536 and #1542 each shipped a new src module that
+// way and CI only caught it later. The five below are the known gaps whose values main.ts only reads in paths no test here reaches (gate light, arena
+// layout, the stylesheet side effect, monitoring); anything else that appears must be registered, e.g. `modules['./x.ts'] = x;` beside the others.
+test('every src module main.ts imports is registered in the harness (a new import names itself here)', () => {
+  unstubbed.clear(); boot();
+  const known = ['./arena.ts', './gate-light.ts', './gate-rise.ts', './monitoring.ts', './style.css'];
+  const fresh = [...unstubbed].filter((id) => id.startsWith('.') && !known.includes(id)).sort();
+  assert.deepEqual(fresh, [], `main.ts imports ${fresh.join(', ')} but tests/graphics.test.ts does not register ${fresh.length === 1 ? 'it' : 'them'} in \`modules\` (boot), so the actual-main tests boot with ${fresh.length === 1 ? 'it' : 'them'} stubbed to {}: add \`modules['<path>'] = <import>;\` beside the others`);
+  assert.deepEqual([...unstubbed].filter((id) => id.startsWith('.')).sort(), known, 'a known gap was closed: remove it from `known` so the list stays exact');
 });
