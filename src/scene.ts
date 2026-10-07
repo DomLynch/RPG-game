@@ -549,7 +549,8 @@ export function createScene(
     retryArt: loadFighters,
     // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
     // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
-    startStandoff() { standoff.start(); },   // main.ts, the moment the versus card lifts and at every rematch (a no-op with ?standoff=0)
+    startStandoff() { standoff.start(); },   // main.ts, the moment the versus card lifts: idempotent (an art retry re-emits 'ready' mid-fight)
+    restartStandoff() { standoff.restart(); },   // main.ts nextFight: the rematch plays the draw-in again (a no-op with ?standoff=0)
     walkToGate(on: boolean) {
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE } : null);   // the gate comes inward with the arena (play-radius.ts)

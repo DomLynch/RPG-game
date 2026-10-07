@@ -32,13 +32,16 @@ test('the hidden cost: from a sheathed start the first swing begins RULES.draw t
   assert.equal(swing, RULES.draw + 2);   // 44 ticks = 733 ms at 60 Hz (measured 2026-10-07)
 });
 
-test('a second start replays the draw-in from 0: a rematch is not a once-per-page window', () => {
+test('a rematch restarts the draw-in from 0, but a second start (a re-fired ready mid-fight) does not', () => {
   const clock = standoffClock(), sheathed = { pose: 'sheathed', progress: 0 };
   assert.equal(clock.age, -1);
   clock.advance(100); assert.equal(clock.age, -1, 'the clock does not run before the first start');
   clock.start(); clock.advance(STANDOFF_MS + 50);
   assert.deepEqual(standoffPose(sheathed, clock.age), { pose: 'ready', progress: 1 }, 'the first fight: armed once the window is over');
-  clock.start();
+  clock.start();   // an art retry re-emits ready mid-fight
+  assert.equal(clock.age, STANDOFF_MS + 50, 'a second start does not reset the window');
+  assert.deepEqual(standoffPose(sheathed, clock.age), { pose: 'ready', progress: 1 }, 'both rigs stay armed mid-fight');
+  clock.restart();   // nextFight
   assert.equal(clock.age, 0);
   assert.deepEqual(standoffPose(sheathed, clock.age), { pose: 'draw', progress: 0 }, 'the second fight: the first frame is the draw, not the armed pose');
 });

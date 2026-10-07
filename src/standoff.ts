@@ -1,10 +1,11 @@
 // 1C standoff (Lead 2026-10-07, Dom GO; Dom picked KEEP 2026-10-07: on by default, ?standoff=0 turns it off; ships after RV29): after the versus card lifts both fighters draw in sync for
 // STANDOFF_MS, no input needed. Presentation only: the sim's phases (the player is still 'sheathed' until his first press) are never written, so recordings and RV are untouched.
 export const STANDOFF_MS = 800;   // about RULES.draw (42 ticks, 0.7 s) plus a breath
-// The window's clock: -1 before a fight's first start, then ms since the latest one. Every fight starts it (a rematch replays the draw-in from 0).
+// The window's clock: -1 before the first start, then ms since it. start() is idempotent (the versus card's 'ready' can re-fire mid-fight after an art retry and must not
+// replay the draw); restart() is the rematch's: it resets to 0, so every fight plays the draw-in.
 export const standoffClock = () => {
   let age = -1;
-  return { get age() { return age; }, start() { age = 0; }, advance(ms: number) { if (age >= 0 && age < 1e6) age += ms; } };
+  return { get age() { return age; }, start() { if (age < 0) age = 0; }, restart() { age = 0; }, advance(ms: number) { if (age >= 0 && age < 1e6) age += ms; } };
 };
 export const standoffFlag = (search: string): boolean => !/[?&]standoff=(0|off)\b/i.test(search);
 // The pose both rigs show `ageMs` after the card lifts: the draw clip over the window; after it a sheathed fighter stands armed, and his own sim draw (the first press)
