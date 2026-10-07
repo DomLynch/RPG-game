@@ -26,6 +26,8 @@ export const PRESETS: Record<string, Look> = {
 };
 // ?look=cinder: the Frontier's haze a little thinner and the ground-bounce darker, so the skyline silhouettes (frontier-cinder.ts, 60 to 110 m out) still read against it instead of dissolving at the fog's full strength.
 PRESETS['cinder-haze'] = { ...PRESETS['frontier-haze']!, fogDensity: 0.0095, hemiGround: '#52402c' };
+// ?look=duel (default OFF): a duel's ground and light at the fight camera (Dom's Zone 1 pass). Fog is out of frame at 3 to 7 m, so it is cinder-haze's; the ground is lifted 15 % and its bounce back to the Frontier's #6a5238, the key 10 % softer, so a foe's feet separate from the dirt and the sun's shadow bands stop sitting under them.
+PRESETS['frontier-duel'] = { ...PRESETS['cinder-haze']!, hemiGround: '#6a5238', sunIntensity: PRESETS['cinder-haze']!.sunIntensity * 0.9, ground: PRESETS['cinder-haze']!.ground.map((v) => v * 1.15) as [number, number, number] };
 // The Frontier at night (?look=night with ?region=1): a cold dark haze, a faint moon-blue key and the fire as the light; a look test for the camps' flame and glow.
 PRESETS['frontier-night'] = { fog: '#141a2a', fogDensity: 0.02, hemiSky: '#2a3558', hemiGround: '#14100e', hemiIntensity: 0.45, sunColor: '#6a7ab0', sunIntensity: 0.6, sunPos: PRESETS['frontier-haze']!.sunPos, exposure: 1.1, ground: [0.8, 0.8, 0.9] };
 // Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand

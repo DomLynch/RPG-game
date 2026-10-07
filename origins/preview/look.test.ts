@@ -70,3 +70,10 @@ test('zoneEaser: the first call (no zone yet) returns its target, a key change b
   assert.notEqual(mid, a); assert.notEqual(mid, b); assert.ok(mid.fogDensity > Math.min(a.fogDensity, b.fogDensity) && mid.fogDensity < Math.max(a.fogDensity, b.fogDensity));
   assert.equal(ease(1, 'black-mere', b), b);
 });
+
+test('frontier-duel lifts the cinder ground and bounce and softens the key, and leaves the fog alone', () => {
+  const d = PRESETS['frontier-duel']!, c = PRESETS['cinder-haze']!;
+  d.ground.forEach((v, i) => assert.ok(Math.abs(v - c.ground[i]! * 1.15) < 1e-9));
+  assert.equal(d.hemiGround, '#6a5238'); assert.ok(Math.abs(d.sunIntensity - c.sunIntensity * 0.9) < 1e-9);
+  assert.equal(d.fog, c.fog); assert.equal(d.fogDensity, c.fogDensity); assert.equal(d.exposure, c.exposure);
+});
