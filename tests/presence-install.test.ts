@@ -41,7 +41,7 @@ function sandbox() {
   const stub = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/bin/bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
   stub('systemctl', `echo "systemctl $*" >> "${log}"`);
   stub('nginx', `echo "nginx $*" >> "${log}"; [ -n "$STUB_NGINX_FAIL" ] && exit 1; exit 0`);
-  stub('openssl', 'printf "%064d\\n" 7');
+  stub('openssl', `n=$(cat "${dir}/n" 2>/dev/null || echo 6); n=$((n+1)); echo $n > "${dir}/n"; printf "%064d\\n" $n`);   // 7, then 8, ...: every generated secret is different
   stub('curl', `url=""; hdr=no; for a in "$@"; do case "$a" in http*) url="$a";; -H) hdr=yes;; esac; done
 echo "curl $url hdr=$hdr" >> "${log}"
 case "$url" in
@@ -71,15 +71,18 @@ test('install: the first install needs the public Supabase values, writes a 0600
     const env = s.read('etc/frankendom/presence.env');
     assert.match(env, /^ORIGINS_PRESENCE=0$/m, 'the flag is OFF');
     assert.match(env, /^PRESENCE_INTERNAL_KEY=0{63}7$/m, 'the key was generated on the box');
+    assert.match(env, /^ORIGINS_WRITER_INTERNAL_KEY=0{63}8$/m, 'and a SEPARATE secret for the writer\'s routes (never the same value)');
+    assert.match(env, /^WRITER_URL=http:\/\/127\.0\.0\.1:8788$/m, 'and the writer\'s own loopback port, not presence\'s');
     assert.match(env, /^PRESENCE_HOST=127\.0\.0\.1$/m);
-    assert.doesNotMatch(r.stdout + r.stderr, /0{63}7|anon-public-key/, 'neither the key nor the anon key is printed');
+    assert.doesNotMatch(r.stdout + r.stderr, /0{63}[78]|anon-public-key/, 'no key and not the anon key is printed');
     assert.equal(s.read('etc/systemd/system/frankendom-presence.service'), readFileSync(join(repo, 'ops/frankendom-presence.service'), 'utf8'));
     assert.equal(s.read('etc/nginx/snippets/frankendom-presence.conf'), readFileSync(join(repo, 'ops/nginx/frankendom-presence.conf'), 'utf8'));
     const site = s.read('etc/nginx/sites-enabled/frankendom.com');
     assert.equal(site.split('frankendom-presence.conf').length - 1, 1, 'exactly one include');
     assert.ok(site.indexOf('include') > site.lastIndexOf('listen 443'), 'in the :443 block, not the :80 one');
-    assert.equal(s.read('etc/nginx/backups/frankendom.com.before-presence'), SITE, 'the prior site file is kept, exactly as it was');
-    assert.deepEqual(readdirSync(join(s.root, 'etc/nginx/sites-enabled')), ['frankendom.com'], 'and OUTSIDE sites-enabled: nginx loads every file there, a backup would be a duplicate frankendom.com server block');
+    assert.ok(existsSync(join(s.root, 'etc/nginx/backups/frankendom.com.before-presence')), 'the prior site file is kept');
+    assert.equal(s.read('etc/nginx/backups/frankendom.com.before-presence'), SITE, 'exactly as it was');
+    assert.deepEqual(readdirSync(join(s.root, 'etc/nginx/sites-enabled')), ['frankendom.com'], 'the backup is OUTSIDE sites-enabled: nginx must not load a duplicate frankendom.com block that could shadow the include');
     const calls = s.calls();
     assert.match(calls, /systemctl enable frankendom-presence.service/);
     assert.doesNotMatch(calls, /systemctl restart/, 'OFF: nothing is started');
@@ -90,6 +93,8 @@ test('install: the first install needs the public Supabase values, writes a 0600
     assert.equal(again.status, 0, again.stderr);
     assert.equal(s.read('etc/nginx/sites-enabled/frankendom.com').split('frankendom-presence.conf').length - 1, 1, 'idempotent: still ONE include');
     assert.match(s.read('etc/frankendom/presence.env'), /^PRESENCE_INTERNAL_KEY=0{63}7$/m, 'and the key is not regenerated');
+    assert.match(s.read('etc/frankendom/presence.env'), /^ORIGINS_WRITER_INTERNAL_KEY=0{63}8$/m, 'nor the writer-routes key');
+    assert.equal(s.read('etc/frankendom/presence.env').split('ORIGINS_WRITER_INTERNAL_KEY').length - 1, 1, 'and it appears once');
   } finally { s.clean(); }
 });
 
@@ -143,7 +148,9 @@ test('rollback and --link-writer: rollback removes the include, snippet and unit
     const linked = s.run(['--link-writer']);
     assert.equal(linked.status, 0, linked.stderr);
     assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_INTERNAL_KEY=0{63}7$/m);
-    assert.doesNotMatch(linked.stdout + linked.stderr, /0{63}7/, 'the key is not printed');
+    assert.match(s.read('etc/frankendom/origins-writer.env'), /^ORIGINS_WRITER_INTERNAL_KEY=0{63}8$/m, 'the writer\'s routes key is placed in the writer env');
+    assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_URL=http:\/\/127\.0\.0\.1:8793$/m);
+    assert.doesNotMatch(linked.stdout + linked.stderr, /0{63}[78]/, 'no key is printed');
     const wenv = s.read('etc/frankendom/origins-writer.env'), presencePort = /^PRESENCE_PORT=(\d+)$/m.exec(s.read('etc/frankendom/presence.env'))?.[1];
     const writerPort = /PORT = '(\d+)'/.exec(readFileSync(join(repo, 'scripts/origins-writer.mjs'), 'utf8'))?.[1];
     assert.ok(presencePort && writerPort, 'both default ports are readable');
@@ -162,7 +169,9 @@ test('rollback and --link-writer: rollback removes the include, snippet and unit
     assert.equal(existsSync(join(s.root, 'etc/nginx/snippets/frankendom-presence.conf')), false);
     assert.equal(existsSync(join(s.root, 'etc/systemd/system/frankendom-presence.service')), false);
     assert.ok(existsSync(join(s.root, 'etc/frankendom/presence.env')), 'the env file is kept for a re-install');
-    assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_INTERNAL_KEY=/m, 'a presence rollback does not touch the writer\'s env: --unlink-writer is the explicit undo');
+    assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_INTERNAL_KEY=/m, 'a presence rollback leaves the writer\'s presence key: --unlink-writer is the explicit undo');
+    assert.doesNotMatch(s.read('etc/frankendom/origins-writer.env'), /ORIGINS_WRITER_INTERNAL_KEY/, 'but the writer-routes secret goes with the rollback (unset = the writer\'s internal routes are off at its next restart)');
+    assert.doesNotMatch(s.read('etc/frankendom/presence.env'), /ORIGINS_WRITER_INTERNAL_KEY/, 'and from presence\'s own env, which is kept otherwise');
     assert.match(s.calls(), /systemctl disable --now frankendom-presence.service/);
   } finally { s.clean(); }
 });
