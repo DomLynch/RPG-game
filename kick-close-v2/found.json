@@ -1,0 +1,20 @@
+{
+ "found": {
+  "dark": {
+   "tick": 1449,
+   "gap": 1.14,
+   "reach": "false",
+   "hidden": false,
+   "hp": 106,
+   "back4": 1.1
+  },
+  "lit": {
+   "tick": 1502,
+   "gap": 1.5,
+   "reach": "true",
+   "hidden": false,
+   "hp": 106
+  }
+ },
+ "ticksStepped": 1501
+}
