@@ -5,9 +5,10 @@ import type { Finished } from '../pit/pit.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
 import type { FightSetup } from '../encounters/encounters.ts';
 import { styleOf } from '../mobs/styles.ts';
+import type { FightRecord } from '../../src/record.ts';
 import type { Shown } from './pit-duel.ts';
 
-export type EncounterEnd = { result: 'won' | 'lost'; twistOutcome: TwistOutcome | null };
+export type EncounterEnd = { result: 'won' | 'lost'; twistOutcome: TwistOutcome | null; record?: FightRecord | null };   // record: the fight's FightRecord, for the settle post (nothing posts it yet)
 
 // How a finished duel reads back: the foe fell (victim 1) is a win, `caught` when it fell inside a flee-at catch window; the player fell, or a
 // draw, is a loss (a retry, no payout). The twist's own endings (fled, escaped) leave both standing: `won` with the outcome named.
@@ -21,9 +22,9 @@ export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, s
   const duel = await import('./pit-duel.ts');
   let over = false;
   const finish = (end: EncounterEnd) => { if (!over) { over = true; done(end); } };
-  duel.openDuel(host, { opponent: setup.opponent.body, level: setup.opponent.level, seed, flags: setup.combatFlags, bar: setup.bar, mob: styleOf(setup.opponent.body), as }, {
-    ended: (f) => { finish(endOf(f, duel.duelTwist().outcome)); },
+  duel.openDuel(host, { opponent: setup.opponent.body, level: setup.opponent.level, seed, flags: setup.combatFlags, bar: setup.bar, mob: styleOf(setup.opponent.body), as, record: true }, {
+    ended: (f, record) => { finish({ ...endOf(f, duel.duelTwist().outcome), record }); },
     again: as ? leave : () => {},   // a creature has no rematch: its one end button goes back to the walk
-    twisted: (outcome) => { if (outcome === 'fled' || outcome === 'escaped') finish(standingEnd(outcome)); },
+    twisted: (outcome, record) => { if (outcome === 'fled' || outcome === 'escaped') finish({ ...standingEnd(outcome), record }); },
   }, leave);
 }

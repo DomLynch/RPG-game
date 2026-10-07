@@ -64,3 +64,19 @@ test('Match specials rule over every level (the verifier derives the same expect
   assert.equal(live.length, LEVELS);
   assert.ok(live.some(Boolean) && live.some((v) => !v), 'both phases exist');
 });
+
+// The record the world duel keeps (origins/preview/world-record.ts) is what the server's verifier accepts, with the server's own parameters.
+import { verifyEncounter } from '../origins/server/encounter-verify.ts';
+import { recordWorldFight, worldRecord } from '../origins/preview/world-record.ts';
+for (const [opponent, level, seed] of [['knight', 10, 731], ['veteran', 40, 123456]] as const) {
+  test(`world fight record verifies: ${opponent} L${level} seed ${seed}`, () => {
+    const m = sparring(opponent, seed, level, 'longsword', 'brute'), rand = lcg(seed ^ level);
+    recordWorldFight(m, opponent, level, seed);
+    for (let tick = 0; tick < 4000 && m.step(() => intentAt(rand, tick)) !== 'ended'; tick++);
+    assert.ok(m.practice.finish, 'the fight finished');
+    const record = worldRecord(m, m.practice.finish)!;
+    assert.equal(worldRecord(m, m.practice.finish), null, 'once');
+    const v = verifyEncounter(record, { seed, enemy: opponent, level, bar: null, flags: [], layer: 'brute' });
+    assert.ok(v.ok, v.ok ? '' : v.reason);
+  });
+}

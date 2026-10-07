@@ -26,20 +26,22 @@ import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
 import { withBar } from '../shared/with-bar.ts';
+import { recordWorldFight, worldRecord } from './world-record.ts';
+import type { FightRecord } from '../../src/record.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Object3D } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
 export type DuelHooks = {
-  ended(finish: Finished): { next?: string } | void;   // the page settles the career; `next` names the next fight for the Rematch button
+  ended(finish: Finished, record?: FightRecord | null): { next?: string } | void;   // record: only when the fight asked for one (DuelFight.record)   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
-  twisted?(outcome: TwistOutcome): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
+  twisted?(outcome: TwistOutcome, record?: FightRecord | null): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
 // In-memory storage for the match's ports: the sparring mode writes nothing, and if it ever did, it would land here, never in localStorage.
@@ -170,6 +172,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
+  if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
@@ -217,7 +220,7 @@ function frame(now: number) {
         const t = stepTwist(p.duel, fight!.flags, twist);
         twist = t.twist;
         if (twist.outcome === 'fled' || twist.outcome === 'escaped') {   // no catch window / the window ran out: the fight ends with the foe alive
-          match.end(false); running = false; hooks?.twisted?.(twist.outcome);
+          match.end(false); running = false; hooks?.twisted?.(twist.outcome, worldRecord(match, null));
           break;
         }
       }
@@ -225,7 +228,7 @@ function frame(now: number) {
         if (fight!.flags?.length && p.duel.finish?.victim === 1) twist = stepTwist(p.duel, fight!.flags, twist).twist;   // 'caught' inside the window
         match.end(false);   // sparring: no record, no mark, nothing written
         result = match.practice.finish;
-        next = hooks?.ended(result)?.next;
+        next = hooks?.ended(result, worldRecord(match, result))?.next;
       }
     }
   } else { accumulator = 0; previous = state; }
