@@ -8,7 +8,7 @@ import { mobLook } from '../preview/mob-looks.ts';
 import { CREATURE_LOOT } from '../region1/content.ts';
 import { FRONTIER_ROWS } from './frontier-rows.ts';
 import { populateZone } from './populate.ts';
-import { BOSS_CAMP_MAX, CAMP_MAX, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
+import { BOSS_CAMP_MAX, CAMP_MAX, rungWeights, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
 
 const registry = frontierPlan().data.registry;
 const ctx: RowContext = { look: mobLook, lootTables: new Set(registry.lootTables.keys()) };
@@ -110,4 +110,27 @@ test('populateZone: pending-source rows are rejected by name, a safe zone gets n
   assert.ok(refused.rejected.every((r) => r.issues.some((i) => i.code === 'no-source')));
   const none = populateZone(open.value, cited3, 7, ctx, () => false);
   assert.equal(none.camps.length, 0, 'no standable ground, no creatures');
+});
+
+// ---- tier rungs (ladder + rung) ----
+
+const rung = (id: string, n: number, level: [number, number], ladder = 'goblin'): MobRow => ({ ...good, id, ladder, rung: n, level });
+const lad = [rung('character:cinder-scavenger', 1, [11, 12]), rung('character:ruin-ghoul', 2, [12, 14]), rung('character:mere-brood', 3, [14, 16])];
+
+test('ladder rules: each has a failing set that yields exactly its code', () => {
+  const rc = (rows: MobRow[]) => validateRows(rows, ctx).map((i) => i.code);
+  assert.deepEqual(rc(lad), []);
+  assert.deepEqual(codes({ ...good, ladder: 'goblin' }), ['rung-ladder'], 'a ladder with no rung');
+  assert.deepEqual(codes({ ...good, rung: 2 }), ['rung-ladder'], 'a rung with no ladder');
+  assert.deepEqual(codes({ ...good, ladder: 'goblin', rung: 0 }), ['rung-ladder']);
+  assert.deepEqual(rc([lad[0]!, { ...lad[1]!, rung: 1 }]), ['dup-rung']);
+  assert.deepEqual(rc([lad[0]!, rung('character:ruin-ghoul', 2, [9, 10])]), ['rung-order'], 'rung 2 below rung 1');
+  assert.deepEqual(rc([lad[0]!, rung('character:mere-mother', 2, [13, 14])]), ['ladder-body'], 'a witch on a goblin ladder');
+});
+
+test('rungWeights: the zone window picks the home rung; a row with no ladder keeps its weight', () => {
+  const w = (lo: number, hi: number) => rungWeights(lad, { levelMin: lo, levelMax: hi });
+  assert.deepEqual(w(11, 12), [10, 10 / 3, 0], 'rung 3 is outside a 11..12 zone');
+  assert.deepEqual(w(15, 16), [0, 0, 10 * 2 / 3], 'only the top rung sits in 15..16');
+  assert.deepEqual(rungWeights(FRONTIER_ROWS, { levelMin: 11, levelMax: 13 }), FRONTIER_ROWS.map((r) => r.weight ?? 10), 'Zone 1 rows have no ladder: unchanged');
 });

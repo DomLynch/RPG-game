@@ -28,10 +28,12 @@ export type MobRow = {
   weight?: number;               // share in a zone's mix (default 10)
   named?: boolean;               // named creatures stay on their encounter and are never generated
   bossCamp?: boolean;            // this kind's camp is a Region's boss camp: up to BOSS_CAMP_MAX members (ordinary camps are CAMP_MAX: a leader and three)
+  ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
+  rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
   later?: boolean;               // reserved for a later batch: needs no look or source yet, never generated
 };
 
-export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated';
+export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body';
 export type RowIssue = { code: RowCode; path: string; message: string };
 export type RowContext = {
   look: (id: string) => { opponent: string } | null;   // the look table: mobLook
@@ -80,8 +82,20 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   if ((b.roam ?? DEFAULTS.roam) > (b.leash ?? DEFAULTS.leash) / 3) add('roam-leash', 'behaviour.roam', 'roam is above a third of the leash');
   const [cmin, cmax] = b.campSize ?? DEFAULTS.campSize;
   if (!Number.isInteger(cmin) || !Number.isInteger(cmax) || cmin < 1 || cmax > (row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX) || cmin > cmax) add('camp-size', 'behaviour.campSize', `a camp is 1..${row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX} members${row.bossCamp ? '' : ' (6 only on a boss camp)'}, min not above max`);
+  if ((row.ladder === undefined) !== (row.rung === undefined) || (row.rung !== undefined && (!Number.isInteger(row.rung) || row.rung < 1))) add('rung-ladder', 'rung', 'ladder and rung come together: a ladder id and a whole rung, 1 or more');
   if (ctx.generated && row.named) add('named-generated', 'named', 'named creatures stay on their encounter and are not generated');
   return out;
+}
+
+// Weights for one zone's draw: a ladder row's weight is scaled by how much of its band the zone's level window covers, so the zone's home rung is the one
+// whose band sits in it (a rung wholly outside is 0). A row with no ladder keeps its own weight, so a zone with no ladders draws exactly as before.
+export function rungWeights(rows: readonly MobRow[], window: { levelMin: number; levelMax: number }): number[] {
+  return rows.map((r) => {
+    const w = r.weight ?? DEFAULTS.weight;
+    if (r.ladder === undefined) return w;
+    const [lo, hi] = r.level, over = Math.min(hi, window.levelMax) - Math.max(lo, window.levelMin) + 1;
+    return over > 0 ? (w * over) / (hi - lo + 1) : 0;
+  });
 }
 
 export function validateRows(rows: readonly MobRow[], ctx: RowContext): RowIssue[] {
@@ -90,5 +104,17 @@ export function validateRows(rows: readonly MobRow[], ctx: RowContext): RowIssue
     if (seen.has(r.id)) out.push({ code: 'dup-id', path: `[${i}].id`, message: `${r.id} appears twice` });
     seen.add(r.id); out.push(...validateMobRow(r, ctx, `[${i}]`));
   });
+  // Ladders: one body, each rung once, bands climbing with the rung.
+  const ladders = new Map<string, { r: MobRow; i: number }[]>();
+  rows.forEach((r, i) => { if (r.ladder !== undefined && r.rung !== undefined) ladders.set(r.ladder, [...(ladders.get(r.ladder) ?? []), { r, i }]); });
+  for (const members of ladders.values()) {
+    const body = ctx.look(members[0]!.r.id)?.opponent, byRung = [...members].sort((a, b) => a.r.rung! - b.r.rung!);
+    byRung.forEach(({ r, i }, k) => {
+      const prev = byRung[k - 1]?.r;
+      if (ctx.look(r.id) && ctx.look(r.id)!.opponent !== body) out.push({ code: 'ladder-body', path: `[${i}].ladder`, message: `${r.id} is not on the ${body} body of its ladder ${r.ladder}` });
+      if (prev && prev.rung === r.rung) out.push({ code: 'dup-rung', path: `[${i}].rung`, message: `rung ${r.rung} of ${r.ladder} appears twice` });
+      else if (prev && (r.level[0] < prev.level[0] || r.level[1] < prev.level[1])) out.push({ code: 'rung-order', path: `[${i}].rung`, message: `rung ${r.rung} of ${r.ladder} is below rung ${prev.rung} in level` });
+    });
+  }
   return out;
 }
