@@ -107,8 +107,9 @@ scene.cycles.device = "CPU"
 scene.cycles.samples = 1
 bake = scene.render.bake
 bake.use_selected_to_active = True
-bake.cage_extrusion = height * 0.004
-bake.max_ray_distance = height * 0.02
+# BAKE_CAGE / BAKE_RAY (fractions of height): a bulky decimated body (the giant) needs longer rays than the legionary to reach the raw surface.
+bake.cage_extrusion = height * float(os.environ.get("BAKE_CAGE", "0.004"))
+bake.max_ray_distance = height * float(os.environ.get("BAKE_RAY", "0.02"))
 bake.margin = 8
 bpy.ops.object.select_all(action="DESELECT")
 hi.select_set(True)
