@@ -121,6 +121,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     next.feint = false;
     return { intent: { ...intent, action: 'parry', guard: true }, ai: next };
   }
+  // A Trickster's beat (RV34, src/stance.ts): a feint just thrown opens RULES.feintBeat ticks in which the next swing he starts ignores a passively held guard, so the stance's own AI follows its feint with a cut at
+  // once, when one is legal and in reach. Only a fighter carrying that stance ever has `feintEdge`, so a fight without stances never reaches this line.
+  if (self.feintEdge && canAct && gap <= mine.light_right.reach && legal(self, 'light')) return { intent: { ...intent, action: 'light', lock: true }, ai: next };
   intent.held = next.hold && self.phase === 'attack' && (self.move === 'heavy_overhead' ? self.charge < RULES.charge.min : self.charge < READ.baitHold);
   // a chambered light is a bait, not a guard breaker
   const charging = (f: typeof opponent) => f.phase === 'attack' && f.move !== null && f.charge > 0 && movesOf(f)[f.move].charges;
