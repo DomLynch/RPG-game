@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 05:50 (+04, Mac clock) — research #18 (distance-scaled camera kick): CLOSED, "not needed on our camera"; the ?look=kickscale flag (#1561) is REMOVED
+
+- **Do not re-run this.** The lock camera sits 4.96-7.2 m from the fight (median 5.38 m over 1221 frames of a scripted Veteran fight) and its distance does not follow fighter separation (1.0 m and 1.6 m strikes: 5.27 and 5.47 m). At the 10 real-fight hits the camera distance was 4.97-5.49 m (median 5.39), so a compensation that holds the kick's screen size is a factor of 0.93-1.02 (span 9.6%, p10-p90 5.06-5.49): below Strategy's ~10% bar. The 0.94-1.34 over all frames is retreats, not hits.
+- #1561's 3.5 m reference was wrong (it made every kick ~40% bigger); it was live but flag-off, so no player ever saw it. This PR removes the flag, its module and tests; no player change.
+- Roll tilt: peak tilt 6.77 deg flag off, 6.81 with the scale: the angle is not scaled by design and stays equal. The roll's shift could not be isolated (the camera follows the rolling hero, ~8 m of travel).
+- A separation-scaled variant (`?look=kickscale-sep`, scale = fighter separation / 1.25 m logged median, clamp 0.7-1.6, changes feel not compensation) was built in the closed PR #1583 (`world/kickscale-sep`); rebuild from there if Strategy wants it as a look test.
+- Evidence: ~/Desktop/Business/frankendom-kickscale/result3.json (dummy-opponent harness on the VPS, scratch: ks-dummy.mjs in /private/tmp/claude-501/bloodside).
+
 ## 2026-10-04 ~22:xx (+04) — HANDOFF #7 before /clear. READ FIRST (supersedes handoff #6 where it differs)
 
 ### Now
