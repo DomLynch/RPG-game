@@ -1,4 +1,4 @@
-# The Origins presence service (origins/presence/main.ts): who is where in the one Concord world, in memory, on 127.0.0.1:8788 behind nginx (ops/nginx/frankendom-presence.conf).
+# The Origins presence service (origins/presence/main.ts): who is where in the one Concord world, in memory, on 127.0.0.1:8793 behind nginx (ops/nginx/frankendom-presence.conf).
 # It writes no rows and decides nothing that pays. OFF unless /etc/frankendom/presence.env says ORIGINS_PRESENCE=1: with the flag off main.ts prints so and exits 0, and Restart=on-failure
 # leaves it stopped. Not enabled by the repo: ops/install-presence.sh installs it on a joint Lead + Strategy GO.
 [Unit]

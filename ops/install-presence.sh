@@ -39,9 +39,9 @@ fi
 
 if [ "${1:-}" = "--unlink-writer" ]; then
   [ -f "$writer_env" ] || { echo "install-presence: $writer_env does not exist: nothing to unlink"; exit 0; }
-  grep -v '^PRESENCE_INTERNAL_KEY=' "$writer_env" > "$writer_env.tmp" || true
+  grep -v -e '^PRESENCE_INTERNAL_KEY=' -e '^PRESENCE_URL=' "$writer_env" > "$writer_env.tmp" || true
   cat "$writer_env.tmp" > "$writer_env"; rm -f "$writer_env.tmp"
-  echo "install-presence: removed PRESENCE_INTERNAL_KEY from $writer_env (the writer is not restarted: do that as a separate, logged step)"
+  echo "install-presence: removed PRESENCE_INTERNAL_KEY and PRESENCE_URL from $writer_env (the writer is not restarted: do that as a separate, logged step)"
   exit 0
 fi
 
@@ -49,9 +49,12 @@ if [ "${1:-}" = "--link-writer" ]; then
   [ -s "$env" ] || { echo "install-presence: $env does not exist yet: install first" >&2; exit 1; }
   [ -f "$writer_env" ] || { echo "install-presence: $writer_env does not exist: nothing to link (the writer's env is Dom's W3 step)" >&2; exit 1; }
   key="$(get PRESENCE_INTERNAL_KEY)"; [ -n "$key" ] || { echo "install-presence: no PRESENCE_INTERNAL_KEY in $env" >&2; exit 1; }
+  # The writer's own PORT defaults to 8788, so presence has its own (8793) and the writer is told where it is.
+  phost="$(get PRESENCE_HOST)"; pport="$(get PRESENCE_PORT)"
+  grep -q '^PRESENCE_URL=' "$writer_env" || printf 'PRESENCE_URL=http://%s:%s\n' "${phost:-127.0.0.1}" "${pport:-8793}" >> "$writer_env"
   if grep -q '^PRESENCE_INTERNAL_KEY=' "$writer_env"; then echo "install-presence: the writer's env already holds a PRESENCE_INTERNAL_KEY (left alone)"; exit 0; fi
   printf 'PRESENCE_INTERNAL_KEY=%s\n' "$key" >> "$writer_env"
-  echo "install-presence: appended PRESENCE_INTERNAL_KEY to $writer_env (the writer is not restarted)"
+  echo "install-presence: appended PRESENCE_INTERNAL_KEY and PRESENCE_URL to $writer_env (the writer is not restarted)"
   exit 0
 fi
 
@@ -64,7 +67,7 @@ ln -sfn "$opt/$revision" "$opt/current"
 install -d -m 0700 "$root/etc/frankendom"
 if [ ! -s "$env" ]; then
   umask 077
-  printf 'ORIGINS_PRESENCE=0\nPRESENCE_HOST=127.0.0.1\nPRESENCE_PORT=8788\nPRESENCE_INTERNAL_KEY=%s\n' "$(openssl rand -hex 32)" > "$env"
+  printf 'ORIGINS_PRESENCE=0\nPRESENCE_HOST=127.0.0.1\nPRESENCE_PORT=8793\nPRESENCE_INTERNAL_KEY=%s\n' "$(openssl rand -hex 32)" > "$env"
 fi
 if ! grep -q '^PRESENCE_INTERNAL_KEY=' "$env"; then printf 'PRESENCE_INTERNAL_KEY=%s\n' "$(openssl rand -hex 32)" >> "$env"; fi
 for name in SUPABASE_URL SUPABASE_ANON_KEY; do
@@ -102,7 +105,7 @@ if ! grep -q '^ORIGINS_PRESENCE=1$' "$env"; then
 fi
 
 systemctl restart frankendom-presence.service
-port="$(get PRESENCE_PORT)"; port="${port:-8788}"
+port="$(get PRESENCE_PORT)"; port="${port:-8793}"
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ "$(code "http://127.0.0.1:$port/origins/presence/health")" = "200" ] && break; sleep 0.5; done
 bad=""
 [ "$(code "http://127.0.0.1:$port/origins/presence/health")" = "200" ] || bad="$bad local-health"

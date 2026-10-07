@@ -6,7 +6,6 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
-// @ts-expect-error a plain .mjs script without types
 import { presenceFiles } from '../ops/presence-files.mjs';
 
 const repo = resolve(import.meta.dirname, '..');
@@ -102,9 +101,9 @@ test('install: with the flag ON it restarts and checks local health, /internal/w
     assert.equal(r.status, 0, r.stderr);
     const calls = s.calls();
     assert.match(calls, /systemctl restart frankendom-presence.service/);
-    assert.match(calls, /curl http:\/\/127\.0\.0\.1:8788\/origins\/presence\/health hdr=no/);
-    assert.match(calls, /curl http:\/\/127\.0\.0\.1:8788\/internal\/where\?account=0{8}-0{4}-4000-8000-0{12} hdr=yes/, 'where is called with the key header');
-    assert.match(calls, /curl http:\/\/127\.0\.0\.1:8788\/internal\/where\?account=0{8}-0{4}-4000-8000-0{12} hdr=no/, 'and without it');
+    assert.match(calls, /curl http:\/\/127\.0\.0\.1:8793\/origins\/presence\/health hdr=no/);
+    assert.match(calls, /curl http:\/\/127\.0\.0\.1:8793\/internal\/where\?account=0{8}-0{4}-4000-8000-0{12} hdr=yes/, 'where is called with the key header');
+    assert.match(calls, /curl http:\/\/127\.0\.0\.1:8793\/internal\/where\?account=0{8}-0{4}-4000-8000-0{12} hdr=no/, 'and without it');
     assert.match(calls, /curl https:\/\/frankendom\.com\/origins\/presence\/health/, 'and the public path is checked');
     assert.doesNotMatch(r.stdout + r.stderr + calls, /0{63}7/, 'the key never appears in output or in a command line');
     assert.match(r.stdout, /live/);
@@ -144,6 +143,11 @@ test('rollback and --link-writer: rollback removes the include, snippet and unit
     assert.equal(linked.status, 0, linked.stderr);
     assert.match(s.read('etc/frankendom/origins-writer.env'), /^PRESENCE_INTERNAL_KEY=0{63}7$/m);
     assert.doesNotMatch(linked.stdout + linked.stderr, /0{63}7/, 'the key is not printed');
+    const wenv = s.read('etc/frankendom/origins-writer.env'), presencePort = /^PRESENCE_PORT=(\d+)$/m.exec(s.read('etc/frankendom/presence.env'))?.[1];
+    const writerPort = /PORT = '(\d+)'/.exec(readFileSync(join(repo, 'scripts/origins-writer.mjs'), 'utf8'))?.[1];
+    assert.ok(presencePort && writerPort, 'both default ports are readable');
+    assert.notEqual(presencePort, writerPort, 'presence and the writer must not share a port on one box');
+    assert.match(wenv, new RegExp(`^PRESENCE_URL=http://127\\.0\\.0\\.1:${presencePort}$`, 'm'), 'the writer is told where presence listens');
     s.run(['--link-writer']);
     assert.equal(s.read('etc/frankendom/origins-writer.env').split('PRESENCE_INTERNAL_KEY').length - 1, 1, 'appended once');
     const unlinked = s.run(['--unlink-writer']);
