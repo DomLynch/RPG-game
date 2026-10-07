@@ -1,12 +1,13 @@
 // Origins side of the combat-luck ruling (docs/specs/origins/combat-study.md, RULING 2026-10-07: Dom, agreed by Strategy). Pure: no DOM,
-// clock, storage or Math.random. Combat builds the rolls inside src/ (the seeded damage roll, the Gambit and its unknowable PvP roll); this
-// module is the contract Origins wires against, so the flag, the scope rule, the caps and the HUD text live in one place, and Combat's
-// roll plugs in as a RollSource. Every number here is PROVISIONAL until Combat's battery sets it.
+// clock, storage or Math.random. The world-mob damage roll is Origins' own end to end (Lead, 2026-10-07): this module and its seeded
+// source. The Gambit is Combat's (src/: the move, the self-stagger, the unknowable PvP roll); here are only its odds, caps and HUD text,
+// so the two sides share one set of numbers. Every number here is PROVISIONAL until the battery sets it.
 
-// Where a fight happens. Rolls apply to world monsters only (Origins first); the Pit legends get them only after a battery (its own RV bump).
-export type FightKind = 'monster' | 'pit-legend' | 'pvp';
+// Where a fight happens. Dom's ruling (2026-10-07): damage rolls apply ONLY to Origins world mobs outside the Pit, in both directions
+// (player -> mob and mob -> player). The Pit (legends and arena AI), PvP and the ladder never roll.
+export type FightKind = 'world-mob' | 'pit' | 'pvp' | 'ladder';
 
-// The flag, default OFF. Read from the Origins config object; anything that is not exactly `true` is off.
+// The flag, default OFF. `monsterRolls` = the world-mob damage rolls. Read from the Origins config object; anything that is not exactly `true` is off.
 export type LuckFlags = { monsterRolls: boolean; gambit: boolean };
 export const LUCK_OFF: LuckFlags = Object.freeze({ monsterRolls: false, gambit: false });
 export function parseLuckFlags(raw: unknown): LuckFlags {
@@ -14,8 +15,8 @@ export function parseLuckFlags(raw: unknown): LuckFlags {
   return { monsterRolls: o.monsterRolls === true, gambit: o.gambit === true };
 }
 
-// Combat's side: a unit draw in [0, 1) that is a pure function of the fight's seed and the hit's index, so the replay/hash re-sim
-// reproduces it exactly (condition C5). For the PvP Gambit, Combat's source also folds in what neither side knows at press time (C3).
+// A unit draw in [0, 1) that is a pure function of the fight's seed and the hit's index, so the replay/hash re-sim
+// reproduces it exactly (condition C5). The PvP Gambit's draw is Combat's and also folds in what neither side knows at press time (C3).
 export type RollSource = (seed: number, hit: number) => number;
 
 // ±10% damage rolls, shown on screen. `percent` is the whole-number roll the HUD shows (−10..+10); `damage` is never below 1.
@@ -26,9 +27,9 @@ export function rollDamage(base: number, u: number, band = ROLL_BAND_PERCENT): D
   const percent = Math.min(band, Math.floor(u * (2 * band + 1)) - band);   // a uniform whole percent in −band..+band
   return { base, percent, damage: Math.max(1, Math.round(base * (1 + percent / 100))) };
 }
-// The scope rule: a roll is applied only in a world-monster fight with the flag on. Every PvP and ladder hit has no per-hit dice.
-export const rollsApply = (kind: FightKind, flags: LuckFlags): boolean => kind === 'monster' && flags.monsterRolls;
-// One hit as the fight resolves it: the base damage, rolled only where the rule allows.
+// The scope rule: a roll is applied only in an Origins world-mob fight with the flag on, whichever side strikes. Pit, PvP, ladder: never.
+export const rollsApply = (kind: FightKind, flags: LuckFlags): boolean => kind === 'world-mob' && flags.monsterRolls;
+// One hit as the fight resolves it, either direction (the caller numbers every hit of the fight in order): rolled only where the rule allows.
 export function hitDamage(kind: FightKind, flags: LuckFlags, base: number, seed: number, hit: number, source: RollSource): DamageRoll {
   return rollsApply(kind, flags) ? rollDamage(base, source(seed, hit)) : { base, percent: 0, damage: base };
 }
@@ -57,8 +58,8 @@ export function luckHud(kind: FightKind, flags: LuckFlags, last: DamageRoll | nu
   return { roll: rollsApply(kind, flags) && last ? rollLabel(last) : null, gambit: gambitApply(flags) ? `Gambit ${oddsLabel(odds)}` : null };
 }
 
-// A STUB source for tests and the greybox only, until Combat's seeded roll lands: a hash of (seed, hit), never Math.random.
-export const stubSource: RollSource = (seed, hit) => {
+// The world-mob roll's source: a hash of (fight seed, hit index), never Math.random, so the same fight replays the same rolls.
+export const seededSource: RollSource = (seed, hit) => {
   let h = Math.imul((seed >>> 0) ^ Math.imul(hit + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
   return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
