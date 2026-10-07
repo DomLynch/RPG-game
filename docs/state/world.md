@@ -2,6 +2,34 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-07 ~08:30 (+04, Mac clock) — HANDOFF #20 (supersedes #19; the VPS clock labels local time "Z": real UTC = Mac -4 h)
+
+### Now: nothing running on the VPS (checked this turn: `capture --status` shows none of mine, no `world-*` dir in /opt/frankendom-shadow/work, disk 38 GB free). Idle; Lead has nothing queued for me. Next pickups, in order:
+1. **Per-zone ground for the zone look:** agree with Expansion's NEXT session (Lead's ruling). look.ts only has an unused `ground` tint hook; real ground needs exchange.ts's materials (Expansion's). Expansion also owes me its greybox branch sha (expansion/greybox-world, not on remote yet) and will set zone data `ambience.preset` to `exchange-dusk` / `frontier-haze`, then swap `?look=zones` for `?region=1` and LOOK_STOPS for its resolved zones (one line in origins/preview/main.ts).
+2. **When #1613 is live** Lead sends Dom the `?look=powerwords` link; Dom judges the voice by ear. Nothing else to do unless he asks for a different voice.
+3. **#1535 standoff** goes live only after RV29 (Lead GOs); I do nothing until then.
+
+### Done today (PRs, all with Lead's GO to Deploy on green unless noted; none merged when I left)
+- **#1535** standoff ON by default (`?standoff=0|off` off), trunk merged, head ac21cdc3, 375 before/after stills in body; ships after RV29.
+- **#1604** break beat: PostureBroken hold 150 ms + dry bone_crack thud always on, `?look=breakbeat` and break-beat.ts removed; re-merged onto trunk 62bff8db, head 9f598abc, re-GO'd. No stills on purpose (moves no pixels).
+- **#1613** `?look=powerwords` look test, DEFAULT OFF: procedural whispered chant (src/audio/power-word.ts), peak gain .3 vs bone_crack .55, ducked -14 dB under Hit/Blocked/Parried/GuardBroken, head 927c0c0b; clips on branch stills/world-powerwords. Dom's names: Witch Ashvael/Ixoreth/Melusaar, Plague Doctor Vuskarn/Orzhul/Thaniveck. Never default-on without Dom's word (his 10-06 ruling: he picks voices by hand).
+- **#1619** `?look=fatigue-preview` turns the (previously hard-off) graded breathing on, head 68d4d855; bands unchanged (winded <50% stamina, tired <25%; "75%" was Lead's shorthand, not Dom's). Web's #1617 owns the flag spelling (same ?look comma list).
+- **#1625** zone look: origins/preview/look.ts (+ look.test.ts, one wiring line in main.ts) behind `?look=zones`; presets by `ambience.preset` as data, ash-pit = ARENA_THEMES['1'] pinned identical; head 93caa058.
+- Camera A/B/C: files exist (~/Desktop/Business/frankendom-camera-angles/), camera is FROZEN (Dom #1383), Lead said do not send. Concord GLB: NOT built (Dom kept code-built, #1530 is Characters' draft). Preview folders arena2-11 + /preview/armfeel ruled DROP by Lead.
+- #1594 (defence gains) merged ed3efa4a.
+
+### Open
+- All five PRs above wait on Deploy/Auditor/RV29; Expansion's greybox sha and the ground split (above).
+
+### Gotchas (new, cost time today)
+- **A Bash call blocked by the PreToolUse deploy hook runs NOTHING, including `cat > file` heredocs earlier in the same command.** I committed a main.ts import of a look.ts that was never written; the VPS build caught it. Write new source files with the Write tool, not shell heredocs.
+- **capture scripts: use a UNIQUE /tmp name per job** (stale `/tmp/<name>.done` and `sha.txt` from an old run made me read old results as new; I only noticed because the sha did not match). Poll for the sha containing the new commit message AND the done file. If `cd $W` fails the script silently runs in the shared /opt/frankendom-shadow/repo: always `[ -d $W ] || git worktree add ...; cd $W || exit 1`.
+- **ssh output into `tar xf -`**: put every echo/grep/cat in a separate ssh call from the `tar cf -` one, or the stream is corrupt.
+- Peer messages: `send_message` needs the full `local_...` session id from `list_sessions` (the short ListAgents ids and the lane name do not resolve). Lead Dev = local_1bcdcf54-b8b3-4ee1-9597-f3c06d9e74d9, Web = local_a0b58401-611e-4f4e-9df1-37107cbef7e4, Expansion = local_9d0bafed-cc7d-4b05-ae00-21830e9270ec.
+- PR-body media: `artifacts/` is gitignored; push images/mp4/wav to an orphan `stills/world-*` branch (`git worktree add --orphan -b ...`) and link `https://github.com/DomLynch/RPG-game/blob/<branch>/<file>?raw=true`. Orphan worktrees must be removed and their local branch deleted after the push.
+- Power-word clips: the page's `?special=<id>` with `special=wake|tempo` (Witch/Plague Doctor class specials) + `yourSpecial=none` is what makes the foe cast in a spar harness; plain `?opponent=witch` never casts. Scratch harness (not committed): /private/tmp/claude-501/bloodside/{pwclip.mjs,pwclip-run.sh,zl-stills.mjs,zl-run.sh,standoff-on.mjs,breath-wav.mjs}.
+- Level facts for audio claims: breath raw peaks winded -39 / tired -29 / gassed -24.5 dBFS; chant peak -21 dBFS raw; a hit about -7 before the bus (bus makeup +6.4 dB). Clips render the module offline, not the full mix; say so in any body.
+
 ## 2026-10-07 ~06:00 (+04, Mac clock) — HANDOFF #19 (supersedes #18; the VPS clock labels local time "Z": real UTC = Mac -4 h)
 
 ### Now: nothing running on the VPS (checked: `capture --status` shows none of mine, no ks/def/trident/audio-preview process, no `world-*` worktree left, disk 34 GB free). Waiting on the Auditor for #1594.
