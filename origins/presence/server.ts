@@ -2,12 +2,13 @@
 // decides nothing that pays. wss://frankendom.com/origins/presence[?friend=<account id>] (nginx -> 127.0.0.1) with the Supabase access token in the Sec-WebSocket-Protocol header (`frankendom.presence.v1, token.<jwt>`), never in the URL: a URL lands in proxy logs and browser history.
 // No npm dependency, like the duel relay: the RFC 6455 subset a browser needs (masked client frames, no fragments, no extensions).
 // Skeleton: movement, interest, layers, caps and counts. Names, guild/party lookup and speech arrive with their own PRs; a player is its account id for now.
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
+import { zoneAt } from './zones.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 export const PROTOCOL = 'frankendom.presence.v1';   // the one subprotocol the client offers next to `token.<jwt>`; the server echoes this one, never the token
@@ -25,6 +26,7 @@ export type PresenceOptions = {
   verify: (token: string) => Promise<string | null>;   // the client's access token -> its account id (origins/server/auth.ts supabaseVerify)
   rules?: Rules; limits?: Limits; maxLayers?: number;
   now?: () => number; log?: (line: string) => void; logEveryMs?: number; sweepEveryMs?: number; ipHeader?: boolean;   // ipHeader: trust nginx's X-Real-IP (only behind nginx on 127.0.0.1)
+  internalKey?: string;   // the shared secret of GET /internal/where (the writer asks where an account stands); unset: that route does not exist
 };
 export type Presence = { server: Server; world: World; port: () => number; stats: () => Record<string, unknown>; close: () => Promise<void> };
 
@@ -82,8 +84,26 @@ export function createPresence(opts: PresenceOptions): Presence {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       return void res.end(JSON.stringify(n > 0 ? { ...stats(), tickMs: recentTicks(n) } : stats()));
     }
+    if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
     res.writeHead(404); res.end();
   });
+  // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
+  // from here and never from a request body. Not under /origins/presence, so the public nginx route does not reach it, and it needs the key and a loopback caller besides. The answer
+  // is the service's own state: a player never placed by a first pose is `placed: false` with no position, and `ageMs` is the time since its last pose was handled.
+  const loopback = (a: string | undefined): boolean => a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+  const where = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (!key) { res.writeHead(404); return void res.end(); }
+    const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
+    if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) return reply(401, { error: 'unauthorised' });
+    const account = new URL(req.url ?? '/', 'http://presence').searchParams.get('account')?.toLowerCase();
+    if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
+    const p = world.byAccount.get(account);
+    if (!p) return reply(200, { online: false });
+    if (!p.placed) return reply(200, { online: true, layer: p.layer.id, placed: false });
+    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.movedAt) });
+  };
 
   server.on('upgrade', (req, socket: Duplex) => {
     const url = new URL(req.url ?? '/', 'http://presence'), key = req.headers['sec-websocket-key'];

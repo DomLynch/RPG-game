@@ -96,7 +96,7 @@ export const play = {
     const r = performUpgrade({
       request: { kind: 'upgrade-request', schemaVersion: 1, idempotencyKey: key, character: inv.owner, service: SERVICE.id, instance: inst.id, expectedVersion: inst.version, toLevel: upgradeLevelOf(inst) + 1 },
       service: SERVICE, costs: COSTS, instance: inst, def, standing: STANDING, balance: coin, materials: inv.items.filter((i) => lookup(i.item)?.category === 'material'),
-      materialDefs: lookup, receipts, now: new Date().toISOString(),
+      materialDefs: lookup, receipts, now: new Date().toISOString(), place: BANK_PLACE,   // the forge stands at the Exchange
     });
     if (!r.ok) { msg = why(r); return; }
     if (r.value.replayed) return;
