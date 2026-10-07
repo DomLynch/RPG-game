@@ -7,6 +7,7 @@ import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from './lessons.ts';
 import { createGapHistory } from './kick-close.ts';
+import { staminaLow } from './fatigue-preview.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
@@ -14,7 +15,7 @@ export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', '
 // Lit = a kick pressed from here lands on a guard-raised foe. Measured 2026-10-07 (tests/hud.test.ts): the true far edge is 1.585 m (the 1.2 m cone plus the kick's .55 stride), so 1.5 keeps a margin for the foe's step.
 export const KICK_LANDS = 1.5;
 
-export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null; kickClose?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null; kickClose?: boolean; fatiguePreview?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -79,6 +80,7 @@ export function createHud(element: Lookup) {
       stamina.dataset.capped = String(practice.maxStamina < 100);   // a wound has lowered the ceiling: the bar draws a solid cap and a notch at --max (style.css)
       stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
       stamina.value = practice.stamina;
+      stamina.dataset.low = String(!!view.fatiguePreview && staminaLow(practice.stamina));   // ?look=fatigue-preview: red and a gentle pulse in the last 10 % (style.css)
       element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
       for (const [id, value] of [
         ['posture', practice.posture],

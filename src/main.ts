@@ -7,6 +7,7 @@ import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from '
 import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './defence-grade.ts';
 import { kickCloseFlag } from './kick-close.ts';
+import { fatiguePreviewFrom } from './fatigue-preview.ts';
 import { headlineFlag, victoryHeadline } from './victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
@@ -780,6 +781,7 @@ const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia ===
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
 const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
 feedback.breakThud(!!breakBeat?.thud);
+const FATIGUE_PREVIEW = fatiguePreviewFrom(window.location?.search ?? '');   // ?look=fatigue-preview[&stamina=8]: the red pulsing bar, and a stamina held low in a dummy spar (fatigue-preview.ts); absent = today's game
 const KICK_CLOSE = kickCloseFlag(window.location?.search ?? '');   // ?look=kickclose: the KICK light also goes out while the foe opens the gap (kick-close.ts); absent = today's game
 const HEADLINE = headlineFlag(window.location?.search ?? '');   // ?look=headline: one earned line on a win (victory-headline.ts); absent = today's game
 const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
@@ -824,7 +826,7 @@ function updateHud() {
   const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
   winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(shown, { kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(shown, { fatiguePreview: !!FATIGUE_PREVIEW, kickClose: KICK_CLOSE, headline: HEADLINE && shown.finish && !shown.finish.draw && shown.playerHealth > 0 && !shown.health && match.mode !== 'pvp' && !match.replay ? victoryHeadline(match.fightLog, shown.playerHealth) : null, legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = shown.finish ? view.finishPhase() : null;
@@ -1825,6 +1827,7 @@ function frame(now: number) {
           cancel: intent.cancel,
         };
       });
+      if (FATIGUE_PREVIEW?.force != null && match.dummy && match.practiceOnly && !match.recorder && !match.practice.finish) match.practice.duel.fighters[0].stamina = FATIGUE_PREVIEW.force;   // the look test's force: a dummy spar only, never a recorded or career fight
       if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
       if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently

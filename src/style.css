@@ -874,6 +874,11 @@ dialog>p {
 #stamina[data-capped=true] {
   background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%));
 }
+/* ?look=fatigue-preview (Dom 2026-10-07): the last 10 % of stamina turns the bar red and pulses it gently; the body is not involved. */
+#stamina[data-low=true] { --bar-color: #d4483b; animation: stamina-low 1.4s ease-in-out infinite; }
+#stamina[data-low=true]::-webkit-meter-optimum-value { background: #d4483b; }
+@keyframes stamina-low { 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { #stamina[data-low=true] { animation: none; } }
 #stamina[data-leg=true] {
   outline: 1px solid #b5533f88;
 }
