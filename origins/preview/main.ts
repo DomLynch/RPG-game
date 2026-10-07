@@ -24,7 +24,7 @@ import { campFires } from './camp-fire.ts';
 import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
-import { beginOnline, onlineWanted, type Online } from './encounter-online.ts';
+import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -68,7 +68,7 @@ const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') === '1';
 const ONLINE = onlineWanted(location.search);   // ?online=1: a creature fight is played on the server's seed and settled with its record (encounter-online.ts); anything else is the offline path
 const HELD_KEY = 'frankendom:encounter-token';   // the open server fight's token, so a reload or a second try inside its 120 s grace resumes it (a 409 on start names no token)
-const HELD = { get: () => { try { return sessionStorage.getItem(HELD_KEY); } catch { return null; } }, set: (t: string | null) => { try { if (t) sessionStorage.setItem(HELD_KEY, t); else sessionStorage.removeItem(HELD_KEY); } catch { /* private mode: no resume, offline as before */ } } };
+const HELD = { get: (): HeldFight | null => { try { const v = JSON.parse(sessionStorage.getItem(HELD_KEY) ?? 'null') as Partial<HeldFight> | null; return v && typeof v.token === 'string' ? { token: v.token, played: v.played === true } : null; } catch { return null; } }, set: (f: HeldFight | null) => { try { if (f) sessionStorage.setItem(HELD_KEY, JSON.stringify(f)); else sessionStorage.removeItem(HELD_KEY); } catch { /* private mode: no resume, offline as before */ } } };
 const frontier: Frontier | null = REGION ? frontierPlan() : null, frontierParts = frontier && frontierBuild(frontier);
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
@@ -466,13 +466,14 @@ async function startMobFight(spec: MobSpec) {
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
   const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
   if (ONLINE && !bar) { online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
+  const on = online;   // `online` is cleared when the fight ends; the first-tick mark belongs to this fight
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
     if (online) { void online.settle(end).then((outcome) => console.info('encounter settle:', outcome)); online = null; }
     const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest));
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
     showResult(out.text);
-  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } });   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
+  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } }, () => on?.played());   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
   const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
