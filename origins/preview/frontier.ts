@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ArenaMaterials } from '../../src/arena.ts';
+import { phoneTier } from '../../src/quality.ts';
 import { meshPieces } from './exchange.ts';
 import type { Board, Build } from './frontier-plan.ts';
 import type { Dress } from './frontier-dress.ts';
@@ -50,7 +51,7 @@ export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build, d
   meshPieces(group, b.pieces, m, 'frontier');
   if (dress) {   // frontier-dress.ts: the dirt and roads, then rocks, ruins, burnt posts
     meshPieces(group, dress.ground, m, 'frontier-ground', { stone: dirtMaterial(), castShadow: false });   // flat on the ground: its shadow is invisible, and it was ~30 % of the shadow pass
-    meshPieces(group, dress.pieces, m, 'frontier-dress');
+    meshPieces(group, dress.pieces, m, 'frontier-dress', { castShadow: !phoneTier() });   // on a phone the rocks, ruins and posts do not cast (about a third of the shadow pass); desktop keeps them
   }
   if (camps.length) { meshPieces(group, camps.flatMap((c) => c.pieces), m, 'camp'); for (const c of camps) group.add(campGlow(c)); }   // frontier-camp.ts: fire, seats, bedrolls, crates and the soft ground glow
   for (const f of b.people) {
