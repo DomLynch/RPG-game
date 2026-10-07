@@ -28,6 +28,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // a meshopt-compressed body (public/herolook/*.glb) loads too
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { loadWarriors, CLIPS, COMBAT_CLIPS } from '/src/characters.ts';
 import { cameraPose } from '/src/camera.ts';
@@ -120,12 +121,12 @@ function* sequence() { for (const [ticks, p, o] of SEQUENCE) for (let i = 0; i <
 // ?src=<url> inspects any glTF/GLB (a raw source, a single part) in the same rigs; update() is a no-op for it.
 const SRC = PARAMS.get('src');
 async function inspectable(url) {
-  const asset = await new GLTFLoader().loadAsync(url), make = () => { const anchor = new THREE.Group(), root = clone(asset.scene); root.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); anchor.add(root); return { anchor, update() {} }; };
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url), make = () => { const anchor = new THREE.Group(), root = clone(asset.scene); root.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); anchor.add(root); return { anchor, update() {} }; };
   clips = asset.animations; return { player: make(), opponent: make() };
 }
 async function reset() {
   // The opponent plays the clips of the weapon his rig carries (a WeaponDrawn build = the trident set), as the game's renderer does for the sim's weapon.
-  enemyClips = SRC ? clips : (enemyAsset ??= await new GLTFLoader().loadAsync(ENEMY)).animations;
+  enemyClips = SRC ? clips : (enemyAsset ??= await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ENEMY)).animations;
   const KIT = PARAMS.get('kit');   // ?kit=/src/assets/weapons/player/gladius.glb: the opponent grafted with that equip file, as main.ts dresses the Centurion from Legionary
   warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY, ['longsword', KIT ? 'gladius' : enemyClips.some(c => c.name === 'Trident_Idle') ? 'trident' : 'longsword'], undefined, undefined, KIT ? new URL(KIT, location.href).href : undefined); scrubbers.clear();
   for (const [name, mode] of swaps) api.swapMaterial(name, mode); // diagnostic overrides survive the reload
@@ -439,7 +440,7 @@ function loop(now) {
 }
 for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => setMode(button.dataset.mode));
 try {
-  const asset = await new GLTFLoader().loadAsync(SRC || GLB); clips = asset.animations;
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(SRC || GLB); clips = asset.animations;
   for (const name of SRC ? clips.map(c => c.name) : [...CLIPS, ...COMBAT_CLIPS]) { const o = document.createElement('option'); o.textContent = o.value = name; select.append(o); }
   await setMode('studio'); api.loaded = true; status(`Ready · ${clips.length} clips · sequence ${(SEQUENCE_TICKS / 60).toFixed(1)}s`); requestAnimationFrame(loop);
 } catch (error) { api.error = String(error); status(api.error); throw error; }
