@@ -55,3 +55,13 @@ L1 (measured on the real branch, n = 120, base -> gate): tap-attack first-timer 
 **Plan.** (1) A probe per opponent at L1/L6/L12/L18 with `scripts/own-row-battery.mjs` style output for 'light spam', 'tap attack' and the skilled human-like bots (ladder-human), before/after, 24 seeds (48 where a cell sits within 3 of the cap). (2) Start from `reaction` (the measured lever; anticipate/parry do nothing at L6), then `lapse` / `parry`, smallest change that clears 80 %. (3) One commit per opponent so one can be dropped. (4) RV31 bump with REACH[31] naming exactly the opponents changed, from level 1. (5) The 'light spam' cap per opponent at L6 becomes a test row so it cannot drift back.
 
 **Risks.** Easy rows are the ladder's friendliest rungs: lowering the win rate of a mashing first-timer must not push the L1 tap-attack gate (the first-timer's win rate) under its floor. Evidence-first means a spam that mixes in a heavy or a thrust resets the read: the fix helps pure mashers only, which is the script in the cap.
+
+## FINAL-2 (Strategy ruling via Lead, 2026-10-07): p600 latch, shipped on `combat/rv31` @718f2198
+
+Supersedes the gate-5/6 `spamRun` above. A counted defence (guard, parry, roll, step) adds 2 to `spamRun` for `READ.latch` = 600 ticks; Shieldmaiden `spamBoth`, Dwarf `spamRun` 6, Pitborn 6, Veteran and Knight 5. The hit-reactive variant (`combat/rv31-react` @cf2aee4d) failed the spam bar and is parked. K <= 600 is the loophole-test limit (K 750+ lets a masher with one real block per K ticks win about 87% vs Knight/Veteran); honest 5-light runs against a passive warden are byte-identical to a mash, so only a latch passes.
+
+Light spam L6, n=120 (cap 96): veteran 40, pitborn 88, dwarf 66/74, knight 84, shieldmaiden 85.
+
+Honest, n=240, L6/L12 (base in brackets): veteran blocker 89/65 [90/68], skilled 91/85 [95/89]; pitborn b 69/49 [64/42], s 64/55 [70/53]; dwarf b 80/61 [78/58], s 58/37 [49/25]; knight b 67/47 [61/38], s 56/29 [57/25]; shieldmaiden b 77/73 [80/79], s 92/88 [94/94]. n=480: pitborn b 73/50 [66/44], s 63/55 [71/52]; shieldmaiden b 81/73 [84/76], s 91/87 [95/92].
+
+**Named exception to the -5 rule: PITBORN SKILLED L6, 63 vs 71 at n=480 (-8).** Gate 7 would give 69 but light spam 112/120 > 96 cap. Revisit with a different Pitborn knob only if the playtest says Pitborn feels unfair.
