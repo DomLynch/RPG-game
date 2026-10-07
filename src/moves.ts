@@ -682,7 +682,7 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
 // stays the warden's; with the scutum (RV18, L6+) he braces charged heavies and steps back out of a charging one. Battery (480 seeds, the
 // gladius tree): L6 thrust from range 87 -> 23 %, charged heavy only 89 -> 56 %; L10 pommel then light 86 -> 71 %, thrust 84 -> 12 %; live
 // (trident) L6 pommel then light 90 -> 79 %, thrust 73 -> 20 %; L1 tap 480 / 480; L6 light spam and heavy only unmoved (the easy rail).
-const OWN_KNOBS: Partial<Record<OpponentId, Partial<AiProfile>>> = { veteran: { tellReaction: 15, braceHeavy: 1, spamRun: 5 }, pitborn: { spamRun: 5 }, dwarf: { spamRun: 5 }, knight: { spamRun: 5 }, shieldmaiden: { spamRun: 5, spamBoth: 1 } };   // RV31 (docs/specs/combat/l6-anti-spam.md): the five opponents a mashing player beat at L6; every other opponent keeps today's read
+const OWN_KNOBS: Partial<Record<OpponentId, Partial<AiProfile>>> = { veteran: { tellReaction: 15, braceHeavy: 1, spamRun: 5 }, pitborn: { spamRun: 6 }, dwarf: { spamRun: 5 }, knight: { spamRun: 5 }, shieldmaiden: { spamRun: 5, spamBoth: 1 } };   // RV31 (docs/specs/combat/l6-anti-spam.md): the five opponents a mashing player beat at L6 (the Pitborn's gate is 6: at 5 her skilled bot lost 9 points at L6, at 7 light spam still won 47/48); every other opponent keeps today's read
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) => {
   const base = ARCHETYPES[recipe.archetype], own = OWN_KNOBS[id as OpponentId];
   const profiles = own ? { easy: { ...base.profiles.easy, ...own }, normal: { ...base.profiles.normal, ...own }, hard: { ...base.profiles.hard, ...own } } : base.profiles;

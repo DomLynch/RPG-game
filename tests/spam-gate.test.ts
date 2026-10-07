@@ -35,7 +35,7 @@ test('the early gate REPLACES the old read; spamBoth keeps it (the Shieldmaiden)
 });
 
 test('only the five measured opponents carry spamRun, at every tier and level; the rest read as they always did', () => {
-  for (const id of GATED) for (const level of [1, 6, 12, 18, 30, 46, 50]) assert.equal(profileAt(OPPONENTS[id], level).spamRun, 5, `${id} L${level}`);
+  for (const id of GATED) for (const level of [1, 6, 12, 18, 30, 46, 50]) assert.equal(profileAt(OPPONENTS[id], level).spamRun, id === 'pitborn' ? 6 : 5, `${id} L${level}`);
   assert.equal(profileAt(OPPONENTS.shieldmaiden, 6).spamBoth, 1);
   for (const id of GATED.filter(g => g !== 'shieldmaiden')) assert.ok(!profileAt(OPPONENTS[id], 6).spamBoth, `${id} has the early gate alone`);
   for (const id of Object.keys(OPPONENTS).filter(i => !(GATED as readonly string[]).includes(i))) for (const level of [1, 6, 18, 46])
