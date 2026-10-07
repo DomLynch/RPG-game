@@ -15,7 +15,7 @@ export const MOB_STYLE: Readonly<Record<MobStyle, MobStyleRow>> = {
   brute: { opponent: 'pitborn' },          // slow heavy-hitter: the cleaver, poise and stamina game
   skirmisher: { opponent: 'nightborn' },       // NOT a bowman: ranged stays out of the duel (combat-study.md), so this is the Nightborn's poke-and-withdraw at the estoc's reach
   caster: { opponent: 'witch' },           // the Witch's witchfire special and her read-and-guard brain
-  beast: { opponent: 'goblin', fleeBelow: 0.3 },   // quick, hit-and-run; flees under 30%, the same share as the `flee-at` twist's default percent
+  beast: { opponent: 'goblin', fleeBelow: 0.3 },   // quick, hit-and-run; flees under 30% (Combat's number; the `flee-at` twist carries its own percent)
 };
 
 // The opponent a mob style fights as, or undefined for an unknown id (a mob row from content this build does not know).
