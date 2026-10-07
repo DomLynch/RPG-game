@@ -27,11 +27,11 @@ test('location: serve applies the rejoin rules', () => {
   assert.deepEqual(serve(row(PIT), null), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved' }, 'a Pit spot is served as saved');
   const ex = serve(row(EXCHANGE), null);
   assert.deepEqual(ex, { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge' }, 'an Exchange spot is served at the gate edge');
-  assert.deepEqual(serve({ ...row(PIT), zone: 'exchange' }, null).source === 'trade-edge', true, 'a row stored as exchange moves to the edge too');
+  assert.deepEqual(serve({ ...row(PIT), zone: 'exchange' }, null), ex, 'a row stored as exchange moves to the edge too');
   // Strategy's rule (a): the writer holds no jail/bounty/feud/duel state today, so the seam answers null; a held state, once it exists, wins over the saved spot.
   const jail = { zone: 'pit-yard', x: 14000, z: 14000, reason: 'jail' as const };
   assert.deepEqual(serve(row(EXCHANGE), jail), { saved: true, zone: 'pit-yard', x: 14000, z: 14000, source: 'jail' }, 'a held state overrides the saved spot');
-  assert.deepEqual(serve(null, jail).source, 'jail', 'and applies with nothing saved: it never expires with the saved row');
+  assert.deepEqual(serve(null, jail), { saved: true, zone: 'pit-yard', x: 14000, z: 14000, source: 'jail' }, 'and applies with nothing saved: it never expires with the saved row');
 });
 
 test('location: no logout escape is a seam today: the default held-state lookup answers null for everyone', async () => {
