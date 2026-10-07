@@ -8,9 +8,11 @@
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
 import { type Fighter } from '../../src/duel.ts';
+import { creaturesLook } from '../../src/audio/creature.ts';
 import { createFeedback } from '../../src/feedback.ts';
 import { createHud } from '../../src/hud.ts';
-import { createInput } from '../../src/input.ts';
+import { initialPractice, stepPractice } from '../../src/combat.ts';
+import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
 import { Match } from '../../src/match.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/moves.ts';
@@ -23,7 +25,7 @@ import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
-import { withBar } from './encounter-duel.ts';
+import { withBar } from '../shared/with-bar.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Object3D } from 'three';
@@ -65,8 +67,19 @@ const element = <T extends HTMLElement>(id: string): T => {
   return el;
 };
 // The opponent's foe-holding test the game's sound reads (src/main.ts foeHolding): her swing parked in its chamber.
+const CREATURES = creaturesLook(location.search);
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
-const paused = () => !running || !stage?.ready || document.hidden || !!journal?.open;
+// World mode (Dom 2026-10-07: the open world uses the Pit's controls exactly): the same kit and the same createInput drive the WALK. No duel is
+// running, so the input reads an idle practice (every press is accepted) and the page turns the stick into walking and a press into an engage.
+let world = false;
+// The idle fighter has his weapon DRAWN (the Pit's own state after the first FIGHT tap), so the kit shows STAB, SLASH, KICK and HEAVY as it does mid-fight.
+const idle = (() => {
+  const rest = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: false } as unknown as Parameters<typeof stepPractice>[1];
+  let p = stepPractice(initialPractice(), { ...rest, action: 'light' });
+  for (let i = 0; i < 240 && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
+  return p;
+})();
+const paused = () => world ? document.hidden || !!journal?.open : !running || !stage?.ready || document.hidden || !!journal?.open;
 
 function bind(leave: () => void) {
   feedback = createFeedback();
@@ -74,7 +87,7 @@ function bind(leave: () => void) {
   for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(type, () => { if (running) feedback!.unlock(); }, { passive: true });
   controls = createInput({
     element, window, paused, now: () => performance.now(), matchMedia: (q) => matchMedia(q), innerWidth: () => innerWidth,
-    ready: () => !!stage?.ready, practice: () => match!.practice, quiet: () => feedback!.quiet(),
+    ready: () => world || !!stage?.ready, practice: () => (world ? idle : match!.practice), quiet: () => feedback!.quiet(),
   });
   hud = createHud(element);
   element('reset-button').addEventListener('click', () => hooks?.again());
@@ -147,7 +160,7 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number) {
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
-  liveLook(true);
+  world = false; liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
   if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
@@ -164,6 +177,13 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
   if (!running) { running = true; last = performance.now(); frameId = requestAnimationFrame(frame); }
+}
+
+/** The walk uses the kit: bind it, switch the game's stylesheet on, and hand back the controls' intent each frame (a press is consumed when read). */
+export function enterWorld(leave: () => void) { world = true; liveLook(true); if (!controls) bind(leave); controls!.clear(); }
+export function worldIntent(): ControlIntent {
+  hud!.update(idle, { controlsReady: true, debug: false, opponentId: 'veteran' });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  const i = controls!.intent(); controls!.consumed([]); return i;
 }
 
 export function closeDuel() {
@@ -188,6 +208,7 @@ function frame(now: number) {
       for (const e of p.events) if (e.actor === 0) { if (e.type === 'ActionStarted') saw(e.action!); else if (e.type === 'AttackStarted') saw(e.move!); else if (e.type === 'Charged') saw('charged'); }
       feedback!.update(p.events, undefined, { match: match.seed, ended: !!p.finish, tick: p.duel.tick, drawing: p.duel.fighters[0].phase === 'draw', holding: foeHolding(p.duel.fighters[1]), opponent: stage.opponent,
         loiter: Math.max(p.duel.fighters[0].loiter, p.duel.fighters[1].loiter) / RULES.wall.loiter.ticks });   // the game's sound, fed as src/main.ts feeds it
+      if (CREATURES && fight!.flags) for (const e of p.events) { if (e.type === 'Hit' && e.target === 0) feedback!.creature(stage.opponent, 'bite'); else if (e.type === 'Killed' && e.target === 1) feedback!.creature(stage.opponent, 'death'); }   // ?look=creatures: an encounter foe's bite on a landed blow and its death cry
       if (damageNumbers) hud!.floatDamage(p.events, p.duel.fighters, stage.view.project);
       controls!.consumed(match.practice.events);
       state = match.practice.fighter;

@@ -13,6 +13,7 @@ import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 import { cuesFor } from '../src/audio/cues.ts';
 import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/feedback.ts';
+import { CREATURE_CUES, THROATS } from '../src/audio/creature.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
@@ -44,7 +45,7 @@ try {
     let now = 0;
     const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}), ...(balance ? { balance } : {}) });
     feedback.unlock(); const decoded = await feedback.ready();
-    for (const { t, events, presentation, control } of cues) { now = t; if (control) feedback[control](); else feedback.update(events, presentation); }
+    for (const { t, events, presentation, control, creature } of cues) { now = t; if (control) feedback[control](); else if (creature) feedback.creature(...creature); else feedback.update(events, presentation); }
     const data = (await context.startRendering()).getChannelData(0);
     // 16-bit PCM, transferred as base64 (Float32 arrays do not serialise through evaluate).
     const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
@@ -87,6 +88,21 @@ try {
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
   for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe));
+  // The Frontier creature voices (src/audio/creature.ts, ?look=creatures): one probe per body throat x cue, synthesised on the combat bus, no sprite byte. Each must be audible, finish within its
+  // cue length (+ the room's .25 s), and peak under the break thud (bone_crack .55), so a creature never covers an impact; the count is pinned (5 bodies x growl/bite/death).
+  for (const body of Object.keys(THROATS)) for (const cue of Object.keys(CREATURE_CUES)) rendered[`events/creature-${body}-${cue}`] = await pcm([{ t: PROBE_AT, creature: [body, cue] }], PROBE_LENGTH + 1);
+  if (checks) {
+    const peakOf = pcm => pcm.reduce((m, v) => Math.max(m, Math.abs(v)), 0), thud = CUE_PROBES.find(p => p.events.some(e => e.type === 'PostureBroken')), thudPeak = peakOf(rendered[`events/${thud.name}`]);
+    checks.creatures = 0;
+    for (const body of Object.keys(THROATS)) for (const [cue, spec] of Object.entries(CREATURE_CUES)) {
+      const pcm = rendered[`events/creature-${body}-${cue}`], peak = peakOf(pcm); let last = pcm.length - 1; while (last > 0 && Math.abs(pcm[last]) < 33) last--;   // 33 = -60 dBFS
+      assert.ok(peak > 330, `creature-${body}-${cue} is silent (peak ${peak})`);
+      assert.ok(peak < thudPeak, `creature-${body}-${cue} peaks ${peak}, over the break thud's ${thudPeak}`);
+      assert.ok(last / RATE <= PROBE_AT + spec.length + .25, `creature-${body}-${cue} rings on to ${(last / RATE).toFixed(2)} s, past its ${spec.length} s`);
+      checks.creatures++;
+    }
+    assert.equal(checks.creatures, 15);
+  }
   // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage flat at REFERENCE. Not ×1: there the
   // ordinary peaks (~.89 after the soft ceiling) sit above the output guard's .55 knee and the reference is itself compressed,
   // which read as a spurious .18 dB error the moment the mix dropped to .4 (deploy #21, 2026-09-20). At .5 both renders are linear, and

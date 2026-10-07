@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FOES } from '../region1/content.ts';
 import { ROSTER } from '../../src/roster.ts';
-import { MOB_LOOKS, mobLook } from './mob-looks.ts';
+import { MOB_LOOKS, MOB_SPREAD, VARIANTS, mobLook, mobVariant, variantLook } from './mob-looks.ts';
 
 test('every Frontier foe has exactly one look, on the body content.ts names', () => {
   const foes = FOES as unknown as { id: string; encounterForms: { opponent: string }[] }[];
@@ -36,4 +36,35 @@ test('figures that share a body differ in tint and in height', () => {
       assert.notEqual(a.tint, b.tint, `${group[i]![0]} vs ${group[j]![0]} share a tint`);
     }
   }
+});
+
+test('visual spread: variant 0 is the table look, the others are distinct, stable and inside the kind\'s ranges', () => {
+  for (const [id, spread] of Object.entries(MOB_SPREAD)) {
+    const base = MOB_LOOKS[id]!;
+    assert.equal(variantLook(id, 0), base, `${id}: variant 0 IS the table look, so a lone figure is unchanged`);
+    const seen = new Set<string>();
+    for (let v = 0; v < VARIANTS; v++) {
+      const l = variantLook(id, v)!;
+      assert.equal(variantLook(id, v), l, `${id}#${v}: the same object every call (the cloth-clone cache is keyed on it)`);
+      assert.equal(l.opponent, base.opponent, `${id}#${v}: same body`);
+      assert.ok(Math.abs(l.scale / base.scale - 1) <= spread.scale + 1e-3, `${id}#${v}: scale ${l.scale} inside +-${spread.scale} of ${base.scale}`);
+      assert.ok(Math.abs(l.dressing.soot - base.dressing.soot) <= spread.soot + 1e-9 && Math.abs(l.dressing.burnt - base.dressing.burnt) <= spread.burnt + 1e-9, `${id}#${v}: dressing`);
+      for (const n of [l.dressing.soot, l.dressing.burnt]) assert.ok(n >= 0 && n <= 1);
+      assert.ok([base.tint, ...spread.tints].includes(l.tint), `${id}#${v}: the tint comes from the pool`);
+      seen.add(`${l.tint}/${l.scale}`);
+    }
+    assert.equal(seen.size, VARIANTS, `${id}: ${VARIANTS} variants, all different`);
+  }
+});
+
+test('visual spread: a creature always gets the same variant, a camp of four mostly differs, kinds stay apart by height', () => {
+  const id = 'character:cinder-scavenger';
+  assert.equal(mobVariant(id, 'zone1-mob-3'), mobVariant(id, 'zone1-mob-3'));
+  const camp = new Set([0, 1, 2, 3, 4, 5].map((i) => mobVariant(id, `scavengers-${i}`)));
+  assert.ok(camp.size >= 4, `six creatures wear ${camp.size} different looks`);
+  assert.equal(mobVariant('character:hrungnir', 'x'), MOB_LOOKS['character:hrungnir'], 'a named foe has no spread');
+  assert.equal(mobVariant('character:warden-brannoc', 'x'), null, 'a friendly figure has no look');
+  const band = (id: string) => { const h = Array.from({ length: VARIANTS }, (_, v) => variantLook(id, v)!.scale); return [Math.min(...h), Math.max(...h)]; };
+  const [scav, brood, ghoul] = ['character:cinder-scavenger', 'character:mere-brood', 'character:ruin-ghoul'].map(band) as [number[], number[], number[]];
+  assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - scav[1]! >= .01, `the three goblin kinds keep their height order: ${brood} < ${scav} < ${ghoul}`);
 });

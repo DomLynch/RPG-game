@@ -1,4 +1,5 @@
 import { CAST_MARGIN, LAND_AT, type Cast } from './special-timing.ts';
+import { smooth } from './fx-math.ts';
 
 // Nyx's Nightfall, the presentation timeline (World, 2026-09-30; Lead's brief). Three-free, like special-timing.ts, whose Cast it reads: the
 // arena's light drains over the windup (fully dark VEIL_HOLD ticks before the release, so the dark is held for a beat), then on
@@ -8,7 +9,6 @@ import { CAST_MARGIN, LAND_AT, type Cast } from './special-timing.ts';
 // later, before the guard's drop) and the dark never snaps off. Nothing here touches the sim.
 export const STUCK_AT = LAND_AT + CAST_MARGIN;
 export const VEIL_HOLD = 15, DRAIN_DONE = LAND_AT - VEIL_HOLD, RETURN = 30, VEIL = 24;
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 
 export type Nightfall = { drain: number; veil: number | null };
 

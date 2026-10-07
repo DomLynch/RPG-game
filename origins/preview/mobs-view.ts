@@ -9,7 +9,7 @@ import witchUrl from '../../src/assets/witch.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobLook } from './mob-looks.ts';
+import { mobVariant } from './mob-looks.ts';
 import { TUNING, mobSpecs, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -51,6 +51,7 @@ export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
+  nearest(x: number, z: number, within: number): MobPick | null;   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
 };
 const RESPAWN = 90;   // s
@@ -58,7 +59,7 @@ const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a
 
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean }): Mobs {
   const specs = mobSpecs(frontier, build), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
-  const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>();
+  const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 8 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -76,7 +77,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   };
 
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
-    const model = clone(body.scene), look = mobLook(s.character);
+    const model = clone(body.scene), look = mobVariant(s.character, s.id);
     model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
     if (look) dressMob(model, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     v.mixer = new THREE.AnimationMixer(model);
@@ -88,7 +89,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   function viewOf(i: number): View {
     let v = views.get(i); if (v) return v;
-    const s = specs[i]!, group = new THREE.Group(), look = mobLook(s.character), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
+    const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
     stand.position.y = 0.85; stand.castShadow = true;
     const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height;
@@ -110,6 +111,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
+      // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
+      const nearestOf = new Map<string, number>();
+      for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
       for (const i of shown) {
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
         if (!v.model && body && body !== 'loading' && body !== 'failed') dress(v, s, body);
@@ -117,7 +121,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.group.position.set(m.x, 0, m.z); v.group.rotation.y = m.facing;
         v.ring.position.set(m.x, 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
-        v.label.visible = s.id !== hideLabel;   // the info card (creature-card.ts) carries this creature's name and level while it is up
+        if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
+        v.label.visible = s.id !== hideLabel && nearestOf.get(s.name) === i;   // the info card (creature-card.ts) carries this creature's name and level while it is up
         v.bang.visible = aggro; mat.opacity = aggro ? 0.34 : 0.1; mat.color.set(aggro ? '#e0553a' : '#d8c9a8');
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.mixer && v.idle && v.walk) {
@@ -135,6 +140,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const dist = hit.distanceTo(ray.origin);
         if (!best || dist < best.dist) best = { spec: s, x: m.x, z: m.z, dist };
       }
+      return best;
+    },
+    nearest(x, z, within) {
+      let best: MobPick | null = null;
+      for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= within && (!best || d < best.dist)) best = { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }; }
       return best;
     },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },

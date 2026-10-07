@@ -777,7 +777,7 @@ Source { kind: 'myth' | 'folklore' | 'history' | 'literature' | 'chronicle',
 | `no-source` | `source` missing or incomplete and no `legendId`; or fails the 7.4 machine checks | message: "source citation required" |
 | `bad-role` | `styleOpponent(row.role)` is `undefined` (role is not in `MOB_STYLE`) | uses Combat's function, not a copy of the list |
 | `family-no-look` | `row.family` has no roster body, or `row.look.opponent !== row.family`, or the row has no `look` and `mobLook(row.id)` is null (a `later: true` row is exempt) | a body family needs a look so two figures on one body stay readable |
-| `level-band` | `level[0] > level[1]`, or the band does not intersect the zone's `difficulty.levelMin..levelMax` | when a zone is supplied; for a generator a non-intersecting row is simply not eligible there, but a **fixed** spawn that names it is an error |
+| `level-band` | the band is malformed: not whole numbers, below 1, or `level[0] > level[1]` (always an error, and the generator rejects the row by name). **`level-miss`** (a separate code, shipped in code): the band does not intersect the zone's `difficulty.levelMin..levelMax` | when a zone is supplied; for a generator a non-intersecting row is simply not eligible there, but a **fixed** spawn that names it is an error |
 | `tint-contrast` | the look's tint, as it reads against the zone's ground colour, has a contrast ratio below `minContrast` by day or by night | 7.5.1 |
 | `loot-unknown` | `row.loot` is not a registered loot table | |
 | `loot-tier` | the loot table's tier (`tierOfLootTier`) is above the zone's `difficulty.lootTier` | a creature may not out-drop its zone |
@@ -799,7 +799,7 @@ populateZone(params: Params, rows: MobRow[], seed: number): Result<{ groups: Spa
 ```
 
 1. **Budget.** `target = round(params.density.creatures * realGroundArea / 100)`, where `realGroundArea` is the zone's walkable footprint (the area the density field is defined over); at least 1 unless the zone is `safe` (`safe` zones get 0: no hostile spawns, as the schema says). Clamp to `regionCap` and the zone `areaCap` (section 4).
-2. **Eligible rows.** Rows that are not `named`, not `later`, pass `validateMobRow` against **this** `params` (so `level-band`, `tint-contrast` and `loot-tier` use the zone's real `difficulty`, `terrain.ground` and `lootTier`), and whose `habitat` contains `params.terrain.biome` (or is empty). No eligible row is an error issue, not a silent empty zone.
+2. **Eligible rows.** Rows that are not `named`, not `later`, pass `validateMobRow` against **this** `params` (so `level-miss`, `tint-contrast` and `loot-tier` use the zone's real `difficulty`, `terrain.ground` and `lootTier`), and whose `habitat` contains `params.terrain.biome` (or is empty). No eligible row is an error issue, not a silent empty zone.
 3. **Mix.** Entry weights come from `row.weight` and the phase table (section 4.8 `phaseWeight`); the seeded draw is section 4.3's.
 4. **Camps.** `target` is met by whole camps drawn from each chosen row's `campSize`, positioned by section 3.3 near the zone's landmarks (its `layout`), never within `campGap` of one another, always on `mobStand` ground.
 5. **Respawn.** `params.spawns.respawnSeconds` is the group's `respawn.seconds` (templates should `vary` it inside 120 to 180 for the 2 to 3 minute rule). The schema has no variance field, so section 4's `respawn.variance` takes its default (60 s) until Architecture adds `spawns.respawnVariance` (a proposed schema addition: numeric, seconds, default 60).

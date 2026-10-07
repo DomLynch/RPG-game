@@ -56,7 +56,8 @@ try {
       const frames = [];
       const shot = async label => {
         const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth }));
-        assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`${prefix}_`));
+        // 'start' may still be the Standoff draw (ON by default since 037627aa, #1535): both fighters hold the generic Draw pair until the draw ends; every later shot must carry the weapon's own clips.
+        assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, label === 'start' ? new RegExp(`${prefix}_|Draw:Draw@SwordDrawn`) : new RegExp(`${prefix}_`));
         const path = `${dir}/${opponent}-${mobile ? 'phone' : 'desktop'}-${label}.png`;
         await page.screenshot({ path }); frames.push({ label, path, pageMs, ...state });
       };
