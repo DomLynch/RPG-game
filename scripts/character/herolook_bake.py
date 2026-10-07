@@ -55,12 +55,22 @@ bpy.ops.object.shade_smooth()
 # NORMALS: the reconstruction's triangle winding is inconsistent (open, layered shells), so normals Blender rebuilds from it after the
 # collapse point every which way, and on metal each wrong one is a bright shard. Recomputing them "outside" flips half the shells (tried,
 # 2026-09-26). The 495k carries its own vertex normals: transfer those onto the low mesh instead of deriving new ones.
-dt = low.modifiers.new("HiNormals", "DATA_TRANSFER")
-dt.object = hi
-dt.use_loop_data = True
-dt.data_types_loops = {"CUSTOM_NORMAL"}
-dt.loop_mapping = "POLYINTERP_NEAREST"
-bpy.ops.object.modifier_apply(modifier=dt.name)
+# BAKE_NORMALS=smooth (default off, the legionary and every other bake are unchanged): skip the transfer and make the winding consistent outward,
+# so Blender derives one smooth normal per vertex from a coherent surface. On the giant the nearest-loop transfer picked the wrong shell's normal on
+# muscle folds and the cape (30.7% of triangles lit backwards, measured), which read as snow-camo patches at the game camera.
+if os.environ.get("BAKE_NORMALS") == "smooth":
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.shade_smooth()
+else:
+    dt = low.modifiers.new("HiNormals", "DATA_TRANSFER")
+    dt.object = hi
+    dt.use_loop_data = True
+    dt.data_types_loops = {"CUSTOM_NORMAL"}
+    dt.loop_mapping = "POLYINTERP_NEAREST"
+    bpy.ops.object.modifier_apply(modifier=dt.name)
 low.data.uv_layers.new(name="UVMap")
 bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.select_all(action="SELECT")
