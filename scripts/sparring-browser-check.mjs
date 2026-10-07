@@ -20,10 +20,12 @@ const receipt = { mode: source ? 'current-source/local-synthetic-tester' : 'dist
 // (every step merely slow, none stuck), while the check's many real-time waits (asset loads, cooldowns, a 15 s cast) add up differently on
 // every machine. So: a step that makes no progress for STEP_MS fails, naming the last step reached; a slow run that keeps moving passes, and
 // the receipt's `steps` list says how long each took, so a slow box reads as its own row. The hang bound is still STEP_MS, not minutes.
-const STEP_MS = Number(process.env.SPARRING_STEP_MS ?? 60000);
+const STEP_MS = Number(process.env.SPARRING_STEP_MS ?? 120000);   // above waitForGame's own 90 s, so the watchdog never pre-empts a wait that has its own timeout
 let stepStart = Date.now(), lastStep = 'boot', stall, stalled;
 const stalling = new Promise((_, reject) => { stalled = reject; });
 const arm = () => { clearTimeout(stall); stall = setTimeout(() => stalled(new Error(`Sparring browser check: no progress for ${STEP_MS / 1000} s after step "${lastStep}"`)), STEP_MS); };
+// Every page load is its own step (the rigs are ~13 MB and the load is the machine-dependent part), named by the URL it booted.
+const ready = async () => { await waitForGame(activePage, { art: true }); mark(`loaded ${new URL(activePage.url()).search.slice(0, 70)}`); };
 const mark = (step) => { const now = Date.now(); receipt.steps.push({ step: lastStep, ms: now - stepStart }); stepStart = now; lastStep = step; arm(); };
 async function check() {
   if (source) {
@@ -39,7 +41,7 @@ async function check() {
   activePage = page;
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
-  await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
+  await page.goto(new URL('/?debug=1', site.url).href); await ready();
   mark('arena list');
   assert.deepEqual(await page.locator('#arena-select option').evaluateAll(os => os.map(o => o.value)), ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'], 'only the known arena choices remain');   // Arena 11 (Bloodfall Keep) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 10 (The Pale Gate) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 9 (The Reaper Gate) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 8 (Legion Heights) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 7 (Cloud Reach) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 6 (The Goblin King) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 5 (The Bone Camp) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 4 (Heaven's Breach) joined the Stage list with its preview (Dom 2026-10-06): the pin follows the list on purpose   // Arena 3 (Sunset Legion) joined the Stage list with #1425 (Dom 2026-10-06 "arena 3 looks good"): the pin follows the list on purpose   // Arena 2 (The Skull Gate) joined the Stage list with #1421 (Dom 2026-10-06 "ship arena 2 live")
   let loads = 0; page.on('load', () => { loads++; });
@@ -99,7 +101,7 @@ async function check() {
 
   // Start sparring boots exactly those picks.
   await Promise.all([page.waitForURL(/spar=1/), page.locator('#spar-start').tap()]);
-  await waitForGame(page, { art: true });
+  await ready();
   const booted = await page.evaluate(() => ({
     search: Object.fromEntries(new URLSearchParams(location.search)),
     foe: document.querySelector('#opponent-name')?.textContent.trim(),
@@ -122,7 +124,7 @@ async function check() {
   });
   assert.deepEqual(receipt.bannerOverlaps, [], 'the sparring banner clears the HUD labels and meters');
   // Opponent-only Nyx goes through the form and Start, with Your explicitly off.
-  await page.goto(new URL('/?debug=1&opponent=nightborn', site.url).href); await waitForGame(page, { art: true });
+  await page.goto(new URL('/?debug=1&opponent=nightborn', site.url).href); await ready();
   mark('nightborn form');
   await page.locator('#journal-button').tap(); await page.locator('#sparring-tab').tap();
   await page.selectOption('#opponent-select', 'nightborn');
@@ -155,7 +157,7 @@ async function check() {
   assert.ok(receipt.specialField.right <= receipt.specialField.viewport + 1, 'native select fits375');
   await page.screenshot({ path: 'artifacts/sparring-browser-check/special-form-375.png' });
   await Promise.all([page.waitForURL(/special=nyx/), page.locator('#spar-start').tap()]);
-  await waitForGame(page, { art: true });
+  await ready();
   receipt.specialBoot = await page.evaluate(() => ({ search: Object.fromEntries(new URLSearchParams(location.search)), weapon: document.getElementById('spar-weapon').value, skill: document.getElementById('spar-skill').value, special: document.getElementById('spar-special').value }));
   assert.deepEqual(receipt.specialBoot.search, { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '10', skill: 'none', special: 'nyx', yourSpecial: 'none', arena: 'a', finisher: 'opened' });
   assert.deepEqual([receipt.specialBoot.weapon, receipt.specialBoot.skill, receipt.specialBoot.special], ['estoc', 'none', 'nyx']);
@@ -173,11 +175,11 @@ async function check() {
   // Keep the existing Stage proof on the Nyx document before subsequent cases navigate.
   // Stages prove real simulation activity; these normal screenshots still require independent visible-FX judgment.
   const debugStage = new URL(page.url()); debugStage.searchParams.set('debug', '1');
-  await page.goto(debugStage.href); await waitForGame(page, { art: true });
+  await page.goto(debugStage.href); await ready();
   receipt.passiveDebugStage = await page.evaluate(() => ({ fog: globalThis.__view.arena.group.parent.fog.color.getHexString(), density: globalThis.__view.arena.group.parent.fog.density }));
   assert.deepEqual(receipt.passiveDebugStage, { fog: '261c1a', density: .028 }, 'separate passive debug reload draws the selected Night Pit');
   async function openForm(search = '/?debug=1&opponent=nightborn&spar=1&weapon=estoc&difficulty=6&skill=none&special=none&yourSpecial=none') {
-    await page.goto(new URL(search, site.url).href); await waitForGame(page, { art: true });
+    await page.goto(new URL(search, site.url).href); await ready();
     mark('form open');
     await page.locator('#journal-button').tap(); await page.locator('#sparring-tab').tap();
   }
@@ -190,7 +192,7 @@ async function check() {
       return { opponent: value('opponent-select'), difficulty: value('difficulty-select'), weapon: value('spar-weapon'), skill: your.startsWith('special:') || your === 'none' ? 'none' : your, special: value('spar-special'), yourSpecial: your.startsWith('special:') ? your.slice(8) : 'none' };
     });
     await Promise.all([page.waitForEvent('load'), page.locator('#spar-start').tap()]);
-    await waitForGame(page, { art: true });
+    await ready();
     const actual = Object.fromEntries(new URL(page.url()).searchParams);
     for (const [key, value] of Object.entries(expected)) assert.equal(actual[key], value, `real Start navigation carries ${key}`);
     receipt.caseStarts ??= []; receipt.caseStarts.push({ expected, actual }); mark(`case start ${expected.special}/${expected.yourSpecial === 'none' ? expected.skill : expected.yourSpecial}`);
@@ -293,7 +295,7 @@ async function check() {
 
   await openForm('/?debug=1&spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx');
   assert.equal(await page.locator('#spar-skill').inputValue(), 'miasma'); assert.equal(await page.locator('#spar-special').inputValue(), 'nyx');
-  await Promise.all([page.waitForURL(/yourSpecial=none/), page.locator('#spar-start').tap()]); await waitForGame(page, { art: true });
+  await Promise.all([page.waitForURL(/yourSpecial=none/), page.locator('#spar-start').tap()]); await ready();
   receipt.legacyBoth = Object.fromEntries(new URL(page.url()).searchParams);
   assert.equal(receipt.legacyBoth.skill, 'miasma'); assert.equal(receipt.legacyBoth.special, 'nyx'); assert.equal(receipt.legacyBoth.yourSpecial, 'none');
   // Bookmarked trials and old tab storage must still boot the original arena.
@@ -303,7 +305,7 @@ async function check() {
     mark(`retired ${retired}`);
     await page.evaluate(value => sessionStorage.setItem('frankendom.arena-override', value), retired);
     for (const suffix of ['', `&arena=${retired}`]) {
-      await page.goto(new URL(base + suffix, site.url).href); await waitForGame(page, { art: true });
+      await page.goto(new URL(base + suffix, site.url).href); await ready();
       await page.locator('#versus').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('#arena-select').inputValue(), '', 'retired URL/storage falls back to Ladder');
       const camera = await page.evaluate(() => { const c = globalThis.__view.pitStage(() => null).camera; return [c.fov, c.near, c.far]; });
