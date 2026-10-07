@@ -5,6 +5,7 @@ import type { Verify } from './auth.ts';
 import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, handlers as defaults, type Handler } from './handlers.ts';
+import { internalRoute, type InternalOptions } from './location.ts';
 
 const MAX_BODY = 64 * 1024;
 const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, '23505': 409 };
@@ -17,9 +18,12 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
   req.on('error', reject);
 });
 
-export function createWriter({ db, verify, handlers = defaults }: { db: Db; verify: Verify; handlers?: Record<string, Handler> }): Server {
+// `internal`: the shared key presence presents on the writer's internal routes (origins/server/location.ts, X2 Stage 2). Unset: those routes do not exist.
+export function createWriter({ db, verify, handlers = defaults, internal }: { db: Db; verify: Verify; handlers?: Record<string, Handler>; internal?: InternalOptions }): Server {
+  const inside = internal ? internalRoute(db, internal) : null;
   return createServer(async (req, res) => {
     const send = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (inside && (req.url ?? '').startsWith('/internal/')) return void inside(req, res);
     try {
       const op = /^\/origins\/([a-z_]{1,32})$/.exec(req.url ?? '')?.[1];
       if (req.method !== 'POST' || !op || !Object.hasOwn(handlers, op)) return send(404, { ok: false, error: 'not found' });

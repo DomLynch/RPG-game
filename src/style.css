@@ -874,6 +874,13 @@ dialog>p {
 #stamina[data-capped=true] {
   background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%));
 }
+/* ?look=fatigue-preview (Dom 2026-10-07, v2 after his phone: "I didn't see the red"): the last 10 % of stamina turns the WHOLE bar frame red and pulses it (a glowing red outline round the track and a red-tinted track, not just the thin fill), and the STAMINA word goes red. Body not involved. */
+#stamina[data-low=true] { --bar-color: #e0463a; background-color: #5a1612; outline: 2px solid #e0463a; outline-offset: 1px; border-radius: 3px; animation: stamina-low 1.2s ease-in-out infinite; }
+#stamina[data-low=true]::-webkit-meter-optimum-value { background: #e0463a; }
+#stamina-label[data-low=true] { color: #ff5a48; text-shadow: 0 0 6px #e0463a, 0 1px 2px #000a; animation: stamina-low-label 1.2s ease-in-out infinite; }
+@keyframes stamina-low { 0%, 100% { outline-color: #ff5a48; box-shadow: 0 0 10px 3px #e0463acc; } 50% { outline-color: #e0463a55; box-shadow: 0 0 3px 1px #e0463a33; } }
+@keyframes stamina-low-label { 50% { opacity: .65; } }
+@media (prefers-reduced-motion: reduce) { #stamina[data-low=true], #stamina-label[data-low=true] { animation: none; } }
 #stamina[data-leg=true] {
   outline: 1px solid #b5533f88;
 }

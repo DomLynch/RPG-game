@@ -10,6 +10,7 @@ import * as armfeelModule from '../src/armfeel.ts';
 import * as defenceGradeModule from '../src/defence-grade.ts';
 import * as kickCloseModule from '../src/kick-close.ts';
 import * as victoryHeadlineModule from '../src/victory-headline.ts';
+import * as fatiguePreviewModule from '../src/fatigue-preview.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
@@ -56,6 +57,7 @@ import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
 import * as breakBeat from '../src/break-beat.ts';
+import * as breathAudio from '../src/audio/breath.ts';
 import * as powerWords from '../src/power-words.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
@@ -114,8 +116,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
   modules['./kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
+  modules['./fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
+  modules['./audio/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./break-beat.ts'] = breakBeat;   // ?look=breakbeat's pure core (main.ts reads the flag for the PostureBroken hold)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;

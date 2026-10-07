@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { breathPlan, bodyOf, createBreath } from '../src/audio/breath.ts';
+import { breathLook, breathPlan, bodyOf, createBreath } from '../src/audio/breath.ts';
 import { FRESH, type Fatigue } from '../src/fatigue.ts';
 
 const at = (level: number, band: Fatigue['band'], extra: Partial<Fatigue> = {}): Fatigue => ({ level, band, gassed: band === 3 ? 1 : 0, second: 0, ...extra });
@@ -62,4 +62,11 @@ test('leaving exhaustion triggers one long release exhale, once', () => {
   breath.update(0, [second, FRESH], undefined); breath.update(.1, [{ ...second, second: .99 }, FRESH], undefined);
   const ramps = gains[1].events.filter(e => e[0] === 'ramp');
   assert.ok(ramps.some(e => e[2] - 0 >= 1.3), 'a long exhale'); assert.equal(ramps.at(-1)![1] > -1, true);
+});
+
+test('?look=fatigue-preview is the breath\'s only switch: absent = silent, listed among other looks = on', () => {
+  assert.equal(breathLook(''), false);
+  assert.equal(breathLook('?look=defence'), false);
+  assert.equal(breathLook('?look=fatigue-preview'), true);
+  assert.equal(breathLook('?x=1&look=defence,fatigue-preview&stamina=8'), true);
 });
