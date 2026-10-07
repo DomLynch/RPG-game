@@ -8,16 +8,20 @@ import type { MobLook } from './mob-looks.ts';
 const SOOT = new Color(0x1f1c1a);
 const clones = new WeakMap<MeshStandardMaterial, Map<MobLook, MeshStandardMaterial>>();
 
+/** Cloth, plus the Witch and Knight bodies, which are one baked `<Family>Surface` draw (robe, hood, plate and all): a mob wears its tint over the whole of it. */
+const dressable = (name: string): boolean => classOf(name) === 'cloth' || name === 'WitchSurface' || name === 'KnightSurface';
+
 /** The cloth colour a look gives a base colour: multiplied toward the tint, then ash worked in (soot), then scorched darker (burnt). Pure arithmetic on colours. */
 export function dressedColor(base: Color, look: MobLook): Color {
-  const out = base.clone().multiply(new Color(look.tint));
+  const tint = new Color(look.tint), out = base.clone().multiply(tint);
+  out.lerp(tint, .35 * tint.getHSL({ h: 0, s: 0, l: 0 }).s);   // a dark cloth multiplied by a colour barely moves: pull part-way to the tint itself (white tint: no pull)
   out.lerp(SOOT, Math.min(.7, look.dressing.soot * .55 + look.dressing.burnt * .3));
   return out;
 }
 
 /** The material a cloth draw wears under `look`: the source itself when it is not cloth, else one shared clone per (source, look). */
 export function dressedMaterial(source: MeshStandardMaterial, look: MobLook): MeshStandardMaterial {
-  if (classOf(source.name) !== 'cloth') return source;
+  if (!dressable(source.name)) return source;
   let byLook = clones.get(source); if (!byLook) clones.set(source, (byLook = new Map()));
   const known = byLook.get(look); if (known) return known;
   const material = source.clone();
