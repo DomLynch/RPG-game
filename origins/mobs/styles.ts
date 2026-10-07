@@ -21,6 +21,9 @@ export const MOB_STYLE: Readonly<Record<MobStyle, MobStyleRow>> = {
 // The opponent a mob style fights as, or undefined for an unknown id (a mob row from content this build does not know).
 export const styleOpponent = (style: string): OpponentId | undefined => (MOB_STYLES as readonly string[]).includes(style) ? MOB_STYLE[style as MobStyle].opponent : undefined;
 
+// The style a roster body fights as (the first style that points at it), for an encounter that names a body and no style yet.
+export const styleOf = (opponent: string): MobStyle | undefined => MOB_STYLES.find(s => MOB_STYLE[s].opponent === opponent);
+
 // True when a mob of this style, at `health` of `maxHealth`, has had enough. Strictly below the threshold, so a mob at exactly 30% still fights.
 export const fleesNow = (style: MobStyle, health: number, maxHealth: number): boolean => {
   const below = MOB_STYLE[style].fleeBelow;
