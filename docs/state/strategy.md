@@ -3,6 +3,14 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+
+## 2026-10-07 17:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1735 + project_dom_decided_ledger (16:xx–17:xx).
+
+**Now.** CronList, re-arm the two /checkin advisor-light crons. Live 53c3b21: Pit controls + camera lock in the Zone 1 preview (/preview/origins/?region=1), tap fix live; Dom's phone test pending. ROLL/GUARD in the world = Expansion follow-up.
+**Done.** Legends ladder docs PR #1699 (669 legends ranked, measured fame, 150 new candidates, donor scans); #1688 joint GO; capture priority ruling (#1693, Auditor owner); standing rulings entry above.
+**Open.** Dom: add the 150 names / Shinto out / Native American leaders out / Blender Studio download. Lanes: wolf-first donor pipeline (Characters), Credits page (Web, today), stances flag-off + ?stances=1 preview (Combat).
+**Gotchas.** App restarts stop every lane at once: list_sessions, Lead resumes, Strategy steps in. COO = local_0f681df3…2281c. Use `date` for ledger stamps (16 entries were mis-stamped today and corrected).
+
 ## 2026-10-07 16:3x (+04) — STANDING RULINGS (Dom via the COO, plus Strategy). Apply to every lane.
 
 **Throughput over clean handoff (Dom).** Lanes are diligent one by one and slow together, because each optimises for a clean handoff. From now on: open a draft PR as soon as the code exists (stills, gates and the Auditor gate READY, never the PR); don't wait on a VPS slot, a full suite or an Auditor pass to start the next item; reuse first (search merged PRs/helpers for the same shape of problem, write "Reused: <PR>" in the body); a simple change still failing after 30 min goes to Lead, not another retry.
