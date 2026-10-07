@@ -30,7 +30,7 @@ function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, 
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(color, 3));
   return g;
 }
-function geometryOf(s: Shape): THREE.BufferGeometry {
+export function geometryOf(s: Shape): THREE.BufferGeometry {
   switch (s[0]) {
     case 'box': return new THREE.BoxGeometry(s[1], s[2], s[3]);
     case 'cylinder': return new THREE.CylinderGeometry(s[1], s[2], s[3], s[4]);
