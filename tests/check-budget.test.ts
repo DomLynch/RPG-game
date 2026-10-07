@@ -95,6 +95,21 @@ test('the Pit chunk is its own line: out of the per-fight shell, inside the whol
   } finally { f.cleanup(); }
 });
 
+test('a world body (public/world/<kind>.glb) is its own line: no unknown GLB, no fighter named like its kind, out of the per-fight figure and TOTAL', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src);
+    mkdirSync(join(f.dist, 'world'), { recursive: true });
+    const body = glb([], 600);
+    writeFileSync(join(f.dist, 'world/goblin.glb'), body);   // the same stem as the goblin fighter: must not be counted as one
+    const m = await measure(f.dist, f.src);
+    assert.deepEqual(m.worldFiles, [{ name: 'goblin.glb', gzip: gz(body) }]);
+    assert.equal(m.fight, before.fight, 'a fight never downloads a world body');
+    assert.equal(m.opponent, before.opponent);
+    assert.equal(m.total, before.total, 'out of TOTAL, like looks and shields');
+  } finally { f.cleanup(); }
+});
+
 test('a GLB that is none of fighter, arena prop, loot or player-equip weapon, or a texture a GLB references but dist lacks, fails the gate', async () => {
   const f = fixture();
   try {
