@@ -173,7 +173,10 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
 
 /** The walk uses the kit: bind it, switch the game's stylesheet on, and hand back the controls' intent each frame (a press is consumed when read). */
 export function enterWorld(leave: () => void) { world = true; liveLook(true); if (!controls) bind(leave); controls!.clear(); }
-export function worldIntent(): ControlIntent { const i = controls!.intent(); controls!.consumed([]); return i; }
+export function worldIntent(): ControlIntent {
+  hud!.update(idle, { controlsReady: true, debug: false, opponentId: 'veteran' });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  const i = controls!.intent(); controls!.consumed([]); return i;
+}
 
 export function closeDuel() {
   running = false; cancelAnimationFrame(frameId); controls?.clear(); feedback?.quiet();
