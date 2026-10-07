@@ -29,36 +29,37 @@ Dom picked two of the luck options. Strategy agreed with both, under the five co
 - The EV counts the cost of being punished after a self-stagger.
 - Odds are one constant. Strategy and Expansion recommend 1 in 2 at ×2; Dom's original was 1 in 3. **Dom to confirm.**
 
-## RULING 2026-10-07: stances and opponent mood (Dom; Strategy's rules; one system)
+## RULING 2026-10-07: stances and opponent mood (Dom; aligned by Strategy with Lead; one system)
 
 Dom wants the player to choose a temperament. The AI's opponent mood is the same system: the mood presets **are** these stances.
 
 | Stance | Bonus | Cost | Beats |
 |---|---|---|---|
 | Neutral | none | none | nothing (the safe middle) |
-| Aggressive | +10% damage, +10% posture damage dealt | blocks cost 10% more stamina | Trickster |
-| Defensive | blocks cost 15% less stamina, faster posture recovery | −10% damage | Aggressive |
-| Trickster | feints cost half, kicks deal more posture damage, rear hits +10% | −10% damage on heavies | Defensive |
+| Aggressive | +5% damage, +10% posture damage dealt | blocks cost 10% more stamina | Trickster |
+| Defensive | blocks cost 15% less stamina, faster posture recovery | −5% damage | Aggressive |
+| Trickster | feints cost half, kicks deal more posture damage | −5% damage on heavies | Defensive |
 
 **Rules**
+- **Damage starts at ±5%** (Lead). Dom's ±10% is the ceiling. The battery may raise it only if the counters don't bite too hard and the hits-to-kill breakpoints hold. The posture and stamina modifiers are as in Dom's table.
 - **Never touches timing:** no change to swing speed, parry window, i-frames, reach or input.
 - Stances count inside the 25% "gear tilts" budget, together with gear.
+- **Patron rule:** stances are EXEMPT from "arena perks are no-damage sidegrades". A stance is a symmetric trade-off that every player picks freely, not an earned perk (Strategy).
 - **Balance:** every stance pair wins 40–60% in the battery and the bot reruns, and no stance is dominant against the field.
-- **Breakpoint check on the +10% damage:** if it flips common hits-to-kill, it drops to the highest value that doesn't.
-- **Read, not a banner:** the stance shows in the weapon hold (high guard, low crouch, loose and shifting), keeping "nothing over the arena". This needs three ready poses from Characters.
-- **Opponents:** each has a home stance (Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Neutral), and higher rungs switch mid-fight. Mood presets are fixed vectors within ±15% of the profile; the fight seed picks one, so re-sim stays exact.
-- **Mood never touches difficulty:** reaction time, the read/habit knobs and the RV31 spam gate are excluded. The battery runs per preset per opponent: within ±5 points of base on the honest bots, and the ladder overall within ±3.
+- **Tell:** weapon-hold poses (three guard poses from Characters, budgeted) plus a reveal on the versus card at fight start. Nothing appears over the arena. v1 may ship on the versus-card reveal while the poses are made.
+- **PvP:** both players commit a hidden pick at the same time, and the versus card reveals both.
+- **AI = opponent mood:** the AI draws its stance from the fight seed with a home-stance bias: 50% its home stance, 50% one of the others. Home stances: Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Neutral. The seed draw keeps re-sim exact.
+- **Mood never touches difficulty:** reaction time, the read/habit knobs and the RV31 spam gate are excluded. The battery runs per stance per opponent: within ±5 points of base on the honest bots, and the ladder overall within ±3.
 - AI opponents only get moods. A player's stance is always the player's own pick.
+- **Dropped:** "+10% from behind" and the two-finger swipe.
 
 **Rollout**
 - v1: a pick before the fight, on the Pit / fight-start screen, with no new button.
-- v2: a mid-fight switch by two-finger swipe, costing 10 stamina plus a 1 s lockout, only after v1's data.
+- v2: one switch, after a posture break, only after v1's data.
 
-**Open:**
-- **Dropping the ±10% damage rolls vs AI** (Strategy proposes it, since stances + mood give the variety). Dom picked the rolls himself this morning, so **Dom to confirm.** Until then the roll stays behind its off flag in #1607.
-- Whether stances (±10% damage in the arena) are exempt, as a chosen trade-off, from the patron rule that arena perks never add damage. Strategy to state.
+**Open:** dropping the ±10% damage rolls vs AI (Strategy proposes it, since stances and mood give the variety). Dom picked the rolls himself this morning, so **Dom to confirm**; Strategy is asking him. Until then the roll stays behind its off flag in #1607.
 
-**Owners:** Combat builds the sim side after RV31/RV30 (luck, then stances and mood), with its own record-version bump. Characters provides the three ready poses. Expansion wires the Origins/HUD side.
+**Owners:** Combat builds the sim side in the order RV31 → RV30 → Gambit → stances, each with its own record-version bump. Characters provides the three guard poses. Expansion wires the Origins/HUD side.
 
 ## Page one, for Dom
 
