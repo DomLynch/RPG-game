@@ -336,7 +336,7 @@ function leaveFight() {
 // ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
 // is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
 // A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
-const REACH = 14, TAP_MS = 1500, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
+const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
@@ -362,18 +362,20 @@ canvas.addEventListener('pointerup', (e) => {
 });
 addEventListener('pointercancel', (e) => taps.delete(e.pointerId));
 function engage(spec: MobSpec, x: number, z: number) {
-  if (fighting) return;
+  if (fighting) { say('A fight is already starting: wait a moment, or tap Back to the fields.'); return; }
   if (Math.hypot(x - state.x, z - state.z) > REACH) { say(`${spec.name} is too far off: walk closer, then tap.`); return; }
   void startMobFight(spec);
 }
 async function startMobFight(spec: MobSpec) {
-  if (fighting || !frontier) return;
+  if (fighting || !frontier) { say(frontier ? 'A fight is already starting.' : 'There is nothing to fight here.'); return; }
   fighting = true;   // claimed first: a second tap while the chunks load does nothing
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
   duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name}: a duel`;
   renderer.setAnimationLoop(null);
   document.getElementById('art-status')!.textContent = 'Loading…';
-  try { duel ??= await import('./pit-duel.ts'); huntMod ??= await import('./hunt.ts'); encDuel ??= await import('./encounter-duel.ts'); hunt ??= huntMod.newHunt(); }
+  try {   // a chunk that never arrives must not leave `fighting` set for good: 20 s and the catch below hands the hero back
+    await Promise.race([(async () => { duel ??= await import('./pit-duel.ts'); huntMod ??= await import('./hunt.ts'); encDuel ??= await import('./encounter-duel.ts'); hunt ??= huntMod.newHunt(); })(), new Promise((_, no) => setTimeout(() => no(new Error('the fight chunks took over 20 s')), 20000))]);
+  }
   catch (error) { console.warn('the fight did not load', error); leaveFight(); say('Could not load the fight. Tap the creature to try again.'); return; }
   const prepared = huntMod.prepare(hunt, spec);
   if (!prepared.ok) { console.warn('the fight cannot be set up', prepared.issues); leaveFight(); say('This creature cannot be fought yet.'); return; }
