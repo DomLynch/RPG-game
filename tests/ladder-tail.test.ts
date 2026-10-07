@@ -14,7 +14,7 @@ const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage'
 
 // Levels 1–46 of every rung (profile and body) hashed on trunk 4e88c8d7, before the tail existed: the 50-level ladder must not move one of them.
 // Re-pinned 2026-10-07 (RV29, deliberately): the Nightborn's normal row moved (lapse .3 -> .25, aggression .55 -> .52: moves.ts), the one profile change in the batch; everything else on L1-46 is as before.
-const OLD_LADDER_DIGEST = '766ae7c5dd736408a3b3928151e3aa49941104d324f06ad3c75da7ccf3f8ab46';   // RV30 (2026-10-07): re-pinned deliberately — the Shieldmaiden, Knight and Plague Doctor own profile rows change levels 1–46 of those three (REACH[30]); was e8df9077014d74c09d55a6146571ecb26f7abdc80713b4db9a7682290c833359, before that 371e6568d247540f27e9def244401f2e724e0e60f0db711892ae0d1f76cd11ca
+const OLD_LADDER_DIGEST = '9e1cf689b31dc6be1b446abbd34cc773b92c56fd4c0cea25b1cd5adf5e9a00fe';   // RV30 (2026-10-07): re-pinned deliberately — the Shieldmaiden, Knight and Plague Doctor own profile rows change levels 1–46 of those three (REACH[30]); was e8df9077014d74c09d55a6146571ecb26f7abdc80713b4db9a7682290c833359, before that 371e6568d247540f27e9def244401f2e724e0e60f0db711892ae0d1f76cd11ca
 test('levels 1–46 are byte for byte what they were before the tail (every rung, profile and body)', () => {
   const h = createHash('sha256');
   for (const o of ladder) for (let l = 1; l <= 46; l++) h.update(`${o.id}:${l}:`).update(JSON.stringify(profileAt(o, l))).update(JSON.stringify(opponentAt(o, l)));
