@@ -29,11 +29,23 @@ Ask (Dom via Strategy/Lead): a per-player PvP flag; anti-gank damage scale (2nd 
 
 **Pool arbiter (ruled):** the server, the same authority as every world write (encounter token + replay). In client-only previews the first claimant hosts. A peer client is never the authority in the shared world.
 
-## Large-scale battles (input to the new pillar)
-Is "many concurrent 1v1 streams + crowd actors" ((a) at scale) enough for sieges? Enough for: a wall of individual duels, each fighter pinned to one foe at a time, with crowd actors (render-only, no sim) filling the field and an outcome ledger per front. Cheap on a phone: one stepDuel per local player, crowd is animation.
-Where it breaks:
-- **Formations / flanking:** a shield wall, a rear hit from a second man, pinning two on one all need a fighter to read MORE than one foe. A stream pairing never produces them; they are (c) territory.
-- **Area attacks:** a ram, a catapult stone, a cleave through a rank hit several bodies in one tick; a 1v1 stream has one target, so they must be a world-layer event that books damage into several ledgers (no parry/posture interaction).
-- **Fairness at the seams:** two streams on one creature can hit two players on the same tick; at siege scale that is the normal case, so every outcome needs the server arbiter, not just loot.
-- **Rollback/verify:** per-stream replays stay exact, but anything that crosses streams (area damage, a man leaving one pairing for another) is not in any record and needs its own server log.
-Verdict: (a) at scale is a good first siege (many duels plus world-layer area events); real formations need (c) and its own RV, specified when the pillar names a feature that requires a fighter to see two foes.
+## The gauntlet: PvP and packs on today's 1v1 engine (Dom, approved 2026-10-07)
+PvP is ALWAYS a Pit duel. Extra attackers (on a player, or a pack on one fighter) wait on the ring and fight ONE AT A TIME, no heal between bouts. The per-attacker multiplier is dropped. Nothing in the sim changes: each bout is an ordinary `Duel`.
+What the world layer needs (all outside src/duel.ts):
+- **Queue:** an ordered list of attackers per defender, FIFO by arrival; capped (suggest 6, matching the PvP hold cap). A bout ends on a kill, a death or a yield; the next starts after the pack walk-in beat.
+- **Carry-over:** defender health is NOT reset between bouts (no heal); stamina and posture recover at normal rates over the walk-in beat only (the ruling already made for packs). A bout therefore starts a `Duel` from a carried `Fighter` (health, wound site, leg wound), the one new constructor input; the record header names the carried state or the replay cannot start (RV, small, only for records that carry a non-fresh fighter).
+- **Ring and turn order:** waiting attackers stand on the ring rim, render-only (crowd actors); order is the queue order; the open world never pauses (the encounter path does not call the Pit pause).
+- **Arbiter:** the server, the same authority as every world write (encounter token + replay verify per bout). In client-only previews the first claimant hosts. Never a peer client.
+- **Loot:** creature kills go to the largest damage-dealt ledger entry (PvE shared pool only, below); a duel kill goes to the killer.
+- **Cost:** sim none, record small (carried-state header), phone none (one `Duel` live at a time). Order: with packs (#4); not blocked on anything in the engine.
+
+## Option (a) still applies in one place: a second player joins a PvE creature fight
+Parallel 1v1 streams against the same creature, shared creature health, loot to the largest ledger entry, no damage multiplier, the creature's tells go to its aggro target's stream. Server arbitrates the pool. Sim/record none; weakness: the creature can hit two players on one tick (fine for a beast).
+
+## Large-scale battles / sieges: options from cheap to a true engine
+**B1. Many concurrent 1v1 duels on one battlefield plus a crowd (M&B / For Honor style).** Each fighter is pinned to one foe at a time (a pairing table owned by the world layer); every pairing is a normal `Duel`; the crowd is render-only actors. The local client steps only its own pairing; others are replayed or interpolated from the server.
+- Sim: none. Record: none per duel; a battle log (pairings, area events) is new world data. Replay: each duel exact; cross-pairing events are in the server log only. RV: none for duels. Phone: one `stepDuel` + N cheap crowd actors (budget by culling, the existing crowd cull). Risk: no flanking, no formations; a third man cannot help your duel except by swapping pairings.
+**B2. B1 + world-layer area events.** Rams, stones, cleaves that hit several bodies book damage into several ledgers with no parry/posture interaction; a swap rule lets an idle fighter take over a pairing. Sim none. Record: server event log. RV none. Phone: low. Risk: fairness at the seams (two streams hit one creature on one tick), so every outcome goes through the server arbiter.
+**B3. B2 + 2v1 pairing in the sim (one fighter sees two foes).** `Duel` gains an optional second foe only for the defender (rear hit from the second man, split attention); everything else stays 1v1. Sim: a large touch in stepDuel (every `1 - i` read), new AI target choice. Record: new intent stream per extra fighter; RV with REACH for every fight that uses it (none of the old ones). Replay: exact if both streams are in the record. Phone: 3 bodies stepped. Risk: SIM_DIGEST re-pin, rollback payload grows, and the pairing code from B1/B2 must be rewritten to allow it.
+**B4. True multi-foe engine (N fighters per step, formations, shield walls).** Rewrite of stepDuel and Practice, new record shape, new AI. RV on everything, fixture regen, rollback/verify surface multiplied. Weeks, and phone cost scales with N. Only worth it if the pillar names formations as a core fight.
+**Order vs beta:** none of B1-B4 is in the beta. The gauntlet ships first (it is the engine's current shape). B1 is the first siege and needs no engine change, so it can be scoped as a world-lane feature the moment the pillar has a map; B2 follows. Decide B3/B4 only after B1 is played: formations and flanking are the two things B1 cannot do, so a playtest of B1 tells us whether anyone misses them.
