@@ -32,6 +32,14 @@ Source: [trading.md](trading.md) §6, "Before player trade opens".
 | W3 | `/etc/frankendom/origins-writer.env` is present with mode 0600 | Dom | `stat` of the file on the VPS showing 600 | open |
 | W4 | The flag is on for Dom only first | Deploy | The allowlist read back with Dom's account as the only row | open |
 
+## Exchange-only rules (trade and smith)
+
+Trade and the smith do not open to players until every gate here is closed (Lead, 2026-10-07).
+
+| ID | Gate | Owner | Proof that closes it | Status |
+|---|---|---|---|---|
+| X1 | The writer derives the player's place from server presence, never from the request; every Exchange-only rule (bank materials and banked pieces at the smith, trade at the Exchange) is tested with a forged place in the request (Lead, 2026-10-07, on the Auditor's #1569 note: `place` is client-stated today, origins/server/upgrade.ts) | Expansion, with Backend for the presence read | A merged PR whose tests send a forged `place` and are refused, with the place read from presence | open |
+
 ## Flag GO
 
 | ID | Gate | Owner | Proof that closes it | Status |
