@@ -19,12 +19,12 @@ import { TIERS, type Tier } from '../../src/grades.ts';
 import type { OpponentId } from '../../src/roster.ts';
 
 // ---- the twist flags Combat reads (mirror of src/twist.ts, PR #1626) ----------------------------------------------------------------
-// MIRROR of src/twist.ts `TwistFlag` / `TwistOutcome` (combat/twist-flags, d66f41b2). Replace with an import once #1626 is on trunk.
+// MIRROR of src/twist.ts `TwistFlag` / `TwistOutcome` (combat/twist-flags, 067bfa32). Replace with an import once #1626 is on trunk.
 export type TwistFlag = { kind: 'flee-at'; percent: number; catchSeconds?: number } | { kind: 'one-health-bar' };
 export type TwistOutcome = 'fled' | 'caught' | 'escaped';   // src/twist.ts `twist.outcome`, null when no twist ended the fight
 // MIRROR of src/twist.ts `oneBarHealth`: with the flag, the foes' healths summed into one bar; without it, the first foe's own bar.
 export const oneBarHealth = (flags: readonly TwistFlag[], healths: readonly number[]): number =>
-  flags.some((f) => f.kind === 'one-health-bar') ? healths.reduce((a, b) => a + b, 0) : healths[0]!;
+  flags.some(f => f.kind === 'one-health-bar') ? healths.reduce((a, b) => a + b, 0) : healths[0];
 // The flags Combat's v1 sim reads. The other Origins flags (hazard, no-block, ...) travel in `flags` for the view and later sims.
 const COMBAT_KINDS: readonly TwistKind[] = ['flee-at', 'one-health-bar'];
 
