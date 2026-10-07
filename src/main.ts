@@ -34,6 +34,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
 import { breakBeatFrom } from './break-beat.ts';
+import { breathLook } from './audio/breath.ts';
 import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
@@ -784,6 +785,7 @@ const KICK_CLOSE = kickCloseFlag(window.location?.search ?? '');   // ?look=kick
 const HEADLINE = headlineFlag(window.location?.search ?? '');   // ?look=headline: one earned line on a win (victory-headline.ts); absent = today's game
 const DEFENCE_GRADES = defenceFlag(window.location?.search ?? '');   // ?look=defence: the four defence results read differently; absent = today's game
 feedback.defenceGrades(DEFENCE_GRADES);
+feedback.breathing(breathLook(window.location?.search ?? ''));   // ?look=fatigue-preview: the winded/tired/gassed breath on, a look test; absent = silent
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
