@@ -220,7 +220,7 @@ function frame(now: number) {
         const t = stepTwist(p.duel, fight!.flags, twist);
         twist = t.twist;
         if (twist.outcome === 'fled' || twist.outcome === 'escaped') {   // no catch window / the window ran out: the fight ends with the foe alive
-          match.end(false); running = false; hooks?.twisted?.(twist.outcome, worldRecord(match, null));
+          running = false; hooks?.twisted?.(twist.outcome, worldRecord(match, null));   // no match.end(): it throws without a finish, which froze the duel here (sparring keeps nothing for end() to write)
           break;
         }
       }
