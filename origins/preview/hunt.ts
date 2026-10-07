@@ -28,7 +28,7 @@ const must = <T>(r: Result<T>, what: string): T => { if (!r.ok) throw new Error(
 
 export function newHunt(): Hunt {
   const content = must(loadEncounterContent(), 'region 1 content');
-  return { content, inventory: must(openInventory({ owner: PC as never, account: ACCOUNT as never, items: [], packSize: PACK, bankSize: 0 }, lookupOf(content)), 'pack'), metal: 0, bountyWins: 0, beaten: new Set(), attempts: new Map(), kills: 0 };
+  return { content, inventory: must(openInventory({ owner: PC as never, account: ACCOUNT as never, items: [], packSize: PACK, bankSize: 1 }, lookupOf(content)), 'pack'), metal: 0, bountyWins: 0, beaten: new Set(), attempts: new Map(), kills: 0 };
 }
 
 // What a tapped creature fights as: a named one at its encounter's id, a plain creature as its own character (an open-world kill).
