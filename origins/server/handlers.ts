@@ -1,12 +1,10 @@
 // The op registry. Each handler gets the account the token proved and a parsed JSON body, and returns the JSON the client sees. Later PRs
 // (inventory, quest journal, talk) plug their ops into `handlers`; nothing here lets a client name an account, a reward or an amount.
-import process from 'node:process';
 import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
 import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
-import { readStoryContent } from './content.ts';
-import { BadRequest, Conflict, NotImplemented } from './errors.ts';
+import { BadRequest, Conflict } from './errors.ts';
 import type { Content } from './holdings.ts';
 import { questAdvance } from './quest-advance.ts';
 import type { StoryContent } from './story.ts';
@@ -16,7 +14,7 @@ import { upgradeHandler } from './upgrade.ts';
 
 export type Ctx = { db: Db; account: string };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
-export { BadRequest, Conflict, NotImplemented };
+export { BadRequest, Conflict };
 
 const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the rest wait for the next open
 
@@ -50,11 +48,11 @@ const createCharacter: Handler = async (ctx, body) => {
   return { id: await store.createCharacter(ctx.db, ctx.account, name) };
 };
 
-// quest_advance and talk_pick run on the story content, loaded once when the writer starts from the bundle ORIGINS_CONTENT names (a bundle
-// that does not load stops the writer). With none loaded both answer 503: the writer is up but not ready for them.
+// quest_advance and talk_pick run on the story content. The entry point (scripts/origins-writer.mjs) loads it once from the bundle
+// ORIGINS_CONTENT names and passes storyOps(content) in; nothing here reads the env or a file. With none loaded both answer 503: the writer
+// is up but not ready for them, which is what the defaults below serve.
 export const storyOps = (content: StoryContent | null): Record<string, Handler> => ({ quest_advance: questAdvance(content), talk_pick: talkPick(content) });
-export const content: StoryContent | null = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGINS_CONTENT) : null;
-export const handlers: Record<string, Handler> = { open, create_character: createCharacter, ...storyOps(content) };
+export const handlers: Record<string, Handler> = { open, create_character: createCharacter, ...storyOps(null) };
 
 // The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
 export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items) });

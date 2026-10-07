@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
-import { BadRequest, handlers, openAccount, type Ctx } from '../origins/server/handlers.ts';
+import { Refused } from '../origins/server/errors.ts';
+import { BadRequest, handlers, openAccount, type Ctx, type Handler } from '../origins/server/handlers.ts';
 import { pitBatch } from '../origins/server/career.ts';
 import type { CareerRow, PitClaim, Snapshot } from '../origins/server/store.ts';
 import { creditFromMarks, legendKey, levelOfCredit } from '../origins/progression/model.ts';
@@ -37,14 +38,15 @@ function script(replies: { open: () => Snapshot[]; pending?: PitClaim[]; snapsho
 }
 const snap = (career: CareerRow | null, marks = 4): Snapshot => ({ marks, career, characters: [], items: [], quests: [], journal: [], talk: [] });
 
-async function serve(db: Db) {
-  const server = createWriter({ db, verify: async t => (t === 'tok' ? A : null) });
+async function serve(db: Db, ops?: Record<string, Handler>) {
+  const server = createWriter({ db, verify: async t => (t === 'tok' ? A : null), ...(ops ? { handlers: ops } : {}) });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/`;
   const call = async (op: string, init: RequestInit & { token?: string | null } = {}) => {
     const { token = 'tok', ...rest } = init;
     const res = await fetch(url + op, { method: 'POST', ...rest, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}) } });
-    return { status: res.status, body: await res.json() as { ok: boolean; result?: unknown; error?: string } };
+    const text = await res.text();
+    return { status: res.status, text, body: JSON.parse(text) as { ok: boolean; result?: unknown; error?: string } };
   };
   return { call, close: () => server.close() };
 }
@@ -89,6 +91,18 @@ test('database refusals map to statuses and a failure is a fixed 500', async () 
   try {
     const res = await call('open', { body: '{}' });
     assert.deepEqual([res.status, JSON.stringify(res.body).includes('secret')], [500, false]);
+  } finally { close(); }
+});
+
+test('a Refused answers its status, with its code in the body only when it has one (the smith\'s 501; the story ops\' 503 carries none)', async () => {
+  const { db } = script({ open: () => [snap(row())] });
+  const { call, close } = await serve(db, {
+    smith: async () => { throw new Refused(501, 'coin costs need the metals ledger, not built yet', 'not-implemented'); },
+    story: async () => { throw new Refused(503, 'the story content is not loaded: the writer is not ready for this op'); },
+  });
+  try {
+    assert.deepEqual([(await call('smith', { body: '{}' })).status, (await call('smith', { body: '{}' })).text], [501, '{"ok":false,"error":"coin costs need the metals ledger, not built yet","code":"not-implemented"}']);
+    assert.deepEqual([(await call('story', { body: '{}' })).status, (await call('story', { body: '{}' })).text], [503, '{"ok":false,"error":"the story content is not loaded: the writer is not ready for this op"}']);
   } finally { close(); }
 });
 
