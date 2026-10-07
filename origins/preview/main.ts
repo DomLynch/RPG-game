@@ -157,8 +157,9 @@ function releaseStick(side: Side) {
 }
 const releaseSticks = () => { releaseStick('move'); releaseStick('look'); };
 // Page zoom locked like the game's (Dom's iPhone, 2026-10-07: the preview zoomed in and cut the left label). The double tap is refused on
-// the world canvas and the two sticks only (they act on pointer events); every click-driven button keeps both taps.
-lockPageZoom({ surface: '#view, #move-stick, #look-stick', clickDriven: '' });
+// the world canvas, the two sticks and the live fight kit's stick and action cluster (#joystick, #actions: pointer events); the kit's
+// click-driven buttons (Rematch, camera, recenter, share) and every other button keep both taps (Auditor LOW on #1749).
+lockPageZoom({ surface: '#view, #move-stick, #look-stick, #joystick, #actions', clickDriven: '.share-button, #reset-button, #camera-button, #recenter-button' });
 canvas.addEventListener('pointerdown', (e) => {
   if (kit) return;   // the Pit's kit walks (its own stick); there is no second stick
   const side = sideOf(e.clientX);
