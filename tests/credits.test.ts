@@ -15,6 +15,8 @@ test('the Credits section sits in the Settings tab, before the references row', 
 test('every shipped asset names its author and licence', () => {
   assert.match(credits, /Quaternius[\s\S]*CC0 1\.0/);
   assert.match(credits, /World of ClaudeCraft by Levy Street[\s\S]*MIT licence/);
+  assert.match(credits, /Infinite, 3D Head Scan" by Lee Perry-Smith[\s\S]*CC BY 3\.0/, 'the shipped face carries the scan\'s skin grain (src/assets/README.md): CC BY 3.0 needs the line');
+  assert.match(credits, /href="\/licenses\/meshoptimizer\.txt"/, 'the code-licence notices stay linked');
 });
 
 test('0 A.D. is credited with the edited-model download, hidden until its model ships', () => {
