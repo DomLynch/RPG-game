@@ -6,8 +6,9 @@ import { decide, initialAi } from '../src/ai.ts';
 import { stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { AFTER_HIT_TICKS, initialKit, kitIntent, type KitRow } from '../src/mobkit.ts';
 import { OPPONENTS, profileAt } from '../src/moves.ts';
-import { KITS, MODE, MODES, mobProfile } from '../origins/mobs/kits.ts';
-import { MOB_STYLES, MOB_STYLE } from '../origins/mobs/styles.ts';
+import { KITS, MODE, MODES, mobLayer, mobProfile } from '../origins/mobs/kits.ts';
+import { initialPractice, stepPractice, type Practice } from '../src/combat.ts';
+import { MOB_STYLES, MOB_STYLE, styleOf } from '../origins/mobs/styles.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
 const at = (d: Duel, tick: number, events: CombatEvent[] = []): Duel => ({ ...d, tick, events });
@@ -100,4 +101,28 @@ test('the kits move each strategy\'s win rate by a bounded amount', () => {
   }
   console.log(rows.join('\n'));
   assert.ok(worst <= 6, `a kit moved a strategy by ${worst} of 12 fights`);
+});
+
+// The wiring: stepPractice's optional `layer` (Match.layer, set by the creature encounter and a ?mob= spar). Absent = today's fight; present = the kit's swaps on the live loop.
+const spar = (layer?: ReturnType<typeof mobLayer>): { p: Practice; swapped: number } => {
+  let p = initialPractice(OPPONENTS.pitborn), swapped = 0;
+  for (let i = 0; i < 1500 && !p.duel.finish; i++) {
+    const before = p.duel.fighters[1].move;
+    p = stepPractice(p, i % 50 === 0 ? act('light') : idle(), profileAt(OPPONENTS.pitborn, 18), layer);
+    if (p.duel.events.some(e => e.type === 'AttackStarted' && e.actor === 1 && e.move === 'heavy_overhead') && before !== 'heavy_overhead') swapped++;
+  }
+  return { p, swapped };
+};
+test('stepPractice without a layer is today\'s fight; with the brute\'s layer the opener is a heavy', () => {
+  const plain = spar(), again = spar(), kit = spar(mobLayer('brute'));
+  assert.deepEqual(plain.p.duel.events, again.p.duel.events);
+  assert.ok(kit.swapped >= 1, 'the brute opened with the maul');
+});
+test('the layer resets on tick 0 (a rematch starts clean) and styleOf names the style of a roster body', () => {
+  const layer = mobLayer('beast'), d = arena(OPPONENTS.goblin);
+  assert.equal(layer(d, swing).action, 'thrust', 'the pounce opens');
+  assert.equal(layer({ ...d, tick: 100 }, swing).action, 'light', 'the opener is spent');
+  assert.equal(layer(d, swing).action, 'thrust', 'a new fight (tick 0) opens again');
+  assert.deepEqual(['pitborn', 'nightborn', 'witch', 'goblin'].map(styleOf), ['brute', 'skirmisher', 'caster', 'beast']);
+  assert.equal(styleOf('veteran'), undefined);
 });

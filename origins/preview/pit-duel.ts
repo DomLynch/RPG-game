@@ -19,6 +19,8 @@ import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene } from '../../src/scene.ts';
+import { mobLayer } from '../mobs/kits.ts';
+import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
 import { withBar } from './encounter-duel.ts';
@@ -26,7 +28,7 @@ import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } fro
 import liveStyle from '../../src/style.css?inline';
 import type { Finished } from '../pit/pit.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number };   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 export type DuelHooks = {
   ended(finish: Finished): { next?: string } | void;   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
@@ -141,6 +143,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   stageFor(host, opponent, asked.level);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
+  if (asked.mob) match.layer = mobLayer(asked.mob);
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);

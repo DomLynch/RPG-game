@@ -3,7 +3,8 @@
 //    and caps how often the hero meets its worst move;
 //  - a MODE is a small DELTA on the warden's own AiProfile numbers (shy, bold, ambusher): the fight-side half of Expansion's `mode` preset (the world half, aggro ring and leash, is theirs).
 import { profileAt, OPPONENTS, type AiProfile } from '../../src/moves.ts';
-import type { KitRow } from '../../src/mobkit.ts';
+import { initialKit, kitIntent, type KitRow } from '../../src/mobkit.ts';
+import type { Duel, Intent } from '../../src/duel.ts';
 import { MOB_STYLE, type MobStyle } from './styles.ts';
 
 export const KITS: Readonly<Record<MobStyle, readonly KitRow[]>> = {
@@ -22,6 +23,12 @@ export const MODE: Readonly<Record<Mode, Partial<Record<Knob, number>>>> = {
   bold: { aggression: 0.1, pressure: 0.1, disengage: -0.2 },
   ambusher: { dash: 0.4, lapse: -0.1, interrupt: 0.2 },
 };
+
+// The layer a mob of this style fights under (src/combat.ts stepPractice's `layer`, src/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
+export function mobLayer(style: MobStyle): (duel: Duel, warden: Intent) => Intent {
+  const rows = KITS[style]; let state = initialKit(rows);
+  return (duel, warden) => { if (duel.tick === 0) state = initialKit(rows); const r = kitIntent(duel, 1, warden, rows, state); state = r.state; return r.intent; };
+}
 
 // The profile a mob of this style fights with at `level`: the style's own opponent row, then the mode's delta. Everything else is the shared engine's.
 export function mobProfile(style: MobStyle, level: number, mode?: Mode): AiProfile {

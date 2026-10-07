@@ -150,9 +150,10 @@ export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: I
 // `specials`: the fight has Special Moves (duel.ts withSpecials: the ladder level picks the opponent's share, `aiSkill` names his special).
 export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }): Practice =>
   project(specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill), initialAi(seed));
-export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
+// `layer`: a world layer that rewrites the warden's intent AFTER decide() (src/mobkit.ts: signature moves; sparring.ts does the same for the dummy). Absent = today's fight, the same intent object.
+export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal, layer?: (duel: Duel, warden: Intent) => Intent): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
-  return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current, intent);
+  return project(stepDuel(current.duel, [intent, layer ? layer(current.duel, warden.intent) : warden.intent]), warden.ai, current, intent);
 }
 export const canStrike = (s: Practice): boolean => legal(s.duel.fighters[0], 'light');
 export const canDefend = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'ready' || s.phase === 'guard');
