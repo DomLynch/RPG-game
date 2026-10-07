@@ -302,6 +302,13 @@ if (frontier) {
   void import('./pit-duel.ts').then((m) => {
     duel = m; m.enterWorld(leaveFight); kit = true; releaseSticks(); document.body.classList.add('kit');
     hint.textContent = 'Left stick walks (push to the edge to run). Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
+    // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
+    const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
+    if (menu && chips) {
+      const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
+      entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
+      chips.append(entry);
+    }
     const chip = document.getElementById('mobile-camera');
     const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
     chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
