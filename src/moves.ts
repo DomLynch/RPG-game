@@ -178,6 +178,7 @@ export const RULES = {
   // hit for `damage` of the target's max health (`bossDamage` for an opponent from level `bossFrom`: career.ts level = 1 + wins, five
   // sub-ranks a title, so rank 8 begins at 36). Cast inside `reach`; the cooldown re-arms `cooldown` ticks after the RELEASE; first available `first` ticks in; after a release the caster starts no attack for `recovery` ticks (the presentation's 45; defence and movement stay his). Final numbers: Dom 2026-10-01, docs/briefs/specials/boss-special-balance-2026-10-01.md. One row,
   // so a ruling is a one-line change; PvP reads the same `damage`.
+  gambit: { stagger: 40 },   // RV33: the ticks a failed Gambit's thrower is staggered (src/gambit.ts: about 1 in 2 lands for 2x; the stagger is what makes it slightly worse than a heavy)
   special: { windup: 120, cooldown: 1200, first: 1200, recovery: 45, reach: 3, damage: .2, bossDamage: .25, bossFrom: 36, interruptAt: .1, interruptCooldown: 480 },
   skillCooldown: 900,   // the equipped skill's cooldown (15 s): spent at commitment, so a whiff, a block, a parry and a stuffed windup all spend it; ticks down like parryCooldown (duel.ts)
   regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedStun: 36,   // RV29 (3B): a heavy-class blow or a kick landing on an exhausted fighter stuns `exhaustedStun` ticks (.6 s) longer; the existing hurt pose, no ground state
