@@ -135,7 +135,7 @@ addEventListener('keydown', (e) => {
 });
 
 // Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
-const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || /[?&]look=zones\b/.test(location.search), LOOK_STOPS = [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: ZONE1 ? 'zone1' : 'exchange-dusk' }];
+const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || /[?&]look=zones\b/.test(location.search), LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];
 const WALK = 2.3, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let forward = held('KeyW', 'ArrowUp') * (REGION && held('ShiftLeft', 'ShiftRight') ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight');

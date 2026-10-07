@@ -24,9 +24,9 @@ export const PRESETS: Record<string, Look> = {
   // The Ash Frontier: open ground under a high, pale, dusty sky; a long soft horizon (low density), cooler fill, a brighter key.
   'frontier-haze': { fog: '#d6bf9a', fogDensity: 0.012, hemiSky: '#b4c4da', hemiGround: '#6a5238', hemiIntensity: 1.35, sunColor: '#ffd6a0', sunIntensity: 5.6, sunPos: [-18, 30, -20], exposure: 1.35, ground: [1.05, 0.98, 0.88] },
 };
-// Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure, the fog thinner and a shade lighter so the gate, the bank and the smithy stand out dark against the haze
-// (they were sand on sand), the paving pulled down and cooler, the masonry lifted and warmer.
-PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#9a8468', fogDensity: 0.016, sunPos: [-22, 12, -16], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.28, 1.15, 0.98] };
+// Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand
+// out pale against it (they were sand on sand); the paving pulled down and cooler, the masonry lifted and warmer.
+PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#6e5f52', fogDensity: 0.012, sunPos: [-16, 15, 20], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.35, 1.2, 1] };
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
