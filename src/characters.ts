@@ -304,8 +304,21 @@ export function rigMaterials(root: Object3D, skip: ReadonlySet<Object3D> = new S
   root.traverse(object => { if (object instanceof Mesh && !skip.has(object) && object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material); });
   return materials;
 }
-export const sourceMaterial = (piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) =>
-  piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+// A palette name the source rig does not map keeps loot.glb's own entry, and loot.glb's palette is the HERO's (build-warrior.mjs): the
+// Executioner's hood came out in the hero's madder red on the player (Dom, 2026-10-07). Where the source opponent wears a different dye of
+// that name (scripts/warrior-appearance.mjs; tests/grade-materials.test.ts pins it), the piece wears that dye instead.
+export const SOURCE_DYE: Partial<Record<OpponentId, Readonly<Record<string, string>>>> = { executioner: { Heraldry: '#171310' } };
+const dyed = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>();
+export function sourceMaterial(piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) {
+  const own = piece.material, opponent = piece.userData.opponent as OpponentId;
+  if (!(own instanceof MeshStandardMaterial)) return own;
+  if (SOURCE_MAPPED[opponent]?.includes(own.name)) return materials.get(own.name) ?? own;
+  const dye = SOURCE_DYE[opponent]?.[own.name];
+  if (!dye) return own;
+  let copy = dyed.get(own);
+  if (!copy) { copy = own.clone(); copy.color.set(dye); dyed.set(own, copy); }
+  return copy;
+}
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
