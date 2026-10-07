@@ -3,3 +3,4 @@
 import '../origins/preview/mobs.test.ts';
 import '../origins/preview/mob-looks.test.ts';
 import '../origins/preview/mob-dress.test.ts';
+import '../origins/preview/frontier-zone-rules.test.ts';

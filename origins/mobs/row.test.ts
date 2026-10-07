@@ -73,7 +73,7 @@ test('bad-role reads Combat\'s MOB_STYLE, not a copy: every id it names is valid
 
 const WILDS: Template = {
   base: { layout: { entry: { u: 0.5, v: 0.05, facing: 180 }, camp: { u: 0.3, v: 0.5 }, lair: { u: 0.7, v: 0.9 }, ford: { u: 0.5, v: 0.7 } }, spawns: { boss: 'lair' } },
-  vary: { 'zoneSize.width': [80, 160], 'zoneSize.depth': [80, 160], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
+  vary: { 'zoneSize.width': [80, 230], 'zoneSize.depth': [80, 230], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
   jitter: 0.05,
 };
 const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited }));
@@ -84,6 +84,7 @@ test('populateZone: deterministic, inside the zone, band met, count within one c
     assert.ok(zone.ok);
     const a = populateZone(zone.value, cited3, seed, ctx), b = populateZone(zone.value, cited3, seed, ctx);
     assert.deepEqual(a, b, 'same inputs, same camps');
+    assert.deepEqual(a.issues, [], `seed ${seed}: the zone rules (opener within 10 s, nothing dead for 15 s) hold`);
     const w = zone.value.zoneSize.width, d = zone.value.zoneSize.depth, n = a.camps.reduce((s, c) => s + c.members.length, 0);
     assert.ok(a.camps.length > 0 && n >= a.budget && n < a.budget + CAMP_MAX, `seed ${seed}: ${n} creatures for a budget of ${a.budget}`);
     for (const c of a.camps) {
