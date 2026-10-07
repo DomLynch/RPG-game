@@ -59,7 +59,8 @@ export function createPresence(opts: PresenceOptions): Presence {
     counts.ticks++; if (took > counts.maxTickMs) counts.maxTickMs = took;
     tickRing[tickRingN++ % TICK_RING] = took;
   }, Math.max(5, Math.floor(rules.tickMs / 4)));
-  const beats = setInterval(() => { world.sweep(now()); for (const s of sockets.values()) if (!s.destroyed) s.write(frame(1, Buffer.from('{"t":"beat"}'))); }, limits.beatMs);
+  // seenAt on the heartbeat: a connected player standing still is still here.
+  const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); } }, limits.beatMs);
   const reporter = setInterval(() => {
     log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)}`);
     counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
@@ -89,7 +90,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   });
   // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
   // from here and never from a request body. Not under /origins/presence, so the public nginx route does not reach it, and it needs the key and a loopback caller besides. The answer
-  // is the service's own state: a player never placed by a first pose is `placed: false` with no position, and `ageMs` is the time since its last pose was handled.
+  // is the service's own state: every player has a position (a fresh join starts at the spawn, never at a client's first pose), and `ageMs` is the time since the player was last seen: a pose, or the socket heartbeat while it stays connected (a player standing still is still here).
   const loopback = (a: string | undefined): boolean => a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
   const where = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
     const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
@@ -101,8 +102,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
     const p = world.byAccount.get(account);
     if (!p) return reply(200, { online: false });
-    if (!p.placed) return reply(200, { online: true, layer: p.layer.id, placed: false });
-    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.movedAt) });
+    reply(200, { online: true, layer: p.layer.id, placed: true, x: p.x, z: p.z, zone: zoneAt(p.x, p.z), ageMs: Math.max(0, now() - p.seenAt) });
   };
 
   server.on('upgrade', (req, socket: Duplex) => {
