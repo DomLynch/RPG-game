@@ -75,11 +75,13 @@ The Pit is 1v1 (`Duel.fighters` is a pair, the net and rollback hash it, the AI 
 
 Order: patron perks #1642 first (it builds the scalar mechanism the roll reuses), then the roll, then beasts, then packs (needs no RV, so it can go the moment Expansion's camp rows exist).
 
-## Open questions
+## Rulings (Strategy, 2026-10-07)
 
-- **Characters:** quadruped hit shape for #1648 (upright capsule at scale for v1, or a baked quadruped region table).
-- **Backend / Auditor:** is a camp fight verified? If yes, a record needs a per-bout swap tick.
-- **Strategy:** the walk-in beat is the only rest between pack members; is that "nothing less, nothing more" enough, or should the next member enter on the player's tap?
+Direction and order accepted: **#1642 perks, then the roll, then beasts, then packs**, each proven in the Pit first.
+
+- **Pack rest.** The walk-in beat is the only rest, with one precision: the sim keeps running during it, so stamina and posture recover at the Pit's normal rates for those seconds, but **health never does** (no free heal, no instant refill). Freezing stamina would be "less" and refilling it "more". Keep the walk-in short and readable, about a Pit re-engage.
+- **Verification.** Same rule as solo world fights (10-06): previews are client-reported, and nothing writes XP, CP or loot to the server until the encounter token and a replay exist. **Design the record now with the per-bout swap tick**, so verification later is a switch, not a rework (a pack record = the ordinary record per bout plus the tick of each `withFoe` swap; the foe order is data from the camp row).
+- **Quadruped hit shape.** The upright capsule is OK for v1 only if stills show no blade visibly passing through the back. Characters judges; a body-shaped capsule comes later if it fails.
 
 ## Expansion's world-side input (checked in code, 2026-10-07) and the ring API
 
