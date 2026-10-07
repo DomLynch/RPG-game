@@ -1,6 +1,7 @@
 // Origins slice 1, bite 1 (?region=1): the Frontier's creatures. Placement from the Region 1 data, the seeded wander, the aggro test with its
 // hysteresis, the facing, the cap and the cull. Pure: no DOM.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
@@ -161,4 +162,9 @@ test('the hero spawns among the creatures: on his feet in a Frontier zone, insid
   assert.ok(nearest >= TUNING.aggro, `no creature already has him (${nearest.toFixed(1)} m)`);
   assert.ok(SPECS.filter((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 20).length >= 4, 'at least four creatures within 20 m');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
+});
+
+test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json, taken from trunk before mob rows)', () => {
+  const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '17 creatures, same ids, bodies, levels, homes, roam and aggro');
 });

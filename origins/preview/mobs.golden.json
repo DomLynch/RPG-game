@@ -1,0 +1,291 @@
+[
+ {
+  "id": "bounty-shrine-1",
+  "character": "character:hrungnir",
+  "name": "Hrungnir",
+  "encounter": "encounter:bounty-hrungnir",
+  "body": "knight",
+  "level": 13,
+  "zone": "cinder-fields",
+  "spawn": "bounty-shrine",
+  "home": {
+   "x": -134.4644660940673,
+   "z": 62.46446609406719
+  },
+  "roam": 2.5,
+  "aggro": 9,
+  "named": true
+ },
+ {
+  "id": "bounty-toll-1",
+  "character": "character:court-thrall",
+  "name": "Court thrall",
+  "encounter": "encounter:bounty-toll",
+  "body": "pitborn",
+  "level": 12,
+  "zone": "east-road",
+  "spawn": "bounty-toll",
+  "home": {
+   "x": -66.99999999999999,
+   "z": -50.00000000000003
+  },
+  "roam": 2.5,
+  "aggro": 9,
+  "named": true
+ },
+ {
+  "id": "bounty-reeds-1",
+  "character": "character:peg-powler",
+  "name": "Peg Powler",
+  "encounter": "encounter:bounty-peg-powler",
+  "body": "witch",
+  "level": 14,
+  "zone": "black-mere",
+  "spawn": "bounty-reeds",
+  "home": {
+   "x": -173.41159125180002,
+   "z": -118.65527634121443
+  },
+  "roam": 2.5,
+  "aggro": 9,
+  "named": true
+ },
+ {
+  "id": "matriarch-1",
+  "character": "character:mere-mother",
+  "name": "Grendel's Mother",
+  "encounter": "encounter:mere-mother",
+  "body": "witch",
+  "level": 15,
+  "zone": "black-mere",
+  "spawn": "matriarch",
+  "home": {
+   "x": -199.99999999999997,
+   "z": -130.00000000000009
+  },
+  "roam": 2.5,
+  "aggro": 9,
+  "named": true
+ },
+ {
+  "id": "scavengers-1",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 11,
+  "zone": "cinder-fields",
+  "spawn": "scavengers",
+  "home": {
+   "x": -101.65333875905095,
+   "z": 39.68469321159988
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "scavengers-2",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "cinder-fields",
+  "spawn": "scavengers",
+  "home": {
+   "x": -92.8052666693751,
+   "z": 17.284308519367396
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "scavengers-3",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 11,
+  "zone": "cinder-fields",
+  "spawn": "scavengers",
+  "home": {
+   "x": -99.8308006382701,
+   "z": 42.72856994680862
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "scavengers-4",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "cinder-fields",
+  "spawn": "scavengers",
+  "home": {
+   "x": -115.05386787661087,
+   "z": 33.1576542488532
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "scavengers-5",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 11,
+  "zone": "cinder-fields",
+  "spawn": "scavengers",
+  "home": {
+   "x": -89.72266012846902,
+   "z": 25.28696684519798
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "scavengers-6",
+  "character": "character:cinder-scavenger",
+  "name": "Cinder scavenger",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "cinder-fields",
+  "spawn": "scavengers",
+  "home": {
+   "x": -104.09697989536645,
+   "z": 28.25420756035813
+  },
+  "roam": 8,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "brood-1",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "black-mere",
+  "spawn": "brood",
+  "home": {
+   "x": -161.79827270446032,
+   "z": -116.35382437787568
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "brood-2",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
+  "encounter": null,
+  "body": "goblin",
+  "level": 13,
+  "zone": "black-mere",
+  "spawn": "brood",
+  "home": {
+   "x": -174.8333032723974,
+   "z": -121.75692105198546
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "brood-3",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "black-mere",
+  "spawn": "brood",
+  "home": {
+   "x": -175.37267000697085,
+   "z": -119.00815239187065
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "brood-4",
+  "character": "character:mere-brood",
+  "name": "Mere brood",
+  "encounter": null,
+  "body": "goblin",
+  "level": 13,
+  "zone": "black-mere",
+  "spawn": "brood",
+  "home": {
+   "x": -162.0974456470161,
+   "z": -116.02946897872066
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "ghouls-1",
+  "character": "character:ruin-ghoul",
+  "name": "Ruin ghoul",
+  "encounter": null,
+  "body": "goblin",
+  "level": 11,
+  "zone": "blood-ruin",
+  "spawn": "ghouls",
+  "home": {
+   "x": -269.64637379555245,
+   "z": -127.85890486544045
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "ghouls-2",
+  "character": "character:ruin-ghoul",
+  "name": "Ruin ghoul",
+  "encounter": null,
+  "body": "goblin",
+  "level": 12,
+  "zone": "blood-ruin",
+  "spawn": "ghouls",
+  "home": {
+   "x": -268.4189281625708,
+   "z": -134.3787022998833
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "ghouls-3",
+  "character": "character:ruin-ghoul",
+  "name": "Ruin ghoul",
+  "encounter": null,
+  "body": "goblin",
+  "level": 11,
+  "zone": "blood-ruin",
+  "spawn": "ghouls",
+  "home": {
+   "x": -266.43305978129075,
+   "z": -135.9177395173709
+  },
+  "roam": 6,
+  "aggro": 7,
+  "named": false
+ }
+]
