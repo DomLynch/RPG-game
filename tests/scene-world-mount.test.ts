@@ -20,6 +20,7 @@ test('every read of the world mount is a guarded form, so no mount means the Pit
     "  if (!world) {",
     "  scene.background = world ? world.background : new THREE.Color(theme.fog);",
     "  scene.fog = world ? world.fog : new THREE.FogExp2(theme.fog, theme.fogDensity);",
+    "      scene.environmentIntensity = world ? 0.15 : environment ? 0.45 : 1.0;",
     "  if (!world) scene.add(hemisphere);",
     "  if (!world) scene.add(sun);",
     "  const arena = world ? worldArena() : buildArena(scene, theme),",

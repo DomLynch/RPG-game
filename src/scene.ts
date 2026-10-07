@@ -139,7 +139,7 @@ export function createScene(
       environmentTarget?.dispose();
       environmentTarget = target;
       scene.environment = target.texture;
-      scene.environmentIntensity = environment ? 0.45 : 1.0;
+      scene.environmentIntensity = world ? 0.15 : environment ? 0.45 : 1.0;   // a world mount: the studio map must not wash the world's own ground and props
     } finally {
       environment?.dispose();
       pmrem.dispose();
