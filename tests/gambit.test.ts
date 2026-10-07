@@ -32,7 +32,7 @@ test('no flag: a second heavy press changes nothing and the duel grows no gambit
 });
 
 test('flag on, no second press: the fight is the plain one, field for field apart from the stream', () => {
-  const on = trace(5, null).d, off = trace(null, null).d, bare = ({ gambitOn: _, ...f }: Duel['fighters'][0]) => f;
+  const on = trace(5, null).d, off = trace(null, null).d, bare = (f: Duel['fighters'][0]) => { const o = { ...f }; delete o.gambitOn; return o; };
   assert.deepEqual([bare(on.fighters[0]), bare(on.fighters[1])], [bare(off.fighters[0]), bare(off.fighters[1])]);
   assert.deepEqual(on.gambit, { seed: 5, draws: 0 });
 });
