@@ -1,5 +1,13 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~19:45 (+04): HANDOFF before /clear (Dom). READ FIRST, then memory
+
+Memory (full detail, newest lines at the bottom): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md`. GO from "Frankendom - Lead Dev"; Auditor "Frankendom - Auditor"; Combat "Frankendom - Combat & Specials".
+
+**State:** #1708 draft (world fight FightRecord); #1709 phone perf, Auditor PASS @f283ecad; #1710 `expansion/wolf-preview` HEAD 80d9a734 (combat/wolf fe5dc0b8 + #1709 + #1716 world bodies merged, mobs-view NOT yet wired to them); #1705 draft until combat/wolf is green; `expansion/worldfight` @79d075db (?worldfight in-place duel, built and checked on the VPS, Combat reviewing the scene.ts mount).
+**Next, in order (Lead's):** PUBLISH A on the #1710 branch: wire world bodies in mobs-view.ts (fallback to the duel GLB), move the goblin camp 25-35 m from spawn (the hero spawns at (-101,31) with 3 aggro scavengers 7 m away, and a tap auto-starts a Pit fight), wolf camp 15-25 m in front under ?wolf, reserve phone draw slots for wolves; receipt = head sha + mobs() distances + renderInfo/MB at spawn and wolf camp + one 375 still with a wolf. Then PUBLISH B: merge the #1710 head into `expansion/worldfight`, rerun the VPS check (/private/tmp/claude-501/wf2.sh), stills, sha. Later: governor + KTX2 follow-up PR; Backend's encounter-net call-site contract (memory file); the legends-rule skill additions and Isis -> Aset were dropped until worldfight is in.
+**Rules/gotchas:** see the memory file's last two entries (VPS scripts, the ref fetch trick, 3 fps stills, reuse-first, never push a GO'd PR without telling Lead).
+
 ## 2026-10-07 ~17:30 (+04): HANDOFF before /clear. READ FIRST, then memory
 
 Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom). GO comes from "Frankendom - Lead Dev"; the COO is "COO Task Enabler" (id local_0f681df3-fe67-4324-a9f6-d625aef2281c). Gate for every push, on the VPS: `tsc --noEmit` AND `tsc -p tsconfig.tests.json`, eslint, `node --test tests/origins-*.test.ts origins/*/*.test.ts`.
