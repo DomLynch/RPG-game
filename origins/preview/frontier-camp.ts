@@ -5,6 +5,7 @@
 // returns null. Deterministic per seed; no hand-placed camps.
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
+import { rng } from './frontier-dress.ts';
 import { frontierZoneAt, inFirstView, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type Spot = { x: number; z: number; facing: number; pose: 'sit' | 'stand' };   // where a member of the camp is; facing in radians (0 = +z), toward the fire for a sitter, out for a lookout
@@ -21,11 +22,6 @@ export const CAMP_KIT = {
 // Warmer and lighter than the ruin rubble (cool grey-brown, 0.55-0.9), so a camp's seats, bedrolls and crate read as a camp at 375.
 const WOOD: Tint = [1.15, 0.78, 0.48], BURNT: Tint = [0.16, 0.14, 0.13], CLOTH: Tint[] = [[1.0, 0.32, 0.22], [0.42, 0.62, 0.95], [0.95, 0.8, 0.4]], ROCK: Tint = [1.25, 1.1, 0.95];
 
-const rng = (seed: string) => {   // the same string-seeded mulberry32 as frontier-dress.ts
-  let h = 1779033703 ^ seed.length;
-  for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
-  let a = h >>> 0;
-  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
 // The kit at a point: n members (2 or 3) around the fire. `heading` turns the whole camp; nothing here checks the ground (placeCamp does).

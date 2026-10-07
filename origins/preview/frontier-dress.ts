@@ -9,7 +9,7 @@ import { inFirstView, inZone, onRoad, roadFrame, type Build, type Frontier, type
 
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
-const rng = (seed: string) => {   // mulberry32 over a string hash
+export const rng = (seed: string) => {   // mulberry32 over a string hash
   let h = 1779033703 ^ seed.length;
   for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
   let a = h >>> 0;
