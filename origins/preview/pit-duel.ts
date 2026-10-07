@@ -7,10 +7,12 @@
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
-import { type Fighter } from '../../src/duel.ts';
+import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/duel.ts';
+import { creaturesLook } from '../../src/audio/creature.ts';
 import { createFeedback } from '../../src/feedback.ts';
 import { createHud } from '../../src/hud.ts';
-import { createInput } from '../../src/input.ts';
+import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/combat.ts';
+import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
 import { Match } from '../../src/match.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/moves.ts';
@@ -19,15 +21,25 @@ import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene } from '../../src/scene.ts';
+import { mobLayer } from '../mobs/kits.ts';
+import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
+import { withBar } from '../shared/with-bar.ts';
+import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
+import type { Object3D } from 'three';
+import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number };
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+// How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
+// foe rig, and the single "Back to the fields" button at the end in place of Rematch.
+export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
 export type DuelHooks = {
   ended(finish: Finished): { next?: string } | void;   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
+  twisted?(outcome: TwistOutcome): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
 // In-memory storage for the match's ports: the sparring mode writes nothing, and if it ever did, it would land here, never in localStorage.
@@ -40,6 +52,7 @@ type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; v
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
 let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
+let twist: Twist = noTwist(), dressed = false, dressedRoot: Object3D | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
 const seen = new Map<string, number>();   // for the test hook: how often the player's inputs started each action, attack and charge this duel
@@ -54,8 +67,19 @@ const element = <T extends HTMLElement>(id: string): T => {
   return el;
 };
 // The opponent's foe-holding test the game's sound reads (src/main.ts foeHolding): her swing parked in its chamber.
+const CREATURES = creaturesLook(location.search);
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
-const paused = () => !running || !stage?.ready || document.hidden || !!journal?.open;
+// World mode (Dom 2026-10-07: the open world uses the Pit's controls exactly): the same kit and the same createInput drive the WALK. No duel is
+// running, so the input reads an idle practice (every press is accepted) and the page turns the stick into walking and a press into an engage.
+let world = false;
+// The idle fighter has his weapon DRAWN (the Pit's own state after the first FIGHT tap), so the kit shows STAB, SLASH, KICK and HEAVY as it does mid-fight.
+const idle = (() => {
+  const rest = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: false } as unknown as Parameters<typeof stepPractice>[1];
+  let p = stepPractice(initialPractice(), { ...rest, action: 'light' });
+  for (let i = 0; i < 240 && p.phase !== 'ready'; i++) p = stepPractice(p, rest);
+  return p;
+})();
+const paused = () => world ? document.hidden || !!journal?.open : !running || !stage?.ready || document.hidden || !!journal?.open;
 
 function bind(leave: () => void) {
   feedback = createFeedback();
@@ -63,7 +87,7 @@ function bind(leave: () => void) {
   for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(type, () => { if (running) feedback!.unlock(); }, { passive: true });
   controls = createInput({
     element, window, paused, now: () => performance.now(), matchMedia: (q) => matchMedia(q), innerWidth: () => innerWidth,
-    ready: () => !!stage?.ready, practice: () => match!.practice, quiet: () => feedback!.quiet(),
+    ready: () => world || !!stage?.ready, practice: () => (world ? wsim : match!.practice), quiet: () => feedback!.quiet(),
   });
   hud = createHud(element);
   element('reset-button').addEventListener('click', () => hooks?.again());
@@ -97,7 +121,13 @@ function liveLook(on: boolean) {
 }
 
 // The bars name the legend as the game does (src/main.ts nameOpponent): the name large, the class small beside it.
-function nameOpponent(opponent: OpponentId, level: number) {
+function nameOpponent(opponent: OpponentId, level: number, as?: Shown) {
+  if (as) {
+    const label = element('opponent-name'), small = document.createElement('small');
+    small.className = 'opponent-class'; small.textContent = `Lv ${as.level}`; label.replaceChildren(`${as.name.toUpperCase()} `, small); label.dataset.mobile = as.name;
+    for (const id of ['target-health', 'target-posture']) element(id).setAttribute('aria-label', `${as.name} ${id.slice(7)}`);
+    return;
+  }
   const label = element('opponent-name'), name = bareName(opponent), legend = isLegend(opponent) ? legendForLevel(opponent, level).name : null;
   const small = document.createElement('small');
   small.className = 'opponent-class'; small.textContent = `the ${name}`;
@@ -130,18 +160,53 @@ function stageFor(host: HTMLElement, opponent: OpponentId, level: number) {
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
-  liveLook(true);
+  world = false; liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
-  fight = asked; hooks = page; next = undefined; result = null;
+  if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
+  fight = asked; hooks = page; next = undefined; result = null; twist = noTwist();
   stageFor(host, opponent, asked.level);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
+  if (asked.mob) match.layer = mobLayer(asked.mob);
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
+  if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
+    match.practice = withBar(match.practice, asked.bar);
+  }
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
-  nameOpponent(opponent, asked.level);
+  nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
   if (!running) { running = true; last = performance.now(); frameId = requestAnimationFrame(frame); }
+}
+
+/** The walk uses the kit: bind it, switch the game's stylesheet on, and hand back the controls' intent each frame (a press is consumed when read). */
+export function enterWorld(leave: () => void) { world = true; liveLook(true); if (!controls) bind(leave); controls!.clear(); }
+// ROLL and GUARD in the open world are the Pit's own: a private practice (the same sim, the same stamina, the same roll distance and guard rules) is stepped at
+// 60 Hz beside the walk. Its fighter is held at the arena's centre between rolls and its foe frozen 6 m ahead, so only what the sim DOES to the hero comes
+// back: the ground a roll or backstep covers, and the phase (roll / backstep / guard) the page plays the rig's clip for. Attack presses are not sent here:
+// they start the duel (main.ts), which is the same sim with a real foe.
+let wsim: Practice = idle, wacc = 0;
+const frozen = (): Intent => idleIntent();
+export type WorldMove = { dx: number; dz: number; phase: string; stamina: number; facing: number };   // facing: the way the fighter faces (a roll turns him)
+export function worldStep(dt: number, heading: number, i: ControlIntent): WorldMove {
+  wacc = Math.min(wacc + dt, STEP * 6);
+  let dx = 0, dz = 0;
+  const rolling = (p: Practice) => p.phase === 'roll' || p.phase === 'backstep';
+  while (wacc >= STEP) {
+    wacc -= STEP;
+    const [me, foe] = wsim.duel.fighters, from = rolling(wsim) ? me.body : { ...me.body, x: 0, z: 0 };
+    const ahead = { ...foe.body, x: Math.sin(heading) * 6, z: Math.cos(heading) * 6 };
+    wsim = { ...wsim, duel: { ...wsim.duel, fighters: [{ ...me, body: rolling(wsim) ? me.body : { ...from, heading }}, { ...foe, body: ahead }] as unknown as Duel['fighters'] } };
+    const before = wsim.duel.fighters[0].body, action = i.action === 'dodge' || i.action === 'backstep' ? i.action : null;
+    wsim = stepPractice(wsim, { move: { x: i.x, z: i.z, yaw: heading + Math.PI, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: false, lock: false }, PROFILES.normal, frozen);
+    const after = wsim.duel.fighters[0].body;
+    if (rolling(wsim)) { dx += after.x - before.x; dz += after.z - before.z; }
+  }
+  return { dx, dz, phase: wsim.phase, stamina: wsim.duel.fighters[0].stamina, facing: wsim.duel.fighters[0].body.heading };
+}
+export function worldIntent(): ControlIntent {
+  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran' });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  const i = controls!.intent(); controls!.consumed([]); return i;
 }
 
 export function closeDuel() {
@@ -166,11 +231,21 @@ function frame(now: number) {
       for (const e of p.events) if (e.actor === 0) { if (e.type === 'ActionStarted') saw(e.action!); else if (e.type === 'AttackStarted') saw(e.move!); else if (e.type === 'Charged') saw('charged'); }
       feedback!.update(p.events, undefined, { match: match.seed, ended: !!p.finish, tick: p.duel.tick, drawing: p.duel.fighters[0].phase === 'draw', holding: foeHolding(p.duel.fighters[1]), opponent: stage.opponent,
         loiter: Math.max(p.duel.fighters[0].loiter, p.duel.fighters[1].loiter) / RULES.wall.loiter.ticks });   // the game's sound, fed as src/main.ts feeds it
+      if (CREATURES && fight!.flags) for (const e of p.events) { if (e.type === 'Hit' && e.target === 0) feedback!.creature(stage.opponent, 'bite'); else if (e.type === 'Killed' && e.target === 1) feedback!.creature(stage.opponent, 'death'); }   // ?look=creatures: an encounter foe's bite on a landed blow and its death cry
       if (damageNumbers) hud!.floatDamage(p.events, p.duel.fighters, stage.view.project);
       controls!.consumed(match.practice.events);
       state = match.practice.fighter;
       accumulator -= STEP;
+      if (fight!.flags?.length && outcome !== 'ended') {
+        const t = stepTwist(p.duel, fight!.flags, twist);
+        twist = t.twist;
+        if (twist.outcome === 'fled' || twist.outcome === 'escaped') {   // no catch window / the window ran out: the fight ends with the foe alive
+          match.end(false); running = false; hooks?.twisted?.(twist.outcome);
+          break;
+        }
+      }
       if (outcome === 'ended') {
+        if (fight!.flags?.length && p.duel.finish?.victim === 1) twist = stepTwist(p.duel, fight!.flags, twist).twist;   // 'caught' inside the window
         match.end(false);   // sparring: no record, no mark, nothing written
         result = match.practice.finish;
         next = hooks?.ended(result)?.next;
@@ -181,9 +256,17 @@ function frame(now: number) {
   stage.view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha },
     true, paused() ? 0 : dt, match.practice, match.frameEvents, false, match.epoch, match.specialIdentity);   // locked: the live camera, always
   match.frameEvents = [];
-  hud!.update(match.practice, { legend: legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
+  if (fight!.as?.dress && !dressed && stage.ready) { const root = stage.view.opponentRoot(); if (root) { fight!.as.dress(root); dressed = true; dressedRoot = root; } }
+  hud!.update(match.practice, { legend: fight!.as?.name ?? legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
+  if (fight!.as) {   // a creature, not a legend: no rematch
+    const again = element('reset-button'), status = element('combat-status');
+    again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', '');
+  }
   frameId = requestAnimationFrame(frame);
 }
+
+// An encounter's twist state (src/twist.ts): read by encounter-duel.ts when the fight ends.
+export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.
 export function duelState() {

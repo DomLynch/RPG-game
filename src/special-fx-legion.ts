@@ -2,15 +2,13 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, shadowPhase, castPhase, isBloodTithe, LAND_AT, type Cast } from './special-timing.ts';
+import { clamp01, hash, smooth } from './fx-math.ts';
 
 // Accepted Centurion class B: Stand Fast, ranks 4-7 (levels 16-35), previewed at level 21.
 // Combat owns the shared class selector; this effect observes Scutum Shove events only.
 // Presentation only, in Charge's style (charge-fx.ts): it reads the sim's special events and each side's feet, never the sim, a rig or Math.random (every
 // "random" is an index hash), so a frame is a pure function of the clock. Dom's bar: dark ink, nothing pale or glowing. Every mark is DARKER than the floor
 // (churned wet sand, scuffed earth), low (knee height at most), semi-transparent, nothing additive, so both fighters stay readable. No prop is added.
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
 
 // A churned blot: a soft disc eaten into by two sine swirls and an uneven rim (Charge's), so each mark is a smear of dirt, not a gradient.
 function blot(seed: number) {

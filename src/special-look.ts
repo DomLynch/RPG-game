@@ -1,7 +1,7 @@
 // Special Moves presentation (the Hades pilot, docs/briefs/special-moves-hades-pilot.md; Combat owns the timing seam, Finishers the effects).
 // Pure: read from the sim's own state and events, never written back, so a fight steps the same whether or not anything is drawn.
 // The seam: SpecialStarted (the windup begins; the strike lands RULES.special.windup ticks later, the cast tick included), SpecialLanded
-// (the strike), SpecialFizzled (the caster fell during the windup), then SPECIAL_RECOVER ticks of presentation after the strike.
+// (the strike), SpecialFizzled (the caster fell during the windup) or SpecialInterrupted (damage cut it; presented as a fizzle), then SPECIAL_RECOVER ticks of presentation after the strike.
 import { RULES } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';

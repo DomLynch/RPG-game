@@ -4,7 +4,7 @@ import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
 import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
-import { BadRequest, Conflict } from './errors.ts';
+import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Content } from './holdings.ts';
 import type { WhereFn } from '../presence/where.ts';
 import { questAdvance } from './quest-advance.ts';
@@ -42,12 +42,24 @@ export async function openAccount(ctx: Ctx): Promise<store.Snapshot> {
   return snap;
 }
 
-const open: Handler = async ctx => openAccount(ctx);
+// The active character (X2 Stage 2, Lead's ruling: ONE per account, set in the writer). `open {character}` makes one of the account's own characters the
+// active one before the snapshot; open without it leaves the active character as it was. create_character makes the new character active. Presence keys by
+// account and never sees a character id: the writer maps account -> active character when it stores and serves the saved location (location.ts).
+const CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
+const open: Handler = async (ctx, body) => {
+  if (body.character !== undefined) {
+    if (typeof body.character !== 'string' || !CHARACTER.test(body.character)) throw new BadRequest('character: a character id');
+    const set = await store.setActive(ctx.db, ctx.account, body.character);
+    if (set === 'absent') throw new Refused(503, 'character: choosing a character is not installed yet');   // 0009 not applied: the writer is up, the table is not
+    if (!set) throw new BadRequest('character: not one of this account\'s characters');
+  }
+  return openAccount(ctx);
+};
 
 const createCharacter: Handler = async (ctx, body) => {
   const name = body.name;
   if (typeof name !== 'string' || [...name].length < 1 || [...name].length > 32 || name !== name.trim() || /\p{Cc}/u.test(name)) throw new BadRequest('name: 1 to 32 characters, trimmed, no control characters');
-  return { id: await store.createCharacter(ctx.db, ctx.account, name) };
+  return { id: await store.createActiveCharacter(ctx.db, ctx.account, name) };
 };
 
 // quest_advance and talk_pick run on the story content. The entry point (scripts/origins-writer.mjs) loads it once from the bundle

@@ -13,10 +13,12 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
 import { openPose, openWeight, NO_OPEN } from './opening-pose.ts';
+import { stancePose, type Stance } from './stance-pose.ts';
 import type { Opening } from './combat.ts';
 import { GUARD_DROP } from './fatigue-tune.ts';
 import type { Fatigue } from './fatigue.ts';
 import { type FatigueTune, breathe, fatigueLayer } from './fatigue-layer.ts';
+import { fatigueRead, readRate } from './fatigue-read.ts';
 import { HAMSTRUNG_BEATS } from './hamstrung.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
 import { tinted } from './rank-tint.ts';
@@ -61,6 +63,17 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
 export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { ...Object.fromEntries([...POMMEL_BASH].map(w => [w, { Pommel: 'Skill_Pommel' }])), trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw', Pommel: 'Trident_Pommel' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw', Pommel: 'Warhammer_Pommel' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw', Pommel: 'Maul_Pommel' } };
 // Pommel is the Pommel Strike's role: the hero's Skill_Pommel where the player's row names it, else the weapon's thrust clip.
 export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? (role === 'Pommel' ? clipFor(weapon, 'Thrust') : role);
+// A quadruped (scripts/character/quadruped_rig.py) carries seven clips, not the humanoid set. It is recognised by its Bite clip, not by a weapon id, so
+// the same map serves every beast row (wolf, hound, boar). Every role the renderer asks for lands on one of the seven: any strike is the Bite, a hit
+// the Hurt, a backstep or roll the Flee, a guard or draw the Idle (the beast's profile has no guard), every death its Death. Additive scenes it
+// does not carry (Death_Hamstrung ...) stay unmapped and are skipped.
+export const QUADRUPED_CLIPS: Partial<Record<Role, string>> = {
+  Idle: 'Idle', Walk: 'Walk', Jog: 'Walk', Run: 'Run', Armed: 'Idle', ArmedWalk: 'Walk', ArmedRun: 'Run', StrafeLeft: 'Walk', StrafeRight: 'Walk',
+  Attack: 'Bite', Return: 'Bite', Heavy: 'Bite', Riposte: 'Bite', Thrust: 'Bite', Pommel: 'Bite', Kick: 'Bite',
+  Hit: 'Hurt', BlockImpact: 'Hurt', Deflected: 'Hurt', Parry: 'Hurt', Guard: 'Idle', Draw: 'Idle', Roll: 'Flee',
+  Death: 'Death', Death_SplitCrown: 'Death', Death_RunThrough: 'Death', Death_QuietOne: 'Death', Fin_RunThrough: 'Idle',
+};
+export const isQuadruped = (asset: { animations: readonly { name: string }[] }): boolean => asset.animations.some(a => a.name === 'Bite');
 // Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
 // sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
 // in PLAYER_CLIPS. A pole without a draw of its own goes in NO_HIP_DRAW (a hip mime with a pole reads wrong): it holds its armed idle
@@ -292,19 +305,32 @@ export function rigMaterials(root: Object3D, skip: ReadonlySet<Object3D> = new S
   root.traverse(object => { if (object instanceof Mesh && !skip.has(object) && object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material); });
   return materials;
 }
-export const sourceMaterial = (piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) =>
-  piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+// A palette name the source rig does not map keeps loot.glb's own entry, and loot.glb's palette is the HERO's (build-warrior.mjs): the
+// Executioner's hood came out in the hero's madder red on the player (Dom, 2026-10-07). Where the source opponent wears a different dye of
+// that name (scripts/warrior-appearance.mjs; tests/grade-materials.test.ts pins it), the piece wears that dye instead.
+export const SOURCE_DYE: Partial<Record<OpponentId, Readonly<Record<string, string>>>> = { executioner: { Heraldry: '#171310' } };
+const dyed = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>();
+export function sourceMaterial(piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) {
+  const own = piece.material, opponent = piece.userData.opponent as OpponentId;
+  if (!(own instanceof MeshStandardMaterial)) return own;
+  if (SOURCE_MAPPED[opponent]?.includes(own.name)) return materials.get(own.name) ?? own;
+  const dye = SOURCE_DYE[opponent]?.[own.name];
+  if (!dye) return own;
+  let copy = dyed.get(own);
+  if (!copy) { copy = own.clone(); copy.color.set(dye); dyed.set(own, copy); }
+  return copy;
+}
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
 function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
-  const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
+  const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>(), quadruped = isQuadruped(asset);
   for (const role of [...ROLES, ...ADDITIVE_ROLES]) {
     // A player override needs the rig to carry it: the equip file does (tests/weapons.test.ts pins it); a shared opponent rig standing in
     // for the player (buildWarriors without an opponent asset) keeps the shared row.
     const own = player ? PLAYER_CLIPS[weapon]?.[role] : undefined;
-    const name = own && asset.animations.some(a => a.name === own) ? own : clipFor(weapon, role), clip = asset.animations.find(a => a.name === name) ?? (role === 'ArmedRun' ? asset.animations.find(a => a.name === 'ArmedWalk') : undefined);
+    const name = own && asset.animations.some(a => a.name === own) ? own : (quadruped && QUADRUPED_CLIPS[role]) || clipFor(weapon, role), clip = asset.animations.find(a => a.name === name) ?? (role === 'ArmedRun' ? asset.animations.find(a => a.name === 'ArmedWalk') : undefined);
     if (!clip && (ADDITIVE_ROLES as readonly string[]).includes(role)) continue;   // an appended scene this rig does not carry
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
     clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);
@@ -446,7 +472,11 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       uncarried.forEach((q, i) => q.copy(offHand[i]!.quaternion)); carried = true;
       root.updateWorldMatrix(true, false);
       const frame = root.getWorldQuaternion(new Quaternion()), { carry: c, raised: r, strike: s } = SHIELD_CARRY;
-      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize().applyQuaternion(frame);
+      const toward = (key: 'elbow' | 'wrist') => {
+        const v = c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize();
+        if (readGuard) { v.y -= (key === 'elbow' ? .3 : .45) * readGuard; v.normalize(); }   // ?look=fatigue-read: the guard hand sinks with the tiredness (0 without the flag)
+        return v.applyQuaternion(frame);
+      };
       const elbow = toward('elbow'), wrist = toward('wrist');
       aimBone(upperL, lowerL, elbow, amount);
       aimBone(lowerL, handL, wrist, amount);
@@ -467,6 +497,18 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
     let open: Opening | null = null, openW = 0;   // opening-pose.ts: the sim's open stagger on this body, and its eased weight
     let tired: Pick<Fatigue, 'level' | 'gassed' | 'second'> = { level: 0, gassed: 0, second: 0 }, tune: FatigueTune | undefined, breath = 0, calmWeight = 0;   // fatigue.ts: the tired-body layer (presentation only), its body's tuning, the breath clock and how calm the pose is
+    // ?look=fatigue-read (fatigue-read.ts): the extra bones its pose moves, restored before every update like the guard tilt; empty and untouched without the flag.
+    const FORWARD = new Vector3(0, 0, 1);
+    const readBones = ['spine_03', 'neck_01', 'Head', 'clavicle_l', 'clavicle_r'].map(n => root.getObjectByName(n)), readSaved = readBones.map(() => new Quaternion());
+    let readApplied = false, readBreath = 0, readGuard = 0;
+    // ?look=stances (stance-pose.ts): the stance's extra bones, restored before every update; empty and untouched without the flag.
+    let stance: Stance = 'neutral', stanceW = 0, stanceClock = 0, stanceApplied = false;
+    const stanceBones = ['pelvis', 'thigh_l', 'thigh_r', 'calf_l', 'calf_r', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'upperarm_r', 'lowerarm_r', 'upperarm_l'].map(n => root.getObjectByName(n)), stanceSaved = stanceBones.map(() => new Quaternion()), stancePelvis = new Vector3();
+    const turnAbout = (bone: Object3D | null | undefined, axis: Vector3, angle: number) => {   // a world-axis turn of a bone (the clavicles' own axes are not the fighter's)
+      if (!bone?.parent || !angle) return;
+      const parent = bone.parent.getWorldQuaternion(new Quaternion()), turn = new Quaternion().setFromAxisAngle(axis.clone().applyQuaternion(root.getWorldQuaternion(new Quaternion())), angle);
+      bone.quaternion.premultiply(parent.clone().invert().multiply(turn).multiply(parent));
+    };
     let leaning = 0, leanDrive = 0;   // the charged-heavy lean's weight, 0..1, and the ease that drives it
     let tiltApplied = false;   // the mixer rewrites a bone only when its clip value changes (a held guard's does not), so the tilt is undone by hand before every update
     let speed = 0;
@@ -637,6 +679,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
       opening(o: Opening | null) { open = o; },   // opening-pose.ts: this body's open stagger (Practice.opening when its side is this body), or null
       fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
+      setStance(s: Stance) { stance = s; },   // stance-pose.ts: this body's stance (look test only; neutral = nothing)
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
@@ -675,6 +718,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         if (aimedOffHand) { offHand[0]!.quaternion.copy(aimedOffHand[0]); offHand[1]!.quaternion.copy(aimedOffHand[1]); aimedOffHand = undefined; }
+        if (stanceApplied) { stanceBones.forEach((b, i) => b?.quaternion.copy(stanceSaved[i])); stanceBones[0]?.position.copy(stancePelvis); stanceApplied = false; }
+        if (readApplied) { readBones.forEach((b, i) => b?.quaternion.copy(readSaved[i])); readApplied = false; }
         if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         if (carried) { offHand.forEach((b, i) => b!.quaternion.copy(uncarried[i])); carried = false; }
         mixer.update(step);
@@ -687,7 +732,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const l = lean ?? NO_LEAN;
         // The tired body (fatigue.ts): breathing in the chest, a hunch, the sword arm sagging; only while the pose is calm (a swing's contact pose is the sim's blade).
         calmWeight += (Number(!dead && (pose === 'ready' || pose === 'guard' || pose === 'sheathed')) - calmWeight) * ease;
-        breath += step * breathe(tired, tune);
+        breath += step * breathe(tired, tune); readBreath += step * readRate(tired, tune);
         const layer = tired.level > 0 || tired.gassed > 0 || calmWeight > .001 ? fatigueLayer(tired, breath, calmWeight, tune) : null;
         openW += (openWeight(open) - openW) * (1 - Math.exp(-step * 30));   // quick: it follows the sim's own ramp, which is already eased
         if (openW < 1e-3 && !open) openW = 0;
@@ -698,7 +743,29 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
           if (upperArm) { upperArm.rotation.x += tilt.arm + leaning * (l.lift ?? 0); upperArm.rotation.y += leaning * l.arm; }
           if (gap !== NO_OPEN) { if (spine1) { spine1.rotation.x += gap.lean; spine1.rotation.z += gap.tilt; } if (upperArm) upperArm.rotation.x += gap.arm; }
-          if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
+          if (layer && tune?.read) {   // ?look=fatigue-read: the whole spine, head and shoulders carry the tell; the sword arm keeps the live sag
+            const r = fatigueRead(tired, readBreath, calmWeight, layer, tune); readGuard = r.guard;
+            if (spine1) spine1.rotation.x += r.spine1; if (spine2) spine2.rotation.x += r.spine2; if (upperArm) upperArm.rotation.x += r.arm;
+            readBones.forEach((b, i) => b && readSaved[i].copy(b.quaternion)); readApplied = true;
+            if (readBones[0]) readBones[0].rotation.x += r.spine3;
+            if (readBones[1]) readBones[1].rotation.x += r.neck;
+            if (readBones[2]) readBones[2].rotation.x += r.head;
+            root.updateWorldMatrix(true, true);
+            turnAbout(readBones[3], FORWARD, r.shrug + r.heave); turnAbout(readBones[4], FORWARD, -(r.shrug + r.heave));
+          } else {
+            readGuard = 0;
+            if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
+          }
+        }
+        stanceW += (Number(stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
+        if (stanceW > .001) {   // ?look=stances: the stance's bones on top of the calm pose (stance-pose.ts); restored at the top of the next update
+          const sp = stancePose(stance, stanceW, stanceClock), b = stanceBones;
+          b.forEach((bone, i) => bone && stanceSaved[i].copy(bone.quaternion)); if (b[0]) stancePelvis.copy(b[0].position); stanceApplied = true;
+          if (b[0]) { b[0].position.y -= sp.drop; b[0].position.x += sp.sway; }
+          if (b[1]) b[1].rotation.x += sp.hip; if (b[2]) b[2].rotation.x += sp.hip; if (b[3]) b[3].rotation.x += sp.knee; if (b[4]) b[4].rotation.x += sp.knee;
+          if (b[5]) { b[5].rotation.x += sp.spine1; b[5].rotation.z += sp.lean; } if (b[6]) b[6].rotation.x += sp.spine2; if (b[7]) b[7].rotation.x += sp.spine3;
+          if (b[8]) b[8].rotation.x += sp.neck; if (b[9]) { b[9].rotation.x += sp.head; b[9].rotation.z += sp.headTilt; }
+          if (b[10]) b[10].rotation.x += sp.arm; if (b[11]) b[11].rotation.x += sp.fore; if (b[12]) b[12].rotation.x += sp.offArm;
         }
         const shieldHeld = shieldArm && armed && !dead, guardUp = shieldHeld && (pose === 'guard' || pose === 'block' || pose === 'parry'), cutting = shieldHeld && (pose === 'attack' || pose === 'kick' || pose === 'deflected' || pose === 'roll');   // a deflect throws the arm open; a roll tucks it
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;

@@ -874,6 +874,13 @@ dialog>p {
 #stamina[data-capped=true] {
   background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%));
 }
+/* ?look=fatigue-preview (Dom 2026-10-07, v2 after his phone: "I didn't see the red"): the last 10 % of stamina turns the WHOLE bar frame red and pulses it (a glowing red outline round the track and a red-tinted track, not just the thin fill), and the STAMINA word goes red. Body not involved. */
+#stamina[data-low=true] { --bar-color: #e0463a; background-color: #5a1612; outline: 2px solid #e0463a; outline-offset: 1px; border-radius: 3px; animation: stamina-low 1.2s ease-in-out infinite; }
+#stamina[data-low=true]::-webkit-meter-optimum-value { background: #e0463a; }
+#stamina-label[data-low=true] { color: #ff5a48; text-shadow: 0 0 6px #e0463a, 0 1px 2px #000a; animation: stamina-low-label 1.2s ease-in-out infinite; }
+@keyframes stamina-low { 0%, 100% { outline-color: #ff5a48; box-shadow: 0 0 10px 3px #e0463acc; } 50% { outline-color: #e0463a55; box-shadow: 0 0 3px 1px #e0463a33; } }
+@keyframes stamina-low-label { 50% { opacity: .65; } }
+@media (prefers-reduced-motion: reduce) { #stamina[data-low=true], #stamina-label[data-low=true] { animation: none; } }
 #stamina[data-leg=true] {
   outline: 1px solid #b5533f88;
 }
@@ -1366,13 +1373,11 @@ dialog>p {
   }
   .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .55; transition: opacity .12s, stroke-width .12s; }   /* the four ticks (owner 2026-09-22: brighter; was .3) */
   .actions[data-gestures=cluster] button .side-straight{ opacity: 0; }   /* the centre ring is invisible at rest (owner 2026-09-22, second look: "remove the inner circle"); it stays in the DOM because the lit rules below raise it to .95 for Stab held / Guard straight */
+  /* Dom 2026-10-07 ("yes slash and guard"): the compass is on SLASH (left/right ticks only) and GUARD (all four + ring) and nowhere else; on the tap buttons the ticks read as swipe hints. Replaces the 2026-09-21 "marks on every button" rule. */
   /* one lit mark per button, and only while that button is being pressed (data-held from input.ts; :active is unreliable on touch) — the same as Guard, so every button rests at the
      same faint weight (owner 2026-09-21: "keep them all standard semi-transparent like the guard one") */
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=left] .side-left,
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=right] .side-right,
-  .actions[data-gestures=cluster] #thrust-button[data-held] .side-straight,
-  .actions[data-gestures=cluster] #heavy-button[data-held] .side-overhead,
-  .actions[data-gestures=cluster] #kick-button[data-held] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .side-left,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .side-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
@@ -1383,17 +1388,25 @@ dialog>p {
   .actions[data-gestures=cluster] #attack-button[data-cut=right]:not([data-held]) .side-right,
   .actions[data-gestures=cluster] #attack-button[data-cut=left][data-held] .side-left,
   .actions[data-gestures=cluster] #attack-button[data-cut=right][data-held] .side-right{ opacity: .95; stroke-width: 2; }
-  /* directional cuts, v2 (Lead 2026-10-07: the lit tick was too faint): a solid arc on the chosen edge of the button at full opacity, kept while the stick is held and pulsed on the press */
-  .actions[data-gestures=cluster] #attack-button[data-cut]::after{
-    content: ''; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; border: 5px solid transparent;
-    border-left-color: var(--cut-arc); border-right-color: var(--cut-arc); clip-path: inset(0 50% 0 0);
-  }
-  .actions[data-gestures=cluster] #attack-button[data-cut=right]::after{ clip-path: inset(0 0 0 50%); }
-  .actions[data-gestures=cluster] #attack-button[data-cut][data-held]::after{ border-width: 7px; inset: -7px; }
-  .actions[data-gestures=cluster] #attack-button{ --cut-arc: #f2c14e; }
+  /* directional cuts: no arc (Dom 2026-10-07: "remove the arc, keep the cuts"). The v2 arc used #attack-button[data-cut]::after, which replaced the Slash label (the label IS that ::after, content: attr(data-mobile)) and hid it whenever the stick was held to a side. The button keeps only the lit tick above. */
+  /* The gold arc (Dom 2026-10-07): while the thumb is slid to a side on SLASH (left/right) or GUARD (left/up/right/down) a thin gold arc shows on that side, over its tick.
+     No slide, no arc. Thinner and fainter than the first arc; --arc-w / --arc-o are the two knobs. It lives in the compass SVG, never in a ::after (that is the SLASH label). */
+  .actions[data-gestures=cluster] button .arc{ fill: none; stroke: #d9b45a; stroke-width: var(--arc-w,2); stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: 0; transition: opacity .12s; }
+  .actions[data-gestures=cluster] #attack-button[data-held][data-slide=left] .arc-left,
+  .actions[data-gestures=cluster] #attack-button[data-held][data-slide=right] .arc-right,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .arc-left,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .arc-right,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .arc-overhead,
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .arc-low{ opacity: var(--arc-o,.7); }
+  /* directional-cut flash (Dom 2026-10-07): a faint gold edge glow on the chosen side the instant the cut fires, gone in 230 ms. ::before only: the label is the ::after and is never touched. */
+  .actions[data-gestures=cluster] #attack-button::before{ content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; }
+  .actions[data-gestures=cluster] #attack-button[data-flash=left]::before{ box-shadow: inset 7px 0 9px -5px #f2c14e; animation: cut-flash 230ms ease-out forwards; }
+  .actions[data-gestures=cluster] #attack-button[data-flash=right]::before{ box-shadow: inset -7px 0 9px -5px #f2c14e; animation: cut-flash 230ms ease-out forwards; }
+  @keyframes cut-flash{ from{ opacity: .6; } to{ opacity: 0; } }
+  @media (prefers-reduced-motion: reduce){ .actions[data-gestures=cluster] #attack-button[data-flash]::before{ animation: none; } }
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
-    .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
+    .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side, .actions[data-gestures=cluster] button .arc{ transition: none; }
   }
   .actions[data-gestures=cluster] button[data-mobile]::after{
     font: 600 11px/1 Arial;
@@ -1455,6 +1468,13 @@ dialog>p {
   } /* 44 px: the platform minimum for the innermost target */
   .actions[data-gestures=cluster] #skill-button[data-reach=false]{
     opacity: .5;   /* a cone skill out of its reach: the cluster's dim (hud.ts), still pressable (Combat 2026-09-27: the lit Jab whiffed) */
+  }
+  :root.look-kick52 .actions[data-gestures=cluster] #kick-button {   /* ?look=kick52 (Strategy research #9): 52 px; flag off = the 44 px above. Centred on 99.5,124 (0.5 px left, 4 px up of the 44 px
+     one) because 4 px each way put its box 6 x 2 px into GUARD's (the gate: no two action boxes overlap): its bottom stays at the old 150 (GUARD starts at 152), its sides sit 0.5 px clear of SLASH (73) and HEAVY (126) */
+    width: 52px;
+    height: 52px;
+    left: 73.5px;
+    top: 98px;
   }
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
     background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */

@@ -6,9 +6,10 @@ import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, handlers as defaults, type Handler } from './handlers.ts';
 import type { WhereFn } from '../presence/where.ts';
+import { internalRoute, type InternalOptions } from './location.ts';
 
 const MAX_BODY = 64 * 1024;
-const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, '23505': 409 };
+const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, O0009: 409, O0014: 409, '23505': 409 };
 
 // Past the cap the rest of the body is read and dropped (never buffered), then refused: the client still gets its 400 on the open socket.
 const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve, reject) => {
@@ -20,9 +21,12 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
 
 // `where` is presence's answer to "where does this account stand" (origins/presence/where.ts presenceWhere in production, a fixture in tests): the writer's
 // only source of a player's place (launch gate X1). It is required so no writer can be built that silently takes a place from somewhere else.
-export function createWriter({ db, verify, where, handlers = defaults }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler> }): Server {
+// `internal`: the shared key presence presents on the writer's internal routes (origins/server/location.ts, X2 Stage 2). Unset: those routes do not exist.
+export function createWriter({ db, verify, where, handlers = defaults, internal }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions }): Server {
+  const inside = internal ? internalRoute(db, internal) : null;
   return createServer(async (req, res) => {
     const send = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (inside && (req.url ?? '').startsWith('/internal/')) return void inside(req, res);
     try {
       const op = /^\/origins\/([a-z_]{1,32})$/.exec(req.url ?? '')?.[1];
       if (req.method !== 'POST' || !op || !Object.hasOwn(handlers, op)) return send(404, { ok: false, error: 'not found' });
