@@ -4,6 +4,7 @@ import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadGate, playGate } from './audio/gate.ts';
 import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
+import { createBreath, type Breath } from './audio/breath.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
@@ -17,6 +18,7 @@ type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: numbe
 export const GATE_RETRY_MS = 800;   // the winch's second fetch, after a failed first
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
+const breathing = false;   // the breathing layer's one switch: OFF until Dom signs the sound off (2026-10-06, he had just rejected a synth voice). His OK is flipping this to true.
 const RISE = 1.6, RISE_FLOOR = .35, CUT = .035;   // the opponent's charge: rate ×1.6 and level from 35 % over the hold; a 35 ms fade when it ends
 // Owner phone mix (2026-09-19): half ordinary FX, +50 % for the fatal sequence. Owner 2026-09-20, phone at 20 % volume still loud:
 // everything but the bell at 40 % (−8 dB): the first cut to 70 % was −3 dB, inaudible on the phone and swallowed by the output guard on the
@@ -44,6 +46,8 @@ export function createFeedback(host?: FeedbackHost) {
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
+  let breath: Breath | undefined, room: ConvolverNode | undefined;   // graded fatigue breathing (audio/breath.ts): built on first use, its own seeded rolls so it never shifts the cue variants
+  let breakThud = false, defenceGrades = false;
   let armfeel: Feel | undefined, armfeelLive = 0;   // ?look=armfeel (audio/armfeel-sound.ts): extra body and transient layers on a landed blow; absent = the game's own sound
   let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
   // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
@@ -83,7 +87,7 @@ export function createFeedback(host?: FeedbackHost) {
     // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
     const makeup = context.createGain(); makeup.gain.value = 2.1; makeup.connect(ceiling);   // +6.4 dB: restores the 4 dB of codec headroom baked into the sprite, plus glue
     bus = context.createDynamicsCompressor(); bus.threshold.value = -20; bus.knee.value = 10; bus.ratio.value = 5; bus.attack.value = .002; bus.release.value = .15; bus.connect(makeup);
-    const room = context.createConvolver(); room.buffer = arena(context); room.connect(bus);
+    room = context.createConvolver(); room.buffer = arena(context); room.connect(bus);
     for (let i = 0; i < VOICES; i++) { const gain = context.createGain(), send = context.createGain(); gain.connect(bus); gain.connect(send); send.connect(room); send.gain.value = 0; voices.push({ source: null, gain, send, until: 0 }); }
     noise = context.createBuffer(1, context.sampleRate * .3, context.sampleRate);
     const data = noise.getChannelData(0), r = seeded(host?.seed ?? BASE_SEED); for (let i = 0; i < data.length; i++) data[i] = r() * 2 - 1;
@@ -143,7 +147,7 @@ export function createFeedback(host?: FeedbackHost) {
   function stopSources() {
     pendingDraw = undefined;
     if (!context) return;
-    arenaAudio?.stop();
+    arenaAudio?.stop(); breath?.cut(now(), .05);
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
     sources.clear();
     balance!.gain.cancelScheduledValues(now()); balance!.gain.setValueAtTime(level.combat, now());
@@ -153,6 +157,8 @@ export function createFeedback(host?: FeedbackHost) {
   return {
     unlock,
     armfeel(feel: Feel | undefined) { armfeel = feel; },
+    defenceGrades(on: boolean) { defenceGrades = on; },   // ?look=defence (defence-grade.ts)
+    breakThud(on: boolean) { breakThud = on; },   // ?look=breakbeat (break-beat.ts)
     // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
     // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
     // A failed fetch (a dropped connection) is tried once more after GATE_RETRY_MS, and again at the next Pit open: the page is not silent for good.
@@ -209,8 +215,17 @@ export function createFeedback(host?: FeedbackHost) {
         const { voice, source } = rising; rising = undefined;
         if (voice.source === source) { const g = voice.gain.gain; g.cancelScheduledValues(time); g.setValueAtTime(g.value, time); g.linearRampToValueAtTime(0, time + CUT); try { source.stop(time + CUT); } catch { /* already ended */ } voice.until = time + CUT; }
       }
+      // Breathing: ducked under any blow that lands, faded out when the duel ends, otherwise scheduled from the fatigue driver.
+      if (frame?.fatigue && breathing) {
+        if (frame.ended) breath?.cut(time);
+        else {
+          breath ??= createBreath(context, bus!, noise!, seeded((host?.seed ?? BASE_SEED) + 4099), room);
+          if (events.some(e => e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'GuardBroken')) breath.duck(time);
+          breath.update(time, frame.fatigue, frame.opponent);
+        }
+      }
       armfeelPlay(events, time);
-      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity)) play(cue, time); return; }
+      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent, clarity, undefined, breakThud, defenceGrades)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
       else if (events.some(e => e.type === 'Blocked')) synth('steel', time);

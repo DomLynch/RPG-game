@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { parseJobLog, selectWallRows, trustedRows, waitBudget, HELD_ROWS, T4_MEDIUM_USD_PER_HOUR, costLine } from '../scripts/lib/hf-wall-rows.mjs';
 
 const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8'));
+// The launcher tests read HEAD and its tree: a clone without .git (the VPS work copies) has neither. CI and the Mac keep them strict.
+const noGit = (() => { try { execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { stdio: 'ignore' }); return false; } catch { return 'no git history in this checkout (HEAD and its tree are unreadable)'; } })();
 const source = (script: string) => { try { return readFileSync(script, 'utf8'); } catch { return ''; } };
 
 test('the T4 gets the wall-clock browser rows only: never a WebKit row, never a held row, never a virtual-clock or no-browser row', () => {
@@ -62,7 +64,7 @@ test('the job log: HEAD/TREE from git inside the container, one receipt line per
   assert.equal(costLine(555, 'x1'), `hf-wall-rows: job x1 ran 555 s on t4-medium â‰ˆ $${(555 / 3600 * T4_MEDIUM_USD_PER_HOUR).toFixed(2)} at $${T4_MEDIUM_USD_PER_HOUR.toFixed(2)}/h`);
 });
 
-test('the launcher end to end with a fake hf: launch writes the job id, collect trusts only same-tree exit-0 rows, a job that never ran trusts nothing', () => {
+test('the launcher end to end with a fake hf: launch writes the job id, collect trusts only same-tree exit-0 rows, a job that never ran trusts nothing', { skip: noGit }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'hf-wall-rows-')), fake = join(dir, 'hf'), state = join(dir, 'state');
   const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim(), sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const other = 'e'.repeat(40);
@@ -118,7 +120,7 @@ test('collect\'s wait is capped inside the deploy ceiling: min(25 min, ceiling â
   assert.equal(waitBudget({ ceilingS: 3000, deployT0: t0, now: t0 + 600, waitMaxS: 900 }), 900, 'a smaller HF_WALL_ROWS_WAIT_MAX_S still binds');
 });
 
-test('the launcher honours the budget: with no wait left it cancels the job at once and trusts nothing', () => {
+test('the launcher honours the budget: with no wait left it cancels the job at once and trusts nothing', { skip: noGit }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'hf-wall-rows-budget-')), fake = join(dir, 'hf'), state = join(dir, 'state');
   const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim(), sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   writeFileSync(fake, `#!/bin/bash

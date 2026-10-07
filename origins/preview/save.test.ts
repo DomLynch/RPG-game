@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
-import { AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, previewCp, saveLine, storedToken, WRITER_PATH, writerBase, type Opened } from './save.ts';
+import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, type Opened } from './save.ts';
+import { picker, pickerOpen } from './allegiance.ts';
+import { NEW_ALLEGIANCE } from '../patrons/patrons.ts';
 
 const row = { seed_credit: 5000, world_credit: 700, total_credit: 5700, rested: 12, rested_at: 99, heat: { wolf: { units: 5, at: 9 } }, beaten: ['legend:knight@12'], story: ['s1'], version: 4 };
 const reply = (status: number, body: unknown) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -140,4 +142,35 @@ test('the save line is neutral until the read answers, then the real career or t
   if (!isOffline(answered)) return assert.fail('a timeout is offline');
   assert.equal(saveLine(answered), 'Offline preview: progress is not saved', 'a timeout ends the checking line');
   assert.notEqual(saveLine(answered), saveLine(CHECKING));
+});
+
+// The preview's own save: the graduation allegiance. Its key is never one of the live game's, and the picker opens only on a saved Gladiator.
+const memory = () => { const m = new Map<string, string>(); return { m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) }; };
+test('the allegiance save is the preview\'s own key, round-trips, and reads anything broken as no choice', () => {
+  assert.ok(!ALLEGIANCE_KEY.startsWith('frankendom'), 'never a live-game storage key');
+  const s = memory();
+  assert.deepEqual(loadAllegiance(s), NEW_ALLEGIANCE);
+  const chosen = picker.act({ choose: 'patron:zeus' }, NEW_ALLEGIANCE, 11, 1_790_000_000)!;
+  assert.equal(chosen.allegiance?.kind, 'patron-clan');
+  assert.ok(storeAllegiance(s, chosen));
+  assert.deepEqual([...s.m.keys()], [ALLEGIANCE_KEY]);
+  assert.deepEqual(loadAllegiance(s), chosen);
+  for (const bad of ['{', 'null', '{"kind":"allegiance"}', JSON.stringify({ ...chosen, allegiance: { kind: 'patron-clan', patron: 'patron:nobody' } })]) {
+    s.m.set(ALLEGIANCE_KEY, bad); assert.deepEqual(loadAllegiance(s), NEW_ALLEGIANCE, bad);
+  }
+  assert.deepEqual(loadAllegiance(null), NEW_ALLEGIANCE);
+  assert.deepEqual(loadAllegiance({ getItem: () => { throw new Error('blocked'); } }), NEW_ALLEGIANCE);
+  assert.equal(storeAllegiance(null, chosen), false);
+  assert.equal(storeAllegiance({ setItem: () => { throw new Error('quota'); } }, chosen), false);
+});
+test('the picker opens only on the saved career at Gladiator (level 11) or above, and refuses a choice below it', () => {
+  assert.equal(pickerOpen(true, 10), false);
+  assert.equal(pickerOpen(true, 11), true);
+  assert.equal(pickerOpen(true, 50), true);
+  assert.equal(pickerOpen(false, 30), false, 'an offline or preview career never opens it');
+  assert.equal(picker.act({ choose: 'independent' }, NEW_ALLEGIANCE, 10, 1_790_000_000), null);
+  picker.reset();
+  assert.match(picker.render(NEW_ALLEGIANCE, 'Aldren'), /Choose your allegiance/);
+  const co = picker.act({ choose: 'company:glass' }, NEW_ALLEGIANCE, 12, 1_790_000_000)!;
+  assert.match(picker.render(co, 'Aldren'), /Aldren swore to The Free Company on 2026-09-21/);
 });

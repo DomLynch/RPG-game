@@ -11,7 +11,7 @@ import { checkHistoryKept, type ItemInstance } from '../contracts/items.ts';
 import {
   applyUpgrade, checkConservation, consume, deposit, find, merge, mintTotals, move, receive, split, type Burn, type ConsumeOp, type Holdings, type Inventory,
 } from './inventory.ts';
-import { EXCHANGE, FRONTIER, LATER, PC, RIVAL, deepFreeze, empty, helm, ironStack, lookup, oreStack, record, refused, value } from './testkit.ts';
+import { EXCHANGE, FRONTIER, LATER, PC, RIVAL, deepFreeze, empty, gauntlets, helm, ironStack, lookup, oreStack, record, refused, value } from './testkit.ts';
 
 const ORE = 'item:exchange-ore' as ItemId;
 const holdings = (inv: Inventory, ledger: readonly Burn[] = []): Holdings => ({ inventory: inv, ledger });
@@ -169,4 +169,43 @@ test('applyUpgrade refuses, state untouched: bank lines away from the Exchange, 
   unchanged(s, (x) => applyUpgrade(x, { replayed: true, receipt: out.receipt }, lookup, EXCHANGE), 'rule-violation', 'outcome');
   // Another character's receipt.
   unchanged(s, (x) => applyUpgrade(x, { ...out, receipt: { ...out.receipt, character: RIVAL } }, lookup, EXCHANGE), 'rule-violation', 'owner');
+});
+
+// Story pieces at the smith (Strategy, 2026-10-07): the piece itself may be upgraded, keeping its story flag, binding and provenance, and it
+// stays live for the quest step that names it; the smith never takes a story piece as a material.
+const OATH = 'item:stolen-name-gauntlets' as ItemId;
+test('applyUpgrade: a story-critical piece is upgraded in place, keeps flag, binding and provenance, and still burns on its quest step', () => {
+  const inv = withItems(gauntlets(), ironStack('inst:iron-a', 5, 'a'));
+  const piece = find(inv, 'inst:5f0c2d4e-0004')!;
+  const cost = value(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 0, materials: [{ item: 'item:grave-iron', quantity: 5 }] }] }));
+  const out = value(performUpgrade({
+    request: value(parseUpgradeRequest({ kind: 'upgrade-request', schemaVersion: 1, idempotencyKey: 'upgrade:oath-l1', character: PC, service: 'service:exchange-forge', instance: piece.id, expectedVersion: piece.version, toLevel: 1 })),
+    service: value(parseServiceDefinition(F.blacksmith())), costs: cost, instance: piece, def: lookup(piece.item)!,
+    standing: { source: 'server', careerLevel: 46 }, balance: 0, materials: [find(inv, 'inst:iron-a')!], materialDefs: lookup, receipts: new Map(), now: LATER,
+  }));
+  assert.ok(!out.replayed);
+  const s = holdings(inv), minted = mintTotals(inv.items);
+  const next = value(applyUpgrade(s, out, lookup));
+  const after = find(next.inventory, piece.id)!;
+  assert.deepEqual([lookup(after.item)!.story, after.item, after.boundTo, after.location, after.upgradeLevel, after.version], ['story-critical', OATH, PC, piece.location, 1, piece.version + 1]);
+  assert.deepEqual(after.provenance, piece.provenance);
+  assert.deepEqual(after.history.map((h) => h.kind), ['upgrade'], 'history gains only the upgrade entry');
+  assert.deepEqual(next.ledger.map((b) => b.lines.map((l) => l.instance)), [['inst:iron-a']], 'only the iron burned; the story piece is not spent');
+  // A worked copy that drops the binding or swaps the item is not this piece.
+  unchanged(s, (x) => applyUpgrade(x, { ...out, instance: { ...out.instance, boundTo: null } }, lookup), 'version-conflict', 'outcome.instance');
+  unchanged(s, (x) => applyUpgrade(x, { ...out, instance: { ...out.instance, item: 'item:loot.veteran.Body' as ItemId } }, lookup), 'version-conflict', 'outcome.instance');
+  // Its quest step still takes it: a generic burn is refused, the step that names it burns the upgraded piece.
+  unchanged(next, (x) => consume(x, handIn({ op: 'quest:oath:generic', qty: 1, itemId: OATH }), lookup), 'rule-violation', 'itemId');
+  const done = value(consume(next, handIn({ op: 'quest:stolen-name:oath:handin', qty: 1, itemId: OATH, consumesStoryItem: OATH }), lookup));
+  assert.equal(find(done.inventory, piece.id), undefined);
+  assert.deepEqual(done.burn.lines, [{ instance: piece.id, item: OATH, mintKey: 'quest:stolen-name:oath:dom-1', quantity: 1 }]);
+  assert.deepEqual(checkConservation(done.inventory.items, minted, done.ledger), []);
+});
+
+test('applyUpgrade: a receipt line that spends a story piece is refused, state untouched', () => {
+  const { s: base, out } = atTheForge();
+  const s = holdings(value(receive(base.inventory, record(), lookup)));
+  const rec = find(s.inventory, 'inst:5f0c2d4e-0003')!;
+  const forged: Worked = { ...out, receipt: { ...out.receipt, materials: [...out.receipt.materials, { instance: rec.id, item: RECORD, quantity: 1 }] } };
+  unchanged(s, (x) => applyUpgrade(x, forged, lookup, EXCHANGE), 'rule-violation', `receipt.materials[${out.receipt.materials.length}]`);
 });

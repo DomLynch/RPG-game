@@ -6,6 +6,7 @@
 import { careerState } from '../server/career.ts';
 import type { CareerRow } from '../server/store.ts';
 import type { CareerState } from '../progression/model.ts';
+import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../patrons/patrons.ts';
 
 // The one place the writer's address lives: same origin, `/origins/<op>` behind nginx (origins/server/server.ts). Tests may point a page at
 // a loopback writer with ?writer=http://127.0.0.1:<port>/origins; nothing else is accepted, so a link can never send the token elsewhere.
@@ -79,3 +80,18 @@ export const CHECKING: Source = { offline: 'checking' };
 export const saveLine = (source: Source): string =>
   'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : 'Offline preview: progress is not saved';
 export const previewCp = (source: Source, career: CareerState): number => ('saved' in source ? Math.max(0, career.credit - source.saved.credit) : 0);
+
+// The preview's OWN save: the allegiance chosen at graduation (origins/patrons). It lives under a key of the preview's own, never one of the
+// live game's `frankendom.*` keys, and nothing here sends it anywhere; the writer and the live game never read it. Storage is injected (the
+// page passes localStorage, tests a map); a blocked, missing or malformed save reads as no choice yet, and a failed write is a `false`.
+export const ALLEGIANCE_KEY = 'origins-preview.allegiance.v1';
+type Store = { getItem(key: string): string | null; setItem(key: string, value: string): void };
+export function loadAllegiance(storage: Pick<Store, 'getItem'> | null): AllegianceState {
+  try {
+    const r = parseAllegianceState(JSON.parse(storage?.getItem(ALLEGIANCE_KEY) ?? 'null'));
+    return r.ok ? r.value : NEW_ALLEGIANCE;
+  } catch { return NEW_ALLEGIANCE; }
+}
+export function storeAllegiance(storage: Pick<Store, 'setItem'> | null, state: AllegianceState): boolean {
+  try { if (!storage) return false; storage.setItem(ALLEGIANCE_KEY, JSON.stringify(state)); return true; } catch { return false; }
+}

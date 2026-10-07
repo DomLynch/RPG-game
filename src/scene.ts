@@ -3,8 +3,10 @@ import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
 import { resolveSparringPreview } from './sparring-specials.ts';
 import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
+import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from './spell-school.ts';
 import { createTitheLighting } from './special-lighting.ts';
 import { warmFirstFrame } from './first-frame.ts';
+import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -22,7 +24,9 @@ import { nextRungFiles } from './gate-light.ts';
 import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
-import { FINISHER_POSE, type FinisherId } from './finishers.ts';
+import { type FinisherId } from './finishers.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, poseOf, resolveHamstrung } from './hamstrung.ts';
+import { createHamstrungAssets } from './hamstrung-assets.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
@@ -31,14 +35,18 @@ import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
+import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
+import { FOE_TUNE } from './fatigue-tune.ts';
+import { fatigueReadFrom } from './fatigue-read.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
+import { bloodGrow, foeBurstPull } from './blood-style.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -148,6 +156,7 @@ export function createScene(
   // `?look=armfeel&feel=high|low|off` (armfeel.ts): the victim's flinch on a visual pivot between the fighter's root and its rig. Absent or `off`: no pivot, today's frame.
   const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
+  const fatigueRead = typeof location !== 'undefined' && fatigueReadFrom(location.search);   // ?look=fatigue-read (fatigue-read.ts): the tired pose made legible from behind; absent = today's frame
   const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   const burstPool = flinches ? createBurstPool(scene) : null;
@@ -186,7 +195,8 @@ export function createScene(
     footDust = createFootDust(scene, dustToneFor(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
-    skillImpact = createSkillImpact(scene);
+    skillImpact = createSkillImpact(scene),
+    miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
@@ -371,6 +381,7 @@ export function createScene(
         performance.mark('first-frame-' + how);
       }
       assetStatus('', 'ready');
+      prefetchHamstrung();   // after ready, never before and never awaited: the loading card does not wait on a finisher that may not play
     })
     .catch((error) => {
       // A bare fighter after every retry (FRANKENDOM-5) names its file, the missing map and the tries, so the next event says which art failed.
@@ -464,6 +475,24 @@ export function createScene(
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
   let severHead: SeveredHead | null = null,
     killHeading = 0;
+  // Fetched on demand (src/hamstrung-assets.ts), never in loadFighters: the killer's clip, the victim's clip and his weapon-drop bake.
+  const hamstrungAssets = createHamstrungAssets(
+    async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]); return { killer, victim }; },
+    (loaded: NonNullable<typeof warriors>, { killer, victim }) => {
+      const parse = (clip: unknown) => THREE.AnimationClip.parse(clip as Parameters<typeof THREE.AnimationClip.parse>[0]);
+      loaded.player.adoptClip('Fin_Hamstrung', parse(killer));
+      loaded.opponent.adoptClip('Death_Hamstrung', parse(victim), HAMSTRUNG_SOURCE_PELVIS);
+      loaded.opponent.prepareHamstrung();
+    },
+    (error) => { captureException(error); },
+  );
+  const hamstrungOk = () => hamstrungAssets.ready(warriors);
+  let hamstrungLatch: boolean | null = null;   // hamstrungOk() as it stood on the first frame of this finish: the picture and the audio keep one answer for the whole kill
+  // The kill picks its finisher (once Hamstrung is in the rotation), so the clips are fetched in the background once the fight is ready, on idle. Silent on failure: hamstrungPick keeps the plain death.
+  const prefetchHamstrung = () => { const start = () => wantHamstrung(true); if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 4000 }); else setTimeout(start, 1500); };
+  const wantHamstrung = (prefetch = false) => { if ((prefetch || finisherOverride === 'hamstrung') && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
+  let finishHold = 0; // Hamstrung: seconds left of the hit-stop a blow holds the scene for (the clock and both rigs stand still, the camera and the blood run on)
+  let hamstrungSteps: { knee: THREE.Vector3; back: THREE.Vector3 } | null = null; // where the killer's anchor stands for each blow, solved once per finish
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
   // Finisher complete (Lead brief 2026-09-22, for Web's loot panel): has the ceremony FINISHED PLAYING, and at what finish
   // age did it first say so. Latched from the scene's own state in the frame loop below, never from a delay; cleared with
@@ -481,6 +510,7 @@ export function createScene(
   let previewGroup: THREE.Scene | undefined;
   const previewLighting = createTitheLighting(scene);
   const previewBackground = scene.background instanceof THREE.Color ? scene.background.clone() : null;
+  const bossTelegraph = typeof location !== 'undefined' && telegraphFlag(location.search) ? createBossTelegraph(scene) : null;   // ?telegraph=1 look-test (boss-telegraph.ts)
   const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
@@ -673,8 +703,10 @@ export function createScene(
       lastFinisher = id;
       fightFinisher = null;
     },
+    hamstrungInstalled() { return hamstrungLatch ?? hamstrungOk(); },   // main.ts feeds this to hamstrungPick for the audio
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
+      wantHamstrung();
     },
     setSignature(search: string, selected: string | null, toolsOpen: boolean) {
       signatures.setMode(resolveSignature(search, selected, toolsOpen));   // the ruled variant unless the test tools are open (signature.ts)
@@ -794,13 +826,16 @@ export function createScene(
       bloodEdge.render(events, practice.duel);
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
+      const fightWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
+      if (!practice.finish) hamstrungLatch = null; else hamstrungLatch ??= hamstrungOk();
       const resolved = practice.finish
-        ? resolveFinisher(
+        ? resolveHamstrung(
             opponentId,
             practice.finish,
-            [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
-            finisherOverride,
+            fightWeapons,
+            hamstrungPick(finisherOverride, hamstrungLatch === true),
             lastFinisher,
+            resolveFinisher(opponentId, practice.finish, fightWeapons, hamstrungPick(finisherOverride, hamstrungLatch === true) === 'hamstrung' ? null : hamstrungPick(finisherOverride, hamstrungLatch === true), lastFinisher),
           )
         : null;
       // Decided once per finish, on its first frame: an opened kill with his waist-cut bake still pending plays bakeSafeFinisher's pick (rank-look.ts).
@@ -823,7 +858,7 @@ export function createScene(
       }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
-      const posed = finisher ? FINISHER_POSE[finisher] : null, finisherPose = posed === 'quietOne' ? null : posed;
+      const posed = finisher ? poseOf(finisher) : null, finisherPose = posed === 'quietOne' ? null : posed;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
       if (
         practice.health === practice.enemyMaxHealth &&
@@ -849,6 +884,7 @@ export function createScene(
         warriors?.player.unsever();
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
+        if (hamstrungOk()) warriors?.opponent.prepareHamstrung();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
@@ -902,7 +938,18 @@ export function createScene(
           }
           flinches[victim].hit(px, pz, dead, victim === 0 ? FLINCH_GAIN.hero : FLINCH_GAIN.opponent);
           const scale = victim === 1 ? OPPONENTS[opponentId].scale : 1, y = (blow.location === 'head' ? 1.5 : blow.location === 'legs' ? 0.55 : 1.15) * scale;
-          burstPool.burst(feel, target.x - bx * 0.3, y, target.z - bz * 0.3, bx, bz, dead);
+          // The same blood on both bodies (Dom: it showed when he was hit, rarely when he hit): the foe is 2-3x further from the camera, so its drops are scaled up
+          // to cover about the hero burst's screen size, and the spawn is pulled toward the camera (blood-style.ts foeBurstPull), clear of the hero's torso that covers the contact.
+          const cam = rig.camera.position, reach = (px: number, pz: number, py: number) => Math.hypot(cam.x - px, cam.y - py, cam.z - pz);
+          let sx = target.x - bx * 0.3, sz = target.z - bz * 0.3, sy = y, grow = 1;
+          if (victim === 1) {
+            const far = reach(target.x, target.z, y), near = reach(state.x, state.z, 1.15), pull = foeBurstPull(far, near);   // close up the hero covers the contact: bring the spawn toward the camera, same screen spot
+            sy += 0.1 * scale;
+            const dx = cam.x - sx, dy = cam.y - sy, dz = cam.z - sz, len = Math.hypot(dx, dy, dz) || 1;
+            sx += dx / len * pull; sy += dy / len * pull; sz += dz / len * pull;
+            grow = bloodGrow(reach(sx, sz, sy), near);
+          }
+          burstPool.burst(feel, sx, sy, sz, bx, bz, dead, grow);
         }
         // A landed blade blow marks the struck body where the simulation says it landed, from the side the move came from.
         if (blow?.type === 'Hit' && blow.location && blow.move && !kick && (!enemyHurt || hasBlood(opponentId)) && warriors)
@@ -984,7 +1031,7 @@ export function createScene(
         severHead.group.visible = bloodMode !== 'off';
         stepSeveredHead(severHead, dt);
       }
-      const animationDt = frozen ? 0 : dt;
+      let animationDt = frozen ? 0 : dt;   // a Hamstrung blow's hit-stop zeroes it below
       if (theme.light?.flicker) {   // firelight: the key light breathes and sways a little, so the long shadows move
         const t = performance.now() / 1000, f = theme.light.flicker;
         sun.intensity = sunPower * (look?.key ?? 1) * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
@@ -1032,27 +1079,45 @@ export function createScene(
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
       const runThroughHold = !walking && finisher === 'runThrough' && practice.finish?.victim === 1;   // the walk lets go of the tableau
+      const hamstrungFinish = !walking && finisher === 'hamstrung' && practice.finish?.victim === 1;
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
-      if (!practice.finish) finishClock = -1;
+      // Hamstrung runs its own length (HAMSTRUNG_BEATS.duration) and stops the clock for `hold` seconds at each blow: the clock lands exactly on the beat, then waits.
+      if (!practice.finish) { finishClock = -1; finishHold = 0; hamstrungSteps = null; }
       else if (finishClock < 0) finishClock = 0;
-      else finishClock = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
+      else if (hamstrungFinish && finishHold > 0) { finishHold = Math.max(0, finishHold - dt); animationDt = 0; }
+      else {
+        let next = Math.min(1, finishClock + (hamstrungFinish ? dt / HAMSTRUNG_BEATS.duration : (dt * 0.75) / (RULES.death / 60)));
+        if (hamstrungFinish) for (const beat of [HAMSTRUNG_BEATS.knee, HAMSTRUNG_BEATS.back]) if (finishClock < beat && next >= beat) { next = beat; finishHold = HAMSTRUNG_BEATS.hold; break; }
+        finishClock = next;
+      }
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
-      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
+      if (hamstrungFinish && !hamstrungSteps && warriors) {
+        // Once, with both actors faced as they fell: the victim's knee and back at the two blows, then where the killer must stand for each.
+        player.rotation.y = state.heading;
+        opponent.rotation.y = practice.enemy.heading;
+        const contacts = warriors.opponent.hamstrungContacts();
+        hamstrungSteps = { knee: warriors.player.hamstrungStep(HAMSTRUNG_BEATS.knee, contacts.knee), back: warriors.player.hamstrungStep(HAMSTRUNG_BEATS.back, contacts.back) };
+      }
+      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : hamstrungFinish ? 'hamstrungStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : hamstrungFinish ? 'hamstrungStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
       warriors?.player.update(
         mineGait.travel,
         animationDt,
         mineGait.pose,
-        walking ? 0 : runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
+        walking ? 0 : runThroughHold || hamstrungFinish ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.player.opening(practice.opening?.side === 0 ? practice.opening : null);   // opening-pose.ts
+      warriors?.opponent.opening(practice.opening?.side === 1 ? practice.opening : null);
+      warriors?.player.fatigue(practice.fatigue[0], fatigueRead ? { read: true } : undefined);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
       warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
       warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
+      warriors?.opponent.fatigue(practice.fatigue[1], fatigueRead ? { ...FOE_TUNE[opponentId], read: true } : FOE_TUNE[opponentId]);   // fatigue-tune.ts: this body's own breathing
       const theirGait = runtimeSpecial ? runtimeSpecial.gait(1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose)) : gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
       warriors?.opponent.update(
         theirGait.travel,
@@ -1129,6 +1194,16 @@ export function createScene(
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
+      if (hamstrungFinish && warriors && hamstrungSteps) {
+        // The killer steps in to the knee, then on to the back (the same two steps solved above), the blade held on each wound as the blow lands.
+        const smooth = (t: number) => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+        const first = finishClock < 0.4;
+        if (first) warriors.player.anchor.position.copy(hamstrungSteps.knee).multiplyScalar(smooth(finishClock / HAMSTRUNG_BEATS.knee));
+        else warriors.player.anchor.position.lerpVectors(hamstrungSteps.knee, hamstrungSteps.back, smooth((finishClock - 0.4) / (HAMSTRUNG_BEATS.back - 0.4)));
+        const target = warriors.opponent.boneWorld(first ? 'calf_r' : 'spine_02');
+        const weight = first ? smooth((finishClock - 0.12) / 0.1) * (1 - smooth((finishClock - HAMSTRUNG_BEATS.knee) / 0.13)) : smooth((finishClock - 0.54) / 0.1);
+        if (target) warriors.player.aimBladeAt(target, weight, false);
+      }
       // The marks ride the final poses; a cinematic finisher's own gore takes over the victim's body (the plain death keeps his wounds).
       bodyWounds.update(dt, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
         [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
@@ -1146,7 +1221,8 @@ export function createScene(
       if (specialId && !previewBlocked && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true; const token = previewGeneration, group = new THREE.Scene();
         group.name = 'special preview'; group.background = previewBackground?.clone() ?? null; previewGroup = group; scene.add(group);
-        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
+        // ?look=schools on the ?special= preview too (spell-school.ts)
+        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } const school = schoolsFlag(globalThis.location?.search ?? '') && specialId ? SCHOOL_OF[specialId] : undefined; if (school) { const tint = schoolTinter(group, school, schoolsStrength(globalThis.location?.search ?? '')), draw = (fx as ModeFx).render.bind(fx); (fx as ModeFx).render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
       }
       if (specialFx) {
         previewLighting.beginFrame();   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud
@@ -1154,6 +1230,10 @@ export function createScene(
         const at = mode?.at === 'feet' ? [feet(warriors?.player), feet(warriors?.opponent)] as const : [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null] as const;
         (specialFx as ModeFx).render(dt, events, practice.duel.fighters, practice.duel.tick, at, !!practice.finish, ...(mode?.extra?.(warriors) ?? []));
         if (mode?.hideTrail && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above a raised sword
+      }
+      if (bossTelegraph) {
+        const l = warriors?.player.boneWorld('foot_l'), r = warriors?.player.boneWorld('foot_r');
+        bossTelegraph.update(practice.duel.fighters[1], l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null, practice.duel.tick);
       }
       if (runtimeSpecial) {
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
@@ -1164,6 +1244,7 @@ export function createScene(
       }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+      if (miasmaMark) { miasmaMark.fire(events); miasmaMark.update(dt, practice.duel.fighters, [1, OPPONENTS[opponentId].scale], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null]); }
 
       // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
       witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);

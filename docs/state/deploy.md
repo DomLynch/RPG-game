@@ -27,6 +27,21 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## 2026-10-07 04:30 (+04) — HANDOFF after the overnight run. READ FIRST (supersedes #1521's 00:35 block; older rules below still apply)
+**Now (pick up here)**
+1. **LIVE = trunk = `e0f8d59e`** (04:2x). No run in flight, no lock, no deploy_hold. Nothing GO'd-and-green is waiting. Open, not GO'd or held: #1556 (head moved to d22bf779, needs Lead's re-GO after the Auditor's merge-delta), #1558 @9c656ba5 (rows pending, undrafted), #1549 (RV29/RV28 pair, not GO'd; ships with #1548 behind the forced-rollback synctest, regenerate fight-records.json on the Mac), #1535 standoff (Auditor PASS but HELD from release until Dom has looked at /preview/standoff/). Never merge #1534 (review probe).
+2. Previews live: arena2-11, armfeel, blood*, origins, tutorial, **standoff** (#1535 @567ffe37), **breakbeat** (#1541 @26048960, `?look=breakbeat120|150|180`). Carry them forward after every release (command in the 22:58 block).
+**The batch process (Lead, 2026-10-07 ~03:00; use it every time)**
+- Merge the GO'd PRs LOCALLY in the deploy worktree, each at its pinned sha: `git switch --detach origin/codex/01a09a76/task-1`, `git fetch -q origin +pull/N/head:refs/scratch/N`, `git merge --no-ff` at the sha (a conflict drops that PR; its owner rebases, never resolve code conflicts yourself). Run `npm test` on the combined tree; if red, bisect by dropping the newest PR and tell Lead which pair. Re-check trunk and every head, push ff-only `git push origin HEAD:codex/01a09a76/task-1`, run eslint + tsc + typecheck:tests, then `scripts/deploy.sh` (no DEPLOY_TRUST_ROWS). Why: #1459 and #1528 each passed CI but together broke trunk's unit gate; #1547 fixed the test fake forward.
+- Standing rulings: merge when the only pending job is the no-op `release rows (none for this diff)` (say so in the Published line); a PR whose jobs all show 'fail' right after its merge was CANCELLED by the merge; a head that moves voids its GO until Lead re-GOs after the Auditor's delta; a PR whose two-page job ran on a pre-#1553 merge commit needs a new push, not a re-run.
+**Done overnight (each on Lead's/Strategy's exact-sha GO, 0 FAILED rows)**: 0d2d9996, 5ef33243, c86e5d1f, 1369a22b, 39240624, d693f758, 2955f20a, e26a9f29, 3f51ce4e, 1d562ef0, 78998bef, 5f332388, e0f8d59e. The 5c1b2496 run aborted at the unit gate (#1459 x #1528), nothing published; fixed forward by #1547. counter-browser-check (row 7) is skipped in scoped runs: run `node scripts/counter-browser-check.mjs` by hand when a PR touches the counters (passed on e26a9f29, all three counters hit).
+**Gotchas**
+- `pgrep -f scripts/deploy.sh` matches your own Monitor shell: test `ls ~/.claude/state/deploy_in_flight.json` instead.
+- Rows in scope = the 51 `release_commands` in `.quality-gate.json` minus the 'out of scope' list in the log; count them, do not assume.
+- Never switch branches or edit in the deploy folder while deploy.sh runs (it aborted a run once, "Revision changed"). Docs and previews go in /private/tmp/claude-501/wt/ scratch worktrees; df must be >= 8 GB; a preview build never overlaps a run.
+- `gh pr merge` onto a red trunk is how the break shipped: use the local batch process. After `git push`, PRs show MERGED by themselves.
+- GitHub runner backlog (17+ queued) makes PR CI take 30+ min; the 'plan'/'base' jobs sometimes die in checkout (retry the failed job; a rerun refuses while the run is still in progress).
+
 ## 2026-10-06 22:58 (+04) — HANDOFF before /clear (Dom: "save your work i will / clear now.."). READ FIRST, then the 18:25 block below (older rules still apply)
 **Now (pick up here)**
 1. **LIVE: `64ed6198`** (22:54, #1402 RNG fingerprint @f68a6476 + #1456 @5e3531ab). No run in flight, no deploy_hold, box FREE. Trunk tip = 64ed6198 (+ nothing unreleased).

@@ -5,11 +5,11 @@ import test from 'node:test';
 import { CAPS } from '../../src/gear-stats.ts';
 import type { Result } from './core.ts';
 import {
-  MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
+  CONCORD_EXCHANGE, MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
   type ServiceDefinition, type Trade, type UpgradeCostTable, type UpgradeInput, type UpgradeReceipt, type UpgradeRequest,
 } from './economy.ts';
 import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
+import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId, RegionId } from './ids.ts';
 import {
   PACK_SLOTS, checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
 } from './items.ts';
@@ -240,10 +240,29 @@ test('upgrade: the caps are never passed — a Recruit piece climbs to Origin wo
   refused(performUpgrade(input({ instance: origin, standing: { source: 'server', careerLevel: 46 } })), 'rule-violation', 'toLevel');
 });
 
+test('upgrade: a quest item has nothing to upgrade, and the smith says so in one plain line', () => {
+  const recordDef = must(parseItemDefinition(F.recordDef()));
+  const record = must(parseItemInstance(F.recordInstance()));
+  const r = performUpgrade(input({ instance: record, def: recordDef }, { instance: record.id, expectedVersion: record.version }));
+  refused(r, 'rule-violation', 'item');
+  assert.ok(!r.ok && r.issues[0]!.message === "The Record of Names isn't gear the smith can work, so it can't be upgraded.");
+});
+
 test('upgrade: a zero-weight slot gains nothing, so the smith refuses it', () => {
   const crestDef = must(parseItemDefinition({ ...F.helmetDef(), id: 'item:loot.veteran.Crest', slot: 'Crest' }));
   const crest = must(parseItemInstance({ ...F.helmetInstance(), item: 'item:loot.veteran.Crest', location: { kind: 'pack', owner: F.PC, index: 0 }, provenance: { ...F.helmetInstance().provenance, lootId: 'veteran.Crest' } }));
   refused(performUpgrade(input({ instance: crest, def: crestDef })), 'rule-violation', 'toLevel');
+});
+
+test('upgrade: a piece kept in the bank is worked only at the Concord Exchange; worn or packed, anywhere the smith is', () => {
+  const banked = must(parseItemInstance({ ...F.helmetInstance(), location: { kind: 'bank', owner: F.PC, index: 0 } }));
+  refused(performUpgrade(input({ instance: banked })), 'rule-violation', 'place');
+  refused(performUpgrade(input({ instance: banked, place: 'region:grey-ferry' as RegionId })), 'rule-violation', 'place');
+  const out = must(performUpgrade(input({ instance: banked, place: CONCORD_EXCHANGE })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([out.instance.upgradeLevel, out.instance.location], [1, banked.location], 'upgraded where it lies, in the bank');
+  const packed = must(parseItemInstance({ ...F.helmetInstance(), location: { kind: 'pack', owner: F.PC, index: 0 } }));
+  for (const piece of [input().instance, packed]) assert.equal(must(performUpgrade(input({ instance: piece, place: 'region:grey-ferry' as RegionId }))).replayed, false, `${piece.location.kind}: no Exchange needed`);
 });
 
 test('upgrade: every refusal path', () => {
@@ -263,6 +282,25 @@ test('upgrade: every refusal path', () => {
   refused(performUpgrade(input({ service: { ...SERVICE(), costTable: 'costtable:other' as never } })), 'rule-violation', 'costTable');
   refused(performUpgrade(input({ service: { ...SERVICE(), id: 'service:other' as never } })), 'rule-violation', 'service');
   refused(performUpgrade(input({}, { instance: 'inst:someone-else' })), 'rule-violation', 'instance');
+});
+
+test('upgrade: a story-critical piece may be upgraded and keeps its story flag, binding and provenance; a story piece is never a material', () => {
+  const oathDef = must(parseItemDefinition(F.oathGauntletsDef()));
+  const defs = (id: ItemId): ItemDefinition | undefined => (id === oathDef.id ? oathDef : lookup(id));
+  const before = must(parseItemInstance(F.gauntletsInstance()));
+  const out = must(performUpgrade(input({ instance: before, def: oathDef, materialDefs: defs }, { instance: before.id, expectedVersion: before.version })));
+  assert.ok(!out.replayed);
+  assert.deepEqual([oathDef.story, out.instance.item, out.instance.boundTo, out.instance.location, out.instance.upgradeLevel, out.instance.version], ['story-critical', before.item, F.PC, before.location, 1, before.version + 1]);
+  assert.deepEqual(out.instance.provenance, before.provenance);
+  assert.deepEqual(out.instance.history, [{ kind: 'upgrade', smith: 'character:smith-orla', level: 1, receipt: 'upgrade:req-0001', at: LATER }], 'history gains only the upgrade entry');
+  // Offered as a material, a story piece is refused outright (it burns only on a quest step that names it), even where no cost line names it.
+  const recordInst = must(parseItemInstance(F.recordInstance()));
+  refused(performUpgrade(input({ materials: [recordInst], materialDefs: defs })), 'rule-violation', 'materials');
+  refused(performUpgrade(input({ materials: [before], materialDefs: defs })), 'rule-violation', 'materials');
+  const recordCost = must(parseUpgradeCostTable({ ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 100, materials: [{ item: 'item:stolen-name-record', quantity: 1 }] }] }));
+  refused(performUpgrade(input({ costs: recordCost, materials: [recordInst], materialDefs: defs })), 'rule-violation', 'materials');
+  // The piece being worked is never its own material.
+  refused(performUpgrade(input({ instance: before, def: oathDef, materials: [before], materialDefs: defs }, { instance: before.id, expectedVersion: before.version })), 'rule-violation', 'materials');
 });
 
 test('upgrade receipt: contract rejections', () => {
