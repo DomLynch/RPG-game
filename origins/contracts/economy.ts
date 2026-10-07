@@ -465,7 +465,7 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   if (request.instance !== instance.id || instance.item !== def.id) return fail('rule-violation', 'instance', 'request, instance and definition do not name the same piece');
   if (instance.version !== request.expectedVersion) return fail('version-conflict', 'expectedVersion', `the piece is at version ${instance.version}, not ${request.expectedVersion}`);
   if (ownerOf(instance.location) !== request.character) return fail('rule-violation', 'instance', `${instance.id} is not worn or carried by ${request.character} (bank, pack or paperdoll)`);
-  if (def.category !== 'gear' || def.power !== 'slot-weight' || def.slot === null) return fail('rule-violation', 'item', `${def.id} has no power budget to upgrade`);
+  if (def.category !== 'gear' || def.power !== 'slot-weight' || def.slot === null) return fail('rule-violation', 'item', `${def.name} isn't gear the smith can work, so it can't be upgraded.`);   // one plain line for the player (Strategy, 2026-10-07)
   const weapon = isWeaponSlot(def.slot);
   if ((service.accepts === 'armour' && weapon) || (service.accepts === 'weapons' && !weapon)) return fail('rule-violation', 'item', `${service.name} does not work ${weapon ? 'weapons' : 'armour'}`);
   // A banked piece is reached through the bank, which opens only at the Exchange (Strategy, 2026-10-06); worn or packed, it upgrades wherever the smith is.

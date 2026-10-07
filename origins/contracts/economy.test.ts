@@ -240,6 +240,14 @@ test('upgrade: the caps are never passed — a Recruit piece climbs to Origin wo
   refused(performUpgrade(input({ instance: origin, standing: { source: 'server', careerLevel: 46 } })), 'rule-violation', 'toLevel');
 });
 
+test('upgrade: a quest item has nothing to upgrade, and the smith says so in one plain line', () => {
+  const recordDef = must(parseItemDefinition(F.recordDef()));
+  const record = must(parseItemInstance(F.recordInstance()));
+  const r = performUpgrade(input({ instance: record, def: recordDef }, { instance: record.id, expectedVersion: record.version }));
+  refused(r, 'rule-violation', 'item');
+  assert.ok(!r.ok && r.issues[0]!.message === "The Record of Names isn't gear the smith can work, so it can't be upgraded.");
+});
+
 test('upgrade: a zero-weight slot gains nothing, so the smith refuses it', () => {
   const crestDef = must(parseItemDefinition({ ...F.helmetDef(), id: 'item:loot.veteran.Crest', slot: 'Crest' }));
   const crest = must(parseItemInstance({ ...F.helmetInstance(), item: 'item:loot.veteran.Crest', location: { kind: 'pack', owner: F.PC, index: 0 }, provenance: { ...F.helmetInstance().provenance, lootId: 'veteran.Crest' } }));
