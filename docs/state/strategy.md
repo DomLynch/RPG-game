@@ -3,6 +3,12 @@
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
 
+## 2026-10-07 16:3x (+04) — STANDING RULINGS (Dom via the COO, plus Strategy). Apply to every lane.
+
+**Throughput over clean handoff (Dom).** Lanes are diligent one by one and slow together, because each optimises for a clean handoff. From now on: open a draft PR as soon as the code exists (stills, gates and the Auditor gate READY, never the PR); don't wait on a VPS slot, a full suite or an Auditor pass to start the next item; reuse first (search merged PRs/helpers for the same shape of problem, write "Reused: <PR>" in the body); a simple change still failing after 30 min goes to Lead, not another retry.
+**Capture tool owner = Auditor (code-quality).** It shipped capture v4 (`scripts/vps-shadow/capture.sh`, 2 slots + orphan sweep). It builds the PRIORITY FLAG this week: Dom live-bug stills > release-gating > cosmetic > cleanup compares. The job owner steps aside for a higher class, gate and stills combine into one job, and the queue says when a retry loses its place.
+**Today's other standing rules (in the ledger):** one combat engine everywhere (Pit controls in the world, camera lock on, toggle in ☰); main screen = combat HUD only, every MMO function in the ☰ menu, plus one context prompt next to interactables; PvP is always a duel (gauntlet), flag with 24 h toggle, 10 min no-combat before switching off, then you leave the zone; COO = session local_0f681df3…2281c (shows as [ace8cc]), speaks with Dom's authority.
+
 ## 2026-10-07 12:48 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1248 + project_dom_decided_ledger (11:4x–12:5x).
 
 **Now.** Back on this account. Lanes consolidated to 10 (docs/LANES.md); all running. Re-arm the 40-min light check-in (two crons, see memory). Live a5234895 (curl 12:48); Deploy 5ee0a99 in flight.
