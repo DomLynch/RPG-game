@@ -33,3 +33,13 @@ test('soot and burnt darken the cloth', () => {
   const base = new Color(0xaaaaaa), clean = { ...MOB_LOOKS['character:mere-brood']!, tint: 0xffffff, dressing: { soot: 0, burnt: 0 } }, dirty = { ...clean, dressing: { soot: 1, burnt: 1 } };
   assert.ok(dressedColor(base, dirty).getHSL({ h: 0, s: 0, l: 0 }).l < dressedColor(base, clean).getHSL({ h: 0, s: 0, l: 0 }).l);
 });
+
+test('the Witch and Knight baked surfaces are dressed (they carry no cloth draw of their own), a plain Skin is not', () => {
+  for (const [id, name] of [['character:mere-mother', 'WitchSurface'], ['character:hrungnir', 'KnightSurface']] as const) {
+    const root = new Group(), surface = new MeshStandardMaterial({ name, color: 0xffffff }), skin = new MeshStandardMaterial({ name: 'Skin' });
+    root.add(new Mesh(new BoxGeometry(), surface), new Mesh(new BoxGeometry(), skin));
+    assert.equal(dressMob(root, MOB_LOOKS[id]!), 1, id);
+    assert.ok(!((root.children[0] as Mesh).material as MeshStandardMaterial).color.equals(surface.color));
+    assert.equal((root.children[1] as Mesh).material, skin);
+  }
+});
