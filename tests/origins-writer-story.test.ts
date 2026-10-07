@@ -17,6 +17,7 @@ import { storyBundle } from '../origins/server/fixtures.ts';
 import { BadRequest, handlers, storyOps, type Ctx } from '../origins/server/handlers.ts';
 import { questAdvance } from '../origins/server/quest-advance.ts';
 import { createWriter } from '../origins/server/server.ts';
+import { fakeWhere } from '../origins/presence/fixtures.ts';
 import type { StoryContent } from '../origins/server/story.ts';
 import type { QuestId } from '../origins/contracts/ids.ts';
 import type { Talk } from '../origins/talk/talk.ts';
@@ -276,7 +277,7 @@ test('talk_pick: refusals — another account\'s character, an unknown NPC or li
 test('the registry: with no content loaded both ops answer 503; with the bundle loaded they work', async () => {
   const f = fakeDb();
   const serve = async (ops: typeof handlers) => {
-    const server = createWriter({ db: f.db, verify: async t => (t === 'tok' ? A : null), handlers: ops });
+    const server = createWriter({ db: f.db, verify: async t => (t === 'tok' ? A : null), where: fakeWhere({}), handlers: ops });
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/`;
     return { server, call: async (op: string, body: unknown) => { const res = await fetch(url + op, { method: 'POST', headers: { authorization: 'Bearer tok' }, body: JSON.stringify(body) }); return { status: res.status, body: await res.json() as { error?: string } }; } };

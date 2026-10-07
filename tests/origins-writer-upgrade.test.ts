@@ -10,8 +10,10 @@ import { DbError, type Db } from '../origins/server/db.ts';
 import { withContent } from '../origins/server/handlers.ts';
 import { createWriter } from '../origins/server/server.ts';
 import type { Json } from '../origins/server/store.ts';
-import { smithContent, upgradeHandler } from '../origins/server/upgrade.ts';
+import { PRESENCE_FRESH_MS, smithContent, upgradeHandler } from '../origins/server/upgrade.ts';
 import { lookup } from '../origins/inventory/testkit.ts';
+import { fakeWhere, landmarkAt, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
+import type { Where, WhereFn } from '../origins/presence/where.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const PC = 'pc:dom-1', OTHER = 'pc:bran-1', IRON = 'item:grave-iron', HELM = 'item:loot.veteran.Helmet', RECORD = 'item:stolen-name-record';
@@ -81,8 +83,9 @@ function fakeDb(items: Json[], hooks: { eventHidden?: () => boolean; stale?: boo
   return { db, calls, commits, events, items: () => items, race: (account: string, batch: Json[]) => apply(account, batch) };
 }
 
-async function serve(db: Db, content: typeof CONTENT = CONTENT) {
-  const server = createWriter({ db, verify: async t => (t === 'ta' ? A : t === 'tb' ? B : null), handlers: { ...withContent(content), apply_upgrade: upgradeHandler(content, () => NOW) } });   // a fixed clock for the receipt's `at`
+// Where presence holds the players (X1: the writer's only source of a place). The default is nobody online: every Exchange-only rule refuses.
+async function serve(db: Db, content: typeof CONTENT = CONTENT, where: WhereFn = fakeWhere({})) {
+  const server = createWriter({ db, verify: async t => (t === 'ta' ? A : t === 'tb' ? B : null), where, handlers: { ...withContent(content), apply_upgrade: upgradeHandler(content, () => NOW) } });   // a fixed clock for the receipt's `at`
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/apply_upgrade`;
   const call = async (body: Json, token = 'ta') => {
@@ -174,19 +177,73 @@ test('apply_upgrade: a cost row that charges coin is a 501 (no metals ledger); t
   try { assert.equal((await none.call(ask())).status, 501, 'no smith in this content'); } finally { none.close(); }
 });
 
-test('apply_upgrade: bank materials only at the Exchange', async () => {
-  const f = fakeDb([helm(), ...irons()]);
-  const { call, close } = await serve(f.db);
-  try {
-    for (const place of [undefined, 'region:ash-frontier']) {
-      const res = await call(ask({ materials: ['inst:iron-c'], place }));
-      assert.equal(res.status, 400, JSON.stringify(res.body));
-      assert.match(res.body.error!, place ? /place/ : /the bank opens only at the Concord Exchange/);
+// Launch gate X1: the place is presence's, never the request's. A banked piece and a bank material line each need the player standing, freshly, in
+// presence's 'exchange' zone; a `place` in the body has no effect either way.
+const atBank = (ageMs = 0): Where => standingAt(...landmarkAt('exchange', 'bank'), ageMs);
+const atForge = (): Where => standingAt(...landmarkAt('exchange', 'forge'));
+const inPitYard = (): Where => standingAt(...landmarkAt('pit-yard', 'centre'));
+const bankedHelm = (): Json => helm({ loc_kind: 'bank', loc_index: 1 });
+const BANKED = /inst:helm-0001 is in the bank, which opens only at the Concord Exchange/, BANK_MATS = /the bank opens only at the Concord Exchange/;
+const exchangeAsks = (over: Json = {}): [string, Json[], Json, RegExp][] => [
+  ['a banked piece, pack iron', [bankedHelm(), ...irons()], ask(over), BANKED],
+  ['a pack piece, bank iron', [helm(), ...irons()], ask({ materials: ['inst:iron-c'], ...over }), BANK_MATS],
+];
+
+test('X1 (a): a forged place: the body says exchange, presence says the Pit yard; both Exchange-only upgrades are refused and nothing changes', async () => {
+  for (const [what, rows, body, why] of exchangeAsks({ place: 'exchange' })) {
+    const f = fakeDb(rows);
+    const before = JSON.stringify(f.items());
+    const { call, close } = await serve(f.db, CONTENT, fakeWhere({ [A]: inPitYard() }));
+    try {
+      const res = await call(body);
+      assert.equal(res.status, 400, `${what}: ${JSON.stringify(res.body)}`);
+      assert.match(res.body.error!, why, what);
+      assert.deepEqual([f.commits.length, JSON.stringify(f.items())], [0, before], `${what}: nothing committed, nothing changed`);
+    } finally { close(); }
+  }
+});
+
+test('X1 (b): real presence at the Exchange, fresh: both upgrades succeed with no place in the body (and a wrong place in the body changes nothing)', async () => {
+  for (const [label, where, over] of [['at the bank', atBank(), {}], ['at the forge', atForge(), {}], ['at the freshness limit', atBank(PRESENCE_FRESH_MS), {}], ['body names elsewhere', atBank(), { place: 'region:ash-frontier' }]] as const) {
+    for (const [what, rows, body] of exchangeAsks(over)) {
+      const f = fakeDb(rows);
+      const { call, close } = await serve(f.db, CONTENT, fakeWhere({ [A]: where }));
+      try {
+        const res = await call(body);
+        assert.equal(res.status, 200, `${label}, ${what}: ${JSON.stringify(res.body)}`);
+        assert.equal(f.commits.length, 1, `${label}, ${what}: one batch`);
+        const piece = f.items().find(i => i.id === 'inst:helm-0001')!;
+        assert.deepEqual([piece.loc_kind, piece.upgrade_level], [what.startsWith('a banked') ? 'bank' : 'pack', 1], `${label}, ${what}: upgraded in place`);
+        if (what.endsWith('bank iron')) assert.deepEqual(f.commits[0]!.slice(2), [{ op: 'burn', id: 'inst:iron-c', expected_version: 1, count: 5 }]);
+      } finally { close(); }
     }
-    assert.equal(f.commits.length, 0);
-    const res = await call(ask({ materials: ['inst:iron-c'], place: 'exchange' }));
+  }
+});
+
+test('X1 (c): stale, offline, unplaced or a presence that throws is not the Exchange; a pack upgrade with pack iron still works with presence down', async () => {
+  const cases: [string, WhereFn][] = [
+    ['stale', fakeWhere({ [A]: atBank(PRESENCE_FRESH_MS + 1) })], ['offline', fakeWhere({ [A]: offline() })], ['missing from presence', fakeWhere({})],
+    ['unplaced', fakeWhere({ [A]: unplaced() })], ['presence down', fakeWhere({}, true)],
+    ['a zone presence did not compute', fakeWhere({ [A]: standingAt(...landmarkAt('exchange', 'bank'), 0, 1, null) })],
+  ];
+  for (const [label, where] of cases) {
+    for (const [what, rows, body, why] of exchangeAsks({ place: 'exchange' })) {
+      const f = fakeDb(rows);
+      const { call, close } = await serve(f.db, CONTENT, where);
+      try {
+        const res = await call(body);
+        assert.equal(res.status, 400, `${label}, ${what}: ${JSON.stringify(res.body)}`);
+        assert.match(res.body.error!, why, `${label}, ${what}`);
+        assert.equal(f.commits.length, 0, `${label}, ${what}: nothing committed`);
+      } finally { close(); }
+    }
+  }
+  const f = fakeDb([helm(), ...irons()]);
+  const { call, close } = await serve(f.db, CONTENT, fakeWhere({}, true));
+  try {
+    const res = await call(ask());
     assert.equal(res.status, 200, JSON.stringify(res.body));
-    assert.deepEqual(f.commits[0]!.slice(2), [{ op: 'burn', id: 'inst:iron-c', expected_version: 1, count: 5 }]);
+    assert.deepEqual(res.body.result!.receipt, RECEIPT, 'presence down: the pack upgrade is unaffected');
   } finally { close(); }
 });
 
