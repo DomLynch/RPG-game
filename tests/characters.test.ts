@@ -37,7 +37,7 @@ const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 've
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul' | 'trident' | 'warhammer'}.glb` = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wolf.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul' | 'trident' | 'warhammer'}.glb` = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
