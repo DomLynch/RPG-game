@@ -9,7 +9,8 @@
     "Desktop and mobile browser movement/camera/persistence/failure checks",
     "Live HTTPS, asset and release parity",
     "Two-pass code review",
-    "Player bot, by hand (needs npm run build; never while a deploy holds the lock): node scripts/player-bot.mjs --opponent=pitborn --fights=3 --step-ms=64 --no-video --out=artifacts/combat/player-bot-gate"
+    "Player bot, by hand (needs npm run build; never while a deploy holds the lock): node scripts/player-bot.mjs --opponent=pitborn --fights=3 --step-ms=64 --no-video --out=artifacts/combat/player-bot-gate",
+    "Sparring browser check from source (Chromium; on the VPS per Dom's 2026-10-04 rule, never on the shared Mac at Stop): node scripts/sparring-browser-check.mjs --source; the release run's own row is node scripts/sparring-browser-check.mjs"
   ],
   "completion_commands": [
     [
@@ -26,11 +27,6 @@
       "node",
       "--test",
       "tests/player-bot-observation.test.mjs"
-    ],
-    [
-      "node",
-      "scripts/sparring-browser-check.mjs",
-      "--source"
     ]
   ],
   "release_commands": [
