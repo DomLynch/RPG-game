@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor } from '../src/power-words.ts';
+import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor, powerWordsLook } from '../src/power-words.ts';
 
 test('muted, like the other voices', () => assert.equal(POWER_WORD_GAIN, 0));
 
@@ -26,5 +26,18 @@ test('the wind-up announces the word as a muted event, and nothing for other cas
   const seen: { word: string; actor: number; tick: number; gain: number }[] = [];
   const target = { dispatchEvent: (e: Event) => { seen.push((e as CustomEvent).detail); return true; } };
   announcePowerWord('witch', 4, target); announcePowerWord('goblin', 4, target);
-  assert.deepEqual(seen, [{ word: 'Ixoreth', actor: 1, tick: 4, gain: 0 }]);
+  assert.deepEqual(seen, [{ word: 'Ixoreth', actor: 1, tick: 4, gain: 0, opponent: 'witch' }]);
+});
+
+test('?look=powerwords is a look test: absent = silent', () => {
+  assert.equal(powerWordsLook(''), false);
+  assert.equal(powerWordsLook('?look=armfeel'), false);
+  assert.equal(powerWordsLook('?look=powerwordsx'), false);
+  assert.equal(powerWordsLook('?x=1&look=powerwords&y=2'), true);
+});
+
+test('the chant: a syllable per vowel group, onset and coda kept', async () => {
+  const { syllables } = await import('../src/audio/power-word.ts');
+  assert.deepEqual(syllables('Ashvael'), [{ onset: '', vowels: 'a', coda: '' }, { onset: 'shv', vowels: 'ae', coda: 'l' }]);
+  for (const w of Object.values(POWER_WORDS).flat()) assert.ok(syllables(w).length >= 2, w);
 });

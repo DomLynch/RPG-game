@@ -21,13 +21,21 @@ import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene } from '../../src/scene.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
+import { withBar } from './encounter-duel.ts';
+import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
+import type { Object3D } from 'three';
+import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number };
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; as?: Shown };   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+// How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
+// foe rig, and the single "Back to the fields" button at the end in place of Rematch.
+export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
 export type DuelHooks = {
   ended(finish: Finished): { next?: string } | void;   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
+  twisted?(outcome: TwistOutcome): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
 // In-memory storage for the match's ports: the sparring mode writes nothing, and if it ever did, it would land here, never in localStorage.
@@ -40,6 +48,7 @@ type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; v
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
 let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
+let twist: Twist = noTwist(), dressed = false, dressedRoot: Object3D | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
 const seen = new Map<string, number>();   // for the test hook: how often the player's inputs started each action, attack and charge this duel
@@ -97,7 +106,13 @@ function liveLook(on: boolean) {
 }
 
 // The bars name the legend as the game does (src/main.ts nameOpponent): the name large, the class small beside it.
-function nameOpponent(opponent: OpponentId, level: number) {
+function nameOpponent(opponent: OpponentId, level: number, as?: Shown) {
+  if (as) {
+    const label = element('opponent-name'), small = document.createElement('small');
+    small.className = 'opponent-class'; small.textContent = `Lv ${as.level}`; label.replaceChildren(`${as.name.toUpperCase()} `, small); label.dataset.mobile = as.name;
+    for (const id of ['target-health', 'target-posture']) element(id).setAttribute('aria-label', `${as.name} ${id.slice(7)}`);
+    return;
+  }
   const label = element('opponent-name'), name = bareName(opponent), legend = isLegend(opponent) ? legendForLevel(opponent, level).name : null;
   const small = document.createElement('small');
   small.className = 'opponent-class'; small.textContent = `the ${name}`;
@@ -133,13 +148,17 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
-  fight = asked; hooks = page; next = undefined; result = null;
+  if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
+  fight = asked; hooks = page; next = undefined; result = null; twist = noTwist();
   stageFor(host, opponent, asked.level);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
+  if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
+    match.practice = withBar(match.practice, asked.bar);
+  }
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
-  nameOpponent(opponent, asked.level);
+  nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
   if (!running) { running = true; last = performance.now(); frameId = requestAnimationFrame(frame); }
 }
@@ -170,7 +189,16 @@ function frame(now: number) {
       controls!.consumed(match.practice.events);
       state = match.practice.fighter;
       accumulator -= STEP;
+      if (fight!.flags?.length && outcome !== 'ended') {
+        const t = stepTwist(p.duel, fight!.flags, twist);
+        twist = t.twist;
+        if (twist.outcome === 'fled' || twist.outcome === 'escaped') {   // no catch window / the window ran out: the fight ends with the foe alive
+          match.end(false); running = false; hooks?.twisted?.(twist.outcome);
+          break;
+        }
+      }
       if (outcome === 'ended') {
+        if (fight!.flags?.length && p.duel.finish?.victim === 1) twist = stepTwist(p.duel, fight!.flags, twist).twist;   // 'caught' inside the window
         match.end(false);   // sparring: no record, no mark, nothing written
         result = match.practice.finish;
         next = hooks?.ended(result)?.next;
@@ -181,9 +209,17 @@ function frame(now: number) {
   stage.view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha },
     true, paused() ? 0 : dt, match.practice, match.frameEvents, false, match.epoch, match.specialIdentity);   // locked: the live camera, always
   match.frameEvents = [];
-  hud!.update(match.practice, { legend: legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
+  if (fight!.as?.dress && !dressed && stage.ready) { const root = stage.view.opponentRoot(); if (root) { fight!.as.dress(root); dressed = true; dressedRoot = root; } }
+  hud!.update(match.practice, { legend: fight!.as?.name ?? legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
+  if (fight!.as) {   // a creature, not a legend: no rematch
+    const again = element('reset-button'), status = element('combat-status');
+    again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', '');
+  }
   frameId = requestAnimationFrame(frame);
 }
+
+// An encounter's twist state (src/twist.ts): read by encounter-duel.ts when the fight ends.
+export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.
 export function duelState() {
