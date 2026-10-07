@@ -5,10 +5,10 @@
 // The tag is a hash of the kit DATA (the tables below) plus KIT_LOGIC_VERSION: a hash of data cannot see a code change, so a change in behaviour with the tables untouched must bump
 // KIT_LOGIC_VERSION. tests/kit-version.test.ts pins the TEXT of the two files that code lives in, so a change there fails until someone decides and re-pins.
 import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../../src/mobkit.ts';
-import { KITS, MODE } from './kits.ts';
+import { CHAINS, KITS, MODE } from './kits.ts';
 
 // Bump when the kit CODE changes behaviour: src/mobkit.ts (kitIntent, holds, validateChains) or origins/mobs/kits.ts (mobLayer, mobProfile). (Combat owns those; the pin test below calls them out.)
-export const KIT_LOGIC_VERSION = 1;
+export const KIT_LOGIC_VERSION = 2;   // 2: #1701 C4 chains (mobLayer and kitIntent now walk CHAINS)
 
 // cyrb53: a small synchronous 53-bit string hash (no crypto: it runs in the page). Not a secret, only a version tag.
 export function cyrb53(text: string, seed = 0): number {
@@ -23,8 +23,8 @@ export function cyrb53(text: string, seed = 0): number {
 const canonical = (value: unknown): string => JSON.stringify(value, (_key, v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 export const kitTagOf = (tables: unknown): string => cyrb53(canonical(tables)).toString(36);
 
-// What this build's mob layer is made of. (#1701's CHAINS table joins this list when it is on trunk.)
-export const kitTables = () => ({ logic: KIT_LOGIC_VERSION, KITS, MODE, AFTER_HIT_TICKS, EXHAUSTED_BELOW });
+// What this build's mob layer is made of.
+export const kitTables = () => ({ logic: KIT_LOGIC_VERSION, KITS, CHAINS, MODE, AFTER_HIT_TICKS, EXHAUSTED_BELOW });
 export const kitTag = (): string => kitTagOf(kitTables());
 
 // The record's `build` string: the page's own label, then the tag. kitOfBuild reads it back (null: none).

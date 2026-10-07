@@ -32,6 +32,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } fro
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
+import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
@@ -55,6 +56,7 @@ import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './qu
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
+import { executionPick, resolveExecution } from './execution.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
@@ -465,15 +467,15 @@ opponentSelect.value = opponent.id;
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung — plus Plain death as the
-// no-finisher control. Execution has no clip yet and would silently play the plain Death, which reads as a bug in a test menu.
-// Add it back the day its clip ships. Hamstrung plays on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS); any other body keeps what he played.
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung, Execution — plus Plain death as the
+// no-finisher control. Hamstrung and Execution play on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS, src/execution.ts EXECUTION_VICTIMS); any other body keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
   ['opened', 'Opened'],
   ['hamstrung', 'Hamstrung'],
+  ['execution', 'Execution'],
   ['plainDeath', 'Plain death'],
 ];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
@@ -547,6 +549,8 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): the preview's first pick; absent = no stances anywhere
+if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -1002,8 +1006,14 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
+// The stance preview (?stances=, src/stance-panel.ts): off unless the URL asks. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
+let stancePanel: StancePanel | null = null;
 function began() {
-  nameOpponent();   // a rematch or a new rung can move the legend
+  nameOpponent();
+  if (stanceAsk && typeof document !== 'undefined' && document.body) {
+    stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
+    if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+  }   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (walker) { walker = null; view.walkToGate(false); view.raiseGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
@@ -1848,20 +1858,27 @@ function frame(now: number) {
         );
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
       const deathWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
-      const deathPick = hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
+      const deathPick = executionPick(hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled()), view.executionInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
       const deathAudio =
         practice.finish && practice.events.some((e) => e.type === 'Killed')
           ? {
               finish: practice.finish,
               weapons: deathWeapons,
               override:
-                resolveHamstrung(
+                resolveExecution(
                   opponent.id,
                   practice.finish,
                   deathWeapons,
                   deathPick,
                   view.previousFinisher(),
-                  resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick, view.previousFinisher()),
+                  resolveHamstrung(
+                    opponent.id,
+                    practice.finish,
+                    deathWeapons,
+                    deathPick,
+                    view.previousFinisher(),
+                    resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick === 'execution' ? null : deathPick, view.previousFinisher()),
+                  ),
                 ) ?? 'plainDeath',
               gore: true,
             }

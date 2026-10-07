@@ -5,11 +5,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../src/mobkit.ts';
-import { KITS, MODE } from '../origins/mobs/kits.ts';
+import { CHAINS, KITS, MODE } from '../origins/mobs/kits.ts';
 import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } from '../origins/mobs/kit-version.ts';
 
 // sha-256 of the text of src/mobkit.ts + origins/mobs/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
-const KIT_CODE_DIGEST = 'e4a7a0e1befbfe70a5a7e8e8ac00c0c84c4b4370081ce69b847457bcbea78455';
+const KIT_CODE_DIGEST = '9d1a103839a7e722a9a6977f9dc18aa283600da6d7ede795075361e74807c2b3';
 
 test('the kit code is pinned: a change in src/mobkit.ts or origins/mobs/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
   const digest = createHash('sha256').update(readFileSync(new URL('../src/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../origins/mobs/kits.ts', import.meta.url))).digest('hex');
@@ -23,6 +23,7 @@ test('a changed kit table, mode, constant or logic version is a different tag; t
   const brute = KITS.brute.map((row) => ({ ...row }));
   assert.notEqual(kitTagOf({ ...base, KITS: { ...KITS, brute: brute.map((r, i) => (i === 0 ? { ...r, cooldown: r.cooldown + 1 } : r)) } }), tag, 'a cooldown moved');
   assert.notEqual(kitTagOf({ ...base, KITS: { ...KITS, skirmisher: [] } }), tag, 'a kit emptied');
+  assert.notEqual(kitTagOf({ ...base, CHAINS: { ...CHAINS, brute: [] } }), tag, 'a chain table emptied');
   assert.notEqual(kitTagOf({ ...base, MODE: { ...MODE, shy: { ...MODE.shy, aggression: -0.3 } } }), tag, 'a mode knob moved');
   assert.notEqual(kitTagOf({ ...base, AFTER_HIT_TICKS: AFTER_HIT_TICKS + 1 }), tag);
   assert.notEqual(kitTagOf({ ...base, EXHAUSTED_BELOW: EXHAUSTED_BELOW + 1 }), tag);
