@@ -1,0 +1,47 @@
+// Origins: a world creature fight played on the SERVER's seed and settled with its record (origins/preview/encounter-net.ts over #1688's encounter_start/touch/settle).
+// Opt-in and additive: only `?online=1` on a page with a live Supabase session asks the writer at all. Signed out, no character yet, the flag off (the writer answers 503), a
+// foe the server resolved differently from the page, or any failure all return null and the page plays exactly as it did: its own seed, nothing settled. No DOM, storage or clock read here.
+import { STEP } from '../../src/sim.ts';
+import type { FightRecord } from '../../src/record.ts';
+import type { FightSetup } from '../encounters/encounters.ts';
+import { isOffline } from './save.ts';
+import { settleFight, startFight, touchFight, type Fight } from './encounter-net.ts';
+
+export const onlineWanted = (search: string): boolean => /[?&]online=1(?:&|$)/.test(search);
+export const TOUCH_EVERY_MS = 30_000;   // the writer's reconnect grace is 120 s: a fight that outlasts it without a touch would settle as abandoned
+export type Ended = { result: 'won' | 'lost'; record?: FightRecord | null };   // EncounterEnd (encounter-duel.ts) carries `record` once Expansion's #1708 is on trunk
+export type SettleOutcome = 'settled' | 'already' | 'unverified' | 'no-record' | 'offline';
+
+export type Online = {
+  seed: number;
+  // The fight is over: post its record. A 409 means the server already settled this token (a retry after a client timeout): that is done, not an error. A failed post (offline) may be retried.
+  settle(end: Ended): Promise<SettleOutcome>;
+  stop(): void;   // the player left: stop touching (an unsettled token expires on the server as a loss by abandonment)
+};
+type Deps = { token: string | null; character: string | null; fight: string; setup: Pick<FightSetup, 'opponent'>; fetch?: typeof fetch; base?: string; timeoutMs?: number; now?: () => number; every?: typeof setInterval; clear?: typeof clearInterval };
+
+export async function beginOnline(d: Deps): Promise<Online | null> {
+  if (!d.token || !d.character) return null;
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs };
+  const got = await startFight(d.token, d.character, d.fight, opts);
+  if (isOffline(got as never)) return null;
+  const run = got as Fight;
+  if (run.enemy !== d.setup.opponent.body || run.level !== d.setup.opponent.level) return null;   // the server and the page disagree about the foe: play offline rather than settle another fight
+  const now = d.now ?? Date.now, began = now(), tickNow = () => Math.max(0, Math.round((now() - began) / (STEP * 1000)));
+  const every = d.every ?? setInterval, clear = d.clear ?? clearInterval;
+  let timer: ReturnType<typeof setInterval> | undefined = every(() => { void touchFight(d.token, run.token, tickNow(), opts); }, TOUCH_EVERY_MS), done = false;
+  const stop = () => { if (timer !== undefined) { clear(timer); timer = undefined; } };
+  return {
+    seed: run.seed, stop,
+    async settle(end) {
+      stop();
+      if (done) return 'already';
+      if (!end.record) { done = true; return 'no-record'; }
+      let out = await settleFight(d.token, run.token, end.record, opts);
+      if (isOffline(out as never) && ['timeout', 'network'].includes((out as { offline: string }).offline)) out = await settleFight(d.token, run.token, end.record, opts);   // the reply may have been lost after the server settled: the retry then answers 409
+      if (isOffline(out as never)) { const why = (out as { offline: string }).offline; if (why === 'http-409') { done = true; return 'already'; } return 'offline'; }
+      done = true;
+      return (out as { verified: boolean }).verified ? 'settled' : 'unverified';
+    },
+  };
+}
