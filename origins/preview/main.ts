@@ -29,7 +29,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/sim.ts';
-import { applyLook, lookAlong, lookOf, zoneEaser, zonePreset, type Look } from './look.ts';
+import { applyLook, lookAlong, zoneEaser, zonePreset, type Look } from './look.ts';
 import { creaturesLook } from '../../src/audio/creature.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
@@ -204,9 +204,11 @@ addEventListener('keydown', (e) => {
 });
 
 // Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
+const HAZE_PRESET = /[?&]look=night\b/.test(location.search) ? 'frontier-night' : CINDER ? 'cinder-haze' : 'frontier-haze';   // the flag looks; ?look=zonepreset swaps only the plain 'frontier-haze' for the zone's own row (a flag look wins inside every zone)
+const FRONT_STOP = { at: -60, preset: HAZE_PRESET }, NEAR_STOP = { at: -20, preset: 'ash-pit' };   // mutable stops: ?look=zonepreset sets their presets from the zone each frame (zoneEase)
 const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REGION || /[?&]look=zones\b/.test(location.search),
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
-  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
+  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [FRONT_STOP, NEAR_STOP] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
 const GROUNDS = ZONE1 ? [exchange.ground] : [], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 let kit = false, worldPhase = 'ready', facing = 0, prevPose = 'ready', camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
@@ -235,7 +237,7 @@ function step(dt: number) {
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
-  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, zoneEase(dt, lookAlong(HAZE ? state.x : state.z, LOOK_STOPS)), GROUNDS, STONES).sunPos);
+  if (ZONE_LOOK) sunHome.set(...applyLook(scene, renderer, sun, hemi, zoneEase(dt, () => lookAlong(HAZE ? state.x : state.z, LOOK_STOPS)), GROUNDS, STONES).sunPos);
   hero.position.set(state.x, 0, state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
   // The gait follows the speed he actually covers (collisions included): the Pit's own table, characters.ts gaitWeights (Idle/Walk/Jog/Run).
@@ -282,8 +284,11 @@ let zoneNow: { region: string; zone: string; name: string; preset: string } | nu
 // ?look=zonepreset (default off, with ?region=1): each zone is lit with its own preset (look.ts zonePreset), eased over 1.5 s from the look on screen when the zone changes; off, the base look passes through untouched.
 const ZONEPRESET = REGION && /[?&]look=(?:[^&]*,)?zonepreset\b/.test(location.search);
 const zoneEasing = zoneEaser();
-function zoneEase(dt: number, base: Look): Look {
-  return ZONEPRESET ? zoneEasing(dt, zoneNow ? zoneNow.zone : '', zoneNow ? lookOf(zonePreset(zoneNow.zone, zoneNow.preset)) : base) : base;
+function zoneEase(dt: number, base: () => Look): Look {   // base: lookAlong over LOOK_STOPS, evaluated after the zone's presets are written into its stops
+  if (!ZONEPRESET || !HAZE || !zoneNow) return base();
+  FRONT_STOP.preset = HAZE_PRESET === 'frontier-haze' ? zonePreset(zoneNow.zone, zoneNow.preset) : HAZE_PRESET;
+  NEAR_STOP.preset = zoneNow.preset === 'ash-pit' || zoneNow.preset === 'exchange-dusk' ? zoneNow.preset : 'ash-pit';
+  return zoneEasing(dt, zoneNow.zone, base());
 }
 function showZone(id: string | null) {
   if (!frontier) return;

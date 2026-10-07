@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ARENA_THEMES } from '../../src/arena-themes.ts';
-import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneEaser, zoneLook, zonePreset } from './look.ts';
+import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, ZONE_ROW_FALLBACK, zoneEaser, zoneLook, zonePreset } from './look.ts';
 
 test('ash-pit is Arena 1 exactly (today\'s Pit does not change)', () => {
   const t = ARENA_THEMES['1'], l = PRESETS['ash-pit']!;
@@ -69,4 +69,11 @@ test('zoneEaser: the first call (no zone yet) returns its target, a key change b
   const mid = ease(0.5, 'black-mere', b);
   assert.notEqual(mid, a); assert.notEqual(mid, b); assert.ok(mid.fogDensity > Math.min(a.fogDensity, b.fogDensity) && mid.fogDensity < Math.max(a.fogDensity, b.fogDensity));
   assert.equal(ease(1, 'black-mere', b), b);
+});
+
+test('ZONE_ROW_FALLBACK pins the four draft rows (and is deleted once the zone data names them)', () => {
+  assert.deepEqual(ZONE_ROW_FALLBACK, { 'cinder-fields': 'cinder-fields', 'black-mere': 'black-mere', 'blood-ruin': 'blood-ruin', 'ferry-landing': 'ferry-landing' });
+  const fogs = new Set(Object.values(ZONE_ROW_FALLBACK).map((id) => PRESETS[id]!.fog));
+  assert.equal(fogs.size, 4, 'four rows, four fogs (cinder-fields keeps the Frontier\'s haze colour)');
+  for (const id of ['black-mere', 'blood-ruin', 'ferry-landing']) assert.notEqual(PRESETS[id]!.fog, PRESETS['frontier-haze']!.fog, id);
 });
