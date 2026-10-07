@@ -1714,6 +1714,9 @@ dialog #account-login { flex-basis: 100%; min-height: 48px; background: #fff; bo
 }
 .howto { border-top: 1px solid var(--jl); margin-top: 12px; }
 .howto summary { cursor: pointer; padding: 12px 0; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jf); }
+.credits ul { margin: 0 0 12px; padding-left: 18px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
+.credits li { margin: 0 0 8px; }
+.credits a { color: inherit; text-decoration: underline; }
 .howto p { margin: 0 0 12px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
 .scorecard {
   white-space: pre-wrap;
@@ -2265,6 +2268,10 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
   :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #clip-button { left: auto; right: var(--end-gutter); }
   .actions[data-gestures=cluster] #duel-button { top: auto; left: auto; bottom: calc(var(--end-base) + 180px); right: var(--end-gutter); }   /* admin-only: a third row of the column, so it never reaches the pad */
   .actions[data-gestures=cluster] #share-status { position: fixed; left: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 256px); max-width: var(--end-width); text-align: right; }
+  /* While the take-one offer is up it takes the column's slot above Next (it sat at left 0 / top 137 of the old cluster and covered Next, so Next could not
+     be tapped: release rows 16, 21 and 25, Lead 2026-10-07). The rest of the column waits (visibility: nothing reflows) and returns with the offer's close. */
+  :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; left: auto; top: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 56px); width: var(--end-width); }
+  :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#pit-button, #share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
 }
 /* The door and the move pad share the thumb corner at 375 (Web 2026-09-29): on the kill screen, with the fight over, the stick hides the
    way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
