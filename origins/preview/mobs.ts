@@ -5,14 +5,14 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
-import type { CharacterId } from '../contracts/ids.ts';
+import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
 import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
 export type Pos = { x: number; z: number };
 export type MobSpec = {
-  id: string; character: string; name: string; encounter: string | null; body: string; level: number;
+  id: string; character: string; name: string; encounter: EncounterId | null; body: string; level: number;
   zone: string; spawn: string; home: Pos; roam: number; aggro: number; named: boolean;
 };
 export type Mode = 'idle' | 'wander' | 'aggro';
