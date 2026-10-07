@@ -42,3 +42,13 @@ test('a failed carry exits non-zero so the switch never happens without previews
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /carry-previews/);
 });
+
+test('a preview 404 is recorded, not raised, before the verifier install: the release finishes installing and the failure comes last', () => {
+  const check = deploy.indexOf('|| previews_ok=0');
+  const verifier = deploy.indexOf('deploy_step "verifier"');
+  const raise = deploy.indexOf('previews missing');
+  assert.ok(check > 0 && verifier > check, 'the preview check runs before the verifier step');
+  assert.ok(raise > deploy.indexOf('Published %s'), 'the failure is raised after the Published line, after the verifier install');
+  assert.ok(!/previews_ok=0[^\n]*exit/.test(deploy), 'the check itself does not exit');
+  assert.match(deploy.slice(raise - 120, raise + 120), /LIVE/, 'the message says the release is live');
+});

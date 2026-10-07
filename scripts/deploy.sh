@@ -142,8 +142,11 @@ mv -Tf next current
 REMOTE
 cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
 cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
-# The previews are published outside a release and carried by carry_previews: a switch that left them 404 must not pass silently.
-curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || { echo "preview check: /preview/origins/ is not 200 after the switch" >&2; exit 1; }
+# The previews are published outside a release and carried by carry_previews: a switch that left them 404 must not pass silently. Only
+# RECORD it here: exiting now would skip the verifier install below and leave verify-daily and verify-loot on the outgoing sim. The
+# failure is raised at the very end of the script, after the release is fully installed.
+previews_ok=1
+curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
@@ -186,4 +189,8 @@ if [[ "$prune_keep" =~ ^[0-9]+$ ]]; then
     || echo "prune: failed (exit $?), release $revision is live; releases/ left as is"
 else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
+fi
+if [[ "$previews_ok" != 1 ]]; then
+  echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200" >&2
+  exit 1
 fi
