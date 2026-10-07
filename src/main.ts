@@ -65,6 +65,7 @@ const element = <T extends HTMLElement>(id: string) => document.getElementById(i
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
 const canvas = element<HTMLCanvasElement>('world');
 // The HUD layout tier (layout-tier.ts) on <html data-tier>: compact / standard / tablet, set now and on every resize or rotation. Nothing in the CSS keys off it yet.
+if ((new URLSearchParams(window.location?.search ?? '').get('look') ?? '').split(',').includes('kick52')) document.documentElement.classList.add('look-kick52');   // ?look=kick52: the KICK button at 52 px (style.css); absent = today's 44 px
 const setTier = () => { document.documentElement.dataset.tier = layoutTier(window.innerWidth, window.innerHeight); };
 setTier(); window.addEventListener('resize', setTier); window.addEventListener('orientationchange', setTier);
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in

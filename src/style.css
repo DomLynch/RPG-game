@@ -1456,6 +1456,13 @@ dialog>p {
   .actions[data-gestures=cluster] #skill-button[data-reach=false]{
     opacity: .5;   /* a cone skill out of its reach: the cluster's dim (hud.ts), still pressable (Combat 2026-09-27: the lit Jab whiffed) */
   }
+  :root.look-kick52 .actions[data-gestures=cluster] #kick-button {   /* ?look=kick52 (Strategy research #9): 52 px; flag off = the 44 px above. Centred on 99.5,124 (0.5 px left, 4 px up of the 44 px
+     one) because 4 px each way put its box 6 x 2 px into GUARD's (the gate: no two action boxes overlap): its bottom stays at the old 150 (GUARD starts at 152), its sides sit 0.5 px clear of SLASH (73) and HEAVY (126) */
+    width: 52px;
+    height: 52px;
+    left: 73.5px;
+    top: 98px;
+  }
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
     background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */
     border-color: #f0e3c9cc;
