@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialDuel, type Duel } from '../src/duel.ts';
+import { initialDuel, type Duel, type Finish } from '../src/duel.ts';
 import { noTwist, oneBarHealth, stepTwist, type TwistFlag } from '../src/twist.ts';
 
+const KILL: Finish = { victim: 1, location: 'torso', move: 'light_right', heading: 0 };
 const at = (tick: number, foeHealth: number, dead = false): Duel => {
   const d = initialDuel();
   const foe = { ...d.fighters[1], health: foeHealth };
-  return { ...d, tick, fighters: [d.fighters[0], foe], finish: dead ? { victim: 1, location: 'torso', move: 'light', heading: 0 } : null };
+  return { ...d, tick, fighters: [d.fighters[0], foe], finish: dead ? KILL : null };
 };
 const max = initialDuel().fighters[1].maxHealth;
 const peg: TwistFlag[] = [{ kind: 'flee-at', percent: 30, catchSeconds: 15 }];
