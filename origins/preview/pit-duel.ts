@@ -196,7 +196,7 @@ export function worldStep(dt: number, heading: number, i: ControlIntent): WorldM
     const ahead = { ...foe.body, x: Math.sin(heading) * 6, z: Math.cos(heading) * 6 };
     wsim = { ...wsim, duel: { ...wsim.duel, fighters: [{ ...me, body: rolling(wsim) ? me.body : { ...from, heading }}, { ...foe, body: ahead }] as unknown as Duel['fighters'] } };
     const before = wsim.duel.fighters[0].body, action = i.action === 'dodge' || i.action === 'backstep' ? i.action : null;
-    wsim = stepPractice(wsim, { move: { x: i.x, z: i.z, yaw: heading, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: false, lock: false }, PROFILES.normal, frozen);
+    wsim = stepPractice(wsim, { move: { x: i.x, z: i.z, yaw: heading + Math.PI, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: false, lock: false }, PROFILES.normal, frozen);
     const after = wsim.duel.fighters[0].body;
     if (rolling(wsim)) { dx += after.x - before.x; dz += after.z - before.z; }
   }
