@@ -152,3 +152,20 @@ export function stepMob(m: Mob, s: MobSpec, hero: Pos | null, dt: number, stand:
 export function pickVisible(at: readonly Pos[], hero: Pos, cap = TUNING.cap, range = TUNING.range): number[] {
   return at.map((p, i) => ({ i, d: Math.hypot(p.x - hero.x, p.z - hero.z) })).filter((e) => e.d <= range).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, cap).map((e) => e.i);
 }
+
+// Where the preview drops the hero: in the middle of the largest group of creatures, on the first free spot (nearest the group's centre) that
+// stands clear of every home by the notice ring plus a metre, so they are all round him and wandering, none already facing him. Deterministic.
+export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { x: number; z: number; facing: number } | null {
+  const groups = new Map<string, MobSpec[]>();
+  for (const s of specs) { const g = groups.get(s.zone + '/' + s.spawn); if (g) g.push(s); else groups.set(s.zone + '/' + s.spawn, [s]); }
+  const crowd = [...groups.values()].sort((a, c) => c.length - a.length)[0];
+  const zone = crowd && f.zones.find((z) => z.zone === crowd[0]!.zone);
+  if (!crowd || !zone) return null;
+  const cx = crowd.reduce((n, s) => n + s.home.x, 0) / crowd.length, cz = crowd.reduce((n, s) => n + s.home.z, 0) / crowd.length;
+  const stand = mobStand(b, zone), clear = TUNING.aggro + 1;
+  for (let r = 0; r <= 14; r += 2) for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
+    if (stand(x, z) && specs.every((s) => Math.hypot(s.home.x - x, s.home.z - z) >= clear)) return { x, z, facing: headingTo({ x, z }, { x: cx, z: cz }) };
+  }
+  return null;
+}
