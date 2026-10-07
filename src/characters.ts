@@ -13,6 +13,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
 import { openPose, openWeight, NO_OPEN } from './opening-pose.ts';
+import { stancePose, NO_STANCE, type Stance } from './stance-pose.ts';
 import type { Opening } from './combat.ts';
 import { GUARD_DROP } from './fatigue-tune.ts';
 import type { Fatigue } from './fatigue.ts';
@@ -476,6 +477,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const FORWARD = new Vector3(0, 0, 1);
     const readBones = ['spine_03', 'neck_01', 'Head', 'clavicle_l', 'clavicle_r'].map(n => root.getObjectByName(n)), readSaved = readBones.map(() => new Quaternion());
     let readApplied = false, readBreath = 0, readGuard = 0;
+    // ?look=stances (stance-pose.ts): the stance's extra bones, restored before every update; empty and untouched without the flag.
+    let stance: Stance = 'neutral', stanceW = 0, stanceClock = 0, stanceApplied = false;
+    const stanceBones = ['pelvis', 'thigh_l', 'thigh_r', 'calf_l', 'calf_r', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'upperarm_r', 'lowerarm_r', 'upperarm_l'].map(n => root.getObjectByName(n)), stanceSaved = stanceBones.map(() => new Quaternion()), stancePelvis = new Vector3();
     const turnAbout = (bone: Object3D | null | undefined, axis: Vector3, angle: number) => {   // a world-axis turn of a bone (the clavicles' own axes are not the fighter's)
       if (!bone?.parent || !angle) return;
       const parent = bone.parent.getWorldQuaternion(new Quaternion()), turn = new Quaternion().setFromAxisAngle(axis.clone().applyQuaternion(root.getWorldQuaternion(new Quaternion())), angle);
@@ -651,6 +655,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
       opening(o: Opening | null) { open = o; },   // opening-pose.ts: this body's open stagger (Practice.opening when its side is this body), or null
       fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
+      setStance(s: Stance) { stance = s; },   // stance-pose.ts: this body's stance (look test only; neutral = nothing)
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
@@ -690,6 +695,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         aimedRotation = undefined;
         if (aimedOffHand) { offHand[0]!.quaternion.copy(aimedOffHand[0]); offHand[1]!.quaternion.copy(aimedOffHand[1]); aimedOffHand = undefined; }
         if (readApplied) { readBones.forEach((b, i) => b?.quaternion.copy(readSaved[i])); readApplied = false; }
+        if (stanceApplied) { stanceBones.forEach((b, i) => b?.quaternion.copy(stanceSaved[i])); stanceBones[0]?.position.copy(stancePelvis); stanceApplied = false; }
         if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         if (carried) { offHand.forEach((b, i) => b!.quaternion.copy(uncarried[i])); carried = false; }
         mixer.update(step);
