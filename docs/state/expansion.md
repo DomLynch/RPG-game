@@ -1,5 +1,20 @@
 # Expansion lane (Frankendom: Origins) — state
 
+## 2026-10-07 ~15:30 (+04): HANDOFF before /clear. READ FIRST, then memory
+
+Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom has the full list). GO comes from "Frankendom - Lead Dev". Gate for every push, on the VPS: `tsc --noEmit` AND `tsc -p tsconfig.tests.json`, eslint, `node --test tests/origins-*.test.ts`, `npm test`.
+
+**MERGED this session:** #1636 mobs, #1659 preview feel (sticks x0.5, run on the gait table, spawn among mobs, first-frame camera), #1661 mob fight (tap -> Pit duel -> loot -> Bounty paid), #1647 mobs.md, #1665 server ruling 6, #1666 donor best-in-class doc (top 10 approved by Dom).
+
+**OPEN:**
+- **#1669** `expansion/mob-rows` @2b381ac, GO'd, DO NOT PUSH: mob row format + validator + `populateZone`; camp cap 4 (6 on a `bossCamp` row); Zone 1 regenerated through rows (scavengers 6 -> 4, golden updated); PvP section in `server-save-schema.md`. Sources of the three shipped rows are `{pending}` (Characters & Art cite them; the generator refuses pending).
+- **#1676** `expansion/zone-rules` @c78cd2e (base mob-rows; retarget to trunk after #1669): zone rules as validator checks (45 s across = 234 m, nothing dead for 15 s = 78 m, first fight within 10 s = 52 m), Region 1 passes with two openers added (ferry-landing, cinder-fields; golden 17), PvP flag edit. Stills `stills/expansion-zone1` @433b6693.
+
+**QUEUE (Lead's order, Dom approved the top 10):** #1+#2 tier rungs per body family + zone difficulty dial (row `ladder`/`rung`, validator codes, rung weights from the zone's level window; Zone 1 unchanged) -> #8 rarity + placeholder/rare/named camps -> #4 leader + followers placement (row `leader`, `order`; Combat's `src/pack.ts`, PR #1658) -> #10 quest templates with typed slots (every one ends in a normal Pit duel; turn-ins next to the action; fast travel is a later PR). One PR each, stacked, Zone 1 stills where visible.
+
+**Rulings:** one engine, no dice/auto-attack; nothing pauses in the open world; locked-1v1 dropped; PvP = flag, always a Pit duel, ring one at a time, pays only where other flagged players are, murderer mark -> Bounty, creature loot to most damage (design only).
+**Gotchas:** quotes inside `ssh '...'` break heredocs, so write scripts locally and scp them; the Write hook's eslint error on scratch files is a false alarm; VPS GL is ~3 fps (dt capped 0.05), so never claim m/s from it; never claim "unchanged" without the golden diff; never push to a GO'd PR without telling Lead.
+
 ## 2026-10-07 ~13:30 (+04): HANDOFF before /clear. READ FIRST, then memory, then the ~12:30 entry below
 
 Lane "Frankendom - Expansion". Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-expansion/memory/project_origins_lane.md` (newest lines at the bottom). GO comes from "Frankendom - Lead Dev". Session ran in the app worktree `.../worktrees/practical-mccarthy-f624ef` (the restart hook labels it audio; it IS expansion). Gate for every push: `tsc --noEmit` AND `tsc -p tsconfig.tests.json` (the second one went red on #1636 once), eslint, `node --test tests/origins-*.test.ts`, run on the VPS.
