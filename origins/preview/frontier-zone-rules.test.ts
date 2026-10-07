@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { checkZone, type ZoneSketch } from '../world/zone-rules.ts';
-import { frontierBuild, frontierPlan } from './frontier-plan.ts';
+import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobSpecs } from './mobs.ts';
 
 const F = frontierPlan(), SPECS = mobSpecs(F, frontierBuild(F));
