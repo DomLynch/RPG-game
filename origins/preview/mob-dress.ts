@@ -12,7 +12,9 @@ const clones = new WeakMap<MeshStandardMaterial, Map<MobLook, MeshStandardMateri
 const dressable = (name: string): boolean => classOf(name) === 'cloth' || name === 'WitchSurface' || name === 'KnightSurface';
 
 /** The cloth colour a look gives a base colour: multiplied toward the tint, then ash worked in (soot), then scorched darker (burnt). Pure arithmetic on colours. */
-export function dressedColor(base: Color, look: MobLook): Color {
+export function dressedColor(base: Color, look: MobLook, whole = false): Color {
+  // `whole`: a baked body surface already holds its own dark map, so it takes a light wash of the tint and a quarter of the ash, not the full multiply
+  if (whole) { const out = base.clone().lerp(new Color(look.tint), .6); out.lerp(SOOT, Math.min(.2, (look.dressing.soot * .55 + look.dressing.burnt * .3) * .3)); return out; }
   const tint = new Color(look.tint), out = base.clone().multiply(tint);
   out.lerp(tint, .35 * tint.getHSL({ h: 0, s: 0, l: 0 }).s);   // a dark cloth multiplied by a colour barely moves: pull part-way to the tint itself (white tint: no pull)
   out.lerp(SOOT, Math.min(.7, look.dressing.soot * .55 + look.dressing.burnt * .3));
@@ -25,7 +27,7 @@ export function dressedMaterial(source: MeshStandardMaterial, look: MobLook): Me
   let byLook = clones.get(source); if (!byLook) clones.set(source, (byLook = new Map()));
   const known = byLook.get(look); if (known) return known;
   const material = source.clone();
-  material.color = dressedColor(source.color, look);
+  material.color = dressedColor(source.color, look, !(classOf(source.name) === 'cloth'));
   material.roughness = Math.min(1, source.roughness + look.dressing.soot * .15 + look.dressing.burnt * .2);   // ash and scorch are matte
   byLook.set(look, material); return material;
 }
