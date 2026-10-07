@@ -6,6 +6,7 @@ import { defenceGrade, GRADE_LABEL } from './defence-grade.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import { LESSON_FELL, LESSON_NEXT, lessonText, type LessonLine } from './lessons.ts';
+import { createGapHistory } from './kick-close.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
@@ -13,7 +14,7 @@ export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', '
 // Lit = a kick pressed from here lands on a guard-raised foe. Measured 2026-10-07 (tests/hud.test.ts): the true far edge is 1.585 m (the 1.2 m cone plus the kick's .55 stride), so 1.5 keeps a margin for the foe's step.
 export const KICK_LANDS = 1.5;
 
-export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean; lesson?: LessonLine; lessonFight?: boolean; headline?: string | null; kickClose?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -36,6 +37,7 @@ export function createHud(element: Lookup) {
   const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
   let dmgCursor = 0;
   let lastHud = '';
+  const gaps = createGapHistory();   // ?look=kickclose (kick-close.ts): the last few ticks of the gap
   return {
     // Force the next update to write everything (the debug toggle relabels the buttons).
     invalidate() {
@@ -51,7 +53,9 @@ export function createHud(element: Lookup) {
       );
       // accepts() is true for every action in a committed action's buffer window, so SKILL refuses its own cooldown here (live c1bda34d).
       const skillOk = practice.duel.fighters[0].skillCooldown === 0 && practice.duel.fighters[0].skill !== null && accepts(practice, 'skill');
-      const gap = Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z), inKickReach = gap <= KICK_LANDS;
+      const gap = Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z);
+      gaps.record(practice.duel.tick, gap, practice.duel.fighters[0].phase === 'hurt');   // every update, before the dedup below: the history must not skip a quiet frame
+      const inKickReach = gap <= KICK_LANDS && !(view.kickClose && gaps.retreating(practice.duel.tick, gap));   // flag off: the plain 1.5 m light of today
       // A cone skill (path null: reach × the kick's arc) lands only inside its reach, so SKILL says so the way Kick does (Combat,
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
       const me = practice.duel.fighters[0], skillMove = me.skill ? weaponOf(me.weapon).moves[SKILL_MOVE[me.skill]] : null;
