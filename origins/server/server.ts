@@ -5,6 +5,7 @@ import type { Verify } from './auth.ts';
 import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, handlers as defaults, type Handler } from './handlers.ts';
+import type { WhereFn } from '../presence/where.ts';
 
 const MAX_BODY = 64 * 1024;
 const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, '23505': 409 };
@@ -17,7 +18,9 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
   req.on('error', reject);
 });
 
-export function createWriter({ db, verify, handlers = defaults }: { db: Db; verify: Verify; handlers?: Record<string, Handler> }): Server {
+// `where` is presence's answer to "where does this account stand" (origins/presence/where.ts presenceWhere in production, a fixture in tests): the writer's
+// only source of a player's place (launch gate X1). It is required so no writer can be built that silently takes a place from somewhere else.
+export function createWriter({ db, verify, where, handlers = defaults }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler> }): Server {
   return createServer(async (req, res) => {
     const send = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     try {
@@ -30,7 +33,7 @@ export function createWriter({ db, verify, handlers = defaults }: { db: Db; veri
       const text = await readBody(req);
       if (text) { try { body = JSON.parse(text); } catch { throw new BadRequest('body is not JSON'); } }
       if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadRequest('body must be an object');
-      send(200, { ok: true, result: await handlers[op]({ db, account }, body as Record<string, unknown>) });
+      send(200, { ok: true, result: await handlers[op]({ db, account, where }, body as Record<string, unknown>) });
     } catch (e) {
       if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
       if (e instanceof Conflict) return send(409, { ok: false, error: e.message, code: 'op-conflict' });

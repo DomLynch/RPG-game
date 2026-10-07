@@ -6,13 +6,15 @@ import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict } from './errors.ts';
 import type { Content } from './holdings.ts';
+import type { WhereFn } from '../presence/where.ts';
 import { questAdvance } from './quest-advance.ts';
 import type { StoryContent } from './story.ts';
 import * as store from './store.ts';
 import { talkPick } from './talk-pick.ts';
 import { upgradeHandler } from './upgrade.ts';
 
-export type Ctx = { db: Db; account: string };
+// `where` asks presence where the account stands (X1: the only source of a player's place); a handler without it treats the player as nowhere.
+export type Ctx = { db: Db; account: string; where?: WhereFn };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
 export { BadRequest, Conflict };
 

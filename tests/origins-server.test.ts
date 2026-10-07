@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
+import { fakeWhere } from '../origins/presence/fixtures.ts';
 import { Refused } from '../origins/server/errors.ts';
 import { BadRequest, handlers, openAccount, type Ctx, type Handler } from '../origins/server/handlers.ts';
 import { pitBatch } from '../origins/server/career.ts';
@@ -39,7 +40,7 @@ function script(replies: { open: () => Snapshot[]; pending?: PitClaim[]; snapsho
 const snap = (career: CareerRow | null, marks = 4): Snapshot => ({ marks, career, characters: [], items: [], quests: [], journal: [], talk: [] });
 
 async function serve(db: Db, ops?: Record<string, Handler>) {
-  const server = createWriter({ db, verify: async t => (t === 'tok' ? A : null), ...(ops ? { handlers: ops } : {}) });
+  const server = createWriter({ db, verify: async t => (t === 'tok' ? A : null), where: fakeWhere({}), ...(ops ? { handlers: ops } : {}) });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/`;
   const call = async (op: string, init: RequestInit & { token?: string | null } = {}) => {
