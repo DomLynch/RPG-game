@@ -78,7 +78,7 @@ Gear stays on Attack and RES, resolved before the fight by `src/gear-stats.ts`, 
   - It raises `upgradeLevel` by one level per request. Each level is worth one rung of the piece's own slot weight, and the effective tier is clamped at Origin.
   - It refuses an upgrade that would have no effect: a zero-weight slot, or a piece already worth Origin.
   - It requires the payer's rank (a valid, server-verified career level) to reach the upgraded piece's effective tier.
-  - A piece kept in the bank is upgraded only at the Concord Exchange (`place`, server-derived; Strategy, 2026-10-06). A worn or packed piece upgrades wherever the smith is.
+  - A piece kept in the bank is upgraded only at the Concord Exchange (`place`; Strategy, 2026-10-06). `place` is client-stated today (the request body), to be derived from presence: launch gate X1. A worn or packed piece upgrades wherever the smith is.
   - It charges one-currency coin plus optional material lines from the cost table, all or nothing. A material stack offered twice is refused before anything is spent, and so is an offer of more than 64 instances.
   - It writes a receipt (cost table id and revision included) and appends `history: { kind: 'upgrade', smith, level, receipt }`.
   - A repeated idempotency key returns the original receipt with no new charge. A reused key on a different request is refused. A stale item version is refused.
