@@ -16,6 +16,7 @@ import { TUNING, mobSpecs, mobStand, newMob, pickVisible, stepMob, type Mob, typ
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
 const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl };
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
+const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // Per character: a multiply on the body's colours so one goblin rig reads as scavenger, brood or ghoul. Named creatures keep their own look.
 const TINT: Record<string, string> = {
   'character:cinder-scavenger': '#d9a173', 'character:mere-brood': '#79b59a', 'character:ruin-ghoul': '#b9a6c9', 'character:court-thrall': '#c98a8a',
@@ -51,7 +52,7 @@ export type Mobs = { update(dt: number, hero: { x: number; z: number }): void; d
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean }): Mobs {
   const specs = mobSpecs(frontier, build), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>();
-  const cap = opts.phone ? 8 : TUNING.cap;   // a phone draws fewer skinned bodies at once
+  const cap = opts.phone ? 8 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let shown: number[] = [];
@@ -102,7 +103,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       mobs.forEach((m, i) => { mobs[i] = stepMob(m, specs[i]!, hero, dt, stands[i]!); });
       shown = pickVisible(mobs, hero, cap);
       // Fetch a body kind the first time one of its creatures is near.
-      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= FETCH_RANGE) fetchBody(specs[i]!.body); });
+      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
       for (const i of shown) {
