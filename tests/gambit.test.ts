@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepDuel, withGambit, type Duel } from '../src/duel.ts';
+import { mirror, stepDuel, withGambit, type Duel } from '../src/duel.ts';
 import { GAMBIT_KILL_FLOOR, GAMBIT_ODDS, gambitMean, gambitUnit, resolveGambit } from '../src/gambit.ts';
 import * as luck from '../origins/luck/luck.ts';
 import { RULES } from '../src/moves.ts';
 import { hashDuel } from '../src/net/rollback.ts';
-import { act, arena, guard, idle, W } from './strategies.ts';
+import { act, arena, idle, W } from './strategies.ts';
 
 // The Gambit (RV33, docs/specs/origins/combat-study.md): a second heavy press after the chamber arms the swing; an open body draws once (about 1 in 2 lands for 2x), else the thrower staggers.
 // Defined once in src/gambit.ts; origins/luck re-exports it, so this is an identity test.
@@ -16,12 +16,12 @@ test('origins/luck and the duel share the one Gambit definition', () => {
 // Press heavy at tick 0, press it again at tick `second` (age `second`), then stand still; the warden stands (or guards) throughout.
 const run = (seed: number | null, second: number | null, guarded = false, ticks = 90): Duel => {
   let d = arena(); if (seed !== null) d = withGambit(d, seed);
-  for (let i = 0; i < ticks; i++) d = stepDuel(d, [i === 0 || i === second ? act('heavy') : idle(), guarded ? guard(d) : idle()]);
+  for (let i = 0; i < ticks; i++) d = stepDuel(d, [i === 0 || i === second ? act('heavy') : idle(), guarded ? { ...idle(), guard: true, guardDirection: mirror('overhead') } : idle()]);
   return d;
 };
 const trace = (seed: number | null, second: number | null, guarded = false) => {
   let d = arena(); if (seed !== null) d = withGambit(d, seed); const ev: Duel['events'] = [];
-  for (let i = 0; i < 90; i++) { d = stepDuel(d, [i === 0 || i === second ? act('heavy') : idle(), guarded ? guard(d) : idle()]); ev.push(...d.events); }
+  for (let i = 0; i < 90; i++) { d = stepDuel(d, [i === 0 || i === second ? act('heavy') : idle(), guarded ? { ...idle(), guard: true, guardDirection: mirror('overhead') } : idle()]); ev.push(...d.events); }
   return { d, ev };
 };
 
