@@ -874,6 +874,13 @@ dialog>p {
 #stamina[data-capped=true] {
   background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%));
 }
+/* ?look=fatigue-preview (Dom 2026-10-07, v2 after his phone: "I didn't see the red"): the last 10 % of stamina turns the WHOLE bar frame red and pulses it (a glowing red outline round the track and a red-tinted track, not just the thin fill), and the STAMINA word goes red. Body not involved. */
+#stamina[data-low=true] { --bar-color: #e0463a; background-color: #5a1612; outline: 2px solid #e0463a; outline-offset: 1px; border-radius: 3px; animation: stamina-low 1.2s ease-in-out infinite; }
+#stamina[data-low=true]::-webkit-meter-optimum-value { background: #e0463a; }
+#stamina-label[data-low=true] { color: #ff5a48; text-shadow: 0 0 6px #e0463a, 0 1px 2px #000a; animation: stamina-low-label 1.2s ease-in-out infinite; }
+@keyframes stamina-low { 0%, 100% { outline-color: #ff5a48; box-shadow: 0 0 10px 3px #e0463acc; } 50% { outline-color: #e0463a55; box-shadow: 0 0 3px 1px #e0463a33; } }
+@keyframes stamina-low-label { 50% { opacity: .65; } }
+@media (prefers-reduced-motion: reduce) { #stamina[data-low=true], #stamina-label[data-low=true] { animation: none; } }
 #stamina[data-leg=true] {
   outline: 1px solid #b5533f88;
 }
@@ -1383,14 +1390,7 @@ dialog>p {
   .actions[data-gestures=cluster] #attack-button[data-cut=right]:not([data-held]) .side-right,
   .actions[data-gestures=cluster] #attack-button[data-cut=left][data-held] .side-left,
   .actions[data-gestures=cluster] #attack-button[data-cut=right][data-held] .side-right{ opacity: .95; stroke-width: 2; }
-  /* directional cuts, v2 (Lead 2026-10-07: the lit tick was too faint): a solid arc on the chosen edge of the button at full opacity, kept while the stick is held and pulsed on the press */
-  .actions[data-gestures=cluster] #attack-button[data-cut]::after{
-    content: ''; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; border: 5px solid transparent;
-    border-left-color: var(--cut-arc); border-right-color: var(--cut-arc); clip-path: inset(0 50% 0 0);
-  }
-  .actions[data-gestures=cluster] #attack-button[data-cut=right]::after{ clip-path: inset(0 0 0 50%); }
-  .actions[data-gestures=cluster] #attack-button[data-cut][data-held]::after{ border-width: 7px; inset: -7px; }
-  .actions[data-gestures=cluster] #attack-button{ --cut-arc: #f2c14e; }
+  /* directional cuts: no arc (Dom 2026-10-07: "remove the arc, keep the cuts"). The v2 arc used #attack-button[data-cut]::after, which replaced the Slash label (the label IS that ::after, content: attr(data-mobile)) and hid it whenever the stick was held to a side. The button keeps only the lit tick above. */
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }

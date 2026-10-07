@@ -116,6 +116,16 @@ test('against a settled guard the warden holds its heavy to the charge that brea
   assert.equal(open.action, 'heavy'); assert.equal(!!open.held, false);
 });
 
+// The rule the assertion below keeps: a warden light against a guard has a fresh opening within 60 ticks before it: his own hit, his own guard-break (RV29 3B: an exhausted fighter stays down longer), or an attack of his own that chains into it.
+const lightHasOpening = (events: Duel['events'], e: { tick: number }) => events.some(o => o.tick < e.tick && o.tick > e.tick - 60 && (((o.type === 'Hit' || o.type === 'GuardBroken') && o.actor === 1) || (o.type === 'AttackStarted' && o.actor === 1 && o.move !== 'kick')));
+test('the opening rule rejects a light with no fresh opening: nothing, a kick start, a stale guard-break, or the player\'s own hit', () => {
+  const light = { tick: 500 };
+  assert.equal(lightHasOpening([], light), false, 'no events at all');
+  assert.equal(lightHasOpening([{ tick: 480, type: 'AttackStarted', actor: 1, move: 'kick' }], light), false, 'a kick start is not a chain');
+  assert.equal(lightHasOpening([{ tick: 440, type: 'GuardBroken', actor: 1, target: 0 }], light), false, 'a guard-break 60 ticks back is stale');
+  assert.equal(lightHasOpening([{ tick: 480, type: 'Hit', actor: 0, target: 1 }], light), false, 'the player\'s hit is not the warden\'s opening');
+  assert.equal(lightHasOpening([{ tick: 470, type: 'GuardBroken', actor: 1, target: 0 }], light), true, 'a fresh guard-break is one');
+});
 test('the warden punishes a whiff with a light and kicks or breaks a standing guard', () => {
   // A cut swung facing away whiffs at any distance, leaving the warden in reach to punish the recovery.
   let d = arena(1.2), ai = initialAi(); const moves: string[] = []; let whiffed = false;
@@ -129,7 +139,7 @@ test('the warden punishes a whiff with a light and kicks or breaks a standing gu
   assert.ok(wardenAttacks(guarded).some(e => e.move === 'kick') || guarded.some(e => e.type === 'Charged' && e.actor === 1), 'a standing guard is kicked or charged through');
   assert.ok(guarded.some(e => e.type === 'GuardBroken' && e.actor === 1 && e.target === 0), 'and it does get opened');
   const lights = wardenAttacks(guarded).filter(e => e.move === 'light_right' || e.move === 'light_left');
-  for (const e of lights) assert.ok(guarded.some(o => o.tick < e.tick && o.tick > e.tick - 60 && ((o.type === 'Hit' && o.actor === 1) || (o.type === 'AttackStarted' && o.actor === 1 && o.move !== 'kick'))), 'a light against a guarding player only punishes a fresh opening or chains');
+  for (const e of lights) assert.ok(lightHasOpening(guarded, e), 'a light against a guarding player only punishes a fresh opening (a hit, or a broken guard: an exhausted fighter stays down 36 ticks longer, RV29 3B) or chains');
 });
 
 test('parry frequency follows the profile: a light-spamming player is parried at hard and never by a profile without parries', () => {
