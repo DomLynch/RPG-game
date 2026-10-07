@@ -7,7 +7,10 @@ export type FatigueTune = { rate?: number; depth?: number; sag?: number; read?: 
 // Breaths per second as a phase rate (rad/s): slow and deep when winded (~.4 Hz), fast and heavy when tired (~1.1 Hz), ragged gasps when gassed (~1.5 Hz).
 export const breathe = (f: Pick<Fatigue, 'level' | 'gassed'>, t?: FatigueTune): number => 2 * Math.PI * (.2 + 1.1 * f.level + .5 * f.gassed) * (t?.rate ?? 1);
 export function fatigueLayer(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, phase: number, calm: number, t?: FatigueTune): { hunch: number; chest: number; arm: number } {
-  const depth = (t?.depth ?? 1) * calm, sag = (t?.sag ?? 1) * calm;
+  // Dom 2026-10-07: the body only tires in the last tenth of stamina (level >= .9) or when exhausted; before that it stays upright (breath audio
+  // carries the earlier bands). The gate eases in over that last tenth so the pose never snaps.
+  const show = Math.max(f.gassed, Math.max(0, Math.min(1, (f.level - .9) / .1)));
+  const depth = (t?.depth ?? 1) * calm * show, sag = (t?.sag ?? 1) * calm * show;
   const winded = Math.max(0, Math.min(1, (f.level - .25) / .5));   // breathing shows from a quarter, saturates by three quarters
   const ragged = Math.sin(phase * .37) * .35 * f.gassed;           // a gasp is never the same twice
   const chest = (Math.sin(phase) * (1 + ragged) * .1 * winded + Math.sin(phase * 2) * .02 * f.gassed) * depth;   // a visible heave on every breath at phone size (Strategy's look verdict: x1.6)

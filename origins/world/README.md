@@ -83,8 +83,10 @@ generation read the table. Existing zone files do not mention the group, so they
 proves this with a dummy group. Add a `CHECKS` line only for a rule that spans fields. Bump `SCHEMA_VERSION` and add a `MIGRATIONS[v]`
 function only when stored data changes meaning: a rename, a unit change or a split. A new group with defaults needs neither.
 
+The greybox reads this data: `origins/preview/exchange-plan.ts` places the walk out from `concordMounts()` and the Exchange's
+landmarks, and `origins/preview/exchange.test.ts` pins every piece to the pre-switch greybox within 1 cm.
+
 ## Not done
 
-- The greybox switch-over: `origins/preview` reads `concord.ts` and `concordMounts()` in place of its constants.
 - Server-side world data: storing and serving it, and server authority over `rules`, `difficulty` and `economy`.
 - Links across regions: connections are inside one region; the contracts' `RegionDefinition.portals` cover the region graph.

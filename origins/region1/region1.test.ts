@@ -130,4 +130,8 @@ test('every spawn of a foe stands outside the towns, and every town figure stand
 test('rifts: five sites, none in a town or safe zone', () => {
   assert.equal(RIFTS.filter((r) => r.kind === 'rift-site').length, 5);
   refused(withLocal((l) => { Object.assign(l.rifts[0]!, { zone: 'cinder-hold', at: 'hold-centre' }); }), 'rule-violation', 'rifts[0].zone');
+  // one rift boss and one scheduler: a second under a new id is refused, not a silent overwrite of the first
+  for (const kind of ['rift-boss', 'rift-scheduler']) {
+    refused(withLocal((l) => { const r = l.rifts.find((x) => x.kind === kind)!; l.rifts.push({ ...r, id: `${String(r.id)}-two` }); }), 'duplicate-id', `rifts[${RIFTS.length}]`);
+  }
 });

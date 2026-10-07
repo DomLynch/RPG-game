@@ -12,7 +12,8 @@ import { execFileSync } from 'node:child_process';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
 import { opponentAt, profileAt } from '../src/moves.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
+import { encodeRecord } from '../src/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { human } from './ladder-human.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
@@ -22,13 +23,13 @@ const OPPONENT = arg('opponent', 'goblin'), LEVEL = Number(arg('level', 6)), OPE
 // The fight: the first seed in which the human-like blocker beats the opponent. The recorder quantizes each intent, so the record IS what stepped.
 function recordFight() {
   for (let seed = 1; seed <= 60; seed++) {
-    const bot = human('blocker', 12, 0.2, seed * 7919), profile = profileAt(OPPONENTS[OPPONENT], LEVEL), rec = createRecorder({ build: 'armfeel', opponent: OPPONENT, weapon: 'longsword', level: LEVEL, seed });
+    const bot = human('blocker', 12, 0.2, seed * 7919), profile = profileAt(OPPONENTS[OPPONENT], LEVEL), rec = liveRecorder({ build: 'armfeel', opponent: OPPONENT, weapon: 'longsword', level: LEVEL, seed });
     let p = initialPractice(seed, opponentAt(OPPONENTS[OPPONENT], LEVEL), 'longsword'), t = 0;
     const intents = [];
     for (; t < 5400 && !p.finish; t++) { const q = rec.push(bot(p)); intents.push(q); p = stepPractice(p, q, profile); }
     if (p.finish && p.finish.victim === 1) {
       const kill = rec.finish('killed');
-      const open = createRecorder({ build: 'armfeel', opponent: OPPONENT, weapon: 'longsword', level: LEVEL, seed });
+      const open = liveRecorder({ build: 'armfeel', opponent: OPPONENT, weapon: 'longsword', level: LEVEL, seed });
       for (const q of intents.slice(0, OPENING)) open.push(q);
       return { seed, ticks: t, kill, opening: open.finish('abandoned') };
     }
