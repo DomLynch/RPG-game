@@ -85,7 +85,7 @@ export const ROLL_BAND = 10;
 export const rollPercent = (seed: number, hit: number): number => {
   let h = Math.imul((seed >>> 0) ^ Math.imul(hit + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
-  return Math.min(ROLL_BAND, Math.floor((((h ^ (h >>> 16)) >>> 0) / 2 ** 32) * (2 * ROLL_BAND + 1)) - ROLL_BAND);
+  return Math.min(ROLL_BAND, Math.floor((((h ^ (h >>> 16)) >>> 0) / 4294967296) * (2 * ROLL_BAND + 1)) - ROLL_BAND);   // 2^32, a literal: the sim uses no **
 };
 export const rolledDamage = (base: number, percent: number): number => Math.max(1, Math.round(base * (1 + percent / 100)));
 export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
