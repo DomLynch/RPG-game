@@ -17,6 +17,7 @@ import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flush
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
+import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { PLAY_SCALE, STEP, wrapAngle } from './sim.ts';
