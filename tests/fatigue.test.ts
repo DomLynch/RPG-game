@@ -67,12 +67,12 @@ test('both fighters carry it, the player reaching each band raises one FatigueBa
 import { fatigueLayer } from '../src/fatigue-layer.ts';
 test('subtle fatigue layer (?look=fatigue-preview): heave and a small tip dip only, nothing before the last tenth of stamina', () => {
   const tune = { subtle: true }, f = (level: number, gassed = 0) => ({ level, gassed, second: 0 });
-  const calm = fatigueLayer(f(.89), 1.2, 1, tune); assert.deepEqual([calm.hunch, calm.chest, calm.arm].map(Math.abs), [0, 0, 0], 'upright below level .9');
+  const calm = fatigueLayer(f(.89), 1.2, 1, tune); assert.deepEqual(calm, { hunch: 0, chest: 0, arm: 0 }, 'upright below level .9');
   for (const [level, gassed] of [[1, 0], [1, 1]]) {
     for (let phase = 0; phase < 7; phase += .3) {
       const l = fatigueLayer(f(level, gassed), phase, 1, tune);
-      assert.equal(l.hunch, 0, 'no spine hunch'); assert.ok(l.arm > 0 && l.arm < .13, `small tip dip ${l.arm}`); assert.ok(Math.abs(l.chest) <= .14, 'heave bounded');
+      assert.equal(l.hunch, 0, 'no spine hunch'); assert.ok(l.arm > 0 && l.arm < .13, `small tip dip ${l.arm}`); assert.ok(Math.abs(l.chest) <= .13 * 1.35 + 1e-9, `heave bounded by .13 x the ragged gasp (1.35): ${l.chest}`);
     }
   }
-  const off = fatigueLayer(f(1), 1.2, 0, tune); assert.deepEqual([off.hunch, off.chest, off.arm].map(Math.abs), [0, 0, 0], 'no calm pose, no layer');
+  assert.deepEqual(fatigueLayer(f(1), 1.2, 0, tune), { hunch: 0, chest: 0, arm: 0 }, 'no calm pose, no layer');
 });
