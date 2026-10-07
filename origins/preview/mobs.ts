@@ -21,12 +21,9 @@ export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/mobs/frontier-rows.ts. Named creatures keep these:
-// A world duel is up (?worldfight): exactly one foe on screen, the duel's (Dom's iPhone, 2026-10-07 23:40: the 2x world wolf of the
-// pack stood frozen beside the hero while the duel's wolf fought). Hidden: the engaged creature (the duel draws it), every other
-// creature inside the fight's clearing, and those past the freeze radius. The rest stand frozen where they are.
-export const FIGHT_CLEAR = 8;   // m round the hero: a packmate that closed in on the aggro would otherwise stand inside the duel
-export const hiddenInFight = (id: string, foe: string | null, metres: number, radius: number): boolean =>
-  id === foe || metres < FIGHT_CLEAR || metres > radius;
+// A world duel is up (?worldfight): the engaged creature is hidden (the duel draws it) and those past the freeze radius; every other
+// creature stays in view, packmates beside the hero included (Dom, 2026-10-08: "it can be 2 vs 1, that is fine, why are you forcing 1 vs 1?").
+export const hiddenInFight = (id: string, foe: string | null, metres: number, radius: number): boolean => id === foe || metres > radius;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
 export const TUNING = {
   walk: 0.9,            // m/s: a creature's amble, well under the hero's 2.3
