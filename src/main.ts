@@ -1053,6 +1053,7 @@ function nextFight(): void {
   metAt = tierAt(careerMarks()); view.setTier(shownTier());   // a win may have moved the rung: he comes back dressed for it
   view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   began();
+  view.startStandoff();   // the draw-in plays on every fight, not once per page (the versus card only lifts at load)
   view.recenter();
   canvas.focus();
 }
