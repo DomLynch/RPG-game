@@ -2492,3 +2492,39 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 
 /* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
 #fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
+
+/* ?look=defence (defence-grade.ts): the GUARD button rings once in the colour of the grade the player's own defence earned, and wears its name for half a second. Ring and caption only, drawn
+   on the button itself: nothing over the fighters. plain = a thin white ring; heavy = a thick amber ring with a push; perfect = a gold double ring; parry = a cold white-blue flash. */
+#guard-button.defended { animation: defended .46s ease-out; }
+#guard-button.defended::before {
+  content: attr(data-defence-label); position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  font: 800 11px/1 Arial, sans-serif; letter-spacing: .08em; color: var(--defence, #f2ecdc); text-shadow: 0 1px 2px #000c;
+}
+#guard-button[data-defence=plain] { --defence: #f2ecdc; }
+#guard-button[data-defence=heavy] { --defence: #ffb347; }
+#guard-button[data-defence=perfect] { --defence: #ffd95a; }
+#guard-button[data-defence=parry] { --defence: #bfe6ff; }
+@keyframes defended {
+  0% { box-shadow: 0 0 0 0 var(--defence), 0 0 0 0 var(--defence); transform: scale(1); }
+  25% { box-shadow: 0 0 0 3px var(--defence), 0 0 14px 4px var(--defence); transform: scale(1.06); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; transform: scale(1); }
+}
+#guard-button[data-defence=heavy].defended { animation-name: defended-heavy; }
+@keyframes defended-heavy {
+  0% { box-shadow: 0 0 0 0 var(--defence); transform: scale(1); }
+  20% { box-shadow: 0 0 0 7px var(--defence), 0 0 18px 6px var(--defence); transform: scale(1.12) translateY(3px); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+#guard-button[data-defence=perfect].defended { animation-name: defended-perfect; }
+@keyframes defended-perfect {
+  0% { box-shadow: 0 0 0 0 var(--defence), 0 0 0 0 var(--defence); }
+  30% { box-shadow: 0 0 0 3px var(--defence), 0 0 0 9px #ffd95a66; }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 16px transparent; }
+}
+#guard-button[data-defence=parry].defended { animation-name: defended-parry; }
+@keyframes defended-parry {
+  0% { background-color: var(--defence); box-shadow: 0 0 0 0 var(--defence); transform: scale(1); }
+  20% { background-color: var(--defence); box-shadow: 0 0 22px 8px var(--defence); transform: scale(1.14); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { #guard-button.defended { animation: none; box-shadow: 0 0 0 3px var(--defence); } }
