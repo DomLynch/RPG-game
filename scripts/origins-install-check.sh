@@ -53,7 +53,17 @@ expect "one include inserted" "$(includes)" 1
 case "$(cat "$STUB_LOG")" in *"enable --now"*) fail "the service was started without an env file" ;; *) ok ;; esac
 run rev1
 expect "re-install is idempotent" "$(includes)" 1
-mkdir -p "$tmp/root/etc/frankendom"; printf 'DATABASE_URL=postgresql://x\nPORT=8788\n' > "$tmp/root/etc/frankendom/origins-writer.env"
+mkdir -p "$tmp/root/etc/frankendom"; printf 'DATABASE_URL=postgresql://x\n' > "$tmp/root/etc/frankendom/verifier.env"
+printf 'PORT=8788\n' > "$tmp/root/etc/frankendom/origins-writer.env"
+: > "$STUB_LOG"; run rev1b
+contains "no Supabase keys: not started" "$out" "service NOT started"
+case "$(cat "$STUB_LOG")" in *"enable --now"*) fail "started without SUPABASE_URL/ANON_KEY" ;; *) ok ;; esac
+printf 'PORT=8788\nSUPABASE_URL=https://x\nSUPABASE_ANON_KEY=y\nDATABASE_URL=postgresql://other\n' > "$tmp/root/etc/frankendom/origins-writer.env"
+: > "$STUB_LOG"; run rev1c
+expect "an env that sets DATABASE_URL is refused" "$rc" 1
+contains "with the reason" "$out" "would override the verifier's"
+case "$(cat "$STUB_LOG")" in *"enable --now"*) fail "started with an overriding DATABASE_URL" ;; *) ok ;; esac
+printf 'PORT=8788\nSUPABASE_URL=https://x\nSUPABASE_ANON_KEY=y\n' > "$tmp/root/etc/frankendom/origins-writer.env"
 : > "$STUB_LOG"; run rev2
 expect "install with the env file exits 0" "$rc" 0
 contains "the service is enabled" "$(cat "$STUB_LOG")" "enable --now frankendom-origins-writer.service"

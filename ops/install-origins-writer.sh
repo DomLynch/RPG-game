@@ -2,8 +2,9 @@
 # Installs, updates or rolls back the Origins writer on the VPS (origins/server). Run by Deploy on the box, as root, from a trunk checkout:
 #   bash ops/install-origins-writer.sh <revision>     install / update (idempotent)
 #   bash ops/install-origins-writer.sh --rollback     stop + disable the unit, remove the nginx include and limits, reload nginx
-# It never creates or prints a secret: the only thing it reads from the env file is whether a DATABASE_URL= line exists. /etc/frankendom/origins-writer.env (DATABASE_URL for the frankendom_origins role, SUPABASE_URL,
-# SUPABASE_ANON_KEY, PORT=8788) is typed by Dom (see the #1455 body, "Dom's step"); without it the files are installed but the service is NOT started.
+# It never creates or prints a secret: it only checks which keys exist. DATABASE_URL comes from /etc/frankendom/verifier.env (the verifier's own file, role frankendom_verifier;
+# no second role password). /etc/frankendom/origins-writer.env is writer-only: SUPABASE_URL, SUPABASE_ANON_KEY (public values), PORT=8788, later PRESENCE_INTERNAL_KEY from
+# install-presence.sh --link-writer. It must NOT set DATABASE_URL (it is read after verifier.env and would override it). Without those keys the files are installed but the service is NOT started.
 # The flag (origins_config.origins_enabled) and the allowlist (origins_access) are the database's and are not touched here: until Strategy + Lead flip them
 # the route answers 403 for everyone. Touches only: /opt/frankendom-origins/<revision> (+ `current`), the unit, /etc/nginx/snippets/frankendom-origins-writer.conf,
 # /etc/nginx/conf.d/frankendom-origins-limits.conf and ONE include line in the frankendom.com :443 server block (prior copy kept as <site>.before-origins-writer).
@@ -15,6 +16,7 @@ snippet=$r/etc/nginx/snippets/frankendom-origins-writer.conf
 limits=$r/etc/nginx/conf.d/frankendom-origins-limits.conf
 unit=$r/etc/systemd/system/frankendom-origins-writer.service
 env=$r/etc/frankendom/origins-writer.env
+venv=$r/etc/frankendom/verifier.env
 opt=$r/opt/frankendom-origins
 include="    include $snippet;   # frankendom origins writer"
 
@@ -63,11 +65,12 @@ if ! nginx -t 2>/dev/null; then
 fi
 systemctl reload nginx
 
-if [ -s "$env" ] && grep -q '^DATABASE_URL=' "$env"; then
+if [ -s "$venv" ] && grep -q '^DATABASE_URL=' "$venv" && [ -s "$env" ] && grep -q '^SUPABASE_URL=' "$env" && grep -q '^SUPABASE_ANON_KEY=' "$env"; then
+  if grep -q '^DATABASE_URL=' "$env"; then echo "install-origins-writer: $env sets DATABASE_URL and would override the verifier's: remove that line; service NOT started" >&2; exit 1; fi
   chmod 0600 "$env"
   systemctl enable --now frankendom-origins-writer.service
   systemctl restart frankendom-origins-writer.service
   echo "install-origins-writer: $revision installed and running on 127.0.0.1:8788; /origins/* is proxied (flag + allowlist decide who gets in)"
 else
-  echo "install-origins-writer: $revision installed, route proxied, service NOT started: create $env first (Dom's step in the #1455 body)"
+  echo "install-origins-writer: $revision installed, route proxied, service NOT started: needs DATABASE_URL in $venv and SUPABASE_URL + SUPABASE_ANON_KEY in $env"
 fi

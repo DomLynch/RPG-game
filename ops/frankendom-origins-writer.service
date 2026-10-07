@@ -5,6 +5,9 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/opt/frankendom-origins/current
+# DATABASE_URL (frankendom_verifier, granted the origins_* functions by 202610080001) comes from the verifier's own env; the writer-only file holds SUPABASE_URL, SUPABASE_ANON_KEY
+# (public values) and, via install-presence.sh --link-writer, PRESENCE_INTERNAL_KEY. It must not set DATABASE_URL: a later file would override the verifier's.
+EnvironmentFile=/etc/frankendom/verifier.env
 EnvironmentFile=/etc/frankendom/origins-writer.env
 ExecStart=/usr/bin/env node scripts/origins-writer.mjs
 Restart=on-failure
