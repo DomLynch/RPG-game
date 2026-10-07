@@ -7,7 +7,7 @@
   [feuds.md](feuds.md), [progression-proposal.md](progression-proposal.md), [frankendom-baseline.md](frankendom-baseline.md),
   [patron-perks-sim.md](patron-perks-sim.md).
 
-## RULING 2026-10-07: combat luck (Dom, agreed by Strategy)
+## RULING 2026-10-07: combat luck (Dom-approved 2026-10-07; agreed by Strategy)
 
 Dom picked two of the luck options. Strategy agreed with both, under the five conditions below. This ruling supersedes "no luck roll" in §5's recommendation. Every PvP and ladder hit keeps **no** per-hit dice. Luck changes odds and damage, never timing.
 
@@ -27,9 +27,9 @@ Dom picked two of the luck options. Strategy agreed with both, under the five co
 - The arm window opens only after the chamber, not in the first ~8 ticks, so an accidental double-tap on a phone doesn't arm it.
 - Arming gives the player a private cue: a button flash and a small sound that the opponent's screen does not show.
 - The EV counts the cost of being punished after a self-stagger.
-- Odds are one constant. Strategy and Expansion recommend 1 in 2 at ×2; Dom's original was 1 in 3. **Dom to confirm.**
+- Odds are one constant: **about 1 in 2 for about 2×** (Dom-approved 2026-10-07). EV is slightly under a heavy once the self-stagger's cost is counted.
 
-## RULING 2026-10-07: stances and opponent mood (Dom; aligned by Strategy with Lead; one system)
+## RULING 2026-10-07: stances and opponent mood (Dom-approved 2026-10-07; aligned by Strategy with Lead; one system)
 
 Dom wants the player to choose a temperament. The AI's opponent mood is the same system: the mood presets **are** these stances.
 
@@ -62,6 +62,11 @@ Dom wants the player to choose a temperament. The AI's opponent mood is the same
 - **KEPT** for Origins world mobs outside the Pit, in **both directions** (player → mob and mob → player). Fixed damage reads as boring: "you are hit for 23, 23, 23".
 - Conditions stand: the roll comes from the fight seed (re-sim exact), the number is shown on screen, the battery runs a hits-to-kill breakpoint check on common mobs, and luck never changes timing.
 - #1607 scopes the roll to Origins world encounters, and a test gates it off the Pit and PvP paths.
+
+**Later (approved direction, not yet scoped):**
+- One mid-fight stance switch, after a posture break.
+- A Luck stat inside the 25% gear budget, normalised on the ladder and daily duel.
+- Coach mode reuses the four stance names.
 
 **Owners:** Combat builds the sim side in the order RV31 → RV30 → Gambit → stances, each with its own record-version bump. Characters provides the three guard poses. Expansion wires the Origins/HUD side.
 
