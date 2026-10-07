@@ -3,6 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
 import { crowdWave } from './arena.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // The Executioner's boss specials, rank 8, 9 and 10 (Executioner lane; Dom's picks via Strategy 2026-10-01). PREVIEW ONLY, behind ?special=<kind>, on the
 // seam of Hades' Shadow (special-timing.ts: the one 120-tick wind-up, SpecialStarted / Landed / Fizzled). Presentation only: it reads the sim's special
@@ -15,14 +16,7 @@ export type BossKind = 'arawn' | 'thanatos' | 'reaper';
 export const BOSS_KINDS: readonly BossKind[] = ['arawn', 'thanatos', 'reaper'];
 export const BUILD = 30;   // ticks of visible build-up before the landing (0.5 s; Dom: a 1-2 s build-up was too slow on Red Wind)
 
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
-  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy), c = (a: number, b: number) => hash(a * 127 + b * 311, seed);
-  return lerp(lerp(c(ix, iy), c(ix + 1, iy), kx), lerp(c(ix, iy + 1), c(ix + 1, iy + 1), kx), ky);
-};
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 
 // Where each trail of the Baying Circle is, in fractions of the build-up: it leaves the rim at `from` and reaches the target at `to`. Uneven on purpose;

@@ -14,7 +14,7 @@ import { nightfall } from './nightfall-timing.ts';
 // Loaded lazily by the scene only on `?special=nyx`; no GLB, no shadow casting.
 export const FLOOR = 0.07;   // exposure at full drain: near-black, never black
 const RIM_NET = 0.65;   // the rim's visible strength at full drain, in the theme's own exposure units (its light is scaled up to beat the dimmed exposure)
-const smooth = (k: number) => k * k * (3 - 2 * k);
+const smooth = (k: number) => k * k * (3 - 2 * k);   // UNCLAMPED on purpose: not fx-math's smooth (that one clamps to 0..1); kept so this effect renders exactly as before
 
 // The cloak: near-black cloth, ragged along its lower edge, with a cold glint on the edges so it shows in the dark.
 function veilTexture() {

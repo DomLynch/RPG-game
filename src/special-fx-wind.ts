@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast } from './special-timing.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // Set's Red Wind, the in-game effect (Nightborn lane; Dom's GO via Lead 2026-09-30, his pick of "A, the ground burst" 2026-10-01; the seam is Hades'
 // special-fx.ts and special-timing.ts). One idea, the arena floor itself hitting the TARGET: a ring of sand erupts outward at his feet in radial
@@ -14,15 +15,7 @@ import { advanceCast, castPhase, LAND_AT, type Cast } from './special-timing.ts'
 // each a different length, width, curl and opacity. Every cast makes a different star (seeded by its start tick). No lights, no shadows.
 // The earlier looks (the cylinder veil, the spiral updraft B and the wind wall C) are in git history at cacd7fab.
 
-export const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-export const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 export const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-export const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
-const cell = (x: number, y: number, seed: number) => hash(x * 127 + y * 311, seed);
-const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
-  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy);
-  return lerp(lerp(cell(ix, iy, seed), cell(ix + 1, iy, seed), kx), lerp(cell(ix, iy + 1, seed), cell(ix + 1, iy + 1, seed), kx), ky);
-};
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 const CAP = 0.8;   // semi-transparent: the fighter stays readable through the wind
 

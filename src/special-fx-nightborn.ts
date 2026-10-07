@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, CUTS, cutAt, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, lerp, paintSheet, smooth, surface, type SandLook } from './special-fx-wind.ts';
+import { clamp01, hash, smooth } from './fx-math.ts';
+import { lerp, paintSheet, surface, type SandLook } from './special-fx-wind.ts';
 
 // Seven Cuts, the Nightborn's ranks 4-7 class special (Nightborn lane; Dom's pick via Lead 2026-10-01, with his rule for every special: nothing pale or glowing
 // washes over the fighters). Presentation only, on the same seam and the same 120-tick timeline as Hades' cloud and Red Wind (special-timing.ts), on the
