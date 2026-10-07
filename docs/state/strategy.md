@@ -4,6 +4,13 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-07 22:45 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_2245 + project_dom_decided_ledger (17:4x–22:4x).
+
+**Now.** CronList; re-arm the /checkin advisor-light crons + a 10-min fast watch until the wolf release (fold4 1d9269c8, lock since 22:31) is live, then tell Dom. Live 4931b343 (21:31): end-screen loot fix, Execution, HUD bars, Credits, Heracles, world bodies.
+**Done.** Zone 1 preview fixed end to end: wolves 25 m in front, goblins out of range, light world bodies (19.3 → 13.4 MB), in-place field fight at `/preview/origins/?region=1&wolf&worldfight`. Legends: 835 rows / 761 fightable, risk audit applied (#1699, #1711 merged). Rulings: Balanced stance, Thor/Loki with no Marvel look, storage-box rule, no playtest asks.
+**Open.** Web: Dom's iPhone black screen. Characters: warrior world body. Combat: Balanced PR set, Coach slice 1. Next fold: #1727 #1701 #1730 #1733.
+**Gotchas.** Dom: the wolf took 3 h because of idle gaps (green PR + free box + idle Lead/Deploy, twice) and a 60 m placement nobody measured. Check every 10 min while Dom waits, push Deploy directly, ship priority items alone.
+
 ## 2026-10-07 17:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1735 + project_dom_decided_ledger (16:xx–17:xx).
 
 **Now.** CronList, re-arm the two /checkin advisor-light crons. Live 53c3b21: Pit controls + camera lock in the Zone 1 preview (/preview/origins/?region=1), tap fix live; Dom's phone test pending. ROLL/GUARD in the world = Expansion follow-up.
