@@ -68,6 +68,7 @@ export class Match {
   private sparSpecials: { first: number; level?: number; enabled?: boolean } | null = null;   // preview level/off can differ from ordinary live specials; body/AI stay on difficulty
   private sparSelection?: SparringSpecialSelection;
   private sparLegacySkill: SkillId | null = null;
+  stancePref: PickedStance | undefined = undefined;   // the stance preview's pick (src/stance-panel.ts, ?stances=): a live career/practice fight takes it at begin(); undefined = no stances, every live fight today
   stances: PickedStance | undefined = undefined;   // the player's stance pick (src/stance.ts, RV34): undefined = a fight without stances, which is every live fight until a flag turns them on; a replay takes its record's own
   gambit = false;   // the Gambit (RV33, src/gambit.ts): off in every live fight until a flag turns it on; a replay takes its record's own
   specials = LIVE_SPECIALS;   // PvE default; begin excludes PvP and preserves a replay's own flag
@@ -126,7 +127,7 @@ export class Match {
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
     const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= CLASS_B_FROM && this.level <= LEVELS;
-    if (mode !== 'replay') { this.gambit = false; this.stances = undefined; }   // only a replay carries the Gambit until a live flag exists
+    if (mode !== 'replay') { this.gambit = false; this.stances = mode === 'career' || mode === 'practice' ? this.stancePref : undefined; }   // only a replay carries the Gambit until a live flag exists
     if (mode !== 'replay') this.specials = mode !== 'pvp' && (test ? test.enabled !== false : live);   // previews/off explicit; replay retains its recorded phase
     this.fightIdentity = { opponent: this.opponent.id, level: this.level };
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: test?.level ?? this.level, opponent: this.opponent.id }), this.gambit ? this.seed : undefined, this.stances);   // preview identity/share only; body/AI remain on the visible difficulty

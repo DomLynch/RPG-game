@@ -32,6 +32,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } fro
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
+import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
@@ -547,6 +548,8 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): the preview's first pick; absent = no stances anywhere
+if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -1002,8 +1005,14 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
+// The stance preview (?stances=, src/stance-panel.ts): off unless the URL asks. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
+let stancePanel: StancePanel | null = null;
 function began() {
-  nameOpponent();   // a rematch or a new rung can move the legend
+  nameOpponent();
+  if (stanceAsk && typeof document !== 'undefined' && document.body) {
+    stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
+    if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+  }   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (walker) { walker = null; view.walkToGate(false); view.raiseGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then

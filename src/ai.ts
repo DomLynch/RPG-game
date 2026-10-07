@@ -121,12 +121,6 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     next.feint = false;
     return { intent: { ...intent, action: 'parry', guard: true }, ai: next };
   }
-  // A Trickster's beat (RV34, src/stance.ts): a feint just thrown opens RULES.feintBeat ticks in which the next swing he starts ignores a passively held guard, so the stance's own AI follows its feint with a cut at
-  // once, when one is legal and in reach. Only a fighter carrying that stance ever has `feintEdge`, so a fight without stances never reaches this line.
-  if (self.feintEdge && canAct) {
-    const follow = gap <= mine.light_right.reach && legal(self, 'light') ? 'light' : gap <= mine.heavy_overhead.reach && legal(self, 'heavy') ? 'heavy' : null;   // the quick cut if it reaches, else the heavy (the beat only needs the swing STARTED inside it)
-    if (follow) return { intent: { ...intent, action: follow, lock: true }, ai: next };
-  }
   intent.held = next.hold && self.phase === 'attack' && (self.move === 'heavy_overhead' ? self.charge < RULES.charge.min : self.charge < READ.baitHold);
   // a chambered light is a bait, not a guard breaker
   const charging = (f: typeof opponent) => f.phase === 'attack' && f.move !== null && f.charge > 0 && movesOf(f)[f.move].charges;
@@ -340,8 +334,6 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       // one swing in six at a parrier is a feint; a feinting fighter (profile.feint) feints anyone
       const feintChance = Math.max(profile.feint ?? 0, reads.parryHappy ? READ.feint : 0);
       next.feint = feintChance > 0 && (action === 'heavy' || action === 'light') && !next.hold && roll() < feintChance;
-      // A Trickster only feints with the stamina to follow it (RV34): the swing, the feint and the cut that rides the beat, so the beat is never thrown away on an empty bar.
-      if (next.feint && self.stance === 'trickster' && self.stamina < mine[action === 'heavy' ? 'heavy_overhead' : 'light_right'].stamina + RULES.feintCost + mine.light_right.stamina) next.feint = false;
       return { intent: { ...intent, action, held: next.hold }, ai: next };
     }
   }
