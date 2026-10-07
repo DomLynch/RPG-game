@@ -16,9 +16,16 @@ const cited = { kind: 'folklore', work: 'A cited collection', locator: 'ch. 3' }
 const good: MobRow = { ...FRONTIER_ROWS[0]!, source: cited };
 const codes = (row: MobRow, c: RowContext = ctx) => validateMobRow(row, c).map((i) => i.code);
 
-test('the three shipped kinds are valid rows (their sources are pending, which the hand data may carry)', () => {
+test('the three shipped kinds are valid rows with a complete citation, eligible for the generator (legends-rule)', () => {
   assert.deepEqual(validateRows(FRONTIER_ROWS, ctx), []);
+  assert.deepEqual(validateRows(FRONTIER_ROWS, { ...ctx, generated: true }), [], 'a cited row is generated');
   assert.equal(FRONTIER_ROWS.length, 3);
+  for (const r of FRONTIER_ROWS) {
+    assert.ok(!('pending' in r.source) && !('legendId' in r.source), `${r.id}: a full citation, not a placeholder`);
+    const s = r.source as { kind: string; work: string; author?: string; year?: number; scripture?: boolean };
+    assert.ok(s.work && s.author && s.year !== undefined && !s.scripture, `${r.id}: names work, author and year, never scripture`);
+  }
+  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore']);
 });
 
 test('the shipped rows agree with the content: loot is the creature\'s own table, the look exists, the band holds the character\'s level', () => {
@@ -50,9 +57,10 @@ test('each rule has a failing row that yields exactly its code', () => {
   assert.deepEqual(validateRows([good, good], ctx).map((i) => i.code), ['dup-id']);
 });
 
+const pendingRow = (r: MobRow): MobRow => ({ ...r, source: { pending: 'to cite' } });
 test('a pending source is allowed in hand data and refused by the generator; later rows need no look or source', () => {
-  assert.deepEqual(codes(FRONTIER_ROWS[0]!), []);
-  assert.deepEqual(codes(FRONTIER_ROWS[0]!, { ...ctx, generated: true }), ['no-source']);
+  assert.deepEqual(codes(pendingRow(FRONTIER_ROWS[0]!)), []);
+  assert.deepEqual(codes(pendingRow(FRONTIER_ROWS[0]!), { ...ctx, generated: true }), ['no-source']);
   assert.deepEqual(codes({ ...good, id: 'character:later', source: undefined as never, later: true }), []);
 });
 
@@ -104,7 +112,7 @@ test('populateZone: pending-source rows are rejected by name, a safe zone gets n
   assert.equal(populateZone(zone.value, cited3, 7, ctx).camps.length, 0);
   const open = generateZone(WILDS, 7);
   assert.ok(open.ok);
-  const refused = populateZone(open.value, FRONTIER_ROWS, 7, ctx);
+  const refused = populateZone(open.value, FRONTIER_ROWS.map(pendingRow), 7, ctx);
   assert.equal(refused.camps.length, 0);
   assert.deepEqual(refused.rejected.map((r) => r.row), FRONTIER_ROWS.map((r) => r.id));
   assert.ok(refused.rejected.every((r) => r.issues.some((i) => i.code === 'no-source')));
