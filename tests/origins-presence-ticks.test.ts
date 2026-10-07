@@ -39,7 +39,7 @@ test('health: ?ticks=N returns the last N recorded tick durations, none without 
     assert.ok(lots.tickMs.every(x => Number.isFinite(x) && x >= 0 && x < 1000), 'real, small durations in ms');
     assert.deepEqual(((await (await fetch(`${base}?ticks=0`)).json()) as { tickMs?: number[] }).tickMs, undefined, 'ticks=0 asks for nothing');
     assert.equal(((await (await fetch(`${base}?ticks=abc`)).json()) as { tickMs?: number[] }).tickMs, undefined, 'a non-number asks for nothing');
-    for (const header of [{ 'x-real-ip': '203.0.113.9' }, { 'x-forwarded-for': '203.0.113.9' }]) {
+    for (const header of [{ 'x-real-ip': '203.0.113.9' }, { 'x-forwarded-for': '203.0.113.9' }] as Record<string, string>[]) {
       const proxied = (await (await fetch(`${base}?ticks=40000`, { headers: header })).json()) as { tickMs?: number[]; ticks: number };
       assert.equal(proxied.tickMs, undefined, `a request carrying ${Object.keys(header)[0]} (as nginx sends) gets no tick samples, only the plain health answer`);
       assert.ok(proxied.ticks >= 6, 'and still gets the plain health numbers');
