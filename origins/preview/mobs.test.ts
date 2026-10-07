@@ -164,7 +164,7 @@ test('the hero spawns among the creatures: on his feet in a Frontier zone, insid
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
 });
 
-test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: trunk's list before the mob rows, minus the two scavengers the camp cap of 4 removed)', () => {
+test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, minus the two scavengers the camp cap of 4 removed)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
   assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '15 creatures, same ids, bodies, levels, homes, roam and aggro');
 });
