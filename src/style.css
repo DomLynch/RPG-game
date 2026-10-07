@@ -870,6 +870,10 @@ dialog>p {
 #stamina {
   background-image: linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%));
 }
+/* The lost ceiling, unmistakable (Lead 2026-10-07): once a wound has lowered it, everything past --max is a near-opaque dark cap with a bright notch on its edge. Presentation only: --max is the sim's maxStamina. */
+#stamina[data-capped=true] {
+  background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%));
+}
 #stamina[data-leg=true] {
   outline: 1px solid #b5533f88;
 }
@@ -1147,6 +1151,9 @@ dialog>p {
        the shading showed (owner screenshot 2026-09-20). Layer both: shading on top, the fill underneath. */
     background-image: linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%)),linear-gradient(to right,var(--bar-color) var(--fill,100%),#172329a0 var(--fill,100%));
   }
+  #stamina[data-capped=true] {
+    background-image: linear-gradient(to right,transparent calc(var(--max,100%) - 2px),#f0e6cc calc(var(--max,100%) - 2px),#f0e6cc var(--max,100%),#140b0af2 var(--max,100%)),linear-gradient(to right,var(--bar-color) var(--fill,100%),#172329a0 var(--fill,100%));
+  }
   .combat-hud meter.posture {
     height: 2px;
     margin: -3px 0 0;
@@ -1371,7 +1378,19 @@ dialog>p {
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=straight] .side-straight,
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .95; stroke-width: 2; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight,
+  .actions[data-gestures=cluster] #attack-button[data-cut=left]:not([data-held]) .side-left,   /* directional cuts: the stick is held to a side, so LIGHT will cut that side */
+  .actions[data-gestures=cluster] #attack-button[data-cut=right]:not([data-held]) .side-right,
+  .actions[data-gestures=cluster] #attack-button[data-cut=left][data-held] .side-left,
+  .actions[data-gestures=cluster] #attack-button[data-cut=right][data-held] .side-right{ opacity: .95; stroke-width: 2; }
+  /* directional cuts, v2 (Lead 2026-10-07: the lit tick was too faint): a solid arc on the chosen edge of the button at full opacity, kept while the stick is held and pulsed on the press */
+  .actions[data-gestures=cluster] #attack-button[data-cut]::after{
+    content: ''; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; border: 5px solid transparent;
+    border-left-color: var(--cut-arc); border-right-color: var(--cut-arc); clip-path: inset(0 50% 0 0);
+  }
+  .actions[data-gestures=cluster] #attack-button[data-cut=right]::after{ clip-path: inset(0 0 0 50%); }
+  .actions[data-gestures=cluster] #attack-button[data-cut][data-held]::after{ border-width: 7px; inset: -7px; }
+  .actions[data-gestures=cluster] #attack-button{ --cut-arc: #f2c14e; }
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
@@ -2172,7 +2191,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 /* The admin Sparring tab (Dom 2026-09-29, via Strategy): the one tab of test picks (Opponent, Difficulty level, Stage, Move, Weapon,
    Finisher) wrapping as the journal's chips, then Start sparring. Players never see it (main.ts / account.ts hide #sparring-tab). */
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
-/* Every Sparring select shrinks to the line (the Difficulty labels "46 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
+/* Every Sparring select shrinks to the line (the Difficulty labels "50 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
 .sparring-row .menu-select { max-width: 100%; min-width: 0; }
 .sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; background: var(--jp); color: var(--jf); color-scheme: dark; }
 .sparring-row .menu-select select:disabled { opacity: 1; color: var(--jm); }
@@ -2465,3 +2484,20 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #tutorial-prompt[data-now='1'] #tutorial-word { color: #ffd45a; }
 #tutorial-go { pointer-events: auto; margin-top: 8px; padding: 12px 28px; font: 800 22px/1 Arial, sans-serif; color: #1a1208; background: #e8c46a; border: 0; border-radius: 10px; }
 html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is the one message; the row keeps its height so the HUD below never jumps */
+
+/* Refused press (clarity cue 3): the button the sim dropped dims and shakes for a moment. No text, no layout change (transform only). */
+#actions button.refused { animation: refused .26s ease-out; }
+@keyframes refused { 0%, 100% { transform: translateX(0); opacity: 1; } 20% { transform: translateX(-4px); opacity: .45; } 40% { transform: translateX(4px); opacity: .45; } 60% { transform: translateX(-3px); opacity: .6; } 80% { transform: translateX(2px); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { #actions button.refused { animation: none; opacity: .45; } }
+
+/* HUD readability over the bright cloud sky (Strategy via Lead 2026-10-06): the rank row and the hint line get a soft dark shadow; colour, size and layout are untouched. */
+#fight-rank, #combat-status { text-shadow: 0 0 2px #000, 0 1px 3px #000e, 0 0 10px #000b, 0 0 22px #0008; }
+
+/* A refusal card is up (main.ts banner(), stale): an old or unplayable link stalls the page and PLAY NOW is the one thing to press. The stick, the fight buttons, the run toggle and the
+   "Tap Fight" hint behind it did nothing (the match is stalled) yet drew over the card (HEAVY showed through PLAY NOW, Lead 2026-10-07). Hidden and inert; PLAY NOW stays. */
+:root.card-up #joystick,
+:root.card-up #combat-status,
+:root.card-up #run-button,
+:root.card-up #actions button:not(#reset-button) {
+  visibility: hidden !important; pointer-events: none !important;
+}

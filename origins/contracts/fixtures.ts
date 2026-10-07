@@ -19,6 +19,11 @@ export const graveIronDef = () => ({
   kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine',
   slot: null, power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,
 });
+// Ore the Exchange takes in (a quest hand-in, a smith's material line). Not in `bundle()`: the registry tests pin its record indexes.
+export const exchangeOreDef = () => ({
+  kind: 'item-definition', schemaVersion: 1, id: 'item:exchange-ore', name: 'Exchange ore', category: 'material', rarity: 'common',
+  slot: null, power: 'none', material: 'stone', appearance: { asset: 'items/exchange-ore.glb' }, story: 'none', binding: 'none', stack: 50,
+});
 export const tokenDef = () => ({
   kind: 'item-definition', schemaVersion: 1, id: 'item:ferry-token', name: 'Ferryman\'s token', category: 'cosmetic', rarity: 'rare',
   slot: 'Crest', power: 'none', material: 'bronze', appearance: { asset: 'items/ferry-token.glb' }, story: 'notable', binding: 'on-equip', stack: 1,

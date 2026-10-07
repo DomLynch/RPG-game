@@ -97,7 +97,7 @@ test('kick and roll, pick C (Dom 2026-09-30): a landed kick drops the camera 10 
     assert.ok(landedKick(e));
     assert.deepEqual(impactShove(e, 'low'), { along: 0, drop: 0.1, side: 0, hold: 0, settle: KNOCK_SETTLE }, 'straight down, no push, no side');
   }
-  near(KICK.stopMs, 2 * FRAME);   // main.ts stopFor: the whole stop, in place of the hit's 50 ms + 3 frames (never in a duel)
+  near(KICK.stopMs, 2 * FRAME);   // main.ts stopFor: the whole stop, in place of the hit's 50 ms + 3 frames (in a duel the same ms hold only the drawn frame, main.ts pvpShown; the sim never pauses)
   for (const e of [event('Blocked', { move: 'kick' }), event('AttackMissed', { move: 'kick' }), event('Hit', { move: 'light_right' })]) assert.equal(landedKick(e), false, `${e.type} ${e.move}`);
   assert.deepEqual({ ...ROLL_TUMBLE, angle: Math.round((ROLL_TUMBLE.angle * 180) / Math.PI) }, { angle: 8, seconds: 0.6, shift: 0.046, dip: 0.08 });
 });

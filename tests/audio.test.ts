@@ -122,7 +122,7 @@ test('events map to material cues, impacts before air, at most four per tick, an
   // Air never precedes an impact in the same tick.
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right', actor: 1 }), ev('Hit', { move: 'light_right' })]), ['hit_flesh', 'whoosh_light']);
   assert.equal(cuesFor([ev('Hit'), ev('GuardBroken'), ev('Parried'), ev('AttackStarted'), ev('Charged')]).length, 4);
-  for (const type of ['Staggered', 'Dodged', 'AttackMissed', 'StaminaExhausted', 'Charging', 'AttackActive'] as const) assert.deepEqual(names([ev(type)]), [], `${type} is not mapped yet (body pass)`);
+  for (const type of ['Staggered', 'Dodged', 'StaminaExhausted', 'Charging', 'AttackActive'] as const) assert.deepEqual(names([ev(type)]), [], `${type} is not mapped yet (body pass)`);
   assert.deepEqual(names([ev('ActionStarted', { action: 'guard' }), ev('ActionStarted', { action: 'parry' }), ev('ActionStarted', { action: 'feint' })]), []);
   for (const c of cuesFor([ev('Hit'), ev('AttackStarted')])) assert.ok(c.gain > 0 && c.gain <= 1 && c.room >= 0 && c.room <= 1);
 });

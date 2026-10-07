@@ -27,15 +27,16 @@ function routing() {
   assert.ok(accepted, 'execute the actual guarded per-actor accepted-event loop');
   const start = accepted.getStart(ast);
   const loop = main.slice(start, main.indexOf('      feedback.update(', start));
-  const played: unknown[] = [], cuts: unknown[] = [], wants: unknown[] = [];
+  const played: unknown[] = [], cuts: unknown[] = [], wants: unknown[] = [], words: unknown[] = [];
   const match = { epoch: 1, specials: true, mode: 'career', opponent: { id: 'veteran' }, level: 46, specialIdentity: { opponent: 'veteran' as OpponentId, level: 46 }, clipLevel: null, replay: null as { record: { level: number } } | null, practice: { duel: { tick: 100 } } };
   const context = { match, clip: null, specialTest: null, bossSpecialFor, bossSpecialId, classSpecialFor, SPECIAL_CUE_OF, specialCueFor,
+    announcePowerWord: (...args: unknown[]) => words.push(args),
     feedback: { special: (...args: unknown[]) => played.push(args), cutSpecial: (actor?: number) => cuts.push(actor), want: (cue: string) => wants.push(cue) } };
   const code = `let specialAudioEpoch = -1, specialAudioTick = -1, specialAudioClipping = false; const specialAudioCasts = [-1,-1]; ${sync}
     globalThis.route = (events, quiet = false) => { const practice = {events}; ${loop} };
     globalThis.sync = syncSpecialAudio;`;
   runInNewContext(ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
-  return { ...context, played, cuts, wants, preview: () => { context.specialTest = 'tithe' as never; }, clipping: (on: boolean) => { context.clip = on ? { fresh: { duel: { tick: 99 } } } as never : null; }, ...(context as unknown as { route(events: unknown[], quiet?: boolean): void; sync(): void }) };
+  return { ...context, played, cuts, wants, words, preview: () => { context.specialTest = 'tithe' as never; }, clipping: (on: boolean) => { context.clip = on ? { fresh: { duel: { tick: 99 } } } as never : null; }, ...(context as unknown as { route(events: unknown[], quiet?: boolean): void; sync(): void }) };
 }
 const start = (actor: 0 | 1, tick = 100, name = 'tithe') => ({ type: 'SpecialStarted', actor, tick, name });
 
@@ -51,6 +52,7 @@ test('actual main accepts each actor cast once, uses captured names and cuts onl
   assert.deepEqual(r.played.at(-1), ['nyx', 1, 1]);
   r.route([start(0, 250, 'unresolved')]);
   assert.equal(r.played.length, 3);
+  assert.deepEqual(r.words, [['veteran', 100], ['veteran', 240]], 'the foe\'s power word is announced once per accepted cast (never the hero\'s, never a repeated tick)');
 });
 
 test('epoch/seek cuts both, quiet consumes starts, held/PVP/preview paths do not enter runtime audio', () => {

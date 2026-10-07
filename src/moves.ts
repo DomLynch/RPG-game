@@ -687,7 +687,7 @@ export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, rec
 // The novice lowers only the fighter's SKILL (how fast and how well he reads and answers); his IDENTITY knobs (pressure, feint, guard,
 // disengage, circle, step, interrupt, kick, dash) stay at easy's from 1 to 6, so the orc still chains, the goblin never guards.
 // At an anchor level the anchor itself is returned, so levels 6 / 18 / 46 fight exactly as easy / normal / hard did (same RNG draws).
-export const LEVELS = 46;
+export const LEVELS = 50;   // 46 anchored the hard table; 47–50 are Origin II–V (the tail past hard, TAIL below)
 // The named special an opponent casts at a ladder level (Strategy 2026-10-01, docs/briefs/specials/): ranks 8 / 9 / 10 (career.ts: five levels a rank, so 36 / 41 / 46).
 // Identity only: windup, share, cooldown and the unblockable release are RULES.special for every special. Null = the opponent's class skill names it (below rank 8, or no set).
 // The Centurion's id is 'veteran'. The picks are the briefs' starred ones.
@@ -750,6 +750,18 @@ const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
   return out as AiProfile;
 };
 const levelCache = new Map<string, AiProfile>();
+// The tail past hard (Origin II–V, levels 47–50; Dom via Strategy 2026-10-05, Lead GO 2026-10-06 option B): L46 stays the hard table, byte for byte, and
+// each later level blends a quarter further toward this apex — the SKILL knobs only, a few steps and capped, never the identity knobs (the
+// Goblin still never guards, the Nightborn still reads). Where a table is already at the cap the knob does not move. Every rung is judged
+// against the fairness caps at L47–50 (tests/ladder-tail.test.ts); a rung that broke one would fall back to flat hard.
+const tailApex = (h: AiProfile): AiProfile => ({
+  ...h,
+  reaction: Math.min(h.reaction, Math.max(5, h.reaction - 2)),
+  lapse: Math.round(h.lapse * 500) / 1000,
+  accuracy: Math.max(h.accuracy, Math.min(.98, h.accuracy + .03)),
+  ...(h.parry > 0 ? { parry: Math.max(h.parry, Math.min(.9, h.parry + .1)) } : {}),
+  ...(h.read === undefined ? {} : { read: Math.max(h.read, Math.min(.98, h.read + .03)) }),
+});
 /** The first ladder level whose in-between profile uses late notice (ai.ts): the L11→L12 step is the first cliff, and L1–11 stay byte for byte (Lead, 2026-10-06). */
 const LATE_NOTICE_FROM = 12;
 export function profileAt(o: Opponent, level: number): AiProfile {
@@ -759,6 +771,7 @@ export function profileAt(o: Opponent, level: number): AiProfile {
   if (l === LEVEL_ANCHORS.hard) return o.profiles.hard;
   const key = `${o.id}:${l}`, hit = levelCache.get(key);
   if (hit) return hit;
+  if (l > LEVEL_ANCHORS.hard) { const tail = { ...blend(o.profiles.hard, tailApex(o.profiles.hard), (l - LEVEL_ANCHORS.hard) / (LEVELS - LEVEL_ANCHORS.hard)), softNotice: 1 as const }; levelCache.set(key, tail); return tail; }
   const [from, to, a, b] = l < LEVEL_ANCHORS.easy ? [LEVEL_ANCHORS.novice, LEVEL_ANCHORS.easy, novice(o.profiles.easy), o.profiles.easy]
     : l < LEVEL_ANCHORS.normal ? [LEVEL_ANCHORS.easy, LEVEL_ANCHORS.normal, o.profiles.easy, o.profiles.normal]
     : [LEVEL_ANCHORS.normal, LEVEL_ANCHORS.hard, o.profiles.normal, o.profiles.hard];

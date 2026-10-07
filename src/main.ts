@@ -9,7 +9,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -30,6 +30,8 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { breakBeatFrom } from './break-beat.ts';
+import { announcePowerWord } from './power-words.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -46,15 +48,17 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
+import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
-import { LESSON_DONE_KEY, firstLossDue, type LessonId } from './lessons.ts';
+import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
+import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
@@ -103,18 +107,17 @@ const message = element('message');
 // The rank row (Dom 2026-09-23: "a progress bar, with future visibility to what's next"): ONE component for the account panel, the
 // journal's fighter card and the fight-end panel, so they never drift. Left the class + numeral, then one segment per numeral of the
 // class (done numerals full, the current one filled by its pips), then the class it climbs toward. The bar is the information: no counts
-// in prose; the full label (with the pips) stays as the row's accessible name. Origin has no bar.
+// in prose; the full label (with the pips) stays as the row's accessible name. Origin is five sub-ranks now (I–V, the 50-level ladder), so it has its bar too, with no class after it.
 function renderRank(host: HTMLElement, rank: Rank) {
   const make = (tag: string, className: string, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };
   host.setAttribute('aria-label', rank.label);
-  if (!rank.next) { host.replaceChildren(make('span', 'rank-now', rank.title)); return; }
   const bar = make('span', 'rank-bar');
   bar.replaceChildren(...Array.from({ length: RANK_STEPS }, (_, i) => {
     const segment = make('i', 'rank-seg');
     segment.style.setProperty('--fill', `${i < rank.step ? 100 : i === rank.step ? Math.round(rank.fill * 100) : 0}%`);
     return segment;
   }));
-  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
+  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, ...(rank.next ? [make('span', 'rank-next', rank.next)] : []));
 }
 // The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
@@ -454,14 +457,15 @@ opponentSelect.value = opponent.id;
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened — plus Plain death as the
-// no-finisher control. The rest of the spec table (hamstrung/execution) has no clip yet and would silently
-// play the plain Death, which reads as a bug in a test menu. Add each back the day its clip ships.
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung — plus Plain death as the
+// no-finisher control. Execution has no clip yet and would silently play the plain Death, which reads as a bug in a test menu.
+// Add it back the day its clip ships. Hamstrung plays on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS); any other body keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
   ['opened', 'Opened'],
+  ['hamstrung', 'Hamstrung'],
   ['plainDeath', 'Plain death'],
 ];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
@@ -530,7 +534,7 @@ const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
-// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
+// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 50; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
@@ -549,11 +553,11 @@ const shownTier = (met: Tier = metAt): Tier => lookTier ?? (match.mode === 'spar
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
-// The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
+// The Sparring tab's Difficulty: any of the 50 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
 // (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 // Difficulty is the Opponent's ten legends, one per rank, "6 – Hannibal" (Dom 2026-09-29, layout A: rank number – legendAt), then the
-// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 46); the line of the rank the
+// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 50); the line of the rank the
 // current level sits in carries that level as its value (its text stays "2 – Ragnar Lothbrok"; Strategy 2026-09-29), so the control still
 // names the fight's level (the release rows read it) and Start sparring without a new pick fights where it stands. Any pick rebuilds the
 // list on the picked top, so every fresh pick fights at its rank's top. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
@@ -763,17 +767,23 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => match.mode === 'pvp' ? STEP : 1 / tempoHz;   // online input/network cadence never inherits the solo preference
 let hitStop = 0;
+// PvP presentation hold: the contact tick's picture stays on screen for stopFor() ms while the sim keeps stepping (those ticks queue as snapshots), then
+// the queue plays out CATCHUP (pvp-hold.ts) ticks a frame until the screen is live again. Never read by the sim, the driver or a record.
+const pvpHold = newHold<{ state: typeof state; practice: typeof match.practice; rollbacks: number }>();
+function clearPvpHold() { clearHold(pvpHold); }
+const holdProbe = { frames: 0, held: 0, holds: 0, catchup: 0, maxQueue: 0 }; let wasHeld = false;   // debug-only counters, never read by the game
 const armfeel = armfeelFrom(window.location?.search ?? '', typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // ?look=armfeel (armfeel.ts): a look test, absent = today's game
 feedback.armfeel(armfeel);   // the layered hit and kill sounds (audio/armfeel-sound.ts); the flag decides, undefined is today's sound
+const breakBeat = breakBeatFrom(window.location?.search ?? '');   // ?look=breakbeat (break-beat.ts): a longer PostureBroken hold and a dry thud; absent = today's game
+feedback.breakThud(!!breakBeat?.thud);
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
-// presentation clock; every tick still runs, in order. NOT in a live duel: there the hit-stop would
-// hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
+// presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
+// DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
 function stopFor(events: CombatEvent[]): number {
-  if (match.mode === 'pvp') return 0;   // all contact pauses are offline-only, not just the added impact tier
   if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
-    const base = HIT_STOP[e.type] ?? 0;
+    const base = e.type === 'PostureBroken' && breakBeat ? breakBeat.holdMs : HIT_STOP[e.type] ?? 0;
     if (!base) continue;
     const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
     ms = Math.max(
@@ -798,16 +808,18 @@ function winFace(src: string | null) {
 }
 // The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
 const LESSON_MS = 4000;
-let lessonNow: LessonId | undefined, lessonTimer = 0;
-export function onLesson(id: LessonId) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
+const PACE_STILL = /[?&]pacestill=1(&|$)/.test(window.location?.search ?? '');   // stills only (PR #1484): shows the pace line at tick 120 without fatiguing a real fight; inert without the query
+let lessonNow: LessonLine | undefined, lessonTimer = 0;
+export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
 let tutorialUi: ReturnType<typeof createTutorialUi> | null = null;   // the tutorial start scene's big prompt (src/tutorial-ui.ts), made only on ?tutorial=1
 function updateHud() {
+  const shown = match.mode === 'pvp' ? visible(pvpHold, { state, practice: match.practice, rollbacks: 0 }).practice : match.practice;   // a duel's HUD and end banner follow the picture: the finish is announced once its last blow is drawn (pvp-hold.ts)
   tutorialUi?.update(match.tutorial?.current ?? null, match.tutorial?.done.length ?? 0, match.tutorial?.parryWindow ?? false, match.practice.phase !== 'sheathed', match.tutorial?.tooFar ?? false, !versusUp);   // shown only once the versus card has cleared
-  winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  winFace(isLegendOpponent(opponent.id) && beatLegend(shown, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
+  hud.update(shown, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy, lesson: lessonNow, lessonFight: match.mode === 'lesson' });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
-  const phase = match.practice.finish ? view.finishPhase() : null;
+  const phase = shown.finish ? view.finishPhase() : null;
   // On a viewer page PLAY NOW stays up while the arena-cam tour rolls (owner 2026-09-22: "it should stay as the camera rolls");
   // the pre-settle hush still applies there — nothing over the body while the finisher plays.
   // While a loot offer is pending the hush holds to `complete` instead of `settled`. The faded row is inert (style.css sets
@@ -815,6 +827,7 @@ function updateHud() {
   // the win's one loot offer. Timing only — nothing moves, and the loot panel is outside the fade group as before.
   const hushed = pendingLoot !== null ? !phase?.complete : !phase?.settled;
   document.documentElement.classList.toggle('endgame-fade', !!phase && (hushed || (phase.touring && !watching)));
+  document.documentElement.classList.toggle('card-up', match.stalled && replayBanner.dataset.stale === '1');   // a refusal card (old or unplayable link) over a stalled page: the fight controls behind it go quiet (style.css)
   // The rank row keeps only the hush, not the tour (Dom 2026-09-24, phone: the strip was "missing" at fight end — it showed for ~3 s
   // between settle and the tour, then faded until a touch). Text in the top band, no pointer: it stays up while the camera rolls.
   document.documentElement.classList.toggle('endgame-hush', !!phase && hushed);
@@ -843,7 +856,7 @@ let orbitX = 0,
   orbitY = 0;
 function clearInput() {
   controls.clear();
-  hitStop = 0;
+  hitStop = 0; clearPvpHold();
   orbitId = null;
   accumulator = 0;
 }
@@ -1005,7 +1018,7 @@ function nextFight(): void {
   if (next) {
     profile.encounter = next.id; profile.pass = next.pass; profile.arena = next.arena; profile.arenaPass = next.arenaPass;
     persist();
-    void settled.then(() => location.reload());
+    void reloadAfter(settled, () => location.reload());   // the profile is already advanced: reload even if the settle threw (loot-claims.ts)
     return;
   } // the next fighter is another rig: a fresh page loads it
   // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file
@@ -1058,7 +1071,7 @@ clipButton.addEventListener('click', () => {
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
-  state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
+  state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
 });
 // After each render: the frame into the recording, the countdown, and the stop once the finish has played (clip.ts clipEnded).
@@ -1075,7 +1088,7 @@ function endClip(keep: boolean) {
   if (!current) return;
   clip = null; feedback.untap();
   match.endClip(current.saved);
-  state = previous = match.practice.fighter; hitStop = 0; accumulator = 0;
+  state = previous = match.practice.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;
   clipState('idle'); updateHud();
   if (!keep) { current.recording.cancel(); return; }
   say('Making the clip…');
@@ -1818,18 +1831,21 @@ function frame(now: number) {
           }),
         );
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
+      const deathWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
+      const deathPick = hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
       const deathAudio =
         practice.finish && practice.events.some((e) => e.type === 'Killed')
           ? {
               finish: practice.finish,
-              weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const,
+              weapons: deathWeapons,
               override:
-                resolveFinisher(
+                resolveHamstrung(
                   opponent.id,
                   practice.finish,
-                  [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
-                  finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
+                  deathWeapons,
+                  deathPick,
                   view.previousFinisher(),
+                  resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick, view.previousFinisher()),
                 ) ?? 'plainDeath',
               gore: true,
             }
@@ -1848,6 +1864,7 @@ function frame(now: number) {
           const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
           const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
+          if (!quiet && e.actor === 1) announcePowerWord(opponent, e.tick);   // the Witch's and the Plague Doctor's wind-up word (power-words.ts): muted, an event only; once per accepted cast, like the cue
         } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
       }
       if (quiet) feedback.cutSpecial();
@@ -1857,13 +1874,22 @@ function frame(now: number) {
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
         holding: foeHolding(practice.duel.fighters[1]),
+        fatigue: practice.fatigue,
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
-      });
+      }, quiet ? [] : practice.clarity);
+      if (!quiet) hud.refused(practice.clarity);
+      if (!quiet && match.mode !== 'lesson' && (PACE_STILL ? practice.duel.tick === 120 : practice.clarity.some((c) => c.type === 'FatigueBand' && c.actor === 0 && (c.band ?? 0) >= 2))) {   // once ever: the first time the player is tired
+        let seen = true; try { seen = !!storage.getItem(PACE_KEY); } catch { /* storage blocked: stay quiet rather than repeat */ }
+        if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
+      }
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();
+      if (match.mode === 'pvp' && !quiet) {   // the drawn hold: the sim above has already stepped; only what the next draw shows is delayed
+        onTick(pvpHold, { state, practice, rollbacks: match.pvp?.rollbacks ?? 0 }, pvpHold.shown ? 0 : stopFor(practice.events), match.frameEvents.length);
+      }
       if (result === 'ended') {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
@@ -1902,7 +1928,7 @@ function frame(now: number) {
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
-      let stop = quiet ? 0 : stopFor(practice.events);
+      let stop = quiet || match.mode === 'pvp' ? 0 : stopFor(practice.events);
       if (armfeel && stop) {   // ?look=armfeel: the blade holds a beat longer at contact, never past the heaviest stop a hit has today (armfeel.ts)
         const landed = practice.events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'), tier = landed ? impactTier(landed) : null;
         stop += weaponHoldMs(armfeel, stop, practice.events, tier === 'full' || tier === 'half' ? tier : null);
@@ -1924,9 +1950,16 @@ function frame(now: number) {
     if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
   }
   const alpha = accumulator / step();
+  const drawn = match.mode === 'pvp' ? onFrame(pvpHold, elapsed * 1000, match.frameEvents, (v) => stopFor(v.practice.events), (v) => v.practice.events, (v) => v.rollbacks !== (match.pvp?.rollbacks ?? 0)) : { shown: null, events: match.frameEvents, held: false };
+  const pvpShown = drawn.shown, shownEvents = drawn.events, held = drawn.held;   // behind the sim: the snapshot is drawn, not the live tick
+  if (match.mode === 'pvp' && debugTools) {   // ?debug only: what the two-page check reads to show the hold on BOTH ends (scripts/duel-two-page-check.mjs)
+    holdProbe.frames++; if (held) holdProbe.held++; if (held && !wasHeld) holdProbe.holds++; if (pvpShown && !held) holdProbe.catchup++;
+    holdProbe.maxQueue = Math.max(holdProbe.maxQueue, pvpHold.queue.length); wasHeld = held;
+    document.documentElement.dataset.pvpHold = JSON.stringify(holdProbe);
+  }
   try {
     view.render(
-      walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
+      pvpShown ? pvpShown.state : walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
         ...state,
         x: previous.x + (state.x - previous.x) * alpha,
         z: previous.z + (state.z - previous.z) * alpha,
@@ -1934,9 +1967,9 @@ function frame(now: number) {
       },
       locked,
       paused() ? 0 : dt,
-      clip?.fresh ?? match.practice,
-      match.frameEvents,
-      hitStop > 0,
+      pvpShown ? pvpShown.practice : clip?.fresh ?? match.practice,
+      shownEvents,
+      hitStop > 0 || held,
       match.epoch,
       match.specialIdentity,
     );
