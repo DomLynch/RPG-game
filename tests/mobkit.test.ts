@@ -105,7 +105,7 @@ test('the kits move each strategy\'s win rate by a bounded amount', () => {
 
 // The wiring: stepPractice's optional `layer` (Match.layer, set by the creature encounter and a ?mob= spar). Absent = today's fight; present = the kit's swaps on the live loop.
 const spar = (layer?: ReturnType<typeof mobLayer>): { p: Practice; swapped: number } => {
-  let p = initialPractice(OPPONENTS.pitborn), swapped = 0;
+  let p = initialPractice(731, OPPONENTS.pitborn), swapped = 0;
   for (let i = 0; i < 1500 && !p.duel.finish; i++) {
     const before = p.duel.fighters[1].move;
     p = stepPractice(p, i % 50 === 0 ? act('light') : idle(), profileAt(OPPONENTS.pitborn, 18), layer);
