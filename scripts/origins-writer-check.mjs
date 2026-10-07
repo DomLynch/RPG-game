@@ -215,7 +215,7 @@ try {
   eq((await call('consume', 'ta', oathHand({ op: 'quest:oath:generic' }))).status, 400, 'consume: the upgraded story piece is still refused to a step that does not name it');
   const oathBurn = await call('consume', 'ta', oathHand({ consumesStoryItem: 'item:stolen-name-gauntlets' }));
   eq([oathBurn.status, oathBurn.json.result?.burn.lines.map(l => [l.instance, l.quantity]), oathRow(), conserved()],
-    [200, [['inst:oath-wc', 1]], `item:stolen-name-gauntlets|${pc}|-|true|1:v2|upgrade|burn`, '0'], 'consume: its quest step burns the upgraded story piece (retired), conserved');
+    [200, [['inst:oath-wc', 1]], `item:stolen-name-gauntlets|${pc}|-|true|1:v3|upgrade|burn`, '0'], 'consume: its quest step burns the upgraded story piece (retired), conserved');
 
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
