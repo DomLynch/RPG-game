@@ -27,8 +27,15 @@ test('startPose: the next fight starts from it (float32-rounded), is recorded wi
   assert.deepEqual(at(m), marks, 'the rematch starts at the marks');
 });
 
-test('startPose is dropped outside career/practice: a lesson starts at the marks', () => {
+test('startPose is dropped outside career/practice/sparring: a lesson starts at the marks', () => {
   const m = mk(), marks = at(m);
   m.startPose = pose; m.startLesson(() => undefined);
   assert.deepEqual(at(m), marks); assert.equal(m.startPose, undefined);
+});
+
+test('sparring takes the pose too (the open-world duel is a sparring Match): fightPose names it for the page that records, and the next sparring start is back at the marks', () => {
+  const m = mk(), marks = at(m), want = roundPose(pose);
+  m.startPose = pose; m.startSparring({ weapon: 'longsword', skill: null, difficulty: 6 });
+  assert.deepEqual(at(m), [[want.hero.x, want.hero.z], [want.foe.x, want.foe.z]]); assert.deepEqual(m.fightPose, want); assert.equal(m.recorder, null);
+  m.rematch(); assert.deepEqual(at(m), marks); assert.equal(m.fightPose, undefined);
 });
