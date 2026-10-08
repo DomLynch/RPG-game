@@ -20,7 +20,7 @@ Facts from a read of `origins/` (182 TS files, 22.8k lines, 7.6k of them tests):
 - **The page has no zone id.** `/zone1/` is an nginx alias of `/preview/origins/` (`deploy/frankendom.com.conf:175`), and `REGION` is only an on/off switch (`main.ts:73`). The server spawn table in #1880 (migration 0014) is keyed by `instance` only, with no zone column.
 
 ## The design
-1. **One zone package per zone:** `origins/zones/<zoneId>/`. Every file in it is data, validated at load:
+1. **One zone package per zone:** `origins/zones/<zoneId>/`. Every file in it is data (pure literals, see the guards in 4), validated at load:
    - `zone.ts`: id, display name, `level` (the zone number = its base level), region id, start point, exits/portals to other zones and the hub.
    - `world.ts`: WorldData (layout, passages, landmarks) in the existing `world/schema.ts` shape. It can come from `world/generate.ts` (`generateZone(template, seed)`) with hand overrides, which is how 700 zones stay affordable.
    - `content.ts`: the existing contracts BUNDLE + LOCAL shapes (foes, encounters, towns, bounties, loot, kill rows, NPCs, shops).
@@ -35,6 +35,10 @@ Facts from a read of `origins/` (182 TS files, 22.8k lines, 7.6k of them tests):
    - **One validator** (generalising `region1/load.ts`) runs on every zone in CI. It checks the schema, every reference resolving, level rules and exits pointing at real zones.
    - **A golden spawn list per zone** (generalising `mobs.golden.json`).
    - **The Zone 2 budget check:** a test counts the non-data lines in `zones/zone2/hooks.ts` and fails above 300.
+   - **Data files are pure data, so the budget can't be dodged.** Every zone file except `hooks.ts` must be one exported literal. The lint fails on any of these in those files:
+     - a function, arrow function, class, loop, call or computed expression (beyond `as const`/`satisfies`);
+     - any import other than `import type` from the schema/contract types.
+     The level rule (`zone.level`, `+1`/`+2`/`+3`) is applied by the runtime when it reads the rows, not written as code in `spawns.ts`. If a zone needs logic, it goes in `hooks.ts` and counts against the 300 lines. (Equivalent alternative: the files are `.json` checked by the validator; pick one in Step 3.)
 
 ## Steps and owners
 | # | Step | Owner | Done when |
