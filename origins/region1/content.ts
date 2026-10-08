@@ -58,9 +58,9 @@ export const LOOT_TABLES = [
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
-  // The Ash Wolf's table (Backend's ruling, relayed by Lead 2026-10-08): grave iron on a 40 % chance, an ash helm or watch greaves at 2 % each (level 11+), bronze 3-10. The roll probabilities and the iron quantity follow the boar's shape; Backend confirms on the PR.
+  // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
   table('loottable:ash-wolf', 'collect', [
-    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
+    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 10 }),
   // The Ash Boar's table (Backend 2026-10-08): a lone uncommon beast, level 13-14, a little richer than a scavenger camp's single kill; Frontier gear only.
