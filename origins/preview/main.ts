@@ -267,7 +267,7 @@ function step(dt: number) {
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
-    mobsAsked = true;
+    mobsAsked = true; preloadFight();
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   if (mobs) { mobs.update(dt, state, cardId); if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
@@ -301,6 +301,10 @@ addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+  if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
+    mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
+    return;
+  }
   step(dt); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
@@ -451,23 +455,29 @@ function pressEngage() {   // STAB / SLASH / HEAVY / KICK / SKILL near a creatur
 // ?worldfight (Dom 2026-10-07: fight where you stand, no ring): the duel runs inside THIS scene. The world is moved into a holder the duel's scene mounts (src/scene.ts WorldMount),
 // the walker and the engaged creature are not drawn (the duel draws its own pair), the other creatures stand frozen and those past 20 m are hidden. Off by default: without the flag
 // the fight is the Pit's, as it was.
-const WORLDFIGHT = /[?&]worldfight\b/.test(location.search), FREEZE_RADIUS = 20;
+const WORLDFIGHT = /[?&]worldfight\b/.test(location.search);
+let duelDrawing = false;   // the duel's own frame is drawing this scene (between the mount's attach and detach): the walk loop keeps the world alive but does not draw
 // One holder per page: createScene adds it to its scene once, at creation, and the next fight against the same body and level REUSES that stage, so a new holder per fight would be in no rendered scene (a bare background). detach() resets its matrix.
 const worldHolder = new THREE.Group();
 function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
   const holder = worldHolder; let moved: THREE.Object3D[] = [];
   return {
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
-    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.freeze(at, FREEZE_RADIUS, spec.id); duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
-    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
+    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.engage(spec.id); duelDrawing = true; duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
+    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; mobs?.engage(null); duelDrawing = false; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
   };
+}
+// The fight's chunks (the duel, the hunt, the encounter) are fetched when the Frontier's creatures come in, in an idle moment, not at the tap: the first engage no longer waits on three imports (Dom 2026-10-08, seamless combat).
+function preloadFight() {
+  const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
+  idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
 }
 async function startMobFight(spec: MobSpec) {
   if (fighting || !frontier) { say(frontier ? 'A fight is already starting.' : 'There is nothing to fight here.'); return; }
   fighting = true; kit = false; if (!WORLDFIGHT) duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
   duelLayer.hidden = false; journalButton.hidden = allegianceButton.hidden = true; if (!WORLDFIGHT) canvas.hidden = true; place.textContent = `${spec.name}: a duel`;
-  renderer.setAnimationLoop(null);
+  if (!WORLDFIGHT) renderer.setAnimationLoop(null);   // ?worldfight never stops the world loop (Dom 2026-10-08): the walk keeps ticking and drawing until the duel takes over the drawing
   document.getElementById('art-status')!.textContent = 'Loading…';
   try {   // a chunk that never arrives must not leave `fighting` set for good: 20 s and the catch below hands the hero back
     await Promise.race([(async () => { duel ??= await import('./pit-duel.ts'); huntMod ??= await import('./hunt.ts'); encDuel ??= await import('./encounter-duel.ts'); hunt ??= huntMod.newHunt(); })(), new Promise((_, no) => setTimeout(() => no(new Error('the fight chunks took over 20 s')), 20000))]);
