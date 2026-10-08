@@ -14,7 +14,7 @@ import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, 
 import { buildFrontier } from './frontier.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
-import { disengageStep, mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
+import { fleeStep, mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
 import { frontierDress } from './frontier-dress.ts';
@@ -466,14 +466,14 @@ function worldToast(text: string) {
   t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:26%;max-width:86vw;z-index:5;padding:8px 14px;text-align:center;font:600 15px/1.35 Georgia,serif;pointer-events:none';
   document.body.append(t); setTimeout(() => t.remove(), 3500);
 }
-// The hero-side disengage: while a world fight runs, the gap to the foe is watched; far enough for long enough ends it silently (leaveFight: no settle, nothing recorded).
+// The hero-side disengage: while a world fight runs, the hero at the circle's wall pushing outward long enough, with the foe far enough, walks out silently (leaveFight: no settle, nothing recorded; mobs.ts fleeStep).
 let awayFor = 0, awayTimer = 0;
 function watchDisengage(run: number) {
   clearInterval(awayTimer); awayFor = 0;
   awayTimer = window.setInterval(() => {
     if (!fighting || run !== fightRun) { clearInterval(awayTimer); return; }
-    const gap = duel?.duelState()?.gap; if (gap === undefined) return;
-    const step = disengageStep(awayFor, gap, 0.25); awayFor = step.away;
+    const s = duel?.duelState(); if (!s) return;
+    const step = fleeStep(awayFor, { x: s.x, z: s.z, radius: s.radius, gap: s.gap, push: s.push }, 0.25); awayFor = step.acc;
     if (step.leave) { clearInterval(awayTimer); leaveFight(); }
   }, 250);
 }

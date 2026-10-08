@@ -268,7 +268,7 @@ function frame(now: number) {
     while (accumulator >= STEP) {
       previous = state;
       const outcome = match.step(() => {
-        const i = controls!.intent();
+        const i = controls!.intent(); lastPush = { x: i.x, z: i.z, yaw: stage!.view.yaw };   // the move intent, for the world layer's run-away rule (mobs.ts fleeStep)
         // A world fight starts drawn: the engage press IS the fight, so the sheathed 'Fight' gate never shows. The draw is the fight's own first input (recorded like any other), taken on the first tick.
         const action = mounted && match!.practice.duel.fighters[0].phase === 'sheathed' ? 'light' : i.action;
         return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
@@ -317,11 +317,12 @@ function frame(now: number) {
 export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.
+let lastPush = { x: 0, z: 0, yaw: 0 };
 export function duelState() {
   const p = match?.practice;
   return p && fight ? {
     opponent: fight.opponent, legend: legendName(fight.opponent, fight.level), level: fight.level, seed: fight.seed, ready: !!stage?.ready, running,
     tick: p.duel.tick, phase: p.phase, playerHealth: p.playerHealth, health: p.health, finish: result ?? p.finish,
-    x: p.fighter.x, z: p.fighter.z, foe: { x: p.enemy.x, z: p.enemy.z }, gap: Math.hypot(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z), seen: Object.fromEntries(seen), menu: !!journal?.open,
+    push: lastPush, radius: RADIUS, x: p.fighter.x, z: p.fighter.z, foe: { x: p.enemy.x, z: p.enemy.z }, gap: Math.hypot(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z), seen: Object.fromEntries(seen), menu: !!journal?.open,
   } : null;
 }

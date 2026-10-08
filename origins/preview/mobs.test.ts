@@ -207,13 +207,18 @@ test('"Back to the fields" takes a tap in a world fight: #leave is in the world 
   assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
 });
 
-test('disengage: farther than 12 m from the foe for 3 s ends the fight; coming back inside 12 m resets the timer; nothing at or inside 12 m ever ends it', async () => {
-  const { DISENGAGE, disengageStep } = await import('./mobs.ts');
-  assert.deepEqual(DISENGAGE, { m: 12, s: 3 });
-  let away = 0, left = false;
-  for (let i = 0; i < 11; i++) { const s = disengageStep(away, 12.5, 0.25); away = s.away; left ||= s.leave; }
-  assert.equal(left, false, 'not yet at 2.75 s');
-  ({ away } = disengageStep(away, 12, 0.25)); assert.equal(away, 0, 'exactly 12 m is inside: the timer resets');
-  for (let i = 0; i < 11; i++) ({ away } = disengageStep(away, 30, 0.25)); assert.equal(disengageStep(away, 30, 0.25).leave, true, '3 s beyond 12 m: out');
-  ({ away } = disengageStep(away, 5, 0.25)); assert.equal(disengageStep(away, 5, 0.25).leave, false, 'back inside: carries on');
+test('run away: at the wall, pushing outward for 1.5 s, with the foe >= 0.6 x the diameter away, ends a world fight (pitborn r 3.79 and the 8.55 circle); nothing short of that does', async () => {
+  const { DISENGAGE_GAP_FRAC, DISENGAGE_PUSH_S, DISENGAGE_WALL_M, fleeStep } = await import('./mobs.ts');
+  assert.deepEqual([DISENGAGE_WALL_M, DISENGAGE_PUSH_S, DISENGAGE_GAP_FRAC], [0.5, 1.5, 0.6]);
+  for (const r of [3.79, 8.55]) {
+    const hero = { x: r - 0.3, z: 0 }, out = { x: 0, z: 1, yaw: -Math.PI / 2 };   // yaw -90 deg: the sim reads (0,1) as +x, straight out through the wall at (r, 0)
+    const at = { ...hero, radius: r, gap: 0.6 * 2 * r, push: out };
+    let acc = 0, left = false; for (let i = 0; i < 5; i++) { const s = fleeStep(acc, at, 0.25); acc = s.acc; left ||= s.leave; }
+    assert.equal(left, false, `r ${r}: 1.25 s is not enough`); assert.equal(fleeStep(acc, at, 0.25).leave, true, `r ${r}: 1.5 s out`);
+    assert.equal(fleeStep(1.4, { ...at, push: { x: 0, z: -1, yaw: -Math.PI / 2 } }, 0.25).acc, 0, 'pushing back in resets');
+    assert.equal(fleeStep(1.4, { ...at, x: r - 1, z: 0 }, 0.25).acc, 0, 'not at the wall resets');
+    assert.equal(fleeStep(1.4, { ...at, gap: 0.6 * 2 * r - 0.1 }, 0.25).acc, 0, 'the foe still too close resets');
+    assert.equal(fleeStep(1.4, { ...at, push: { x: 0, z: 0.1, yaw: -Math.PI / 2 } }, 0.25).acc, 0, 'a tiny push is not a flee');
+  }
+  assert.ok(0.6 * 2 * 3.79 < 7.57, 'reachable for pitborn: the max gap is 7.57 m');
 });

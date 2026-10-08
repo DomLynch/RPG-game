@@ -204,10 +204,16 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   return null;
 }
 
-// Running away from a world fight (Dom 2026-10-08: no fight end, run away = nothing recorded): the hero farther than `m` metres from the foe for `s` seconds walks out of the fight, silently
-// (no settle, no event, no toast). Strategy's numbers (proposed 12 m / 3 s) change here, not in the page. The creature's side (evade, home, heal) is the chase PR.
-export const DISENGAGE = { m: 12, s: 3 };
-export const disengageStep = (away: number, gap: number, dt: number): { away: number; leave: boolean } => {
-  const next = gap > DISENGAGE.m ? away + dt : 0;
-  return { away: next, leave: next >= DISENGAGE.s };
-};
+// Running away from a world fight (Dom 2026-10-08: no fight end, run away = nothing recorded; Strategy's pick (a)+(b), a small replaceable rule until the circle is lifted for world fights): the
+// fight is walled to a circle (pitborn bodies r = 3.79 m, every other Zone 1 body 8.55 m), so a plain distance can never exceed it. Instead: the hero within DISENGAGE_WALL_M of the wall, pushing OUTWARD
+// (stick or run) for DISENGAGE_PUSH_S seconds, with the foe at least DISENGAGE_GAP_FRAC x the circle's diameter away, walks out of the fight silently (no settle, no event, no toast).
+// Strategy's numbers change here, not in the page. The creature's side (evade, home, heal) is the chase PR.
+export const DISENGAGE_WALL_M = 0.5, DISENGAGE_PUSH_S = 1.5, DISENGAGE_GAP_FRAC = 0.6;
+export type FleeInput = { x: number; z: number; radius: number; gap: number; push: { x: number; z: number; yaw: number } };   // x,z: the hero in the circle (centre 0,0); push: the move intent as the sim reads it
+export function fleeStep(acc: number, f: FleeInput, dt: number): { acc: number; leave: boolean } {
+  const d = Math.hypot(f.x, f.z), len = Math.hypot(f.push.x, f.push.z), { yaw } = f.push;
+  const wx = f.push.x * Math.cos(yaw) + f.push.z * Math.sin(yaw), wz = -f.push.x * Math.sin(yaw) + f.push.z * Math.cos(yaw);   // sim.ts advance(): the intent in world axes
+  const outward = d > 0 && len > 0.3 && (wx * f.x + wz * f.z) / (d * len) > 0.5;
+  const next = d >= f.radius - DISENGAGE_WALL_M && outward && f.gap >= DISENGAGE_GAP_FRAC * 2 * f.radius ? acc + dt : 0;
+  return { acc: next, leave: next >= DISENGAGE_PUSH_S };
+}
