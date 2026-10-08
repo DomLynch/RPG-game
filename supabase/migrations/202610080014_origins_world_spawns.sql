@@ -50,7 +50,8 @@ create table public.origins_beta_ledger (
   cp bigint not null default 0 check (cp >= 0),
   bronze bigint not null default 0 check (bronze >= 0),
   reach_status text not null check (reach_status in ('checked', 'unchecked')),
-  at timestamptz not null default now()
+  at timestamptz not null default now(),
+  wiped_at timestamptz   -- set by origins_beta_wipe (0015) when this row's rewards are reversed
 );
 create index origins_beta_ledger_reach on public.origins_beta_ledger (at desc, reach_status);
 create index origins_spawn_engages_open on public.origins_spawn_engages (account, instance) where used_at is null;
