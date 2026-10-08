@@ -145,6 +145,10 @@ Owners: World (building, door, stone placement, zone change), Web (menu entry, b
 Coached PvP duels count on the duel ladder and the rankings exactly like played ones (Dom, 12:2x, answering the "manual-only duel rankings" question).
 3. **Later, parked as a future zone row:** a high-risk PvP zone only the strongest dare enter.
 
+## UI look ruling (Dom, 2026-10-08 12:3x, via Strategy)
+
+Frost Iron colours + Roman lettering (Cinzel for titles and buttons, Alegreya Sans for body text) + Blade Cut shapes. The exact tokens and the reference mock are with Web (`dom-shots-2026-10-08/ui-style-picker.html`). It goes into #1800 first, then every screen through `src/tokens.css` and `docs/DESIGN.md`. **Visual PRs are gated on it: the stills must match this look** (Lead enforces at READY, the Auditor checks).
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
