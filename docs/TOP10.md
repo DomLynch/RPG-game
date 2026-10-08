@@ -138,6 +138,12 @@ Owners: World (building, door, stone placement, zone change), Web (menu entry, b
 
 **Order:** build the menu gear screen and the Next-fight button first, then delete the room, so nothing is lost in between. The Auditor checks that no feature disappears. Web leads; World does the hub boards. In Web's queue right after the alignment pass. The UI/arena donor study is still running; Strategy passes any refinement.
 
+## Coach and gear rulings (Dom 2026-10-08 12:0x, via Strategy; they supersede row 8's pacing and daily-cap questions)
+
+1. **Coach / autopilot is a player choice** (as in Asian MMOs): coached fights reward EXACTLY the same as played fights (CP, loot, bronze, ladder marks), with NO daily cap. The "10 paying fights per day" idea and the "coached Pit marks?" question are deleted. Coached players will lose in real PvP anyway. Web builds the coach screen, labels and Watch again now (#1790); only Combat's LEARN reasons remain. Combat: the coach rewards path; Backend: no cap.
+2. **Gear:** NPC vendors sell good gear, level-gated (you still need the level). The rarest and best gear drops only for PvP-flagged players and from mobs (a flag-on loot-table bonus). Owner: Backend (loot tables, the flag-on rare-loot rule), Characters (the gear), Combat (PvP flag).
+3. **Later, parked as a future zone row:** a high-risk PvP zone only the strongest dare enter.
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
