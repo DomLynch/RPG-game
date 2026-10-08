@@ -2587,6 +2587,8 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 }
 
 /* The Coached tag (TOP10 row 8): one component, the live "tap to play" button while the Coach fights and the plain "Coached win" mark on the end screen. A direct child of the page, NOT of the thumb cluster (the cluster's button rules would make it a round control over the fight buttons): fixed at the top right under the menu, clear of the HUD text and the thumb zone. Only the live state takes pointer events. */
+/* The stance panel (inline-styled, z 20, top 64 / 110 high) sat on the kill screen's tour-stop tap point above the loot panel (row 36: a BUTTON at 195,166): hide it while the kill screen or the take offer is up. */
+:root.endgame-fade #stance-panel, :root:has(#loot-panel[data-on='1']) #stance-panel { display: none !important; }
 .coach-tag { position: fixed; right: max(16px, env(safe-area-inset-right)); top: calc(env(safe-area-inset-top, 0px) + 96px); z-index: 6; width: auto; height: auto; min-height: 32px; margin: 0; padding: 0 var(--s3, 12px); display: inline-flex; align-items: center; border-radius: var(--r-btn, 8px); font: 700 var(--t-12, 12px)/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; color: var(--parchment, #f3e9cf); background: var(--panel, #172329e6); border: 1px solid var(--panel-edge, #e9d9b380); pointer-events: none; }
 .coach-tag[data-live='true'] { pointer-events: auto; cursor: pointer; min-height: var(--touch, 44px); }
 .coach-tag[hidden] { display: none; }
