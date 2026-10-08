@@ -65,11 +65,12 @@ test('call-site pin: the page reaches combat only through zone1.ts stepCombat (s
 });
 
 test('combat events play the creature\'s clips: attack at its tell, hit when it is struck, death once; the body is held until the Death clip has played (2.4 s here, not 1.4)', () => {
-  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 1.2 }]); const kills: number[] = []; let t = 0;
+  const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: number[] = []; let t = 0;   // level 1 and auto-aim, as the kill test above: a level-11 wolf outlasts the test under the Pit-copied engine
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(t); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
-  for (let i = 0; i < 160 && kills.length === 0; i++) { wc.press(); for (let k = 0; k < 15; k++) { wc.update(1 / 30, { x: 0, z: 0, facing: 0 }); t += 1 / 30; } }
+  for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let k = 0; k < 15; k++) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); t += 1 / 30; } }
   const roles = f.played.map((p) => p.split(':')[1]);
   assert.ok(roles.includes('attack'), 'the wolf\'s tell played its Bite'); assert.ok(roles.includes('hit'), 'the cut played Hurt');
   assert.equal(roles.filter((r) => r === 'death').length, 1, 'one Death');
   assert.equal(kills.length, 1, 'then it is released and killed once');
 });
+
