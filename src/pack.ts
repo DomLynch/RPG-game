@@ -4,9 +4,11 @@
 //     from the play circle's far edge, the leader enters last. Waiting members are presentation only, not in the sim.
 //  2. The creature's THREAT LIST (`ThreatList`): who the creature turns on when several players hit it. Donor: AzerothCore ThreatManager (damage adds threat; the current victim changes only when another beats it
 //     by 110 %, casters 130 %; a list cap of 7; suppressed targets are used only when no online one is left). Deterministic: a pure function of the join order and the damage stream, ties go to the earlier joiner.
-import { opponentFighter, stepDuel, type Duel, type Intent } from './duel.ts';
+import type { Practice } from './combat.ts';
+import { idleIntent, opponentFighter, stepDuel, type Duel, type Intent } from './duel.ts';
 import { M } from './detmath.ts';
 import type { Opponent } from './moves.ts';
+import type { RecordGroup } from './record.ts';
 import { RADIUS, type State } from './sim.ts';
 
 export const THREAT_MAX = 7;
@@ -71,18 +73,58 @@ export function nextBout(pack: Pack, duel: Duel, fled = false): { pack: Pack; du
 
 // ---- N attackers on one creature: parallel ordinary duels, ONE shared health pool (RV39; docs/specs/combat/threat-list.md "Decision") -------------------------------------------------------------------
 // Each attacker fights their own Pit duel against their own copy of the creature; a copy attacks only its own attacker. The pool is shared by the one sim hook there is: Duel.incoming, the damage the OTHER streams dealt
-// last tick, which lands on this copy after its own blows (one tick of latency, identical live and on replay). A stream cannot be judged without its siblings, so a group is 2..THREAT_MAX streams and nothing else.
-export type StreamGroup = { duels: readonly Duel[]; carry: readonly number[] };
-export const startStreams = (duels: readonly Duel[]): StreamGroup => {
-  if (duels.length < 2 || duels.length > THREAT_MAX) throw RangeError(`Streams: a shared-health group is 2..${THREAT_MAX} duels (a lone stream is the ordinary fight, and cannot be verified without its siblings)`);
-  return { duels, carry: duels.map(() => 0) };
+// last tick, which lands on this copy after its own blows (one tick of latency, identical live and on replay). Per-copy state that is not health (posture, poise, stagger, stance mood, a boss special) is per stream on
+// purpose: each attacker fights the creature they see, and a special fires once per stream. Every stream's record carries what it was fed (the incoming list) and when it was held idle, so each verifies ALONE.
+export const TOKENS = 3;   // attack tokens: at most this many copies attack at once (Dom: 3-4 active); the rest are HELD, idle in the sim, and the hold is recorded
+export type StreamLog = { incoming: [number, number][]; held: [number, number][]; dealt: [number, number][] };   // dealt: (tick, damage this attacker put on the creature), the ledger groupKill reads; it is not in the record (the replay re-derives it)
+export type StreamGroup = { duels: readonly Duel[]; carry: readonly number[]; tokens: number; logs: readonly StreamLog[] };
+export const startStreams = (duels: readonly Duel[], tokens = TOKENS): StreamGroup => {
+  if (duels.length < 2 || duels.length > THREAT_MAX) throw RangeError(`Streams: a shared-health group is 2..${THREAT_MAX} duels (a lone stream is the ordinary fight)`);
+  return { duels, carry: duels.map(() => 0), tokens, logs: duels.map(() => ({ incoming: [], held: [], dealt: [] })) };
 };
 // Damage this tick's blows put on the creature (side 1) by its attacker: blows and landed specials. SharedHit is the pool's own delivery and never counts, or the streams would feed each other forever.
-const dealtOn = (d: Duel): number => d.events.reduce((sum, e) => (e.tick === d.tick && e.target === 1 && e.actor === 0 && (e.type === 'Hit' || e.type === 'SpecialLanded') ? sum + (e.damage ?? 0) : sum), 0);
-export function stepStreams(group: StreamGroup, intents: readonly (readonly [Intent, Intent])[]): StreamGroup {
-  if (intents.length !== group.duels.length) throw RangeError('Streams: one intent pair per stream');
-  const stepped = group.duels.map((d, i) => (d.finish ? d : stepDuel(group.carry[i] ? { ...d, incoming: group.carry[i] } : d, [intents[i]![0], intents[i]![1]])));
+export const dealtOn = (d: Duel): number => d.events.reduce((sum, e) => (e.tick === d.tick && e.target === 1 && e.actor === 0 && (e.type === 'Hit' || e.type === 'SpecialLanded') ? sum + (e.damage ?? 0) : sum), 0);
+// One tick for every stream. `foe[i]` is stream i's creature-copy intent from its AI; a copy outside the first `tokens` unfinished streams (join order) is held idle. A stream whose player has dropped passes an idle
+// intent and KEEPS stepping (Dom: no escape by disconnecting): it is never removed, which would change the others' incoming.
+export function stepStreams(group: StreamGroup, player: readonly Intent[], foe: readonly Intent[]): StreamGroup {
+  const n = group.duels.length;
+  if (player.length !== n || foe.length !== n) throw RangeError('Streams: one player and one creature intent per stream');
+  let granted = 0;
+  const held = group.duels.map((d) => (d.finish ? false : granted++ >= group.tokens));
+  const stepped = group.duels.map((d, i) => (d.finish ? d : stepDuel(group.carry[i] ? { ...d, incoming: group.carry[i] } : d, [player[i]!, held[i] ? idleIntent() : foe[i]!])));
   const dealt = stepped.map((d, i) => (d === group.duels[i] ? 0 : dealtOn(d)));
   const total = dealt.reduce((a, b) => a + b, 0);
-  return { duels: stepped, carry: dealt.map((own) => total - own) };
+  const logs = group.logs.map((log, i): StreamLog => {
+    const tick = stepped[i]!.tick, spans = log.held;
+    const last = spans[spans.length - 1];
+    return {
+      dealt: dealt[i] ? [...log.dealt, [tick, dealt[i]!]] : log.dealt,
+      incoming: group.carry[i] && stepped[i] !== group.duels[i] ? [...log.incoming, [tick, group.carry[i]!]] : log.incoming,
+      held: !held[i] ? spans : last && last[1] === tick ? [...spans.slice(0, -1), [last[0], tick + 1]] : [...spans, [tick, tick + 1]],
+    };
+  });
+  return { ...group, duels: stepped, carry: dealt.map((own) => total - own), logs };
 }
+// What stream i's record carries in its header.
+export const streamRecordGroup = (group: StreamGroup, index: number): RecordGroup => ({ n: group.duels.length, index, incoming: group.logs[index]!.incoming, held: group.logs[index]!.held });
+
+// ONE kill and one payout per creature (Auditor, hole 2). The pool is the creature's bar minus EVERYONE's damage; the kill is the hit that takes the running total to zero, hits of one tick taken in join order (lowest
+// index first). That stream is the killer even when every copy fell to SharedHit damage a tick later (two simultaneous hits that leave each copy above zero). Null while the pool stands.
+export function groupKill(group: StreamGroup): number | null {
+  const bar = group.duels[0]!.fighters[1].maxHealth;
+  const hits = group.logs.flatMap((log, index) => log.dealt.map(([tick, damage]) => ({ tick, index, damage }))).sort((a, b) => a.tick - b.tick || a.index - b.index);
+  let total = 0;
+  for (const h of hits) { total += h.damage; if (total >= bar) return h.index; }
+  return null;
+}
+
+// ---- replaying ONE stream from its own record (src/replay.ts) ----------------------------------------------------------------------------
+const incomingMaps = new WeakMap<RecordGroup, { incoming: Map<number, number> }>();
+const incomingOf = (g: RecordGroup): Map<number, number> => { let m = incomingMaps.get(g); if (!m) incomingMaps.set(g, m = { incoming: new Map(g.incoming) }); return m.incoming; };
+export const withIncoming = (practice: Practice, g: RecordGroup, tick: number): Practice => {
+  const amount = incomingOf(g).get(tick);
+  return amount ? { ...practice, duel: { ...practice.duel, incoming: amount } } : practice;
+};
+// The recorded hold: the creature copy's intent is forced idle on those ticks, exactly as the live layer did.
+export const groupLayer = (g: RecordGroup, tick: number): ((duel: Duel, warden: Intent) => Intent) | undefined =>
+  g.held.some(([from, to]) => tick >= from && tick < to) ? () => idleIntent() : undefined;

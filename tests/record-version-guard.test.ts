@@ -23,7 +23,7 @@ import type { OpponentId } from '../src/roster.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/detmath.ts', 'src/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
-const SIM_DIGEST = '7b36f54e90bf7b95f49399ddbaef5ec88b39eba394df8998ae6f079b6d5e8859';   // RV39 (2026-10-08, N attackers on one creature: duel.ts Duel.incoming / SharedHit, the group flag in record.ts; a duel without incoming and an ungrouped record are byte for byte as v38, tests/streams.test.ts and tests/record-group.test.ts)
+const SIM_DIGEST = '4f2f742651dfa5e664980a4ce422705b7f32cd5e5f115331f2c7ceec504210c0';   // RV39 (2026-10-08, N attackers on one creature: duel.ts Duel.incoming / SharedHit, the group flag in record.ts; a duel without incoming and an ungrouped record are byte for byte as v38, tests/streams.test.ts and tests/record-group.test.ts)
 const PINNED_FOR_VERSION = 39;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
