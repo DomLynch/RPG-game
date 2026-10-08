@@ -26,7 +26,7 @@ try {
     await page.addInitScript((on) => { try { localStorage.setItem('frankendom.coach', on ? '1' : '0'); } catch { /* blocked */ } }, coachOn);
     page.on('pageerror', (e) => console.log('pageerror:', e.message));
     await page.goto(`${server.origin}/?debug`);
-    await page.waitForFunction(() => document.querySelector('#attack-button') && !document.querySelector('#attack-button').getAttribute('aria-disabled'), null, { timeout: 240000, polling: 300 }).catch(() => console.log('attack never enabled'));
+    await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') !== 'true' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 240000, polling: 300 }).catch(() => console.log('attack never enabled'));
     await page.addStyleTag({ content: '#debug{display:none!important}' });
     const clock = await harnessClock(page), tag = `${width}-${coachOn ? 'after' : 'before'}`;
     for (let f = 0; f < 200; f++) { if (f === 0) await (mobile ? page.locator('#attack-button').tap({ force: true, timeout: 3000 }) : page.locator('#attack-button').click({ force: true, timeout: 3000 })).catch(() => {}); await skipDraws(page, f < 199); await clock.run(16); }
