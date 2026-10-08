@@ -40,7 +40,7 @@ test('the DUEL gate has its own attribute: lobby.ts writes its two-page probe JS
   for (const [name, text] of [['account.ts', read('../src/account.ts')], ['main.ts', main], ['style.css', read('../src/style.css')]]) assert.doesNotMatch(text.replace(/duel-tools|duelTools/g, ''), /(dataset\.duel\s*=\s*(String|'true')|\[data-duel=)/, `${name} does not gate DUEL on the probe's attribute`);
 });
 
-test('the end screen is one bottom-anchored right-hand column: LINK + CLIP above Enter the Pit above Next, no loot-panel override', () => {
+test('the end screen is one bottom-anchored right-hand column: LINK + CLIP above Next, no loot-panel override', () => {
   const css = read('../src/style.css');
   assert.match(css, /\.actions\[data-gestures=cluster\] \.clip-pick \{ position: fixed; top: auto; left: auto; bottom: calc\(var\(--end-base\) \+ 112px\); \}/, 'the icon row sits 112 px above the base, on the column');
   assert.doesNotMatch(css, /:root:has\(#loot-panel\[data-on='1'\]\)[^{]*\.clip-pick/, 'no loot-panel override moves LINK/CLIP mid-screen any more');
