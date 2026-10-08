@@ -6,6 +6,7 @@
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
 import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type WeaponId } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
+import { asStance, stanced, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 
 const TICK = 1 / 60;
@@ -60,6 +61,7 @@ export type Fighter = {
   hunting: boolean; chaseX: number; chaseZ: number;     // creature only: it is on a chase that STARTED at (chaseX, chaseZ); the leash is measured from there
   unseen: number;                                       // creature only: seconds the prey has been out of sight
   attack: number; res: number;                          // damage multipliers (src/gear-stats.ts Loadout): `attack` scales what it deals, `res` what it takes, chip included; a creature's `attack` is its level's damage
+  stance?: StanceId;                                    // src/stance.ts: the Pit's table, read through `stanced` (absent = Balanced, the unscaled value untouched)
   pvp: boolean; level: number; shielded: boolean;       // player only: attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
   plan: string | null;                                  // creature only: the variety blow rolled for its next attack ('basic' = none), null until rolled
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
@@ -91,6 +93,8 @@ export function creature(id: string, kind: string, x: number, z: number, facing 
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
   return { ...fighter(id, 'creature', kind, x, z, facing, PLAYER_RADIUS * o.scale, Math.round(o.health * levelHealth(level)), o.poise, o.weapon), attack: levelDamage(level) };
 }
+/** A fighter with a picked stance ('neutral' = Balanced = none). The same four picks and the same signed per-mille table as the Pit (src/stance.ts), one kit everywhere. */
+export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, stance: asStance(pick) });
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
@@ -137,7 +141,9 @@ function hurt(a: Fighter, v: Fighter, damage: number, events: Event[]): boolean 
 }
 
 function land(a: Fighter, v: Fighter, row: MoveDef, events: Event[]): void {
-  const move = a.attack === 1 && v.res === 1 ? row : { ...row, damage: Math.round(row.damage * a.attack * v.res) };   // gear and level scale the damage (chip follows it); posture and timings are untouched
+  const sd = Math.round(stanced(a, 'damage', row.charges ? stanced(a, 'heavyDamage', row.damage) : row.damage));   // the attacker's stance (aggressive +5 %, defensive -5 %, trickster -5 % on heavies)
+  const kickOnGuard = row.id === 'kick' && v.phase === 'guard', dealtPosture = kickOnGuard ? stanced(a, 'kickPosture', stanced(a, 'posture', row.posture)) : stanced(a, 'posture', row.posture);
+  const move = a.attack === 1 && v.res === 1 && sd === row.damage && dealtPosture === row.posture ? row : { ...row, damage: Math.round(sd * a.attack * v.res), posture: dealtPosture };   // stance, gear and level scale damage (chip follows it) and posture dealt; timings are untouched
   if (invulnerable(v)) { events.push({ type: 'Dodged', attacker: a.id, victim: v.id }); return; }
   if (move.vsGuard && v.phase === 'guard') {   // a kick goes through a standing guard: a little damage, the guard's stamina, a long stagger
     events.push({ type: 'Hit', attacker: a.id, victim: v.id, damage: move.damage, move: move.id });
@@ -146,11 +152,11 @@ function land(a: Fighter, v: Fighter, row: MoveDef, events: Event[]): void {
     return;
   }
   if (v.phase === 'guard' && !move.breaksGuard && covered(v, a)) {   // a frontal block: no damage but the row's chip; the stamina and posture it costs are the row's own
-    const perfect = v.t < secs(RULES.perfectBlock), chip = Math.round(move.damage * move.chip);
+    const perfect = v.t < secs(Math.round(stanced(v, 'window', RULES.perfectBlock))), chip = Math.round(move.damage * move.chip);
     events.push({ type: 'Blocked', attacker: a.id, victim: v.id, perfect, damage: chip });
     if (perfect && a.side === 'creature' && a.plan === 'basic' && alive(a)) stagger(a, PARRY_STAGGER_S * 60, 'parry', events);   // a parry: the creature's plain blow is turned aside and it staggers
     if (chip > 0 && hurt(a, v, chip, events)) return;
-    spend(v, move.staminaDamage * (perfect ? RULES.perfectBlockCost : 1));
+    spend(v, stanced(v, 'block', move.staminaDamage) * (perfect ? RULES.perfectBlockCost : 1));
     addPosture(v, move.posture * (perfect ? RULES.posture.perfect : 1), events);
     if (v.phase === 'guard' && v.stamina <= 0) { v.stamina = 0; stagger(v, RULES.posture.stun, 'guardBreak', events); }   // the guard gave out
     return;
@@ -183,7 +189,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (f.pause > 0) f.pause = Math.max(0, f.pause - dt);
     if (f.regenIn > 0) f.regenIn = Math.max(0, f.regenIn - dt);
     f.postureIdle += dt;
-    if (f.postureIdle >= secs(RULES.posture.hold) && f.posture > 0) f.posture = Math.max(0, f.posture - RULES.posture.decay * 60 * dt);
+    if (f.postureIdle >= secs(RULES.posture.hold) && f.posture > 0) f.posture = Math.max(0, f.posture - stanced(f, 'recover', RULES.posture.decay) * 60 * dt);
     const input = f.side === 'player' ? inputs[f.id] : undefined;
     const idle = f.phase === 'ready' || f.phase === 'guard';
     if (f.exhausted && f.stamina >= RULES.exhaustRecover) f.exhausted = false;

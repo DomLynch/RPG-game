@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
 import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { BLOW_WEIGHT, MAX_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { BLOW_WEIGHT, MAX_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const NEVER = () => 1, ALWAYS = () => 0, DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -384,4 +384,37 @@ test('pvp: hitting back is not "first" (inside the window); a creature\'s blows 
   assert.deepEqual(e, { type: 'Aggressed', attacker: 'b', victim: 'a', first: false });
   const cw = newWorld([player('p', 0, 0, 0, undefined, 1), creature('c', 'wolf', 0, 1.2)]);   // pvp false, level 1, shielded: creatures still fight him
   assert.ok(run(cw, 3).events.some((x) => x.type === 'Hit' && x.victim === 'p'), 'a shielded player is not shielded from creatures');
+});
+
+// ---- S5a: stances (the Pit's table, src/stance.ts, read through stanced) ----
+test('stances: the Pit table applies in the open - aggressive +5 % damage, defensive -5 %, trickster -5 % on heavies; Balanced is the unscaled value', () => {
+  const hit = (pick: 'neutral' | 'aggressive' | 'defensive' | 'trickster', attack: 'light' | 'heavy') => {
+    const t = creature('w', 'boar', 0, 1.2); t.phase = 'stagger'; t.hurtFor = 99;
+    const e = run(newWorld([withStance(player('p', 0, 0), pick), t]), 2, (k) => (k === 0 ? { x: 0, z: 0, attack } : STILL)).events.find((x) => x.type === 'Hit' && x.attacker === 'p');
+    return e && e.type === 'Hit' ? e.damage : 0;
+  };
+  const light = MOVES.light_right.damage, heavy = MOVES.heavy_overhead.damage;
+  assert.equal(hit('neutral', 'light'), light); assert.equal(hit('neutral', 'heavy'), heavy);
+  assert.equal(hit('aggressive', 'light'), Math.round(light * 1.05)); assert.equal(hit('defensive', 'light'), Math.round(light * 0.95));
+  assert.equal(hit('trickster', 'light'), light, 'trickster leaves a light cut alone'); assert.equal(hit('trickster', 'heavy'), Math.round(heavy * 0.95));
+});
+
+test('stances: a defensive block costs 15 % less stamina and its parry window is a quarter longer; aggressive blocks cost 10 % more and deal 10 % more posture', () => {
+  const blocked = (pick: 'neutral' | 'aggressive' | 'defensive', who: 'att' | 'def') => {
+    const a = withStance(player('a', 0, 0, 0, undefined, 10), who === 'att' ? pick : 'neutral'), b = withStance(player('b', 0, 1.2, Math.PI, undefined, 10), who === 'def' ? pick : 'neutral');
+    a.pvp = b.pvp = true; let w = newWorld([a, b]); let lost = 0, posture = 0;
+    for (let t = 0; t < 90; t++) {
+      const bb = get(w, 'b'), r = stepCombat(w, { a: t === 0 ? { x: 0, z: 0, attack: 'light' } : STILL, b: { x: 0, z: 0, guard: true } }, DT, NEVER); w = r.world;
+      if (r.events.some((e) => e.type === 'Blocked')) { lost = bb.stamina - get(w, 'b').stamina; posture = get(w, 'b').posture; break; }
+    }
+    return { lost, posture };
+  };
+  assert.ok(blocked('defensive', 'def').lost < blocked('neutral', 'def').lost, 'defensive blocks cheaper');
+  assert.ok(blocked('aggressive', 'def').lost > blocked('neutral', 'def').lost, 'aggressive blocks dearer');
+  assert.ok(blocked('aggressive', 'att').posture > blocked('neutral', 'att').posture, 'aggressive deals more posture');
+});
+
+test('stances: Balanced / no stance is byte for byte the stance-less step', () => {
+  const mk = (pick?: 'neutral') => { let w = newWorld([pick ? withStance(player('p', 0, 0), pick) : player('p', 0, 0), creature('c', 'wolf', 0, 1.3)]); const out: string[] = []; for (let t = 0; t < 240; t++) { const r = stepCombat(w, { p: t % 90 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT, NEVER); w = r.world; out.push(JSON.stringify(r.events)); } return JSON.stringify(w.fighters) + out.join(); };
+  assert.equal(mk('neutral'), mk());
 });
