@@ -144,17 +144,17 @@ try {
   const others = () => psql(`select md5(coalesce(string_agg(row_to_json(i)::text, '|' order by i.id), '')) from public.origins_items i where i.id <> 'it-beta-1'`) + '/' +
     psql(`select md5(row_to_json(c)::text) from public.origins_career c where account = '${B}'`) + '/' + psql(`select count(*) from public.origins_events`);
   const careerA = () => psql(`select world_credit || '/' || seed_credit || '/' || version from public.origins_career where account = '${A}'`);
-  const before = { others: others(), career: careerA(), bronze: psql(`select bronze from public.origins_metal where account = '${A}'`) };
+  const pre = { others: others(), career: careerA(), bronze: psql(`select bronze from public.origins_metal where account = '${A}'`) };
   eq(await code(V, `select public.origins_beta_wipe();`), 'permission denied', 'wipe: the verifier role cannot run it');
   eq(await code(O, `select public.origins_beta_wipe();`), 'permission denied', 'wipe: the origins role cannot run it');
   const w1 = JSON.parse(psql(`select public.origins_beta_wipe()::text`));
   eq([w1.items_burned, w1.items_skipped, w1.bronze_reversed, w1.cp_reversed, w1.rows], [1, 0, 7, 30, 2], 'wipe: one item, 7 bronze, 30 CP, both ledger rows of A');
   eq(psql(`select retire_reason from public.origins_items where id = 'it-beta-1'`), 'burn', 'wipe: the beta item is retired as a burn');
   eq(psql(`select count(*) from public.origins_item_ledger where item_id = 'it-beta-1' and reason = 'burn'`), '1', 'wipe: the item ledger books the burn');
-  eq(psql(`select bronze from public.origins_metal where account = '${A}'`), String(Number(before.bronze) - 7), 'wipe: the beta bronze is spent back');
-  const [wc, seed, ver] = before.career.split('/').map(Number);
+  eq(psql(`select bronze from public.origins_metal where account = '${A}'`), String(Number(pre.bronze) - 7), 'wipe: the beta bronze is spent back');
+  const [wc, seed, ver] = pre.career.split('/').map(Number);
   eq(careerA(), `${wc - 30}/${seed}/${ver + 1}`, 'wipe: CP reversed, the seed untouched, version + 1 (a writer holding the old version goes stale)');
-  eq(others(), before.others, 'wipe: every other item, the other account\'s career and every event are byte-identical');
+  eq(others(), pre.others, 'wipe: every other item, the other account\'s career and every event are byte-identical');
   eq(psql(`select count(*) from public.origins_beta_ledger where wiped_at is null`), '0', 'wipe: every ledger row is marked');
   eq(JSON.parse(psql(`select public.origins_beta_wipe()::text`)).rows, 0, 'wipe: a second run reverses nothing');
   psql(readFileSync(join(dir, '..', 'down', '202610080015_origins_beta_wipe_down.sql'), 'utf8'));
