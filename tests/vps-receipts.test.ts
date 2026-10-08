@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -16,9 +17,10 @@ const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', job: 'J1', sha, scrip
 // What `hf jobs inspect` says about the job a receipt names (the flavor comes from here, never from the receipt).
 const jobs = (flavor = 'cpu-upgrade', over = {}, kind = 'rows') => ({ J1: { id: 'J1', flavor, status: { stage: 'COMPLETED' }, environment: { SHA: sha }, command: jobCommand(kind, sha), ...over } });
 const JOBS = jobs();
+const TREES = { [sha]: tree };   // `git rev-parse <receipt.sha>^{tree}` for the receipt's commit
 
 test('a VPS pass for the deployed tree is trusted for virtual-clock and no-browser rows only: never WebKit, never wall-clock', () => {
-  const trusted: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS);
+  const trusted: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   assert.ok(trusted.length > 0 && trusted.length < commands.length);
   // Stricter than the per-file label: the imports are read too, so a trusted row is never a wall or WebKit row by the plain label either.
   for (const row of rows) {
@@ -28,16 +30,16 @@ test('a VPS pass for the deployed tree is trusted for virtual-clock and no-brows
 });
 
 test('nothing is trusted for another tree, a failed or dirty build, a failed row, or a row whose command changed', () => {
-  assert.deepEqual(trustedFromVps(receipt(), 'b'.repeat(40), commands, source, sums, JOBS), []);
-  assert.deepEqual(trustedFromVps(receipt(), 'short', commands, source, sums, JOBS), []);
-  assert.deepEqual(trustedFromVps(receipt({ buildStatus: 1 }), tree, commands, source, sums, JOBS), []);
-  assert.deepEqual(trustedFromVps(receipt({ dirty: 2 }), tree, commands, source, sums, JOBS), []);
-  assert.deepEqual(trustedFromVps(null, tree, commands, source, sums, JOBS), []);
-  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS);
+  assert.deepEqual(trustedFromVps(receipt(), 'b'.repeat(40), commands, source, sums, JOBS, TREES), []);
+  assert.deepEqual(trustedFromVps(receipt(), 'short', commands, source, sums, JOBS, TREES), []);
+  assert.deepEqual(trustedFromVps(receipt({ buildStatus: 1 }), tree, commands, source, sums, JOBS, TREES), []);
+  assert.deepEqual(trustedFromVps(receipt({ dirty: 2 }), tree, commands, source, sums, JOBS, TREES), []);
+  assert.deepEqual(trustedFromVps(null, tree, commands, source, sums, JOBS, TREES), []);
+  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   const failed = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === base[0] ? 'fail' : 'pass', exit: r.index === base[0] ? 1 : undefined })) });
-  assert.ok(!trustedFromVps(failed, tree, commands, source, sums, JOBS).includes(base[0]));
+  assert.ok(!trustedFromVps(failed, tree, commands, source, sums, JOBS, TREES).includes(base[0]));
   const edited = receipt({ rows: rows.map((r: Row) => ({ ...r, status: 'pass', exit: 0, command: r.index === base[0] ? `${r.command} --x` : r.command })) });
-  assert.ok(!trustedFromVps(edited, tree, commands, source, sums, JOBS).includes(base[0]));
+  assert.ok(!trustedFromVps(edited, tree, commands, source, sums, JOBS, TREES).includes(base[0]));
 });
 
 test('deploy.sh applies the VPS receipts before the Mac rows, opt-in', () => {
@@ -48,7 +50,7 @@ test('deploy.sh applies the VPS receipts before the Mac rows, opt-in', () => {
 
 test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launch + clock.resume) are not trusted; a missing script is not trusted', () => {
   const byName = (name: string) => commands.findIndex(c => c.join(' ').includes(name)) + 1;
-  const trusted: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS);
+  const trusted: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   for (const name of ['roster-browser-check', 'double-tap-browser-check', 'sparring-browser-check', 'next-fight-black-check']) {
     const index = byName(name);
     assert.ok(index > 0, `${name} is a release row`);
@@ -59,61 +61,74 @@ test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launc
 
 test('a receipt is refused unless its HF job verifies (completed, allowed flavor, the run sha, the canonical command) and its runner checksums match the deploy tree', () => {
   for (const bad of [{ scripts: undefined }, { scripts: { ...sums, 'rows-lib.mjs': 'x'.repeat(64) } }, { job: 'J2' }, { job: undefined }, { sha: 'f'.repeat(40) }]) {
-    assert.deepEqual(trustedFromVps(receipt(bad), tree, commands, source, sums, JOBS), [], JSON.stringify(bad).slice(0, 60));
+    assert.deepEqual(trustedFromVps(receipt(bad), tree, commands, source, sums, JOBS, TREES), [], JSON.stringify(bad).slice(0, 60));
   }
-  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, undefined, JOBS), [], 'no own checksums to compare = not trusted');
+  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, undefined, JOBS, TREES), [], 'no own checksums to compare = not trusted');
   assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, {}), [], 'no job record = not trusted');
-  assert.deepEqual(trustedFromVps(receipt({ flavor: 't4-medium' }), tree, commands, source, sums, jobs('a10g-small')), [], 'a self-declared flavor is ignored; the refused GPU job is not trusted');
-  assert.deepEqual(trustedFromVps(receipt({ flavor: 't4-medium' }), tree, commands, source, sums, jobs('vps-cpu')), [], 'the VPS is not a receipt source');
-  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { status: { stage: 'RUNNING' } })), [], 'only a COMPLETED job');
-  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { environment: { SHA: 'f'.repeat(40) } })), [], 'the job env SHA must be the run sha');
-  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { command: ['bash', '-c', `echo SHA=${sha}; exit 0`] })), [], 'a job running some other script is not a receipt');
-  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', {}, 'unit')), [], 'the unit job command is not a rows job command');
+  assert.deepEqual(trustedFromVps(receipt({ flavor: 't4-medium' }), tree, commands, source, sums, jobs('a10g-small'), TREES), [], 'a self-declared flavor is ignored; the refused GPU job is not trusted');
+  assert.deepEqual(trustedFromVps(receipt({ flavor: 't4-medium' }), tree, commands, source, sums, jobs('vps-cpu'), TREES), [], 'the VPS is not a receipt source');
+  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { status: { stage: 'RUNNING' } }), TREES), [], 'only a COMPLETED job');
+  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { environment: { SHA: 'f'.repeat(40) } }), TREES), [], 'the job env SHA must be the run sha');
+  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { command: ['bash', '-c', `echo SHA=${sha}; exit 0`] }), TREES), [], 'a job running some other script is not a receipt');
+  assert.deepEqual(trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', {}, 'unit'), TREES), [], 'the unit job command is not a rows job command');
   // Only the INSPECTED t4-medium may cover wall-clock rows, never WebKit; the cpu flavor never covers wall rows.
-  const cpu: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade'));
-  const t4: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('t4-medium'));
+  const cpu: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade'), TREES);
+  const t4: number[] = trustedFromVps(receipt(), tree, commands, source, sums, jobs('t4-medium'), TREES);
   assert.ok(t4.length > cpu.length && cpu.every(i => t4.includes(i)));
   for (const name of ['double-tap-browser-check', 'next-fight-black-check']) assert.ok(!t4.includes(commands.findIndex((c: string[]) => c.join(' ').includes(name)) + 1), `${name}: WebKit stays on the Mac`);
 });
 
+test('the receipt sha is bound to the deploy tree: a completed canonical job on an OLDER sha with a forged receipt.tree is refused (rows and unit)', () => {
+  const old = 'a1'.repeat(20), oldTree = 'b2'.repeat(20);
+  const forged = receipt({ sha: old, tree });   // claims the deploy tree, but the commit it ran has another one
+  const J = { J1: { ...jobs('cpu-upgrade', { environment: { SHA: old }, command: jobCommand('rows', old) }).J1 } };
+  assert.deepEqual(trustedFromVps(forged, tree, commands, source, sums, J, { [old]: oldTree }), []);
+  assert.deepEqual(trustedFromVps(forged, tree, commands, source, sums, J, {}), [], 'unknown commit = fail closed');
+  assert.ok(trustedFromVps(forged, tree, commands, source, sums, J, { [old]: tree }).length > 0, 'a candidate commit with the same tree is fine');
+  const U = { J1: { ...jobs('cpu-upgrade', { environment: { SHA: old }, command: jobCommand('unit', old) }).J1 } };
+  const unit = { kind: 'vps-unit-suite', job: 'J1', sha: old, tree, node: 'v24', pass: 5, fail: 0, exit: 0, scripts: { 'run-unit.sh': 'u'.repeat(64) } };
+  assert.equal(unitReceiptOk(unit, tree, { 'run-unit.sh': 'u'.repeat(64) }, U, { [old]: oldTree }), false);
+  assert.equal(unitReceiptOk(unit, tree, { 'run-unit.sh': 'u'.repeat(64) }, U, { [old]: tree }), true);
+});
+
 test('strict row parse: only status pass AND exit exactly 0 counts (missing, null, -1, 1 never pass)', () => {
-  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS);
+  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   const target = base[0];
   for (const exit of [undefined, null, -1, 1, '0']) {
     const r = receipt({ rows: rows.map((row: Row) => ({ ...row, status: 'pass', exit: row.index === target ? exit : 0 })) });
-    assert.ok(!trustedFromVps(r, tree, commands, source, sums, JOBS).includes(target), `exit ${String(exit)}`);
+    assert.ok(!trustedFromVps(r, tree, commands, source, sums, JOBS, TREES).includes(target), `exit ${String(exit)}`);
   }
 });
 
 test('a FAIL for a row in ANY receipt for the tree vetoes it, even when another shard passed it', () => {
-  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS);
+  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   const failing = receipt({ rows: rows.filter((r: Row) => r.index === base[0]).map((r: Row) => ({ ...r, status: 'fail', exit: 1 })) });
-  const merged: number[] = trustedFromShards([receipt(), failing], tree, commands, source, sums, JOBS);
+  const merged: number[] = trustedFromShards([receipt(), failing], tree, commands, source, sums, JOBS, TREES);
   assert.ok(!merged.includes(base[0]) && merged.length === base.length - 1);
-  assert.deepEqual(trustedFromShards([failing, receipt()], tree, commands, source, sums, JOBS), merged, 'order does not matter');
+  assert.deepEqual(trustedFromShards([failing, receipt()], tree, commands, source, sums, JOBS, TREES), merged, 'order does not matter');
 });
 
 test('N shard receipts for one tree: each row once, a shard of another tree adds nothing', () => {
-  const all: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS);
+  const all: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   const half = (keep: (i: number) => boolean) => receipt({ rows: rows.filter((r: Row) => keep(r.index)).map((r: Row) => ({ ...r, status: 'pass', exit: 0 })) });
-  const merged: number[] = trustedFromShards([half(i => i % 2 === 0), half(i => i % 2 === 1), half(() => true)], tree, commands, source, sums, JOBS);
+  const merged: number[] = trustedFromShards([half(i => i % 2 === 0), half(i => i % 2 === 1), half(() => true)], tree, commands, source, sums, JOBS, TREES);
   assert.deepEqual(merged, all);
-  assert.deepEqual(trustedFromShards([receipt({ tree: 'c'.repeat(40) })], tree, commands, source, sums, JOBS), []);
+  assert.deepEqual(trustedFromShards([receipt({ tree: 'c'.repeat(40) })], tree, commands, source, sums, JOBS, TREES), []);
 });
 
 test('the unit-suite receipt needs this tree, zero failures, an integer pass count, a verified unit job and a matching run-unit.sh checksum', () => {
   const unit = (over = {}) => ({ kind: 'vps-unit-suite', job: 'J1', sha, tree, node: 'v24', pass: 2961, fail: 0, exit: 0, scripts: { 'run-unit.sh': 'u'.repeat(64) }, ...over });
   const own = { 'run-unit.sh': 'u'.repeat(64) }, J = jobs('cpu-upgrade', {}, 'unit');
-  assert.equal(unitReceiptOk(unit(), tree, own, J), true);
+  assert.equal(unitReceiptOk(unit(), tree, own, J, TREES), true);
   for (const bad of [{ tree: 'd'.repeat(40) }, { fail: 1 }, { exit: 1 }, { pass: 0 }, { pass: 1.5 }, { pass: '2961' }, { pass: null }, { job: 'J2' }, { job: undefined }, { sha: 'f'.repeat(40) }, { scripts: { 'run-unit.sh': 'z'.repeat(64) } }, { kind: 'vps-shadow-rows' }]) {
-    assert.equal(unitReceiptOk(unit(bad), tree, own, J), false, JSON.stringify(bad));
+    assert.equal(unitReceiptOk(unit(bad), tree, own, J, TREES), false, JSON.stringify(bad));
   }
-  assert.equal(unitReceiptOk(null, tree, own, J), false);
-  assert.equal(unitReceiptOk(unit(), tree, {}, J), false);
-  assert.equal(unitReceiptOk(unit(), tree, own, {}), false, 'no job record');
-  assert.equal(unitReceiptOk(unit(), tree, own, jobs('a10g-small', {}, 'unit')), false, 'refused flavor');
-  assert.equal(unitReceiptOk(unit(), tree, own, jobs('cpu-upgrade', {}, 'rows')), false, 'the rows job command is not the unit job command');
-  assert.equal(unitReceiptOk(unit(), tree, own, jobs('cpu-upgrade', { command: ['bash', '-c', 'exit 0'] }, 'unit')), false, 'another script under the same SHA');
+  assert.equal(unitReceiptOk(null, tree, own, J, TREES), false);
+  assert.equal(unitReceiptOk(unit(), tree, {}, J, TREES), false);
+  assert.equal(unitReceiptOk(unit(), tree, own, {}, TREES), false, 'no job record');
+  assert.equal(unitReceiptOk(unit(), tree, own, jobs('a10g-small', {}, 'unit'), TREES), false, 'refused flavor');
+  assert.equal(unitReceiptOk(unit(), tree, own, jobs('cpu-upgrade', {}, 'rows'), TREES), false, 'the rows job command is not the unit job command');
+  assert.equal(unitReceiptOk(unit(), tree, own, jobs('cpu-upgrade', { command: ['bash', '-c', 'exit 0'] }, 'unit'), TREES), false, 'another script under the same SHA');
 });
 
 test('deploy.sh takes the unit-suite receipt branch before the CI/Mac gates, and the producers name the job id + checksums', () => {
@@ -128,4 +143,16 @@ test('vps-receipt-trust.mjs trusts nothing when git cannot resolve the sha (non-
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '');
   assert.match(r.stderr, /trusting nothing/);
+});
+
+test('launch.mjs launches exactly the canonical job (detached, timed, allowed flavors, SHA env) and reads the RECEIPT line back', () => {
+  const unit = hfArgs('unit', sha), rowsJob = hfArgs('rows', sha, 't4-medium');
+  assert.deepEqual(unit.slice(0, 9), ['jobs', 'run', '--flavor', 'cpu-upgrade', '--timeout', '40m', '--detach', '-e', `SHA=${sha}`]);
+  assert.deepEqual(unit.slice(9), ['node:22', ...jobCommand('unit', sha)]);
+  assert.deepEqual(rowsJob.slice(2, 7), ['--flavor', 't4-medium', '--timeout', '20m', '--detach']);
+  for (const bad of [['unit', sha, 'a10g-small'], ['unit', sha, 'vps-cpu'], ['unit', 'short'], ['bogus', sha]]) assert.throws(() => hfArgs(...(bad as [string, string, string])), bad.join(' '));
+  assert.deepEqual(receiptFrom('x\nRECEIPT unit {"job":"J1","pass":3}\nbye', 'unit'), { job: 'J1', pass: 3 });
+  assert.equal(receiptFrom('RECEIPT rows {bad json', 'rows'), null);
+  assert.equal(receiptFrom('RECEIPT rows {"a":1}', 'unit'), null, 'the kind must match');
+  for (const f of ['run-unit.sh', 'run-rows.sh']) assert.match(readFileSync(`scripts/vps-shadow/${f}`, 'utf8'), /echo "RECEIPT (unit|rows) /);
 });

@@ -45,9 +45,10 @@ export const jobVerified = (info, id, sha, kind) => !!info && !!id && info.id ==
 // The runner files a receipt names (sha256 by file name) must equal the deploy tree's own copies: a run started from another checkout
 // copied different runner scripts. `ownSums` = { 'run-rows.sh': sha256, ... } of the deploy tree.
 export const boundToTree = (receipt, ownSums) => !!receipt?.scripts && Object.keys(ownSums).length > 0 && Object.entries(ownSums).every(([name, sum]) => receipt.scripts[name] === sum);
-export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}, jobs = {}) {
+export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}, jobs = {}, trees = {}) {
   if (!receipt || receipt.kind !== 'vps-shadow-rows' || !fullHex(tree) || receipt.tree !== tree) return [];
   const info = jobs?.[receipt.job];
+  if (trees?.[receipt.sha] !== tree) return [];   // receipt.tree is self-declared: the commit the job ran must itself have the deploy tree (trees = { sha: git rev-parse sha^{tree} })
   if (!jobVerified(info, receipt.job, receipt.sha, 'rows') || !boundToTree(receipt, ownSums)) return [];
   if (receipt.buildStatus !== 0 || receipt.dirty !== 0) return [];
   return (receipt.rows || [])
@@ -58,17 +59,17 @@ export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}
 }
 
 // N shard receipts for one tree: a row is trusted when some receipt trusts it AND no receipt for this tree shows it failing (a FAIL anywhere vetoes).
-export function trustedFromShards(receipts, tree, commands, readSource, ownSums, jobs = {}) {
+export function trustedFromShards(receipts, tree, commands, readSource, ownSums, jobs = {}, trees = {}) {
   const seen = new Set(), failed = new Set();
   for (const receipt of receipts) {
     if (receipt?.kind !== 'vps-shadow-rows' || receipt.tree !== tree) continue;
     for (const row of receipt.rows || []) if (row.status !== 'pass' || row.exit !== 0) failed.add(row.index);
-    for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums, jobs)) seen.add(index);
+    for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums, jobs, trees)) seen.add(index);
   }
   return [...seen].filter(index => !failed.has(index)).sort((a, b) => a - b);
 }
 // The unit-suite receipt (scripts/vps-shadow/run-unit.sh): the whole `npm run test:all` for this exact tree, zero failures, a verified job
 // and the producing script's own sha256 matching the deploy tree's copy. Anything else = the Mac runs its own suite.
-export const unitReceiptOk = (receipt, tree, ownSums, jobs = {}) =>
-  !!receipt && receipt.kind === 'vps-unit-suite' && fullHex(tree) && receipt.tree === tree && jobVerified(jobs?.[receipt.job], receipt.job, receipt.sha, 'unit')
+export const unitReceiptOk = (receipt, tree, ownSums, jobs = {}, trees = {}) =>
+  !!receipt && trees?.[receipt.sha] === tree && receipt.kind === 'vps-unit-suite' && fullHex(tree) && receipt.tree === tree && jobVerified(jobs?.[receipt.job], receipt.job, receipt.sha, 'unit')
   && receipt.exit === 0 && receipt.fail === 0 && Number.isInteger(receipt.pass) && receipt.pass > 0 && boundToTree(receipt, ownSums);

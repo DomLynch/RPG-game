@@ -57,5 +57,6 @@ node "$bin/rows-json.mjs" "$run" \
   --node "$(node -v)" --playwright "$(node -p 'require("playwright/package.json").version')" \
   --load "$(cut -d' ' -f1-3 /proc/loadavg)" --dirty "$(git status --porcelain | wc -l | tr -d ' ')"
 echo done > "$run/status"
+echo "RECEIPT rows $(tr -d '\n' < "$run/rows.json")"   # read back from the job logs by scripts/vps-shadow/launch.mjs fetch
 echo "END shadow rows sha=$full build=$build_status rows=$rows_status in $(( $(date +%s) - wall0 ))s -> $run/rows.json"
 exit $(( build_status || rows_status ))

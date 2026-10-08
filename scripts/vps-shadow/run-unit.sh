@@ -19,4 +19,6 @@ const fs = require("fs"), c = require("crypto"), log = fs.readFileSync(process.a
 const n = k => Number((new RegExp("^# " + k + " (\\d+)", "m").exec(log) || [])[1] ?? -1);
 fs.writeFileSync(process.argv[2], JSON.stringify({ kind: "vps-unit-suite", job: process.env.JOB_ID || null, sha: process.argv[3], tree: process.argv[4], node: process.version, pass: n("pass"), fail: n("fail"), exit: Number(process.argv[5]), seconds: Number(process.argv[6]), scripts: { "run-unit.sh": c.createHash("sha256").update(fs.readFileSync(process.argv[7])).digest("hex") } }, null, 1) + "\n");
 ' "$run/unit.log" "$run/unit.json" "$full" "$(git rev-parse HEAD^{tree})" "$rc" "$(( $(date +%s) - t0 ))" "$me"
-echo "unit suite sha=$full exit=$rc -> $run/unit.json"; exit "$rc"
+echo "unit suite sha=$full exit=$rc -> $run/unit.json"
+echo "RECEIPT unit $(tr -d '\n' < "$run/unit.json")"   # the deploy box reads this line back from the job logs (scripts/vps-shadow/launch.mjs fetch); the verifier still inspects the job itself
+exit "$rc"

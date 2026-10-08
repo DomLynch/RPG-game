@@ -32,7 +32,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const scripts = Object.fromEntries(['run-rows.sh', 'rows-json.mjs', 'rows-lib.mjs'].map(f => [f, createHash('sha256').update(readFileSync(join(here, f))).digest('hex')]));
 const out = {
   kind: 'vps-shadow-rows', job: process.env.JOB_ID || null, scripts, runner: 'linux-x64', ...meta,   // the flavor is never self-declared: deploy looks the job up (hf jobs inspect)
- 
   buildStatus: Number(meta.buildStatus ?? 0), rowsStatus: Number(meta.rowsStatus ?? 0), wall: Number(meta.wall ?? 0), dirty: Number(meta.dirty ?? 0),
   rowsWallSeconds: wall ? Number(wall[1]) : null, total: set.length, summary, rows,
 };
