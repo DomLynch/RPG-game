@@ -9,6 +9,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
+import { SPEEDS } from './speeds.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -224,7 +225,7 @@ const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [e
 let kit = false, worldPhase = 'ready', facing = 0, prevPose = 'ready', camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
-const WALK = 2.3, RUN = 5.2, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
+const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
