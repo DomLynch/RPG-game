@@ -206,10 +206,12 @@ test('createPrefetch: a ready session older than 90 s is stopped and dropped (no
   p.want('c'); await Promise.resolve(); await Promise.resolve(); t += 30_000; assert.ok(p.take('c'), 'young and this creature: taken');
 });
 
-test('drop: an unplayed prefetched session stops touching and is forgotten by HELD; a played one stays held', async () => {
-  let held: { token: string; played: boolean } | null = null; const H = { get: () => held, set: (v: typeof held) => void (held = v) };
+test('held fight: a start that finds the account\'s open fight resumes it only for the SAME fight; another creature never resumes it', async () => {
+  let held: { token: string; played: boolean; fight?: string } | null = null; const H = { get: () => held, set: (v: typeof held) => void (held = v) };
   const s = server(ok), on = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, held: H, every: (() => 1) as never, clear: (() => {}) as never });
-  assert.equal(held?.played, false); on!.drop(); assert.equal(held, null, 'the next start cannot resume a token nobody will fight');
-  const s2 = server(ok), on2 = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s2.f, held: H, every: (() => 1) as never, clear: (() => {}) as never });
-  on2!.played(); on2!.drop(); assert.equal(held?.played, true, 'played: it is a real fight, HELD keeps it');
+  assert.deepEqual(held, { token: run.token, played: false, fight: 'wolf' }); on!.drop();
+  assert.deepEqual(held, { token: run.token, played: false, fight: 'wolf' }, 'dropping only stops the touches: the same creature can still resume it');
+  const other = server((op) => (op === 'encounter_start' ? reply(409, { ok: false, error: 'O0014' }) : ok(op)));
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'boar', setup, fetch: other.f, held: H, every: (() => 1) as never, clear: (() => {}) as never }), null, 'a 409 with another fight held: offline, no resume of the wolf token');
+  assert.deepEqual(other.calls, ['encounter_start'], 'no touch was sent for the wrong fight');
 });

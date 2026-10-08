@@ -21,10 +21,10 @@ export type Online = {
   // The fight is over: post its record. A 409 means the server already settled this token (a retry after a client timeout): that is done, not an error. A failed post (offline) may be retried.
   settle(end: Ended): Promise<SettleOutcome>;
   played(): void;   // the fight's first tick has run: from now on a 409 never resumes this token (a loser must not replay the same seed), and the server hears it (touch at tick 1)
-  drop(): void;   // an unplayed session that will not be fought (a prefetch nobody tapped): stop touching AND forget the held token if it is this one, so the next start cannot resume it on another creature (Auditor MEDIUM)
+  drop(): void;   // an unplayed session that will not be fought now (a prefetch nobody tapped): stop touching. HELD keeps it, bound to its fight: coming back to the SAME creature inside the grace resumes THIS token, another creature never does
   stop(): void;   // the player left: stop touching (an unsettled token expires on the server as a loss by abandonment)
 };
-export type HeldFight = { token: string; played: boolean };
+export type HeldFight = { token: string; played: boolean; fight?: string };   // fight: the encounter this token was started for; a resume only ever re-attaches to the SAME fight
 export type Held = { get(): HeldFight | null; set(fight: HeldFight | null): void };   // where the page remembers its open fight's token, and whether its first tick has played (sessionStorage); injected so this file stays DOM-free
 type Deps = { held?: Held; token: string | null; character: string | null; fight: string; setup: Pick<FightSetup, 'opponent'>; fetch?: typeof fetch; base?: string; timeoutMs?: number; startTimeoutMs?: number; now?: () => number; every?: typeof setInterval; clear?: typeof clearInterval; warn?: (message: string) => void; wait?: (ms: number) => Promise<void> };
 
@@ -34,7 +34,8 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
   const startOpts = { ...opts, timeoutMs: d.startTimeoutMs ?? START_TIMEOUT_MS };
   let got = await startFight(d.token, d.character, d.fight, startOpts);
   if (isOffline(got as never) && (got as { offline: string }).offline === 'http-409' && d.held) {   // "a fight is already open for this account: resume it": the 409 names no token, so resume the one this page remembers
-    const open = d.held.get();
+    let open = d.held.get();
+    if (open && open.fight !== undefined && open.fight !== d.fight) open = null;   // the account's open fight is another creature's: do not resume it here (this one plays unpaid until that token's grace runs out)
     if (open?.played) d.held.set(null);   // it was played: forget it, play offline, and do not touch (a touch would only extend its grace)
     else if (open) { got = await touchFight(d.token, open.token, 0, startOpts); if (isOffline(got as never) || (got as Fight).lastTick !== 0) { d.held.set(null); if (!isOffline(got as never)) got = { offline: 'played' }; } }   // resume only a fight nothing has played of (lastTick 0): resuming a played one would let a loser replay it from tick 0 on the same seed. A dead or played token is forgotten and the page plays offline
   }
@@ -44,13 +45,13 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
     (d.warn ?? console.warn)(`encounter online: the server resolved ${run.enemy} L${run.level}, the page ${d.setup.opponent.body} L${d.setup.opponent.level}; playing offline. The server's token ${run.token.slice(0, 6)}… stays open until its grace runs out (about 2 min, then a loss by abandonment): the next ?online start is refused until then.`);
     return null;
   }
-  d.held?.set({ token: run.token, played: false });
+  d.held?.set({ token: run.token, played: false, fight: d.fight });
   const now = d.now ?? Date.now, began = now(), tickNow = () => Math.max(0, Math.round((now() - began) / (STEP * 1000)));
   const every = d.every ?? setInterval, clear = d.clear ?? clearInterval;
   let timer: ReturnType<typeof setInterval> | undefined = every(() => { void touchFight(d.token, run.token, tickNow(), opts); }, TOUCH_EVERY_MS), done = false;
   const stop = () => { if (timer !== undefined) { clear(timer); timer = undefined; } };
   return {
-    seed: run.seed, stop, drop: () => { stop(); if (d.held?.get()?.token === run.token && !d.held.get()?.played) d.held.set(null); }, played: () => { d.held?.set({ token: run.token, played: true }); void touchFight(d.token, run.token, 1, opts); },   // and tell the server the fight began (lastTick 1): a backstop for a client that skips the mark
+    seed: run.seed, stop, drop: stop, played: () => { d.held?.set({ token: run.token, played: true, fight: d.fight }); void touchFight(d.token, run.token, 1, opts); },   // and tell the server the fight began (lastTick 1): a backstop for a client that skips the mark
     async settle(end) {
       stop(); d.held?.set(null);   // settled or not, this token is spent as far as the page is concerned
       if (done) return 'already';

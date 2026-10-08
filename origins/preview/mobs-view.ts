@@ -11,7 +11,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
-import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
+import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, type Mode } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
@@ -50,7 +50,7 @@ function bangSprite(): THREE.Sprite {
   s.scale.set(0.045, 0.045, 1); return s;
 }
 
-export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
+export type MobPick = { spec: MobSpec; x: number; z: number; dist: number; mode?: Mode };   // mode: 'aggro' = it has noticed the hero and turns toward him (mobs.ts aggroTest)
 export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
@@ -158,7 +158,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     },
     nearest(x, z, within) {
       let best: MobPick | null = null;
-      for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= within && (!best || d < best.dist)) best = { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }; }
+      for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= within && (!best || d < best.dist)) best = { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d, mode: mobs[i]!.mode }; }
       return best;
     },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },

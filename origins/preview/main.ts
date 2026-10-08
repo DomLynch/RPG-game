@@ -26,7 +26,7 @@ import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import '../../src/monitoring.ts';   // Sentry through the game's own options (no PII, no user/request/breadcrumbs): the stale-session event below
-import { reportSignedOut } from './session-report.ts';
+import { beacon, reportSignedOut } from './session-report.ts';
 import { beginOnline, createPrefetch, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -514,11 +514,11 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
 }
 // The fight's chunks (the duel, the hunt, the encounter) are fetched when the Frontier's creatures come in, in an idle moment, not at the tap: the first engage no longer waits on three imports (Dom 2026-10-08, seamless combat).
 let warmAt = -Infinity, warmKey = '', warmSince = 0;
-const WARM_M = 14, WARM_DWELL_S = 2, COMMIT_M = 3.5;   // COMMIT_M: the hero this close to a creature has committed to the fight: the paid session is prefetched then, never on its growl (a free cancel would reopen seed shopping, an unfought token is swept as a loss: Auditor/Strategy 2026-10-08)   // a creature this near is the likely next fight: its stage is built now, not at the tap
+const WARM_M = 14, WARM_DWELL_S = 2, COMMIT_M = 8;   // COMMIT_M: the hero within 8 m (just outside the 6.5 m max gap) of a creature that has noticed him (mode aggro: it faces him) has committed to the fight: the paid session is prefetched then, or at the tap, never on its growl (a free cancel would reopen seed shopping, an unfought token is swept as a loss: Auditor/Strategy 2026-10-08)   // a creature this near is the likely next fight: its stage is built now, not at the tap
 function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
   if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;
   warmAt = time;
-  const close = ONLINE ? mobs.nearest(state.x, state.z, COMMIT_M) : null; if (close) prefetch.want(close.spec.id);
+  const close = ONLINE ? mobs.nearest(state.x, state.z, COMMIT_M) : null; if (close?.mode === 'aggro') prefetch.want(close.spec.id);
   const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
   const lights: THREE.Object3D[] = []; scene.traverse((o) => { if ((o as THREE.Light).isLight) lights.push(o); });
@@ -557,7 +557,7 @@ async function startMobFight(spec: MobSpec) {
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
   const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
   // The engage NEVER awaits the writer (Strategy 2026-10-08): the server's seed drives the fight from tick 0 and cannot join mid-fight, so the session is PREFETCHED when this creature turned hostile (prefetchOnline). Ready for THIS creature: the fight plays on the server's seed. Not ready, or another creature's: it starts at once on the local seed and is unpaid (no settle), and the next engage tries again.
-  if (ONLINE && !bar) online = prefetch.take(spec.id);
+  if (ONLINE && !bar) { online = prefetch.take(spec.id); if (storedToken(storage, Date.now())) beacon(online ? 'zone1-prefetch-hit' : 'zone1-prefetch-miss'); }   // a tap with no prefetch ready is a MISS: unpaid, at once. (Starting a session AT the tap would only be dropped by this very take and swept as a loss.)
   const on = online;   // `online` is cleared when the fight ends; the first-tick mark belongs to this fight
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
     const wasOnline = online !== null;
