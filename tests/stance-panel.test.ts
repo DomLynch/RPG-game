@@ -14,6 +14,7 @@ test('?stances= turns the preview on with a pick, and anything else leaves it of
   assert.equal(stanceFlag('?stances=1'), 'neutral'); assert.equal(stanceFlag('?x=1&stances=on'), 'neutral');
   for (const p of ['neutral', 'aggressive', 'defensive', 'trickster'] as const) assert.equal(stanceFlag(`?stances=${p}`), p);
   assert.equal(stanceLabel('trickster'), 'Trickster');
+  assert.equal(stanceLabel('neutral'), 'Balanced', 'the fourth stance is shown as Balanced; its id stays neutral');
 });
 
 test('the reveal names both stances: the player\'s pick and the opponent\'s mood drawn from the seed', () => {

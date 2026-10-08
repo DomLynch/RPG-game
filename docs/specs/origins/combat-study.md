@@ -35,7 +35,7 @@ Dom wants the player to choose a temperament. The AI's opponent mood is the same
 
 | Stance | Bonus | Cost | Beats |
 |---|---|---|---|
-| Neutral | none | none | nothing (the safe middle) |
+| Balanced (id `neutral`) | none | none | nothing (the safe middle). Shown as "Balanced" (Dom 2026-10-07); the id `neutral` is unchanged in code and records |
 | Aggressive | +5% damage, +10% posture damage dealt | blocks cost 10% more stamina | Trickster |
 | Defensive | blocks cost 15% less stamina, faster posture recovery | −5% damage | Aggressive |
 | Trickster | feints cost half, kicks deal more posture damage | −5% damage on heavies | Defensive |
@@ -48,7 +48,7 @@ Dom wants the player to choose a temperament. The AI's opponent mood is the same
 - **Balance:** every stance pair wins 40–60% in the battery and the bot reruns, and no stance is dominant against the field.
 - **Tell:** weapon-hold poses (three guard poses from Characters, budgeted) plus a reveal on the versus card at fight start. Nothing appears over the arena. v1 may ship on the versus-card reveal while the poses are made.
 - **PvP:** both players commit a hidden pick at the same time, and the versus card reveals both.
-- **AI = opponent mood:** the AI draws its stance from the fight seed with a home-stance bias: 50% its home stance, 50% one of the others. Home stances: Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Neutral. The seed draw keeps re-sim exact.
+- **AI = opponent mood:** the AI draws its stance from the fight seed with a home-stance bias: 50% its home stance, 50% one of the others. Home stances: Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Balanced (id `neutral`). The seed draw keeps re-sim exact.
 - **Mood never touches difficulty:** reaction time, the read/habit knobs and the RV31 spam gate are excluded. The battery runs per stance per opponent: within ±5 points of base on the honest bots, and the ladder overall within ±3.
 - AI opponents only get moods. A player's stance is always the player's own pick.
 - **Dropped:** "+10% from behind" and the two-finger swipe.
