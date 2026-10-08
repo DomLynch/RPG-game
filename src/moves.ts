@@ -671,6 +671,14 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     normal: { reaction: 11, accuracy: .55, parry: 0, dodge: .4, aggression: .85, pressure: .65, discipline: 20, lapse: .3, feint: 0, guard: 0, disengage: .7, circle: .9, step: .8, interrupt: .6, kick: 0, dash: 1, read: .5, stab: .7 },
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .7, discipline: 15, lapse: .08, feint: 0, guard: 0, disengage: .8, circle: 1, step: .8, interrupt: .8, kick: 0, dash: 1, read: .65, stab: 1 },
   } },
+  // The Tusked Boar (Combat, 2026-10-08, Dom: a boar in Zone 1): the wolf's rig family (the same seven-clip quadruped, the `bite` weapon, the wolf's capsule .8 and jaw bake), but a charger, not a
+  // hit-and-runner: more health (140) and a little poise, slower than the wolf (speed 1.2), no hop-out after a landed gore (`disengage` 0) and little circling, so it rushes in (`dash` 1) and keeps coming.
+  // Same moveset as the wolf's to begin with (a charge-and-gore of its own is a later row); profile NUMBERS only, tuned to the Goblin's rates (scripts/wolf-tune.mjs boar).
+  boar: { scale: .8, health: 140, poise: 4, regen: 1, speed: 1.2, profiles: {
+    easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .1, aggression: .75, pressure: .65, discipline: 25, lapse: .4, feint: 0, guard: 0, disengage: 0, circle: .15, step: .3, interrupt: .2, kick: 0, dash: .8, read: .3 },
+    normal: { reaction: 11, accuracy: .55, parry: 0, dodge: .15, aggression: .9, pressure: .7, discipline: 20, lapse: .3, feint: 0, guard: 0, disengage: 0, circle: .2, step: .4, interrupt: .4, kick: 0, dash: 1, read: .4, stab: .5 },
+    hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .2, aggression: 1, pressure: .75, discipline: 15, lapse: .08, feint: 0, guard: 0, disengage: 0, circle: .25, step: .4, interrupt: .6, kick: 0, dash: 1, read: .55, stab: .8 },
+  } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
   // health and poise. His arc is the scythe's (reap 1.40–2.10 m, a dead band inside 1.4 m, the shaft guard). He carries the
   // Veteran's brain (PROFILES); a profile of his own is the combat lane's call. Normal is his own since 2026-09-23 (Lead's anticipate

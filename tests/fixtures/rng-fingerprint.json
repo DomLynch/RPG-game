@@ -1781,6 +1781,258 @@
    "rng": "ef0d97d391e2c359",
    "state": "459a5b2f9613cc71"
   },
+  "boar:1:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "e07881e176c04247"
+  },
+  "boar:1:731:walkin": {
+   "ticks": 600,
+   "draws": 333,
+   "rng": "52fc580132d5903f",
+   "state": "1ca3bcdc23a50820"
+  },
+  "boar:1:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "e07881e176c04247"
+  },
+  "boar:1:20260922:walkin": {
+   "ticks": 600,
+   "draws": 424,
+   "rng": "109f9bb86c226bac",
+   "state": "b912a611311588c9"
+  },
+  "boar:1:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "e07881e176c04247"
+  },
+  "boar:1:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 432,
+   "rng": "5e7f21d6cf33df0d",
+   "state": "7ae1ed1e414b23f6"
+  },
+  "boar:6:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:6:731:walkin": {
+   "ticks": 600,
+   "draws": 396,
+   "rng": "42949eb1779e9ed4",
+   "state": "bc792dc365728cd7"
+  },
+  "boar:6:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:6:20260922:walkin": {
+   "ticks": 600,
+   "draws": 468,
+   "rng": "63377442a1a9743f",
+   "state": "748c9e1d19d35005"
+  },
+  "boar:6:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:6:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 424,
+   "rng": "68dc65a11a6fa0be",
+   "state": "b2cb9a9013177330"
+  },
+  "boar:11:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:11:731:walkin": {
+   "ticks": 600,
+   "draws": 435,
+   "rng": "1eb94c5e93faa88c",
+   "state": "97eb529b024c6e09"
+  },
+  "boar:11:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:11:20260922:walkin": {
+   "ticks": 600,
+   "draws": 458,
+   "rng": "6928a451aae8854d",
+   "state": "d1da5bf675185584"
+  },
+  "boar:11:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:11:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 478,
+   "rng": "a79e7f084b772617",
+   "state": "a67297e4300b2456"
+  },
+  "boar:12:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:12:731:walkin": {
+   "ticks": 600,
+   "draws": 435,
+   "rng": "1eb94c5e93faa88c",
+   "state": "82955783ee1271d5"
+  },
+  "boar:12:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:12:20260922:walkin": {
+   "ticks": 600,
+   "draws": 444,
+   "rng": "7359e6c650947c6b",
+   "state": "926e0527f6de04cb"
+  },
+  "boar:12:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:12:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 446,
+   "rng": "bd8c1ee984ee912b",
+   "state": "78065a99ba519105"
+  },
+  "boar:18:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:18:731:walkin": {
+   "ticks": 600,
+   "draws": 492,
+   "rng": "afac9420b1173262",
+   "state": "5a0d596b8979c51d"
+  },
+  "boar:18:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:18:20260922:walkin": {
+   "ticks": 600,
+   "draws": 445,
+   "rng": "1c371680118064c7",
+   "state": "d656e7ae11dcd3c2"
+  },
+  "boar:18:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:18:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 472,
+   "rng": "686a7cf52ef20d1d",
+   "state": "4c1703c42fcd2394"
+  },
+  "boar:30:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:30:731:walkin": {
+   "ticks": 600,
+   "draws": 420,
+   "rng": "d178902a3fb3b488",
+   "state": "d689409785f81a53"
+  },
+  "boar:30:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:30:20260922:walkin": {
+   "ticks": 600,
+   "draws": 470,
+   "rng": "0e1699328f1d2abd",
+   "state": "ef3c4efb59fa286d"
+  },
+  "boar:30:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:30:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 461,
+   "rng": "cb9582287dceed06",
+   "state": "9ab2037a8dbadcd2"
+  },
+  "boar:46:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:46:731:walkin": {
+   "ticks": 600,
+   "draws": 387,
+   "rng": "f5dd8427b8abed3c",
+   "state": "b77c649534ac6d8f"
+  },
+  "boar:46:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:46:20260922:walkin": {
+   "ticks": 600,
+   "draws": 340,
+   "rng": "a9acb5bc54ef8a82",
+   "state": "52e853a8d33cfac2"
+  },
+  "boar:46:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "c792fcd3d39aecff"
+  },
+  "boar:46:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 345,
+   "rng": "c7bc85b6b3276f52",
+   "state": "c737ccfedbb71b0c"
+  },
   "wraith:1:731:idle": {
    "ticks": 600,
    "draws": 0,
