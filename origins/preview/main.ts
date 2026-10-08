@@ -479,7 +479,7 @@ function warmFight(time: number) {   // every 2 s on the walk, with the fight ch
   const o = run.value.setup.opponent, key = `${o.body}:${o.level}`;
   if (key !== warmKey) { warmKey = key; warmSince = time; return; }   // the nearest creature type must hold this long before its stage is built or replaced: a walk past a camp must not churn GPU memory (Auditor M2)
   if (time - warmSince < WARM_DWELL_S) return;
-  duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), scene);
+  duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), scene, (root) => { const look = mobVariant(t.spec.character, t.spec.id); if (look) dressMob(root, look, false); });
 }
 function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));

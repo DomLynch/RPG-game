@@ -182,10 +182,16 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
 
 // ?worldfight, seamless combat: build (and so warm: createScene compiles its shaders) the world-mounted stage for a creature BEFORE its tap, so the engage reuses it (stageFor's same-opponent rule).
 let warmedFor: Stage | null = null;
-export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, world?: Object3D): void {
+let ownWarmed: Stage | null = null;
+export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, world?: Object3D, dress?: (root: Object3D) => void): void {
   if (!(opponent in OPPONENTS)) return;
   const made = stageFor(host, opponent as OpponentId, level, mount);
   if (world && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(world); }   // once per stage
+  if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
+    ownWarmed = made; const root = made.view.opponentRoot();
+    if (root && dress) { dress(root); void made.view.warmOwn().then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
+    else void made.view.warmOwn();
+  }
 }
 
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
