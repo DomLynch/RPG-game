@@ -40,14 +40,14 @@ export type Fighter = {
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
 export type World = { time: number; fighters: Fighter[] };
-export type Input = { x: number; z: number; run?: boolean; attack?: 'light' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
+export type Input = { x: number; z: number; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
 export type Event =
   | { type: 'Telegraph'; id: string; move: string; ms: number }   // a windup began: the tell World animates and sounds
   | { type: 'Swing'; id: string; move: string }                    // the blow's active part began
   | { type: 'Hit'; attacker: string; victim: string; damage: number; move: string }
   | { type: 'Blocked'; attacker: string; victim: string; perfect: boolean; damage: number }   // `damage` is the chip that passed through (0 for a cut)
   | { type: 'Dodged'; attacker: string; victim: string }          // the blow met a roll's invulnerable ticks
-  | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' }
+  | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' }
   | { type: 'Died'; id: string; by: string }
   | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
@@ -71,9 +71,11 @@ const aim = (from: Fighter, to: Fighter): number => Math.atan2(to.x - from.x, to
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 const alive = (f: Fighter): boolean => f.phase !== 'dead';
 /** The blow a fighter throws: the player's light cut, or the creature's own weapon row (its light cut) with the open world's telegraph and its kind's weight. */
-const blowOf = (f: Fighter): MoveDef => {
+const PLAYER_BLOWS = { light: 'light_right', heavy: 'heavy_overhead', kick: 'kick' } as const;   // the longsword's rows (moves.ts MOVES): the heavy chips through a guard, the kick ignores it
+const blowOf = (f: Fighter, press: 'light' | 'heavy' | 'kick' = 'light'): MoveDef => {
+  if (f.side === 'player') return WEAPONS[f.weapon].moves[PLAYER_BLOWS[press]] ?? MOVES[PLAYER_BLOWS[press]];
   const row = WEAPONS[f.weapon].moves.light_right ?? MOVES.light_right;
-  return f.side === 'player' ? row : { ...row, windup: Math.round(TELEGRAPH_S * 60), damage: Math.round(row.damage * (BLOW_WEIGHT[f.kind] ?? 1)) };
+  return { ...row, windup: Math.round(TELEGRAPH_S * 60), damage: Math.round(row.damage * (BLOW_WEIGHT[f.kind] ?? 1)) };
 };
 /** A blow connects from the attacker's centre to the victim's edge, inside its cone. */
 const inReach = (a: Fighter, b: Fighter, move: MoveDef): boolean => dist(a, b) <= move.reach + b.radius && Math.abs(wrap(aim(a, b) - a.facing)) <= HIT_ARC / 2;
@@ -89,7 +91,7 @@ function begin(f: Fighter, move: MoveDef, events: Event[]): void {
   spend(f, move.stamina);
   events.push({ type: 'Telegraph', id: f.id, move: move.id, ms: Math.round(secs(move.windup) * 1000) });
 }
-function stagger(v: Fighter, ticks: number, cause: 'hit' | 'posture' | 'guardBreak', events: Event[]): void {
+function stagger(v: Fighter, ticks: number, cause: 'hit' | 'posture' | 'guardBreak' | 'kick', events: Event[]): void {
   v.phase = 'stagger'; v.t = 0; v.move = null; v.hurtFor = secs(ticks);
   events.push({ type: 'Staggered', id: v.id, ms: Math.round(secs(ticks) * 1000), cause });
 }
@@ -106,6 +108,12 @@ function hurt(a: Fighter, v: Fighter, damage: number, events: Event[]): boolean 
 
 function land(a: Fighter, v: Fighter, move: MoveDef, events: Event[]): void {
   if (invulnerable(v)) { events.push({ type: 'Dodged', attacker: a.id, victim: v.id }); return; }
+  if (move.vsGuard && v.phase === 'guard') {   // a kick goes through a standing guard: a little damage, the guard's stamina, a long stagger
+    events.push({ type: 'Hit', attacker: a.id, victim: v.id, damage: move.damage, move: move.id });
+    if (hurt(a, v, move.damage, events)) return;
+    spend(v, move.vsGuard.staminaDamage); stagger(v, move.vsGuard.stagger, 'kick', events);
+    return;
+  }
   if (v.phase === 'guard' && !move.breaksGuard && covered(v, a)) {   // a frontal block: no damage but the row's chip; the stamina and posture it costs are the row's own
     const perfect = v.t < secs(RULES.perfectBlock), chip = Math.round(move.damage * move.chip);
     events.push({ type: 'Blocked', attacker: a.id, victim: v.id, perfect, damage: chip });
@@ -152,7 +160,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
             f.x += input.x * k * speed * dt; f.z += input.z * k * speed * dt; f.facing = Math.atan2(input.x, input.z);
             if (running) spend(f, RULES.sprintCost * 60 * dt);
           }
-          if (input.attack === 'light' && f.phase === 'ready' && !f.exhausted && f.stamina > 0) begin(f, blowOf(f), events);
+          if (input.attack && f.phase === 'ready' && !f.exhausted && f.stamina > 0) begin(f, blowOf(f, input.attack), events);
         }
       }
     } else if (f.phase === 'ready') {

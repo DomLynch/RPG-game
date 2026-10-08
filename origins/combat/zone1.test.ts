@@ -182,3 +182,37 @@ test('minKillSeconds is a conservative lower bound: no honest light-cut kill bea
   assert.equal(get(w, 'w').phase, 'dead');
   assert.ok(t >= minKillSeconds('wolf'), `really took ${t.toFixed(2)} s, bound ${minKillSeconds('wolf').toFixed(2)} s`);
 });
+
+// ── S2a: the heavy and the kick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+const held = (kind = 'wolf') => { const c = creature('w', kind, 0, 1.2); c.phase = 'stagger'; c.hurtFor = 99; return c; };   // a target held still
+const press = (attack: 'light' | 'heavy' | 'kick') => (t: number): Input => (t === 0 ? { x: 0, z: 0, attack } : STILL);
+
+test('a heavy: the row\'s telegraph (32 ticks), damage 18, stamina 35', () => {
+  const heavy = MOVES.heavy_overhead;
+  const r = run(newWorld([player('p', 0, 0, 0), held()]), 1.5, press('heavy'));
+  const tele = r.events.find((e) => e.type === 'Telegraph' && e.id === 'p');
+  assert.ok(tele && tele.type === 'Telegraph' && tele.move === 'heavy_overhead' && tele.ms === Math.round((heavy.windup / 60) * 1000));
+  const hit = r.events.find((e) => e.type === 'Hit' && e.attacker === 'p');
+  assert.ok(hit && hit.type === 'Hit' && hit.damage === heavy.damage);
+  assert.equal(get(r.world, 'w').health, OPPONENTS.wolf.health - heavy.damage);
+  assert.ok(Math.abs(get(run(newWorld([player('p', 0, 0, 0), held()]), 0.5, press('heavy')).world, 'p').stamina - (100 - heavy.stamina)) < 1e-6);
+});
+
+test('a heavy chips through a guard (the row\'s 40%) and costs more posture than a cut; a kick goes THROUGH a guard', () => {
+  const g = (attacker: 'heavy' | 'kick') => {
+    const foe = creature('c', 'wolf', 0, 1.2, Math.PI); foe.phase = 'guard';   // a guarding creature held in front
+    return run(newWorld([player('p', 0, 0, 0), foe]), 1.5, press(attacker));
+  };
+  const heavy = g('heavy'), kick = g('kick');
+  const blocked = heavy.events.find((e) => e.type === 'Blocked');
+  assert.ok(blocked && blocked.type === 'Blocked' && blocked.damage === Math.round(MOVES.heavy_overhead.damage * MOVES.heavy_overhead.chip));
+  assert.equal(kick.events.filter((e) => e.type === 'Blocked').length, 0, 'a kick is never blocked');
+  assert.ok(kick.events.some((e) => e.type === 'Staggered' && e.id === 'w' || e.type === 'Staggered' && e.id === 'c' && e.cause === 'kick'));
+  assert.equal(get(kick.world, 'c').stamina, Math.max(0, 100 - MOVES.kick.vsGuard!.staminaDamage));
+});
+
+test('a kick on an unguarded fighter is a small clean hit (damage 4) with the row\'s stagger', () => {
+  const r = run(newWorld([player('p', 0, 0, 0), (() => { const c = held(); c.z = 1.0; return c; })()]), 1, press('kick'));
+  const hit = r.events.find((e) => e.type === 'Hit' && e.attacker === 'p');
+  assert.ok(hit && hit.type === 'Hit' && hit.damage === MOVES.kick.damage && hit.move === 'kick');
+});
