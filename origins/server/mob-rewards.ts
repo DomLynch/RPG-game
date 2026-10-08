@@ -94,13 +94,26 @@ function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
   };
 }
 
+// Farming bound while the server cannot yet tell WHERE a character stands in the Frontier (presence only knows the Concord's pit-yard and exchange, and the content binds
+// no creature to a zone): one paid kill of the same fight per account per respawn window (Region 1's own `spawns.respawnSeconds`, 300 s). A second kill inside it settles
+// as a recorded fight and pays nothing. The window lives in the writer's memory (one process; a restart only forgets it, which can cost one extra payout per fight),
+// and a retry of the SAME token is never blocked (the hook runs before the commit, so a stale abort must be able to pay on the retry).
+export const RESPAWN_MS = 300_000;
+export type Cooldown = Map<string, { at: number; token: string }>;
+
 // The writer's `rewards` for encounterOps: read the character's pack and career row (one origins_open) and the bronze row, then price the kill.
-export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log) {
+export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log, cooldown: Cooldown = new Map()) {
   const lookup = lookupOf(content);
   return async (kill: Kill, db: Db): Promise<Json[]> => {
+    const key = `${kill.account}|${kill.fight ?? ''}`, last = cooldown.get(key), t = now().getTime();
+    if (kill.fight && last && last.token !== kill.token && t - last.at < RESPAWN_MS) {
+      log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((RESPAWN_MS - (t - last.at)) / 1000)} s left), the fight is recorded and pays nothing`);
+      return [];
+    }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
     const metal = await metalOf(db, kill.account);
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
+    if (kill.fight && paid.batch.length > 0) cooldown.set(key, { at: t, token: kill.token });
     log(`encounter rewards ${kill.token.slice(-6)}: ${JSON.stringify(paid.summary)}`);
     return paid.batch;
   };

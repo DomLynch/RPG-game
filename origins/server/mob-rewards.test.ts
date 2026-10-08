@@ -6,7 +6,8 @@ import { ACCOUNT, PC } from '../contracts/fixtures.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';
-import { killIdOf, mobBatch, type Kill } from './mob-rewards.ts';
+import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, type Kill } from './mob-rewards.ts';
+import type { Db } from './db.ts';
 import type { CareerRow } from './store.ts';
 
 const loaded = loadEncounterContent();
@@ -93,4 +94,18 @@ test('Bounty bronze is never written yet (no "wins today" read): reported unpaid
     const paid = mobBatch(kill(fight, 1), { career: row(), inventory: pack(), metal: null }, content, AT);
     assert.ok(!paid.batch.some((l) => l.op === 'metal'), `${fight}: no metal op`);
   }
+});
+
+// The respawn window: a stub db answers origins_open with an empty pack and the career row; nothing else is read.
+const fakeOpen = (): Db => ({ run: async (sql: string) => (/origins_metal_of/.test(sql) ? 'absent' : JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] })) } as Db);
+test('respawn window: a second paid kill of the same fight inside 300 s by the same account pays nothing; another account, another fight, and the same token again are not blocked', async () => {
+  const fight = creatures[0]!, other = creatures[1]!, seedA = droppingSeed(fight), seedB = droppingSeed(other);
+  let clock = Date.parse(AT); const hook = mobRewards(content, () => new Date(clock), () => {}), db = fakeOpen();
+  const first = await hook(kill(fight, seedA), db);
+  assert.ok(first.some((l) => l.op === 'mint'), 'the first kill pays');
+  assert.deepEqual(await hook(kill(fight, seedA, { token: 'SECOND'.padEnd(40, 'y') }), db), [], 'a second kill of the same fight inside the window pays nothing');
+  assert.deepEqual((await hook(kill(fight, seedA), db)).map((l) => l.op), first.map((l) => l.op), 'the same token again (a retry after a stale abort) is priced as before');
+  assert.ok((await hook(kill(other, seedB), db)).length > 0, 'another fight is its own window');
+  assert.ok((await hook(kill(fight, seedA, { account: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', token: 'THIRD'.padEnd(40, 'z') }), db)).length > 0, 'another account is its own window');
+  clock += RESPAWN_MS; assert.ok((await hook(kill(fight, seedA, { token: 'FOURTH'.padEnd(40, 'w') }), db)).length > 0, 'after the window it pays again');
 });

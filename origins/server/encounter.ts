@@ -42,7 +42,7 @@ export function fightOfToken(token: string): string | null {
 }
 const GONE = (e: unknown): never => {
   if (e instanceof DbError && e.code === 'O0009') throw new Conflict('encounter token unknown, used or expired');
-  if (e instanceof DbError && e.code === 'O0002') throw new Conflict('stale: the character changed while this fight was settled; settle again');   // a reward line's expected_version moved: nothing was written, the token is still open
+  if (e instanceof DbError && e.code === 'O0002') throw new Refused(503, 'stale: the character changed while this fight was settled; settle again', 'stale');   // a reward line's expected_version moved: nothing was written and the token is still open. A 503, not a 409: the page treats a settle 409 as "already settled" and would drop the win; it retries a 5xx
   throw e;
 };
 const notInstalled = (): never => { throw new Refused(503, 'encounter verify not installed'); };

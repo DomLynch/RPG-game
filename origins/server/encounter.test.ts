@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Db } from './db.ts';
+import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import { encounterOps, fightOfToken, tokenFor } from './encounter.ts';
 import { ACCOUNT, CHAR, fakeDb, RESOLVED, deps, fight } from './encounter-fixtures.ts';
@@ -87,4 +87,17 @@ test('fightOfToken: the server-made prefix reads back; an old 32-character token
   assert.equal(fightOfToken('A'.repeat(32)), null, 'a token issued before the prefix');
   assert.equal(fightOfToken(`${Buffer.from('Not A Fight!').toString('base64url')}_${'B'.repeat(32)}`), null, 'decodes to something that is not a fight id');
   assert.equal(fightOfToken(`x${'_'.repeat(1)}${'C'.repeat(31)}`), null, 'too short for a prefix');
+});
+
+test('a stale reward line (O0002 at settle) is a retryable 503 code "stale", never a 409; nothing is written, and the same token settles on the retry', async () => {
+  const { db, events } = fakeDb({ t: 1e6 });
+  let stale = true;
+  const flaky = { run: async (sql: string, v?: Record<string, string>) => { if (stale && /origins_encounter_settle/.test(sql)) { stale = false; throw new DbError('O0002', 'career write is stale'); } return db.run(sql, v); } } as Db;
+  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 200 }), rewards: () => [{ op: 'reward-line' }] }));
+  const start = await ops.encounter_start!(ctx(flaky), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  const record = fight(start.seed, 1);
+  await assert.rejects(async () => ops.encounter_settle!(ctx(flaky), { token: start.token, record }), (e: unknown) => e instanceof Refused && e.status === 503 && e.code === 'stale');
+  assert.equal(events.length, 0, 'nothing written');
+  const out = await ops.encounter_settle!(ctx(flaky), { token: start.token, record }) as Record<string, unknown>;
+  assert.equal(out.verified, true); assert.equal(events.length, 1, 'the retry on the very same token settles it');
 });
