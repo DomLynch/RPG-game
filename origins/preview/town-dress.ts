@@ -14,6 +14,8 @@ export const BANKER_OUTFIT: Outfit = { pieces: ['robe', 'sleeves', 'belt', 'cap'
 export const PROVISIONER_OUTFIT: Outfit = { pieces: ['tunic', 'apron', 'belt', 'hat'], tint: 0x8a6f4a };
 /** Brisa of the Last Lamp (`character:innkeeper-exchange`): a tunic with sleeves, an apron and a belt, bareheaded, in a wine-red wash. */
 export const INNKEEPER_OUTFIT: Outfit = { pieces: ['tunic', 'sleeves', 'apron', 'belt'], tint: 0x7a5c6a };
+/** The outlaw camp's trader (Dom's PvP design, one per zone; the NPC row and its id are Backend's, so this is not in NAMED_OUTFITS yet): a working tunic, sleeves, a belt and a hood, in a dust-grey wash. */
+export const OUTLAW_TRADER_OUTFIT: Outfit = { pieces: ['tunic', 'sleeves', 'belt', 'hood'], tint: 0x6a7a74 };
 /** The named townspeople's outfits by NPC row id (Backend, #1828); everyone else gets `outfitFor(rowId)`. */
 export const NAMED_OUTFITS: Readonly<Record<string, Outfit>> = {
   'character:banker-exchange': BANKER_OUTFIT, 'character:provisioner-exchange': PROVISIONER_OUTFIT, 'character:innkeeper-exchange': INNKEEPER_OUTFIT,
