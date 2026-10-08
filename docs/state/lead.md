@@ -2,6 +2,32 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-08 ~22:16 (+04) — HANDOFF (Dom: "save your work, /clear"). READ FIRST. Lead = Lead + Strategy (Dom's words). Model Opus 5.5. Memory: project_handoff_2026-10-08_2216 (lead-catalogue memory dir).
+**LIVE = trunk = 705d52e4 (Release B, Published 22:14:29).** It contains #1880 server spawns (0014+0015 applied at 04a6c5fc6, Auditor POST PASS), #1900 levels, #1892 no RUN, #1845 relief, and docs #1906/#1908/#1913 (zone runtime)/#1914 (donor study). Before it: Release A 27086155 (21:33:41; #1904 SKILL, #1909 slice 3, #1889, #1905).
+**In flight at handoff:**
+1. **World #1919** (zone shader warm-up, draft @c7fdff640) has the MAC NOW for its Metal acceptance: 0 compiles/uploads after `[zone ready]`, worst gap < 200 ms, the program count. It then needs 375 stills + the Auditor. Follow-ups: the hero-gear warm-up; the `place()` guard + arena-import cut (`buildArena` far ring at `main.ts:85`).
+2. **Item 1+3 proof release (receipts ON, ≤ 8 min):**
+   - #1911 @64f9fcc78 (spawnSync timeout): my delta PASS; the Auditor's full HF suite 6ac7dcbd is running, and Deploy merges it on green (off by default).
+   - #1916 (deploy/vps-unit-receipt, last seen @90938db40): COMBAT owns the fixes, minimal version. Receipts come only from HF jobs (no vps-cpu). The job asserts the tree at start+end. npm ci is fatal. The receipt is written only at rc=0. Each receipt is verified via `hf jobs inspect`, and the inspected COMMAND must equal the canonical runner from the deploy tree (git-show hash). Shard FAIL vetoes. Strict parse (exit === 0, integer pass > 0).
+   - Backend: the 3 test mediums on backend/vps-receipt-mediums + the dry run (4 HF jobs launched 18:12Z on 705d52e4 + #1916 @eacfad76).
+   - Then Deploy runs ONE receipts-on release with whatever is eligible: #1910, #1915, #1917 @10ac80d10, #1902 @59b42949f, and #1918 once confirmed @33006aaf1.
+3. **Backend parity apply** (0008 bear + 0011 season archive, my GO on #1818 comment 6066147393) is applying now. The first-kill ledger check waits for a real signed-in kill (no access change; option A).
+**Rules set tonight:**
+- Deploy = release operator only.
+- HF = cpu-upgrade + t4-medium only, and every job has --timeout (≤ 40m tests, ≤ 20m shards) + --detach.
+- No base64 wrapping around the Mac guard (Hooks #105 is live).
+- Seamless engage = a beta requirement (Mac Metal engage worst gap measured 18 ms; the hitch is first-draw compiles).
+- No Zone 1 rewrite (decision 6's spike was skipped).
+- Zones-as-data (#1913 + #1918 schema sources).
+- DONOR READ BEFORE BUILD (5 areas).
+- A release never skips test:all while CI is queued (HF stands in).
+**Open with owners:**
+- Combat: the core/pit split Sat/Sun; #1910 ready.
+- Web: #1917/#1902 into the next batch.
+- Characters: #1777 boar READY with stills.
+- World: Mere-Mother L4 PR; follower circle/feint PR; zone-runtime Step 1.
+**RESTART:** re-arm the */10 top-5 cron; read this entry + memory; check release.json, #1911/#1916/#1919 heads and the Auditor's verdicts.
+
 ## 2026-10-08 ~21:30 (+04) — ARCHITECTURE DECISIONS (Dom's request, decided under his authority via the Project Optimizer; Lead is now also Strategy, Dom's words "as u are also now the strategy dev .. aswell as the lead dev")
 **Dom's question:** rebuild Zone 1 from scratch with the Pit as a side module, or continue? The Pit must sit on the MMO, not the MMO on the Pit (700+ zones coming).
 **Evidence (Optimizer's counts on trunk, not re-derived by Lead):** Pit core src 24,000 TS lines; origins (Zone 1) 22,782; 348 test files. 66 of 182 origins files import from src, from 12 modules (moves, record, duel, career, sim, loot, roster, grades, gear-stats, twist, legends, combat), all generic fight engine. The only Pit-specific leak is 6 imports of src/arena.ts + src/arena-themes.ts from origins/preview main.ts, exchange.ts, frontier.ts and look.ts (+ look.test.ts), plus one namespace import named `pit` from duel. 13 of the last 200 merged PRs touch both sides.
