@@ -22,6 +22,7 @@ git fetch -q origin
 full=$(git rev-parse --verify -q "$sha^{commit}") || { echo "unknown sha $sha"; exit 2; }
 git checkout -q --detach "$full"
 git reset -q --hard && git clean -fdq   # a scratch checkout: no lane work lives here; node_modules is ignored and stays
+want_tree=$(git rev-parse "$full^{tree}"); [[ "$(git rev-parse HEAD^{tree})" == "$want_tree" ]] || { echo "tree mismatch at start"; exit 3; }
 run="$home/runs/$full/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$run/logs"
 ln -sfn "$run" "$home/runs/$full/latest"
@@ -49,11 +50,13 @@ else
   echo "build failed (exit $build_status); no rows ran" > "$run/rows.log"
 fi
 ended=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+[[ "$(git rev-parse HEAD^{tree})" == "$want_tree" ]] || { echo "tree changed during the run; no receipt"; exit 5; }
 node "$bin/rows-json.mjs" "$run" \
   --sha "$full" --tree "$(git rev-parse HEAD^{tree})" --started "$started" --ended "$ended" \
   --wall "$(( $(date +%s) - wall0 ))" --build-status "$build_status" --rows-status "$rows_status" \
   --node "$(node -v)" --playwright "$(node -p 'require("playwright/package.json").version')" \
   --load "$(cut -d' ' -f1-3 /proc/loadavg)" --dirty "$(git status --porcelain | wc -l | tr -d ' ')"
 echo done > "$run/status"
+echo "RECEIPT rows $(tr -d '\n' < "$run/rows.json")"   # read back from the job logs by scripts/vps-shadow/launch.mjs fetch
 echo "END shadow rows sha=$full build=$build_status rows=$rows_status in $(( $(date +%s) - wall0 ))s -> $run/rows.json"
 exit $(( build_status || rows_status ))

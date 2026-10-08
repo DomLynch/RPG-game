@@ -33,31 +33,43 @@ export const vpsSafeRow = (command, argv, readSource, allowWall = false) => {
   if (isWebKitRow(command) || /\bwebkit\b/i.test(code) || /clock\s*\.\s*resume/.test(code)) return false;
   return allowWall || timingOf(source) !== 'wall';
 };
-// Flavors a receipt may name (Dom's hardware rule 2026-10-08: the VPS box or the Hugging Face cpu-upgrade tier; never a GPU). A receipt
-// with no flavor, or another one, is refused.
-export const FLAVORS = ['vps-cpu', 'cpu-upgrade', 't4-medium'];
+// Receipts come ONLY from Hugging Face jobs (a fresh container each run, Dom's hardware rule 2026-10-08: cpu-upgrade or t4-medium, never another
+// GPU). The flavor is never read off the receipt: the job it names is looked up (`hf jobs inspect <id>`, scripts/vps-receipt-trust.mjs does the I/O)
+// and must be COMPLETED, on an allowed flavor, with the run's sha in its own environment (-e SHA=...). `jobs` = { <id>: inspect record }.
+export const FLAVORS = ['cpu-upgrade', 't4-medium'];
+// The job's own command must be the canonical runner invocation for this sha (jobCommand below), so a job that merely sets SHA=<sha> and runs some
+// other script is not a receipt. The runner it executes is the file inside the checked-out tree, whose sha256 the receipt carries (boundToTree).
+export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q origin ${sha}; git checkout -q --detach ${sha}; export SHADOW_HOME=/work SHADOW_JOB_KIND=${kind}; exec bash scripts/vps-shadow/run-${kind}.sh ${sha}`];
+export const jobVerified = (info, id, sha, kind) => !!info && !!id && info.id === id && info.status?.stage === 'COMPLETED' && FLAVORS.includes(info.flavor) && fullHex(sha)
+  && info.environment?.SHA === sha && JSON.stringify(info.command) === JSON.stringify(jobCommand(kind, sha));
 // The runner files a receipt names (sha256 by file name) must equal the deploy tree's own copies: a run started from another checkout
-// copied different runner scripts into the shared bin/. `ownSums` = { 'run-rows.sh': sha256, ... } of the deploy tree.
+// copied different runner scripts. `ownSums` = { 'run-rows.sh': sha256, ... } of the deploy tree.
 export const boundToTree = (receipt, ownSums) => !!receipt?.scripts && Object.keys(ownSums).length > 0 && Object.entries(ownSums).every(([name, sum]) => receipt.scripts[name] === sum);
-export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}) {
+export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}, jobs = {}, trees = {}) {
   if (!receipt || receipt.kind !== 'vps-shadow-rows' || !fullHex(tree) || receipt.tree !== tree) return [];
-  if (!FLAVORS.includes(receipt.flavor) || !boundToTree(receipt, ownSums)) return [];
+  const info = jobs?.[receipt.job];
+  if (trees?.[receipt.sha] !== tree) return [];   // receipt.tree is self-declared: the commit the job ran must itself have the deploy tree (trees = { sha: git rev-parse sha^{tree} })
+  if (!jobVerified(info, receipt.job, receipt.sha, 'rows') || !boundToTree(receipt, ownSums)) return [];
   if (receipt.buildStatus !== 0 || receipt.dirty !== 0) return [];
   return (receipt.rows || [])
-    .filter(row => row.status === 'pass' && !(row.exit > 0))
+    .filter(row => row.status === 'pass' && row.exit === 0)   // strict: a missing, null or negative exit is never a pass
     .filter(row => commands[row.index - 1]?.join(' ') === row.command)   // a renumbered or edited row is never trusted by number
-    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, receipt.flavor === 't4-medium'))   // only a real GPU may vouch for wall-clock rows
+    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, info.flavor === 't4-medium'))   // only the inspected T4 may vouch for wall-clock rows
     .map(row => row.index).sort((a, b) => a - b);
 }
 
-// N shard receipts for one tree: each row is trusted at most once, every receipt is judged by the rules above on its own.
-export function trustedFromShards(receipts, tree, commands, readSource, ownSums) {
-  const seen = new Set();
-  for (const receipt of receipts) for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums)) seen.add(index);
-  return [...seen].sort((a, b) => a - b);
+// N shard receipts for one tree: a row is trusted when some receipt trusts it AND no receipt for this tree shows it failing (a FAIL anywhere vetoes).
+export function trustedFromShards(receipts, tree, commands, readSource, ownSums, jobs = {}, trees = {}) {
+  const seen = new Set(), failed = new Set();
+  for (const receipt of receipts) {
+    if (receipt?.kind !== 'vps-shadow-rows' || receipt.tree !== tree) continue;
+    for (const row of receipt.rows || []) if (row.status !== 'pass' || row.exit !== 0) failed.add(row.index);
+    for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums, jobs, trees)) seen.add(index);
+  }
+  return [...seen].filter(index => !failed.has(index)).sort((a, b) => a - b);
 }
-// The unit-suite receipt (scripts/vps-shadow/run-unit.sh): the whole `npm run test:all` for this exact tree, zero failures, a named
-// flavor and the producing script's own sha256 matching the deploy tree's copy. Anything else = the Mac runs its own suite.
-export const unitReceiptOk = (receipt, tree, ownSums) =>
-  !!receipt && receipt.kind === 'vps-unit-suite' && fullHex(tree) && receipt.tree === tree && FLAVORS.includes(receipt.flavor)
-  && receipt.exit === 0 && receipt.fail === 0 && receipt.pass > 0 && boundToTree(receipt, ownSums);
+// The unit-suite receipt (scripts/vps-shadow/run-unit.sh): the whole `npm run test:all` for this exact tree, zero failures, a verified job
+// and the producing script's own sha256 matching the deploy tree's copy. Anything else = the Mac runs its own suite.
+export const unitReceiptOk = (receipt, tree, ownSums, jobs = {}, trees = {}) =>
+  !!receipt && trees?.[receipt.sha] === tree && receipt.kind === 'vps-unit-suite' && fullHex(tree) && receipt.tree === tree && jobVerified(jobs?.[receipt.job], receipt.job, receipt.sha, 'unit')
+  && receipt.exit === 0 && receipt.fail === 0 && Number.isInteger(receipt.pass) && receipt.pass > 0 && boundToTree(receipt, ownSums);
