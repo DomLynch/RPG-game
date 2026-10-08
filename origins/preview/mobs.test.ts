@@ -13,14 +13,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 5, 'a camp of four (a leader and three, Strategy) and one lone opener near the entry (zone-rules)');
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 6, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), and the one Ash Boar at the hold road');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:cinder-scavenger', 'character:hrungnir']);
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
   assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
   assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 18);
+  assert.equal(SPECS.length, 19);
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -175,7 +175,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '18 creatures: the 17 before, unchanged, plus the Cinder Bear (appended last so the others keep their seeds)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '19 creatures: the 17 before, unchanged, plus the Cinder Bear and the Ash Boar (appended last so the others keep their seeds)');
 });
 
 test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {

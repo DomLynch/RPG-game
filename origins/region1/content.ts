@@ -65,6 +65,11 @@ export const LOOT_TABLES = [
     independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 2, max: 8 }),
+  // The Ash Boar's table (Backend 2026-10-08): a lone uncommon beast, level 13-14, a little richer than a scavenger camp's single kill; Frontier gear only.
+  table('loottable:ash-boar', 'collect', [
+    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 3), gearEntry('item:frontier.watch-greaves', 3)]),
+  ], { min: 5, max: 15 }),
   table('loottable:mere-brood', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 30, quantity: 1, levelMin: null, levelMax: null }])], null),
   table('loottable:court-thrall', 'take-one', [weighted(25, [
     gearEntry('item:frontier.thrall-gloves', 50), gearEntry('item:frontier.ferryman-boots', 30), gearEntry('item:frontier.watch-greaves', 20),
@@ -111,6 +116,8 @@ export const FOES = [
     null, [{ id: 'mob', opponent: 'wolf', level: 12, encounter: null }], 'ash-wolf'),
   figure('character:cinder-bear', 'Cinder bear', ORIGINAL, 'Heavy and soot-matted, it came down off the burnt moor when the herds went and takes what it finds.',
     null, [{ id: 'mob', opponent: 'bear', level: 13, encounter: null }], 'cinder-bear'),
+  figure('character:ash-boar', 'Ash boar', ORIGINAL, 'Tusked and ash-streaked, it roots the verge of the hold road for what the Fracture left in the ground.',
+    null, [{ id: 'mob', opponent: 'boar', level: 13, encounter: null }], 'ash-boar'),
   figure('character:mere-brood', 'Mere brood', ORIGINAL, "One of the mere's spawn, out of the reeds and hungry.",
     null, [{ id: 'mob', opponent: 'goblin', level: 12, encounter: 'encounter:mere-mother' }], 'mere-brood'),
   figure('character:ruin-ghoul', 'Ruin ghoul', ORIGINAL, 'A starved servant of the Blood Court ruin.',
@@ -240,6 +247,7 @@ export const REGIONS = [
       spawn('end-steward', 'end-hall', null, ['character:steward-mere']),
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
       spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
+      spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
@@ -329,6 +337,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:mere-brood': 'mob',
   'character:ash-wolf': 'mob',
   'character:cinder-bear': 'mob',
+  'character:ash-boar': 'mob',
   'character:ruin-ghoul': 'mob',
 };
 export const PROPOSED_ROWS = ['rift-boss'] as const; // living-world §8.4: weight 150, once false, rested, party each
@@ -347,6 +356,7 @@ export const CREATURE_LOOT: Record<string, string> = {
   'character:mere-brood': 'loottable:mere-brood',
   'character:ash-wolf': 'loottable:ash-wolf',
   'character:cinder-bear': 'loottable:cinder-bear',
+  'character:ash-boar': 'loottable:ash-boar',
   'character:court-thrall': 'loottable:court-thrall',
 };
 

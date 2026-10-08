@@ -16,7 +16,7 @@ test('the danger band is the payout ladder: every gap lands on the band whose pe
 });
 
 test('how common comes from the row weight against the zone rows; named is unique', () => {
-  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Common', 'Common', 'Common', 'Rare'], 'three equal kinds share a third each; the single Cinder Bear (weight 3) is the rare one');
+  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Common', 'Common', 'Common', 'Rare', 'Rare'], 'three equal kinds share a third each; the single Cinder Bear (weight .3) and Ash Boar (weight 3) are the rare ones');
   const rows = [row({ id: 'a', weight: 80 }), row({ id: 'b', weight: 15 }), row({ id: 'c', weight: 5 })];
   assert.deepEqual(rows.map((r) => commonOf(r, rows)), ['Common', 'Uncommon', 'Rare']);
   assert.equal(commonOf(row({ named: true }), rows), 'Unique'); assert.equal(commonOf(undefined, rows), 'Unique');
@@ -24,7 +24,7 @@ test('how common comes from the row weight against the zone rows; named is uniqu
 });
 
 test('the group is the row camp size, never a constant', () => {
-  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3', 'Alone']);
+  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3', 'Alone', 'Alone']);
   assert.equal(groupOf(row({ behaviour: { campSize: [2, 3] } })), 'Packs of 2 to 3'); assert.equal(groupOf(row({ behaviour: { campSize: [1, 1] } })), 'Alone');
   assert.equal(groupOf(row()), 'Packs of 2 to 3', 'the row default'); assert.equal(groupOf(row({ named: true })), 'Alone'); assert.equal(groupOf(undefined), 'Alone');
 });
