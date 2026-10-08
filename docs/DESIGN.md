@@ -11,3 +11,15 @@ One page. Tokens live in `src/tokens.css`; every screen reads them and adds no f
 7. **Take screen.** Panel header, item grid, footer: only the grid scrolls. Take (gold) and Leave (secondary) side by side at 48 px, pinned; Next steps down to a secondary while the offer is up (one gold per screen).
 
 Pinned-footer popups follow the idea in Unciv's `Popup` (MPL-2.0): rewritten here, nothing copied.
+
+## Window and docking rules (Strategy, study part 2, 2026-10-08)
+
+Every Zone 1 screen (town, bank, gear, rankings, book) follows these. Ideas from classic clients; code is ours (openmw is GPL: rewritten, not copied; World of ClaudeCraft is MIT).
+
+8. **One window skeleton.** Header (auto) | body (`1fr`, the only scroller) | footer (pinned, `padding-bottom: max(12px, env(safe-area-inset-bottom))`). Footer row = `[main] <spacer> [secondary] [cancel]` (openmw `trade_window.layout`, rewrite).
+9. **Dock 50/50 on a phone.** Gear, vendor and bank: paperdoll / vendor / vault on the left, the bag grid on the right (World of ClaudeCraft `char-bags-paired`, `hud.mobile.css`). The 176 px joystick band below stays reserved. The bank and the menu use the SAME gear screen.
+10. **Loot window.** Solid `--panel-base` (nothing shows through), 40 px rows, rarity as coloured names, one gold "Take all".
+11. **Gold is structural.** Three-layer edge (keyline, border, 16% inset glint). Gold FILL only for the one primary; a selected tab or slot is a gold-tinted state, not a fill.
+12. **Chat and toasts.** Chat 0.74 alpha, 0.95 on focus; toasts 8 px apart, 3-5 s. Quantity at the bank or a vendor: a long-press sheet with 1 / 5 / 10 / All / X.
+13. **Ancient-Rome skin as named tokens only.** Basalt/stone surfaces, a 1 px bronze edge, a parchment inner highlight, cream text, orange-gold titles, a Cinzel-like display face for titles and buttons only, sans at 14 px or more for body, 12 px minimum, 16 px inputs; no blur and no ornament in the phone tier.
+14. **One design size + one `--ui-scale` scalar.** Author at one size; never add a second scaling system.
