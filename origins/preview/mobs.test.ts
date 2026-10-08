@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { TUNING, aggroTest, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -154,18 +154,54 @@ test("every creature on the Frontier has a look in Characters' mob-looks table, 
   }
 });
 
-test('the hero spawns among the creatures: on his feet in a Frontier zone, inside the crowd, but outside every notice ring', () => {
+// Dom's spawn ruling (2026-10-07, "simplest"; the bundle's spawnAmong uses 25/35 and [15, 25]): the Zone 1 hero starts 25-35 m from the nearest creature (past the 14 m tap reach and every notice ring, close enough to see them);
+// under ?wolf the nearest wolf is 15-25 m ahead and the hero faces the wolf camp. The bounds are the ruling, so they are written out here and not derived from the constants.
+test('the hero spawns in sight of the creatures but outside their reach: 25-35 m from the nearest, never inside a notice ring; under ?wolf 15-25 m from the nearest wolf, facing it', () => {
   const at = spawnAmong(F, B, SPECS)!;
   assert.ok(at, 'a spawn exists');
-  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 30)!.zone)!;
+  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 45)!.zone)!;
   assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
-  const nearest = Math.min(...SPECS.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
-  assert.ok(nearest >= TUNING.aggro, `no creature already has him (${nearest.toFixed(1)} m)`);
-  assert.ok(SPECS.filter((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 20).length >= 4, 'at least four creatures within 20 m');
+  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), nearest = Math.min(...SPECS.map(dist));
+  assert.ok(nearest >= 25 && nearest <= 35, `the nearest creature is ${nearest.toFixed(1)} m: past the 14 m tap reach, in sight`);
+  assert.ok(SPECS.filter((s) => dist(s) < 45).length >= 4, 'at least four creatures within sight (45 m)');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
+  const wolfSpecs = mobSpecs(F, B, previewRows('?wolf')), w = spawnAmong(F, B, wolfSpecs)!, wolves = wolfSpecs.filter((s) => s.body === 'wolf');
+  const wd = Math.min(...wolves.map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z))), others = Math.min(...wolfSpecs.filter((s) => s.body !== 'wolf').map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z)));
+  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m`);
+  assert.ok(others >= 25, `the goblins stay ${others.toFixed(1)} m off`);
+  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = w.facing - headingTo(w, c);
+  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
 });
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
   assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '17 creatures, same ids, bodies, levels, homes, roam and aggro');
+});
+
+test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1')), SPECS, 'no flag: the placed list is the golden one');
+  const wolves = mobSpecs(F, B, previewRows('?region=1&wolf')).filter((s) => s.character === 'character:ash-wolf');
+  assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
+  assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
+});
+
+test('a world fight hides only the duel\'s foe and the far creatures: packmates beside the hero stay in view (Dom, 2026-10-08: 2 vs 1 is fine)', () => {
+  assert.equal(hiddenInFight('wolves-1', 'wolves-1', 3, 20), true, 'the duel draws the foe');
+  assert.equal(hiddenInFight('wolves-2', 'wolves-1', 2.5, 20), false, 'a packmate beside the hero stays visible');
+  assert.equal(hiddenInFight('goblin-1', 'wolves-1', 25, 20), true, 'past the freeze radius: hidden');
+  assert.equal(hiddenInFight('goblin-1', null, 12, 20), false);
+});
+
+test('the world keeps living during a world duel: attach starts the creature tick, detach stops it, the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world)', () => {
+  const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
+  assert.match(main, /attach\(\) \{[^\n]*liveWorld\(spec\.id, at\);/, 'attach starts the live tick');
+  assert.match(main, /detach\(\) \{ liveWorld\(null, at\);/, 'detach stops it first');
+  assert.match(main, /mobs\?\.update\([^\n]*, at, foe, foe\)/, 'the tick steps every creature round the hero and hides the foe\'s world body');
+  assert.match(view, /v\.group\.visible = v\.ring\.visible = s\.id !== hideBody;/);
+});
+
+test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const auto = /([^{}]*)\{\s*pointer-events:\s*auto;\s*\}/g, lists = [...html.matchAll(auto)].map((m) => m[1]!);
+  assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
 });

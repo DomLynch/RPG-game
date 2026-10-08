@@ -5,6 +5,8 @@ import { LEVELS, OPPONENTS, opponentAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LEGEND_OPPONENTS } from '../src/legends.ts';
 import { PHONE_LOOKS } from '../src/rank-look.ts';
+import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
+import { mobSpecs, previewRows, regionBodies } from '../origins/preview/mobs.ts';
 // What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
 // GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
@@ -96,9 +98,19 @@ const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${
 const SHIELDS = { shieldmaiden: 2_700_000, centurion: 2_700_000 }, SHIELD_FILE = 900_000;
 // World bodies (public/world/<kind>.glb; Lead 2026-10-07, Dom's phone test: the Origins preview went black on an iPhone 15 with full duel GLBs): one
 // cheap skinned body per kind (8k tris, one 1024 atlas, the duel rig and clip names; scripts/character/world_body.py), loaded by the world view only,
-// never by a fight, so out of the per-fight figure and out of TOTAL. Own storage line and file cap, gzip bytes, sized to the files + 13%:
-// goblin 863,354 + wolf 881,772 + pitborn 838,561 + witch 1,134,193 + knight 1,150,856 = 4,868,736 B gzip; the biggest file 1,150,856 B.
-const WORLD_SET = 5_500_000, WORLD_FILE = 1_300_000;
+// never by a fight, so out of the per-fight figure and out of TOTAL. Own storage line and file cap, gzip bytes, sized to the files + 13% (set cap raised from 5.5 MB when the warrior joined):
+// goblin 863,354 + wolf 881,772 + pitborn 838,561 + witch 1,134,193 + knight 1,150,856 + warrior 896,525 = 5,765,261 B gzip; the biggest file 1,150,856 B.
+// PER ZONE (Lead and Strategy 2026-10-08: no more global raises): the set cap applies to the bodies a zone SPAWNS, read from the zone data (origins/preview/mobs.ts
+// regionBodies over mobSpecs), so a body no row spawns yet (the hero's own, a boar or bear waiting for its roster row) is checked per file only and a new animal in
+// another zone never touches Zone 1's download. Zone 1 (the Ash Frontier) keeps 7.57 MB: its measured set today plus the boar and the bear (the two rows that will
+// join it) is about 6.7 MB gzip, so the cap only has to hold the full Zone 1 cast.
+const WORLD_ZONE1_SET = 7_570_000, WORLD_FILE = 1_300_000;
+export const ZONE1_BODIES = regionBodies(mobSpecs(frontierPlan(), frontierBuild(frontierPlan()), previewRows('?wolf')));
+// Split the world files into Zone 1's set (a body its rows spawn) and the rest; the gate checks the set against its cap.
+export function worldZones(worldFiles, bodies = ZONE1_BODIES) {
+  const zone1 = worldFiles.filter(f => bodies.includes(f.name.replace(/\.glb$/, ''))), rest = worldFiles.filter(f => !zone1.includes(f));
+  return { bodies, zone1, zone1Gzip: zone1.reduce((n, f) => n + f.gzip, 0), unassigned: rest.map(f => f.name) };
+}
 // Hero preview rigs (public/herolook/, Strategy via Lead 2026-09-29): their own storage line out of TOTAL, which bounds what a player's fights
 // download; only Dom's `?hero=` link fetches them. 4.65 MB = measured 4,053,116 B gzip (legionary.glb, dist 48788d3c) + ≤ 15 %.
 const PREVIEW = 4_650_000;
@@ -130,7 +142,7 @@ const PIT_TRIS = [['bull-skull', 3000], ['skull', 400], ['sconce', 1500], ['rack
 // frame, so a prop under pit/props/ is one mesh of one primitive on nodes that carry no transform; a second mesh or primitive would not be
 // drawn and a node transform would be dropped, both silently. gate.glb is exempt: the arch and the bars are two nodes by design (#1173).
 const PIT_SHAPE_EXEMPT = ['gate'];
-const PER_FIGHT = 12_000_000, TOTAL = 44_000_000, LOOT = 3_500_000, GUARD = 400_000;   // TOTAL 40 → 44 MB (Lead 2026-09-25, #705: ten carriers-* cuts +2.8 MB gzip; server storage, per-fight 12 MB unchanged)   // LOOT 2 → 3.5 MB (Phase R, Dom 2026-09-23): six-piece sets for all ten opponents; dist loot.glb 1,327,597 gzip for 27 pieces / 40 draws → ~49 KB a piece, +36 pieces ≈ 3.10 MB; loot.glb never counts toward PER_FIGHT   // LOOT 1.5 → 2 MB: four characters' Recruit-2 pieces on shared Steel, ~130 KB each (Strategy 2026-09-23)   // TOTAL 32 → 40 MB: four launch characters into beta (Dom 2026-09-23); total = server storage, per-fight unchanged   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
+const PER_FIGHT = 12_000_000, TOTAL = 46_000_000, LOOT = 3_500_000, GUARD = 400_000;   // TOTAL 44 → 46 MB (Lead 2026-10-07, wolf.glb 4,016,096 B gzip, roster opponent emitted lazily; measured 45,873,661, +4.3% ≤15% rule); TOTAL 40 → 44 MB (Lead 2026-09-25, #705: ten carriers-* cuts +2.8 MB gzip; server storage, per-fight 12 MB unchanged)   // LOOT 2 → 3.5 MB (Phase R, Dom 2026-09-23): six-piece sets for all ten opponents; dist loot.glb 1,327,597 gzip for 27 pieces / 40 draws → ~49 KB a piece, +36 pieces ≈ 3.10 MB; loot.glb never counts toward PER_FIGHT   // LOOT 1.5 → 2 MB: four characters' Recruit-2 pieces on shared Steel, ~130 KB each (Strategy 2026-09-23)   // TOTAL 32 → 40 MB: four launch characters into beta (Dom 2026-09-23); total = server storage, per-fight unchanged   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
 
@@ -263,8 +275,8 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
     if (f.gzip >= SHIELD_FILE) throw new Error(`shield ${f.name} exceeds ${SHIELD_FILE / 1e6} MB gzip: ${f.gzip}`);
   }
   for (const f of m.worldFiles) if (f.gzip >= WORLD_FILE) throw new Error(`world body ${f.name} exceeds ${WORLD_FILE / 1e6} MB gzip: ${f.gzip}`);
-  const worldGzip = m.worldFiles.reduce((n, f) => n + f.gzip, 0);
-  if (worldGzip >= WORLD_SET) throw new Error(`the world bodies exceed ${WORLD_SET / 1e6} MB gzip: ${worldGzip}`);
+  const wz = worldZones(m.worldFiles);
+  if (wz.zone1Gzip >= WORLD_ZONE1_SET) throw new Error(`the Zone 1 world bodies (${wz.zone1.map(f => f.name).join(', ')}) exceed ${WORLD_ZONE1_SET / 1e6} MB gzip: ${wz.zone1Gzip}`);
   const shieldSets = Object.keys(SHIELDS).map(set => ({ set, gzip: m.shieldFiles.filter(f => f.set === set).reduce((n, f) => n + f.gzip, 0) }));
   for (const { set, gzip } of shieldSets) if (gzip >= SHIELDS[set]) throw new Error(`the ${set} shields exceed ${SHIELDS[set] / 1e6} MB gzip: ${gzip}`);
   const shapeSets = Object.keys(SHAPES).map(set => ({ set, gzip: m.shapeFiles.filter(f => f.set === set).reduce((n, f) => n + f.gzip, 0) }));
@@ -310,7 +322,7 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   console.log(`Pit extra (pit/extra/, lazy, off the eager sums): ${pitExtraSum} of ${PIT_EXTRA.pack} gzip (${pitExtra.length} files; per GLB ${PIT_EXTRA.glb}, machinery/large ${PIT_EXTRA.glbLarge})`);
   console.log(`Pit assets (pit/, phone path): ${pitTotal} of ${PIT_ASSETS.total} gzip (prop pack ${pitPack} of ${PIT_ASSETS.pack}, stone maps ${pitMaps} of ${PIT_ASSETS.maps}; per GLB ${PIT_ASSETS.glb}, per map ${PIT_ASSETS.map}); desktop stone set ${pitDesktopMaps} of ${PIT_ASSETS_DESKTOP.maps}`);
   console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; rank looks ${lookSets.map(l => `${l.set} ${l.gzip} of ${LOOKS[l.set]} (${l.files} files, each < ${LOOK_FILE})`).join(', ')}; legend faces ${m.portraits} of ${PORTRAITS} (${m.portraitFiles.length} files, each < ${PORTRAIT_FILE}); guard ${m.guard} of ${GUARD}; the Pit ${m.pit} of ${PIT}; hero previews ${m.preview} of ${PREVIEW}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
-  console.log(`World bodies: ${m.worldFiles.length} files, ${worldGzip} of ${WORLD_SET} B gzip (per file cap ${WORLD_FILE})`);
+  console.log(`World bodies: Zone 1 ${wz.zone1.length} files (${wz.zone1.map(f => f.name).join(', ')}), ${wz.zone1Gzip} of ${WORLD_ZONE1_SET} B gzip (per file cap ${WORLD_FILE}); not spawned by any zone yet: ${wz.unassigned.join(', ') || 'none'}`);
   console.log(`Shields: ${shieldSets.map(l => `${l.set} ${l.gzip} of ${SHIELDS[l.set]}`).join(', ') || 'none'} (per file cap ${SHIELD_FILE})`);
   console.log(`Weapon shapes: ${shapeSets.map(l => `${l.set} ${l.gzip} of ${SHAPES[l.set]}`).join(', ') || 'none'} (per file cap ${SHAPE_FILE})`);
 }

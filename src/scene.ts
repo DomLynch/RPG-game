@@ -30,7 +30,7 @@ import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungP
 import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
 import { createHamstrungAssets } from './hamstrung-assets.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
-import { buildArena, LAYOUT } from './arena.ts';
+import { buildArena, LAYOUT, type Arena } from './arena.ts';
 import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
 import { arenaFor, hasArena1Sand } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
@@ -55,7 +55,7 @@ import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { clonesOf } from './arena-materials.ts';
-import { createCameraRig } from './camera.ts';
+import { createCameraRig, framingLow, framingTall } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
@@ -80,6 +80,12 @@ const equipUrl = (weapon: WeaponId): string | undefined => EQUIP_URLS[`./assets/
 // A rank look's pre-swap bake takes up to this many ms of each frame (it runs while the fight plays; one bounded step is ~8 ms at worst).
 const LOOK_BAKE_MS = 6;
 export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapon) => weapon === 'longsword' || equipUrl(weapon));
+// In-world fights (Origins ?worldfight, Dom 2026-10-07: "the Pit's own fight, where you stand, without the arena"). With a mount the duel scene is the same scene it always is, with
+// the Pit's rigs, effects and locked camera in the arena's own coordinates, except that no arena, crowd or arena light is built: `holder` (the page's world, moved in by the page) is
+// the ground, `background` and `fog` are the world's, and the page's renderer draws it (no second GL context). The page places `holder` with the inverse of where the duel stands in
+// the world. Without a mount (every Pit and game page) none of this runs.
+export type WorldMount = { renderer: THREE.WebGLRenderer; holder: THREE.Object3D; background: THREE.Color | THREE.Texture | null; fog: THREE.Fog | THREE.FogExp2 | null };
+const worldArena = (): Arena => ({ group: new THREE.Group(), floor: new THREE.Mesh(), sky: Object.assign(new THREE.Texture(), { image: { width: 1 } }), materials: undefined, ready: Promise.resolve(), update() {}, raiseGate() {} }) as unknown as Arena;
 export function createScene(
   canvas: HTMLCanvasElement,
   // `kind` is the machine-readable outcome; `status` is only ever display text — main.ts must never infer readiness or
@@ -102,24 +108,27 @@ export function createScene(
   // it did). The rigs load behind the loading card until then and the peer is drawn on the hero's own rig; a page with no `?duel=` passes
   // nothing and every line below is the fight it always was.
   peerKit?: Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>,
+  world?: WorldMount,
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
   const PHONE = phoneTier(),
     PIXEL_CAP = pixelCap(PHONE);   // ?dpr= overrides the ceiling for this load (quality.ts)
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, PIXEL_CAP));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = theme.exposure;
+  const renderer = world?.renderer ?? new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  if (!world) {   // a world mount keeps the page's renderer as it is
+    renderer.setPixelRatio(Math.min(devicePixelRatio, PIXEL_CAP));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = theme.exposure;
+  }
   const scene = new THREE.Scene();
   // Special Moves (special-look.ts): the tick each side was last struck by a special (its head-hit stagger is presentation only). The cloud
   // is Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
   const specialStruck = [-Infinity, -Infinity];
-  scene.background = new THREE.Color(theme.fog);
-  scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
+  scene.background = world ? world.background : new THREE.Color(theme.fog);
+  scene.fog = world ? world.fog : new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
   // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
   // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
@@ -131,7 +140,7 @@ export function createScene(
       environmentTarget?.dispose();
       environmentTarget = target;
       scene.environment = target.texture;
-      scene.environmentIntensity = environment ? 0.45 : 1.0;
+      scene.environmentIntensity = world ? 0.15 : environment ? 0.45 : 1.0;   // a world mount: the studio map must not wash the world's own ground and props
     } finally {
       environment?.dispose();
       pmrem.dispose();
@@ -144,7 +153,7 @@ export function createScene(
   // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
   const hemisphere = new THREE.HemisphereLight(...theme.hemisphere);
-  scene.add(hemisphere);
+  if (!world) scene.add(hemisphere);   // a world mount is lit by the world's own lights (inside `holder`)
   const sun = new THREE.DirectionalLight(...theme.sun);
   const sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18])), sunPower = theme.sun[1];   // a theme may move the key light (noon overhead, firelight low)
   sun.position.copy(sunHome);
@@ -152,7 +161,7 @@ export function createScene(
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
   sun.shadow.normalBias = 0.04;
-  scene.add(sun);
+  if (!world) scene.add(sun);
   // Look test links (souls-look.ts): `?look=souls`, `?look=shade` or both. No flag fetches, builds and compiles nothing and draws
   // today's frame; with one, the module (and its post chain) is its own chunk, fetched beside the fight's art.
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
@@ -195,12 +204,13 @@ export function createScene(
   ) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = buildArena(scene, theme),
+  const arena = world ? worldArena() : buildArena(scene, theme),
     footDust = createFootDust(scene, dustToneFor(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene),
     miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
+  if (world) scene.add(world.holder);
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
@@ -555,7 +565,7 @@ export function createScene(
     width = document.documentElement.clientWidth || innerWidth; height = document.documentElement.clientHeight || innerHeight;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(width, height, false);
+    if (!world) renderer.setSize(width, height, false);   // the page sizes its own renderer
     look?.setSize(width, height, renderer.getPixelRatio());
   };
   resize();
@@ -563,6 +573,23 @@ export function createScene(
   return {
     renderer,
     ready,
+    // A world-mounted fight (pit-duel.ts stageFor) builds a scene per creature on the page's ONE renderer, which is never disposed: let go of this scene's GPU memory (every geometry,
+    // material, texture, skeleton and the environment map under it) and its resize listener. The caller has taken the world's holder out of the scene first, so the world is never
+    // touched; the renderer is not disposed here.
+    dispose() {
+      window.removeEventListener('resize', resize);
+      scene.traverse((o) => {
+        const m = o as THREE.Mesh & { skeleton?: THREE.Skeleton };
+        m.geometry?.dispose();
+        m.skeleton?.dispose();
+        for (const material of Array.isArray(m.material) ? m.material : m.material ? [m.material] : []) {
+          for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
+          material.dispose();
+        }
+      });
+      environmentTarget?.dispose();
+      scene.environment = null;
+    },
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
     // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
@@ -755,7 +782,7 @@ export function createScene(
     lowerResolution() {
       if (ratio > 1) {
         ratio = 1;
-        renderer.setPixelRatio(ratio);
+        if (!world) renderer.setPixelRatio(ratio);   // a world mount keeps the page's renderer as it is
         resize();
       }
     },
@@ -1346,7 +1373,7 @@ export function createScene(
         head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
-      } : null, OPPONENTS[opponentId].scale);
+      } : null, OPPONENTS[opponentId].scale, framingTall(opponentId), framingLow(opponentId));
       // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
       // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
       // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the

@@ -8,6 +8,8 @@ import { mobLook } from '../preview/mob-looks.ts';
 import { CREATURE_LOOT } from '../region1/content.ts';
 import { FRONTIER_ROWS } from './frontier-rows.ts';
 import { populateZone } from './populate.ts';
+import { styleOpponent } from './styles.ts';
+import { WILDLIFE_ROWS } from './wildlife-rows.ts';
 import { BOSS_CAMP_MAX, CAMP_MAX, rungWeights, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
 
 const registry = frontierPlan().data.registry;
@@ -180,4 +182,17 @@ test('populateZone: a band that misses the zone is skipped quietly, a malformed 
   const r = populateZone(zone.value, [cited3[0]!, far, broken], 7, ctx);
   assert.deepEqual(r.rejected.map((x) => [x.row, x.issues.map((i) => i.code)]), [['character:mere-brood', ['level-band']]]);
   assert.ok(r.camps.every((c) => c.row === cited3[0]!.id), 'only the eligible kind is placed');
+});
+
+// ---- the wildlife batch (held as `later`) ----
+test('wildlife rows are valid held rows: no look, source or loot table needed, never generated', () => {
+  assert.deepEqual(validateRows(WILDLIFE_ROWS, ctx), []);
+  assert.ok(WILDLIFE_ROWS.every((r) => r.later && styleOpponent(r.role) !== undefined), 'every one is later, with a real MobStyle');
+  assert.ok(WILDLIFE_ROWS.every((r) => r.role === 'beast'), 'the quadruped family are beasts (they flee at low health)');
+  for (let seed = 1; seed <= 20; seed++) {
+    const zone = generateZone(WILDS, seed);
+    assert.ok(zone.ok);
+    const out = populateZone(zone.value, [...cited3, ...WILDLIFE_ROWS], seed, ctx);
+    assert.ok(out.camps.every((c) => !WILDLIFE_ROWS.some((w) => w.id === c.row)), 'a later row is never placed');
+  }
 });

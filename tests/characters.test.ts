@@ -10,6 +10,8 @@ import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
+import { WOLF_RENDER_SCALE } from '../src/beast-scale.ts';
+import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
 import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, loadTextured, MissingTextures, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
@@ -37,14 +39,14 @@ const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 've
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul' | 'trident' | 'warhammer'}.glb` = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wolf.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul' | 'trident' | 'warhammer'}.glb` = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
   // Reconstructed surfaces carry colour + ORM; a procedural player equip with no maps at all (the gladius) carries no images array.
   const images: { bufferView: number }[] = json.images ?? [];
-  if (!file.startsWith('weapons/player/') || images.length) assert.ok(images.length >= (['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3));
+  if (!file.startsWith('weapons/player/') || images.length) assert.ok(images.length >= (file === 'wolf.glb' ? 1 : ['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3))   // the wolf carries its one 2048 body texture;
   assert.ok(images.every(i => Number.isInteger(i.bufferView)));
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
@@ -291,7 +293,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from [slow]', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), gladius: await readWarrior('warrior.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), reaper: await readWarrior('wraith.glb') , warhammer: await readWarrior('weapons/warhammer/veteran-warhammer.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), gladius: await readWarrior('warrior.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), reaper: await readWarrior('wraith.glb') , warhammer: await readWarrior('weapons/warhammer/veteran-warhammer.glb'), bite: await readWarrior('wolf.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES.filter(r => r !== 'ArmedRun')) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);   // ArmedRun: the veteran rig's own optional clip
@@ -996,4 +998,18 @@ test('the Centurion\'s armed run: the veteran rig carries ArmedRun, a one-hand f
   const mirror = buildWarriors(hero, undefined, ['gladius', 'gladius']).opponent;
   for (let i = 0; i < 90; i++) mirror.update(4, 1 / 60, 'ready');
   assert.ok(!/ArmedRun/.test(mirror.playing()), 'a rig without the clip never plays it');
+});
+
+// Dom 2026-10-07: the Ash Wolf is the same size walking and fighting. The world draws the rig at its mob look's scale, the duel at src/beast-scale.ts: one number, and the duel's wolf stands the height the world's does (~1.29 m, the capsule's size).
+test('the Ash Wolf is drawn the same size in the duel as in the world: one scale, the rig x2, ~1.29 m', async () => {
+  assert.equal(MOB_LOOKS['character:ash-wolf']!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale');
+  const hero = await readWarrior('warrior.glb'), wolf = await readWarrior('wolf.glb');
+  const { opponent } = buildWarriors(hero, wolf, ['longsword', 'bite']);
+  assert.equal(opponent.anchor.scale.x, WOLF_RENDER_SCALE); assert.equal(opponent.anchor.scale.y, WOLF_RENDER_SCALE);
+  const top = (a: typeof wolf) => { a.scene.updateMatrixWorld(true); const b = new Box3().setFromObject(a.scene); return b.max.y - b.min.y; };
+  const native = top(wolf), drawn = (() => { opponent.anchor.updateMatrixWorld(true); const b = new Box3().setFromObject(opponent.anchor); return b.max.y - b.min.y; })();
+  assert.ok(Math.abs(drawn / native - WOLF_RENDER_SCALE) < .02, `drawn ${drawn.toFixed(3)} m vs native ${native.toFixed(3)} m`);
+  assert.ok(drawn > 1.2 && drawn < 1.4, `the fighting wolf stands ${drawn.toFixed(3)} m (world target 1.25-1.30)`);
+  // the sim's capsule is untouched: render only
+  assert.equal(OPPONENTS.wolf.scale, .8);
 });

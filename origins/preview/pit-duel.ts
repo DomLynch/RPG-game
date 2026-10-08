@@ -20,26 +20,30 @@ import { bareName } from '../../src/roster.ts';
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
-import { createScene } from '../../src/scene.ts';
+import { createScene, type WorldMount } from '../../src/scene.ts';
+import { Matrix4 } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
 import { loadTrial } from '../../src/trial.ts';
 import { withBar } from '../shared/with-bar.ts';
+import { recordWorldFight, worldRecord } from './world-record.ts';
+import type { FightRecord } from '../../src/record.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Object3D } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
 export type DuelHooks = {
-  ended(finish: Finished): { next?: string } | void;   // the page settles the career; `next` names the next fight for the Rematch button
+  ended(finish: Finished, record?: FightRecord | null): { next?: string } | void;   // record: only when the fight asked for one (DuelFight.record)   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
-  twisted?(outcome: TwistOutcome): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
+  stepped?(): void;                                    // once, after the duel's first simulated tick (the encounter online path marks its server token as played)
+  twisted?(outcome: TwistOutcome, record?: FightRecord | null): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
 // In-memory storage for the match's ports: the sparring mode writes nothing, and if it ever did, it would land here, never in localStorage.
@@ -48,10 +52,14 @@ const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as read
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
 type View = ReturnType<typeof createScene>;
-type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean };
+type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
+// ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
+// (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
+export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; at: { x: number; z: number }; toward: { x: number; z: number } };
+let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
-let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
+let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null, steppedOnce = false;
 let twist: Twist = noTwist(), dressed = false, dressedRoot: Object3D | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
@@ -138,41 +146,58 @@ function nameOpponent(opponent: OpponentId, level: number, as?: Shown) {
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
 
-function stageFor(host: HTMLElement, opponent: OpponentId, level: number) {
-  if (stage && stage.opponent === opponent && stage.level === level) {   // the same scene again: its art is in, so the page's "Loading…" goes now
+function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?: WorldDuel) {
+  if (stage && stage.opponent === opponent && stage.level === level && stage.mounted === !!mount) {   // the same scene again: its art is in, so the page's "Loading…" goes now
     if (stage.ready) element('art-status').textContent = '';
     return stage;
   }
-  if (stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); stage = null; }   // one GL context at a time
-  const canvas = document.createElement('canvas');
-  canvas.id = 'world'; canvas.tabIndex = 0; canvas.setAttribute('aria-label', 'The Pit duel');   // the game's #world: src/style.css places it
-  host.prepend(canvas);
+  if (stage?.mounted) { stage.holder?.parent?.remove(stage.holder); stage.view.dispose(); }   // the old world-mounted scene lets go of the holder, then of its own GPU memory and resize listener (scene.ts dispose); the page's renderer is never disposed here
+  else if (stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); }   // one GL context at a time
+  stage = null;
+  const canvas = mount?.canvas ?? document.createElement('canvas');
+  if (!mount) {
+    canvas.id = 'world'; canvas.tabIndex = 0; canvas.setAttribute('aria-label', 'The Pit duel');   // the game's #world: src/style.css places it
+    host.prepend(canvas);
+  }
   const status = document.getElementById('art-status');
-  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View };
+  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
   made.view = createScene(canvas, (line, kind) => {
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
-  }, opponent, undefined, 'longsword', () => {}, level);
+  }, opponent, undefined, 'longsword', () => {}, level, undefined, mount);
   made.view.setTier(tierAt(level - 1)); made.view.setPlayerTier(tierAt(level - 1));   // the sparring look: his kit at the fight's rung (main.ts shownTier)
   return (stage = made);
 }
 
+// The holder carries the world into the duel's own coordinates: a world point w maps to the duel's player spot plus the world offset from `at`, turned so the duel's player-to-foe
+// direction lies along `at` -> `toward`. The duel itself (sim, rigs, camera) is never moved.
+function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; enemy: { x: number; z: number } }) {
+  const angle = (x: number, z: number) => Math.atan2(x, z);
+  const theta = angle(mount.toward.x - mount.at.x, mount.toward.z - mount.at.z) - angle(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z);
+  mount.holder.matrixAutoUpdate = false;
+  mount.holder.matrix.copy(new Matrix4().makeTranslation(p.fighter.x, 0, p.fighter.z).multiply(new Matrix4().makeRotationY(-theta)).multiply(new Matrix4().makeTranslation(-mount.at.x, 0, -mount.at.z)));
+  mount.holder.matrixWorldNeedsUpdate = true;
+}
+
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
-export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void) {
+export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
   world = false; liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
   if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
-  fight = asked; hooks = page; next = undefined; result = null; twist = noTwist();
-  stageFor(host, opponent, asked.level);
+  fight = asked; hooks = page; steppedOnce = false; next = undefined; result = null; twist = noTwist();
+  mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
+  stageFor(host, opponent, asked.level, mount);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
+  if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); }
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
@@ -210,6 +235,7 @@ export function worldIntent(): ControlIntent {
 }
 
 export function closeDuel() {
+  mounted?.detach(); mounted = null;
   running = false; cancelAnimationFrame(frameId); controls?.clear(); feedback?.quiet();
   if (journal?.open) journal.close();
   liveLook(false);
@@ -228,6 +254,7 @@ function frame(now: number) {
         return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action: i.action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
       });
       const p = match.practice;
+      if (!steppedOnce) { steppedOnce = true; hooks?.stepped?.(); }
       for (const e of p.events) if (e.actor === 0) { if (e.type === 'ActionStarted') saw(e.action!); else if (e.type === 'AttackStarted') saw(e.move!); else if (e.type === 'Charged') saw('charged'); }
       feedback!.update(p.events, undefined, { match: match.seed, ended: !!p.finish, tick: p.duel.tick, drawing: p.duel.fighters[0].phase === 'draw', holding: foeHolding(p.duel.fighters[1]), opponent: stage.opponent,
         loiter: Math.max(p.duel.fighters[0].loiter, p.duel.fighters[1].loiter) / RULES.wall.loiter.ticks });   // the game's sound, fed as src/main.ts feeds it
@@ -240,7 +267,7 @@ function frame(now: number) {
         const t = stepTwist(p.duel, fight!.flags, twist);
         twist = t.twist;
         if (twist.outcome === 'fled' || twist.outcome === 'escaped') {   // no catch window / the window ran out: the fight ends with the foe alive
-          match.end(false); running = false; hooks?.twisted?.(twist.outcome);
+          running = false; hooks?.twisted?.(twist.outcome, worldRecord(match, null));   // no match.end(): it throws without a finish, which froze the duel here (sparring keeps nothing for end() to write)
           break;
         }
       }
@@ -248,7 +275,7 @@ function frame(now: number) {
         if (fight!.flags?.length && p.duel.finish?.victim === 1) twist = stepTwist(p.duel, fight!.flags, twist).twist;   // 'caught' inside the window
         match.end(false);   // sparring: no record, no mark, nothing written
         result = match.practice.finish;
-        next = hooks?.ended(result)?.next;
+        next = hooks?.ended(result, worldRecord(match, result))?.next;
       }
     }
   } else { accumulator = 0; previous = state; }
@@ -274,6 +301,6 @@ export function duelState() {
   return p && fight ? {
     opponent: fight.opponent, legend: legendName(fight.opponent, fight.level), level: fight.level, seed: fight.seed, ready: !!stage?.ready, running,
     tick: p.duel.tick, phase: p.phase, playerHealth: p.playerHealth, health: p.health, finish: result ?? p.finish,
-    x: p.fighter.x, z: p.fighter.z, seen: Object.fromEntries(seen), menu: !!journal?.open,
+    x: p.fighter.x, z: p.fighter.z, foe: { x: p.enemy.x, z: p.enemy.z }, gap: Math.hypot(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z), seen: Object.fromEntries(seen), menu: !!journal?.open,
   } : null;
 }

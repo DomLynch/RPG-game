@@ -8,6 +8,7 @@
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
 import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
@@ -20,6 +21,9 @@ export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/mobs/frontier-rows.ts. Named creatures keep these:
+// A world duel is up (?worldfight): the engaged creature is hidden (the duel draws it) and those past the freeze radius; every other
+// creature stays in view, packmates beside the hero included (Dom, 2026-10-08: "it can be 2 vs 1, that is fine, why are you forcing 1 vs 1?").
+export const hiddenInFight = (id: string, foe: string | null, metres: number, radius: number): boolean => id === foe || metres > radius;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
 export const TUNING = {
   walk: 0.9,            // m/s: a creature's amble, well under the hero's 2.3
@@ -52,6 +56,10 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 // Where a creature of `zone` may stand: inside the zone with a margin, and clear of every solid (buildings, posts, towers, cairns).
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
+
+// ?wolf (Dom: the Zone 1 preview with the Ash Wolf): the wildlife batch's wolf row with `later` lifted, added to the zone's rows for this page only. The registry's
+// `wolves` spawn is inert without it, so the live game and the golden placement are untouched.
+export const previewRows = (search: string): readonly MobRow[] => /[?&]wolf\b/.test(search) ? [...FRONTIER_ROWS, ...WILDLIFE_ROWS.filter((r) => r.id === 'character:ash-wolf').map((r) => ({ ...r, later: undefined }))] : FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
@@ -107,6 +115,15 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   }
   return out;
 }
+// Which world bodies a zone spawns (the bodies the phone downloads for it): the unique `body` of its specs, sorted. check-budget reads this, so a world body
+// counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
+export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {
+  const out: Record<string, Set<string>> = {};
+  for (const s of specs) (out[s.zone] ??= new Set()).add(s.body);
+  return Object.fromEntries(Object.entries(out).map(([zone, set]) => [zone, [...set].sort()]));
+};
+export const regionBodies = (specs: readonly MobSpec[]): string[] => [...new Set(specs.map((s) => s.body))].sort();
+
 // The middle of a zone's footprint, world metres (zone frame: across 0, inward depth/2).
 function zoneCentre(z: ZonePlan): Pos {
   const s = Math.sin(z.mount.heading), c = Math.cos(z.mount.heading), d = z.depth / 2;
@@ -163,19 +180,26 @@ export function pickVisible(at: readonly Pos[], hero: Pos, cap = TUNING.cap, ran
   return at.map((p, i) => ({ i, d: Math.hypot(p.x - hero.x, p.z - hero.z) })).filter((e) => e.d <= range).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, cap).map((e) => e.i);
 }
 
-// Where the preview drops the hero: in the middle of the largest group of creatures, on the first free spot (nearest the group's centre) that
-// stands clear of every home by the notice ring plus a metre, so they are all round him and wandering, none already facing him. Deterministic.
+// Where the preview drops the hero: in sight of the biggest group of creatures but outside their reach, on the first free spot (scanning outward
+// from 25 m, so nearest the group) that stands 25-35 m from the nearest creature (wolves aside) (clear of the 14 m tap reach and the notice rings, close enough to
+// see them). When wolves are placed (?wolf) it stands 15-25 m from the nearest wolf instead and faces the wolf camp: the first thing in front of him is
+// the wolf. Falls back to any spot clear of every notice ring. Deterministic.
+const SPAWN_NEAR = 25, SPAWN_FAR = 35, SPAWN_WOLF: readonly [number, number] = [15, 25];
 export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { x: number; z: number; facing: number } | null {
   const groups = new Map<string, MobSpec[]>();
   for (const s of specs) { const g = groups.get(s.zone + '/' + s.spawn); if (g) g.push(s); else groups.set(s.zone + '/' + s.spawn, [s]); }
   const crowd = [...groups.values()].sort((a, c) => c.length - a.length)[0];
   const zone = crowd && f.zones.find((z) => z.zone === crowd[0]!.zone);
   if (!crowd || !zone) return null;
-  const cx = crowd.reduce((n, s) => n + s.home.x, 0) / crowd.length, cz = crowd.reduce((n, s) => n + s.home.z, 0) / crowd.length;
-  const stand = mobStand(b, zone), clear = TUNING.aggro + 1;
-  for (let r = 0; r <= 14; r += 2) for (let k = 0; k < 12; k++) {
-    const a = (k / 12) * Math.PI * 2, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
-    if (stand(x, z) && specs.every((s) => Math.hypot(s.home.x - x, s.home.z - z) >= clear)) return { x, z, facing: headingTo({ x, z }, { x: cx, z: cz }) };
+  const centre = (g: readonly MobSpec[]) => ({ x: g.reduce((n, s) => n + s.home.x, 0) / g.length, z: g.reduce((n, s) => n + s.home.z, 0) / g.length });
+  const wolves = specs.filter((s) => s.body === 'wolf' && s.zone === zone.zone), c = centre(crowd), look = wolves.length ? centre(wolves) : c;
+  const others = wolves.length ? specs.filter((s) => s.body !== 'wolf') : specs, stand = mobStand(b, zone), clear = TUNING.aggro + 1, near = (x: number, z: number, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - x, s.home.z - z)));
+  for (const strict of [true, false]) for (let r = 0; r <= 44; r += 2) for (let k = 0; k < 24; k++) {
+    const a = (k / 24) * Math.PI * 2, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;
+    if (!stand(x, z) || near(x, z, specs) < clear) continue;
+    const d = near(x, z, others), w = wolves.length ? near(x, z, wolves) : null;
+    if (strict && (d < SPAWN_NEAR || d > SPAWN_FAR || (w !== null && (w < SPAWN_WOLF[0] || w > SPAWN_WOLF[1])))) continue;
+    return { x, z, facing: headingTo({ x, z }, look) };
   }
   return null;
 }
