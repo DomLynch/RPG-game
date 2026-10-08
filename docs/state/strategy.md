@@ -4,6 +4,13 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-08 19:15 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_1915 + project_dom_decided_ledger (16:4x–19:1x).
+
+**Now.** CronList, re-arm /checkin. Live 6228c4a2 (wolves, Zone 1 default, RUN, speeds, bear, sign-in refresh). Deploy 11e6c834 in flight (Play→/zone1/ #1861, fixed first-loss row). Next: ONE Zone 1 combat fold = #1888 + World #1875 + Characters #1893 + Backend #1880 apply (my GO on #1880), then #1890 specials, then #1894 (verbatim Pit copy).
+**Done.** Zone 1 DETACHED from the Pit (Dom; Auditor + COO YES); Pit on hold. UO-style PvP design approved by Dom (ledger). Deploy speed-ups ordered (overlap, trust CI, VPS priority) with one Auditor audit after the first fold. Lanes restarted after the app restart.
+**Open.** World: kill+loot receipt, creature levels near town. Web #1845 ~20:00 Dubai. Backend town stack 19:40→21:00 Dubai. nginx drift: provision.sh unsafe (Deploy).
+**Gotchas.** World = MMO, never Pit rules. Copy the Pit's code, don't rewrite. Times to Dom in Dubai time. Receipts before claims.
+
 ## 2026-10-08 16:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_1635 + project_dom_decided_ledger (11:4x–16:4x).
 
 **Now.** CronList, re-arm /checkin. Live 5d9f3ee3a: stances ON, shops, coach UI, soft shadow, seamless default-ON with no freeze, bear, boar, props/landmarks/buildings as files. Next: S1+S2 real-time combat (#1857/#1858, stills approved, Auditor code PASS is the only gate), wolves ON #1859, Zone 1 wiring #1845, S3 stand-where-you-are (#1852 after #1856), Play→Zone 1 (client-side redirect, /arena/).
