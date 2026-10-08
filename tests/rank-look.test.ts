@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -217,9 +217,10 @@ function lodArt(full: Glb, phone: Glb, at: string, shared: Map<string, Buffer>) 
 
 // A resized draw (extras.resized): the desktop draw's mesh (same primitives, attributes, counts and bounds), the desktop material with only its
 // texture indices free (same parameters, same texture slots and texCoords), and each map the desktop map at the same or fewer pixels, never 0.
-// Build-shared maps (../assets/textures/<sha256>): vite.config.mjs emits them from the base rigs, so read them from the rigs the way the build does.
+// Build-shared maps (../assets/textures/<sha256>): vite.config.mjs emits them from the base rigs, so read them from the rigs the way the build does; a map that only a look names
+// (a texture shrink left it held by one rig) ships as a public file named by its sha256 (#1801), so those count too.
 let sharedMaps: Promise<Map<string, Buffer>> | undefined;
-const buildShared = () => sharedMaps ??= (async () => { const shared = new Map<string, Buffer>(); for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; }); return shared; })();
+const buildShared = () => sharedMaps ??= (async () => { const shared = new Map<string, Buffer>(); for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; }); const pub = new URL('../public/assets/textures/', import.meta.url); for (const file of readdirSync(pub)) { const bytes = readFileSync(new URL(file, pub)), sha = createHash('sha256').update(bytes).digest('hex'); assert.equal(file.slice(0, 64), sha, `public/assets/textures/${file} is not named by its sha256`); shared.set(sha, bytes); } return shared; })();
 function assertResized(full: Glb, phone: Glb, name: string, at: string, rebaked: string[], shared: Map<string, Buffer>) {
   assert.ok(!rebaked.includes(name), `${at}: resized ${name} is not also rebaked`);
   const node = (f: Glb) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
