@@ -53,7 +53,7 @@ test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launc
 });
 
 test('a receipt is refused without a known flavor (no GPU) or when its runner checksums differ from the deploy tree', () => {
-  for (const bad of [{ flavor: undefined }, { flavor: 't4-medium' }, { scripts: undefined }, { scripts: { ...sums, 'rows-lib.mjs': 'x'.repeat(64) } }]) {
+  for (const bad of [{ flavor: undefined }, { flavor: 'a10g-small' }, { scripts: undefined }, { scripts: { ...sums, 'rows-lib.mjs': 'x'.repeat(64) } }]) {
     assert.deepEqual(trustedFromVps(receipt(bad), tree, commands, source, sums), [], JSON.stringify(bad).slice(0, 60));
   }
   assert.deepEqual(trustedFromVps(receipt(), tree, commands, source), [], 'no own checksums to compare = not trusted');
