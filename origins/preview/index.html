@@ -55,7 +55,7 @@
     #duel #nav-gear, #duel #nav-note, #duel #mobile-camera, #duel #camera-button, #duel #recenter-button { display: none !important; }
     /* World mode (?region=1): the Pit's own kit is the walk's controls. The layer lets the walk's canvas through; only the stick, the buttons and the ☰ take a touch. */
     #duel.world { background: none; pointer-events: none; }
-    #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit) */
+    #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave, #duel.world #journal { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit); #journal: the ☰ menu is a child of the layer, so it inherited none and its buttons (Leave the Pit, Arena, ✕) took no tap either (found by the leave-exit check, PR #1835) */
     #duel.world #opponent-name, #duel.world #target-health, #duel.world #target-posture, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
     #duel.world .combat-hud { top: max(calc(env(safe-area-inset-top) + 92px), calc(var(--hud-bottom, 0px) + var(--gap-xs))); }   /* the player's health and stamina bars: under the place name, and under the hint / creature card when they stack taller (--hud-bottom, main.ts) */
     #duel.world #mobile-camera { display: revert !important; }

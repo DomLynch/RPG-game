@@ -1,26 +1,22 @@
-// The record board's pure parts (src/pit/skulls.ts record data, src/pit/board.ts layout): the rpc mapping, the loot fallback, fetchRecord that never throws,
-// the demo record, the tally layout and the board's build with no canvas available.
+// The kills board's and rankings board's DATA (src/pit/skulls.ts), kept when the walkable Pit room and its renderers were removed: the pit_record and
+// daily_board_summary mappings, the loot fallback, the fetches that never throw, the live feed's races, the demo sets. These tests were
+// tests/pit-board.test.ts and tests/pit-champions.test.ts; the room-drawing halves of those files went with the room.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
-import { contrast, luminance } from '../src/pit/contrast.ts';
-import { BOARD, SLAB, buildBoard, paintRecord, recordLines, recordTexture, tallyGroups } from '../src/pit/board.ts';
-import { createFeed, blankRecord, demoKills, demoRecord, fetchKills, fetchRecord, killsFromLoot, localRecord, lootKills, recordFromRows, splitOf, type SkullDb } from '../src/pit/skulls.ts';
+import { createFeed, blankRecord, demoKills, demoRecord, fetchKills, fetchRecord, killsFromLoot, localRecord, lootKills, recordFromRows, splitOf, NO_CHAMPIONS, boardName, championLine, championsFromSummary, demoChampions, fetchChampions, type SkullDb } from '../src/pit/skulls.ts';
 import type { Loot } from '../src/loot.ts';
 
 const loot = (extra: object): Loot => ({ owned: [], equipped: {}, ...extra }) as Loot;
 const prov = (opponent: string, tier?: number, day = '2026-10-01') => ({ opponent, attempt: 1, healthLeft: 1, recordId: null, day, ...(tier ? { tier } : {}) });
 const db = (reply: () => PromiseLike<{ data: unknown; error: unknown }>): SkullDb => ({ rpc: reply });
-
-test('tallyGroups: groups of five, a remainder, capped at 30 marks with the rest counted', () => {
-  assert.deepEqual(tallyGroups(0), { fives: 0, rest: 0, more: 0 });
-  assert.deepEqual(tallyGroups(null), { fives: 0, rest: 0, more: 0 });
-  assert.deepEqual(tallyGroups(4), { fives: 0, rest: 4, more: 0 });
-  assert.deepEqual(tallyGroups(13), { fives: 2, rest: 3, more: 0 });
-  assert.deepEqual(tallyGroups(30), { fives: 6, rest: 0, more: 0 });
-  assert.deepEqual(tallyGroups(73), { fives: 6, rest: 0, more: 43 });
-  assert.deepEqual(tallyGroups(-3), { fives: 0, rest: 0, more: 0 });
-});
+const full = {
+  day: '2026-10-04',
+  fastest_kill: { display_name: 'Wanderer', ticks: 852, verified: true, outcome: 'killed' },
+  cleanest_kill: { display_name: 'Ivy', taken: 1, verified: true },
+  longest_survived: { display_name: 'Marcus', ticks: 4310, verified: false },
+  fastest_death: { display_name: 'Dunmore', ticks: 410, verified: true },
+  where: { gate: 3, pit: 3, wall: 1 }, pending: 4,
+};
 
 test('recordFromRows: one row, or an array of one; the split of the kills handed in; bad shapes are null', () => {
   const r = recordFromRows([{ wins: 12, losses: 3, draws: 1, streak: 4, highest_rank: 7 }], demoKills());
@@ -62,46 +58,6 @@ test('demoRecord is deterministic and consistent with demoKills', () => {
   assert.deepEqual([r.computerKills, r.duelKills], [8, 4]);
   assert.deepEqual(splitOf(demoKills()), { computerKills: 8, duelKills: 4 });
   assert.ok(r.kills! > 30 && r.wins! >= 30 && r.highestRank! >= 1 && r.highestRank! <= 10);
-});
-
-test('recordLines: the numbers as lines, an em dash for unknowns', () => {
-  assert.deepEqual(recordLines(blankRecord()), ['Kills: —', 'Wins: — · Losses: —', 'Win streak: —', 'Highest rank beaten: —']);
-  assert.deepEqual(recordLines(demoRecord())[1], 'Wins: 73 · Losses: 19');
-});
-
-test('buildBoard: a slab flush to the wall 0.04 m proud with the pick target `board`; with no canvas it stays plain stone and never throws; dispose is once', () => {
-  const group = new THREE.Group(), b = buildBoard(group, -3.75);
-  const slab = group.getObjectByName('record-board') as THREE.Mesh;
-  assert.ok(slab);
-  const box = new THREE.Box3().setFromObject(slab);
-  assert.ok(Math.abs(box.min.z - -3.75) < 1e-6 && Math.abs(box.max.z - (-3.75 + BOARD.d)) < 1e-6, `flush to the wall: ${box.min.z}..${box.max.z}`);
-  assert.ok(Math.abs(box.max.x - BOARD.x1) < 1e-6 && Math.abs(box.min.x - BOARD.x0) < 1e-6 && Math.abs(box.max.y - BOARD.y1) < 1e-6 && Math.abs(box.min.y - BOARD.y0) < 1e-6);
-  assert.deepEqual(b.targets.map((t) => t.id), ['board']);
-  assert.ok(b.targets[0]!.box.clone().expandByScalar(1e-4).containsBox(box), 'the pick volume covers the slab');
-  const face = slab.material as THREE.MeshStandardMaterial;
-  assert.equal(face.roughness, 1); assert.equal(face.emissiveIntensity > 0 && face.emissive.getHex() !== 0, false, 'lit by the torch, not emissive');
-  b.restock(undefined); b.restock(demoRecord());
-  b.dispose(); b.dispose(); b.restock(demoRecord());
-  assert.equal(group.children.length, 0);
-});
-
-test('the slab is painted when a canvas exists: chiselled glyphs drawn three times each, deterministic, tally strokes jittered by a seed', () => {
-  const calls: string[] = [];
-  const ctx = new Proxy({}, { get: (_t, k) => (k === 'measureText' ? (s: string) => ({ width: s.length * 10 }) : typeof k === 'string' && /^(fill|stroke|move|line|begin)/.test(k) ? (...a: unknown[]) => { calls.push(`${k}:${a.join(',')}`); } : undefined), set: () => true }) as unknown as CanvasRenderingContext2D;
-  paintRecord(ctx, demoRecord()); const first = [...calls]; calls.length = 0;
-  paintRecord(ctx, demoRecord());
-  assert.deepEqual(calls, first, 'the same record paints the same stone');
-  assert.ok(first.filter((c) => c.startsWith('fillText:')).length >= 3 * 'THE RECORD'.length, 'each glyph is cut three times');
-  assert.ok(first.filter((c) => c.startsWith('stroke:')).length >= 3 * 24, 'six gates of marks, three passes each');
-  calls.length = 0; paintRecord(ctx, blankRecord());
-  assert.ok(calls.filter((c) => c.startsWith('fillText:—')).length > 0, 'unknown values are em dashes');
-  assert.ok(recordTexture(blankRecord()) instanceof THREE.CanvasTexture);
-});
-
-test('the slab reads at phone size: value text 4.5:1 and labels 3:1 against the carved face', () => {
-  assert.ok(contrast(SLAB.value, SLAB.face) >= 4.5, `values ${contrast(SLAB.value, SLAB.face).toFixed(2)}`);
-  assert.ok(contrast(SLAB.label, SLAB.face) >= 3, `labels ${contrast(SLAB.label, SLAB.face).toFixed(2)}`);
-  assert.ok(luminance(SLAB.face) > 0.2, 'a lit limestone, not the old dark slab');
 });
 
 test('fetchRecord: Kills = server wins + loot kills no server row covers (29+1 = 30, same legend = 29, rematch x3 = 3)', async () => {
@@ -177,4 +133,53 @@ test('createFeed: a refetch that answers with zero rows clears the old keys (a f
   kills = { data: [], error: null };
   await feed.kills();
   assert.equal((await feed.record()).kills, 3, 'an answered empty refetch clears them: 2 wins + the loot legend no server row covers');
+});
+
+test('five lines in the summary\'s order: feat, name, value; seconds to one decimal, hits, the deadliest spot', () => {
+  const lines = championsFromSummary(full);
+  assert.deepEqual(lines.map((c) => c.key), ['fastestKill', 'cleanestKill', 'longestSurvived', 'fastestDeath', 'where']);
+  assert.deepEqual(lines.map(championLine), ['Fastest kill  Wanderer  14.2 s', 'Cleanest kill  Ivy  1 hit', 'Longest survived  Marcus*  71.8 s', 'Fastest death  Dunmore  6.8 s', 'Deadliest spot  gate  3 deaths']);
+  assert.equal(lines[2]!.verified, false, 'an unverified row is starred');
+});
+test('no location split: the unverified count is the fifth line; neither: four lines at most', () => {
+  const noWhere = championsFromSummary({ ...full, where: null });
+  assert.equal(championLine(noWhere[4]!), 'Pending  4 unverified today');
+  assert.equal(championsFromSummary({ ...full, where: {}, pending: 0 }).length, 4);
+});
+test('an empty or malformed day gives no lines, and never throws', () => {
+  const empty = { day: '2026-10-04', fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 };
+  for (const v of [empty, null, undefined, 7, 'x', [], {}, { fastest_kill: 'no' }, { fastest_kill: { ticks: 'fast' } }, { fastest_kill: { ticks: -5 } }, { where: { a: 'x' } }, { where: [1] }, { pending: 'many' }]) assert.deepEqual(championsFromSummary(v), []);
+  assert.equal(NO_CHAMPIONS, 'No champions yet today.');
+});
+test('the rpc may hand the object bare, in an array of one, or as JSON text', () => {
+  const want = championsFromSummary(full);
+  assert.deepEqual(championsFromSummary([full]), want);
+  assert.deepEqual(championsFromSummary(JSON.stringify(full)), want);
+  assert.deepEqual(championsFromSummary('{not json'), []);
+});
+test('names: control characters out, 16 characters, a fallback when nothing is left', () => {
+  assert.equal(boardName('A\u0000B\u202e\nC'), 'A B C', 'a bidi override cannot flip the board');
+  assert.equal(boardName('A\u0007B\tC'), 'A B C');
+  assert.equal(boardName('abcdefghijklmnopqrstuvwxyz'), 'abcdefghijklmnop');
+  assert.equal(boardName('   '), 'Fighter');
+  assert.equal(boardName(42), 'Fighter');
+  assert.equal(championsFromSummary({ fastest_kill: { ticks: 60, verified: true } })[0]!.name, 'Fighter');
+  assert.equal(championsFromSummary({ fastest_kill: { display_name: 'abcdefghijklmnopqrstuvwxyz', ticks: 60, verified: false } })[0]!.name, 'abcdefghijklmnop*');
+});
+test('fetchChampions: a guest, an rpc error and a throw all leave an empty board; the right rpc is called', async () => {
+  assert.deepEqual(await fetchChampions(undefined), []);
+  assert.deepEqual(await fetchChampions(null), []);
+  const calls: string[] = [];
+  const ok: SkullDb = { rpc: (name) => { calls.push(name); return Promise.resolve({ data: full, error: null }); } };
+  assert.equal((await fetchChampions(ok)).length, 5);
+  assert.deepEqual(calls, ['daily_board_summary']);
+  assert.deepEqual(await fetchChampions({ rpc: () => Promise.resolve({ data: full, error: { message: 'no' } }) }), []);
+  assert.deepEqual(await fetchChampions({ rpc: () => { throw new Error('offline'); } }), []);
+  assert.deepEqual(await fetchChampions({ rpc: () => Promise.reject(new Error('offline')) }), []);
+});
+test('the demo day: five lines, one starred', () => {
+  const lines = demoChampions();
+  assert.equal(lines.length, 5);
+  assert.equal(lines.filter((c) => c.name.endsWith('*')).length, 1);
+  assert.deepEqual(demoChampions(), demoChampions());
 });
