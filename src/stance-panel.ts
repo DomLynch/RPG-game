@@ -1,3 +1,4 @@
+// Stance row, option A3 (Dom 2026-10-08, picker page): plain small-caps text under the HUD bars, no boxes; a pick fades the row over 3 s and leaves a thin tag by the rank line that brings it back.
 // The stance preview (Strategy, 2026-10-07: "?stances=1, a look-test on the existing Pit page"): a small panel where the player picks one of the four stances and sees both stances at the fight start,
 // theirs and the opponent's mood. Presentation only: the pick is Match.stancePref, the sim reads it through begin() -> initialPractice, and ?stances=off never builds this panel, so every
 // fight is as it was. The panel sits top-right under the menu button, clear of the touch controls (the joystick and action cluster own the bottom corners: a bottom-left panel took the joystick's presses, scripts/sparring-browser-check.mjs caught it); nothing else appears over the arena (the ruling's tell is the versus-card reveal, which this reproduces for the preview).
@@ -14,24 +15,44 @@ export const stanceLabel = (p: PickedStance): string => (p === 'neutral' ? 'Bala
 // The reveal line: both stances at once ("Aggressive vs Defensive"), the foe's mood being the seed's draw (src/stance.ts moodOf).
 export const stanceReveal = (mine: PickedStance, seed: number, opponent: string): string => `You: ${stanceLabel(mine)} · ${opponent}: ${stanceLabel(moodOf(seed, opponent))}`;
 
-export type StancePanel = { show(mine: PickedStance, seed: number, opponent: string): void };
-export function mountStancePanel(host: HTMLElement, pick: (p: PickedStance) => void, doc: Document = document): StancePanel {   // `doc`: the caller's document (the graphics harness runs main.ts with its own; a module-global `document` is undefined there)
+export type StancePanel = { show(mine: PickedStance, seed: number, opponent: string): void; ready(sheathed: boolean): void };
+export const FADE_MS = 3000;
+export function mountStancePanel(host: HTMLElement, pick: (p: PickedStance) => void, doc: Document = document): StancePanel {   // `doc`: the caller's document (the graphics harness runs main.ts with its own)
   const box = doc.createElement('div');
-  box.id = 'stance-panel'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Stance preview');
-  box.style.cssText = 'position:fixed;right:8px;top:64px;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:rgba(15,12,10,.82);color:#e8dcc4;font:12px/1.3 system-ui,sans-serif;border:1px solid rgba(232,220,196,.25);border-radius:6px;max-width:220px';
-  const line = doc.createElement('div'); line.id = 'stance-reveal'; line.style.opacity = '.85';
-  const row = doc.createElement('div'); row.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap';
+  box.id = 'stance-panel'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Stance');
   const buttons = new Map<PickedStance, HTMLButtonElement>();
-  for (const p of PICKS) {
+  PICKS.forEach((p, i) => {
+    if (i) { const dot = doc.createElement('i'); dot.textContent = '·'; dot.setAttribute('aria-hidden', 'true'); box.append(dot); }
     const b = doc.createElement('button'); b.type = 'button'; b.textContent = stanceLabel(p); b.dataset.stance = p;
-    b.style.cssText = 'flex:1;min-width:64px;padding:4px 6px;font:inherit;color:inherit;background:rgba(232,220,196,.08);border:1px solid rgba(232,220,196,.3);border-radius:4px;cursor:pointer';
-    b.addEventListener('click', () => pick(p)); buttons.set(p, b); row.append(b);
-  }
-  box.append(line, row); host.append(box);
+    b.addEventListener('click', () => { picked = true; pick(p); }); buttons.set(p, b); box.append(b);
+  });
+  const tag = doc.createElement('button'); tag.id = 'stance-tag'; tag.type = 'button'; tag.hidden = true;
+  host.append(box, tag);
+  let picked = false, tagOn = false, timer: ReturnType<typeof setTimeout> | undefined, sheathed = true, open = true;
+  // The row sits below the hint line, the tag after the rank name: read from the page, so a two-line hint or a rotated phone moves them.
+  const place = () => {
+    const hint = doc.getElementById('combat-status')?.getBoundingClientRect(), rank = doc.getElementById('rank')?.getBoundingClientRect();
+    if (hint && hint.height) box.style.setProperty('--stance-top', `${Math.round(hint.bottom + 2)}px`);
+    if (rank && rank.height) { tag.style.setProperty('--tag-left', `${Math.round(rank.right + 10)}px`); tag.style.setProperty('--tag-top', `${Math.round(rank.top - 3)}px`); }
+  };
+  const paint = () => { box.hidden = !sheathed || !open; };
+  // Back at full strength at once (the 3 s transition is only for the fade out).
+  const reopen = () => { clearTimeout(timer); box.style.transition = 'none'; box.dataset.fade = '0'; void box.offsetWidth; box.style.transition = ''; open = true; paint(); place(); };
+  tag.addEventListener('click', reopen);
+  if (typeof ResizeObserver !== 'undefined' && doc.defaultView) new ResizeObserver(place).observe(doc.body);
+  doc.defaultView?.addEventListener('resize', place);
   return {
     show(mine, seed, opponent) {
-      line.textContent = stanceReveal(mine, seed, opponent);
-      for (const [p, b] of buttons) { b.setAttribute('aria-pressed', String(p === mine)); b.style.background = p === mine ? 'rgba(232,220,196,.28)' : 'rgba(232,220,196,.08)'; }
+      for (const [p, b] of buttons) b.setAttribute('aria-pressed', String(p === mine));
+      tagOn ||= picked || mine !== 'neutral';
+      tag.hidden = !tagOn; tag.textContent = stanceLabel(mine); tag.title = tag.ariaLabel = `Change stance. ${stanceReveal(mine, seed, opponent)}`;
+      reopen();
+      if (picked) {   // the pick starts the next fight on it: the row fades over 3 s and the tag stays
+        picked = false;
+        requestAnimationFrame(() => { box.dataset.fade = '1'; });
+        timer = setTimeout(() => { open = false; paint(); }, FADE_MS + 100);
+      }
     },
+    ready(now) { if (now !== sheathed) { sheathed = now; paint(); } },   // the first strike takes the row away for the fight
   };
 }
