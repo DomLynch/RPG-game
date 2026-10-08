@@ -120,10 +120,10 @@ try {
   psql(`set role frankendom_origins; select public.origins_snapshot('${A}', 0, 5000);`);   // A's career row (the CP the kill books lands in world_credit)
   const career = (acct, add) => { const c = JSON.parse(psql(`select row_to_json(c)::text from public.origins_career c where account = '${acct}'`)); return JSON.stringify({ op: 'career_set', account: acct, expected_version: c.version, world_credit: Number(c.world_credit) + add, rested: c.rested, rested_at: c.rested_at, heat: c.heat, story: c.story, beaten: c.beaten }); };
   const mint = `{"op":"mint","item":{"id":"it-beta-1","item":"item:ash-pelt","quantity":1,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":0},"bound_to":null,"mint_key":"loot:enc.beta0001:0","provenance":{"mintKey":"loot:enc.beta0001:0"},"history":[],"single_copy":false}}`;
-  const paidKill = await as(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},${mint},{"op":"metal","account":"${A}","delta_bronze":7,"reason":"award","event_id":"enc:${tok(12)}"},${career(A, 30)}]`, '{"reach":"checked","cp":999999}'));
   // condition 1: a batch with any op outside event/mint/metal/career_set is refused and writes nothing
   eq(await code(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},{"op":"character_set","account":"${A}"}]`)), 'O0002', 'kill: an op outside the allowlist is refused');
   eq([used(tok(12)), events(tok(12)), ledger(tok(12))], ['open', '0', 'none'], 'kill: ... and writes nothing');
+  const paidKill = await as(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},${mint},{"op":"metal","account":"${A}","delta_bronze":7,"reason":"award","event_id":"enc:${tok(12)}"},${career(A, 30)}]`, '{"reach":"checked","cp":999999}'));
   if (paidKill.code !== 0) fail(`kill (paying batch): ${paidKill.err.trim().slice(0, 200)}`);
   eq(ledger(tok(12)), 'checked/30/7/1', 'kill: the ledger reads the minted ids and bronze from the batch, and cp from the career row (30, not the 999999 the ledger input claimed)');
 
