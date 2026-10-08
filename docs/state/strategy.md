@@ -4,6 +4,13 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-08 16:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_1635 + project_dom_decided_ledger (11:4x–16:4x).
+
+**Now.** CronList, re-arm /checkin. Live 5d9f3ee3a: stances ON, shops, coach UI, soft shadow, seamless default-ON with no freeze, bear, boar, props/landmarks/buildings as files. Next: S1+S2 real-time combat (#1857/#1858, stills approved, Auditor code PASS is the only gate), wolves ON #1859, Zone 1 wiring #1845, S3 stand-where-you-are (#1852 after #1856), Play→Zone 1 (client-side redirect, /arena/).
+**Done.** VPS outage root-caused (row 29 OOM) + lanejobs 8G/800% cap verified; stance picker A3 picked + built (#1860); folds of 2-3 PRs, GitHub-queue fallback; 3 delegated calls aligned with Lead + COO.
+**Open.** Dom: scratch-dir delete exception (proposal). Auditor: legacy links/flags inventory tonight.
+**Gotchas.** Check what Dom SEES (stills) before saying done. Release claims need curl + deploy log in the same turn. Make quick mocks myself.
+
 ## 2026-10-08 12:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_1235 + project_dom_decided_ledger (08:37–12:3x).
 
 **Now.** CronList, re-arm /checkin. Seamless combat #1779: World fixing the shrine-foe 3 s freeze + wolf 400 ms frame found on Mac Metal; Auditor delta, then my Metal re-test, then ONE link to Dom. UI: Dom picked Frost Iron + Roman + Blade Cut; Web applying (#1800, tokens + DESIGN.md).
