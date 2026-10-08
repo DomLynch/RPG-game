@@ -29,6 +29,23 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
   } catch { return null; }
 }
 
+// Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
+// the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
+// stored and its access token is expired or about to be; a fresh token, or none, costs nothing. Any failure leaves the storage as it was = signed out.
+export const RENEW_TIMEOUT_MS = 3000;
+export type AuthClient = { auth: { getSession(): Promise<unknown> } };
+export async function ensureFreshSession(storage: { getItem(key: string): string | null } | null, nowMs: number, makeClient: () => Promise<AuthClient | null>): Promise<void> {
+  try {
+    if (!storage?.getItem(AUTH_KEY) || storedToken(storage, nowMs)) return;
+    await Promise.race([(async () => { await (await makeClient())?.auth.getSession(); })(), new Promise((resolve) => setTimeout(resolve, RENEW_TIMEOUT_MS))]);   // a hung renewal must not hold presence, the saved career or the paid fight
+  } catch { /* offline or refused: stays signed out */ }
+}
+export const authClient = async (env: { url?: string; key?: string }): Promise<AuthClient | null> => {
+  if (!env.url || !env.key) return null;
+  const { createClient } = await import('@supabase/supabase-js');
+  return createClient(env.url, env.key, { auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: AUTH_KEY, autoRefreshToken: false } });   // src/account.ts options; no timer: one renewal per page
+};
+
 export type Character = { id: string; name: string };
 export type Opened = { career: CareerState; characters: Character[]; marks: number };
 export type Offline = { offline: string };   // 'no-session' | 'http-<status>' | 'timeout' | 'network' | 'bad-reply'
@@ -78,7 +95,7 @@ export async function fetchOpen(token: string | null, opts: { base?: string; fet
 export type Source = { saved: CareerState } | { offline: string };
 export const CHECKING: Source = { offline: 'checking' };
 export const saveLine = (source: Source): string =>
-  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : 'Offline preview: progress is not saved';
+  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : 'Not signed in: progress isn’t saved';
 export const previewCp = (source: Source, career: CareerState): number => ('saved' in source ? Math.max(0, career.credit - source.saved.credit) : 0);
 
 // The preview's OWN save: the allegiance chosen at graduation (origins/patrons). It lives under a key of the preview's own, never one of the

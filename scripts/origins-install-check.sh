@@ -31,8 +31,9 @@ chmod +x "$bin"/*
 export REAL_NODE="$(command -v node)" STUB_LOG="$tmp/log"
 : > "$STUB_LOG"
 export PATH="$bin:$PATH"
-fresh() {   # a clean scratch root with the real site config
-  rm -rf "$tmp/root"; mkdir -p "$tmp/root/etc/nginx/sites-enabled"; cp "$here/deploy/frankendom.com.conf" "$tmp/root/etc/nginx/sites-enabled/frankendom.com"
+fresh() {   # a clean scratch root with the real site config, as a box before any installer ran: the repo conf carries the box's own include lines
+  # (/etc/nginx/snippets/..., matching live), which the scratch root's prefixed snippet path would not recognise, so they are taken out here
+  rm -rf "$tmp/root"; mkdir -p "$tmp/root/etc/nginx/sites-enabled"; grep -v 'include /etc/nginx/snippets/frankendom-' "$here/deploy/frankendom.com.conf" > "$tmp/root/etc/nginx/sites-enabled/frankendom.com"
   export ORIGINS_INSTALL_ROOT="$tmp/root"; : > "$STUB_LOG"; unset NGINX_RC RELOAD_RC FAKE_NODE
 }
 site() { echo "$tmp/root/etc/nginx/sites-enabled/frankendom.com"; }

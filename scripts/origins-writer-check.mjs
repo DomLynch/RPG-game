@@ -70,7 +70,7 @@ try {
     lookup: id => defs.get(id),
     smith: smithContent(F.blacksmith(), { ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 0, materials: [{ item: 'item:grave-iron', quantity: 5 }] }, { level: 2, rarity: 'common', coin: 250, materials: [] }] }),
 
-    shops: new Map([[SHOP, SHOP_LIST]]),
+    shops: new Map([[SHOP, SHOP_LIST]]), counters: new Map([[SHOP, { zone: 'exchange', at: 'bank' }]]),
   }), ...storyOps(readStoryContent(join(root, 'content.json'))) } });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/origins/`;
@@ -258,6 +258,15 @@ try {
   const shopEvents = () => psql(`select count(*) from public.origins_events where kind = 'metal' and payload ? 'shop' and account = '${A}'`);
   const bought = () => psql(`select coalesce(string_agg(quantity::text || ':' || (provenance ->> 'kind') || ':' || (provenance ->> 'shop'), ',' order by id), '') from public.origins_items where item = 'item:grave-iron' and provenance ->> 'kind' = 'shop' and retired_at is null`);
   const buy = over => ({ character: pc, op: 'shop:iron-0001', shop: SHOP, item: 'item:grave-iron', quantity: 2, revision: 2, ...over });
+  // The buyer must stand at the shop's counter (presence, never the body): away in the Pit yard, offline, stale, or presence down = 422 'away', nothing written.
+  for (const [label, set] of [['in the Pit yard', () => { presence[A] = inPitYard(); }], ['offline', () => { delete presence[A]; }],
+    ['stale at the counter', () => { presence[A] = atBank(PRESENCE_FRESH_MS + 1000); }], ['presence down', () => { presence[A] = atBank(); presenceDown = true; }]]) {
+    set();
+    const away = await call('shop_buy', 'ta', buy({ op: 'shop:away-0001', place: 'exchange' }));
+    presenceDown = false;
+    eq([away.status, away.json.code, bronze(), shopEvents()], [422, 'away', '30:v1', '0'], `shop: ${label} is refused as away, nothing written`);
+  }
+  presence[A] = atBank();   // at the counter
   const s1 = await call('shop_buy', 'ta', buy({ price: 0, cost: 0, stock: 99 }));
   eq([s1.status, s1.json.result?.cost, s1.json.result?.replayed, bronze(), shopEvents(), bought(), conserved()],
     [200, 8, false, '22:v2', '1', `2:shop:${SHOP}`, '0'], 'shop: 2 iron for 8 bronze priced from the list (body price/cost/stock ignored), one event, minted with shop provenance');
@@ -276,6 +285,7 @@ try {
   psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-15,"reason":"spend","event_id":"test:shop-drain","expected_version":3}]$j$::jsonb);`);   // down to 3, through the ledger
   const poor = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0004', quantity: 1 }));
   eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
+  presence[B] = atBank();   // B at the counter too, so the character rule is what refuses
   eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
@@ -352,7 +362,7 @@ try {
   psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
   eq(psql(`select count(*) from public.origins_access where account = '${A}'`), '1', 'A is still on the allowlist');
   const flagOff = await fetchOpen('ta', { base: writer });
-  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Offline preview: progress is not saved'], 'preview: flag off + access row -> 403 -> the offline line');
+  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Not signed in: progress isn’t saved'], 'preview: flag off + access row -> 403 -> the offline line');
   psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
   eq(isOffline(await fetchOpen('ta', { base: writer })), false, 'preview: flag back on -> the saved career again');
   // retiring a pack row (a whole-stack burn nulls loc_kind) is not an escrow move: 0003's guard compared with '=' and refused it
