@@ -28,7 +28,9 @@ export const vpsSafeRow = (command, argv, readSource) => {
   const script = argv.find(arg => /\.(mjs|js|sh)$/.test(arg));
   const source = script ? sourceWithImports(script, readSource) : null;
   if (source === null) return false;
-  if (isWebKitRow(command) || /webkit\s*\.\s*launch|clock\s*\.\s*resume/.test(source)) return false;
+  // Any non-comment `webkit` in the script or its imports (a row can pick its engine through a variable: engine = x ? webkit : chromium).
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  if (isWebKitRow(command) || /\bwebkit\b/i.test(code) || /clock\s*\.\s*resume/.test(code)) return false;
   return timingOf(source) !== 'wall';
 };
 export function trustedFromVps(receipt, tree, commands, readSource) {

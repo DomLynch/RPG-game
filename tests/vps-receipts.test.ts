@@ -39,10 +39,10 @@ test('deploy.sh applies the VPS receipts before the Mac rows, opt-in', () => {
   assert.match(readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), /DEPLOY_VPS_RECEIPTS:-\}" == on/);
 });
 
-test('rows 2, 44 and 52 (browser launched through an import, or webkit.launch + clock.resume) are not trusted; a missing script is not trusted', () => {
+test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launch + clock.resume) are not trusted; a missing script is not trusted', () => {
   const byName = (name: string) => commands.findIndex(c => c.join(' ').includes(name)) + 1;
   const trusted: number[] = trustedFromVps(receipt(), tree, commands, source);
-  for (const name of ['roster-browser-check', 'sparring-browser-check', 'next-fight-black-check']) {
+  for (const name of ['roster-browser-check', 'double-tap-browser-check', 'sparring-browser-check', 'next-fight-black-check']) {
     const index = byName(name);
     assert.ok(index > 0, `${name} is a release row`);
     assert.ok(!trusted.includes(index), `${name} (row ${index}) must stay off the VPS trust list`);
