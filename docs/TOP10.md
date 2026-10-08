@@ -22,7 +22,7 @@ Each owner fills in their row: **done** (with a receipt: PR, sha, command or lin
 
 **Acceptance line for the Zone 1 rows (1, 2, 3; Dom via Strategy, 2026-10-08):** finish Zone 1 first, but everything in it goes through the origins/world SCHEMA (the 15 groups) or a generator: no hand-placed numbers in renderer code. Test of done: Zone 2 can be made as a data file (`generateZone(template, seed, overrides)`) with no new code. Creatures go through the body-family pipeline (picture, TRELLIS, VPS reduce, family rig script), each with a light world body plus a close-up duel body.
 
-**Mob rows ownership (Strategy, 2026-10-08):** `origins/mobs` rows are owned by Characters; Deploy found 3 uncommitted Expansion edits on the VPS (`origins/mobs/populate.ts`, `row.ts`, `row.test.ts` in the zone-rules worktree, archived at /mnt/frankendom-donors/_archive/expansion-20261008.tar, VERIFY=OK); Characters PRs them before the boar row.
+**Mob rows ownership (Strategy, 2026-10-08):** `origins/mobs` rows are owned by Characters; Deploy found 3 uncommitted Expansion edits on the VPS (`origins/mobs/populate.ts`, `row.ts`, `row.test.ts` in the zone-rules worktree, archived at /mnt/frankendom-donors/_archive/expansion-20261008.tar, VERIFY=OK); Characters checked: they are already on trunk (populate.ts and row.ts byte-identical, row.test.ts only older; merged as 7c4c04f9, 15c9de40, 775f90c9), so there is nothing to PR.
 
 ## Row 1 — seamless Zone 1 combat (Dom's order 2026-10-08 09:0x, via Strategy)
 
