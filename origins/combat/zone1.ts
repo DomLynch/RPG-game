@@ -58,6 +58,7 @@ export type Fighter = {
   weapon: WeaponId; move: MoveDef | null;               // the blow in progress
   phase: Phase; t: number;                              // seconds spent in the phase
   struck: string[];                                     // ids this blow already landed on (one hit per blow per target)
+  parryCooldown: number;                                // seconds before a fresh guard press opens a parry window again (RULES.parryCooldown; duel.ts: a press inside it starts the guard at age = window)
   regenIn: number;                                      // seconds before stamina comes back
   pause: number;                                        // creature only: seconds before it may start another blow
   hurtFor: number;                                      // how long the current stagger lasts
@@ -84,13 +85,14 @@ export type Event =
   | { type: 'Dodged'; attacker: string; victim: string }          // the blow met a roll's invulnerable ticks
   | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' | 'interrupt' }
   | { type: 'Aggressed'; attacker: string; victim: string; first: boolean }   // a player's blow met another player (hit, block or dodge): `first` = the victim had not hit him in the last AGGRO_WINDOW_S. The server's murder rule reads Aggressed(first) then Died(by)
+  | { type: 'Parried'; attacker: string; victim: string }          // a guard raised inside the parry window turned the blow aside: the attacker is thrown off (a Staggered 'parry' follows)
   | { type: 'Died'; id: string; by: string }
   | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
 const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENTS)[keyof typeof OPPONENTS]>)[kind];
 
 function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: number, facing: number, radius: number, health: number, poise: number, weapon: WeaponId): Fighter {
-  return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, pause: 0, hurtFor: 0,
+  return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, parryCooldown: 0, pause: 0, hurtFor: 0,
     posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, special: null, specialIn: 0, windupTaken: 0, pvp: false, level: 1, shielded: false, plan: null, returning: false };
 }
 /** The player, with his gear's Loadout (NAKED = the identity: no gear changes nothing). */
@@ -165,11 +167,11 @@ function land(a: Fighter, v: Fighter, row: MoveDef, events: Event[]): void {
   if (move.vsGuard && v.phase === 'guard') {   // a kick goes through a standing guard: a little damage, the guard's stamina, a long stagger, and the posture (duel.ts ends this branch with shake(j, dealtPosture(def.posture)))
     events.push({ type: 'Hit', attacker: a.id, victim: v.id, damage: move.damage, move: move.id });
     if (hurt(a, v, move.damage, events)) return;
-    spend(v, move.vsGuard.staminaDamage); stagger(v, move.vsGuard.stagger, 'kick', events); addPosture(v, move.posture, events);
+    spend(v, move.vsGuard.staminaDamage); stagger(v, move.vsGuard.stagger + (v.exhausted ? RULES.exhaustedStun : 0), 'kick', events); addPosture(v, move.posture, events);   // exhaustedStun: a kick landing on an exhausted fighter stuns longer
     return;
   }
   if (covers && age < window && move.parryable) {   // PARRY (duel.ts: guarding && age < window && parryable): no damage, the attacker is thrown off for RULES.parryStun and takes RULES.posture.parry
-    events.push({ type: 'Blocked', attacker: a.id, victim: v.id, perfect: true, damage: 0 });
+    events.push({ type: 'Parried', attacker: a.id, victim: v.id });
     stagger(a, RULES.parryStun, 'parry', events); addPosture(a, RULES.posture.parry, events);
     return;
   }
@@ -210,6 +212,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (!alive(f)) continue;
     f.t += dt;
     if (f.pause > 0) f.pause = Math.max(0, f.pause - dt);
+    if (f.parryCooldown > 0) f.parryCooldown = Math.max(0, f.parryCooldown - dt);
     if (f.specialIn > 0) f.specialIn = Math.max(0, f.specialIn - dt);
     if (f.regenIn > 0) f.regenIn = Math.max(0, f.regenIn - dt);
     f.postureIdle += dt;
@@ -226,7 +229,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
           f.phase = 'roll'; f.t = 0; f.rollX = dx; f.rollZ = dz; f.facing = Math.atan2(dx, dz); spend(f, RULES.rollCost);
         } else {
           const guarding = !!input.guard && !f.exhausted && f.stamina > 0;
-          if (guarding && f.phase !== 'guard') { f.phase = 'guard'; f.t = 0; } else if (!guarding && f.phase === 'guard') { f.phase = 'ready'; f.t = 0; }
+          if (guarding && f.phase !== 'guard') { const fresh = f.parryCooldown <= 0; f.phase = 'guard'; f.t = fresh ? 0 : secs(RULES.parry); if (fresh) f.parryCooldown = secs(RULES.parryCooldown); } else if (!guarding && f.phase === 'guard') { f.phase = 'ready'; f.t = 0; }   // duel.ts 287-292: only a press with parryCooldown at 0 opens the parry window (age 0) and arms the 30-tick cooldown; inside it the guard starts at age = window, so toggling the guard buys no parries. The plain raise carries no stamina cost there (feintCost belongs to the FEINT branch, a swing abandoned into a guard)
           const len = Math.hypot(input.x, input.z);
           if (len > 1e-6) {
             const gait = running ? SPEEDS.player.run : SPEEDS.player.walk, k = Math.min(1, len) / len;
