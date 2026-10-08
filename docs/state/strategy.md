@@ -4,6 +4,11 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-08 20:2x (+04, `date`) — STANDING RULING: auto-eligibility + 30-minute batch timer (Optimizer item 4; Lead enforces; also in .claude/skills/deploy-run §0).
+
+**Auto-eligible** (Deploy merges with no per-PR GO from Lead) when ALL hold: (1) the Auditor's MERGE PASS names the PR's current head sha; (2) base trunk, not draft, mergeable, nothing it stacks on unmerged outside the same batch; (3) CI quality green on that head, or, after CI has sat queued > 20 min, Deploy's VPS gate on the merged tree stands in (the receipt says so); browser rows green except a known-red class quoted with trunk's identical message; (4) no migration, writer install, nginx or provision change (those still need Lead's GO plus Backend's apply in the same window); (5) a visual change has before/after stills in its body (Zone 1 combat: a post-live fight instead, Option A); (6) no HOLD comment from Lead, the Auditor or Strategy.
+**Batch timer.** Box free and at least one PR auto-eligible: Deploy launches a batch within 30 minutes of the previous Published line (at once if the queue was empty). At most 4 PRs, in order: Dom-named priority > live bug fix > feature > cleanup. A PR that turns eligible during a run waits for the next batch; a Dom-priority PR may launch at once. A row that fails because of one PR drops that PR (fix-forward on its own PR) and the batch goes on; the whole batch aborts only on a shared-file failure.
+
 ## 2026-10-07 17:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_1735 + project_dom_decided_ledger (16:xx–17:xx).
 
 **Now.** CronList, re-arm the two /checkin advisor-light crons. Live 53c3b21: Pit controls + camera lock in the Zone 1 preview (/preview/origins/?region=1), tap fix live; Dom's phone test pending. ROLL/GUARD in the world = Expansion follow-up.
