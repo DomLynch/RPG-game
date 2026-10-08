@@ -1,5 +1,21 @@
 # Code quality lane (Auditor)
 
+## 2026-10-08 ~14:0x (+04) — HANDOFF before self-clear (context 606k). READ FIRST, then memory `frankendom_handoff_2026-10-08e` (and 08d, 08c)
+
+**Now.** Trunk c467ba0a (audited clean from 30d08b0f: #1829 #1820 #1790 #1816 #1821 are plain merges of the heads PASSed here; no SIM_FILES). Fold 12 (with #1792 stances) is Deploy's: **nothing of mine on the VPS until its Published line** (Strategy/Lead). Dom 12:5x: everything ships ON; my gate matters more (PASS names the sha; PRE/POST for db/money; default-ON harm = BLOCKER).
+
+**Open, in order.**
+1. **#1822 @3ad3187d (RV38 pose) + #1836 @50acd4db (RV39 N-v-1):** code reviewed (#1822 decode MEDIUM fixed; #1836 interim posted with the pay-wiring must-dos). Full suite + both typechecks running on **Hugging Face job 6ac767ede7a0dae8a2785fc4** (node:22 image, TAP reporter): read `hf jobs logs <id>`, then post PASS/HOLD naming the sha and "ran on HF". #1836 also owes `rng-fingerprint.mjs` vs `tests/fixtures/rng-fingerprint.json` (unchanged by the PR; the suite covers it).
+2. **Prod POSTs owed:** 0012 (#1821 merged; PRE posted on #1821) when Backend applies; 0009 (#1805 @4b3c92d7) after Deploy merges; 0011 (#1818) apply, then `duel_season_close('beta')` under its own GO (runbook #1834; COO's archive = before read-back).
+3. **#1819 @4f1360ea:** confirm its `quality` CI (was pending) clears the 3 inherited rank-look reds.
+4. Queue as Lead has it after that: #1839 PASS posted; #1830 retarget; Combat's N-v-1 follow-ups.
+
+**Done today (verdicts on threads, all name the sha).** #1792 PASS c9c1b3ed (CI 37752609901 green; my VPS test:all 2898/2896/0/2; ladder count n=10 on the Mac). #1793 delta + 0006 PRE/POST (writer 77795701). #1779, #1797, #1805 (+delta), #1746, #1809, #1790 (+delta), #1808 (+deltas; landscape closed), #1799, #1794, #1806 (3 legends lines fixed), #1813 (+delta), #1810, #1817, #1778, #1783, #1816, #1818 PRE, #1821 PRE, #1824 PRE, #1828 PRE, #1831 PRE, #1838, #1827, #1829 (row 29 on the Mac), #1819/#1820/#1825/#1830, #1832, #1833 (+delta), #1834 docs, #1837, #1839. HOLDs: #1812 (folded into #1822). Design reads: #1814 N-v-1 (6 holes, all accepted by Combat).
+
+**My misses today (fixed in my checklist):** I PASSed #1801/#1733 without `tests/rank-look` and without the polish rows: trunk went red twice (rank-look, then release row 29). Any PR touching `src/assets/*.glb`, `public/looks/`, `public/assets/textures/` or `src/assets/source/materials/manifest_*.json` now gets rank-look + build + check-budget + `*-polish-check` before PASS. PR CI does not run these rows (Deploy owns a path-filtered job).
+
+**Gotchas.** (1) The HF Playwright image is node 24: its test/build results are not evidence; use `node:22` and `--test-reporter=tap`. (2) Never `| tail; echo $?`. (3) `pkill -f`/`pgrep -f` from ssh must use a `[c]` pattern or it kills its own shell (exit 255). (4) A `git clone --shared` of bn-trunk has the local folder as `origin`; fetch from the GitHub URL. (5) Feel/perf needs a WebKit number (World's seamless still froze on Dom's iPhone at 12:36).
+
 ## 2026-10-08 ~08:3x (+04) — HANDOFF before self-clear (context 605k). READ FIRST, then memory `frankendom_handoff_2026-10-07r` (its appended lines carry 10-08) and `frankendom_top10_scope`
 
 **Now.** LIVE = trunk = **f7ec5ec3** (release.json, my curl): the item-3 fold (#1734 + #1754 + #1761), audited (plain merges of my PASSed heads, no SIM_FILES). Audit cursor f7ec5ec3; next slot `supabase/migrations`. Dom's ONE ranked list is `docs/TOP10.md` (#1763): review only PRs on a listed item. I co-own row 10 (reliable release line): every tick flag Lead + Deploy if a deploy_hold is over 60 min old or live ≠ trunk for over 60 min with no FAILED/Published line.
