@@ -99,17 +99,28 @@ test('each shard is judged on its own: a bad shard adds nothing and takes nothin
   }
 });
 
+test('a FAIL vetoes only its own row (a string index is read as the number): every other row of the good shard survives', () => {
+  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
+  for (const index of [base[0], String(base[0])]) {
+    const sneaky = receipt({ job: 'J2', rows: [{ index, command: 'x', status: 'fail', exit: 1 }] });
+    const want = base.slice(1);
+    assert.deepEqual(trustedFromShards([receipt(), sneaky], tree, commands, source, sums, JOBS, TREES), want, `index ${JSON.stringify(index)}`);
+    assert.deepEqual(trustedFromShards([sneaky, receipt()], tree, commands, source, sums, JOBS, TREES), want, `index ${JSON.stringify(index)} (order)`);
+  }
+});
+
 test('vps-receipt-trust.mjs hashes all three runner files of the deploy commit: a shard naming another run-rows.sh, rows-json.mjs or rows-lib.mjs trusts nothing', () => {
   const [head, headTree] = spawnSync('git', ['rev-parse', 'HEAD', 'HEAD^{tree}'], { encoding: 'utf8', timeout: 10_000 }).stdout.trim().split('\n');
   const sum = (f: string) => spawnSync('git', ['show', `HEAD:scripts/vps-shadow/${f}`], { timeout: 10_000 }).stdout;
   const real: Record<string, string> = Object.fromEntries(['run-rows.sh', 'rows-json.mjs', 'rows-lib.mjs'].map(f => [f, createHash('sha256').update(sum(f)).digest('hex')]));
-  const bin = mkdtempSync(join(tmpdir(), 'vps-receipts-hf-')), dir = `artifacts/vps-shadow/${head}`;
+  // A dedicated receipt dir (VPS_RECEIPT_SHA names it), never artifacts/vps-shadow/<HEAD>: a deploy checkout's fetched receipts stay untouched (Auditor LOW).
+  const name = `guard-test-${process.pid}`, bin = mkdtempSync(join(tmpdir(), 'vps-receipts-hf-')), dir = `artifacts/vps-shadow/${name}`;
   // hf stub: `hf jobs inspect J1` answers a completed canonical rows job for HEAD.
   exe(join(bin, 'hf'), `#!/usr/bin/env bash\necho '${JSON.stringify([{ id: 'J1', flavor: 'cpu-upgrade', status: { stage: 'COMPLETED' }, environment: { SHA: head }, command: jobCommand('rows', head) }])}'\n`);
   const run = (scripts: object) => {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'rows-guard-test.json'), JSON.stringify(receipt({ sha: head, tree: headTree, scripts })));
-    try { return spawnSync('node', ['scripts/vps-receipt-trust.mjs', head], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } }).stdout; }
+    try { return spawnSync('node', ['scripts/vps-receipt-trust.mjs', head], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, VPS_RECEIPT_SHA: name } }).stdout; }
     finally { rmSync(join(dir, 'rows-guard-test.json'), { force: true }); }
   };
   try {
