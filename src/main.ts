@@ -996,7 +996,7 @@ let stancePanel: StancePanel | null = null;
 // Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
 function showStances() {
   if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
-  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
+  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
   if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
 }
 function began() {

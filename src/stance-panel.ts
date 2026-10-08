@@ -15,15 +15,15 @@ export const stanceLabel = (p: PickedStance): string => (p === 'neutral' ? 'Bala
 export const stanceReveal = (mine: PickedStance, seed: number, opponent: string): string => `You: ${stanceLabel(mine)} · ${opponent}: ${stanceLabel(moodOf(seed, opponent))}`;
 
 export type StancePanel = { show(mine: PickedStance, seed: number, opponent: string): void };
-export function mountStancePanel(host: HTMLElement, pick: (p: PickedStance) => void): StancePanel {
-  const box = document.createElement('div');
+export function mountStancePanel(host: HTMLElement, pick: (p: PickedStance) => void, doc: Document = document): StancePanel {   // `doc`: the caller's document (the graphics harness runs main.ts with its own; a module-global `document` is undefined there)
+  const box = doc.createElement('div');
   box.id = 'stance-panel'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Stance preview');
   box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:rgba(15,12,10,.82);color:#e8dcc4;font:12px/1.3 system-ui,sans-serif;border:1px solid rgba(232,220,196,.25);border-radius:6px;max-width:220px';
-  const line = document.createElement('div'); line.id = 'stance-reveal'; line.style.opacity = '.85';
-  const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap';
+  const line = doc.createElement('div'); line.id = 'stance-reveal'; line.style.opacity = '.85';
+  const row = doc.createElement('div'); row.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap';
   const buttons = new Map<PickedStance, HTMLButtonElement>();
   for (const p of PICKS) {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = stanceLabel(p); b.dataset.stance = p;
+    const b = doc.createElement('button'); b.type = 'button'; b.textContent = stanceLabel(p); b.dataset.stance = p;
     b.style.cssText = 'flex:1;min-width:64px;padding:4px 6px;font:inherit;color:inherit;background:rgba(232,220,196,.08);border:1px solid rgba(232,220,196,.3);border-radius:4px;cursor:pointer';
     b.addEventListener('click', () => pick(p)); buttons.set(p, b); row.append(b);
   }
