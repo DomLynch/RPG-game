@@ -46,7 +46,7 @@ test('settle: a verified record writes the event enc:<token> and the reward line
   const record = fight(start.seed, 1);
   const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
   assert.equal(out.result, 'won'); assert.equal(out.verified, true); assert.equal(out.twist, 'caught'); assert.equal(out.event, `enc:${start.token}`);
-  assert.equal(events.length, 1); assert.deepEqual(events[0]!.payload, { result: 'won', ticks: 321, enemy: 'knight', level: 6, twist: 'caught', verified: true }); assert.deepEqual(rewards, [start.token]);
+  assert.equal(events.length, 1); assert.deepEqual(events[0]!.payload, { result: 'won', ticks: 321, enemy: 'knight', level: 6, twist: 'caught', verified: true, fight: 'encounter:knight', paid: true }); assert.deepEqual(rewards, [start.token]);
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record }), Conflict, 'settled once');
   assert.equal(events.length, 1);
 });
