@@ -501,6 +501,8 @@ test('creature mood: the Pit\'s moodOf draw - about half the home stance, the re
   assert.ok(count.neutral! > 900 && count.neutral! < 1100, `wolf home = Balanced about half: ${JSON.stringify(count)}`);
   for (const k of ['aggressive', 'defensive', 'trickster']) assert.ok(count[k]! > 250, `${k} is drawn: ${JSON.stringify(count)}`);
   assert.equal(withMood(creature('c', 'bear', 0, 0), () => 0.77).stance, withMood(creature('c', 'bear', 0, 0), () => 0.77).stance);
+});
+
 test('parry cooldown (duel.ts parryCooldown): a fresh guard press opens the parry window (age 0) and arms a 30-tick cooldown; a press inside it starts the guard at age = window (no parry window); after it, fresh again', () => {
   let w = newWorld([player('p', 0, 0, 0)]);
   const step = (guard: boolean) => { w = stepCombat(w, { p: { x: 0, z: 0, guard } }, DT, NEVER).world; return get(w, 'p'); };
