@@ -65,7 +65,7 @@ export type Mobs = {
 const RESPAWN = 90;   // s
 const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number }): Mobs {
   const specs = mobSpecs(frontier, build, previewRows(location.search)), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
@@ -134,9 +134,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
         if (!v.model && body && body !== 'loading' && body !== 'failed') dress(v, s, body);
         v.group.visible = v.ring.visible = !hiddenInFight(s.id, engaged);
+        const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i), lunge = dv?.lunge ?? 0;
-        v.group.position.set(m.x + Math.sin(m.facing) * lunge, 0, m.z + Math.cos(m.facing) * lunge); v.group.rotation.order = 'YXZ'; v.group.rotation.y = m.facing; v.group.rotation.x = (dv?.fall ?? 0) * Math.PI / 2; v.group.scale.setScalar(dv?.pulse ?? 1);
-        v.ring.position.set(m.x, 0.04, m.z);
+        v.group.position.set(m.x + Math.sin(m.facing) * lunge, gy, m.z + Math.cos(m.facing) * lunge); v.group.rotation.order = 'YXZ'; v.group.rotation.y = m.facing; v.group.rotation.x = (dv?.fall ?? 0) * Math.PI / 2; v.group.scale.setScalar(dv?.pulse ?? 1);
+        v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
         v.label.visible = s.id !== hideLabel && nearestOf.get(s.name) === i;   // the info card (creature-card.ts) carries this creature's name and level while it is up
