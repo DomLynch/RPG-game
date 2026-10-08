@@ -20,6 +20,13 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    - **Gate:** if tonight's Metal engage trace (World) already names a cause whose fix measures under 200 ms on Metal, the spike is skipped and recorded as not needed.
    - **Knock-on:** Combat's core/pit split moves to Sat 10-10 (boundary + lint) and Sun 10-11 (split done).
    - **The zone-runtime design** (decision 3) is PR #1913 (`docs/specs/zone-runtime.md`): Auditor docs PASS with corrections, and the corrections are pushed.
+**~21:55 SEAMLESS RESULT (World's Mac Metal trace on LIVE 27086155, ANGLE Metal, Apple M5, 375x812, a fresh page each run, logging from 1.5 s before, the PLAYER path, 3 creatures, load1 7.3/9.5/6.5, no quality gate running):**
+- The engage frame's worst gap is **18 ms** in all 3 runs, so Dom's < 200 ms bar is MET for engage. No longtask fell in the engage window.
+- The remaining hitch is a **first-draw shader compile + texture upload** when a creature or material set is first seen: up to a 179 ms longtask (Gambeson_goblin, WeaponKnife, Steel, Bone, Skin/Photo…; `(program)` 1635 ms, `texSubImage2D` 189 ms). That matches the donor study #1914.
+- **Decision 6's spike is SKIPPED** (its gate was met).
+- **Fix: World,** pattern #5. At zone entry, `renderer.compile` the zone's bodies (`zoneBodies(specs)`), the hero gear and one warm-up frame of the dressing; `initTexture` every map; then one "zone ready" point, which becomes loadZone's ready hook in #1913.
+- **Acceptance:** after zone ready, 0 programs compiled and 0 texSubImage2D during walk and engage; worst gap < 200 ms on Metal; `engage-live.mjs` committed as the repeatable check.
+- **Side findings:** the curved backdrop is the Pit's `buildArena` far ring (`main.ts:85`, `src/arena.ts:464-473`), still built in Zone 1, and it goes with the 6-import cut. `place()` (`main.ts:645`) teleports without `canStand`. The live HUD overlap (foe card over the zone header) is Web's `web/fight-header`, riding Release C.
 **Live at 21:33:41:** Release A = 27086155 Published (preflight 21:15:22, 18.3 min; 51/52 rows first time, row 47 passed on its alone-retry; the Mac quality step ran test:all locally for ~10 min, the reason it missed 8 min).
 **Remaining validation:** Combat's boundary PR + the lint rule green; #1913 merged; World's Metal trace naming the long task; the spike's Metal number (or the recorded skip); Mac Metal worst gap < 200 ms on a live build.
 
