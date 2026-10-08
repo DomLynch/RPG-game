@@ -48,7 +48,8 @@ export type Event =
   | { type: 'Blocked'; attacker: string; victim: string; perfect: boolean; damage: number }   // `damage` is the chip that passed through (0 for a cut)
   | { type: 'Dodged'; attacker: string; victim: string }          // the blow met a roll's invulnerable ticks
   | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' }
-  | { type: 'Died'; id: string; by: string };
+  | { type: 'Died'; id: string; by: string }
+  | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
 const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENTS)[keyof typeof OPPONENTS]>)[kind];
 
@@ -159,7 +160,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
       const prey = fighters.filter((p) => p.side === 'player' && alive(p)).sort((a, b) => dist(f, a) - dist(f, b))[0];
       if (f.returning) {   // gave up: walks home at its amble, heals to full on arrival (no event)
         const dx = f.homeX - f.x, dz = f.homeZ - f.z, d = Math.hypot(dx, dz), step = SPEEDS.creature.amble * dt;
-        if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; }
+        if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; events.push({ type: 'Evaded', id: f.id }); }
         else { f.facing = Math.atan2(dx, dz); f.x += (dx / d) * step; f.z += (dz / d) * step; }
       } else if (prey && (f.hunting ? dist(f, prey) <= SIGHT_M || f.unseen < GIVE_UP_UNSEEN_S : dist(f, prey) <= AGGRO_M)) {
         if (!f.hunting) { f.hunting = true; f.chaseX = f.x; f.chaseZ = f.z; f.unseen = 0; }
