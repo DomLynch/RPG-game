@@ -63,6 +63,7 @@ import * as powerWords from '../src/power-words.ts';
 import * as powerWordSynth from '../src/audio/power-word.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
+import * as zoomGuard from '../src/zoom-guard.ts';   // the page-zoom lock main.ts calls at boot (#1749): the real module, it only adds document listeners
 import * as tutorialUi from '../src/tutorial-ui.ts';
 import * as match from '../src/match.ts';
 import * as stancePanel from '../src/stance-panel.ts';
@@ -127,7 +128,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./audio/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
-  modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule;   // pure cores main.ts imports
+  modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
   modules['./sparring-specials.ts'] = sparringSpecials;
   modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
   Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });
