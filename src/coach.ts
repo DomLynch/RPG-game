@@ -13,10 +13,10 @@ import { PICKS, type PickedStance } from './stance.ts';
 // The knobs a stance brain may set: how it PLAYS (cadence, guard, feints, kicks), never how fast it sees. Numbers are the stance battery's BY_STANCE brains (scripts/stance-battery.mjs), which
 // Strategy ruled (2026-10-07) are what a human who picks that stance plays; neutral is the player-level profile untouched.
 export const COACH_BRAINS: Readonly<Record<PickedStance, Partial<AiProfile>>> = {
-  neutral: {},
-  aggressive: { aggression: 0.9, parry: 0.2, lapse: 0.1 },
-  defensive: { parry: 0.7, dodge: 0.1, aggression: 0.35, guard: 1, lapse: 0.1, read: 0.9 },
-  trickster: { feint: 0.5, kick: 0.6, aggression: 0.7, parry: 0.2, read: 0.8 },
+  neutral: { lapse: 0.5, read: 0.5 },
+  aggressive: { aggression: 0.9, parry: 0.2, lapse: 0.6, read: 0.45 },
+  defensive: { parry: 0.7, dodge: 0.1, aggression: 0.35, guard: 1, lapse: 0.4, read: 0.6 },
+  trickster: { feint: 0.5, kick: 0.6, aggression: 0.7, parry: 0.2, lapse: 0.5, read: 0.5 },
 };
 // What a brain must leave alone: the noticing and timing limits it shares with the warden.
 export const COACH_FIXED: readonly (keyof AiProfile)[] = ['reaction', 'tellReaction', 'anticipate', 'accuracy', 'discipline'];

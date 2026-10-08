@@ -93,8 +93,8 @@ test('a hold the coach had is released the tick the player takes over unless the
   let p = initialPractice(3, opponentAt(OPPONENTS.veteran, 6), 'longsword', null);
   driver.start(0); driver.start(5);          // a second start does not open a second span
   let guardedAtCoach = false;
-  for (let t = 0; t < 600 && !guardedAtCoach; t++) { const i = driver.pick(p.duel, idleIntent()); if (i.guard) guardedAtCoach = true; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
-  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 600 ticks');
+  for (let t = 0; t < 1800 && !guardedAtCoach; t++) { const i = driver.pick(p.duel, idleIntent()); if (i.guard) guardedAtCoach = true; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
+  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 1800 ticks (a lapsing coach answers fewer cuts)');
   driver.stop(p.duel.tick); driver.stop(p.duel.tick + 1);   // a second stop changes nothing
   assert.equal(driver.spans.length, 1); assert.notEqual(driver.spans[0]!.to, null);
   const released = driver.pick(p.duel, idleIntent());
