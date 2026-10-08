@@ -232,3 +232,13 @@ test('2 v 1: never more than MAX_ATTACKERS creatures wind up or swing at once, a
   assert.ok(most <= 2, `at most 2 at once, saw ${most}`);
   assert.ok(closest > -0.05, `bodies overlap by ${-closest}`);
 });
+
+test('a creature that starts anywhere inside its aggro ring, at any angle and any world position, closes in and STARTS its telegraph (the clamped last step must not leave it standing 1 ulp outside reach)', () => {
+  let seed = 12345; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;   // a fixed LCG: the fuzz is the same on every run
+  for (let i = 0; i < 300; i++) {
+    const kind = ['wolf', 'boar', 'bear'][i % 3]!, ang = rnd() * Math.PI * 2, d = 3 + rnd() * 5.9, px = rnd() * 50 - 25, pz = rnd() * 50 - 25;
+    let w = newWorld([player('p', px, pz), creature('c', kind, px + Math.sin(ang) * d, pz + Math.cos(ang) * d)]), tele = false;
+    for (let t = 0; t < 60 * (d / 4.5 + 1.5) && !tele; t++) { const r = stepCombat(w, { p: STILL }, DT); w = r.world; tele = r.events.some((e) => e.type === 'Telegraph' && e.id === 'c'); }
+    assert.ok(tele, `${kind} from ${d.toFixed(2)} m at ${ang.toFixed(3)} rad (player at ${px.toFixed(2)},${pz.toFixed(2)}) never telegraphed`);
+  }
+});
