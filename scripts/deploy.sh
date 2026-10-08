@@ -52,7 +52,13 @@ if [[ -z "$ci_green" ]]; then
   fi
 fi
 deploy_step "quality gate"
-if [[ -n "$ci_green" ]]; then
+vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: DEPLOY_VPS_RECEIPTS=on and a tree-bound unit-suite receipt
+if [[ "$vps_unit" == ok ]]; then
+  echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
+  npm run typecheck:tests
+  npm run test:bot   # not in quality:deploy; the receipt covers test:all only
+  npm run quality:deploy
+elif [[ -n "$ci_green" ]]; then
   echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
 elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
