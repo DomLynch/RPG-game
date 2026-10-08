@@ -120,12 +120,13 @@ test('a held guard blocks a frontal bite: no damage, a Blocked event, the row\'s
   assert.ok(get(world, 'p').stamina < 100 && get(world, 'p').posture > 0);
 });
 
-test('a guard raised just before the blow is a PERFECT block and costs half; a guard from behind does not cover', () => {
+test('a guard raised RULES.parry + 1 ticks before the blow is a PERFECT block and costs half (just before it is a parry); a guard from behind does not cover', () => {
   const blocked = (guardFrom: number) => run(legacy([player('p', 0, 0, 0), bite()]), 0.5, (t) => (t >= guardFrom ? GUARD : STILL));   // the bite's swing is tick 25
-  const early = blocked(0), justInTime = blocked(24);
+  const early = blocked(0), justInTime = blocked(14), parried = blocked(24);   // swing at tick 25: age 11 = one tick into the perfect block; age 1 = inside the parry window
   const flag = (r: ReturnType<typeof blocked>) => r.events.find((e) => e.type === 'Blocked');
   assert.ok(flag(early) && flag(early)!.type === 'Blocked' && !flag(early)!.perfect, 'a guard held a while is an ordinary block');
-  assert.ok(flag(justInTime) && flag(justInTime)!.type === 'Blocked' && flag(justInTime)!.perfect, 'a guard raised just before the blow is perfect');
+  assert.ok(flag(justInTime) && flag(justInTime)!.type === 'Blocked' && flag(justInTime)!.perfect, 'a guard raised parry+1 ticks before the blow is perfect');
+  assert.ok(parried.events.some((e) => e.type === 'Parried'), 'a guard raised just before the blow is a parry');
   const spent = (r: ReturnType<typeof blocked>) => 100 - get(r.world, 'p').stamina;
   assert.ok(spent(justInTime) < spent(early) * 0.75, `perfect ${spent(justInTime)} vs ordinary ${spent(early)}`);
   const behind = run(legacy([player('p', 0, 0, Math.PI), bite()]), 1, () => GUARD);   // the player faces away: the bite lands
@@ -293,7 +294,7 @@ test('parry (duel.ts: guarding && age < window && parryable): a guard up inside 
   };
   for (const rand of [NEVER, ALWAYS]) {
     const ev = mk(rand);
-    assert.ok(ev.some((e) => e.type === 'Blocked' && e.perfect), 'parried');
+    assert.ok(ev.some((e) => e.type === 'Parried' && e.attacker === 'c' && e.victim === 'p'), 'parried');
     assert.ok(ev.some((e) => e.type === 'Staggered' && e.id === 'c' && e.cause === 'parry' && e.ms === Math.round((RULES.parryStun / 60) * 1000)), 'the creature is thrown off for parryStun');
     assert.ok(!ev.some((e) => e.type === 'Hit' && e.victim === 'p'), 'no damage');
   }
@@ -539,4 +540,23 @@ test('on the duel: a creature inside the engage ring is on the duel at once, hun
   assert.ok(r.world.streams.c && get(r.world, 'c').hunting, 'engaged at 3 m');
   const far = duelRun(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 8)]), 0.5);
   assert.equal(Object.keys(far.world.streams).length, 0, 'at 8 m it is still chasing on the world layer');
+
+test('parry cooldown (duel.ts parryCooldown): a fresh guard press opens the parry window (age 0) and arms a 30-tick cooldown; a press inside it starts the guard at age = window (no parry window); after it, fresh again', () => {
+  let w = legacy([player('p', 0, 0, 0)]);
+  const step = (guard: boolean) => { w = stepCombat(w, { p: { x: 0, z: 0, guard } }, DT, NEVER).world; return get(w, 'p'); };
+  assert.equal(step(true).t, 0, 'a fresh press: the parry window opens at age 0');
+  for (let i = 0; i < 5; i++) step(true);
+  step(false); for (let i = 0; i < 8; i++) step(false);   // let go for 9 ticks, still inside the 30-tick cooldown
+  assert.ok(Math.abs(step(true).t - RULES.parry / 60) < 1e-9, 'a press inside the cooldown starts the guard at age = window: no parry window');
+  for (let i = 0; i < 6; i++) step(true);
+  step(false); for (let i = 0; i < 40; i++) step(false);   // past the cooldown
+  assert.equal(step(true).t, 0, 'after the cooldown a press is fresh again');
+});
+
+test('parry spam is not free (the Auditor\'s repro: guard 8 ticks up / 1 down vs a wolf for 30 s): parries stay within one per cooldown and the hero is not parry-immune', () => {
+  const w0 = legacy([player('p', 0, 0, 0), creature('c', 'wolf', 0, 1.2)]); w0.fighters[0]!.health = w0.fighters[0]!.maxHealth = 1e6;
+  let w = w0, parries = 0, hits = 0;
+  for (let t = 0; t < 60 * 30; t++) { const r = stepCombat(w, { p: { x: 0, z: 0, guard: t % 9 !== 8 } }, DT, NEVER); w = r.world; parries += r.events.filter((e) => e.type === 'Parried').length; hits += r.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length; }
+  assert.ok(parries <= Math.ceil(30 / (RULES.parryCooldown / 60)), `${parries} parries in 30 s`);
+  assert.ok(parries < 10, `${parries} (was 10 with a fresh window on every press)`);
 });
