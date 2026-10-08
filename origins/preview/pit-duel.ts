@@ -323,6 +323,6 @@ export function duelState() {
   return p && fight ? {
     opponent: fight.opponent, legend: legendName(fight.opponent, fight.level), level: fight.level, seed: fight.seed, ready: !!stage?.ready, running,
     tick: p.duel.tick, phase: p.phase, playerHealth: p.playerHealth, health: p.health, finish: result ?? p.finish,
-    push: lastPush, radius: RADIUS, x: p.fighter.x, z: p.fighter.z, foe: { x: p.enemy.x, z: p.enemy.z }, gap: Math.hypot(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z), seen: Object.fromEntries(seen), menu: !!journal?.open,
+    push: lastPush, radius: RADIUS, loiter: p.duel.fighters[0].loiter, x: p.fighter.x, z: p.fighter.z, foe: { x: p.enemy.x, z: p.enemy.z }, gap: Math.hypot(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z), seen: Object.fromEntries(seen), menu: !!journal?.open,
   } : null;
 }
