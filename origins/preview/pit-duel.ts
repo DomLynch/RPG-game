@@ -183,15 +183,15 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
 // ?worldfight, seamless combat: build (and so warm: createScene compiles its shaders) the world-mounted stage for a creature BEFORE its tap, so the engage reuses it (stageFor's same-opponent rule).
 let warmedFor: Stage | null = null;
 let ownWarmed: Stage | null = null;
-export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, world?: Object3D, dress?: (root: Object3D) => void): void {
+export type Warm = { world: Object3D; lights: Object3D[]; dress?: (root: Object3D) => void };   // the page's world scene, its lights (borrowed for the compile) and the foe's cloth
+export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, warm?: Warm): void {
   if (!(opponent in OPPONENTS)) return;
   const made = stageFor(host, opponent as OpponentId, level, mount);
-  if (world && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(world); }   // once per stage
+  if (warm && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(warm.world); }   // once per stage
   if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
     ownWarmed = made; const root = made.view.opponentRoot();
-    ((globalThis as { __warmLog?: unknown[] }).__warmLog ??= []).push({ at: Math.round(performance.now()), root: !!root, dress: !!dress, kids: root?.children.length ?? -1 });   // DEBUG
-    if (root && dress) { dress(root); void made.view.warmOwn().then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
-    else void made.view.warmOwn();
+    if (root && warm?.dress) { warm.dress(root); void made.view.warmOwn(warm.lights).then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
+    else if (warm) void made.view.warmOwn(warm.lights);
   }
 }
 

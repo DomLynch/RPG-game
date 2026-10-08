@@ -613,7 +613,12 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    warmOwn() { return renderer.compileAsync(scene, camera).catch(() => {}); },   // world fights: compile this scene's own rigs (hero, foe, weapons) once they have loaded, before the engage
+    // world fights: compile this scene's own rigs (hero, foe, weapons) once they have loaded, before the engage. A program's variant depends on the lights it is lit by, and the world's lights only join this scene at the attach, so
+    // they are borrowed here as clones for the compile and taken out again (nothing is drawn).
+    warmOwn(lights: THREE.Object3D[]) {
+      const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed);
+      return renderer.compileAsync(scene, camera).catch(() => {}).finally(() => { scene.remove(...borrowed); });
+    },
     warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
       ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };
