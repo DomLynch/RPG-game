@@ -7,8 +7,10 @@ import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } fr
 
 export const KIT_NODES = ['boulder_a', 'boulder_b', 'boulder_c', 'bush_scrub_a', 'bush_scrub_b', 'tree_dead_a', 'tree_dead_b', 'tree_dead_c', 'tuft_a', 'tuft_b'] as const;
 export type KitNode = (typeof KIT_NODES)[number];
-export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
-export type Kit = { placements: KitPlacement[]; solids: Solid[] };
+export type KitPlacement = { node: KitNode | (typeof LANDMARK_NODES)[number]; x: number; z: number; rotY: number; scale: number };
+export const LANDMARK_NODES = ['landmark_camp', 'landmark_ruin_arch', 'landmark_stone_circle', 'landmark_grove'] as const;
+export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
+const LANDMARK_R = 3.5;   // footprint of a landmark, for the first-view margin and its solid
 
 const KIND: { nodes: readonly KitNode[]; per: number; r: number; solid: number; scale: [number, number] }[] = [   // per: placements per 1000 m2 of zone
   { nodes: ['tree_dead_a', 'tree_dead_b', 'tree_dead_c'], per: 3, r: 1.2, solid: 0.6, scale: [0.9, 1.35] },
@@ -44,5 +46,16 @@ export function frontierKit(f: Frontier, b: Build, d: Dress): Kit {
       }
     }
   }
-  return { placements, solids };
+  // The four landmarks stand along the west road just OUTSIDE the walker's first view (frontier-plan.ts inFirstView keeps tall things 10 m + their radius off the road's line), alternating sides:
+  // each takes the first free spot walking out from the road's end, at least 10 m from the one before.
+  const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing), side = r.width / 2 + LANDMARK_R + 11.5, landmarks: KitPlacement[] = [];
+  LANDMARK_NODES.forEach((node, i) => {
+    for (let k = 0; k < 80 && !landmarks.some((l) => l.node === node); k++) {
+      const along = 12 + Math.floor(k / 2) * 3, sign = (k + i) % 2 ? 1 : -1, across = sign * side, x = r.from.x + ux * along - uz * across, z = r.from.z + uz * along + ux * across;
+      if (inFirstView(f, x, z, LANDMARK_R) || onRoad(f, x, z) || !f.zones.some((q) => q.region.includes('frontier') && inZone(q, x, z, LANDMARK_R))
+        || [...b.solids, ...d.solids, ...solids, ...landmarks.map((l) => ({ x: l.x, z: l.z, r: 10 }))].some((s) => Math.hypot(s.x - x, s.z - z) < s.r + LANDMARK_R)) continue;
+      landmarks.push({ node, x, z, rotY: Math.atan2(-ux, -uz) - sign * 0.4, scale: 1 }); solids.push({ x, z, r: LANDMARK_R * 0.7 });
+    }
+  });
+  return { placements, landmarks, solids };
 }

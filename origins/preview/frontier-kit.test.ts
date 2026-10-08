@@ -2,8 +2,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { frontierDress } from './frontier-dress.ts';
-import { frontierKit, KIT_NODES } from './frontier-kit.ts';
-import { frontierBuild, frontierPlan, inZone, onRoad } from './frontier-plan.ts';
+import { frontierKit, KIT_NODES, LANDMARK_NODES } from './frontier-kit.ts';
+import { frontierBuild, frontierPlan, inFirstView, inZone, onRoad } from './frontier-plan.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), K = frontierKit(F, B, D);
 const zones = F.zones.filter((z) => z.region.includes('frontier'));
@@ -22,5 +22,14 @@ test('every placement stands in a zone, off the west road, clear of landmarks an
     assert.ok(!onRoad(F, p.x, p.z), `${p.node} on the west road`);
     for (const m of marks) assert.ok(Math.hypot(m.x - p.x, m.z - p.z) > 6, `${p.node} within 6 m of a landmark`);
     for (const s of [...B.solids, ...D.solids]) assert.ok(Math.hypot(s.x - p.x, s.z - p.z) > s.r, `${p.node} inside a solid`);
+  }
+});
+
+test('the four landmarks stand along the west road, outside the first view, off the road and the buildings', () => {
+  assert.deepEqual(K.landmarks.map((l) => l.node), [...LANDMARK_NODES]);
+  for (const l of K.landmarks) {
+    assert.ok(!onRoad(F, l.x, l.z), `${l.node} on the road`);
+    assert.ok(!inFirstView(F, l.x, l.z, 3.5), `${l.node} in the walker's first view`);
+    for (const s of [...B.solids, ...D.solids]) assert.ok(Math.hypot(s.x - l.x, s.z - l.z) > s.r + 3.5, `${l.node} touches a solid`);
   }
 });
