@@ -21,6 +21,7 @@ export type Online = {
   // The fight is over: post its record. A 409 means the server already settled this token (a retry after a client timeout): that is done, not an error. A failed post (offline) may be retried.
   settle(end: Ended): Promise<SettleOutcome>;
   played(): void;   // the fight's first tick has run: from now on a 409 never resumes this token (a loser must not replay the same seed), and the server hears it (touch at tick 1)
+  drop(): void;   // an unplayed session that will not be fought (a prefetch nobody tapped): stop touching AND forget the held token if it is this one, so the next start cannot resume it on another creature (Auditor MEDIUM)
   stop(): void;   // the player left: stop touching (an unsettled token expires on the server as a loss by abandonment)
 };
 export type HeldFight = { token: string; played: boolean };
@@ -49,7 +50,7 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
   let timer: ReturnType<typeof setInterval> | undefined = every(() => { void touchFight(d.token, run.token, tickNow(), opts); }, TOUCH_EVERY_MS), done = false;
   const stop = () => { if (timer !== undefined) { clear(timer); timer = undefined; } };
   return {
-    seed: run.seed, stop, played: () => { d.held?.set({ token: run.token, played: true }); void touchFight(d.token, run.token, 1, opts); },   // and tell the server the fight began (lastTick 1): a backstop for a client that skips the mark
+    seed: run.seed, stop, drop: () => { stop(); if (d.held?.get()?.token === run.token && !d.held.get()?.played) d.held.set(null); }, played: () => { d.held?.set({ token: run.token, played: true }); void touchFight(d.token, run.token, 1, opts); },   // and tell the server the fight began (lastTick 1): a backstop for a client that skips the mark
     async settle(end) {
       stop(); d.held?.set(null);   // settled or not, this token is spent as far as the page is concerned
       if (done) return 'already';
@@ -76,14 +77,14 @@ export function createPrefetch(begin: (id: string) => Promise<Online | null>, cl
   const now = clock.now ?? Date.now, after = clock.after ?? ((fn, ms) => setTimeout(fn, ms)), cancel = clock.cancel ?? ((id) => clearTimeout(id as never));
   type Slot = { id: string; ready: Online | null; at: number; gone: boolean; expiry?: unknown };
   let slot: Slot | null = null;
-  const drop = (g: Slot) => { g.gone = true; if (g.expiry !== undefined) cancel(g.expiry); g.ready?.stop(); if (slot === g) slot = null; };
+  const drop = (g: Slot) => { g.gone = true; if (g.expiry !== undefined) cancel(g.expiry); g.ready?.drop(); if (slot === g) slot = null; };
   return {
     want(id: string): void {
       if (slot?.id === id) return;
       if (slot) drop(slot);
       const mine: Slot = slot = { id, ready: null, at: 0, gone: false };
       void begin(id).then((o) => {
-        if (mine.gone || slot !== mine) { o?.stop(); return; }
+        if (mine.gone || slot !== mine) { o?.drop(); return; }
         mine.ready = o; mine.at = now();
         if (o) mine.expiry = after(() => drop(mine), PREFETCH_MAX_AGE_MS);
       });
@@ -93,7 +94,7 @@ export function createPrefetch(begin: (id: string) => Promise<Online | null>, cl
       if (!got) return null;
       if (got.expiry !== undefined) cancel(got.expiry);
       if (got.id === id && got.ready && now() - got.at <= PREFETCH_MAX_AGE_MS) return got.ready;
-      got.gone = true; got.ready?.stop();   // not taken (another creature, too old, or not here yet): stop touching, the writer sweeps it
+      got.gone = true; got.ready?.drop();   // not taken (another creature, too old, or not here yet): stop touching, the writer sweeps it
       return null;
     },
   };

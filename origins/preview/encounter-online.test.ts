@@ -181,7 +181,7 @@ test('a 409 whose remembered token was played at tick 1 is forgotten and plays o
 });
 
 test('createPrefetch: the tap takes only this creature\'s ready session, never waits, and stops a late or displaced one', async () => {
-  const stops: string[] = [], mk = (id: string) => ({ seed: 1, settle: async () => 'settled', played() {}, stop: () => void stops.push(id) }) as never;
+  const stops: string[] = [], mk = (id: string) => ({ seed: 1, settle: async () => 'settled', played() {}, stop() {}, drop: () => void stops.push(id) }) as never;
   const gates = new Map<string, (o: unknown) => void>();
   const p = createPrefetch((id) => new Promise((res) => gates.set(id, res as never)));
   p.want('a'); assert.equal(p.take('a'), null, 'not here yet: unpaid, at once'); gates.get('a')!(mk('a')); await Promise.resolve(); await Promise.resolve();
@@ -196,7 +196,7 @@ test('createPrefetch: the tap takes only this creature\'s ready session, never w
 
 test('createPrefetch: a ready session older than 90 s is stopped and dropped (no endless touches), and an old one is never handed over', async () => {
   let t = 0; const timers: Array<() => void> = [], stops: string[] = [];
-  const mk = (id: string) => ({ seed: 1, settle: async () => 'settled', played() {}, stop: () => void stops.push(id) }) as never;
+  const mk = (id: string) => ({ seed: 1, settle: async () => 'settled', played() {}, stop() {}, drop: () => void stops.push(id) }) as never;
   const clock = { now: () => t, after: (fn: () => void) => (timers.push(fn), timers.length), cancel: () => {} };
   const p = createPrefetch(async (id) => mk(id), clock);
   p.want('a'); await Promise.resolve(); await Promise.resolve();
@@ -204,4 +204,12 @@ test('createPrefetch: a ready session older than 90 s is stopped and dropped (no
   p.want('b'); await Promise.resolve(); await Promise.resolve(); t += 91_000;   // the timer has not fired yet but the session is old
   assert.equal(p.take('b'), null, 'too old: not handed over'); assert.deepEqual(stops, ['a', 'b']);
   p.want('c'); await Promise.resolve(); await Promise.resolve(); t += 30_000; assert.ok(p.take('c'), 'young and this creature: taken');
+});
+
+test('drop: an unplayed prefetched session stops touching and is forgotten by HELD; a played one stays held', async () => {
+  let held: { token: string; played: boolean } | null = null; const H = { get: () => held, set: (v: typeof held) => void (held = v) };
+  const s = server(ok), on = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, held: H, every: (() => 1) as never, clear: (() => {}) as never });
+  assert.equal(held?.played, false); on!.drop(); assert.equal(held, null, 'the next start cannot resume a token nobody will fight');
+  const s2 = server(ok), on2 = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s2.f, held: H, every: (() => 1) as never, clear: (() => {}) as never });
+  on2!.played(); on2!.drop(); assert.equal(held?.played, true, 'played: it is a real fight, HELD keeps it');
 });
