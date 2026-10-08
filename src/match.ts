@@ -111,7 +111,7 @@ export class Match {
     this.practice = initialPractice(seed, opponentAt(opponent, this.level), this.weapon, this.skill);
     this.begin('career');
   }
-  get practiceOnly(): boolean { return this.mode !== 'career' || this.tested || this.stances !== undefined; }   // a stances fight (the ?stances= preview, RV34) is a +-5% trade-off no ladder count was made on: recorded and replayable, never awarded, no loot offer
+  get practiceOnly(): boolean { return this.mode !== 'career' || this.tested; }   // a stances fight COUNTS (Dom 2026-10-08, stances ON for all): scripts/ladder-stance-count.mjs found no rung that a stance pick makes unwinnable or trivial (Balanced within 2 points of the no-stance baseline); it was practice-only while it was a preview
   get specialIdentity(): SpecialIdentity {
     const identity = this.replay?.record ?? this.fightIdentity;
     return { opponent: identity.opponent, level: identity.level, ...(this.mode === 'sparring' && this.clipLevel === null && this.sparSelection ? { presets: [this.sparSelection.player, this.sparSelection.opponent === undefined ? (this.practice.duel.fighters[1].specialShare === undefined ? null : bossSpecialFor(identity.opponent, this.sparSpecials?.level ?? identity.level) ?? classSpecialFor(identity.opponent, this.sparSpecials?.level ?? identity.level)) : this.sparSelection.opponent] as const } : {}) };
@@ -169,7 +169,7 @@ export class Match {
   // A kill link: the fight on the record's seed, weapon and warden profile, stepped silently to fromTick and played from there.
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
-    if (epoch !== this.epoch) return false;
+    if (epoch !== this.epoch || record.group) return false;   // a group stream replays only with its siblings (RV39)
     this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level; this.specials = !!record.specials; this.gambit = !!record.gambit; this.stances = record.stances;
     underRecord(record, () => {   // built and stepped on the record's own version of the sim's math (detmath.ts)
       this.begin('replay');
@@ -187,7 +187,7 @@ export class Match {
     const saved = { scale: PLAY_SCALE, notice: LATE_NOTICE, stab: STAB_ON, practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog, specials: this.specials, gambit: this.gambit, stances: this.stances };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
     const practice = underRecord(record, () => {
-      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances);
+      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances, record.pose);
       for (let tick = 0; tick < fromTick; tick++) p = stepPractice(p, record.intents[tick], profileAt(this.opponent, record.level));
       return p;
     });

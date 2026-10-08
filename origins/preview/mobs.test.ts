@@ -185,19 +185,20 @@ test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: with
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
-test('a world fight hides only the duel\'s foe and the far creatures: packmates beside the hero stay in view (Dom, 2026-10-08: 2 vs 1 is fine)', () => {
-  assert.equal(hiddenInFight('wolves-1', 'wolves-1', 3, 20), true, 'the duel draws the foe');
-  assert.equal(hiddenInFight('wolves-2', 'wolves-1', 2.5, 20), false, 'a packmate beside the hero stays visible');
-  assert.equal(hiddenInFight('goblin-1', 'wolves-1', 25, 20), true, 'past the freeze radius: hidden');
-  assert.equal(hiddenInFight('goblin-1', null, 12, 20), false);
+test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {
+  assert.equal(hiddenInFight('wolves-1', 'wolves-1'), true, 'the duel draws the foe');
+  assert.equal(hiddenInFight('wolves-2', 'wolves-1'), false, 'a packmate beside the hero stays visible');
+  assert.equal(hiddenInFight('goblin-1', 'wolves-1'), false, 'a far creature is still drawn: nothing past a radius is hidden any more');
+  assert.equal(hiddenInFight('goblin-1', null), false);
 });
 
-test('the world keeps living during a world duel: attach starts the creature tick, detach stops it, the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world)', () => {
+test('the world keeps living during a world duel: the walk loop never stops, it keeps ticking the creatures, fires and arena while the duel draws, and the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world; re-pinned from the separate liveWorld tick)', () => {
   const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
-  assert.match(main, /attach\(\) \{[^\n]*liveWorld\(spec\.id, at\);/, 'attach starts the live tick');
-  assert.match(main, /detach\(\) \{ liveWorld\(null, at\);/, 'detach stops it first');
-  assert.match(main, /mobs\?\.update\([^\n]*, at, foe, foe\)/, 'the tick steps every creature round the hero and hides the foe\'s world body');
-  assert.match(view, /v\.group\.visible = v\.ring\.visible = s\.id !== hideBody;/);
+  assert.match(main, /attach\(\) \{[^\n]*mobs\?\.engage\(spec\.id\); duelDrawing = true;/, 'attach hides the foe and hands the drawing to the duel');
+  assert.match(main, /detach\(\) \{[^\n]*mobs\?\.engage\(null\); duelDrawing = false;/, 'detach gives it back');
+  assert.match(main, /if \(duelDrawing\) \{[^\n]*\n\s*mobs\?\.update\(dt, state, cardId\);[^\n]*\n\s*return;/, 'while the duel draws, the walk loop still steps the creatures and does not render');
+  assert.match(main, /if \(!WORLDFIGHT\) renderer\.setAnimationLoop\(null\);/, 'a world fight never stops the loop');
+  assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
 });
 
 test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {

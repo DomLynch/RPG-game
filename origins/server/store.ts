@@ -32,6 +32,15 @@ export const commitThenOpen = async (db: Db, account: string, batch: readonly Js
   JSON.parse(lines(await db.run(`select public.origins_commit(:'a'::uuid, :'b'::jsonb)::text; select public.origins_open(:'a'::uuid)::text;`, { a: acct(account), b: JSON.stringify(batch) }))[1]);
 export const commit = async (db: Db, account: string, batch: readonly Json[]): Promise<Json[]> =>
   JSON.parse(await db.run(`select public.origins_commit(:'a'::uuid, :'b'::jsonb)::text;`, { a: acct(account), b: JSON.stringify(batch) }));
+// A shop shelf (migration 202610080012): the newest shelf this account's buys of one item left, {count, at} or null (a full shelf), and the database
+// clock in ms. 'absent' when the migration is not applied: the shop then sells nothing (fail closed).
+export type ShopShelf = { now: number; stock: { count: number; at: number } | null };
+const HAS_SHOP_STOCK = `select to_regprocedure('public.origins_shop_stock(uuid,text,text)') is not null as shopstock \\gset\n`;
+export const shopStock = async (db: Db, account: string, shop: string, item: string): Promise<ShopShelf | 'absent'> => {
+  const out = await db.run(`${HAS_SHOP_STOCK}\\if :shopstock\nselect public.origins_shop_stock(:'a'::uuid, :'s', :'i')::text;\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account), s: shop, i: item });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
 // One stored event of this account, or null (another account's id, an unknown id, an account that is not open: migration 202610060002).
 export const event = async (db: Db, account: string, id: string): Promise<Json | null> =>
   JSON.parse((await db.run(`select coalesce(public.origins_event(:'a'::uuid, :'e')::text, 'null');`, { a: acct(account), e: id })) || 'null');
@@ -56,6 +65,23 @@ export const saveLocation = async (db: Db, account: string, at: { x: number; z: 
     { a: acct(account), x: String(at.x), z: String(at.z), zone: at.zone ?? '', t: String(at.atMs) }));
 export const savedLocation = async (db: Db, account: string): Promise<SavedRow | null> =>
   JSON.parse((await db.run(`select coalesce(public.origins_saved_location(:'a'::uuid)::text, 'null');`, { a: acct(account) })) || 'null');
+
+// The account's bound-metal row (migration 202610080004): {bronze, version}, null when it has none yet, 'absent' when 0004 is not applied (then nothing pays
+// bronze: the `metal` op could not be versioned). Same fail-safe as X2: merged code on a database without the function still settles, without bronze.
+export type MetalRow = { bronze: number; version: number };
+const HAS_METAL_OF = `select to_regprocedure('public.origins_metal_of(uuid)') is not null as metalof \\gset\n`;
+export const metalOf = async (db: Db, account: string): Promise<MetalRow | null | 'absent'> => {
+  const out = await db.run(`${HAS_METAL_OF}\\if :metalof\nselect coalesce(public.origins_metal_of(:'a'::uuid)::text, 'null');\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
+// The respawn window (migration 202610080006): milliseconds since this account's last PAID kill of a fight, on the database clock; null when none.
+// 'absent' when the migration is not applied: the hook then pays nothing (fail closed), the fight is still recorded.
+const HAS_LAST_PAID = `select to_regprocedure('public.origins_last_paid_kill(uuid,text)') is not null as lastpaid \\gset\n`;
+export const lastPaidKill = async (db: Db, account: string, fight: string): Promise<number | null | 'absent'> => {
+  const out = await db.run(`${HAS_LAST_PAID}\\if :lastpaid\nselect coalesce(public.origins_last_paid_kill(:'a'::uuid, :'f')::text, 'null');\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account), f: fight });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
 
 // World creature fights (migration 202610080002): the parameters the server holds for a fight and its lifecycle. Every call answers `null` when the migration is not applied (the
 // writer maps that to a 503), so merged code on a database without it fails closed instead of 500ing.

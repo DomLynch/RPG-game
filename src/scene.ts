@@ -553,6 +553,9 @@ export function createScene(
   const standoff = standoffClock();   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
+  // World fights (seamless combat step 4, Dom 2026-10-08): the duel's camera does not cut in, it eases from where the walk's camera stood. `easeCamera` is set by the page at the engage; every frame after rig.update blends the rig's pose with that start (smoothstep), and the rig itself is untouched.
+  let ease: { pos: THREE.Vector3; quat: THREE.Quaternion; age: number; dur: number } | null = null;
+  const easePos = new THREE.Vector3(), easeQuat = new THREE.Quaternion();
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
@@ -614,6 +617,22 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
+    // world fights: warm this scene's own rigs (hero, foe, weapons) once they have loaded, before the engage. A program's variant depends on the lights it is lit by, and the world's lights only join this scene at the
+    // attach, so they are borrowed here as clones. `compile` builds the lit programs, but the shadow pass's depth programs only exist once a shadow map is really rendered, so one frame is drawn into a 4x4 target (nothing shown), then the clones go.
+    async warmOwn(lights: THREE.Object3D[]) {
+      const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed);
+      try {
+        await renderer.compileAsync(scene, camera);
+        const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
+        try { renderer.setRenderTarget(target); renderer.render(scene, camera); } finally { renderer.setRenderTarget(before); target.dispose(); }
+      } catch { /* a failed warm only means the first frame compiles, as before */ } finally {
+        scene.remove(...borrowed); for (const light of borrowed) (light as THREE.Light).dispose?.();
+      }
+    },
+    warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
+    easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
+      ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };
+    },
     setTier(next: Tier) {
       if (next !== tier) {
         tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened();
@@ -1378,6 +1397,12 @@ export function createScene(
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
       } : null, OPPONENTS[opponentId].scale, framingTall(opponentId), framingLow(opponentId));
+      if (ease) {
+        ease.age += dt; const k = Math.min(1, ease.age / ease.dur), e = k * k * (3 - 2 * k);
+        easePos.copy(camera.position); easeQuat.copy(camera.quaternion);
+        camera.position.lerpVectors(ease.pos, easePos, e); camera.quaternion.slerpQuaternions(ease.quat, easeQuat, e);
+        if (k >= 1) ease = null;
+      }
       // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
       // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
       // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the

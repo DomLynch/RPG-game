@@ -196,3 +196,9 @@ test('wildlife rows are valid held rows: no look, source or loot table needed, n
     assert.ok(out.camps.every((c) => !WILDLIFE_ROWS.some((w) => w.id === c.row)), 'a later row is never placed');
   }
 });
+
+test('respawnSeconds: inside 30..300 s, else respawn-range', () => {
+  assert.deepEqual(codes({ ...good, respawnSeconds: 75 }), []);
+  assert.deepEqual(codes({ ...good, respawnSeconds: 10 }), ['respawn-range'], 'under half a minute');
+  assert.deepEqual(codes({ ...good, respawnSeconds: 900 }), ['respawn-range'], 'a typo-sized wait');
+});
