@@ -73,3 +73,8 @@ test('a creature joins with a mood seeded by its id: the same creature fights in
   const stance = () => { const f = fakeMobs([{ spec: spec('wolf-7', 'wolf'), x: 0, z: 6 }]); const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} }); run(wc, { x: 0, z: 0, facing: 0 }, 1); return JSON.stringify(wc.debug()); };
   assert.equal(stance(), stance());
 });
+
+test('the SKILL press fires the equipped skill (the Pit\'s day-one Pommel Strike) when he has no named special; with no skill it does nothing', () => {
+  const swings = (skill: 'pommel' | null) => { let n = 0; const f = fakeMobs([]); const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void n++, hero: () => ({ gear: { attack: 1, res: 1 }, level: 1, skill }) }); run(wc, { x: 0, z: 0, facing: 0 }, 1); wc.special(); run(wc, { x: 0, z: 0, facing: 0 }, 0.2); return n; };
+  assert.equal(swings('pommel'), 1); assert.equal(swings(null), 0);
+});
