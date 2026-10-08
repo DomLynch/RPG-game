@@ -2182,7 +2182,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
    button sitting under that thumb would decline the loot by accident (deploy #102's quiet-one rows caught exactly this: a canvas tap at
    190,300 was intercepted by "Leave it"). The row takes the space the sleeping combat buttons leave, where the old Wear/Store row sat. */
 .loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; z-index: 4; }
-#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border: 0; clip-path: var(--cut-btn); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 700 var(--t-14)/1.1 var(--tf); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: none; }
+#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border: 0; border-radius: 0; clip-path: var(--cut-btn); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 700 var(--t-14)/1.1 var(--tf); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: none; }
 #actions .loot-panel-actions button:disabled { opacity: .4; cursor: default; }
 /* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
    gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
@@ -2203,7 +2203,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 /* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
    the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
 .loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font: 400 16px/1.35 var(--bf); }
-#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border: 0; min-height: var(--touch); clip-path: var(--cut-btn); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 700 var(--t-14)/1 var(--tf); letter-spacing: .08em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border: 0; border-radius: 0; min-height: var(--touch); clip-path: var(--cut-btn); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 700 var(--t-14)/1 var(--tf); letter-spacing: .08em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 #loot-undo:active { background: var(--edge2); }
 @media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
 @media (max-width: 900px), (pointer: coarse) {
@@ -2260,7 +2260,7 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
   .actions[data-gestures=cluster] #reset-button:not([data-play='1']),
   .actions[data-gestures=cluster] #pit-button {
     position: fixed; left: auto; top: auto; right: var(--end-gutter); width: var(--end-width); height: var(--touch-primary);
-    box-sizing: border-box; padding: 0 var(--s3); border: 0; clip-path: var(--cut-btn); font: 700 var(--t-14)/1.1 var(--tf); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    box-sizing: border-box; padding: 0 var(--s3); border: 0; border-radius: 0; clip-path: var(--cut-btn); font: 700 var(--t-14)/1.1 var(--tf); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { bottom: var(--end-base); background: var(--acc); color: var(--acci); box-shadow: none; }   /* Next is the primary: the one gold button */
   .actions[data-gestures=cluster] #pit-button { bottom: calc(var(--end-base) + var(--touch-primary) + var(--s2)); background: var(--panel2); color: var(--text); box-shadow: inset 0 0 0 1px var(--edge2); }   /* the Pit is a secondary */
