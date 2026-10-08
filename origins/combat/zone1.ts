@@ -15,6 +15,7 @@ export const HIT_ARC = (2 * Math.PI) / 3;             // total width of a sword 
 export const PLAYER_RADIUS = 0.425;                    // half the sim's 0.85 m fighter spacing (sim.ts)
 export const AGGRO_M = 9;                              // a creature that is hunting a player notices him inside this ring (World's mob layer decides who is in the world at all)
 export const SIGHT_M = 14;                              // a hunting creature keeps the player in sight inside this ring (hysteresis over AGGRO_M); past it the unseen clock runs
+export const MAX_ATTACKERS = 2;                         // at most this many creatures wind up or swing at once (Dom: "it can be 2 vs 1, that is fine"); the rest hold off at the ring until a slot frees
 export const RECOVER_PAUSE_S = 0.6;                    // a creature's beat between its blows
 export const TELEGRAPH_S = 0.4;                        // a creature's windup, long enough to read in the open world (Strategy, 2026-10-08); the bite row's own 14 ticks (.23 s) is a Pit number
 // Damage by kind: the bite row's damage (10) times the creature's weight. Health, poise and body scale are the roster's own rows (moves.ts OPPONENTS).
@@ -129,6 +130,17 @@ function land(a: Fighter, v: Fighter, move: MoveDef, events: Event[]): void {
   if (v.phase !== 'stagger' && move.damage >= v.poise) stagger(v, move.stagger, 'hit', events);   // a plain clean hit dealing less than poise never staggers (moves.ts Opponent.poise)
 }
 
+/** Creatures do not stand inside one another: a creature pushed out of any other creature's body (half each, the way the hero's own spacing is kept). */
+function separate(f: Fighter, all: Fighter[]): void {
+  for (const o of all) {
+    if (o === f || o.side !== 'creature' || !alive(o)) continue;
+    const dx = f.x - o.x, dz = f.z - o.z, d = Math.hypot(dx, dz), min = f.radius + o.radius;
+    if (d >= min) continue;
+    const ux = d > 1e-6 ? dx / d : 1, uz = d > 1e-6 ? dz / d : 0, push = (min - d) / 2;
+    f.x += ux * push; f.z += uz * push; o.x -= ux * push; o.z -= uz * push;
+  }
+}
+
 /** The next world: movement, blows, stamina, guard, roll, posture, creature behaviour. Never mutates its input. */
 export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number): { world: World; events: Event[] } {
   const events: Event[] = [];
@@ -178,7 +190,8 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
           f.facing = aim(f, prey);
           const move = blowOf(f), startAt = move.reach * 0.85 + prey.radius;
           if (dist(f, prey) > startAt) { const step = Math.min(chaseSpeed(f.kind) * dt, dist(f, prey) - startAt); f.x += Math.sin(f.facing) * step; f.z += Math.cos(f.facing) * step; }
-          else if (f.pause <= 0) begin(f, move, events);
+          else if (f.pause <= 0 && fighters.filter((o) => o !== f && o.side === 'creature' && (o.phase === 'windup' || o.phase === 'active')).length < MAX_ATTACKERS) begin(f, move, events);
+          separate(f, fighters);
         }
       } else if (f.hunting) { f.hunting = false; f.returning = true; f.unseen = 0; }   // nobody left to hunt (the prey is dead or gone)
     }

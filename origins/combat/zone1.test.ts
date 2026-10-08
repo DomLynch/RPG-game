@@ -217,3 +217,18 @@ test('a kick on an unguarded fighter is a small clean hit (damage 4) with the ro
   const hit = r.events.find((e) => e.type === 'Hit' && e.attacker === 'p');
   assert.ok(hit && hit.type === 'Hit' && hit.damage === MOVES.kick.damage && hit.move === 'kick');
 });
+
+// ── S2b: 2 v 1 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+test('2 v 1: never more than MAX_ATTACKERS creatures wind up or swing at once, and they do not stand inside one another', () => {
+  let w = newWorld([player('p', 0, 0), creature('a', 'wolf', 3, 3), creature('b', 'wolf', -3, 3), creature('c', 'wolf', 0, -4)]);
+  let most = 0, closest = Infinity, bites = 0;
+  for (let t = 0; t < 60 * 6; t++) {
+    const r = stepCombat(w, { p: STILL }, DT); w = r.world; bites += r.events.filter((e) => e.type === 'Telegraph').length;
+    most = Math.max(most, w.fighters.filter((f) => f.side === 'creature' && (f.phase === 'windup' || f.phase === 'active')).length);
+    const cs = w.fighters.filter((f) => f.side === 'creature');
+    for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) closest = Math.min(closest, Math.hypot(cs[i]!.x - cs[j]!.x, cs[i]!.z - cs[j]!.z) - (cs[i]!.radius + cs[j]!.radius));
+  }
+  assert.ok(bites >= 3, `they do attack (${bites} telegraphs)`);
+  assert.ok(most <= 2, `at most 2 at once, saw ${most}`);
+  assert.ok(closest > -0.05, `bodies overlap by ${-closest}`);
+});
