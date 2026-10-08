@@ -29,9 +29,9 @@ test('on: the lesson\'s end goes to Zone 1; off it keeps ?fight=1', () => {
   assert.equal(zone1AfterLesson(true), ZONE1_URL);
   assert.equal(zone1AfterLesson(false), null);
 });
-test('Zone 1 turns the Frontier on for the /zone1/ path, and the conf serves it there', async () => {
+test('Zone 1 shows the Frontier at /zone1/ with no query (the preview\'s REGION is on unless ?region=0), and the conf serves it there', async () => {
   const { readFileSync } = await import('node:fs');
-  assert.match(readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8'), /const REGION = new URLSearchParams\(location\.search\)\.get\('region'\) === '1' \|\| location\.pathname\.startsWith\('\/zone1'\);/);
+  assert.match(readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8'), /const REGION = new URLSearchParams\(location\.search\)\.get\('region'\) !== '0';/, 'trunk\'s default-on region (#1862): /zone1/ needs no query');
   const conf = readFileSync(new URL('../deploy/frankendom.com.conf', import.meta.url), 'utf8');
   assert.match(conf, /location = \/zone1\/ \{[^}]*try_files \/preview\/origins\/index\.html =404;/);
   assert.match(conf, /location = \/zone1 \{ return 301 \/zone1\/; \}/);
