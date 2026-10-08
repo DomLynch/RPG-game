@@ -111,10 +111,25 @@ Lead checks the lane list every 30 minutes and gives an idle lane its next row w
 | Duels & Backend | 1. Bronze alone (#1768, apply 0004, one POST), then #1793 respawn window (0006). 2. Boar/bear migrations 0007/0008 (each PRE + GO + POST) and the boar/bear loot rulings. 3. Town and economy rows: NPC rows, shop lists with server re-check, no-drop weight, the per-character serial write queue, collection-book and rankings reads; then R1's wipe script |
 | Characters & Art | 1. Boar rows on #1778, bear duel stills, #1733 to the fold. 2. Zone 1 kit and set-piece models (tree, bush, boulder, tuft; camp, ruin arch, stone circle, grove). 3. Townspeople bodies and outfits, the banker, the building kit and atlas |
 | Combat & Specials | 1. Stances ON (#1792: held until the Auditor's review and Dom's yes), the coach (#1746). 2. Boar/bear roster rows (#1778, #1783) and the strength battery per stance and weapon. 3. The 2-v-1 pack slice, then the threat-list rule for seamless step 5 and the set-bonus numbers |
-| Web & UI | 1. UI alignment pass on the Pit end screen and the take screen at 375. 2. Website content (legends roster ~760 and the story), then the Zone 1 UI rows (town screen, Talk/Trade, bank screen, world boss take screen, rankings board, collection book). 3. Coach UI #1790, then the gear screen for mix-and-match sets |
+| Web & UI | 1. UI alignment pass on the Pit end screen and the take screen at 375, then the holding-cell move (the menu gear screen and the "Next fight" button first). 2. Website content (legends roster ~760 and the story), then the Zone 1 UI rows (town screen, Talk/Trade, bank screen, world boss take screen, rankings board, collection book). 3. Coach UI #1790, then the gear screen for mix-and-match sets |
 | Deploy | 1. Fold 9 (on its CI gate), then fold 10 (#1733, #1794, #1795 and docs). 2. VPS build mode (A2 failed; strict B with a perturbation test) and the HF software-GL job (#1776). 3. Standing: preview rebuild from the live sha after each release; prune keep 3 |
 | Auditor | 1. #1783 bear, #1792 stances ON, #1746 coach. 2. #1768 apply POST, #1793 PRE/POST, #1778/#1783 migrations. 3. Docs PASSes (#1796, this PR) and the launch gates |
 | Lead | Keep this table true; the 30-minute lane check; docs PRs; the zone-to-legend rules docs after Zone 1 quality |
+
+## Remove the Pit holding cell (Dom APPROVED 2026-10-08 11:4x, via Strategy)
+
+Remove the walkable stone room after arena fights (`src/pit/room.ts`, `sheet.ts`, `mover.ts`, `stage.ts` and the rest of it) and the gate winch sound (`src/audio/gate.ts`). Arena fights and the 50-level ladder stay. Its parts move, so nothing is lost:
+
+| Part today | Moves to | Owner |
+|---|---|---|
+| Gear rack | The menu gear screen | Web |
+| Skull wall | Kills board in the Concord hub and in the menu | Web + World |
+| Champions board | Hub rankings board (Backend data) | Web + World, Backend |
+| Trophies | The legend collection book | Web |
+| The gate | A "Next fight" primary button on the victory screen (fits the alignment pass) | Web |
+| Bed, table, torches | Dropped | none |
+
+**Order:** build the menu gear screen and the Next-fight button first, then delete the room, so nothing is lost in between. The Auditor checks that no feature disappears. Web leads; World does the hub boards. In Web's queue right after the alignment pass. The UI/arena donor study is still running; Strategy passes any refinement.
 
 Items not on this list wait.
 
