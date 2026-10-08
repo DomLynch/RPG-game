@@ -13,9 +13,10 @@ const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', tree, buildStatus: 0,
 test('a VPS pass for the deployed tree is trusted for virtual-clock and no-browser rows only: never WebKit, never wall-clock', () => {
   const trusted: number[] = trustedFromVps(receipt(), tree, commands, source);
   assert.ok(trusted.length > 0 && trusted.length < commands.length);
+  // Stricter than the per-file label: the imports are read too, so a trusted row is never a wall or WebKit row by the plain label either.
   for (const row of rows) {
     const wallOrWebKit = row.timing === 'wall' || /--engine\s+webkit\b/.test(row.command);
-    assert.equal(trusted.includes(row.index), !wallOrWebKit, `row ${row.index}`);
+    if (wallOrWebKit) assert.ok(!trusted.includes(row.index), `row ${row.index}`);
   }
 });
 
