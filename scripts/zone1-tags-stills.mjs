@@ -34,7 +34,8 @@ try {
   await page.waitForTimeout(20000);
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(600);   // right at the engage: later the software-GL clock can run the whole fight to its end screen
+  console.log('infight:', await page.evaluate(() => document.body.classList.contains('infight')));
   await shot('fight');
   console.log('errors:', errors.length, errors.slice(0, 2));
 } finally { await browser.close(); server.close(); }
