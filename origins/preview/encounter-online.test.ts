@@ -116,6 +116,15 @@ test('round trip against the real writer: the page plays the server seed, settle
   } finally { await new Promise<void>((ok2) => writer.close(() => ok2())); }
 });
 
+test('a stale settle (503, code stale) is retried with the same backoff and then settles; it is NOT read as "already settled" (the 409 answer)', async () => {
+  const waits: number[] = [];
+  const s = server((op, n) => (op === 'encounter_settle' ? (n === 1 ? reply(503, { ok: false, error: 'stale: settle again', code: 'stale' }) : ok(op)) : ok(op)));
+  const on = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, wait: async (ms: number) => { waits.push(ms); }, every: (() => 1) as never, clear: (() => {}) as never });
+  assert.equal(await on!.settle({ result: 'won', record }), 'settled');
+  assert.deepEqual(s.calls, ['encounter_start', 'encounter_settle', 'encounter_settle']);
+  assert.deepEqual(waits, [RETRY_AFTER_MS[0]]);
+});
+
 test('a 409 on start with a remembered open token resumes it: touch (not start) answers, the same seed is played, and the token is remembered', async () => {
   let held: HeldFight | null = { token: 'H'.repeat(32), played: false };
   const s = server((op) => (op === 'encounter_start' ? reply(409, { ok: false }) : reply(200, { ok: true, result: { ...run, token: held!.token, seed: 777 } })));

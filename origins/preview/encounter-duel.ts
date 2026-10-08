@@ -6,7 +6,7 @@ import type { TwistOutcome } from '../../src/twist.ts';
 import type { FightSetup } from '../encounters/encounters.ts';
 import { styleOf } from '../mobs/styles.ts';
 import type { FightRecord } from '../../src/record.ts';
-import type { Shown } from './pit-duel.ts';
+import type { Shown, WorldDuel } from './pit-duel.ts';
 
 export type EncounterEnd = { result: 'won' | 'lost'; twistOutcome: TwistOutcome | null; record?: FightRecord | null };   // record: the fight's FightRecord, for the settle post (nothing posts it yet)
 
@@ -18,7 +18,7 @@ export const standingEnd = (twist: 'fled' | 'escaped'): EncounterEnd => ({ resul
 
 
 // Fight `setup` (fightSetup's) with `seed` (fightSeed's). `done` fires once, when the fight is over.
-export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, seed: number, done: (end: EncounterEnd) => void, leave: () => void, as?: Shown, started?: () => void): Promise<void> {
+export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, seed: number, done: (end: EncounterEnd) => void, leave: () => void, as?: Shown, started?: () => void, mount?: WorldDuel): Promise<void> {
   const duel = await import('./pit-duel.ts');
   let over = false;
   const finish = (end: EncounterEnd) => { if (!over) { over = true; done(end); } };
@@ -27,5 +27,5 @@ export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, s
     stepped: started,
     again: as ? leave : () => {},   // a creature has no rematch: its one end button goes back to the walk
     twisted: (outcome, record) => { if (outcome === 'fled' || outcome === 'escaped') finish({ ...standingEnd(outcome), record }); },
-  }, leave);
+  }, leave, mount);
 }
