@@ -203,3 +203,11 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   }
   return null;
 }
+
+// Running away from a world fight (Dom 2026-10-08: no fight end, run away = nothing recorded): the hero farther than `m` metres from the foe for `s` seconds walks out of the fight, silently
+// (no settle, no event, no toast). Strategy's numbers (proposed 12 m / 3 s) change here, not in the page. The creature's side (evade, home, heal) is the chase PR.
+export const DISENGAGE = { m: 12, s: 3 };
+export const disengageStep = (away: number, gap: number, dt: number): { away: number; leave: boolean } => {
+  const next = gap > DISENGAGE.m ? away + dt : 0;
+  return { away: next, leave: next >= DISENGAGE.s };
+};

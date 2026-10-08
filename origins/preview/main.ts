@@ -14,7 +14,7 @@ import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, 
 import { buildFrontier } from './frontier.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
+import { disengageStep, mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
 import { frontierDress } from './frontier-dress.ts';
@@ -466,6 +466,17 @@ function worldToast(text: string) {
   t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:26%;max-width:86vw;z-index:5;padding:8px 14px;text-align:center;font:600 15px/1.35 Georgia,serif;pointer-events:none';
   document.body.append(t); setTimeout(() => t.remove(), 3500);
 }
+// The hero-side disengage: while a world fight runs, the gap to the foe is watched; far enough for long enough ends it silently (leaveFight: no settle, nothing recorded).
+let awayFor = 0, awayTimer = 0;
+function watchDisengage(run: number) {
+  clearInterval(awayTimer); awayFor = 0;
+  awayTimer = window.setInterval(() => {
+    if (!fighting || run !== fightRun) { clearInterval(awayTimer); return; }
+    const gap = duel?.duelState()?.gap; if (gap === undefined) return;
+    const step = disengageStep(awayFor, gap, 0.25); awayFor = step.away;
+    if (step.leave) { clearInterval(awayTimer); leaveFight(); }
+  }, 250);
+}
 function worldEnded(out: { won: boolean; text: string }, end: { result: 'won' | 'lost' }) {
   const run = fightRun;
   if (end.result === 'lost') {
@@ -569,6 +580,7 @@ async function startMobFight(spec: MobSpec) {
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
   const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
   if (ONLINE && !bar) { online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
+  if (WORLDFIGHT) watchDisengage(fightRun);
   const on = online;   // `online` is cleared when the fight ends; the first-tick mark belongs to this fight
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
     const wasOnline = online !== null;

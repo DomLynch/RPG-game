@@ -206,3 +206,14 @@ test('"Back to the fields" takes a tap in a world fight: #leave is in the world 
   const auto = /([^{}]*)\{\s*pointer-events:\s*auto;\s*\}/g, lists = [...html.matchAll(auto)].map((m) => m[1]!);
   assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
 });
+
+test('disengage: farther than 12 m from the foe for 3 s ends the fight; coming back inside 12 m resets the timer; nothing at or inside 12 m ever ends it', async () => {
+  const { DISENGAGE, disengageStep } = await import('./mobs.ts');
+  assert.deepEqual(DISENGAGE, { m: 12, s: 3 });
+  let away = 0, left = false, t = 0;
+  for (; t < 2.9; t += 0.25) { const s = disengageStep(away, 12.5, 0.25); away = s.away; left ||= s.leave; }
+  assert.equal(left, false, 'not yet at 2.9 s');
+  ({ away } = disengageStep(away, 12, 0.25)); assert.equal(away, 0, 'exactly 12 m is inside: the timer resets');
+  for (let i = 0; i < 11; i++) ({ away } = disengageStep(away, 30, 0.25)); assert.equal(disengageStep(away, 30, 0.25).leave, true, '3 s beyond 12 m: out');
+  ({ away } = disengageStep(away, 5, 0.25)); assert.equal(disengageStep(away, 5, 0.25).leave, false, 'back inside: carries on');
+});
