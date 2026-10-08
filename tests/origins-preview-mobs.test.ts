@@ -5,5 +5,6 @@ import '../origins/preview/hunt.test.ts';   // bite 2: the hunt (a tapped creatu
 import '../origins/preview/presence-client.test.ts';   // the Zone 1 page joins presence (pure; the socket is injected)
 import '../origins/preview/mob-looks.test.ts';
 import '../origins/preview/mob-dress.test.ts';
+import '../origins/preview/rulings.test.ts';   // Dom's Web-area rulings pinned by name (camera lock, HUD + ☰ only, loot-offer slot)
 import '../origins/preview/frontier-zone-rules.test.ts';
 import '../origins/preview/wolf-scale.test.ts';   // merge-order pin: the walking Ash Wolf look is WOLF_RENDER_SCALE once src/beast-scale.ts exists (#1710/#1756)
