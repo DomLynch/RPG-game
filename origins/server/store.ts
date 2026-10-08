@@ -57,6 +57,15 @@ export const saveLocation = async (db: Db, account: string, at: { x: number; z: 
 export const savedLocation = async (db: Db, account: string): Promise<SavedRow | null> =>
   JSON.parse((await db.run(`select coalesce(public.origins_saved_location(:'a'::uuid)::text, 'null');`, { a: acct(account) })) || 'null');
 
+// The account's bound-metal row (migration 202610080004): {bronze, version}, null when it has none yet, 'absent' when 0004 is not applied (then nothing pays
+// bronze: the `metal` op could not be versioned). Same fail-safe as X2: merged code on a database without the function still settles, without bronze.
+export type MetalRow = { bronze: number; version: number };
+const HAS_METAL_OF = `select to_regprocedure('public.origins_metal_of(uuid)') is not null as metalof \\gset\n`;
+export const metalOf = async (db: Db, account: string): Promise<MetalRow | null | 'absent'> => {
+  const out = await db.run(`${HAS_METAL_OF}\\if :metalof\nselect coalesce(public.origins_metal_of(:'a'::uuid)::text, 'null');\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
 // World creature fights (migration 202610080002): the parameters the server holds for a fight and its lifecycle. Every call answers `null` when the migration is not applied (the
 // writer maps that to a 503), so merged code on a database without it fails closed instead of 500ing.
 export type EncounterRun = {
