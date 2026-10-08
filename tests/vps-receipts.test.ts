@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { trustedFromVps } from '../scripts/lib/vps-receipts.mjs';
+import { trustedFromVps, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
-const source = (script: string) => { try { return readFileSync(script, 'utf8'); } catch { return ''; } };
+const source = (script: string) => { try { return readFileSync(script, 'utf8'); } catch { return null; } };
 const tree = 'a'.repeat(40);
 const rows = rowSet(commands, source);
 const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', tree, buildStatus: 0, dirty: 0, rows: rows.map(r => ({ ...r, status: 'pass' })), ...over });
@@ -36,4 +36,15 @@ test('deploy.sh applies the VPS receipts before the Mac rows, opt-in', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
   assert.ok(deploy.indexOf('vps_receipts_apply') < deploy.indexOf('node scripts/release-checks.mjs'));
   assert.match(readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), /DEPLOY_VPS_RECEIPTS:-\}" == on/);
+});
+
+test('rows 2, 44 and 52 (browser launched through an import, or webkit.launch + clock.resume) are not trusted; a missing script is not trusted', () => {
+  const byName = (name: string) => commands.findIndex(c => c.join(' ').includes(name)) + 1;
+  const trusted: number[] = trustedFromVps(receipt(), tree, commands, source);
+  for (const name of ['roster-browser-check', 'sparring-browser-check', 'next-fight-black-check']) {
+    const index = byName(name);
+    assert.ok(index > 0, `${name} is a release row`);
+    assert.ok(!trusted.includes(index), `${name} (row ${index}) must stay off the VPS trust list`);
+  }
+  assert.equal(vpsSafeRow('node scripts/nope.mjs', ['node', 'scripts/nope.mjs'], source), false);
 });
