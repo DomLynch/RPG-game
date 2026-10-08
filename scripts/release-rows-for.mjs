@@ -36,7 +36,6 @@ export function rowsFor(files) {
 // only delays it to the next release. Not a dependency map: the daily full run is what catches a break outside these rows.
 const CORE = ['roster-browser-check', 'record-replay-check', 'finisher-preview:first', 'account-browser-check', 'viewport-check'];
 const AREAS = [
-  { paths: ['src/pit/**', 'src/gate-light.ts', 'public/pit/**'], rows: ['pit-exit-check'] },
   { paths: ['supabase/**', 'src/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
   { paths: ['src/ai.ts', 'src/moves.ts', 'src/sim.ts', 'src/record.ts', 'src/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
   { paths: ['src/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
@@ -52,7 +51,8 @@ const AREAS = [
   { paths: ['src/lessons*.ts', 'src/first-loss*.ts', 'src/main.ts'], rows: ['first-loss-browser-check'] },   // a fresh visitor's first minute (Lead 2026-10-06): no other row boots with an empty profile
   // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
-  { paths: ['src/first-frame.ts', 'src/scene.ts'], rows: ['pit-exit-check', 'first-loss-browser-check'] },
+  { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
+  { paths: ['src/first-frame.ts', 'src/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
 ];
 // The build: a change here can break any row, so it runs all of them (Auditor B1 on #1381). deploy.sh and the two release
 // scripts are not here: they build no part of the game and their unit tests cover them. The gate's own row list is handled
@@ -60,7 +60,7 @@ const AREAS = [
 // versus .webp used to run all 51 rows, 15-21 min; Lead 2026-10-06); any other public/ folder (GLBs and looks many rows load)
 // still runs every row.
 const FULL = ['package.json', 'package-lock.json', 'vite.config.*', 'tsconfig*.json', 'scripts/lib/**'];
-const PUBLIC_SCOPED = ['public/arena/**', 'public/pit/**', 'public/versus/**', 'public/licenses/**'];
+const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**'];
 const isFull = file => FULL.some(glob => matchesGlob(file, glob)) || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));
 const GATE = '.quality-gate.json';
 const named = spec => { const [name, mode] = spec.split(':'); const hits = rows.filter(r => r.name === name);

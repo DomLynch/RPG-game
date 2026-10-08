@@ -343,15 +343,15 @@
     ],
     [
       "node",
-      "scripts/pit-exit-check.mjs"
-    ],
-    [
-      "node",
       "scripts/first-loss-browser-check.mjs"
     ],
     [
       "node",
       "scripts/stance-panel-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/next-fight-black-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -456,8 +456,8 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "pit-exit-check",
-        "first-loss-browser-check"
+        "first-loss-browser-check",
+        "next-fight-black-check"
       ]
     },
     {
@@ -492,7 +492,7 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "pit-exit-check"
+        "next-fight-black-check"
       ]
     },
     {
@@ -509,7 +509,6 @@
         "account-browser-check",
         "double-tap-browser-check",
         "clip-send-tour-check",
-        "pit-exit-check",
         "first-loss-browser-check"
       ]
     },
@@ -533,8 +532,7 @@
         "account-database-check",
         "account-browser-check",
         "double-tap-browser-check",
-        "clip-send-tour-check",
-        "pit-exit-check"
+        "clip-send-tour-check"
       ]
     },
     {
@@ -593,18 +591,18 @@
     },
     {
       "paths": [
-        "scripts/pit-exit-check.mjs"
-      ],
-      "rows": [
-        "pit-exit-check"
-      ]
-    },
-    {
-      "paths": [
         "scripts/first-loss-browser-check.mjs"
       ],
       "rows": [
         "first-loss-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/next-fight-black-check.mjs"
+      ],
+      "rows": [
+        "next-fight-black-check"
       ]
     }
   ],
