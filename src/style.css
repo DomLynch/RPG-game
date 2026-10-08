@@ -2160,39 +2160,39 @@ dialog .rank-seg { --rank-fill: var(--js); }
    E2 (Dom's pick, 2026-09-26, via Strategy): a bone card, semi-transparent so the arena reads through, with the default offer drawn big
    (the rung it was won at, its name, its render) over THE ROW THAT IS THE PICK: every piece and his move, one big tile each, five to a
    row. No stats. A tile you would swap (a piece you own, a move that replaces yours) carries a small ⇄; nothing is ever greyed. */
-.loot-panel { display: flex; flex-direction: column; max-height: calc(100dvh - 400px); grid-column: 1 / -1; width: min(calc(100vw - 32px), 360px); margin: 8px 0 0; pointer-events: none; padding: 0 12px 12px; border-radius: 14px; background: #d9c9a473; border: 1px solid #f3e8cf99; box-shadow: 0 4px 14px #0004; color: #1b1916; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(3px) saturate(1.1); backdrop-filter: blur(3px) saturate(1.1); }
+.loot-panel { display: flex; flex-direction: column; max-height: calc(100dvh - 400px); grid-column: 1 / -1; width: min(calc(100vw - 32px), 360px); margin: 8px 0 0; pointer-events: none; padding: 0 12px 12px; clip-path: var(--cut-sheet); background: var(--panel); border-top: 2px solid var(--edge); color: var(--text); text-shadow: none; font-family: var(--bf); opacity: 0; transition: opacity 250ms ease-out; }
 .loot-panel[data-on='1'] { opacity: 1; }
-.loot-panel-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 0; border-bottom: 1px solid #1b191630; }
+.loot-panel-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 0; border-bottom: 1px solid var(--edge2); }
 .loot-hero { flex: 0 0 auto; width: 104px; height: 104px; object-fit: contain; filter: drop-shadow(0 6px 8px #0004); }
 .loot-panel-text { min-width: 0; }
-.loot-panel-title { margin: 0; color: #7a5c18; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
-.loot-panel-name { margin: 5px 0 6px; color: #1b1916; font: 600 24px/1.05 "Iowan Old Style", Palatino, Georgia, serif; letter-spacing: 0; text-transform: none; }
-.loot-panel-pick { margin: 0; color: #1b1916c0; font: 600 13px/1.25 "Instrument Sans", Arial, sans-serif; }
+.loot-panel-title { margin: 0; color: var(--accs); font: 700 12px/1.2 var(--tf); letter-spacing: .14em; text-transform: uppercase; }
+.loot-panel-name { margin: 5px 0 6px; color: var(--text); font: 700 20px/1.1 var(--tf); letter-spacing: .04em; text-transform: none; }
+.loot-panel-pick { margin: 0; color: var(--soft); font: 400 14px/1.25 var(--bf); }
 .loot-pieces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px 6px; margin: 0; padding: 0; list-style: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }   /* only the grid scrolls: the header and the Take / Leave row never leave the screen */
 .loot-pieces li { position: relative; }
-.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 100%; min-height: 72px; padding: 4px 2px; border-radius: 10px; border: 1px solid transparent; background: #fdf6e333; color: #1b1916; font: 600 9px/1.1 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 100%; min-height: 72px; padding: 4px 2px; border: 0; clip-path: var(--cut-tile); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 400 12px/1.1 var(--bf); text-align: center; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .loot-pieces img { display: block; width: 54px; height: 54px; object-fit: contain; }
 .loot-pieces button span { display: block; margin: 0; max-width: 62px; overflow-wrap: anywhere; color: inherit; }   /* the global `button span` rule adds a 14px left margin + the pale gold */
-.loot-pieces li[data-offer='1'] button { background: #fff6; box-shadow: inset 0 0 0 2px #8a6a22; }
-.loot-pieces li[data-swap='1']::after { content: "⇄"; position: absolute; top: 2px; right: 5px; color: #7a5c18; font: 700 11px/1 sans-serif; pointer-events: none; }
+.loot-pieces li[data-offer='1'] button { box-shadow: inset 0 0 0 2px var(--accs); }
+.loot-pieces li[data-swap='1']::after { content: "⇄"; position: absolute; top: 2px; right: 5px; color: var(--accs); font: 700 12px/1 sans-serif; pointer-events: none; }
 /* The tap IS the take, so there is no selected state to hold — only the flash the tile gives as the panel closes. */
-.loot-pieces li[data-took='1'] button { background: #fdf6e3; border-color: #fff8e8; box-shadow: 0 0 0 2px #fff8e8b3, 0 2px 10px #0005; }
+.loot-pieces li[data-took='1'] button { background: var(--panel); box-shadow: inset 0 0 0 2px var(--edge); }
 /* Take / Leave live in the BOTTOM row inside #actions, not in the top band with the tiles: Strategy's #380 layout rule (text up top,
    buttons in the thumb row) and, concretely, the first touch after a kill is the player's way to stop the arena-cam tour — a decision
    button sitting under that thumb would decline the loot by accident (deploy #102's quiet-one rows caught exactly this: a canvas tap at
    190,300 was intercepted by "Leave it"). The row takes the space the sleeping combat buttons leave, where the old Wear/Store row sat. */
 .loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; z-index: 4; }
-#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: var(--r-btn); border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: none; }
+#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border: 0; clip-path: var(--cut-btn); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 700 var(--t-14)/1.1 var(--tf); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: none; }
 #actions .loot-panel-actions button:disabled { opacity: .4; cursor: default; }
 /* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
    gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
-#actions .loot-panel-actions #loot-decline { background: var(--panel); border-color: var(--panel-edge); color: var(--parchment); box-shadow: none; }
+
 /* E2: Take (the offer on the card) above Leave, dark on the sand like the card's ink. */
 .loot-panel-actions { flex-direction: row-reverse; }   /* Take (the one gold) on the thumb side, Leave beside it */
-#actions .loot-panel-actions #loot-take { min-height: var(--touch-primary) !important; background: var(--gold); border-color: var(--gold-edge); color: var(--ink); box-shadow: inset 0 0 0 3px #f0e3c93d, 0 2px 10px #0007; }
+#actions .loot-panel-actions #loot-take { min-height: var(--touch-primary) !important; background: var(--acc); color: var(--acci); box-shadow: none; }
 #actions .loot-panel-actions #loot-decline { min-height: var(--touch-primary) !important; }
 /* One gold per screen: while the take offer is up, Next is a secondary. */
-:root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { background: var(--panel); border-color: var(--panel-edge); color: var(--parchment); box-shadow: none; }
+:root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { background: var(--panel2); color: var(--text); box-shadow: inset 0 0 0 1px var(--edge2); }
 /* While the take-one offer is up the fight is over, so its controls leave the screen outright (Lead 2026-09-25, from the #753
    375 stills: Step and Guard read through Leave it at the cluster's half-fade and the pad stayed up). Keyed on the offer's own
    row: loot-panel.ts unhides #loot-panel-actions on show and Undo and hides it on Take, Leave it and close, so the controls
@@ -2202,9 +2202,9 @@ dialog .rank-seg { --rank-fill: var(--js); }
 :root:has(#loot-panel-actions:not([hidden])) #joystick { visibility: hidden; }
 /* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
    the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
-.loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: #1b1916; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
-#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #1b191633; background: #1b1916; color: #f3e9cf; font: 700 13px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
-#loot-undo:active { background: #2b2822; }
+.loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font: 400 16px/1.35 var(--bf); }
+#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border: 0; min-height: var(--touch); clip-path: var(--cut-btn); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--edge2); color: var(--text); font: 700 var(--t-14)/1 var(--tf); letter-spacing: .08em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#loot-undo:active { background: var(--edge2); }
 @media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
 @media (max-width: 900px), (pointer: coarse) {
   .actions[data-gestures=cluster] .loot-panel-actions { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }
@@ -2260,10 +2260,10 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
   .actions[data-gestures=cluster] #reset-button:not([data-play='1']),
   .actions[data-gestures=cluster] #pit-button {
     position: fixed; left: auto; top: auto; right: var(--end-gutter); width: var(--end-width); height: var(--touch-primary);
-    box-sizing: border-box; padding: 0 var(--s3); border-radius: var(--r-btn); font: 700 var(--t-14)/1.1 "Instrument Sans", Arial, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    box-sizing: border-box; padding: 0 var(--s3); border: 0; clip-path: var(--cut-btn); font: 700 var(--t-14)/1.1 var(--tf); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { bottom: var(--end-base); background: var(--gold); border: 1px solid var(--gold-edge); color: var(--ink); box-shadow: inset 0 0 0 3px #f0e3c93d, 0 2px 10px #0007; }   /* Next is the primary: the one gold button */
-  .actions[data-gestures=cluster] #pit-button { bottom: calc(var(--end-base) + var(--touch-primary) + var(--s2)); background: var(--panel); border: 1px solid var(--panel-edge); color: var(--parchment); }   /* the Pit is a secondary */
+  .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { bottom: var(--end-base); background: var(--acc); color: var(--acci); box-shadow: none; }   /* Next is the primary: the one gold button */
+  .actions[data-gestures=cluster] #pit-button { bottom: calc(var(--end-base) + var(--touch-primary) + var(--s2)); background: var(--panel2); color: var(--text); box-shadow: inset 0 0 0 1px var(--edge2); }   /* the Pit is a secondary */
   .actions[data-gestures=cluster] .clip-pick { position: fixed; top: auto; left: auto; bottom: calc(var(--end-base) + 112px); }
   .actions[data-gestures=cluster] #clip-button { left: auto; right: var(--end-gutter); }
   .actions[data-gestures=cluster] #share-link { left: auto; right: calc(var(--end-gutter) + 66px); }
