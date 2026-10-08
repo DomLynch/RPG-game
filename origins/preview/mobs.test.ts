@@ -197,3 +197,9 @@ test('the world keeps living during a world duel: attach starts the creature tic
   assert.match(main, /mobs\?\.update\([^\n]*, at, foe, foe\)/, 'the tick steps every creature round the hero and hides the foe\'s world body');
   assert.match(view, /v\.group\.visible = v\.ring\.visible = s\.id !== hideBody;/);
 });
+
+test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const auto = /([^{}]*)\{\s*pointer-events:\s*auto;\s*\}/g, lists = [...html.matchAll(auto)].map((m) => m[1]!);
+  assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
+});
