@@ -6,7 +6,7 @@
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
 import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type MoveId, type SpecialName, type WeaponId } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
-import { asStance, homePick, stanced, PICKS, type PickedStance, type StanceId } from '../../src/stance.ts';
+import { asStance, moodOf, stanced, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 
 const TICK = 1 / 60;
@@ -106,13 +106,8 @@ export function creature(id: string, kind: string, x: number, z: number, facing 
 export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, stance: asStance(pick) });
 /** Give a fighter a named special (SpecialName from src/moves.ts; `specialOf(opponent, level)` names the class's). It is ready `first` seconds in. */
 export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, special: name, specialIn: SP.first / 60 });
-/** A creature's stance mood, drawn from the injected `rand` the way the Pit draws the AI's (src/stance.ts moodOf): half its home stance, half one of the other three picks. Call once at spawn. */
-export function withMood(f: Fighter, rand: () => number): Fighter {
-  const home = homePick(f.kind), u = rand();
-  if (u < 0.5) return withStance(f, home);
-  const others = PICKS.filter((p) => p !== home);
-  return withStance(f, others[Math.min(others.length - 1, Math.floor((u - 0.5) * 2 * others.length))]!);
-}
+/** A creature's stance mood: the Pit's own draw (src/stance.ts moodOf: half its home stance, half one of the other three), seeded from the injected `rand` instead of the fight seed. Call once at spawn. */
+export const withMood = (f: Fighter, rand: () => number): Fighter => withStance(f, moodOf(Math.floor(rand() * 4294967296) >>> 0, f.kind));
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);

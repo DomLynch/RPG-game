@@ -458,9 +458,11 @@ test('special: a hit taken inside the windup breaks it; no release; the shorter 
   assert.ok(get(out.world, 'p').specialIn > 0 && get(out.world, 'p').specialIn <= SP.interruptCooldown / 60, 'on the shorter cooldown');
 });
 
-test('creature mood: half its home stance, half one of the other three, from the injected rand; same rand = same stance', () => {
-  const picks = new Set<string>(); let home = 0;
-  for (let i = 0; i < 200; i++) { const f = withMood(creature('c', 'wolf', 0, 0), () => i / 200); picks.add(f.stance ?? 'neutral'); if (!f.stance) home++; }
-  assert.equal(home, 100, 'wolf home = Balanced'); assert.deepEqual([...picks].sort(), ['aggressive', 'defensive', 'neutral', 'trickster']);
+test('creature mood: the Pit\'s moodOf draw - about half the home stance, the rest spread over the other three; same rand = same stance', () => {
+  let seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const count: Record<string, number> = {};
+  for (let i = 0; i < 2000; i++) { const k = withMood(creature('c', 'wolf', 0, 0), rnd).stance ?? 'neutral'; count[k] = (count[k] ?? 0) + 1; }
+  assert.ok(count.neutral! > 900 && count.neutral! < 1100, `wolf home = Balanced about half: ${JSON.stringify(count)}`);
+  for (const k of ['aggressive', 'defensive', 'trickster']) assert.ok(count[k]! > 250, `${k} is drawn: ${JSON.stringify(count)}`);
   assert.equal(withMood(creature('c', 'bear', 0, 0), () => 0.77).stance, withMood(creature('c', 'bear', 0, 0), () => 0.77).stance);
 });
