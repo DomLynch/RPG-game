@@ -7,8 +7,9 @@ import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
 const source = (script: string) => { try { return readFileSync(script, 'utf8'); } catch { return null; } };
 const tree = 'a'.repeat(40);
-const rows = rowSet(commands, source);
-const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', tree, buildStatus: 0, dirty: 0, rows: rows.map(r => ({ ...r, status: 'pass' })), ...over });
+type Row = { index: number; command: string; timing?: string };
+const rows: Row[] = rowSet(commands, source);
+const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', tree, buildStatus: 0, dirty: 0, rows: rows.map((r: Row) => ({ ...r, status: 'pass' })), ...over });
 
 test('a VPS pass for the deployed tree is trusted for virtual-clock and no-browser rows only: never WebKit, never wall-clock', () => {
   const trusted: number[] = trustedFromVps(receipt(), tree, commands, source);
@@ -27,9 +28,9 @@ test('nothing is trusted for another tree, a failed or dirty build, a failed row
   assert.deepEqual(trustedFromVps(receipt({ dirty: 2 }), tree, commands, source), []);
   assert.deepEqual(trustedFromVps(null, tree, commands, source), []);
   const base: number[] = trustedFromVps(receipt(), tree, commands, source);
-  const failed = receipt({ rows: rows.map(r => ({ ...r, status: r.index === base[0] ? 'fail' : 'pass', exit: r.index === base[0] ? 1 : undefined })) });
+  const failed = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === base[0] ? 'fail' : 'pass', exit: r.index === base[0] ? 1 : undefined })) });
   assert.ok(!trustedFromVps(failed, tree, commands, source).includes(base[0]));
-  const edited = receipt({ rows: rows.map(r => ({ ...r, status: 'pass', command: r.index === base[0] ? `${r.command} --x` : r.command })) });
+  const edited = receipt({ rows: rows.map((r: Row) => ({ ...r, status: 'pass', command: r.index === base[0] ? `${r.command} --x` : r.command })) });
   assert.ok(!trustedFromVps(edited, tree, commands, source).includes(base[0]));
 });
 
