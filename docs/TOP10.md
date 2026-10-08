@@ -101,6 +101,21 @@ Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to
 
 **B. Day and night (corrected, Dom 2026-10-08 10:5x: mobile = shorter).** ONE game day = 100 real minutes (`ambience.dayNightSpeed` = 14.4, where 1 = real time), not a real 24-hour clock. Why 100 and not 90, 120, 180 or 240: those divide 24 hours evenly, so a player who always plays at 8 pm would always meet the same phase (permanent night for one country). 100 minutes gives 14.4 game days per real day, so the phase moves about 9.6 game hours each real day and every time zone cycles through day, dusk and night within a few days. Night (22:00-06:00 game time, townsfolk asleep) is about 33 real minutes. One server clock for everyone, no daylight saving, plus a sky/fog/light gradient by game hour and a `night` flag on spawn rows so vampires and werewolves can be night-only later. Night-only content is always extra, never required; the bank and the night trader stay open. Owner: World, together with the Zone 1 sky work.
 
+## Lane queues: every lane's next three rows (Lead, 2026-10-08 11:3x; Dom's rule: no lane idles while this list has work)
+
+Lead checks the lane list every 30 minutes and gives an idle lane its next row within 10 minutes. A lane that says "nothing left" is a defect fixed in the same turn.
+
+| Lane | Next three rows, in order |
+|---|---|
+| World, Pit & Audio | 1. #1779 seamless combat: the remaining engage gap, the Auditor's M1/M2, delta PASS, then it becomes the Zone 1 default. 2. Zone 1 quality code (relief, kits, landmarks, path, sky/fog, far ring) plus the day/night clock (100-minute game day) and the `night` spawn flag. 3. Boar/bear spawn ids, then the town generator; a signed-in test of the presence join with Web |
+| Duels & Backend | 1. Bronze alone (#1768, apply 0004, one POST), then #1793 respawn window (0006). 2. Boar/bear migrations 0007/0008 (each PRE + GO + POST) and the boar/bear loot rulings. 3. Town and economy rows: NPC rows, shop lists with server re-check, no-drop weight, the per-character serial write queue, collection-book and rankings reads; then R1's wipe script |
+| Characters & Art | 1. Boar rows on #1778, bear duel stills, #1733 to the fold. 2. Zone 1 kit and set-piece models (tree, bush, boulder, tuft; camp, ruin arch, stone circle, grove). 3. Townspeople bodies and outfits, the banker, the building kit and atlas |
+| Combat & Specials | 1. Stances ON (#1792: held until the Auditor's review and Dom's yes), the coach (#1746). 2. Boar/bear roster rows (#1778, #1783) and the strength battery per stance and weapon. 3. The 2-v-1 pack slice, then the threat-list rule for seamless step 5 and the set-bonus numbers |
+| Web & UI | 1. UI alignment pass on the Pit end screen and the take screen at 375. 2. Website content (legends roster ~760 and the story), then the Zone 1 UI rows (town screen, Talk/Trade, bank screen, world boss take screen, rankings board, collection book). 3. Coach UI #1790, then the gear screen for mix-and-match sets |
+| Deploy | 1. Fold 9 (on its CI gate), then fold 10 (#1733, #1794, #1795 and docs). 2. VPS build mode (A2 failed; strict B with a perturbation test) and the HF software-GL job (#1776). 3. Standing: preview rebuild from the live sha after each release; prune keep 3 |
+| Auditor | 1. #1783 bear, #1792 stances ON, #1746 coach. 2. #1768 apply POST, #1793 PRE/POST, #1778/#1783 migrations. 3. Docs PASSes (#1796, this PR) and the launch gates |
+| Lead | Keep this table true; the 30-minute lane check; docs PRs; the zone-to-legend rules docs after Zone 1 quality |
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
