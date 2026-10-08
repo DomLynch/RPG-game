@@ -68,7 +68,7 @@ const RESPAWN = 90;   // s
 const WARM_BOUND_MS = 4000;   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
 const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; camera?: THREE.Camera }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
   const specs = mobSpecs(frontier, build, previewRows(location.search)), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
@@ -115,6 +115,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   async function pump() {   // one compileAsync in flight at a time (three 0.186's compileAsync has a disposal race under concurrency in Claudecraft's vendored patch); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
     if (pumping) return; pumping = true;
     try {
+      await opts.after?.catch(() => {});   // programs are keyed on the scene's environment map: warm only after its final swap (the sky), or every program links twice
       while (pending.size) {
         const kind = [...pending.keys()].sort((x, y) => kindDist(x) - kindDist(y))[0]!, body = pending.get(kind)!; pending.delete(kind);
         const g = await gateWithBound(kind, warmKind(kind, body), WARM_BOUND_MS);
