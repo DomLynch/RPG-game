@@ -348,6 +348,10 @@
     [
       "node",
       "scripts/stance-panel-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/next-fight-black-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -589,6 +593,14 @@
       ],
       "rows": [
         "first-loss-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/next-fight-black-check.mjs"
+      ],
+      "rows": [
+        "next-fight-black-check"
       ]
     }
   ],

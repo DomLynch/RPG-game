@@ -349,7 +349,7 @@ esac
   assert.doesNotMatch(r.stderr, /runs\/11|runs\/13/);
 });
 
-// Every row the gate has (51 since the Pit exit row 50 was removed with the Pit room, 2026-10-08; the stance-panel row had made it 52): 'all rows' is read, never a literal.
+// Every row the gate has (51 since the Pit exit row 50 was removed with the Pit room, 2026-10-08; 52 with row 52 next-fight-black-check, the guard for Dom's 2 s black-frame report, Lead ruling 2026-10-08): 'all rows' is read, never a literal.
 const ROWS: number = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8')).release_commands.length;
 test('deploy scope: a release runs about 5 rows for what it changed, none for docs, and a changed check script runs its own rows', () => {
   // Dom 2026-10-05: "get the 50 checks down to 5"; the full 50 still run once every 24 h (deploy.sh --full-age).
@@ -377,6 +377,8 @@ test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the f
     assert.match(picked(file), /\b50 first-loss-browser-check\b/, `${file} runs row 50 first-loss-browser-check`);
   }
   assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+  for (const file of ['src/first-frame.ts', 'src/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
+  assert.deepEqual(JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', 'scripts/next-fight-black-check.mjs'], { encoding: 'utf8' })).map((r: { name: string }) => r.name), ['next-fight-black-check'], 'a changed check script runs its own row');
 });
 
 test('deploy scope: a public asset runs the rows of its folder, never all 51; the Stage picker row follows the arena, sparring and main files', () => {
