@@ -56,3 +56,13 @@ test('a v38 record without its pose flag, and a pose on an older version, are re
   const old = bytes.slice(); old[2] = 37;
   assert.throws(() => unpackRecord(old), /unknown specials flag/);
 });
+
+test('a live-recorded posed fight given an UNROUNDED pose records the rounded one and replays from it', () => {
+  const raw: DuelPose = { hero: { x: -2.3, z: 1.1 }, foe: { x: 1.7, z: -0.9 }, heroFacing: 0.6 };
+  const { record, practice } = fight({ ...meta, pose: raw });   // the fight itself starts from initialPractice(raw): rounded inside poseBodies
+  assert.deepEqual(record.pose, roundPose(raw)); assert.notDeepEqual(record.pose, raw);
+  const back = unpackRecord(packRecord(record));
+  let p = initialPractice(back.seed, opponentAt(OPPONENTS.veteran, back.level), back.weapon, null, undefined, undefined, undefined, back.pose);
+  for (const i of back.intents) p = stepPractice(p, i, profileAt(OPPONENTS.veteran, back.level));
+  assert.deepEqual(p.duel, practice.duel);
+});

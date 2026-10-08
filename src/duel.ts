@@ -107,7 +107,7 @@ export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 // `pose` (seamless step 3, World's signature): start the fight where the hero and the foe ALREADY stand instead of at the pit marks. Metres in the arena's own axes (the caller subtracts the fight circle's
-// centre), `heroFacing` in radians as sim headings are (aim = atan2(dx, dz)); the foe faces the other way, as at the marks. Both must lie inside the wall (RADIUS) and apart by more than a body, or it throws:
+// centre), `heroFacing` in radians as sim headings are (aim = atan2(dx, dz)); the foe faces the hero from where it stands, as at the marks. Both must lie inside the wall (RADIUS) and apart by more than a body, or it throws:
 // a pose that starts a fighter in the wall or in the other body is a caller bug, never a fight to clamp silently. Absent = today's marks, byte for byte.
 export type DuelPose = { hero: { x: number; z: number }; foe: { x: number; z: number }; heroFacing: number };
 // The one validity rule, shared with the record decoder (src/record.ts): a pose that fails it is refused, never clamped.
@@ -117,13 +117,16 @@ export const validatePose = (pose: DuelPose): void => {
   if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
   if (M.hypot(hero.x - foe.x, hero.z - foe.z) <= .85) throw RangeError('Duel pose: the fighters start inside each other');
 };
-// The record stores a pose as float32: a live fight and its replay must start from the SAME bits, so the caller rounds with this BEFORE the fight begins (packRecord refuses a pose that is not already float32).
-export const roundPose = (pose: DuelPose): DuelPose => ({ hero: { x: Math.fround(pose.hero.x), z: Math.fround(pose.hero.z) }, foe: { x: Math.fround(pose.foe.x), z: Math.fround(pose.foe.z) }, heroFacing: Math.fround(pose.heroFacing) });
-const poseBodies = (pose: DuelPose): [State, State] => {
-  validatePose(pose);
+// The record stores a pose as float32: a live fight and its replay must start from the SAME bits, so poseBodies (below) and the recorder both round with this. Float32 rounding is plain IEEE-754 (not a per-device
+// value); it goes through a DataView because net-determinism bans the usual single-precision spellings inside the sim files as a blanket rule.
+const f32view = new DataView(new ArrayBuffer(4));
+const f32 = (x: number): number => { f32view.setFloat32(0, x); return f32view.getFloat32(0); };
+export const roundPose = (pose: DuelPose): DuelPose => ({ hero: { x: f32(pose.hero.x), z: f32(pose.hero.z) }, foe: { x: f32(pose.foe.x), z: f32(pose.foe.z) }, heroFacing: f32(pose.heroFacing) });
+const poseBodies = (given: DuelPose): [State, State] => {
+  const pose = roundPose(given); validatePose(pose);   // rounded BEFORE the wrap and before any body is built, on the live side and the replay side alike
   const { hero, foe, heroFacing } = pose;
   const facing = heroFacing > Math.PI || heroFacing <= -Math.PI ? wrapAngle(heroFacing) : heroFacing;
-  return [{ x: hero.x, z: hero.z, heading: facing, distance: 0 }, { x: foe.x, z: foe.z, heading: facing > 0 ? facing - Math.PI : facing + Math.PI, distance: 0 }];   // no sin/cos round trip: the marks' own pi and 0 come back exactly
+  return [{ x: hero.x, z: hero.z, heading: facing, distance: 0 }, { x: foe.x, z: foe.z, heading: M.atan2(hero.x - foe.x, hero.z - foe.z), distance: 0 }];   // the foe always faces the hero's actual position (the pit marks' own 0 comes back exactly), whatever heroFacing says
 };
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, pose?: DuelPose): Duel => {
   const [hero, foe] = pose ? poseBodies(pose) : [initialState(), { ...initialTarget(), heading: 0, distance: 0 }];

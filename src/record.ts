@@ -8,7 +8,7 @@
 // per-tick bytes (stick x, stick z, camera-yaw delta, action, guard side, flags) — gzipped and base64url'd. Columns of mostly
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
-import { validatePose, type Action, type DuelPose, type Intent } from './duel.ts';
+import { roundPose, validatePose, type Action, type DuelPose, type Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 import { FIRST_LATE_NOTICE_VERSION, FIRST_SCALED_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor } from './play-radius.ts';
@@ -156,6 +156,7 @@ export function createRecorder(meta: RecordMeta) {
   const era = stampedVersion(meta.opponent);
   if ((meta.patron || meta.gambit || meta.stances || meta.pose) && era !== NO_PATRON_VERSION) throw Error('Fight record: a patron or gambit fight must be fought in the live era');
   const version = meta.pose ? FIRST_POSE_VERSION : meta.stances ? FIRST_STANCE_VERSION : meta.gambit ? FIRST_GAMBIT_VERSION : meta.patron ? PATRON_VERSION : era;   // the circle in force when the fight BEGINS names the record, not whatever is set when it ends
+  if (meta.pose) meta = { ...meta, pose: roundPose(meta.pose) };   // the fight started from the rounded pose (duel.ts poseBodies), so the record names those same bits
   if (version < FIRST_ARENA_VERSION && meta.arena) { meta = { ...meta }; delete meta.arena; }   // an older era has no arena byte: a script run in the old circle names none
   const intents: Intent[] = [];
   let done: FightRecord | null = null;
@@ -187,7 +188,7 @@ export function packRecord(rec: FightRecord): Uint8Array {
   const r: FightRecord = rec.v === RECORD_VERSION ? { ...rec, v: rec.pose ? FIRST_POSE_VERSION : rec.stances ? FIRST_STANCE_VERSION : rec.gambit ? FIRST_GAMBIT_VERSION : rec.patron ? PATRON_VERSION : NO_PATRON_VERSION } : rec;
   if (r.pose && r.v < FIRST_POSE_VERSION) throw Error('Fight record: a pose on a version that has no flag for it');
   if (r.v === FIRST_POSE_VERSION && !r.pose) throw Error('Fight record: a version 38 record names its pose');
-  if (r.pose) { validatePose(r.pose); const q = [r.pose.hero.x, r.pose.hero.z, r.pose.foe.x, r.pose.foe.z, r.pose.heroFacing]; if (q.some((n) => Math.fround(n) !== n)) throw Error('Fight record: a pose is float32 (roundPose it before the fight begins)'); }
+  if (r.pose) { validatePose(r.pose); const rp = roundPose(r.pose); if (JSON.stringify(rp) !== JSON.stringify(r.pose)) throw Error('Fight record: a pose is float32 (roundPose it before the fight begins)'); }
   if (r.stances && r.v < FIRST_STANCE_VERSION) throw Error('Fight record: stances on a version that has no flag for them');
   if (r.v === FIRST_STANCE_VERSION && !r.stances) throw Error('Fight record: a version 34 record names its stances');
   if (r.stances && !PICKS.includes(r.stances)) throw Error('Fight record: unknown stance');
