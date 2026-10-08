@@ -72,6 +72,15 @@ Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to
 - **Animals:** respawn 60-90 s and roll small loot (materials, bronze, a rare common item). No daily cap on normal kills. Creatures far below your level give no XP but still drop loot.
 - **Owners:** Backend (loot tables and the no-duplicate state, respawn timers via origins/world spawns), Characters (set pieces per legend). It is data rows, so it scales to every zone. Valuables save immediately as one all-or-nothing transaction (row 3).
 
+## Four features Dom added (2026-10-08 10:1x, via Strategy; same order: AFTER the current Zone 1 rows)
+
+| # | Feature | Owners |
+|---|---|---|
+| a | Legend collection book: every legend beaten and every set piece owned; a Web screen in the menu (the hamburger), reading existing kills and holdings | Web (screen), Backend (reads existing kills/holdings) |
+| b | Set bonuses at 3 and 6 pieces of one legend's set, Origins only; the duel ladder stays gear-free | Combat (numbers), Backend (applies) |
+| c | Mix-and-match sets into your own build, never required; pieces fit across sets | Characters (pieces fit across sets), Web (gear screen) |
+| d | Hub rankings: levels, kills, PvP, sets collected; a board in the Concord hub and in the menu, reading recorded data | Web + Backend |
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
