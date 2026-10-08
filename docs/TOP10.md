@@ -32,6 +32,8 @@ Zone 1 combat must be SEAMLESS: no freeze, no Pit-duel switch. Strategy's audit 
 
 Order: steps 1 + 2 first (they kill most of the freeze), preview-only. Gates are #1758's tests: no-swap-at-engage, world-live-during-fight, engage-hitch-budget. Donors, all combat as entity state in the same tick: World of Claudecraft sim.ts:7366 enterCombat, AzerothCore Unit.cpp:7308, EQEmu mob.cpp:5508, ModernUO Mobile.cs:720 (Strategy's citations).
 
+**World's read of the files (2026-10-08, from trunk 9d18a9fb and #1725 @71116f3a, not run):** the real files are `origins/preview/main.ts` (the loop stop is `renderer.setAnimationLoop(null)` at the Pit duel start and again in `startMobFight`), `origins/preview/mobs-view.ts` (creatures outside the fetch range are hidden; `freeze()` and `FREEZE_RADIUS` exist only in #1725) and `origins/preview/pit-duel.ts` (its own 60 Hz loop beside the walk). So step 1 needs #1725 merged first. Hours: step 1 is ~6-8 h, not ~3, because the duel must be stepped from the one world loop instead of its own (otherwise dropping the stop double-renders); step 2 ~6-8 h holds; step 4 ~1 h holds; step 3 is Combat's estimate. All unmeasured. Donor reading for these (WoC `enterCombat`, AzerothCore, EQEmu, ModernUO): not read yet, owed before each PR.
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
