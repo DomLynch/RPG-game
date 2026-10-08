@@ -3,8 +3,9 @@
 // run through the verbatim copies duel-open.ts / ai-open.ts / sim-open.ts by the adapter open-fight.ts; this file owns only what the Pit has no word for: who is in whose fight (aggro, the nearest foe, the hold-off ring
 // for the rest of a pack), the chase to that ring, leash, give-up, heal-home, the creature rows (`creature`, levels from moves.ts opponentAt), player-vs-player rules (the server's pvp flag, the low-level shield, the
 // level band, the `Aggressed` first-strike event) and `minKillSeconds`. Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering, animation and input.
-import { LEVELS, LEVEL_ANCHORS, MOVES, OPPONENTS, RULES, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, MOVES, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
+import { GAMBIT_ODDS } from '../../src/gambit.ts';
 import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 import { IDLE_INPUT, openBout, stepBout, type Bout } from './open-fight.ts';
@@ -166,15 +167,22 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   return { world: { time: world.time + dt, fighters, aggro, streams }, events };
 }
 
+// The Pit kit's extremes, read from the tables so a new weapon or skill moves the bound with it (no number is copied here): the biggest base blow of any weapon move, the fastest windup and the fastest cycle of any damaging move.
+const KIT = (() => {
+  const moves = Object.values(WEAPONS).filter(w => w.id !== 'bite').flatMap(w => Object.values(w.moves)).filter(m => m.damage > 0);
+  const cycle = (m: (typeof moves)[number]) => { const t = m.chained ?? m; return t.windup + t.active + t.recovery; };
+  return { damage: Math.max(...moves.map(m => m.damage)), windup: Math.min(...moves.map(m => (m.chained ?? m).windup)), cycle: Math.min(...moves.map(cycle)) };
+})();
 /**
- * The SERVER's plausibility bound for a kill report (there is no record to replay in Zone 1, so anti-cheat is a bound, not a proof): the fewest seconds a player could possibly take to kill
- * `kind` at `level` with the longsword's light cut. Hits needed at the best gear (CAPS.attack) and the best damage multiplier the rules ever give (a rear or counter blow, RULES.rear.damage); the cadence is the fastest
- * chained cut. A claimed kill faster than this, or with hitsDealt x best damage below the creature's health, is refused. Conservative on purpose: it never refuses an honest fight.
+ * The SERVER's plausibility bound for a kill report (there is no record to replay in Zone 1, so anti-cheat is a bound, not a proof): the fewest seconds a player could possibly take to kill `kind` at `level` with the WHOLE Pit kit.
+ * The biggest blow is the kit's biggest base damage x the gear cap (CAPS.attack) x a held charge (RULES.charge) x the best situational multiplier (stop-hit, counter, rear on a downed target) x a landed Gambit; the fastest blow
+ * and the fastest chained cycle come from the kit too. At a low level one such blow can kill, and then the bound is just the fastest windup: it only refuses a kill no kit could make. The special (20% of max health, a 2 s windup, a 20 s
+ * cooldown) is never faster than blows, so it is not in the bound. The real protection is the server's spawn state, the single-use token and the per-account caps; this refuses only the impossible and never an honest fight.
  */
 export function minKillSeconds(kind: string, level = 1): number {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
-  const cut = MOVES.light_right, best = Math.round(cut.damage * CAPS.attack) * RULES.rear.damage, hits = Math.ceil(opponentAt(o, level).health / best);
-  const chained = cut.chained ?? cut, cycle = secs(chained.windup + chained.active + chained.recovery);
-  return secs(cut.windup) + Math.max(0, hits - 1) * cycle;   // the first blow lands after its windup; every later one a full chained cycle apart
+  const situational = Math.max(RULES.stopHit.damage, RULES.counter.damage, RULES.rear.downed, RULES.rear.damage);
+  const best = Math.round(KIT.damage * CAPS.attack * RULES.charge.damage * situational * GAMBIT_ODDS.multiplier), hits = Math.ceil(opponentAt(o, level).health / best);
+  return secs(KIT.windup) + Math.max(0, hits - 1) * secs(KIT.cycle);   // the first blow lands after its windup; every later one a full cycle apart
 }
