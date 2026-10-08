@@ -91,5 +91,5 @@ test('every rig baked before the wolf keeps its blade table byte for byte; the w
   wraith: 'bcfee62bc3a70d6c9a07d531e7b6fbf217b0a86bea78da976206c702216dc8af',
   };
   for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(bladePathsByRig[rig])).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
-  assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf', 'boar']);
+  assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf', 'boar', 'bear']);
 });
