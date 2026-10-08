@@ -62,4 +62,5 @@ node "$bin/rows-json.mjs" "$run" \
 echo done > "$run/status"
 echo "RECEIPT rows $(tr -d '\n' < "$run/rows.json")"   # read back from the job logs by scripts/vps-shadow/launch.mjs fetch
 echo "END shadow rows sha=$full build=$build_status rows=$rows_status in $(( $(date +%s) - wall0 ))s -> $run/rows.json"
-exit $(( build_status || rows_status ))
+# The job exits 0 once it has printed its receipt: the receipt carries every row verdict (a FAIL or ceiling vetoes that row; the others still count), and deploy only trusts a COMPLETED job. A failed build is in buildStatus and trusts nothing.
+exit 0

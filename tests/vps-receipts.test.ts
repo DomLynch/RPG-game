@@ -177,6 +177,7 @@ test('launch.mjs launches exactly the canonical job (detached, timed, allowed fl
   assert.throws(() => hfArgs('unit', sha, 'cpu-upgrade', '31'));
   assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', '31;rm'));
   assert.match(readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), /playwright install --with-deps chromium/);
+  assert.match(readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8').trimEnd(), /RECEIPT rows[\s\S]*\nexit 0$/, 'the rows job ends COMPLETED once the receipt is printed; a failing row is in the receipt, not in the job state');
   assert.match(jobCommand('rows', sha)[2], /libjpeg-turbo-progs/);
   for (const f of ['run-unit.sh', 'run-rows.sh']) assert.match(readFileSync(`scripts/vps-shadow/${f}`, 'utf8'), /echo "RECEIPT (unit|rows) /);
 });
