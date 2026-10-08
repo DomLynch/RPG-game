@@ -63,14 +63,28 @@ def build(name, make):
     return ob
 
 
+def hnoise(co, seed):
+    """A deterministic -1..1 hash of a position (no textures: the grain lives in the vertex colour)."""
+    return math.modf(math.sin(co.x * 127.1 + co.y * 311.7 + co.z * 74.7 + seed * 19.3) * 43758.5453)[0]
+
+
+GROUND = (.60, .49, .36)   # the terrain's dusty tan-brown: the base of every prop is pulled toward it so the kit sits in the ground's palette (Lead 2026-10-08)
+
+
 def paint(bm, uv, col, faces, swatch, base_y=0.0, top_y=1.0, dark=0.55):
     u, v = swatch_uv(swatch)
     for f in faces:
         for loop in f.loops:
             loop[uv].uv = (u, v)
-            t = min(1.0, max(0.0, (loop.vert.co.z - base_y) / max(1e-6, top_y - base_y)))   # Blender Z up; the exporter turns it to Y up
+            co = loop.vert.co
+            t = min(1.0, max(0.0, (co.z - base_y) / max(1e-6, top_y - base_y)))   # Blender Z up; the exporter turns it to Y up
             k = dark + (1 - dark) * t
-            loop[col] = (k, k, k, 1.0)
+            n, w = hnoise(co, 1) * .16, hnoise(co, 2) * .07   # grain: a brightness wobble per vertex plus a warm/cool drift, so a flat face is never one flat colour
+            r, g, b = k * (1 + n + w), k * (1 + n), k * (1 + n - w)
+            if t < .3:   # dust: the foot of a prop takes the ground's colour
+                m = (1 - t / .3) * .4
+                r, g, b = r + (GROUND[0] - r) * m, g + (GROUND[1] - g) * m, b + (GROUND[2] - b) * m
+            loop[col] = (min(1, max(0, r)), min(1, max(0, g)), min(1, max(0, b)), 1.0)
 
 
 def prism(bm, base, top, r0, r1, sides, rot=0.0):
@@ -184,22 +198,46 @@ def put(bm, uv, col, make, off, rot=0.0):
     bmesh.ops.translate(bm, verts=fresh, vec=off)
 
 
+def box(bm, uv, col, c, hx, hy, hz, rot, swatch, base_y=0.0, top_y=1.0):
+    """An axis-turned box (a crate): a 4-sided prism from c up hz, `hx` wide, turned `rot` about Z."""
+    faces = prism(bm, (c[0], c[1], c[2]), (c[0], c[1], c[2] + hz), hx * 1.41, hx * 1.41, 4, rot + math.pi / 4)
+    paint(bm, uv, col, faces, swatch, base_y, top_y, .6)
+    return faces
+
+
 def camp():
-    """A fire ring of stones round a cold ember bed, three log seats and a lean-to of two poles and a hide."""
+    """A camp that reads as one: an A-frame canvas tent with a dark doorway and ridge poles, a ring of stones round a crossed-log fire with a cook spit, two crates and a
+    sack, and three log seats. About 30 x 15 px on a phone at 25 m, so the silhouette (tent peak, crossed logs, boxes) carries it."""
     def make(bm, uv, col):
-        for i in range(8):
+        for i in range(8):   # fire ring
             a = 2 * math.pi * i / 8
-            fs = blob(bm, (math.cos(a) * .75, math.sin(a) * .75, .1), (.2, .17, .13), 40 + i, 0, .2)
-            paint(bm, uv, col, fs, "rock_dark" if i % 2 else "rock_warm", 0, .3, .6)
-        paint(bm, uv, col, blob(bm, (0, 0, .03), (.55, .55, .06), 49, 0, .1), "soot", 0, .15, .9)
-        paint(bm, uv, col, blob(bm, (.1, -.05, .07), (.18, .15, .05), 50, 0, .1), "ember_dim", 0, .15, 1)
+            paint(bm, uv, col, blob(bm, (math.cos(a) * .8, math.sin(a) * .8, .12), (.22, .19, .15), 40 + i, 0, .2), "rock_dark" if i % 2 else "rock_warm", 0, .35, .6)
+        paint(bm, uv, col, blob(bm, (0, 0, .03), (.6, .6, .06), 49, 0, .1), "soot", 0, .15, .9)
+        paint(bm, uv, col, blob(bm, (.05, -.05, .08), (.2, .17, .06), 50, 0, .1), "ember_dim", 0, .15, 1)
+        for i, a in enumerate((0.3, 2.4, 4.5)):   # three logs crossed over the embers
+            c = Vector((math.cos(a) * .5, math.sin(a) * .5, .08)); e = Vector((-c.x, -c.y, .4))
+            paint(bm, uv, col, prism(bm, c, e, .085, .08, 5, 0), "charcoal" if i % 2 else "bark_dark", 0, .5, .7)
+        for sx in (-1.15, 1.15):   # the cook spit: two forked uprights and a pole across
+            paint(bm, uv, col, prism(bm, (sx, 0, 0), (sx, 0, 1.05), .045, .035, 5, 0), "bark_dark", 0, 1.1, .6)
+        paint(bm, uv, col, prism(bm, (-1.2, 0, 1.0), (1.2, 0, 1.0), .035, .035, 4, .8), "bark_ash", 0, 1.1, .8)
         for i, a in enumerate((.6, 2.7, 4.5)):   # log seats lying round the ring
-            c = Vector((math.cos(a) * 1.7, math.sin(a) * 1.7, .0)); t = Vector((-math.sin(a), math.cos(a), 0)) * .55
+            c = Vector((math.cos(a) * 1.8, math.sin(a) * 1.8, .0)); t = Vector((-math.sin(a), math.cos(a), 0)) * .55
             paint(bm, uv, col, prism(bm, c - t + Vector((0, 0, .17)), c + t + Vector((0, 0, .2)), .17, .16, 6, 0), "bark_dark", 0, .4, .6)
-        for sx in (-1, 1):   # lean-to: two poles and a slanted hide
-            paint(bm, uv, col, prism(bm, (sx * 1.1 + 2.6, 1.2, 0), (sx * 1.1 + 2.6, 1.2, 1.7), .07, .05, 5, 0), "bark_ash", 0, 1.7, .6)
-        back = [bm.verts.new(p) for p in ((1.5, 2.1, 0), (3.7, 2.1, 0), (3.7, 1.2, 1.7), (1.5, 1.2, 1.7))]
-        paint(bm, uv, col, [bm.faces.new(back)], "root", 0, 1.7, .5)
+        # the tent (an A-frame 2.2 long, 1.9 wide, 1.5 high) behind the fire at +x
+        ox, oy, L, Wd, H = 3.6, 0.0, 2.2, .95, 1.5
+        y0, y1 = oy - L / 2, oy + L / 2
+        v = lambda x, y, z: bm.verts.new((x, y, z))
+        a0, a1, b0, b1, r0, r1 = v(ox - Wd, y0, 0), v(ox - Wd, y1, 0), v(ox + Wd, y0, 0), v(ox + Wd, y1, 0), v(ox, y0, H), v(ox, y1, H)
+        paint(bm, uv, col, [bm.faces.new((a0, a1, r1, r0)), bm.faces.new((b0, b1, r1, r0))], "bone", 0, H, .7)   # the two canvas slopes
+        paint(bm, uv, col, [bm.faces.new((a0, b0, r0))], "charcoal", 0, H, .8)   # the doorway: a dark triangle, so the tent has a mouth
+        paint(bm, uv, col, [bm.faces.new((a1, b1, r1))], "bone", 0, H, .7)
+        paint(bm, uv, col, prism(bm, (ox, y0 - .35, H + .02), (ox, y1 + .35, H + .02), .05, .045, 5, 0), "bark_dark", 0, H + .1, .8)
+        for (px, py) in ((ox - Wd, y0), (ox + Wd, y0), (ox - Wd, y1), (ox + Wd, y1)):
+            paint(bm, uv, col, prism(bm, (px, py, -.02), (px, py, .3), .03, .025, 4, 0), "bark_dark", 0, .4, .8)
+        # two crates and a sack by the tent
+        box(bm, uv, col, (1.9, 1.5, 0), .3, .3, .55, .3, "root", 0, .6)
+        box(bm, uv, col, (2.35, 1.2, 0), .22, .22, .4, 1.0, "bark_ash", 0, .45)
+        paint(bm, uv, col, blob(bm, (1.7, 1.0, .25), (.28, .24, .27), 55, 0, .15), "grass_pale", 0, .5, .7)
     return make
 
 
@@ -242,7 +280,7 @@ def grove():
 PIECES = [
     ("tree_dead_a", "tree", tree(1, 5.0, .6, 5)), ("tree_dead_b", "tree", tree(2, 3.6, -.8, 4)), ("tree_dead_c", "tree", tree(3, 6.4, .3, 6)),
     ("bush_scrub_a", "bush", bush(11, 1.3, 0)), ("bush_scrub_b", "bush", bush(12, .95, 1)),
-    ("boulder_a", "boulder", boulder(21, 1.1, .8, "rock_dark", "rock_light")), ("boulder_b", "boulder", boulder(22, .8, 1.0, "rock_warm", "ash_pale")), ("boulder_c", "boulder", boulder(23, 1.5, .65, "rock_dark", "rock_warm")),
+    ("boulder_a", "boulder", boulder(21, 1.0, .8, "rock_dark", "rock_light")), ("boulder_b", "boulder", boulder(22, .75, 1.0, "rock_dark", "rock_moss")), ("boulder_c", "boulder", boulder(23, 1.2, .65, "rock_dark", "rock_warm")),
     ("tuft_a", "tuft", tuft(31, 18, .55)), ("tuft_b", "tuft", tuft(32, 22, .35)),
     ("landmark_camp", "landmark", camp()), ("landmark_ruin_arch", "landmark", ruin_arch()), ("landmark_stone_circle", "landmark", stone_circle()), ("landmark_grove", "landmark", grove()),
 ]
