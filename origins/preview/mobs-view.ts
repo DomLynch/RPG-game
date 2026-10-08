@@ -61,11 +61,13 @@ export type Mobs = {
   drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
+  warmState(): { kinds: string[]; warmed: string[]; failed: string[] };   // the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
 };
 const RESPAWN = 90;   // s
+const WARM_BOUND_MS = 4000;   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
 const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; camera?: THREE.Camera }): Mobs {
   const specs = mobSpecs(frontier, build, previewRows(location.search)), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
@@ -85,8 +87,45 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = false; });
       if (opts.phone) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);
       bodies.set(kind, { scene: gltf.scene, clips: gltf.animations });
-    }).catch((error: unknown) => { bodies.set(kind, 'failed'); console.warn(`${kind} body did not load; capsules stand in`, error); });
+      if (gate) queueWarm(kind, { scene: gltf.scene });
+    }).catch((error: unknown) => { bodies.set(kind, 'failed'); failedKinds.add(kind); console.warn(`${kind} body did not load; capsules stand in`, error); });
   };
+
+  // Warm-up (Combat #1915, Claudecraft idioms; the Metal trace, 2026-10-08: the engage frame is 18 ms, the cost is the FIRST DRAW of a body: its programs link and its textures and geometry upload inside that frame, up to 179 ms).
+  // So a body kind is revealed only after, per kind and off-frame: compileAsync of one probe clone (never the whole scene, which stalls), then its textures through initTexture and its geometries through a 4x4 proxy draw, one unit per frame.
+  // Until the gate opens the creature stays the capsule it already is. On a phone only the kinds near the walker are fetched (memory), so only they are warmed; elsewhere the whole zone's kinds are fetched at entry.
+  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map((x) => x.body))];
+  const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+  let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
+  const pending = new Map<string, { scene: THREE.Object3D }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
+  async function warmKind(kind: string, body: { scene: THREE.Object3D }) {
+    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => x.body === kind)!, look = mobVariant(first.character, first.id);
+    const probe = clone(body.scene); if (look) dressMob(probe, look);
+    const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
+    await renderer.compileAsync(holder, camera, scene);
+    const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
+    probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry); for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
+    for (const t of textures) { renderer.initTexture(t); await frame(); }
+    const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4);
+    try { for (const g of geometries) { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } await frame(); } }
+    finally { target.dispose(); proxy.dispose(); }
+  }
+  const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
+  async function pump() {   // one compileAsync in flight at a time (three 0.186's compileAsync has a disposal race under concurrency in Claudecraft's vendored patch); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
+    if (pumping) return; pumping = true;
+    try {
+      while (pending.size) {
+        const kind = [...pending.keys()].sort((x, y) => kindDist(x) - kindDist(y))[0]!, body = pending.get(kind)!; pending.delete(kind);
+        const t0 = performance.now(), work = warmKind(kind, body).then(() => 'ok' as const, (error: unknown) => { console.warn(`${kind} warm-up failed`, error); return 'failed' as const; });
+        let timer = 0; const bound = new Promise<'late'>((r) => { timer = window.setTimeout(() => r('late'), WARM_BOUND_MS); });
+        const r = await Promise.race([work, bound]); window.clearTimeout(timer); warmed.add(kind);
+        if (r !== 'ok') console.warn(`${kind} warm-up ${r} after ${Math.round(performance.now() - t0)} ms; revealed anyway`);
+        if (r === 'late') await work;   // still one in flight
+      }
+    } finally { pumping = false; }
+  }
+  const queueWarm = (kind: string, body: { scene: THREE.Object3D }) => { pending.set(kind, body); void pump(); };
+  const revealed = (kind: string) => !gate || warmed.has(kind);
 
   const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
@@ -120,9 +159,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const driven = new Map<number, MobDrive>();
   return {
     update(dt, hero, hideLabel) {
+      lastHero = hero;
       mobs.forEach((m, i) => { const d = driven.get(i); mobs[i] = d ? { ...m, x: d.x, z: d.z, facing: d.facing, mode: d.moving ? 'wander' : 'aggro' } : stepMob(m, specs[i]!, hero, dt, stands[i]!); });
       for (const [i, t] of down) { if (t - dt <= 0) down.delete(i); else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
+      if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
@@ -132,7 +173,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
       for (const i of shown) {
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
-        if (!v.model && body && body !== 'loading' && body !== 'failed') dress(v, s, body);
+        if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(s.body)) dress(v, s, body);
         v.group.visible = v.ring.visible = !hiddenInFight(s.id, engaged);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i), lunge = dv?.lunge ?? 0;
@@ -171,6 +212,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else driven.delete(i); },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
+    warmState: () => ({ kinds: gate ? kindsOfZone : [], warmed: [...warmed], failed: [...failedKinds] }),
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),

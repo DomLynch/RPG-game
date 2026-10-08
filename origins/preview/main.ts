@@ -307,7 +307,7 @@ function step(dt: number) {
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true; if (WORLDFIGHT) preloadFight();   // the fight chunks come early (worldfight is on unless ?worldfight=0|off)
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, renderer, camera }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   if (mobs) { mobs.update(dt, state, cardId); if (WORLDCOMBAT) { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } updateBars(); document.body.classList.toggle('infight', wc.inCombat()); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
@@ -366,13 +366,24 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
   uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B
 }
+// "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
+// After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
+let zoneReadyAt = -1;
+function zoneReadyCheck() {
+  if (zoneReadyAt >= 0 || !mobs) return;
+  const w = mobs.warmState();
+  if (!w.kinds.length || w.warmed.length < w.kinds.length || uploadQueue.length || uploadTotal === 0) return;
+  zoneReadyAt = Math.round(performance.now());
+  const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed };
+  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
+}
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
     mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
   }
-  step(dt); warmFight(time); warmUpload(time); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); warmFight(time); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
