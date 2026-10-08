@@ -82,7 +82,7 @@ test('no stances: the fight grows no stance field and is the plain fight, hash f
 });
 
 // RV34: the record carries the flag and the player's pick; the AI's mood is re-drawn from the seed on replay.
-test('a stances fight is recorded as v34, packed and replayed to the very same state; the AI drew its mood from the seed', () => {
+test('a stances fight is recorded as v40 (RV40: the version names the Defensive row it ran on), packed and replayed to the very same state; the AI drew its mood from the seed', () => {
   for (const pick of PICKS) {
     const seed = 21, opponent = OPPONENTS.executioner, profile = profileAt(opponent, 6);
     const rec = liveRecorder({ build: 'test', opponent: 'executioner', weapon: 'longsword', level: 6, seed, stances: pick });

@@ -12,7 +12,17 @@ export const STANCES: Readonly<Record<StanceId, Readonly<Partial<Record<StanceKe
   defensive: { damage: -50, block: -60, window: 250, counter: 250 },   // RV40 trim (Strategy 2026-10-08, scripts/defensive-trim.mjs: it lifted the ladder win rate +8 to +11 at L6+, now within +5 of no stance): -5% damage; blocks cost 6% less stamina (Dom's table said 15%) and the posture-drain perk (was recover 250) is gone; the parry window and the guard-counter window a quarter longer (~4 ticks: Strategy's state-conditional counter, attack spam gets punished). Beats the Aggressive
   trickster: { heavyDamage: -50, feint: -500, kickPosture: 500 },   // -5% damage on heavies; feints cost half, a kick against a HELD guard deals 50% more posture, and only then (Strategy's state-conditional counter: guarding is the weak spot against a trickster). Beats the Defensive
 };
-export const stanced = (f: { stance?: StanceId }, key: StanceKey, x: number): number => { const d = f.stance && STANCES[f.stance][key]; return d ? (x * (1000 + d)) / 1000 : x; };
+// ERA (RV40, the Defensive trim): stances are LIVE (#1792), so v34..v39 records with a Defensive side (the player's pick or the foe's mood) were fought on the pre-trim row and must replay on it.
+// FROZEN: never edit. Default ON (this build's fights and every headless run use STANCES); detmath.ts underRecord turns it off for a record older than FIRST_TRIM_VERSION, and Match.startClip does the same by hand.
+export const FIRST_TRIM_VERSION = 40;
+const DEFENSIVE_V39: Readonly<Partial<Record<StanceKey, number>>> = Object.freeze({ damage: -50, block: -150, recover: 250, window: 250, counter: 250 });
+export let DEFENSIVE_TRIM = true;
+export function setDefensiveTrim(on: boolean): void { DEFENSIVE_TRIM = on; }
+export function underDefensiveTrim<T>(version: number, run: () => T): T {
+  const outer = DEFENSIVE_TRIM; DEFENSIVE_TRIM = version >= FIRST_TRIM_VERSION;
+  try { return run(); } finally { DEFENSIVE_TRIM = outer; }
+}
+export const stanced = (f: { stance?: StanceId }, key: StanceKey, x: number): number => { const d = f.stance && (f.stance === 'defensive' && !DEFENSIVE_TRIM ? DEFENSIVE_V39 : STANCES[f.stance])[key]; return d ? (x * (1000 + d)) / 1000 : x; };
 // The AI's mood: drawn from the fight seed (a replay re-sims it exactly), 50% its home stance and 50% one of the other three picks. Home stances are the ruling's; every other opponent's home is Neutral.
 const HOME: Readonly<Record<string, StanceId>> = { executioner: 'aggressive', shieldmaiden: 'defensive', goblin: 'trickster' };
 export const homePick = (opponent: string): PickedStance => HOME[opponent] ?? 'neutral';
