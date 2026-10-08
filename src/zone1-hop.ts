@@ -15,11 +15,12 @@ export const zone1AfterLesson = (on = ZONE1_IS_DEFAULT): string | null => (on ? 
 // "Sign in" on Zone 1's signed-out line sends `/?account=signin&next=zone1` to the arena's own Google sign-in; the wish to come back is kept for the one OAuth round trip (sessionStorage, taken once) and honoured when the sign-in succeeds.
 const NEXT_KEY = 'frankendom.next';
 type Session = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-export const rememberZone1 = (search: string, storage: Session | null): boolean => {
+const NEXT_TTL_MS = 10 * 60_000;   // an abandoned sign-in must not send a much later arena sign-in to Zone 1
+export const rememberZone1 = (search: string, storage: Session | null, now = Date.now()): boolean => {
   const p = new URLSearchParams(search);
   if (p.get('account') !== 'signin' || p.get('next') !== 'zone1') return false;
-  try { storage?.setItem(NEXT_KEY, ZONE1_URL); return !!storage; } catch { return false; }
+  try { storage?.setItem(NEXT_KEY, String(now)); return !!storage; } catch { return false; }
 };
-export const takeZone1 = (storage: Session | null): string | null => {
-  try { const next = storage?.getItem(NEXT_KEY) === ZONE1_URL ? ZONE1_URL : null; storage?.removeItem(NEXT_KEY); return next; } catch { return null; }
+export const takeZone1 = (storage: Session | null, now = Date.now()): string | null => {
+  try { const at = Number(storage?.getItem(NEXT_KEY)); storage?.removeItem(NEXT_KEY); return Number.isFinite(at) && at > 0 && now - at >= 0 && now - at <= NEXT_TTL_MS ? ZONE1_URL : null; } catch { return null; }
 };

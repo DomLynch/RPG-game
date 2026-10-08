@@ -9,6 +9,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
+import { SPEEDS } from './speeds.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -26,7 +27,7 @@ import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
-import { canSignIn, CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
@@ -224,7 +225,7 @@ const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [e
 let kit = false, worldPhase = 'ready', facing = 0, prevPose = 'ready', camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
-const WALK = 2.3, RUN = 5.2, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
+const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = 1.9, eye = new THREE.Vector3(), look = new THREE.Vector3(), camAt = new THREE.Vector3(0, 2.6, 8);
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
@@ -385,12 +386,13 @@ let storage: Storage | null = null;
 try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null, online: Online | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
-if (presenceWanted(location.search)) presence = joinPresence({
+const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
+if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
   token: storedToken(storage, Date.now()), url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,
   pose: () => (!frontier && Math.abs(state.x) < 149 && Math.abs(state.z) < 149 ? { x: state.x, z: state.z, heading } : null),
   onHello: (at) => { if (!frontier && Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; camSnap = true; } },   // where the server placed us (a rejoin lands where it was left)
   onOthers: (list) => { others = list; },
-});
+}); });
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
@@ -402,7 +404,7 @@ function showCareer() {
 showCareer();
 // The saved career, once, in the background: the walk and the Pit never wait on it. It is adopted only while no duel has started, so a
 // preview fight is never re-based under the player; otherwise (or on any failure) the in-memory preview career stands, marked offline.
-void fetchOpen(storedToken(storage, Date.now()), { base: writerBase(location.search) }).then((opened) => {
+void AUTH_READY.then(() => fetchOpen(storedToken(storage, Date.now()), { base: writerBase(location.search) })).then((opened) => {
   if (isOffline(opened)) source = opened;
   else if (session.fights > 0 || fighting) source = { offline: 'late' };
   else { session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; playerName = opened.characters[0]?.name ?? playerName; characterId = opened.characters[0]?.id ?? null; play.standAt(careerLine(session.career).level); }
@@ -548,7 +550,7 @@ async function startMobFight(spec: MobSpec) {
   const run = prepared.value, quest = bountyQuestId(frontier.giver);
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
   const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
-  if (ONLINE && !bar) { online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
+  if (ONLINE && !bar) { await AUTH_READY; online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
   const on = online;   // `online` is cleared when the fight ends; the first-tick mark belongs to this fight
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
     const wasOnline = online !== null;

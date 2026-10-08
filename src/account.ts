@@ -147,6 +147,7 @@ export async function mountAccount(url: string, key: string) {
   const denied = callback.searchParams.has('error');
   const returning = callback.searchParams.get('account') === 'return';
   if (returning) {
+    let wish: string | null = null; try { wish = takeZone1(sessionStorage); } catch { /* storage blocked: stay */ }   // taken (cleared) on every return, so a cancelled or failed sign-in cannot send a later arena sign-in to Zone 1
     for (const param of ['account', 'code', 'error', 'error_code', 'error_description', 'sb_flow_id']) callback.searchParams.delete(param);
     history.replaceState(null, '', callback.href);
     if (code) {
@@ -154,7 +155,7 @@ export async function mountAccount(url: string, key: string) {
         const { error } = await db.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
         await refresh(!error);
         if (error) status.textContent = 'Sign-in expired or failed. Please continue with Google again.';
-        else { let wish: string | null = null; try { wish = takeZone1(sessionStorage); } catch { /* storage blocked: stay */ } if (wish) location.replace(wish); }   // the Zone 1 sign-in link, honoured once
+        else if (wish) location.replace(wish);   // the Zone 1 sign-in link, honoured once, only after a successful sign-in
       } catch { await refresh(); status.textContent = 'Sign-in expired or failed. Please continue with Google again.'; }
     } else { await refresh(); if (denied) status.textContent = 'Sign-in cancelled. You can keep playing as a guest.'; }
   } else await refresh();

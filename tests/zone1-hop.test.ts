@@ -42,9 +42,12 @@ test('sign-in link: only ?account=signin&next=zone1 remembers Zone 1, and it is 
   const s = mem();
   for (const q of ['', '?account=signin', '?next=zone1', '?account=return&next=zone1', '?account=signin&next=//evil.example']) assert.equal(rememberZone1(q, s), false, q);
   assert.equal(takeZone1(s), null);
-  assert.equal(rememberZone1('?account=signin&next=zone1', s), true);
-  assert.equal(takeZone1(s), ZONE1_URL);
+  assert.equal(rememberZone1('?account=signin&next=zone1', s, 1_000), true);
+  assert.equal(takeZone1(s, 2_000), ZONE1_URL);
   assert.equal(takeZone1(s), null, 'once');
   assert.equal(rememberZone1('?account=signin&next=zone1', null), false);
   assert.equal(takeZone1(null), null);
+  rememberZone1('?account=signin&next=zone1', s, 1_000);
+  assert.equal(takeZone1(s, 1_000 + 11 * 60_000), null, 'an abandoned sign-in expires after 10 minutes');
+  assert.equal(takeZone1(s, 2_000), null, 'and the read cleared it');
 });

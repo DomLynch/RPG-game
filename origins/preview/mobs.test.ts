@@ -17,10 +17,10 @@ test('the Frontier is populated from the data: scavengers on the Cinder Fields, 
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
   assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
-  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul']);
+  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
   assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 21);
+  assert.equal(SPECS.length, 22);
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -172,7 +172,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '21 creatures: the Ash Wolf camp of three is live now (the wolves spawn sits mid-list, so the creatures after it take new seeds; re-pinned on purpose, Dom: wolves live)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
 test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {

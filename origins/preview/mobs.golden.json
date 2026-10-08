@@ -306,6 +306,23 @@
   "named": false
  },
  {
+  "id": "bears-1",
+  "character": "character:cinder-bear",
+  "name": "Cinder bear",
+  "encounter": null,
+  "body": "bear",
+  "level": 13,
+  "zone": "blood-ruin",
+  "spawn": "bears",
+  "home": {
+   "x": -274.77462979372257,
+   "z": -103.62154705500214
+  },
+  "roam": 6,
+  "aggro": 8,
+  "named": false
+ },
+ {
   "id": "boars-1",
   "character": "character:ash-boar",
   "name": "Ash boar",
@@ -315,8 +332,8 @@
   "zone": "cinder-fields",
   "spawn": "boars",
   "home": {
-   "x": -84.3661730582968,
-   "z": 85.1712705933306
+   "x": -74.26851520876689,
+   "z": 84.53106153279536
   },
   "roam": 5,
   "aggro": 6,
@@ -332,8 +349,8 @@
   "zone": "ferry-landing",
   "spawn": "opener",
   "home": {
-   "x": -154.11577598932269,
-   "z": -55.522423475981505
+   "x": -145.60991204658106,
+   "z": -36.285343563237376
   },
   "roam": 6,
   "aggro": 7,
@@ -349,8 +366,8 @@
   "zone": "cinder-fields",
   "spawn": "opener",
   "home": {
-   "x": -55.60991204658107,
-   "z": 43.71465643676265
+   "x": -60.54075701024726,
+   "z": 47.3056213077772
   },
   "roam": 8,
   "aggro": 7,
