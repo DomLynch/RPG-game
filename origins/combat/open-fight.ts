@@ -49,7 +49,7 @@ function eventsOf(list: readonly CombatEvent[], ids: readonly [string, string], 
 /** Live Input to a Pit Intent. The hero's walk is the page's (the world gives his position each step); the Input here is the press: a cut, a roll, a held guard, a special. */
 function intentOf(input: Input, guarding: boolean): Intent {
   const base = idleIntent();
-  const action = input.special ? 'skill' : input.roll ? 'dodge' : input.attack === 'heavy' ? 'heavy' : input.attack === 'kick' ? 'kick' : input.attack === 'light' ? 'light' : input.guard && !guarding ? 'parry' : null;   // open-world: a guard pressed fresh is the Pit's parry tap, held it is the standing guard
+  const action = input.special || input.skill ? 'skill' : input.roll ? 'dodge' : input.attack === 'heavy' ? 'heavy' : input.attack === 'kick' ? 'kick' : input.attack === 'light' ? 'light' : input.guard && !guarding ? 'parry' : null;   // open-world: a guard pressed fresh is the Pit's parry tap, held it is the standing guard
   const move = input.roll ? { x: input.roll.x, z: input.roll.z, yaw: 0, run: false } : { x: input.x, z: input.z, yaw: 0, run: !!input.run };
   return { ...base, move, action, guard: !!input.guard, lock: true };   // open-world: hero lock-on is the Pit's (he turns toward the foe while ready and in a windup)
 }
@@ -61,7 +61,7 @@ export function stepStream(s: Stream, hero: Fighter, cr: Fighter, input: Input, 
   for (let k = 0; k < ticks; k++) {
     const [ph, pc] = duel.fighters;
     // open-world: the hero's place, facing, stance and effective health come from the world each tick (the page walks him; gear scales damage by scaling the pool: Attack divides the creature's, RES the hero's).
-    const h: PitFighter = { ...ph, body: { ...ph.body, x: hero.x, z: hero.z, heading: ph.phase === 'roll' ? ph.body.heading : hero.facing }, health: hero.health / hero.res, maxHealth: hero.maxHealth / hero.res, stamina: hero.stamina, posture: hero.posture, ...(hero.stance ? { stance: hero.stance } : {}) };
+    const h: PitFighter = { ...ph, body: { ...ph.body, x: hero.x, z: hero.z, heading: ph.phase === 'roll' ? ph.body.heading : hero.facing }, health: hero.health / hero.res, maxHealth: hero.maxHealth / hero.res, stamina: hero.stamina, posture: hero.posture, skill: hero.skill, ...(hero.special ? {} : { skillCooldown: Math.round(hero.skillIn / TICK) }), ...(hero.stance ? { stance: hero.stance } : {}) };
     if (hero.special && h.specialShare === undefined) { h.specialShare = hero.level >= RULES.special.bossFrom ? RULES.special.bossDamage : RULES.special.damage; h.specialName = hero.special; h.skillCooldown = Math.round(hero.specialIn / TICK); }
     const c: PitFighter = { ...pc, health: cr.health / hero.attack, maxHealth: cr.maxHealth / hero.attack, ...(cr.stance ? { stance: cr.stance } : {}) };
     const before: Duel = { ...duel, fighters: [h, c] };
@@ -78,6 +78,6 @@ export function stepStream(s: Stream, hero: Fighter, cr: Fighter, input: Input, 
     f.x = p.body.x; f.z = p.body.z; f.facing = p.body.heading; f.health = p.health * mul; f.stamina = p.stamina; f.posture = p.posture; f.exhausted = p.exhausted; f.phase = phase; f.t = t;
   };
   write(hero, ph, hero.res); write(cr, pc, hero.attack);
-  if (ph.skillCooldown !== undefined && hero.special) hero.specialIn = ph.skillCooldown * TICK;
+  if (hero.special) hero.specialIn = ph.skillCooldown * TICK; else hero.skillIn = ph.skillCooldown * TICK;   // the duel's one cooldown is the special's when he has a named special, the skill's otherwise
   return { stream: { duel, ai, profile: s.profile }, events: out };
 }
