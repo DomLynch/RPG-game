@@ -1,0 +1,20 @@
+/* Design tokens (Strategy's alignment spec, 2026-10-08; see docs/DESIGN.md). Naming and the "one gold CTA per surface" rule follow World of ClaudeCraft (MIT, ~/Developer/donors/world-of-claudecraft, src/styles/tokens.css): names and ideas, our own values.
+   Every new screen (town, bank, rankings, book) reads these and adds no fill of its own. */
+:root {
+  --ink: #1b1916;                  /* text on gold / parchment */
+  --parchment: #f3e9cf;            /* text on the dark panel */
+  --gold: #b7a276;                 /* the primary fill: today's sand */
+  --gold-edge: #e9d9b3;
+  --panel: #172329e6;              /* the secondary fill: the cluster's dark glass */
+  --panel-edge: #e9d9b380;         /* the gold edge of a secondary */
+  --danger: #b5483a;
+  --ok: #6f9a6b;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s6: 24px;   /* the 4 px grid */
+  --r-btn: 8px; --r-panel: 12px;
+  --t-12: 12px; --t-14: 14px; --t-16: 16px; --t-20: 20px; --t-28: 28px;   /* serif titles only at 20 and up; nothing under 12 */
+  --touch: 44px; --touch-primary: 48px;
+}
+/* The three button styles. ONE gold primary per screen; every other text button is a secondary; icon buttons are 44 px square or more. */
+.btn-primary, .btn-secondary { box-sizing: border-box; min-height: var(--touch-primary); padding: 0 var(--s3); border-radius: var(--r-btn); font: 700 var(--t-14)/1.1 "Instrument Sans", Arial, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-primary { background: var(--gold); border: 1px solid var(--gold-edge); color: var(--ink); box-shadow: inset 0 0 0 3px #f0e3c93d, 0 2px 10px #0007; }
+.btn-secondary { background: var(--panel); border: 1px solid var(--panel-edge); color: var(--parchment); }
