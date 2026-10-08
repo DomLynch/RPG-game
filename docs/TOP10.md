@@ -97,6 +97,8 @@ Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to
 | 8 | Banker behind a counter, skyline ring, Talk / Trade verbs | World (skyline), Web (verbs), Characters (banker) |
 | 9 | Regional building variants | Characters + World |
 
+**A, addition (Dom, 2026-10-08 10:3x): townspeople sleep at night; at 4 am the streets are empty.** Implemented as a schedule on each NPC row (Gothic-style daily routine: home, work and sleep hours, driven by the 24-hour world clock). Shops shut about 22:00-06:00 (shutters down, lights off, the vendor walks home). The bank stays open with a night teller and one night trader keeps a stall, so a 4 am phone player is never blocked. The town screen in the menu shows what is open now. Owner: World (schedules and the clock) with Backend (the shop open/closed check on every buy).
+
 **B. Day and night.** A simple real 24-hour world clock: server time, one clock for everyone, normal sunrise and sunset, no daylight saving or anything clever. Use the existing `ambience.dayNightSpeed` (1 = real time) plus a sky/fog/light gradient by hour, and a `night` flag on spawn rows so vampires and werewolves can be night-only later. Owner: World, together with the Zone 1 sky work.
 
 Items not on this list wait.
