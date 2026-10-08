@@ -7,7 +7,7 @@ import type { MobSpec } from './mobs.ts';
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
   const driven = new Map<string, MobDrive>(), fell: string[] = [];
-  const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id) } as unknown as Mobs;
+  const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id) } as unknown as Mobs;
   return { mobs, driven, fell };
 }
 const run = (wc: ReturnType<typeof createWorldCombat>, hero: { x: number; z: number; facing: number }, seconds: number, dt = 1 / 30) => { for (let t = 0; t < seconds; t += dt) wc.update(dt, hero); };
@@ -26,7 +26,7 @@ test('a wolf that comes within the ring joins the loop, hunts, telegraphs, bites
 
 test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once, and the creature is released', () => {
   const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 1.2 }]); const kills: string[] = []; let swings = 0;
-  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => void kills.push(s.id), onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void swings++ });
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void swings++ });
   for (let i = 0; i < 80 && kills.length === 0; i++) { wc.press(); run(wc, { x: 0, z: 0, facing: 0 }, 0.5); }
   assert.ok(swings >= 1); assert.deepEqual(kills, ['wolf-1']); assert.ok(!f.driven.has('wolf-1'), 'released after the fall'); assert.equal(wc.target(), null);
 });
