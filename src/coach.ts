@@ -11,7 +11,7 @@ import { PROFILES, type AiProfile, type Level } from './moves.ts';
 import { PICKS, type PickedStance } from './stance.ts';
 
 // The knobs a stance brain may set: how it PLAYS (cadence, guard, feints, kicks), never how fast it sees. Numbers are the stance battery's BY_STANCE brains (scripts/stance-battery.mjs), which
-// Strategy ruled (2026-10-07) are what a human who picks that stance plays; neutral is the player-level profile untouched.
+// Strategy ruled (2026-10-07) are what a human who picks that stance plays; neutral is the player-level profile with the coach's own lapse and read (every stance sets them, RV-free tuning in #1809), and coachProfile adds the per-foe lapse on top.
 export const COACH_BRAINS: Readonly<Record<PickedStance, Partial<AiProfile>>> = {
   neutral: { lapse: 0.5, read: 0.5 },
   aggressive: { aggression: 0.9, parry: 0.2, lapse: 0.6, read: 0.45 },
@@ -34,7 +34,7 @@ export const coachProfile = (stance: PickedStance, level: Level = 'normal', foe?
 };
 
 export type Coach = { stance: PickedStance; level: Level; step(duel: Duel): Intent };
-// The coach is the player's side (fighters[0]): a fresh brain state per fight from the fight's seed, so a coached fight is a pure function of (seed, stance, level) and the record's intents.
+// The coach is the player's side (fighters[0]): a fresh brain state per fight from the fight's seed, so a coached fight is a pure function of (seed, stance, level, foe) and the record's intents (foe moves only the lapse, FOE_LAPSE).
 export function createCoach(stance: PickedStance, seed: number, level: Level = 'normal', side: 0 | 1 = 0, foe?: string): Coach {
   const profile = coachProfile(stance, level, foe);
   let ai: AiState = initialAi((seed * 2654435761) >>> 0);
