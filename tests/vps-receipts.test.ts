@@ -8,7 +8,7 @@ const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8
 const source = (script: string) => { try { return readFileSync(script, 'utf8'); } catch { return null; } };
 const tree = 'a'.repeat(40);
 type Row = { index: number; command: string; timing?: string };
-const rows: Row[] = rowSet(commands, source, sums);
+const rows: Row[] = rowSet(commands, source);
 const sums = { 'run-rows.sh': 'r'.repeat(64), 'rows-json.mjs': 'j'.repeat(64), 'rows-lib.mjs': 'l'.repeat(64) };
 const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', flavor: 'vps-cpu', scripts: sums, tree, buildStatus: 0, dirty: 0, rows: rows.map((r: Row) => ({ ...r, status: 'pass' })), ...over });
 
@@ -58,6 +58,11 @@ test('a receipt is refused without a known flavor (no GPU) or when its runner ch
   }
   assert.deepEqual(trustedFromVps(receipt(), tree, commands, source), [], 'no own checksums to compare = not trusted');
   assert.ok(trustedFromVps(receipt({ flavor: 'cpu-upgrade' }), tree, commands, source, sums).length > 0);
+  // t4-medium (a real GPU) may cover wall-clock rows, never WebKit; the cpu flavors never cover wall rows.
+  const cpu: number[] = trustedFromVps(receipt({ flavor: 'cpu-upgrade' }), tree, commands, source, sums);
+  const t4: number[] = trustedFromVps(receipt({ flavor: 't4-medium' }), tree, commands, source, sums);
+  assert.ok(t4.length > cpu.length && cpu.every(i => t4.includes(i)));
+  for (const name of ['double-tap-browser-check', 'next-fight-black-check']) assert.ok(!t4.includes(commands.findIndex((c: string[]) => c.join(' ').includes(name)) + 1), `${name}: WebKit stays on the Mac`);
 });
 
 test('N shard receipts for one tree: each row once, a shard of another tree adds nothing', () => {

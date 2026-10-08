@@ -24,18 +24,18 @@ export function sourceWithImports(script, readSource, seen = new Set()) {
 // Not trusted from the VPS whatever its receipt says: a missing script, a WebKit launch (Linux WebKit is not Mac Safari), a real-clock
 // resume, or a wall-clock browser row (software GL runs the fight at ~1/5 speed: the T4's or the Mac's to judge). Virtual-clock
 // Chromium rows and no-browser rows are deterministic on both boxes, so a VPS pass is a pass. Judged on the script AND its imports.
-export const vpsSafeRow = (command, argv, readSource) => {
+export const vpsSafeRow = (command, argv, readSource, allowWall = false) => {
   const script = argv.find(arg => /\.(mjs|js|sh)$/.test(arg));
   const source = script ? sourceWithImports(script, readSource) : null;
   if (source === null) return false;
   // Any non-comment `webkit` in the script or its imports (a row can pick its engine through a variable: engine = x ? webkit : chromium).
   const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   if (isWebKitRow(command) || /\bwebkit\b/i.test(code) || /clock\s*\.\s*resume/.test(code)) return false;
-  return timingOf(source) !== 'wall';
+  return allowWall || timingOf(source) !== 'wall';
 };
 // Flavors a receipt may name (Dom's hardware rule 2026-10-08: the VPS box or the Hugging Face cpu-upgrade tier; never a GPU). A receipt
 // with no flavor, or another one, is refused.
-export const FLAVORS = ['vps-cpu', 'cpu-upgrade'];
+export const FLAVORS = ['vps-cpu', 'cpu-upgrade', 't4-medium'];
 // The runner files a receipt names (sha256 by file name) must equal the deploy tree's own copies: a run started from another checkout
 // copied different runner scripts into the shared bin/. `ownSums` = { 'run-rows.sh': sha256, ... } of the deploy tree.
 export const boundToTree = (receipt, ownSums) => !!receipt?.scripts && Object.keys(ownSums).length > 0 && Object.entries(ownSums).every(([name, sum]) => receipt.scripts[name] === sum);
@@ -46,7 +46,7 @@ export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}
   return (receipt.rows || [])
     .filter(row => row.status === 'pass' && !(row.exit > 0))
     .filter(row => commands[row.index - 1]?.join(' ') === row.command)   // a renumbered or edited row is never trusted by number
-    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource))
+    .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, receipt.flavor === 't4-medium'))   // only a real GPU may vouch for wall-clock rows
     .map(row => row.index).sort((a, b) => a - b);
 }
 
