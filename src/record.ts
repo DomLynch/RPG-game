@@ -195,7 +195,7 @@ export function packRecord(rec: FightRecord): Uint8Array {
   if (r.group && !(Number.isInteger(r.group.n) && Number.isInteger(r.group.index) && r.group.n >= 2 && r.group.n <= 7 && r.group.index >= 0 && r.group.index < r.group.n)) throw Error('Fight record: unknown group');
   if (r.pose && r.v < FIRST_POSE_VERSION) throw Error('Fight record: a pose on a version that has no flag for it');
   if ((r.v as number) === FIRST_POSE_VERSION && !r.pose) throw Error('Fight record: a version 38 record names its pose');
-  if (r.pose) { validatePose(r.pose); const rp = roundPose(r.pose); if (JSON.stringify(rp) !== JSON.stringify(r.pose)) throw Error('Fight record: a pose is float32 (roundPose it before the fight begins)'); }
+  if (r.pose) { validatePose(r.pose, false); const rp = roundPose(r.pose); if (JSON.stringify(rp) !== JSON.stringify(r.pose)) throw Error('Fight record: a pose is float32 (roundPose it before the fight begins)'); }
   if (r.stances && r.v < FIRST_STANCE_VERSION) throw Error('Fight record: stances on a version that has no flag for them');
   if (r.v === FIRST_STANCE_VERSION && !r.stances) throw Error('Fight record: a version 34 record names its stances');
   if (r.stances && !PICKS.includes(r.stances)) throw Error('Fight record: unknown stance');
@@ -259,7 +259,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   const patron = v >= FIRST_PATRON_VERSION ? bytes[o++] : 0;   // before version 32 there is no byte: no patron; a v32 record always names one (the writer never emits 32 without)
   if (v === FIRST_PATRON_VERSION && !patron) throw Error('Fight record: a version 32 record names a patron');
   let pose: DuelPose | undefined;
-  if (flag & 32) { const f = (): number => { const n = dv.getFloat32(o, true); o += 4; return n; }; pose = { hero: { x: f(), z: f() }, foe: { x: f(), z: f() }, heroFacing: f() }; try { validatePose(pose); } catch { throw Error('Fight record: unusable pose'); } }
+  if (flag & 32) { const f = (): number => { const n = dv.getFloat32(o, true); o += 4; return n; }; pose = { hero: { x: f(), z: f() }, foe: { x: f(), z: f() }, heroFacing: f() }; try { validatePose(pose, false); } catch { throw Error('Fight record: unusable pose'); } }
   let group: RecordGroup | undefined;
   if (flag & 64) { const b = bytes[o++]!; group = { n: b & 15, index: b >> 4 }; if (group.n < 2 || group.n > 7 || group.index >= group.n) throw Error('Fight record: unknown group'); }
   const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];

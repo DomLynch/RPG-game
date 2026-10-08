@@ -36,12 +36,18 @@ test('absent pose: the record keeps its old version and its old bytes (no pose f
   assert.equal(unpackRecord(bytes).pose, undefined);
 });
 
-test('a pose that is not float32, or that decodes outside the wall, is refused', () => {
+test('a pose is decoded without the live wall: a valid goblin pose 6 m out decodes whatever the last fight\'s circle was; a non-finite or overlapping one is still refused', () => {
+  const far = roundPose({ hero: { x: -3, z: 5.1 }, foe: { x: 3, z: 5.2 }, heroFacing: 1 }), live = fight({ ...meta, opponent: 'goblin', pose: far }).record, bytes = packRecord(live);
+  setPlayScale(playScaleFor('veteran', RECORD_VERSION));   // the page's last fight was Arena One: RADIUS 3.79, the pose is 6 m out
+  assert.deepEqual(unpackRecord(bytes).pose, far);
+});
+
+test('a pose that is not float32, or that decodes with a non-finite number, is refused', () => {
   const rec = fight({ ...meta, pose }).record;
   assert.throws(() => packRecord({ ...rec, pose: { ...pose, heroFacing: 0.1 } }), /float32/);
   const bytes = packRecord(rec), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const at = bytes.length - 6 * rec.ticks - 1 - 4 - 4 - 1 - 20;   // header minus level, seed, ticks, outcome = the pose block
-  const bad = bytes.slice(); new DataView(bad.buffer).setFloat32(at, 99, true);
+  const bad = bytes.slice(); new DataView(bad.buffer).setFloat32(at, NaN, true);
   assert.equal(dv.getFloat32(at, true), Math.fround(pose.hero.x), 'the offset lands on the first float');
   assert.throws(() => unpackRecord(bad), /unusable pose/);
 });
