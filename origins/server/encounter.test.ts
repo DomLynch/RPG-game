@@ -217,7 +217,7 @@ test('settle a poseless WORLD token with a legal pose: verified (the fight start
 
 // Dom's world-fight rule (migration 202610080013): the creature keeps its fight (a derived seed), and a world stalemate or unverified record records nothing.
 test('seed with 0013: derived from the key, account, fight and last paid kill; the same across restarts; a kill, another account or another fight changes it; no key = 503; without 0013 random', async () => {
-  const key = 'k'.repeat(64), two = (id: string) => (id === 'encounter:knight' || id === 'encounter:knight-b' ? RESOLVED : null);
+  const key = 'k'.repeat(64), two = (_w: unknown, id: string) => (id === 'encounter:knight' || id === 'encounter:knight-b' ? RESOLVED : null);
   const startOn = async (killAt: string | null | undefined, account = ACCOUNT, encounter = 'encounter:knight', over: Partial<Parameters<typeof deps>[0]> = { seedKey: key }) => {
     const ops = encounterOps(deps({ resolve: two, ...over }));
     return (await ops.encounter_start!({ db: fakeDb({ t: 0 }, killAt).db, account }, { character: CHAR, encounter }) as { seed: number }).seed;

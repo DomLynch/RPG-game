@@ -58,7 +58,9 @@ test('the readers refuse what is not the writer\'s shape', () => {
   assert.equal(fightOf({ ...fight, token: 5 }), null);
   assert.equal(fightOf({ ...fight, bar: 'x' }), null);
   assert.equal(fightOf({ ...fight, expiresAt: 5 }), null);
-  assert.equal(settledOf({ result: 'draw', verified: true, ticks: 1, event: 'e' }), null);
+  assert.equal(settledOf({ result: 'tie', verified: true, ticks: 1, event: 'e' }), null);
+  assert.equal(settledOf({ result: 'won', verified: true, ticks: 1, event: 5 }), null);
+  assert.deepEqual(settledOf({ result: 'draw', verified: true, twist: null, ticks: 9, event: null }), { result: 'draw', verified: true, twist: null, ticks: 9, event: null }, 'a world stalemate: nothing recorded (202610080013)');
   assert.deepEqual(settledOf({ result: 'lost', verified: false, twist: null, ticks: 0, event: 'enc:x', reason: 'r' }), { result: 'lost', verified: false, twist: null, ticks: 0, event: 'enc:x', reason: 'r' });
 });
 
