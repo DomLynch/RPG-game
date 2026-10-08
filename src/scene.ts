@@ -1402,7 +1402,8 @@ export function createScene(
       } : null, OPPONENTS[opponentId].scale, framingTall(opponentId), framingLow(opponentId));
       if (worldCam) {   // behind the hero, away from the foe, at the walk camera's distance and height; the aim is the foe (the lock)
         const dx = state.x - practice.enemy.x, dz = state.z - practice.enemy.z, n = Math.hypot(dx, dz) || 1;
-        camera.position.set(state.x + dx / n * worldCam.back, worldCam.up, state.z + dz / n * worldCam.back);
+        const gap = Math.max(n, 0.8), side = Math.min(1.2, 0.5 * framingLow(opponentId) * (worldCam.back + gap) / gap);   // a low foe (the wolf, the boar's kin) would hide behind the hero's body: the same shoulder step as the duel lock (camera.ts LOW_SIDE)
+        camera.position.set(state.x + dx / n * worldCam.back - dz / n * side, worldCam.up, state.z + dz / n * worldCam.back + dx / n * side);
         camera.lookAt(wcFoe.set(practice.enemy.x, 1.3, practice.enemy.z));
       }
       if (ease) {
