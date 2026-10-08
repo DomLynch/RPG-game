@@ -32,7 +32,6 @@ export const VARIETY: Readonly<Record<string, { id: 'lunge' | 'charge' | 'heavy'
   boar: { id: 'charge', p: 0.25, windup: 0.7, mul: 1.6, dash: 4, breaksGuard: false },
   bear: { id: 'heavy', p: 0.25, windup: 0.9, mul: 2, dash: 0, breaksGuard: true },
 };
-export const PARRY_STAGGER_S = 0.7;                     // a perfect block of a creature's plain blow throws the creature off for this long (a heavy / charge cannot be parried: roll it)
 
 /** Creature levels (Dom: copy the Pit): a creature of level L has the Pit's own level body (moves.ts `opponentAt`: health and poise by level) and, in a one-on-one fight, the Pit's level brain (`profileAt`). No Zone 1 scaling of our own. */
 export const MAX_LEVEL = LEVELS;
@@ -126,7 +125,7 @@ const blowOf = (f: Fighter, press: 'light' | 'heavy' | 'kick' = 'light'): MoveDe
 };
 /** A blow connects from the attacker's centre to the victim's edge, inside its cone. */
 const inReach = (a: Fighter, b: Fighter, move: MoveDef): boolean => dist(a, b) <= move.reach + b.radius && Math.abs(wrap(aim(a, b) - a.facing)) <= HIT_ARC / 2;
-const invulnerable = (f: Fighter): boolean => f.phase === 'roll' && f.t >= secs(RULES.safeStart) && f.t < secs(RULES.safeEnd);
+const invulnerable = (f: Fighter): boolean => { const age = Math.round(f.t / TICK); return f.phase === 'roll' && age >= RULES.safeStart && age <= RULES.safeEnd; };   // duel.ts: age >= safeStart && age <= safeEnd (inclusive)
 const covered = (v: Fighter, a: Fighter): boolean => Math.abs(wrap(aim(v, a) - v.facing)) <= HIT_ARC / 2;   // the blow comes from the front of a guard
 
 function spend(f: Fighter, cost: number): void {
@@ -162,26 +161,33 @@ function land(a: Fighter, v: Fighter, row: MoveDef, events: Event[]): void {
   const kickOnGuard = row.id === 'kick' && v.phase === 'guard', dealtPosture = kickOnGuard ? stanced(a, 'kickPosture', stanced(a, 'posture', row.posture)) : stanced(a, 'posture', row.posture);
   const move = a.attack === 1 && v.res === 1 && sd === row.damage && dealtPosture === row.posture ? row : { ...row, damage: Math.round(sd * a.attack * v.res), posture: dealtPosture };   // stance, gear and level scale damage (chip follows it) and posture dealt; timings are untouched
   if (invulnerable(v)) { events.push({ type: 'Dodged', attacker: a.id, victim: v.id }); return; }
-  if (move.vsGuard && v.phase === 'guard') {   // a kick goes through a standing guard: a little damage, the guard's stamina, a long stagger
+  const age = Math.round(v.t / TICK), covers = v.phase === 'guard' && covered(v, a), window = Math.round(stanced(v, 'window', RULES.parry));   // ticks since the guard went up; the parry window is the Pit's 10 ticks (a Defensive stance's a quarter longer), then RULES.perfectBlock ticks of perfect block
+  if (move.vsGuard && v.phase === 'guard') {   // a kick goes through a standing guard: a little damage, the guard's stamina, a long stagger, and the posture (duel.ts ends this branch with shake(j, dealtPosture(def.posture)))
     events.push({ type: 'Hit', attacker: a.id, victim: v.id, damage: move.damage, move: move.id });
     if (hurt(a, v, move.damage, events)) return;
-    spend(v, move.vsGuard.staminaDamage); stagger(v, move.vsGuard.stagger, 'kick', events);
+    spend(v, move.vsGuard.staminaDamage); stagger(v, move.vsGuard.stagger, 'kick', events); addPosture(v, move.posture, events);
     return;
   }
-  if (v.phase === 'guard' && !move.breaksGuard && covered(v, a)) {   // a frontal block: no damage but the row's chip; the stamina and posture it costs are the row's own
-    const perfect = v.t < secs(Math.round(stanced(v, 'window', RULES.perfectBlock))), chip = Math.round(move.damage * move.chip);
+  if (covers && age < window && move.parryable) {   // PARRY (duel.ts: guarding && age < window && parryable): no damage, the attacker is thrown off for RULES.parryStun and takes RULES.posture.parry
+    events.push({ type: 'Blocked', attacker: a.id, victim: v.id, perfect: true, damage: 0 });
+    stagger(a, RULES.parryStun, 'parry', events); addPosture(a, RULES.posture.parry, events);
+    return;
+  }
+  const blockCost = stanced(v, 'block', move.staminaDamage), perfect = age - window < RULES.perfectBlock;
+  if (covers && !move.breaksGuard && v.stamina >= (perfect ? blockCost * RULES.perfectBlockCost : blockCost)) {   // a frontal block: a perfect block (the first RULES.perfectBlock ticks after the parry window) pays half and stops the chip
+    const chip = perfect ? 0 : Math.round(move.damage * move.chip);
     events.push({ type: 'Blocked', attacker: a.id, victim: v.id, perfect, damage: chip });
-    if (perfect && a.side === 'creature' && a.plan === 'basic' && alive(a)) stagger(a, PARRY_STAGGER_S * 60, 'parry', events);   // a parry: the creature's plain blow is turned aside and it staggers
     if (chip > 0 && hurt(a, v, chip, events)) return;
-    spend(v, stanced(v, 'block', move.staminaDamage) * (perfect ? RULES.perfectBlockCost : 1));
+    spend(v, perfect ? blockCost * RULES.perfectBlockCost : blockCost);
     addPosture(v, move.posture * (perfect ? RULES.posture.perfect : 1), events);
-    if (v.phase === 'guard' && v.stamina <= 0) { v.stamina = 0; stagger(v, RULES.posture.stun, 'guardBreak', events); }   // the guard gave out
     return;
   }
+  const extra = v.exhausted && (move.charges || move.id === 'kick') ? RULES.exhaustedStun : 0;   // RULES.exhaustedStun: a heavy or a kick landing on an exhausted fighter stuns longer
   events.push({ type: 'Hit', attacker: a.id, victim: v.id, damage: move.damage, move: move.id });
   if (hurt(a, v, move.damage, events)) return;
+  if (covers) { spend(v, RULES.breakCost); stagger(v, move.stagger + extra, 'guardBreak', events); v.posture = 0; return; }   // the guard was broken (a blow that breaks guards, or a bar that cannot pay the block): full damage, breakCost, stagger, posture reset (duel.ts GuardBroken)
   addPosture(v, move.posture, events);
-  if (v.phase !== 'stagger' && move.damage >= v.poise) stagger(v, move.stagger, 'hit', events);   // a plain clean hit dealing less than poise never staggers (moves.ts Opponent.poise)
+  if (v.phase !== 'stagger' && move.damage >= v.poise) stagger(v, move.stagger + extra, 'hit', events);   // a plain clean hit dealing less than poise never staggers (moves.ts Opponent.poise)
 }
 
 /** Creatures do not stand inside one another: a creature pushed out of any other creature's body (half each, the way the hero's own spacing is kept). */

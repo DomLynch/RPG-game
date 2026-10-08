@@ -282,20 +282,55 @@ test('variety: the bear heavy goes through a raised guard; its plain swipe does 
   assert.equal(hitsOn(NEVER), 0, 'plain swipe is blocked');
 });
 
-test('parry: a perfect block of a creature\'s plain blow staggers the creature; a heavy is not parried', () => {
+test('parry (duel.ts: guarding && age < window && parryable): a guard up inside the 10-tick window turns a creature\'s blow aside - no damage, the creature is thrown off for parryStun - whatever the blow', () => {
   const mk = (rand: () => number) => {
     let w = legacy([player('p', 0, 0, 0), creature('c', 'wolf', 0, 1.2)]); const events: Event[] = [];
     for (let t = 0; t < 360; t++) {
-      const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= secs0(c.move!.windup) - 0.04;   // raise the guard just before the blow lands
+      const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= c.move!.windup / 60 - 0.04;   // raise the guard just before the blow lands
       const r = stepCombat(w, { p: { x: 0, z: 0, guard } }, DT, rand); w = r.world; events.push(...r.events);
     }
     return events;
   };
-  const secs0 = (ticks: number) => ticks / 60;
-  const plain = mk(NEVER);
-  assert.ok(plain.some((e) => e.type === 'Blocked' && e.perfect), 'perfect block');
-  assert.ok(plain.some((e) => e.type === 'Staggered' && e.id === 'c' && e.cause === 'parry'), 'the creature is parried');
-  assert.ok(!mk(ALWAYS).some((e) => e.type === 'Staggered' && e.cause === 'parry'), 'the lunge cannot be parried');
+  for (const rand of [NEVER, ALWAYS]) {
+    const ev = mk(rand);
+    assert.ok(ev.some((e) => e.type === 'Blocked' && e.perfect), 'parried');
+    assert.ok(ev.some((e) => e.type === 'Staggered' && e.id === 'c' && e.cause === 'parry' && e.ms === Math.round((RULES.parryStun / 60) * 1000)), 'the creature is thrown off for parryStun');
+    assert.ok(!ev.some((e) => e.type === 'Hit' && e.victim === 'p'), 'no damage');
+  }
+});
+
+// ---- the Auditor's three duel.ts rows (#1888 hold): perfect block = no chip; an unaffordable block = guard broken; a kick into a guard puts posture on it ----
+const guardDuel = (attack: 'light' | 'heavy' | 'kick', raiseAt: number, opts: { stamina?: number; atkStance?: 'trickster' | 'neutral' } = {}) => {
+  const a = withStance(player('a', 0, 0, 0, undefined, 10), opts.atkStance ?? 'neutral'), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+  if (opts.stamina !== undefined) b.stamina = opts.stamina;
+  let w = newWorld([a, b]); const events: Event[] = []; let atHit = -1;
+  for (let t = 0; t < 120; t++) { const r = stepCombat(w, { a: t === 0 ? { x: 0, z: 0, attack } : STILL, b: { x: 0, z: 0, guard: t >= raiseAt } }, DT, NEVER); w = r.world; events.push(...r.events); if (atHit < 0 && r.events.some((e) => e.type === 'Hit' && e.victim === 'b')) atHit = get(w, 'b').posture; }
+  return { w, events, atHit };
+};
+
+test('duel.ts row: a PERFECT block (the RULES.perfectBlock ticks after the parry window) takes no chip; an ordinary block takes the row\'s chip', () => {
+  const heavy = MOVES.heavy_overhead, perfect = guardDuel('heavy', heavy.windup - RULES.parry - 1), plain = guardDuel('heavy', 0);   // raised parry+1 ticks before the blow lands = 1 tick into the perfect block
+  assert.ok(perfect.events.some((e) => e.type === 'Blocked' && e.perfect && e.damage === 0), 'perfect block, chip 0');
+  assert.equal(get(perfect.w, 'b').health, RULES.health, 'no chip taken');
+  assert.ok(plain.events.some((e) => e.type === 'Blocked' && !e.perfect && e.damage === Math.round(heavy.damage * heavy.chip)), 'ordinary block pays the chip');
+  assert.equal(get(plain.w, 'b').health, RULES.health - Math.round(heavy.damage * heavy.chip));
+});
+
+test('duel.ts row: a guard that cannot afford the block is GUARD-BROKEN - full damage, RULES.breakCost, a guardBreak stagger, posture reset', () => {
+  const heavy = MOVES.heavy_overhead, r = guardDuel('heavy', 0, { stamina: 1 });
+  assert.ok(!r.events.some((e) => e.type === 'Blocked'), 'it does not block');
+  assert.ok(r.events.some((e) => e.type === 'Hit' && e.victim === 'b' && e.damage === heavy.damage), 'full damage');
+  assert.ok(r.events.some((e) => e.type === 'Staggered' && e.id === 'b' && e.cause === 'guardBreak'), 'guard-break stagger');
+  assert.equal(get(r.w, 'b').health, RULES.health - heavy.damage);
+  assert.equal(get(r.w, 'b').posture, 0, 'posture reset');
+});
+
+test('duel.ts row: a kick into a held guard puts posture on it, and a Trickster\'s puts 50 % more (src/stance.ts kickPosture)', () => {
+  const kick = MOVES.kick, plain = guardDuel('kick', 0), trick = guardDuel('kick', 0, { atkStance: 'trickster' });
+  const posture = (r: ReturnType<typeof guardDuel>) => r.atHit;   // the posture the tick the kick lands (it drains afterwards)
+  assert.ok(posture(plain) > 0, 'a kick through a guard fills posture');
+  assert.ok(Math.abs(posture(trick) / posture(plain) - 1.5) < 0.1, `trickster ${posture(trick)} vs ${posture(plain)}`);
+  void kick;
 });
 
 test('live default rand: the variety blow comes up about 1 attack in 4, and stepCombat works with no rand argument', () => {
