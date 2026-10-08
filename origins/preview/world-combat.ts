@@ -34,6 +34,7 @@ export function createWorldCombat(d: Deps) {
     if (ev.type === 'Telegraph') { if (ev.id === ME) d.onSwing(); else { const f = fxOf(ev.id); f.windupT = 0.0001; f.windupMs = ev.ms; d.onTelegraph?.(ev.id, ev.ms); } }
     else if (ev.type === 'Swing' && ev.id !== ME) fxOf(ev.id).swingT = 0.0001;
     else if (ev.type === 'Hit') { if (ev.victim === ME) d.onHeroHit(ev.damage); else fxOf(ev.victim).hurtT = PULSE_S; }
+    else if (ev.type === 'Evaded') release(ev.id);   // it gave up, walked home and healed: back to its own wander
     else if (ev.type === 'Died') { if (ev.id === ME) { heroDead = true; d.onHeroDied(); } else fxOf(ev.id).fallT = 0.0001; }
   }
   return {
