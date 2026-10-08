@@ -25,6 +25,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
+import { drawOutlawCamp } from './outlaw-camp.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -119,6 +120,9 @@ if (frontier) {
   const g = frontier.giver, giver = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.2, 4, 10), new THREE.MeshStandardMaterial({ color: '#6b3a22', roughness: 0.9 }));
   giver.position.set(g.at.x, 0.9, g.at.z); giver.castShadow = true; scene.add(giver);
 }
+// The outlaw camp (PvP design): a small caravan camp away from town, Characters' kit placed by name at the Ferry Landing spot; ?camp=0 leaves it out. Anchors (bank, trader, fire, reds' respawn) are for Backend/Combat.
+let outlawAnchors: Awaited<ReturnType<typeof drawOutlawCamp>> = null;
+if (frontier && !/[?&]camp=0\b/.test(location.search)) void drawOutlawCamp(scene, () => 0, import.meta.env.BASE_URL).then((a) => { outlawAnchors = a; });
 // Greybox stand-ins for the assets map's null entries: Orla at her anvil (a figure in the envoys' capsule style) and the ore cart's pile.
 const orla = new THREE.Mesh(new THREE.CapsuleGeometry(T.orla.radius, T.orla.length, 4, 10), body.material);
 orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.castShadow = true;
@@ -562,6 +566,7 @@ async function startMobFight(spec: MobSpec) {
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
+  outlawCamp: () => outlawAnchors,
   presence: () => ({ state: presence?.state() ?? 'off', others }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
