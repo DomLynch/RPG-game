@@ -590,3 +590,13 @@ test('a lone creature never begins a blow on the world layer: every kind x rand 
     assert.ok(streamed, `${kind} from ${d} m reaches the duel`);
   }
 });
+
+test('skill: the SKILL button fires the equipped skill\'s move (the Pit\'s single button; match.ts:110 hands the skill to the duel hero the same way), in the open and on the duel, with the cooldown spent at commitment', () => {
+  const press = (w0: World, seconds: number) => { let w = w0; const events: Event[] = []; for (let t = 0; t < seconds * 60; t++) { const r = stepCombat(w, { p: t === 0 || t === 60 ? { x: 0, z: 0, skill: true } : STILL }, DT, NEVER); w = r.world; events.push(...r.events); } return { w, tells: events.filter((e) => e.type === 'Telegraph' && e.id === 'p') as Extract<Event, { type: 'Telegraph' }>[] }; };
+  const open = press(newWorld([player('p', 0, 0, 0, undefined, 10, 'pommel'), creature('c', 'goblin', 0, 8)]), 2);
+  assert.deepEqual(open.tells.map((e) => e.move), ['skill_pommel'], 'fires once in the open (the second press is inside the cooldown)');
+  assert.ok(get(open.w, 'p').skillIn > 0, 'cooldown running');
+  const duel = press(newWorld([player('p', 0, 0, 0, undefined, 10, 'pommel'), creature('c', 'goblin', 0, 2)]), 2);
+  assert.ok(duel.tells.length >= 1 && duel.tells[0]!.move === 'skill_pommel', `fires on the duel: ${duel.tells.map((e) => e.move)}`);
+  assert.equal(press(newWorld([player('p', 0, 0)]), 1).tells.length, 0, 'no skill equipped: nothing fires');
+});
