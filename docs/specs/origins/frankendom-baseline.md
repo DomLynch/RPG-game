@@ -68,14 +68,13 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 | 7 | Master I–V | 31–35 | 30–34 |
 | 8 | Primus I–V | 36–40 | 35–39 |
 | 9 | Invictus I–V | 41–45 | 40–44 |
-| 10 | Origin (no numeral) | 46 | 45+ |
+| 10 | Origin I–V | 46–50 | 45–49+ |
 
 **How a rank is computed:**
 
-- `level = levelOf(marks) = min(46, 1 + floor(max(0, marks)))`. A non-finite value counts as 0 (`src/career.ts:25-27`, `MAX_LEVEL = 46` at `:9`).
+- `level = levelOf(marks) = min(50, 1 + floor(max(0, marks)))`. A non-finite value counts as 0 (`src/career.ts`, `MAX_LEVEL = 50` at `:9`; was 46 before Dom's Origin I–V ruling, 2026-10-05).
 - `rankFor(marks)` (`src/career.ts:48-53`):
-  - At level 46 the rank is `Origin`.
-  - Otherwise the title is `TITLES[floor((level-1)/5)]`, the numeral is `I..V[(level-1) % 5]`, and the label is `"<Title> <Numeral>"`.
+  - The title is is `TITLES[floor((level-1)/5)]`, the numeral is `I..V[(level-1) % 5]`, and the label is `"<Title> <Numeral>"`.
 - Each sub-rank takes one win. Marks only ever increase (`awardMark`, `:19-23`), so a rank never demotes (`:3-7`).
 
 Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITLES[2]`, and as a tier it is `grades.levelOf('Gladiator') = 3` (`src/grades.ts:18`). As a *career level*, though, Gladiator I is level 11 (10 wins). Origins docs must say which scale they mean: tier 1–10 or level 1–46.
