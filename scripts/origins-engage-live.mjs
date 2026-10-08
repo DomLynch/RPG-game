@@ -1,9 +1,17 @@
-// Player-path engage trace (Dom's seamless bar, worst gap < 200 ms on Mac Metal). URL=<page> (default the live Zone 1), RUNS=3, GL=swiftshader for a software run. Real GPU by default.
-// Player-path engage trace on the LIVE build, real GPU. Fresh page load per run; wait idle; start rAF gap log + longtask observer + CPU profile >= 1 s BEFORE engage;
+// Player-path engage trace (Dom's seamless bar: worst gap < 200 ms on Mac Metal). URL=<page> (default the live Zone 1), SERVE=1 serves artifacts/origins-preview locally (build it first), RUNS=3, GL=swiftshader for a software run; real GPU by default.
+// Records window.__zoneReady (the warm-up's ready point, #1919) and the programs added after it. Player-path engage trace on the LIVE build, real GPU. Fresh page load per run; wait idle; start rAF gap log + longtask observer + CPU profile >= 1 s BEFORE engage;
 // place the hero 14 m from an untouched creature facing it, WALK in (hold W) until it notices, press STAB (#thrust-button tap); capture 5 s after.
 import fs from 'node:fs'; import os from 'node:os'; import { execSync } from 'node:child_process'; import { chromium } from 'playwright';
 const quiet = async () => { for (let i = 0; i < 60; i++) { const q = execSync("ps -Ao command | grep -c '[q]uality-stop' || true").toString().trim(); if (os.loadavg()[0] < 10 && q === '0') return { load1: +os.loadavg()[0].toFixed(1), qs: 0, waitedS: i * 5 }; await new Promise((r) => setTimeout(r, 5000)); } return { load1: +os.loadavg()[0].toFixed(1), qs: 'busy', waitedS: 300 }; };
-const URL = process.env.URL || 'https://frankendom.com/zone1/', OUT = process.env.OUT || 'artifacts/origins-engage-live', N = +(process.env.RUNS || 3); fs.mkdirSync(OUT, { recursive: true });
+import http from 'node:http'; import path from 'node:path';
+let URL = process.env.URL || 'https://frankendom.com/zone1/'; let _srv = null;
+if (process.env.SERVE) {   // SERVE=1: serve artifacts/origins-preview (built here) on localhost instead of the live site
+  const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview'), mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm' }, roots = { '/preview/origins/': built + '/' };
+  for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots['/' + d + '/'] = root + '/public/' + d + '/';
+  _srv = http.createServer((req, res) => { const u = decodeURIComponent(req.url.split('?')[0]); let hit = null; for (const [p, r] of Object.entries(roots)) if (u.startsWith(p)) hit = path.join(r, u.slice(p.length) || 'index.html'); if (hit && fs.existsSync(hit) && fs.statSync(hit).isDirectory()) hit = path.join(hit, 'index.html'); if (!hit || !fs.existsSync(hit)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res); });
+  await new Promise((r) => _srv.listen(0, '127.0.0.1', r)); URL = `http://127.0.0.1:${_srv.address().port}/preview/origins/?region=1`;
+}
+const OUT = process.env.OUT || 'artifacts/origins-engage-live', N = +(process.env.RUNS || 3); fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ headless: true, args: process.env.GL === 'swiftshader' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'] });
 const results = [], used = new Set();
 for (let run = 0; run < N; run++) {
@@ -12,6 +20,7 @@ for (let run = 0; run < N; run++) {
   try {
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
+    res.zoneReady = await page.waitForFunction(() => window.__zoneReady, null, { timeout: 120000 }).then((h) => h.jsonValue()).catch(() => 'never');
     res.renderer = await page.evaluate(() => { const c = document.createElement('canvas'), g = c.getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a'; });
     res.revision = await page.evaluate(() => fetch('/release.json').then((r) => r.json()).then((j) => j.revision ?? j.sha ?? JSON.stringify(j).slice(0, 60)).catch(() => 'n/a'));
     const mobs = await page.evaluate(() => window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body).map((m) => ({ id: m.id, x: m.x, z: m.z, level: m.level, body: m.body })));
@@ -51,4 +60,4 @@ for (let run = 0; run < N; run++) {
   } catch (e) { res.fail = String(e).slice(0, 300); }
   await ctx.close(); results.push(res); console.log(JSON.stringify(res));
 }
-await browser.close(); fs.writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 1));
+await browser.close(); _srv?.close(); fs.writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 1));
