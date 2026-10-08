@@ -171,6 +171,9 @@ test('launch.mjs launches exactly the canonical job (detached, timed, allowed fl
   assert.equal(receiptFrom('RECEIPT rows {bad json', 'rows'), null);
   assert.equal(receiptFrom('RECEIPT rows {"a":1}', 'unit'), null, 'the kind must match');
   assert.deepEqual(hfArgs('rows', sha, 'cpu-upgrade', '31,33').slice(7, 11), ['-e', `SHA=${sha}`, '-e', 'ROWS_ONLY=31,33']);
+  assert.deepEqual(hfArgs('rows', sha, 'cpu-upgrade', '31,33', '2').slice(7, 13), ['-e', `SHA=${sha}`, '-e', 'ROWS_ONLY=31,33', '-e', 'RELEASE_CHECK_CONCURRENCY=2']);
+  assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', '31', '9'));
+  assert.throws(() => hfArgs('unit', sha, 'cpu-upgrade', '', '2'));
   assert.throws(() => hfArgs('unit', sha, 'cpu-upgrade', '31'));
   assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', '31;rm'));
   assert.match(readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), /playwright install --with-deps chromium/);
