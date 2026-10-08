@@ -32,7 +32,7 @@ const open = async (query) => {
   await page.waitForTimeout(8000);
   return page;
 };
-const still = async (page, name) => { await page.screenshot({ path: path.join(out, `${name}.jpg`), type: 'jpeg', quality: 80 }); receipt.stills.push(name); };
+const still = async (page, name) => { await page.screenshot({ path: path.join(out, `${name}.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); receipt.stills.push(name); };
 const gaps = async (page, ms) => {
   await page.evaluate(() => { window.__g = []; let last = performance.now(); const tick = (t) => { window.__g.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
   await page.waitForTimeout(ms);
