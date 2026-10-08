@@ -73,7 +73,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 11,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "scavengers",
   "home": {
@@ -90,7 +90,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 12,
+  "level": 3,
   "zone": "cinder-fields",
   "spawn": "scavengers",
   "home": {
@@ -107,7 +107,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 11,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "scavengers",
   "home": {
@@ -124,7 +124,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 12,
+  "level": 2,
   "zone": "cinder-fields",
   "spawn": "scavengers",
   "home": {
@@ -141,7 +141,7 @@
   "name": "Ash wolf",
   "encounter": null,
   "body": "wolf",
-  "level": 11,
+  "level": 2,
   "zone": "cinder-fields",
   "spawn": "wolves",
   "home": {
@@ -158,7 +158,7 @@
   "name": "Ash wolf",
   "encounter": null,
   "body": "wolf",
-  "level": 12,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "wolves",
   "home": {
@@ -175,7 +175,7 @@
   "name": "Ash wolf",
   "encounter": null,
   "body": "wolf",
-  "level": 13,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "wolves",
   "home": {
@@ -328,7 +328,7 @@
   "name": "Ash boar",
   "encounter": null,
   "body": "boar",
-  "level": 13,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "boars",
   "home": {
@@ -345,7 +345,7 @@
   "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
-  "level": 12,
+  "level": 9,
   "zone": "ferry-landing",
   "spawn": "opener",
   "home": {
@@ -362,7 +362,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 11,
+  "level": 2,
   "zone": "cinder-fields",
   "spawn": "opener",
   "home": {
