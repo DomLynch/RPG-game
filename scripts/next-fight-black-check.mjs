@@ -1,6 +1,7 @@
 // Next fight after a win: no long black frame (Dom's phone test 2026-09-30: "about 2 s of full black"; the Pit walk that caused it is gone, the
 // reload on "Next fight" remains). A won goblin duel at 375x812 touch, the loot offer left, then #reset-button ("Next fight") reloads the page for
 // the next rung; from the press, on the REAL clock, every frame WebKit gives for 12 s is kept and its mean luminance read in a helper page.
+// MUST RUN ON THE RELEASE MAC: on HF Linux WebKit the same run read 1,072 / 659 ms (software compositing), so no number from there counts.
 // Row (WebKit, the nearest this Mac has to the phone's Safari): the dark time after the press is at most BLACK_MAX ms, and the next fight is ready.
 // Lead's ruling 2026-10-08 asked 300 ms; five runs here read 270, 312, 312, 0 and 0 (a ~0.25-0.3 s near-black frame at the document swap that WebKit's
 // screenshots catch only sometimes), so 600 keeps headroom against noise and still fails Dom's 2 s.
@@ -13,11 +14,12 @@ import fs from 'node:fs/promises';
 
 const outDir = 'artifacts/next-fight/build', out = 'artifacts/next-fight';
 await fs.mkdir(out, { recursive: true });
-await build({ logLevel: 'error', build: { outDir } });
-const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
-const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+const LIVE = process.env.NEXT_FIGHT_URL;   // measure another build (e.g. https://frankendom.com) instead of this tree's: the live-vs-head comparison, never the release row
+if (!LIVE) await build({ logLevel: 'error', build: { outDir } });
+const server = LIVE ? null : await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
+const origin = LIVE ?? `http://127.0.0.1:${server.httpServer.address().port}`;
 // As the live server does (deploy/frankendom.com.conf: `location /assets/ { expires 1y; }`).
-server.httpServer.prependListener('request', (req, res) => { if (req.url.startsWith('/assets/')) { const set = res.setHeader.bind(res); res.setHeader('Cache-Control', 'max-age=31536000'); res.setHeader = (name, value) => (String(name).toLowerCase() === 'cache-control' ? res : set(name, value)); } });
+server?.httpServer.prependListener('request', (req, res) => { if (req.url.startsWith('/assets/')) { const set = res.setHeader.bind(res); res.setHeader('Cache-Control', 'max-age=31536000'); res.setHeader = (name, value) => (String(name).toLowerCase() === 'cache-control' ? res : set(name, value)); } });
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check).
 const profile = { version: 1, id: 'next-fight-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'WebKit (Playwright), 375x812 touch', exit: {}, errors: [] };
@@ -88,8 +90,12 @@ try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);
   const offered = await until(() => { const d = document.getElementById('loot-decline'); return !!d && !d.hidden && !document.getElementById('loot-panel-actions').hidden; }, 6000).then(() => true, () => false);
+  // The kill screen as a player sees it: the harness's ?debug=1 text off, the page settled (the take offer is up, so the stance panel is hidden: row 36, #1842).
+  await run(1500); await page.addStyleTag({ content: '#debug { display: none !important; }' });
+  receipt.stancePanelVisible = await page.evaluate(() => { const p = document.getElementById('stance-panel'); return !!p && getComputedStyle(p).display !== 'none'; });
+  await page.screenshot({ path: `${out}/kill-win-375.png` });   // the PR's after still, taken with the take offer up as a player meets it
   if (offered) { await page.locator('#loot-decline').tap(); await run(300); }
-  await until(() => { const b = document.getElementById('reset-button'); return !!b && !b.hidden && b.textContent === 'Next fight'; }, 20000);
+  await until(() => { const b = document.getElementById('reset-button'); return !!b && !b.hidden && /^Next/.test(b.textContent); }, 20000);
   // Real time from here: the press reloads the page for the next rung.
   await page.clock.resume();
   await page.evaluate(() => history.replaceState(null, '', '/?debug=1'));   // the reload is the career's own next rung, as on his phone
@@ -101,7 +107,7 @@ try {
   await page.evaluate(() => { document.querySelector('#reset-button').click(); });
   while (Date.now() - t0 < WINDOW) {
     const at = Date.now();
-    try { frames.push({ at, jpeg: await page.screenshot({ type: 'jpeg', quality: 40, scale: 'css', timeout: 3000 }) }); } catch { /* the page is between documents */ }
+    try { frames.push({ at, jpeg: await page.screenshot({ type: 'jpeg', quality: 40, scale: 'css', timeout: 3000 }) }); } catch { /* the page is between documents: the gap shows in the capture series below */ }
     if (ready === null && await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false)) ready = Date.now() - t0;
   }
   for (const f of frames) f.at -= t0;
@@ -120,16 +126,20 @@ try {
   // Each frame stays on screen until the next one: the dark time is the sum of the stretches a dark frame was showing, after the press.
   let blackMs = 0, longest = 0;
   frames.forEach((f, i) => { const from = Math.max(f.at, 0), to = Math.min(frames[i + 1]?.at ?? WINDOW, WINDOW); if (f.luma >= FLOOR || to <= from) return; blackMs += to - from; longest = Math.max(longest, to - from); });
-  Object.assign(receipt.exit, { frames: frames.length, minLuma: Math.min(...frames.filter((f) => f.at >= 0).map((f) => f.luma)), floor: FLOOR, blackMs, longestMs: longest, blackMax: BLACK_MAX, navigatedMs: navigated === null ? null : navigated - t0, fightReadyMs: ready });
+  // A stretch with no capture (a failed screenshot, a document that never paints) is not a bright frame: it is the longest gap between captures after the press, held to the same limit.
+  const taken = frames.filter((f) => f.at >= 0).map((f) => f.at);
+  const maxGapMs = Math.max(0, ...taken.slice(1).map((t, i) => t - taken[i]), taken.length ? taken[0] : WINDOW, taken.length ? WINDOW - taken[taken.length - 1] : 0);
+  Object.assign(receipt.exit, { maxGapMs, frames: frames.length, minLuma: Math.min(...frames.filter((f) => f.at >= 0).map((f) => f.luma)), floor: FLOOR, blackMs, longestMs: longest, blackMax: BLACK_MAX, navigatedMs: navigated === null ? null : navigated - t0, fightReadyMs: ready });
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
-  await browser.close(); server.httpServer.close();
+  await browser.close(); server?.httpServer.close();
 }
 const e = receipt.exit;
-console.log(`next-fight-black: ${e.blackMs} ms under luminance ${e.floor} (longest ${e.longestMs} ms, darkest ${e.minLuma}), navigated at ${e.navigatedMs} ms, fight ready at ${e.fightReadyMs} ms, ${e.frames} frames`);
+console.log(`next-fight-black: max capture gap ${e.maxGapMs} ms, ${e.blackMs} ms under luminance ${e.floor} (longest ${e.longestMs} ms, darkest ${e.minLuma}), navigated at ${e.navigatedMs} ms, fight ready at ${e.fightReadyMs} ms, ${e.frames} frames`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
 assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
 assert.ok(e.blackMs <= BLACK_MAX, `black after the press: ${e.blackMs} ms (max ${BLACK_MAX}; Dom's 2026-09-30 report was about 2 s)`);
+assert.ok(e.maxGapMs <= BLACK_MAX, `no capture for ${e.maxGapMs} ms after the press (max ${BLACK_MAX}): a stretch the screenshots could not see counts as dark`);
 assert.ok(e.fightReadyMs !== null, 'the next fight is ready within the window');
 console.log('next-fight-black-check PASS');
