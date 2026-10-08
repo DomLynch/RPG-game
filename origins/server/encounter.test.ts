@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
-import { encounterOps } from './encounter.ts';
+import { encounterOps, fightOfToken, tokenFor } from './encounter.ts';
 import { ACCOUNT, CHAR, fakeDb, RESOLVED, deps, fight } from './encounter-fixtures.ts';
 
 const ctx = (db: Db) => ({ db, account: ACCOUNT });
@@ -18,7 +18,8 @@ test('start: the server resolves the fight and picks the seed; the body names no
   const { db, rows } = fakeDb({ t: 1e6 }), ops = encounterOps(deps());
   const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight', enemy: 'dragon', level: 99, seed: 1 }) as Record<string, unknown>;
   assert.equal(out.enemy, 'knight'); assert.equal(out.level, 6); assert.ok(Number.isInteger(out.seed) && (out.seed as number) !== 1);
-  assert.match(String(out.token), /^[A-Za-z0-9_-]{32}$/); assert.equal(rows.size, 1);
+  assert.match(String(out.token), /^[A-Za-z0-9_-]{16,128}$/); assert.equal(rows.size, 1);
+  assert.equal(fightOfToken(String(out.token)), 'encounter:knight', 'the token carries the fight the server resolved, so settle can price it');
   await assert.rejects(async () => ops.encounter_start!(ctx(fakeDb({ t: 0 }).db), { character: CHAR, encounter: 'encounter:nope' }), BadRequest);
   await assert.rejects(async () => ops.encounter_start!(ctx(db), { character: 'x', encounter: 'encounter:knight' }), BadRequest);
   await assert.rejects(async () => ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }), Conflict, 'a second open fight is refused: resume the first');
@@ -39,8 +40,9 @@ test('touch inside the grace continues the SAME token and seed; after the expiry
 
 test('settle: a verified record writes the event enc:<token> and the reward lines once; a replay of the same settle is refused and writes nothing more', async () => {
   const { db, events } = fakeDb({ t: 1e6 }), rewards: string[] = [];
-  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321 }), rewards: (f) => { rewards.push(f.token); return [{ op: 'reward-line', token: f.token }]; } }));
-  const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321 }), rewards: (f, rdb) => { rewards.push(f.token); assert.equal(f.fight, 'encounter:knight', 'the hook is told the fight the server resolved'); assert.equal(f.seed, start.seed, 'and the server seed'); assert.equal(rdb, db); return [{ op: 'reward-line', token: f.token }]; } }));
+  let start = { token: '', seed: 0 };
+  start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
   const record = fight(start.seed, 1);
   const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
   assert.equal(out.result, 'won'); assert.equal(out.verified, true); assert.equal(out.twist, 'caught'); assert.equal(out.event, `enc:${start.token}`);
@@ -78,4 +80,11 @@ test('settle after the expiry is refused (the sweep settles it as an abandonment
   clock.t += 200_000;
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record: fight(start.seed, 1) }), Conflict);
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: 'A'.repeat(32), record: fight(1, 1) }), BadRequest);
+});
+
+test('fightOfToken: the server-made prefix reads back; an old 32-character token, a forged prefix and a non-fight id read as null', () => {
+  for (const fight of ['encounter:knight', 'character:cinder-scavenger', 'a'.repeat(64)]) { const t = tokenFor(fight); assert.match(t, /^[A-Za-z0-9_-]{16,128}$/); assert.equal(fightOfToken(t), fight); }
+  assert.equal(fightOfToken('A'.repeat(32)), null, 'a token issued before the prefix');
+  assert.equal(fightOfToken(`${Buffer.from('Not A Fight!').toString('base64url')}_${'B'.repeat(32)}`), null, 'decodes to something that is not a fight id');
+  assert.equal(fightOfToken(`x${'_'.repeat(1)}${'C'.repeat(31)}`), null, 'too short for a prefix');
 });

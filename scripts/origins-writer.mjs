@@ -18,6 +18,9 @@ import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
 import { resolveFromRegion1 } from '../origins/server/encounter-setup.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
+import { mobRewards } from '../origins/server/mob-rewards.ts';
+// The kill's pay (CP + loot) from Region 1's content; the flag already requires that content to load (resolveFromRegion1 throws otherwise).
+const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 
 const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788' } = process.env;
 if (!DATABASE_URL || !SUPABASE_URL || !SUPABASE_ANON_KEY) { console.error('origins-writer: set DATABASE_URL, SUPABASE_URL and SUPABASE_ANON_KEY'); process.exit(1); }
@@ -25,4 +28,4 @@ const content = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGI
 const presenceKey = process.env.PRESENCE_INTERNAL_KEY;
 if (!presenceKey) console.log('origins-writer: PRESENCE_INTERNAL_KEY is not set: no player counts as at the Exchange, every Exchange-only action is refused');
 const where = presenceKey ? presenceWhere(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : async () => ({ online: false });
-createWriter({ db: psqlDb(DATABASE_URL), verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY } : undefined }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+createWriter({ db: psqlDb(DATABASE_URL), verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, rewards: regionRewards() } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY } : undefined }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));

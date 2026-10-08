@@ -9,6 +9,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
+import { fightSetup, loadEncounterContent, lookupOf, rollLoot } from '../origins/encounters/encounters.ts';
+import { openInventory } from '../origins/inventory/inventory.ts';
+import { mobBatch } from '../origins/server/mob-rewards.ts';
 
 const UP = '202610080002_origins_encounter_runs.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
@@ -122,6 +125,31 @@ try {
   age(tok(5));
   eq(await code(V, START(A, pcA, tok(11), 9, 'knight', 6, { instance: 'camp:stale' })), null, 'a stale claim (its fight expired) is taken over');
   eq(psql(`select token from public.origins_creature_claims where instance = 'camp:stale'`), tok(11), 'and the claim now names the new fight');
+
+  // ---- the rewards hook's real lines (mob-rewards.ts mobBatch): CP + loot commit with the settle, once; a stale career aborts all of it --------------
+  const content = loadEncounterContent().value, lookup = lookupOf(content);
+  const creature = Object.keys(content.local.creatureLoot).find(id => fightSetup(id, content).ok), foe = fightSetup(creature, content).value.opponent;
+  let seed = 1; while (!(rollLoot(content.local.creatureLoot[creature], seed, content, { foeLevel: foe.level }).value.items.length > 0)) seed++;
+  psql(`set role frankendom_origins; select public.origins_snapshot('${C}', 0, 5000);`);
+  const open = () => JSON.parse(psql(`set role ${V}; select public.origins_open('${C}')::text;`).split('\n').pop());
+  const linesFor = (t, career) => {
+    const inv = openInventory({ owner: pcC, account: `account:${C}`, items: [], packSize: 64, bankSize: 1000 }, lookup).value;
+    return mobBatch({ account: C, character: pcC, token: t, fight: creature, seed, enemy: foe.body, level: foe.level, twist: null }, { career, inventory: inv }, content, '2026-10-08T10:00:00.000Z');
+  };
+  const items = () => Number(psql(`select count(*) from public.origins_items where holder_account = '${C}' and retired_at is null`));
+  const careerBefore = open().career;
+  const paid = linesFor(tok(20), careerBefore);
+  eq([paid.summary.cp > 0, paid.summary.drops.length > 0, paid.batch.some(l => l.op === 'metal')], [true, true, false], 'rewards: the kill pays CP and loot, and no metal yet');
+  eq(await code(V, START(C, pcC, tok(20), seed, foe.body, foe.level)), null, 'rewards: a fight against the creature starts');
+  eq(await code(V, SETTLE(C, tok(20), 'won', 400, JSON.stringify([...JSON.parse(EV(tok(20), C, pcC, 'won')), ...paid.batch]))), null, 'rewards: the settle with the reward lines commits');
+  const careerAfter = open().career;
+  eq([items(), Number(careerAfter.world_credit) - Number(careerBefore.world_credit), careerAfter.version - careerBefore.version], [paid.summary.drops.length, paid.summary.cp, 1], 'rewards: the drops are minted and the CP booked, once');
+  eq(await code(V, SETTLE(C, tok(20), 'won', 400, JSON.stringify([...JSON.parse(EV(tok(20), C, pcC, 'won')), ...paid.batch]))), 'O0009', 'rewards: a retried settle is refused');
+  eq([items(), open().career.version], [paid.summary.drops.length, careerAfter.version], 'rewards: and pays nothing twice');
+  eq(await code(V, START(C, pcC, tok(21), seed + 1, foe.body, foe.level)), null, 'rewards: a second fight starts');
+  const stale = linesFor(tok(21), careerBefore);   // priced on the career row as it was BEFORE the first kill: its expected_version is stale
+  eq(await code(V, SETTLE(C, tok(21), 'won', 400, JSON.stringify([...JSON.parse(EV(tok(21), C, pcC, 'won')), ...stale.batch]))), 'O0002', 'rewards: a stale career version aborts the settle');
+  eq([state(tok(21)).used, state(tok(21)).settled, items()], [false, false, paid.summary.drops.length], 'rewards: nothing was written and the token is still open for a retry');
 
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));

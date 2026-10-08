@@ -11,7 +11,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { decodeRecord } from '../../src/record.ts';
 import type { TwistFlag } from '../../src/twist.ts';
-import { DbError } from './db.ts';
+import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
@@ -22,13 +22,29 @@ export type Resolved = { enemy: string; level: number; bar: number | null; flags
 export type EncounterDeps = {
   resolve(who: { account: string; character: string }, encounter: string): Resolved | null;   // null: unknown fight, or not open to this character
   verify: VerifyEncounter;
-  // Extra batch lines for a VERIFIED fight (XP/loot/Bounty ops built from the server's own result); none by default. Never called for a loss.
-  rewards?(fight: { account: string; character: string; token: string; enemy: string; level: number; twist: string | null }): store.Json[];
+  // Extra batch lines for a VERIFIED fight (CP/loot/metal ops built from the server's own result); none by default. Never called for a loss. `fight` is the
+  // fight id the server resolved at start (fightOfToken), null for a token issued before it carried one; `seed` is the server's; `db` is read-only here
+  // (the lines commit in settle's one transaction, so a stale read aborts the whole settle and the token stays open for a retry).
+  rewards?(fight: { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null }, db: Db): store.Json[] | Promise<store.Json[]>;
   now?: () => number;   // the clock the expiry pre-check reads (tests); the database's now() decides at settle regardless
 };
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, FIGHT = /^[a-z0-9._:-]{1,64}$/;
-const GONE = (e: unknown): never => { if (e instanceof DbError && e.code === 'O0009') throw new Conflict('encounter token unknown, used or expired'); throw e; };
+// The token carries the fight id the server resolved at start: base64url(fight) + '_' + 32 random characters (24 bytes). The run row keeps only the foe and level,
+// and two fights can share both (Region 1: two goblin L11 creatures with different loot tables), so settle must not guess the fight back, nor take it from the client.
+// Only a token the database holds is ever settled, so the prefix is the server's own choice. A token without one (issued before this) reads as null.
+const RANDOM = 32;
+export const tokenFor = (fight: string): string => `${Buffer.from(fight).toString('base64url')}_${randomBytes(24).toString('base64url')}`;
+export function fightOfToken(token: string): string | null {
+  if (token.length <= RANDOM + 1 || token[token.length - RANDOM - 1] !== '_') return null;
+  const fight = Buffer.from(token.slice(0, -RANDOM - 1), 'base64url').toString();
+  return FIGHT.test(fight) ? fight : null;
+}
+const GONE = (e: unknown): never => {
+  if (e instanceof DbError && e.code === 'O0009') throw new Conflict('encounter token unknown, used or expired');
+  if (e instanceof DbError && e.code === 'O0002') throw new Conflict('stale: the character changed while this fight was settled; settle again');   // a reward line's expected_version moved: nothing was written, the token is still open
+  throw e;
+};
 const notInstalled = (): never => { throw new Refused(503, 'encounter verify not installed'); };
 const tick = (v: unknown, name: string): number => {
   if (v === undefined) return 0;
@@ -50,7 +66,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     const fight = resolve({ account, character }, encounter);
     if (!fight) throw new BadRequest('encounter: unknown, or not open to this character');
     if (fight.layer !== null && !knownLayer(fight.layer)) throw new Refused(503, `encounter verify does not know the mob layer ${fight.layer}`);   // fail closed: it could never verify
-    const token = randomBytes(24).toString('base64url'), seed = randomInt(1, 2 ** 31);
+    const token = tokenFor(encounter), seed = randomInt(1, 2 ** 31);
     let run: store.EncounterRun | null;
     try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags, layer: fight.layer, instance: fight.instance }); }
     catch (e) { if (e instanceof DbError && e.code === 'O0014') throw new Conflict(e.message); throw e; }
@@ -78,7 +94,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;
     const eventId = `enc:${token}`;
     const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) } }];
-    if (verdict.ok && result === 'won' && deps.rewards) batch.push(...deps.rewards({ account, character: run.character, token, enemy: run.enemy, level: run.level, twist }));
+    if (verdict.ok && result === 'won' && deps.rewards) batch.push(...await deps.rewards({ account, character: run.character, token, fight: fightOfToken(token), seed: run.seed, enemy: run.enemy, level: run.level, twist }, db));
     const out = await store.encounterSettle(db, account, token, result, ticks, batch).catch(GONE);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
     return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
