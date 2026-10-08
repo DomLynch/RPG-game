@@ -18,8 +18,8 @@ test('the stale-session event carries a fixed message and an enum tag, and nothi
 
 test('beacons are a bodyless GET to a fixed path: no query, no headers, no credentials, no referrer; never throw, never awaited', () => {
   const seen: Array<[string, RequestInit]> = [];
-  for (const kind of ['zone1-stale-session', 'zone1-prefetch-hit', 'zone1-prefetch-miss'] as const) beacon(kind, ((u: string, init: RequestInit) => (seen.push([u, init]), Promise.resolve(new Response(null, { status: 404 })))) as never);
-  assert.deepEqual(seen.map(([u]) => u), ['/_e/zone1-stale-session', '/_e/zone1-prefetch-hit', '/_e/zone1-prefetch-miss']);
+  for (const kind of ['zone1-stale-session', 'zone1-prefetch-hit', 'zone1-prefetch-miss', 'zone1-prefetch-drop'] as const) beacon(kind, ((u: string, init: RequestInit) => (seen.push([u, init]), Promise.resolve(new Response(null, { status: 404 })))) as never);
+  assert.deepEqual(seen.map(([u]) => u), ['/_e/zone1-stale-session', '/_e/zone1-prefetch-hit', '/_e/zone1-prefetch-miss', '/_e/zone1-prefetch-drop']);
   for (const [u, init] of seen) { assert.doesNotMatch(u, /[?#]/); assert.deepEqual(Object.keys(init).sort(), ['cache', 'credentials', 'keepalive', 'method', 'referrerPolicy']); assert.equal(init.method, 'GET'); assert.equal(init.credentials, 'omit'); assert.equal(init.referrerPolicy, 'no-referrer'); assert.equal(init.body, undefined); assert.equal(init.headers, undefined); }
   assert.equal(beaconPath('zone1-prefetch-hit'), '/_e/zone1-prefetch-hit');
   beacon('zone1-stale-session', (() => { throw new Error('boom'); }) as never); beacon('zone1-stale-session', (() => Promise.reject(new Error('net'))) as never); beacon('zone1-stale-session', undefined);

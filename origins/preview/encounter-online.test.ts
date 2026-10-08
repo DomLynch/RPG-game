@@ -215,3 +215,13 @@ test('held fight: a start that finds the account\'s open fight resumes it only f
   assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'boar', setup, fetch: other.f, held: H, every: (() => 1) as never, clear: (() => {}) as never }), null, 'a 409 with another fight held: offline, no resume of the wolf token');
   assert.deepEqual(other.calls, ['encounter_start'], 'no touch was sent for the wrong fight');
 });
+
+test('createPrefetch: onDropped counts a started session that was never fought (expired, displaced, another creature\'s tap), not a taken one', async () => {
+  let drops = 0, t = 0; const timers: Array<() => void> = [], mk = () => ({ seed: 1, settle: async () => 'settled', played() {}, stop() {}, drop() {} }) as never;
+  const p = createPrefetch(async () => mk(), { now: () => t, after: (fn) => (timers.push(fn), timers.length), cancel: () => {}, onDropped: () => void drops++ });
+  const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
+  p.want('a'); await settle(); assert.ok(p.take('a')); assert.equal(drops, 0, 'taken: not a walk-away');
+  p.want('b'); await settle(); timers[timers.length - 1]!(); assert.equal(drops, 1, 'expired');
+  p.want('c'); await settle(); p.want('d'); assert.equal(drops, 2, 'displaced by d'); await settle(); assert.equal(p.take('x'), null); assert.equal(drops, 3, "another creature's tap dropped d");
+  p.want('e'); assert.equal(p.take('e'), null); await settle(); assert.equal(drops, 4, 'late arrival after a miss');
+});

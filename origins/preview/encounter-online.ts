@@ -74,18 +74,18 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
 // when a creature turns hostile (`want`), one at a time. At the tap `take` hands it over only if it is THIS creature's and already here; otherwise null: the fight starts at
 // once on the local seed, unpaid (no settle), and a session that arrives late is stopped (its token stays open: the next engage resumes it, else the writer sweeps it after 120 s).
 export const PREFETCH_MAX_AGE_MS = 90_000;   // the writer's grace is 120 s from the last touch: past 90 s a ready session is dropped (stopped, so the writer sweeps the token) instead of kept alive by its touch timer
-export function createPrefetch(begin: (id: string) => Promise<Online | null>, clock: { now?: () => number; after?: (fn: () => void, ms: number) => unknown; cancel?: (id: unknown) => void } = {}) {
+export function createPrefetch(begin: (id: string) => Promise<Online | null>, clock: { now?: () => number; after?: (fn: () => void, ms: number) => unknown; cancel?: (id: unknown) => void; onDropped?: () => void } = {}) {
   const now = clock.now ?? Date.now, after = clock.after ?? ((fn, ms) => setTimeout(fn, ms)), cancel = clock.cancel ?? ((id) => clearTimeout(id as never));
   type Slot = { id: string; ready: Online | null; at: number; gone: boolean; expiry?: unknown };
   let slot: Slot | null = null;
-  const drop = (g: Slot) => { g.gone = true; if (g.expiry !== undefined) cancel(g.expiry); g.ready?.drop(); if (slot === g) slot = null; };
+  const drop = (g: Slot) => { g.gone = true; if (g.expiry !== undefined) cancel(g.expiry); if (g.ready) { g.ready.drop(); clock.onDropped?.(); } if (slot === g) slot = null; };   // onDropped: a session that was started and never fought (the walk-away count)
   return {
     want(id: string): void {
       if (slot?.id === id) return;
       if (slot) drop(slot);
       const mine: Slot = slot = { id, ready: null, at: 0, gone: false };
       void begin(id).then((o) => {
-        if (mine.gone || slot !== mine) { o?.drop(); return; }
+        if (mine.gone || slot !== mine) { if (o) { o.drop(); clock.onDropped?.(); } return; }
         mine.ready = o; mine.at = now();
         if (o) mine.expiry = after(() => drop(mine), PREFETCH_MAX_AGE_MS);
       });
@@ -95,7 +95,7 @@ export function createPrefetch(begin: (id: string) => Promise<Online | null>, cl
       if (!got) return null;
       if (got.expiry !== undefined) cancel(got.expiry);
       if (got.id === id && got.ready && now() - got.at <= PREFETCH_MAX_AGE_MS) return got.ready;
-      got.gone = true; got.ready?.drop();   // not taken (another creature, too old, or not here yet): stop touching, the writer sweeps it
+      got.gone = true; if (got.ready) { got.ready.drop(); clock.onDropped?.(); }   // not taken (another creature, too old, or not here yet): stop touching, the writer sweeps it
       return null;
     },
   };

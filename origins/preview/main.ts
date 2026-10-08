@@ -534,7 +534,7 @@ const prefetch = createPrefetch(async (id) => {
   if (!run?.ok) return null;
   await AUTH_READY;
   return beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.value.fight, setup: run.value.setup, base: writerBase(location.search), held: HELD });
-});
+}, { onDropped: () => beacon('zone1-prefetch-drop') });   // a started session nobody fought: the walk-away count (bar: < 2 an hour)
 function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
   idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
