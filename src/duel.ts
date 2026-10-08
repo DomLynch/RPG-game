@@ -110,13 +110,19 @@ export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'
 // centre), `heroFacing` in radians as sim headings are (aim = atan2(dx, dz)); the foe faces the other way, as at the marks. Both must lie inside the wall (RADIUS) and apart by more than a body, or it throws:
 // a pose that starts a fighter in the wall or in the other body is a caller bug, never a fight to clamp silently. Absent = today's marks, byte for byte.
 export type DuelPose = { hero: { x: number; z: number }; foe: { x: number; z: number }; heroFacing: number };
-const poseBodies = (pose: DuelPose): [State, State] => {
+// The one validity rule, shared with the record decoder (src/record.ts): a pose that fails it is refused, never clamped.
+export const validatePose = (pose: DuelPose): void => {
   const { hero, foe, heroFacing } = pose;
   for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || M.hypot(p.x, p.z) > RADIUS) throw RangeError('Duel pose: a fighter must start inside the wall');
   if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
+  if (M.hypot(hero.x - foe.x, hero.z - foe.z) <= .85) throw RangeError('Duel pose: the fighters start inside each other');
+};
+// The record stores a pose as float32: a live fight and its replay must start from the SAME bits, so the caller rounds with this BEFORE the fight begins (packRecord refuses a pose that is not already float32).
+export const roundPose = (pose: DuelPose): DuelPose => ({ hero: { x: Math.fround(pose.hero.x), z: Math.fround(pose.hero.z) }, foe: { x: Math.fround(pose.foe.x), z: Math.fround(pose.foe.z) }, heroFacing: Math.fround(pose.heroFacing) });
+const poseBodies = (pose: DuelPose): [State, State] => {
+  validatePose(pose);
+  const { hero, foe, heroFacing } = pose;
   const facing = heroFacing > Math.PI || heroFacing <= -Math.PI ? wrapAngle(heroFacing) : heroFacing;
-  const gap = M.hypot(hero.x - foe.x, hero.z - foe.z);
-  if (gap <= .85) throw RangeError('Duel pose: the fighters start inside each other');
   return [{ x: hero.x, z: hero.z, heading: facing, distance: 0 }, { x: foe.x, z: foe.z, heading: facing > 0 ? facing - Math.PI : facing + Math.PI, distance: 0 }];   // no sin/cos round trip: the marks' own pi and 0 come back exactly
 };
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, pose?: DuelPose): Duel => {
