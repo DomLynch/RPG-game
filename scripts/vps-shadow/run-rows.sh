@@ -36,7 +36,8 @@ if [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" != "$lock_now" ]]; th
   npx playwright install --with-deps chromium >> "$run/npm-ci.log" 2>&1   # --with-deps: a fresh container has none of chromium's system libraries (WebKit rows are never trusted from here, so webkit is not installed)
   echo "$lock_now" > "$home/.lock-installed"
 fi
-install -m 600 "$home/env.production.local" .env.production.local
+# The three public VITE_ keys live on the VPS only; a fresh HF container has none, so the build runs without them (rows that need them fail loudly, they are never silently green).
+[[ -f "$home/env.production.local" ]] && install -m 600 "$home/env.production.local" .env.production.local
 export VITE_SENTRY_RELEASE="$full"
 build_status=0
 npm run build > "$run/build.log" 2>&1 || build_status=$?

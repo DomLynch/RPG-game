@@ -63,7 +63,7 @@ export function trustedFromShards(receipts, tree, commands, readSource, ownSums,
   const seen = new Set(), failed = new Set();
   for (const receipt of receipts) {
     if (receipt?.kind !== 'vps-shadow-rows' || receipt.tree !== tree) continue;
-    for (const row of receipt.rows || []) if (!Number.isInteger(row.index) || row.status === 'fail' || row.status === 'ceiling' || (Number.isInteger(row.exit) && row.exit !== 0)) failed.add(row.index);   // a row a shard SKIPPED ('trusted') or never reached ('missing') is not a failure
+    for (const row of receipt.rows || []) if (row.status === 'fail' || row.status === 'ceiling' || (Number.isInteger(row.exit) && row.exit !== 0)) failed.add(Number(row.index));   // Number(): a string index cannot dodge the veto. A row a shard SKIPPED ('trusted') or never reached ('missing') is not a failure
     for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums, jobs, trees)) seen.add(index);
   }
   return [...seen].filter(index => !failed.has(index)).sort((a, b) => a - b);
