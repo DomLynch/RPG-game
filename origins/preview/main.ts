@@ -519,7 +519,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
+  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
   mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, rollClip: !!rollAct, guardClip: !!guardAct }),
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
