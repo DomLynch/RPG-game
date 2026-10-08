@@ -540,6 +540,7 @@ test('on the duel: a creature inside the engage ring is on the duel at once, hun
   assert.ok(r.world.streams.c && get(r.world, 'c').hunting, 'engaged at 3 m');
   const far = duelRun(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 8)]), 0.5);
   assert.equal(Object.keys(far.world.streams).length, 0, 'at 8 m it is still chasing on the world layer');
+});
 
 test('parry cooldown (duel.ts parryCooldown): a fresh guard press opens the parry window (age 0) and arms a 30-tick cooldown; a press inside it starts the guard at age = window (no parry window); after it, fresh again', () => {
   let w = legacy([player('p', 0, 0, 0)]);
