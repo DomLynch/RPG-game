@@ -5,7 +5,7 @@
   "name": "Hrungnir",
   "encounter": "encounter:bounty-hrungnir",
   "body": "knight",
-  "level": 13,
+  "level": 3,
   "zone": "cinder-fields",
   "spawn": "bounty-shrine",
   "home": {
@@ -22,7 +22,7 @@
   "name": "Court thrall",
   "encounter": "encounter:bounty-toll",
   "body": "pitborn",
-  "level": 12,
+  "level": 3,
   "zone": "east-road",
   "spawn": "bounty-toll",
   "home": {
@@ -39,7 +39,7 @@
   "name": "Peg Powler",
   "encounter": "encounter:bounty-peg-powler",
   "body": "witch",
-  "level": 14,
+  "level": 3,
   "zone": "black-mere",
   "spawn": "bounty-reeds",
   "home": {
@@ -56,7 +56,7 @@
   "name": "Grendel's Mother",
   "encounter": "encounter:mere-mother",
   "body": "witch",
-  "level": 15,
+  "level": 3,
   "zone": "black-mere",
   "spawn": "matriarch",
   "home": {
@@ -90,7 +90,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 3,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "scavengers",
   "home": {
@@ -124,7 +124,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 2,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "scavengers",
   "home": {
@@ -141,7 +141,7 @@
   "name": "Ash wolf",
   "encounter": null,
   "body": "wolf",
-  "level": 2,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "wolves",
   "home": {
@@ -192,7 +192,7 @@
   "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
-  "level": 12,
+  "level": 2,
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
@@ -209,7 +209,7 @@
   "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
-  "level": 13,
+  "level": 2,
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
@@ -226,7 +226,7 @@
   "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
-  "level": 12,
+  "level": 2,
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
@@ -243,7 +243,7 @@
   "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
-  "level": 13,
+  "level": 2,
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
@@ -260,7 +260,7 @@
   "name": "Ruin ghoul",
   "encounter": null,
   "body": "goblin",
-  "level": 11,
+  "level": 2,
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
@@ -277,7 +277,7 @@
   "name": "Ruin ghoul",
   "encounter": null,
   "body": "goblin",
-  "level": 12,
+  "level": 2,
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
@@ -294,7 +294,7 @@
   "name": "Ruin ghoul",
   "encounter": null,
   "body": "goblin",
-  "level": 11,
+  "level": 2,
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
@@ -311,7 +311,7 @@
   "name": "Cinder bear",
   "encounter": null,
   "body": "bear",
-  "level": 13,
+  "level": 2,
   "zone": "blood-ruin",
   "spawn": "bears",
   "home": {
@@ -345,7 +345,7 @@
   "name": "Mere brood",
   "encounter": null,
   "body": "goblin",
-  "level": 9,
+  "level": 2,
   "zone": "ferry-landing",
   "spawn": "opener",
   "home": {
@@ -362,7 +362,7 @@
   "name": "Cinder scavenger",
   "encounter": null,
   "body": "goblin",
-  "level": 2,
+  "level": 1,
   "zone": "cinder-fields",
   "spawn": "opener",
   "home": {

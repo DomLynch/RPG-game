@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { LEVEL_FAR_M, LEVEL_NEAR_M, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { ZONE_LEVEL } from '../mobs/frontier-rows.ts';
+import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -29,12 +30,12 @@ test('each creature carries the body, level and encounter its character record n
   assert.deepEqual([row('character:cinder-scavenger').body, row('character:mere-brood').body, row('character:ruin-ghoul').body], ['goblin', 'goblin', 'goblin']);
   assert.deepEqual([row('character:hrungnir').body, row('character:peg-powler').body, row('character:mere-mother').body, row('character:court-thrall').body], ['knight', 'witch', 'witch', 'pitborn']);
   assert.equal(row('character:hrungnir').encounter, 'encounter:bounty-hrungnir');
-  assert.equal(row('character:mere-mother').level, 15);
+  assert.equal(row('character:mere-mother').level, NAMED_LEVEL, 'a named rare is the zone level + 2 (Dom 2026-10-08; was its record\'s 15)');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
   assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));
-  assert.ok(SPECS.every((s) => s.level >= 1 && s.level <= 17), 'levels now ramp with distance from the spawn (a common creature near it is level 1-3; was a flat 11+ band): the floor is 1');
-  assert.ok(SPECS.filter((s) => s.named).every((s) => s.level >= 11), 'bosses keep their form level');
+  assert.ok(SPECS.filter((s) => !s.named).every((s) => s.level === ZONE_LEVEL || s.level === ZONE_LEVEL + 1), 'Zone 1 creatures are level 1 near the spawn and 2 at the edge (was the flat 11-14 bands)');
+  assert.ok(SPECS.filter((s) => s.named).every((s) => s.level === NAMED_LEVEL), 'the named rares are the zone level + 2');
 });
 
 test('every home stands inside its own zone, clear of every building, and nobody starts near the Exchange', () => {
@@ -173,14 +174,14 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '22 creatures; levels re-pinned on purpose (Strategy/Dom 2026-10-08, risk = reward by depth): a common creature is level 1 at the spawn rising to its row level by 150 m, bosses unchanged. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '22 creatures; levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
 test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {
   assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf')), SPECS, '?wolf is accepted and does nothing');
   const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
   assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
-  assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 1 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
+  assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
 test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {
@@ -205,16 +206,15 @@ test('"Back to the fields" takes a tap in a world fight: #leave is in the world 
   assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
 });
 
-test('levelAt: level 1 within LEVEL_NEAR_M of the spawn, the row level from LEVEL_FAR_M on, rising in between and never above the row', () => {
-  for (const row of [11, 13, 14]) {
-    assert.equal(levelAt(0, row), 1); assert.equal(levelAt(LEVEL_NEAR_M, row), 1); assert.equal(levelAt(LEVEL_FAR_M, row), row); assert.equal(levelAt(LEVEL_FAR_M * 3, row), row);
-    let last = 0; for (let d = 0; d <= 200; d += 5) { const l = levelAt(d, row); assert.ok(l >= last && l <= row, `d ${d}: ${l}`); last = l; }
+test('levelAt: the band\'s low level within LEVEL_NEAR_M of the spawn, its high level from LEVEL_FAR_M on, rising in between (Zone 1 is [1,2], Zone 2 would be [2,3])', () => {
+  for (const band of [[1, 2], [2, 3], [10, 11]] as const) {
+    assert.equal(levelAt(0, band), band[0]); assert.equal(levelAt(LEVEL_NEAR_M, band), band[0]); assert.equal(levelAt(LEVEL_FAR_M, band), band[1]); assert.equal(levelAt(LEVEL_FAR_M * 3, band), band[1]);
+    let last = 0; for (let d = 0; d <= 200; d += 5) { const l = levelAt(d, band); assert.ok(l >= last && l >= band[0] && l <= band[1], `d ${d}: ${l}`); last = l; }
   }
 });
 
-test('near the spawn the common creatures are level 1-3; far from it they reach their row band', () => {
+test('near the spawn the common creatures are the zone level; at the far edge one more', () => {
   const origin = spawnAmong(F, B, SPECS)!, d = (s: MobSpec) => Math.hypot(s.home.x - origin.x, s.home.z - origin.z), common = SPECS.filter((s) => !s.named);
-  assert.ok(common.filter((s) => d(s) <= LEVEL_NEAR_M + 25).every((s) => s.level <= 3), 'the camps by the spawn are level 1-3');
-  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M).every((s) => s.level >= 11), 'the far zones keep the 11-14 band');
-  assert.ok(common.some((s) => s.level <= 3) && common.some((s) => s.level >= 11));
+  assert.ok(common.filter((s) => d(s) <= LEVEL_NEAR_M + 25).every((s) => s.level <= ZONE_LEVEL + 1) && common.some((s) => s.level === ZONE_LEVEL), 'the camps by the spawn are the zone level');
+  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
 });
