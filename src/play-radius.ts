@@ -12,7 +12,17 @@ export const spawnScale = (): number => Math.max(PLAY_SCALE, 0.5);
 export let PLAY_SCALE = 1;
 export let RADIUS = BASE_RADIUS;
 // `k` is the arena's drawn size. In the full arena the circle is the old 8.55 m; in a smaller one the wall is the boundary: fighters stop AT its inner face (Dom 2026-10-06), so the floor out to the wall is fought on.
-export function setPlayScale(k: number): void { PLAY_SCALE = k; RADIUS = k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS; }
+export function setPlayScale(k: number): void { PLAY_SCALE = k; RADIUS = OPEN_ARENA ? OPEN_RADIUS : k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS; }
+// OPEN ARENA (RV41, Dom via Strategy 2026-10-08: the wild has no wall around a fight; "no hiding"): a world fight's record carries the bit (record.ts flags2 bit 0). While it is set the play
+// circle is 1e6 m, so every `r > RADIUS` clamp, the wall band (walled, the lorarii loiter, the wall-only retreat) and the pose wall check never fire, and a creature's sprint is capped
+// (opponentFighter reads OPEN_ARENA: sim.ts advance runCap). Off by default and set per fight (Match.begin) or per record (detmath.ts underRecord), exactly like the circle and the stab.
+export const FIRST_OPEN_VERSION = 41, OPEN_RADIUS = 1e6;
+export let OPEN_ARENA = false;
+export function setOpenArena(on: boolean): void { OPEN_ARENA = on; setPlayScale(PLAY_SCALE); }
+export function underOpenArena<T>(open: boolean, run: () => T): T {
+  const outer = OPEN_ARENA; setOpenArena(open);
+  try { return run(); } finally { setOpenArena(outer); }
+}
 // A record's fight: its circle for the run, the live one put back after (detmath.ts underRecord).
 export function underPlayScale<T>(opponent: string, version: number, run: () => T): T {
   const outer = PLAY_SCALE, outerNotice = LATE_NOTICE; setPlayScale(playScaleFor(opponent, version)); LATE_NOTICE = version >= FIRST_LATE_NOTICE_VERSION;

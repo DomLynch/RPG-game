@@ -1,6 +1,7 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
 import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, isInterruptible, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, initialTarget, RADIUS, wrapAngle, type Input, type State } from './sim.ts';
+import { OPEN_ARENA } from './play-radius.ts';
 import { M } from './detmath.ts';
 import { rolledDamage, rollPercent } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
@@ -37,6 +38,7 @@ export type Fighter = {
   scale: number;   // body scale: the hit capsule and its head/torso/legs regions the opponent's blade sweeps (moves.ts `Opponent`)
   regen: number;   // stamina regeneration multiplier (moves.ts `Opponent.regen`; 1 = a man)
   speed: number;   // pace multiplier: walking, sprinting, the wind-up lunge and the backstep (moves.ts `Opponent.speed`; 1 = a man)
+  runCap?: number;   // OPEN ARENA only (RV41, play-radius.ts): this creature's sprint ceiling in m/s (4.5, the wolf 6.0); absent = uncapped, as every Pit and ladder fight
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
   loiter: number;   // ticks spent within the wall band without attacking (RULES.wall.loiter); the lorarii whip at `ticks`
   lashed: boolean;   // the lorarii have already lashed him in this spell at the wall: the next whip is a repeat, so its tell is shorter
@@ -103,7 +105,11 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.at
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
 export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 });
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
-export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
+export const OPEN_RUN_CAP = 4.5, OPEN_RUN_CAP_WOLF = 6.0;   // m/s (Strategy 2026-10-08, origins/preview/speeds.ts): running away works inside the sim too; the player keeps 5.2
+export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => {
+  const f = createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
+  return OPEN_ARENA ? { ...f, runCap: o.id === 'wolf' ? OPEN_RUN_CAP_WOLF : OPEN_RUN_CAP } : f;
+};
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 // `pose` (seamless step 3, World's signature): start the fight where the hero and the foe ALREADY stand instead of at the pit marks. Metres in the arena's own axes (the caller subtracts the fight circle's
@@ -329,7 +335,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       next.body = { ...advance(next.body, { x: -M.sin(next.body.heading) * R.backstep.speed, z: -M.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe, next.speed), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1) * (next.legWound ? R.attrition.legSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
-      const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed);
+      const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed, next.runCap);
       // Anti-turtling 2 (RULES.retreat): a tick that opens the gap to the opponent by more than `away` — inside the wall band, unless
       // `wallOnly` is off — regenerates no stamina (the sprinting tick's one-tick rest: regen resumes the tick he stops, strafes or advances).
       if (distance(moved, foe) - distance(next.body, foe) > R.retreat.away && (!R.retreat.wallOnly || M.hypot(moved.x, moved.z) >= RADIUS - R.wall.loiter.band)) next.rest = Math.max(next.rest, 1);

@@ -10,13 +10,13 @@ export const initialTarget = (): { x: number; z: number } => ({ x: 0, z: TARGET.
 
 // World coordinates only. No renderer, clock, animation, physics or browser state.
 // `pace` scales the fighter's speed (moves.ts `Opponent.speed`; 1 = a man): walking, sprinting, the wind-up lunge and the backstep all follow it.
-export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET, pace = 1): State {
+export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET, pace = 1, runCap = Infinity): State {   // `runCap`: an open-arena creature's sprint ceiling in m/s (duel.ts Fighter.runCap); absent = uncapped, byte for byte as before
   const length = M.hypot(input.x, input.z);
   if (!length || !Number.isFinite(length) || !Number.isFinite(input.yaw)) return { ...state };
   const scale = Math.min(1, length) / length;
   const dx = (input.x * M.cos(input.yaw) + input.z * M.sin(input.yaw)) * scale;
   const dz = (-input.x * M.sin(input.yaw) + input.z * M.cos(input.yaw)) * scale;
-  const speed = (input.run ? 5.2 : 3) * pace;
+  const speed = input.run ? Math.min(5.2 * pace, runCap) : 3 * pace;
   let x = state.x + dx * speed * STEP;
   let z = state.z + dz * speed * STEP;
   // Resolve against the other fighter, including attack step-in and retreat.
