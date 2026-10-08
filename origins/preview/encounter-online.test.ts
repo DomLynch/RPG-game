@@ -193,3 +193,15 @@ test('createPrefetch: the tap takes only this creature\'s ready session, never w
   p.want('e'); p.want('f'); gates.get('e')!(mk('e')); await Promise.resolve(); await Promise.resolve(); assert.ok(stops.includes('e'), 'displaced by f: e stopped when it arrived');
   const q = createPrefetch(async () => null); q.want('x'); await Promise.resolve(); await Promise.resolve(); assert.equal(q.take('x'), null, 'the writer said no: unpaid');
 });
+
+test('createPrefetch: a ready session older than 90 s is stopped and dropped (no endless touches), and an old one is never handed over', async () => {
+  let t = 0; const timers: Array<() => void> = [], stops: string[] = [];
+  const mk = (id: string) => ({ seed: 1, settle: async () => 'settled', played() {}, stop: () => void stops.push(id) }) as never;
+  const clock = { now: () => t, after: (fn: () => void) => (timers.push(fn), timers.length), cancel: () => {} };
+  const p = createPrefetch(async (id) => mk(id), clock);
+  p.want('a'); await Promise.resolve(); await Promise.resolve();
+  t = 91_000; timers[0]!(); assert.deepEqual(stops, ['a'], 'expired unused: stopped'); assert.equal(p.take('a'), null);
+  p.want('b'); await Promise.resolve(); await Promise.resolve(); t += 91_000;   // the timer has not fired yet but the session is old
+  assert.equal(p.take('b'), null, 'too old: not handed over'); assert.deepEqual(stops, ['a', 'b']);
+  p.want('c'); await Promise.resolve(); await Promise.resolve(); t += 30_000; assert.ok(p.take('c'), 'young and this creature: taken');
+});
