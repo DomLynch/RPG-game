@@ -1,7 +1,6 @@
 // Zone 1's OWN combat loop (Dom via Strategy, 2026-10-08: Zone 1 is detached from the Pit): continuous and open, no ring, no wall, no fight start or end, no FightRecord, no seed, no replay.
 // Pure and DOM-free: ONE step function over a world of free fighters in the world's own metres. It borrows DATA from src/ (the move rows, the creature rows, the rules numbers: ticks at 60 Hz
-// become seconds here) and the one speed table (../preview/speeds.ts); it never imports Match, duel.ts, record.ts or the sim. Zone 1 draws no randomness yet (the creature variety slices add
-// an injected `rand`), so a test is a plain call. Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering,
+// become seconds here) and the one speed table (../preview/speeds.ts); it never imports Match, duel.ts, record.ts or the sim. Its one randomness is the creature variety blow, an injected `rand` (default Math.random). Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering,
 // animation and input; this file owns hits, reach, stamina, guard, roll, posture, stagger, death and what a creature does with its weapon.
 // S0: movement, the light cut, a telegraphed creature bite, death, leash/give-up/heal-home. S1: guard (frontal block, perfect block, chip, guard break), roll with i-frames, posture break,
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
@@ -25,9 +24,9 @@ export const BLOW_WEIGHT: Readonly<Record<string, number>> = { wolf: 1, boar: 1.
 /** The creature variety rows (S2): each kind's second blow, thrown with probability `p` (an injected `rand` decides, one roll per blow). `dash` is the metres it covers when the blow goes active (a lunge, a charge): it starts
  *  that much farther out, and the windup is the tell the player rolls or backs out of. `mul` scales the kind's weight damage; `breaksGuard` makes a raised guard useless against it (answer: roll, or parry the basic blow). */
 export const VARIETY: Readonly<Record<string, { id: 'lunge' | 'charge' | 'heavy'; p: number; windup: number; mul: number; dash: number; breaksGuard: boolean }>> = {
-  wolf: { id: 'lunge', p: 0.3, windup: 0.5, mul: 1.3, dash: 1.2, breaksGuard: false },
-  boar: { id: 'charge', p: 0.35, windup: 0.7, mul: 1.6, dash: 4, breaksGuard: false },
-  bear: { id: 'heavy', p: 0.3, windup: 0.9, mul: 2, dash: 0, breaksGuard: true },
+  wolf: { id: 'lunge', p: 0.25, windup: 0.5, mul: 1.3, dash: 1.2, breaksGuard: false },
+  boar: { id: 'charge', p: 0.25, windup: 0.7, mul: 1.6, dash: 4, breaksGuard: false },
+  bear: { id: 'heavy', p: 0.25, windup: 0.9, mul: 2, dash: 0, breaksGuard: true },
 };
 export const PARRY_STAGGER_S = 0.7;                     // a perfect block of a creature's plain blow throws the creature off for this long (a heavy / charge cannot be parried: roll it)
 
@@ -154,11 +153,8 @@ function separate(f: Fighter, all: Fighter[]): void {
   }
 }
 
-/** The default `rand`: no variety, every creature throws its plain blow (a test is a plain call). Production passes Math.random or a seeded stream. */
-export const NO_RAND = (): number => 1;
-
-/** The next world: movement, blows, stamina, guard, roll, posture, creature behaviour. Never mutates its input. */
-export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number, rand: () => number = NO_RAND): { world: World; events: Event[] } {
+/** The next world (`rand` decides each creature's variety blow, about 1 attack in 4; the live game passes nothing and gets Math.random, tests inject): movement, blows, stamina, guard, roll, posture, creature behaviour. Never mutates its input. */
+export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number, rand: () => number = Math.random): { world: World; events: Event[] } {
   const events: Event[] = [];
   const fighters = world.fighters.map((f) => ({ ...f, struck: f.struck.slice() }));
   for (const f of fighters) {
@@ -207,7 +203,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
           if (f.plan === null) { const v = VARIETY[f.kind]; f.plan = v && rand() < v.p ? v.id : 'basic'; }
           const move = blowOf(f), v = VARIETY[f.kind], dash = v && f.plan === v.id ? v.dash : 0, near = move.reach * 0.85 + prey.radius, startAt = near + dash * 0.9;
           if (dist(f, prey) > startAt + CLOSE_EPS) { const step = Math.min(chaseSpeed(f.kind) * dt, dist(f, prey) - startAt); f.x += Math.sin(f.facing) * step; f.z += Math.cos(f.facing) * step; }
-          else if (f.pause <= 0 && fighters.filter((o) => o !== f && o.side === 'creature' && (o.phase === 'windup' || o.phase === 'active')).length < MAX_ATTACKERS) begin(f, move, events);
+          else if (f.pause <= 0 && fighters.filter((o) => o !== f && o.side === 'creature' && (o.phase === 'windup' || o.phase === 'active')).length < MAX_ATTACKERS && !fighters.some((o) => o !== f && o.side === 'creature' && o.phase === 'windup')) begin(f, move, events);
           separate(f, fighters);
         }
       } else if (f.hunting) { f.hunting = false; f.returning = true; f.unseen = 0; }   // nobody left to hunt (the prey is dead or gone)

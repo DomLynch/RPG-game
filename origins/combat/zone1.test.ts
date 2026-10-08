@@ -6,12 +6,12 @@ import { MOVES, OPPONENTS, RULES } from '../../src/moves.ts';
 import { LEASH, SPEEDS } from '../preview/speeds.ts';
 import { BLOW_WEIGHT, creature, minKillSeconds, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
-const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
+const NEVER = () => 1, ALWAYS = () => 0, DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
 /** Step `seconds`, with `input(t, world)` for the player; collects every event. */
 function run(world: World, seconds: number, input: (t: number, w: World) => Input = () => STILL): { world: World; events: Event[] } {
   const events: Event[] = [];
-  for (let t = 0; t < Math.round(seconds * 60); t++) { const r = stepCombat(world, { p: input(t, world) }, DT); world = r.world; events.push(...r.events); }
+  for (let t = 0; t < Math.round(seconds * 60); t++) { const r = stepCombat(world, { p: input(t, world) }, DT, NEVER); world = r.world; events.push(...r.events); }
   return { world, events };
 }
 
@@ -178,7 +178,7 @@ test('minKillSeconds is a conservative lower bound: no honest light-cut kill bea
   // an honest fight: the player cuts as fast as the rules allow against a held dummy; the bound must not exceed the time it really took
   const dummy = creature('w', 'wolf', 0, 1.2); dummy.phase = 'stagger'; dummy.hurtFor = 999;
   let w = newWorld([player('p', 0, 0, 0), dummy]), t = 0;
-  while (get(w, 'w').phase !== 'dead' && t < 600) { w = stepCombat(w, { p: { x: 0, z: 0, attack: 'light' } }, DT).world; t += DT; }
+  while (get(w, 'w').phase !== 'dead' && t < 600) { w = stepCombat(w, { p: { x: 0, z: 0, attack: 'light' } }, DT, NEVER).world; t += DT; }
   assert.equal(get(w, 'w').phase, 'dead');
   assert.ok(t >= minKillSeconds('wolf'), `really took ${t.toFixed(2)} s, bound ${minKillSeconds('wolf').toFixed(2)} s`);
 });
@@ -223,7 +223,7 @@ test('2 v 1: never more than MAX_ATTACKERS creatures wind up or swing at once, a
   let w = newWorld([player('p', 0, 0), creature('a', 'wolf', 3, 3), creature('b', 'wolf', -3, 3), creature('c', 'wolf', 0, -4)]);
   let most = 0, closest = Infinity, bites = 0;
   for (let t = 0; t < 60 * 6; t++) {
-    const r = stepCombat(w, { p: STILL }, DT); w = r.world; bites += r.events.filter((e) => e.type === 'Telegraph').length;
+    const r = stepCombat(w, { p: STILL }, DT, NEVER); w = r.world; bites += r.events.filter((e) => e.type === 'Telegraph').length;
     most = Math.max(most, w.fighters.filter((f) => f.side === 'creature' && (f.phase === 'windup' || f.phase === 'active')).length);
     const cs = w.fighters.filter((f) => f.side === 'creature');
     for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) closest = Math.min(closest, Math.hypot(cs[i]!.x - cs[j]!.x, cs[i]!.z - cs[j]!.z) - (cs[i]!.radius + cs[j]!.radius));
@@ -238,13 +238,12 @@ test('a creature that starts anywhere inside its aggro ring, at any angle and an
   for (let i = 0; i < 300; i++) {
     const kind = ['wolf', 'boar', 'bear'][i % 3]!, ang = rnd() * Math.PI * 2, d = 3 + rnd() * 5.9, px = rnd() * 50 - 25, pz = rnd() * 50 - 25;
     let w = newWorld([player('p', px, pz), creature('c', kind, px + Math.sin(ang) * d, pz + Math.cos(ang) * d)]), tele = false;
-    for (let t = 0; t < 60 * (d / 4.5 + 1.5) && !tele; t++) { const r = stepCombat(w, { p: STILL }, DT); w = r.world; tele = r.events.some((e) => e.type === 'Telegraph' && e.id === 'c'); }
+    for (let t = 0; t < 60 * (d / 4.5 + 1.5) && !tele; t++) { const r = stepCombat(w, { p: STILL }, DT, NEVER); w = r.world; tele = r.events.some((e) => e.type === 'Telegraph' && e.id === 'c'); }
     assert.ok(tele, `${kind} from ${d.toFixed(2)} m at ${ang.toFixed(3)} rad (player at ${px.toFixed(2)},${pz.toFixed(2)}) never telegraphed`);
   }
 });
 
 // ---- S2b: creature variety rows (injected rand), parry ----
-const ALWAYS = () => 0, NEVER = () => 1;
 function runR(world: World, seconds: number, rand: () => number, input: (t: number, w: World) => Input = () => STILL): { world: World; events: Event[] } {
   const events: Event[] = [];
   for (let t = 0; t < Math.round(seconds * 60); t++) { const r = stepCombat(world, { p: input(t, world) }, DT, rand); world = r.world; events.push(...r.events); }
@@ -252,10 +251,10 @@ function runR(world: World, seconds: number, rand: () => number, input: (t: numb
 }
 const firstTell = (events: Event[]) => events.find((e) => e.type === 'Telegraph' && e.id === 'c') as Extract<Event, { type: 'Telegraph' }>;
 
-test('variety: with rand() below p each kind throws its second blow (lunge / charge / heavy), slower to read and harder; the default rand never does', () => {
+test('variety: with rand() below p each kind throws its second blow (lunge / charge / heavy), slower to read and harder; a rand of 1 never does; the live default (Math.random) throws it about 1 in 4', () => {
   for (const [kind, id] of [['wolf', 'lunge'], ['boar', 'charge'], ['bear', 'heavy']] as const) {
     const mk = () => newWorld([player('p', 0, 0), creature('c', kind, 0, 6)]);
-    const v = firstTell(runR(mk(), 4, ALWAYS).events), plain = firstTell(runR(mk(), 4, NEVER).events), dflt = firstTell(run(mk(), 4).events);
+    const v = firstTell(runR(mk(), 4, ALWAYS).events), plain = firstTell(runR(mk(), 4, NEVER).events), dflt = firstTell(run(mk(), 4).events);   // run() injects NEVER
     assert.equal(v.move, id); assert.notEqual(plain.move, id); assert.equal(dflt.move, plain.move);
     assert.ok(v.ms > plain.ms, `${kind} ${id} windup ${v.ms} vs ${plain.ms}`);
     const dmg = (rand: () => number) => { const e = runR(mk(), 6, rand).events.find((x) => x.type === 'Hit' && x.attacker === 'c'); return e && e.type === 'Hit' ? e.damage : 0; };
@@ -294,4 +293,29 @@ test('parry: a perfect block of a creature\'s plain blow staggers the creature; 
   assert.ok(plain.some((e) => e.type === 'Blocked' && e.perfect), 'perfect block');
   assert.ok(plain.some((e) => e.type === 'Staggered' && e.id === 'c' && e.cause === 'parry'), 'the creature is parried');
   assert.ok(!mk(ALWAYS).some((e) => e.type === 'Staggered' && e.cause === 'parry'), 'the lunge cannot be parried');
+});
+
+test('live default rand: the variety blow comes up about 1 attack in 4, and stepCombat works with no rand argument', () => {
+  let seed = 99; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  let blows = 0, specials = 0;
+  for (let i = 0; i < 400; i++) {
+    let w = newWorld([player('p', 0, 0), creature('c', ['wolf', 'boar', 'bear'][i % 3]!, 0, 1.4)]); w.fighters[0]!.health = 1e6;
+    for (let t = 0; t < 60 * 3; t++) { const r = stepCombat(w, { p: STILL }, DT, rnd); w = r.world; for (const e of r.events) if (e.type === 'Telegraph' && e.id === 'c') { blows++; if (e.move === 'lunge' || e.move === 'charge' || e.move === 'heavy') specials++; } }
+  }
+  assert.ok(specials / blows > 0.18 && specials / blows < 0.32, `${specials}/${blows}`);
+  assert.doesNotThrow(() => stepCombat(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 5)]), { p: STILL }, DT));
+});
+
+test('2v1 pack: two wolves take turns - one winds up at a time, so their blows never land on the same tick', () => {
+  let w = newWorld([player('p', 0, 0), creature('a', 'wolf', 0.8, 1.6), creature('b', 'wolf', -0.8, 1.6)]); w.fighters[0]!.health = 1e6;
+  let hitters = 0, same = 0, swings = 0;
+  for (let t = 0; t < 60 * 12; t++) {
+    const r = stepCombat(w, { p: { x: 0, z: 0, guard: false } }, DT, NEVER); w = r.world;
+    const ids = new Set(r.events.filter((e) => e.type === 'Hit' && e.victim === 'p').map((e) => (e as Extract<Event, { type: 'Hit' }>).attacker));
+    if (ids.size > 1) same++; hitters += ids.size; swings += r.events.filter((e) => e.type === 'Swing').length;
+    if (w.fighters.filter((f) => f.phase === 'windup').length > 1) same++;
+  }
+  assert.ok(hitters >= 4 && swings >= 4, `both wolves attack (${hitters} hits)`);
+  assert.equal(same, 0, 'never two winding up or landing together');
+  assert.ok(new Set(w.fighters.map((f) => f.id)).size === 3);
 });
