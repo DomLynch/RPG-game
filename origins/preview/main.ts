@@ -147,7 +147,7 @@ const hint = document.getElementById('hint')!, place = document.getElementById('
 new ResizeObserver(() => document.documentElement.style.setProperty('--hud-bottom', `${Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom)}px`)).observe(document.getElementById('hud')!);
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, FRONTIER_ROWS, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run, or hold RUN. Creatures stop and watch when you come near.';
+if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
@@ -362,7 +362,7 @@ if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then((m) => {
     duel = m; m.enterWorld(leaveFight); kit = true; releaseSticks(); document.body.classList.add('kit');
-    hint.textContent = 'Left stick walks. Push to the edge to run, or hold RUN. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
+    hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
     if (menu && chips) {
