@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { glbImageUris, glbShape, glbTriangles, measure } from '../scripts/check-budget.mjs';
+import { glbImageUris, glbShape, glbTriangles, measure, ZONE1_BODIES, worldZones } from '../scripts/check-budget.mjs';
 
 // A minimal GLB: a JSON chunk naming external images, no binary chunk. Only the image URIs matter to the budget.
 function glb(uris: string[], padding = 0): Buffer {
@@ -376,4 +376,16 @@ test('the shipped Pit props hold the shape the loader relies on (gate: two nodes
   const shapes = Object.fromEntries(readdirSync('public/pit/props').filter((n) => n.endsWith('.glb')).map((n) => [n.slice(0, -4), glbShape(readFileSync(join('public/pit/props', n)))]));
   assert.deepEqual(shapes.gate, { meshes: 2, primitives: 2, moved: 1 });
   for (const [name, shape] of Object.entries(shapes)) if (name !== 'gate') assert.deepEqual(shape, { meshes: 1, primitives: 1, moved: 0 }, name);
+});
+
+// ---- the WORLD budget is per zone (Lead and Strategy 2026-10-08: no more global raises) ----
+
+test('world bodies: Zone 1\'s set is the bodies its rows spawn, read from the zone data; any other body is checked per file only', () => {
+  assert.deepEqual(ZONE1_BODIES, ['goblin', 'knight', 'pitborn', 'witch', 'wolf'], 'the Ash Frontier spawns these five (with ?wolf); the hero\'s own warrior body and a boar or bear with no row are not in it');
+  const files = ['goblin', 'warrior', 'boar', 'wolf'].map((k, i) => ({ name: `${k}.glb`, gzip: 1000 * (i + 1) }));
+  const z = worldZones(files);
+  assert.deepEqual(z.zone1.map((f) => f.name), ['goblin.glb', 'wolf.glb']);
+  assert.equal(z.zone1Gzip, 1000 + 4000);
+  assert.deepEqual(z.unassigned, ['warrior.glb', 'boar.glb'], 'not spawned by a zone yet: out of every zone\'s set');
+  assert.deepEqual(worldZones(files, [...ZONE1_BODIES, 'boar']).zone1.map((f) => f.name), ['goblin.glb', 'boar.glb', 'wolf.glb'], 'a row that spawns the boar in Zone 1 puts it in the set');
 });
