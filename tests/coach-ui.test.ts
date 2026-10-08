@@ -30,6 +30,15 @@ test('toggle on mid-fight emits start(tick, stance); a press stops it the same t
   assert.equal(s.pref, false, 'the chip tells the truth after a take-over');
 });
 
+test('the menu chip cannot start the Coach in a fight begin() disallowed (pvp, sparring, lesson, tutorial, replay): the pref is still saved', () => {
+  const st = store(), events: CoachEvent[] = [], s = createCoachSession(st, (e) => events.push(e));
+  s.begin(7, 'neutral', 0, false);
+  s.set(true, 30);
+  assert.equal(s.on, false); assert.deepEqual(events, []); assert.equal(s.pref, true); assert.equal(loadCoachPref(st), true);
+  s.begin(8, 'neutral', 0, true);
+  assert.equal(s.on, true, 'the saved pref arms the next allowed fight');
+});
+
 test('a saved ON pref arms the next fight from tick 0; the tag and the menu give their own reasons; end closes an open span', () => {
   const st = store({ [COACH_KEY]: '1' }), events: CoachEvent[] = [], s = createCoachSession(st, (e) => events.push(e));
   s.begin(7, 'neutral', 0);

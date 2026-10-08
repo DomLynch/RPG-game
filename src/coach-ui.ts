@@ -25,7 +25,7 @@ export type CoachSession = {
 };
 
 export function createCoachSession(store: CoachStore, emit: (e: CoachEvent) => void, killed = false): CoachSession {
-  let driver: CoachDriver | null = null, seed = 0, stance: PickedStance = 'neutral', pref = !killed && loadCoachPref(store), spans: readonly CoachSpan[] = [];
+  let driver: CoachDriver | null = null, seed = 0, stance: PickedStance = 'neutral', pref = !killed && loadCoachPref(store), spans: readonly CoachSpan[] = [], allowedNow = true;   // allowedNow: this fight may be coached (career or practice, not a replay): the menu chip honours it too
   const startAt = (tick: number): void => {
     driver ??= createCoachDriver(stance, seed);
     if (driver.on) return;
@@ -33,11 +33,11 @@ export function createCoachSession(store: CoachStore, emit: (e: CoachEvent) => v
   };
   return {
     get on() { return !!driver?.on; }, get pref() { return pref; }, get spans() { return driver?.spans ?? spans; }, get coached() { return (driver?.spans ?? spans).length > 0; },
-    begin(s, st, tick, allowed = true) { seed = s; stance = st; driver = null; spans = []; if (pref && allowed && !killed) startAt(tick); },
+    begin(s, st, tick, allowed = true) { allowedNow = allowed; seed = s; stance = st; driver = null; spans = []; if (pref && allowed && !killed) startAt(tick); },
     set(on, tick, reason = 'menu') {
       if (killed) return;
       pref = on; saveCoachPref(store, on);
-      if (on) startAt(tick);
+      if (on && allowedNow) startAt(tick);
       else if (driver?.on) { driver.stop(tick); emit({ type: 'stop', tick, reason }); }
     },
     end(tick) { if (driver?.on) { driver.stop(tick); emit({ type: 'stop', tick, reason: 'end' }); } },
