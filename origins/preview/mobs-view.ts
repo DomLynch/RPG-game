@@ -192,7 +192,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
-      mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, clip: views.get(i)?.shot?.role ?? null, height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
+      mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, clip: views.get(i)?.shot?.role ?? null, clipT: +(views.get(i)?.shot?.action.time ?? 0).toFixed(2), height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
     }),
   };
 }
