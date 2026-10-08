@@ -101,3 +101,11 @@ test('a stale reward line (O0002 at settle) is a retryable 503 code "stale", nev
   const out = await ops.encounter_settle!(ctx(flaky), { token: start.token, record }) as Record<string, unknown>;
   assert.equal(out.verified, true); assert.equal(events.length, 1, 'the retry on the very same token settles it');
 });
+
+test('settle with a record from another mob kit: 422 kit-mismatch, the token is NOT consumed and nothing is written (not a loss)', async () => {
+  const clock = { t: 1e6 }, { db, rows, events } = fakeDb(clock), ops = encounterOps(deps({ resolve: () => ({ ...RESOLVED, layer: 'brute' }) }));
+  const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: out.token, record: fight(out.seed, 1, 6, 'knight', false, 'test kit:zzz') }), (e: unknown) => e instanceof Refused && e.status === 422 && e.code === 'kit-mismatch' && /kit mismatch/.test(e.message));
+  assert.equal(events.length, 0, 'no event, so no loss');
+  assert.equal(rows.get(out.token)!.used, false, 'the token stays open for the sweep');
+});

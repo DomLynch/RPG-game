@@ -15,6 +15,7 @@ import type { TwistOutcome } from '../../src/twist.ts';
 import { careerState } from './career.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
+import * as store from './store.ts';
 import { metalOf, type CareerRow, type Json, type MetalRow } from './store.ts';
 
 export type Kill = { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null };
@@ -105,15 +106,20 @@ export type Cooldown = Map<string, { at: number; token: string }>;
 export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log, cooldown: Cooldown = new Map()) {
   const lookup = lookupOf(content);
   return async (kill: Kill, db: Db): Promise<Json[]> => {
-    const key = `${kill.account}|${kill.fight ?? ''}`, last = cooldown.get(key), t = now().getTime();
-    if (kill.fight && last && last.token !== kill.token && t - last.at < RESPAWN_MS) {
+    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-6)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }   // L3: never priced, and never outside the window
+    const key = `${kill.account}|${kill.fight}`, last = cooldown.get(key), t = now().getTime();
+    // L1: the hook runs BEFORE settle commits, so a window only counts once the earlier kill really paid (its enc:<token> event exists); a retry of the same token is never blocked.
+    if (last && last.token !== kill.token && t - last.at < RESPAWN_MS && (await store.event(db, kill.account, `enc:${last.token}`)) !== null) {
       log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((RESPAWN_MS - (t - last.at)) / 1000)} s left), the fight is recorded and pays nothing`);
       return [];
     }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
     const metal = await metalOf(db, kill.account);
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
-    if (kill.fight && paid.batch.length > 0) cooldown.set(key, { at: t, token: kill.token });
+    if (paid.batch.length > 0) {
+      for (const [k, v] of cooldown) if (t - v.at >= RESPAWN_MS) cooldown.delete(k);   // L2: expired windows are dropped, so the map holds at most the last 5 minutes of paid kills
+      cooldown.set(key, { at: t, token: kill.token });
+    }
     log(`encounter rewards ${kill.token.slice(-6)}: ${JSON.stringify(paid.summary)}`);
     return paid.batch;
   };
