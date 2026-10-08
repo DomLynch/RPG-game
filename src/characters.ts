@@ -1,4 +1,4 @@
-import { WOLF_RENDER_SCALE } from './beast-scale.ts';
+import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
@@ -406,6 +406,11 @@ export const SHIELD_CARRY = {
   lifted: { elbow: new Vector3(.3, .55, .35).normalize(), wrist: new Vector3(-.2, 1, .25).normalize() },
   planted: { elbow: new Vector3(.3, -.75, .6).normalize(), wrist: new Vector3(.05, -1, .3).normalize() },
 } as const;
+// A beast is drawn at the size it is met walking (src/beast-scale.ts), by roster id: render only, the sim's capsule is untouched. scene.ts calls this once the foe's rig is built.
+export function sizeBeast(warriors: { opponent: { anchor: Group } }, opponentId: string): void {
+  const k = beastRenderScale(opponentId);
+  if (k !== 1) warriors.opponent.anchor.scale.setScalar(k);
+}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
@@ -413,7 +418,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
     const roles = [...ROLES, ...ADDITIVE_ROLES].filter(role => clips[role]);   // the roles this rig carries clips for (the appended scenes are optional)
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
-    if (opponent && weapon === 'bite') anchor.scale.setScalar(WOLF_RENDER_SCALE);   // the Ash Wolf (its weapon is the bite; a boar or hound brings its own) is drawn at the size it is met walking (src/beast-scale.ts); render only, the sim's capsule is unchanged
     // A re-proportioned fighter's walk cycle covers less ground than a man's (build-warrior.mjs writes `stride`, root scale × leg scale, on
     // the rig node): his locomotion clips play faster by that so the feet keep planting at the simulation's travel speed. A man's is 1.
     let stride = 1; asset.scene.traverse(o => { if (typeof o.userData.stride === 'number' && o.userData.stride > 0) stride = o.userData.stride; });

@@ -352,7 +352,7 @@ try {
   psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
   eq(psql(`select count(*) from public.origins_access where account = '${A}'`), '1', 'A is still on the allowlist');
   const flagOff = await fetchOpen('ta', { base: writer });
-  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Offline preview: progress is not saved'], 'preview: flag off + access row -> 403 -> the offline line');
+  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Not signed in: progress isn’t saved'], 'preview: flag off + access row -> 403 -> the offline line');
   psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
   eq(isOffline(await fetchOpen('ta', { base: writer })), false, 'preview: flag back on -> the saved career again');
   // retiring a pack row (a whole-stack burn nulls loc_kind) is not an escrow move: 0003's guard compared with '=' and refused it

@@ -7,7 +7,5 @@ import type { MobRow } from './row.ts';
 
 const pending = { pending: 'Content/Strategy to cite (legends-rule)' };
 export const WILDLIFE_ROWS: readonly MobRow[] = [
-  { id: 'character:ash-wolf', later: true, source: pending, role: 'beast', loot: 'loottable:ash-wolf', level: [11, 13], behaviour: { aggro: 9, roam: 7, spread: 10, campSize: [2, 3] } },
-  { id: 'character:ash-boar', later: true, source: pending, role: 'beast', rarity: 'uncommon', loot: 'loottable:ash-boar', level: [12, 14], behaviour: { aggro: 6, roam: 5, spread: 8, campSize: [1, 2] } },
   { id: 'character:cinder-hound', later: true, source: pending, role: 'beast', loot: 'loottable:cinder-hound', level: [12, 14], behaviour: { aggro: 9, roam: 7, spread: 10, campSize: [2, 3] } },
 ];

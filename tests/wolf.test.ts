@@ -80,7 +80,7 @@ test('against the hero\'s brain the wolf is neither a pushover nor a wall (the G
 });
 
 // The baked blade tables of every rig that was live before the wolf are byte-identical to trunk (the Auditor's RV35 delta, 2026-10-07: a re-bake had moved all nine Goblin knife
-// paths by up to 1e-5 m, and v34 Goblin links must stay readable): the wolf's rig is the only addition. Hashes of each rig's table as trunk (RV34) shipped it.
+// paths by up to 1e-5 m, and v34 Goblin links must stay readable): the wolf's rig and the boar's (RV36) are the only additions. Hashes of each rig's table as trunk (RV34) shipped it.
 test('every rig baked before the wolf keeps its blade table byte for byte; the wolf is the only new rig', async () => {
   const { createHash } = await import('node:crypto');
   const trunk: Record<string, string> = {
@@ -91,5 +91,5 @@ test('every rig baked before the wolf keeps its blade table byte for byte; the w
   wraith: 'bcfee62bc3a70d6c9a07d531e7b6fbf217b0a86bea78da976206c702216dc8af',
   };
   for (const [rig, hash] of Object.entries(trunk)) assert.equal(createHash('sha256').update(JSON.stringify(bladePathsByRig[rig])).digest('hex'), hash, `${rig}'s blade table moved: bake with the manifest filtered to the new row, or splice only the new rig`);
-  assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf']);
+  assert.deepEqual(Object.keys(bladePathsByRig).filter((rig) => !(rig in trunk)), ['wolf', 'boar', 'bear']);
 });

@@ -15,5 +15,5 @@ function wins(o, level) {
   }
   return n;
 }
-const w = OPPONENTS.wolf, tuned = { ...w, ...(patch.row ?? {}), profiles: { ...w.profiles, easy: { ...w.profiles.easy, ...(patch.easy ?? {}) }, normal: { ...w.profiles.normal, ...(patch.normal ?? {}) }, hard: { ...w.profiles.hard, ...(patch.hard ?? {}) } } };
-console.log(JSON.stringify(patch), `wolf wins of ${seeds}: easy ${wins(tuned, 'easy')}, normal ${wins(tuned, 'normal')}   (goblin: easy ${wins(OPPONENTS.goblin, 'easy')}, normal ${wins(OPPONENTS.goblin, 'normal')})`);
+const FOE = process.env.FOE ?? 'wolf', w = OPPONENTS[FOE], tuned = { ...w, ...(patch.row ?? {}), profiles: { ...w.profiles, easy: { ...w.profiles.easy, ...(patch.easy ?? {}) }, normal: { ...w.profiles.normal, ...(patch.normal ?? {}) }, hard: { ...w.profiles.hard, ...(patch.hard ?? {}) } } };
+console.log(JSON.stringify(patch), `${FOE} wins of ${seeds}: easy ${wins(tuned, 'easy')}, normal ${wins(tuned, 'normal')}   (goblin: easy ${wins(OPPONENTS.goblin, 'easy')}, normal ${wins(OPPONENTS.goblin, 'normal')})`);

@@ -75,6 +75,14 @@ export const metalOf = async (db: Db, account: string): Promise<MetalRow | null 
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 
+// The respawn window (migration 202610080006): milliseconds since this account's last PAID kill of a fight, on the database clock; null when none.
+// 'absent' when the migration is not applied: the hook then pays nothing (fail closed), the fight is still recorded.
+const HAS_LAST_PAID = `select to_regprocedure('public.origins_last_paid_kill(uuid,text)') is not null as lastpaid \\gset\n`;
+export const lastPaidKill = async (db: Db, account: string, fight: string): Promise<number | null | 'absent'> => {
+  const out = await db.run(`${HAS_LAST_PAID}\\if :lastpaid\nselect coalesce(public.origins_last_paid_kill(:'a'::uuid, :'f')::text, 'null');\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account), f: fight });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
 // World creature fights (migration 202610080002): the parameters the server holds for a fight and its lifecycle. Every call answers `null` when the migration is not applied (the
 // writer maps that to a 503), so merged code on a database without it fails closed instead of 500ing.
 export type EncounterRun = {

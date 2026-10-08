@@ -13,14 +13,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 5, 'a camp of four (a leader and three, Strategy) and one lone opener near the entry (zone-rules)');
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 9, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp of three at the hold road');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:cinder-scavenger', 'character:hrungnir']);
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
-  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul']);
+  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
   assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 17);
+  assert.equal(SPECS.length, 22);
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -161,43 +161,41 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
   assert.ok(at, 'a spawn exists');
   const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 45)!.zone)!;
   assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
-  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), nearest = Math.min(...SPECS.map(dist));
-  assert.ok(nearest >= 25 && nearest <= 35, `the nearest creature is ${nearest.toFixed(1)} m: past the 14 m tap reach, in sight`);
+  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), wolves = SPECS.filter((s) => s.body === 'wolf'), wd = Math.min(...wolves.map(dist)), others = Math.min(...SPECS.filter((s) => s.body !== 'wolf').map(dist));
+  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m: the wolves are live, so the wolf rule is the default (Dom's ruling: 15-25 m ahead)`);
+  assert.ok(others >= 25, `the others stay ${others.toFixed(1)} m off`);
+  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = at.facing - headingTo(at, c);
+  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
   assert.ok(SPECS.filter((s) => dist(s) < 45).length >= 4, 'at least four creatures within sight (45 m)');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
-  const wolfSpecs = mobSpecs(F, B, previewRows('?wolf')), w = spawnAmong(F, B, wolfSpecs)!, wolves = wolfSpecs.filter((s) => s.body === 'wolf');
-  const wd = Math.min(...wolves.map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z))), others = Math.min(...wolfSpecs.filter((s) => s.body !== 'wolf').map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z)));
-  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m`);
-  assert.ok(others >= 25, `the goblins stay ${others.toFixed(1)} m off`);
-  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = w.facing - headingTo(w, c);
-  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
 });
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '17 creatures, same ids, bodies, levels, homes, roam and aggro');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
-test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {
-  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1')), SPECS, 'no flag: the placed list is the golden one');
-  const wolves = mobSpecs(F, B, previewRows('?region=1&wolf')).filter((s) => s.character === 'character:ash-wolf');
+test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf')), SPECS, '?wolf is accepted and does nothing');
+  const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
   assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
-test('a world fight hides only the duel\'s foe and the far creatures: packmates beside the hero stay in view (Dom, 2026-10-08: 2 vs 1 is fine)', () => {
-  assert.equal(hiddenInFight('wolves-1', 'wolves-1', 3, 20), true, 'the duel draws the foe');
-  assert.equal(hiddenInFight('wolves-2', 'wolves-1', 2.5, 20), false, 'a packmate beside the hero stays visible');
-  assert.equal(hiddenInFight('goblin-1', 'wolves-1', 25, 20), true, 'past the freeze radius: hidden');
-  assert.equal(hiddenInFight('goblin-1', null, 12, 20), false);
+test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {
+  assert.equal(hiddenInFight('wolves-1', 'wolves-1'), true, 'the duel draws the foe');
+  assert.equal(hiddenInFight('wolves-2', 'wolves-1'), false, 'a packmate beside the hero stays visible');
+  assert.equal(hiddenInFight('goblin-1', 'wolves-1'), false, 'a far creature is still drawn: nothing past a radius is hidden any more');
+  assert.equal(hiddenInFight('goblin-1', null), false);
 });
 
-test('the world keeps living during a world duel: attach starts the creature tick, detach stops it, the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world)', () => {
+test('the world keeps living during a world duel: the walk loop never stops, it keeps ticking the creatures, fires and arena while the duel draws, and the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world; re-pinned from the separate liveWorld tick)', () => {
   const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
-  assert.match(main, /attach\(\) \{[^\n]*liveWorld\(spec\.id, at\);/, 'attach starts the live tick');
-  assert.match(main, /detach\(\) \{ liveWorld\(null, at\);/, 'detach stops it first');
-  assert.match(main, /mobs\?\.update\([^\n]*, at, foe, foe\)/, 'the tick steps every creature round the hero and hides the foe\'s world body');
-  assert.match(view, /v\.group\.visible = v\.ring\.visible = s\.id !== hideBody;/);
+  assert.match(main, /attach\(\) \{[^\n]*mobs\?\.engage\(spec\.id\); duelDrawing = true;/, 'attach hides the foe and hands the drawing to the duel');
+  assert.match(main, /detach\(\) \{[^\n]*mobs\?\.engage\(null\); duelDrawing = false;/, 'detach gives it back');
+  assert.match(main, /if \(duelDrawing\) \{[^\n]*\n\s*mobs\?\.update\(dt, state, cardId\);[^\n]*\n\s*return;/, 'while the duel draws, the walk loop still steps the creatures and does not render');
+  assert.match(main, /if \(!WORLDFIGHT\) renderer\.setAnimationLoop\(null\);/, 'a world fight never stops the loop');
+  assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
 });
 
 test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {

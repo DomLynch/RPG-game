@@ -181,6 +181,26 @@ try {
   eq(psql(`select count(*) from public.origins_metal_ledger where account = '${C}'`), '2', 'metal_of down: no data touched');
   psql(readFileSync(join(dir, '202610080004_origins_metal_of.sql'), 'utf8'));
 
+  // ---- respawn window (migration 202610080006 origins_last_paid_kill): the time since the account's last PAID kill of a fight, from committed events -----
+  eq(await code(V, SETTLE(C, tok(24), 'won', 400, EV(tok(24), C, pcC, 'won'))), null, 'respawn: the stale bronze fight settles (event only), freeing the account');
+  const lpPriv = role => psql(`select has_function_privilege('${role}', 'public.origins_last_paid_kill(uuid, text)', 'execute')`);
+  eq([lpPriv(V), lpPriv(O), lpPriv('anon'), lpPriv('authenticated')], ['t', 't', 'f', 'f'], 'last_paid_kill: the writer roles execute it, anon and authenticated do not');
+  const lastPaid = f => JSON.parse(psql(`set role ${V}; select coalesce(public.origins_last_paid_kill('${C}', '${f}')::text, 'null');`).split('\n').pop());
+  const EVP = (t, fight, wasPaid) => `[{"op":"event","event_id":"enc:${t}","kind":"mob","account":"${C}","character":"${pcC}","payload":{"result":"won","verified":true,"fight":"${fight}","paid":${wasPaid}}}]`;
+  eq(lastPaid(creature), null, 'last_paid_kill: no paid kill of this fight yet (the earlier events carry no fight key)');
+  eq(await code(V, START(C, pcC, tok(25), seed + 2, foe.body, foe.level)), null, 'respawn: a fight starts');
+  eq(await code(V, SETTLE(C, tok(25), 'won', 400, EVP(tok(25), creature, true))), null, 'respawn: a paid kill settles');
+  const ms = lastPaid(creature);
+  eq(typeof ms === 'number' && ms >= 0 && ms < 60_000, true, `last_paid_kill: milliseconds since the paid kill, on the database clock (got ${ms})`);
+  eq(await code(V, START(C, pcC, tok(26), seed + 3, foe.body, foe.level)), null, 'respawn: another fight starts');
+  eq(await code(V, SETTLE(C, tok(26), 'won', 400, EVP(tok(26), 'character:other-kind', false))), null, 'respawn: an unpaid kill settles');
+  eq(lastPaid('character:other-kind'), null, 'last_paid_kill: an unpaid kill opens no window');
+  eq(psql(`select count(*) from pg_indexes where indexname = 'origins_events_paid_mob'`), '1', 'last_paid_kill: the partial index exists');
+  psql(readFileSync(join(dir, '..', 'down', '202610080006_origins_last_paid_kill_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill(uuid,text)') is null)::text || '/' || (select count(*) from pg_indexes where indexname = 'origins_events_paid_mob')`), 'true/0', 'last_paid_kill down: the function and the index are gone');
+  eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
+  psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
+
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins_encounter\\_%' and proname not in ('origins_issue_encounter', 'origins_consume_encounter')`), '0', 'down: the five functions are gone');
