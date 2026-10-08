@@ -5,6 +5,8 @@ import { fightSetup, loadEncounterContent, lookupOf } from '../encounters/encoun
 import { openInventory } from '../inventory/inventory.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { mobBatch } from './mob-rewards.ts';
+import { OPPONENTS, opponentAt } from '../../src/moves.ts';
+import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../combat/duel-open.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
@@ -42,13 +44,37 @@ test('the spawn list is the page\'s own mobSpecs ids, every one priced by the se
   for (const s of spawns.values()) { assert.ok(s.hp > 0); assert.ok(s.respawnS >= 10); assert.ok(s.fight.length > 0); }
 });
 
-test('the floors: hits >= ceil(HP / max hit); time-to-kill from the chained light cut; reach = roam + cut + slack', () => {
-  assert.equal(minHits(90), Math.ceil(90 / maxHit()));
-  assert.equal(minKillMs(1), 0, 'one blow kills at once');
-  assert.ok(minKillMs(90) > 1000, 'a 90 HP wolf takes more than a second');
-  assert.ok(minKillMs(220) > minKillMs(90));
+test('the floors are bounds from the Pit kit: at least one hit, monotone in health; reach = roam + cut + slack', () => {
+  assert.ok(minHits(1) === 1 && minHits(90) >= 1, 'never below one hit');
+  assert.equal(minHits(90), Math.max(1, Math.ceil(90 / maxHit())));
+  assert.ok(minKillMs(1) >= 0 && minKillMs(5000) >= minKillMs(90), 'more health never lowers the time floor');
   const spec = { home: { x: 0, z: 0 }, roam: 6 };
   assert.ok(withinReach(spec, { x: 9, z: 0 })); assert.ok(!withinReach(spec, { x: 20, z: 0 }));
+});
+
+// The Auditor's pin (#1880): the duel Zone 1 actually runs (duel-open stepDuel, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
+// than the floors. The attacker's best case: a creature that never moves, guards or swings, and a hero who presses one attack every tick it is legal.
+test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (duel-open, best case for the attacker)', () => {
+  const kinds = [...new Set([...spawns.values()].map((s) => s.spec.body))];
+  assert.ok(kinds.length > 0);
+  for (const kind of kinds) for (const level of [1, 2, 3]) {
+    const o = opponentAt((OPPONENTS as Record<string, Parameters<typeof opponentAt>[0]>)[kind]!, level);
+    let fastest = Infinity;
+    for (const action of ['light', 'heavy', 'thrust'] as const) {
+      const hero = createFighter({ x: 0, z: -0.8, heading: 0, distance: 0 }, 'ready', 'longsword'), foe = opponentFighter(o, { x: 0, z: 0.8, heading: Math.PI, distance: 0 }, 'ready');
+      let duel: Duel = { tick: 0, fighters: [hero, foe], finish: null, events: [] }, hits = 0;
+      for (let t = 0; t < 60 * 120 && duel.finish === null && duel.fighters[1].health > 0; t++) {
+        duel = stepDuel(duel, [{ ...idleIntent(), action }, idleIntent()]);
+        hits += duel.events.filter((e) => e.actor === 0 && e.target === 1 && (e.type === 'Hit' || e.type === 'GuardBroken')).length;
+      }
+      if (duel.fighters[1].health > 0) continue;   // this attack alone never finished it (it can't be the fastest)
+      const ms = duel.tick * 1000 / 60;
+      assert.ok(ms >= minKillMs(o.health), `${kind} L${level} ${action}: killed in ${ms} ms, under the ${minKillMs(o.health)} ms floor`);
+      assert.ok(hits >= minHits(o.health), `${kind} L${level} ${action}: ${hits} hits, under the ${minHits(o.health)} hit floor`);
+      fastest = Math.min(fastest, ms);
+    }
+    assert.ok(Number.isFinite(fastest), `${kind} L${level}: no scripted attack killed it (the test proves nothing)`);
+  }
 });
 
 test('off (ORIGINS_SPAWNS=0): every op answers 503 off; migration absent: 503', async () => {

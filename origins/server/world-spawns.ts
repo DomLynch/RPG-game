@@ -11,7 +11,10 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
-import { MOVES, OPPONENTS } from '../../src/moves.ts';
+import { OPPONENTS, RULES, opponentAt, weaponOf } from '../../src/moves.ts';
+import { CAPS } from '../../src/gear-stats.ts';
+import { ROLL_BAND } from '../../src/roll.ts';
+import { GAMBIT_ODDS } from '../../src/gambit.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
@@ -20,14 +23,21 @@ import { mobBatch, respawnMsOf } from './mob-rewards.ts';
 import * as store from './store.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
-// The player's fastest damage in the detached loop (Combat's origins/combat/zone1.ts): the light cut, chained (16 + 8 + 18 ticks at 60 Hz), at most ATTACK_CAP times its row damage
-// (headroom for gear Attack; zone1 applies none today). SLACK forgives clock and network jitter. A report faster or with fewer hits than this cannot be a real kill.
-export const ATTACK_CAP = 1.5, SLACK = 0.5;
-const LIGHT = MOVES.light_right, CYCLE_MS = ((LIGHT.chained?.windup ?? LIGHT.windup) + LIGHT.active + (LIGHT.chained?.recovery ?? LIGHT.recovery)) * 1000 / 60;
-export const maxHit = (): number => Math.ceil(LIGHT.damage * ATTACK_CAP);
-export const healthOf = (body: string): number | null => (OPPONENTS as Record<string, { health: number } | undefined>)[body]?.health ?? null;
-export const minHits = (hp: number): number => Math.ceil(hp / maxHit());
-export const minKillMs = (hp: number): number => Math.floor((minHits(hp) - 1) * CYCLE_MS * SLACK);   // the first cut lands at once; every later one waits a chained cycle
+// Zone 1 fights on the Pit's own duel (origins/combat/open-fight.ts, #1894): the player is a longsword hero, the creature the Pit's level row (opponentAt). A kill report carries no record, so
+// these are BOUNDS that an honest fight can never break (Auditor, #1880): the biggest blow the longsword's table can deal with every multiplier stacked (a charged heavy, a stop-hit, a blow on a
+// downed back, the gear Attack cap, the top of the damage roll, a landed Gambit), and the fastest a first blow can land. With the Pit kit one blow can exceed a low-level creature's health, so the
+// hit floor is usually 1 and the time floor is the fastest windup: they stop scripted instant reports, not skilled play. The rest of the anti-cheat is the server's spawn state, the single-use
+// engage token and the per-account kill caps (migration 202610080014).
+export const SLACK = 0.5;
+const SWORD = weaponOf('longsword').moves, BLOWS = Object.values(SWORD);
+const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * (1 + ROLL_BAND / 100) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
+export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
+const FASTEST_WINDUP = Math.min(...BLOWS.flatMap((m) => [m.windup, ...(m.chained ? [m.chained.windup] : [])]));
+const FASTEST_CYCLE = Math.min(...BLOWS.flatMap((m) => [m.windup + m.active + m.recovery, ...(m.chained ? [m.chained.windup + m.chained.active + m.chained.recovery] : [])]));
+export const healthOf = (body: string, level: number): number | null => { const o = (OPPONENTS as Record<string, Parameters<typeof opponentAt>[0] | undefined>)[body]; return o ? opponentAt(o, level).health : null; };
+export const minHits = (hp: number): number => Math.max(1, Math.ceil(hp / maxHit()));
+export const minKillMs = (hp: number): number => Math.floor((FASTEST_WINDUP + (minHits(hp) - 1) * FASTEST_CYCLE) * 1000 / 60 * SLACK);   // the first blow after the fastest windup, every later one a full fastest cycle on
+const LIGHT = SWORD.light_right;
 // Reach: the creature roams `roam` m from home; the cut reaches LIGHT.reach; REACH_SLACK m for presence's pose lag (a pose is at most POSE_AGE_MS old).
 export const REACH_SLACK = 4, POSE_AGE_MS = 5000;
 export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: number; z: number }): boolean =>
@@ -38,7 +48,7 @@ export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number
 export function zone1Spawns(content: EncounterContent): Map<string, Spawn> {
   const f = frontierPlan(), out = new Map<string, Spawn>();
   for (const spec of mobSpecs(f, frontierBuild(f))) {
-    const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body);
+    const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
     out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / 1000) });
   }
