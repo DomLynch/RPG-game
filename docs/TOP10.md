@@ -56,6 +56,8 @@ Donors (Strategy's file:line study): World of Claudecraft terrain_relief.ts:1-30
 
 One legend per zone. ~760 fightable legends / 50 levels = ~15 zones per level = ~750 legend zones plus a few hubs. Each level is a region of ~15 zones sharing land type, animals and prop kit. Zone 1's headliner is Goblin L1 (the same as the Pit); zones 1-15 are all level 1. Fame mix: every region 1-45 gets at least one big-name headliner (measured fame, #1699); the most famous (Hercules/Achilles tier) are held for Origin 46-50; the rest go by strength. Zone 1 stays the priority; no new work starts on this now.
 
+Asset budget rule (Strategy, Lead 2026-10-08): the world-body gzip cap rose 6.5 to 7.57 MB once for the boar (#1777: seven bodies 6,690,374 B + 13 %). A total that grows with every creature will not scale to 800 zones, so when World does the zone work the cap in `scripts/check-budget.mjs` becomes per-zone (only that zone's animals and legend load); no further global raises.
+
 Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to confirm:** World, Pit & Audio (owner of origins/world and `generateZone`), with Characters supplying the legend roster and fame numbers and Lead writing the table's schema and legend-name rules (legends-rule) as docs. Starts only after Zone 1 quality is done.
 
 Items not on this list wait.
