@@ -11,6 +11,7 @@ const repo = fileURLToPath(new URL('../../', import.meta.url));
 
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
+  envDir: repo,   // the repo root's .env* (VITE_SUPABASE_*): root is origins/preview, so without this Zone 1's session renewal is a silent no-op (Auditor, #1864)
   base: '/preview/origins/',
   publicDir: false,   // the game's public/ is 500 MB; the Pit needs only public/arena/ (abyss photograph and painted backdrops, ~160 KB), emitted below
   server: { fs: { allow: [repo] } },

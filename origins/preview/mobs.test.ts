@@ -13,14 +13,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 6, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), and the one Ash Boar at the hold road');
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 9, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp of three at the hold road');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:cinder-scavenger', 'character:hrungnir']);
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
-  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul']);
+  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
   assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 18);
+  assert.equal(SPECS.length, 22);
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -161,26 +161,23 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
   assert.ok(at, 'a spawn exists');
   const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 45)!.zone)!;
   assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
-  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), nearest = Math.min(...SPECS.map(dist));
-  assert.ok(nearest >= 25 && nearest <= 35, `the nearest creature is ${nearest.toFixed(1)} m: past the 14 m tap reach, in sight`);
+  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), wolves = SPECS.filter((s) => s.body === 'wolf'), wd = Math.min(...wolves.map(dist)), others = Math.min(...SPECS.filter((s) => s.body !== 'wolf').map(dist));
+  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m: the wolves are live, so the wolf rule is the default (Dom's ruling: 15-25 m ahead)`);
+  assert.ok(others >= 25, `the others stay ${others.toFixed(1)} m off`);
+  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = at.facing - headingTo(at, c);
+  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
   assert.ok(SPECS.filter((s) => dist(s) < 45).length >= 4, 'at least four creatures within sight (45 m)');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
-  const wolfSpecs = mobSpecs(F, B, previewRows('?wolf')), w = spawnAmong(F, B, wolfSpecs)!, wolves = wolfSpecs.filter((s) => s.body === 'wolf');
-  const wd = Math.min(...wolves.map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z))), others = Math.min(...wolfSpecs.filter((s) => s.body !== 'wolf').map((s) => Math.hypot(s.home.x - w.x, s.home.z - w.z)));
-  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m`);
-  assert.ok(others >= 25, `the goblins stay ${others.toFixed(1)} m off`);
-  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = w.facing - headingTo(w, c);
-  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
 });
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '18 creatures: the 17 before, unchanged, plus the Ash Boar (appended last so the others keep their seeds)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
-test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {
-  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1')), SPECS, 'no flag: the placed list is the golden one');
-  const wolves = mobSpecs(F, B, previewRows('?region=1&wolf')).filter((s) => s.character === 'character:ash-wolf');
+test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf')), SPECS, '?wolf is accepted and does nothing');
+  const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
   assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });

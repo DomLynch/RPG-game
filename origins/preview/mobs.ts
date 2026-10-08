@@ -5,10 +5,10 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
+import { SPEEDS } from './speeds.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
 import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
-import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
@@ -26,7 +26,7 @@ export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: numb
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
 export const TUNING = {
-  walk: 0.9,            // m/s: a creature's amble, well under the hero's 2.3
+  walk: SPEEDS.creature.amble,   // m/s: a creature's amble, well under the hero's walk (the one speed table, speeds.ts)
   turn: 3.2,            // rad/s the body swings toward where it is going or looking
   aggro: 7,             // m: the ring a creature notices the hero inside (named ones 9)
   aggroNamed: 9,
@@ -57,9 +57,8 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-// ?wolf (Dom: the Zone 1 preview with the Ash Wolf): the wildlife batch's wolf row with `later` lifted, added to the zone's rows for this page only. The registry's
-// `wolves` spawn is inert without it, so the live game and the golden placement are untouched.
-export const previewRows = (search: string): readonly MobRow[] => /[?&]wolf\b/.test(search) ? [...FRONTIER_ROWS, ...WILDLIFE_ROWS.filter((r) => r.id === 'character:ash-wolf').map((r) => ({ ...r, later: undefined }))] : FRONTIER_ROWS;
+// The Ash Wolf is a live row (frontier-rows.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
+export const previewRows = (_search: string): readonly MobRow[] => FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
