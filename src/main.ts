@@ -31,6 +31,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } fro
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
+import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts';
 import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
@@ -523,7 +524,7 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
-const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): the preview's first pick; absent = no stances anywhere
+const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
@@ -903,6 +904,14 @@ window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
 const paused = () => invalidSparringPreview || !assetsReady || graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
+// The Coach (TOP10 row 8): ON as a feature, `?coach=off` is the kill switch; the toggle is saved per device. One tag is both the live "Coached" button and the win marker.
+const coach = createCoachSession(storage, (detail: CoachEvent) => { window.dispatchEvent(new CustomEvent('frankendom:coach', { detail })); paintCoach(); }, coachKilled(location.search));
+function paintCoach(): void {
+  const tag = element('coach-tag'), chip = element('mobile-coach');
+  chip.hidden = coachKilled(location.search); chip.setAttribute('aria-pressed', String(coach.pref)); chip.textContent = coach.pref ? 'Coach on' : 'Coach off';
+  tag.hidden = !coach.on && !(coach.coached && match.practice.finish && match.practice.finish.victim === 1);
+  tag.dataset.live = String(coach.on); tag.textContent = coach.on ? 'Coached · tap' : 'Coached win';
+}
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
@@ -911,6 +920,7 @@ const controls = createInput({
   ready: () => assetsReady,
   practice: () => match.practice,
   quiet: () => feedback.quiet(),
+  press: () => { if (coach.on) coach.set(false, match.practice.duel.tick, 'tap'); },   // any fight button hands the fight over BEFORE that tick reads its input (src/coach-ui.ts)
 });
 // This fight's claim (loot-claims.ts): its encoded record, written to the outbox at the kill, and settled once by the player's last word
 // on the loot (a take once the Undo line is gone, Leave it, nothing to offer) or by leaving the fight. Share waits on the post, at most
@@ -936,16 +946,17 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
-// The stance preview (?stances=, src/stance-panel.ts): off unless the URL asks. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
+// The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
 let stancePanel: StancePanel | null = null;
 // Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
 function showStances() {
   if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
-  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
+  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
   if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
 }
 function began() {
   nameOpponent();
+  coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();
   showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
@@ -1024,7 +1035,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances));   // the level's body, as match.startClip replays it (on the record's math); the Gambit and the stance pick like src/replay.ts, or a stances clip would re-sim a different fight
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
@@ -1379,6 +1390,7 @@ try {
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   showStances();   // ?stances=: the panel is on the page from load, before any fight starts
+coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();   // the first fight of a page load never runs began(): arm the Coach (and paint the chip) here too
   if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -1468,6 +1480,8 @@ canvas.addEventListener('webglcontextrestored', () => {
   updateHud();
   frameId = requestAnimationFrame(frame);
 });
+element('mobile-coach').addEventListener('click', () => coach.set(!coach.pref, match.practice.duel.tick, 'menu'));   // the menu chip: Coach plays or not, from the next tick
+element('coach-tag').addEventListener('click', () => { if (coach.on) coach.set(false, match.practice.duel.tick, 'tag'); });   // the live tag is also the way back to your own hands
 for (const id of ['camera-button', 'mobile-camera'])
   element(id).addEventListener('click', () => {
     locked = !locked;
@@ -1586,7 +1600,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson' && match.mode !== 'tutorial') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
-      const result = match.step(() => {
+      const result = match.step(() => coach.pick(match.practice.duel, () => {
         const intent = controls.intent();
         return {
           move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
@@ -1597,7 +1611,7 @@ function frame(now: number) {
           lock: locked,
           cancel: intent.cancel,
         };
-      });
+      }));
       if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
       if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
@@ -1680,6 +1694,7 @@ function frame(now: number) {
         onTick(pvpHold, { state, practice, rollbacks: match.pvp?.rollbacks ?? 0 }, pvpHold.shown ? 0 : stopFor(practice.events), match.frameEvents.length);
       }
       if (result === 'ended') {
+        if (coach.coached && match.recorder) { coach.end(practice.duel.tick); { const built = match.recorder.meta.build; match.recorder.meta.build = coach.build(built.replace(/ kit:\S+$/, ''), /kit:(\S+)$/.exec(built)?.[1] ?? null); } } else coach.end(practice.duel.tick);
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (!match.replay) setTimeout(sendBeacon, 0);   // the perf beacon, off the frame (a watched replay is not a fight)
