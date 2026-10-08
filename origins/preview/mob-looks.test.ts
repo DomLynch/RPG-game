@@ -18,7 +18,7 @@ test('every Frontier foe has exactly one look, on the body content.ts names', ()
 
 test('ranges: scale, dressing and tint are sane; a friendly figure has no look', () => {
   for (const [id, l] of Object.entries(MOB_LOOKS)) {
-    assert.ok(l.scale >= .7 && l.scale <= 1.6, `${id} scale ${l.scale}`);
+    assert.ok(l.scale >= .7 && l.scale <= 2, `${id} scale ${l.scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07)
     for (const v of [l.dressing.soot, l.dressing.burnt]) assert.ok(v >= 0 && v <= 1, `${id} dressing ${v}`);
     assert.ok(Number.isInteger(l.tint) && l.tint >= 0 && l.tint <= 0xffffff, `${id} tint`);
   }

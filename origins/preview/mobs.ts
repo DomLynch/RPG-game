@@ -21,6 +21,9 @@ export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/mobs/frontier-rows.ts. Named creatures keep these:
+// A world duel is up (?worldfight): the engaged creature is hidden (the duel draws it) and those past the freeze radius; every other
+// creature stays in view, packmates beside the hero included (Dom, 2026-10-08: "it can be 2 vs 1, that is fine, why are you forcing 1 vs 1?").
+export const hiddenInFight = (id: string, foe: string | null, metres: number, radius: number): boolean => id === foe || metres > radius;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
 export const TUNING = {
   walk: 0.9,            // m/s: a creature's amble, well under the hero's 2.3
@@ -112,6 +115,15 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   }
   return out;
 }
+// Which world bodies a zone spawns (the bodies the phone downloads for it): the unique `body` of its specs, sorted. check-budget reads this, so a world body
+// counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
+export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {
+  const out: Record<string, Set<string>> = {};
+  for (const s of specs) (out[s.zone] ??= new Set()).add(s.body);
+  return Object.fromEntries(Object.entries(out).map(([zone, set]) => [zone, [...set].sort()]));
+};
+export const regionBodies = (specs: readonly MobSpec[]): string[] => [...new Set(specs.map((s) => s.body))].sort();
+
 // The middle of a zone's footprint, world metres (zone frame: across 0, inward depth/2).
 function zoneCentre(z: ZonePlan): Pos {
   const s = Math.sin(z.mount.heading), c = Math.cos(z.mount.heading), d = z.depth / 2;

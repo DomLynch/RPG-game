@@ -1,3 +1,4 @@
+import { WOLF_RENDER_SCALE } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
@@ -412,6 +413,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
     const roles = [...ROLES, ...ADDITIVE_ROLES].filter(role => clips[role]);   // the roles this rig carries clips for (the appended scenes are optional)
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
+    if (opponent && weapon === 'bite') anchor.scale.setScalar(WOLF_RENDER_SCALE);   // the Ash Wolf (its weapon is the bite; a boar or hound brings its own) is drawn at the size it is met walking (src/beast-scale.ts); render only, the sim's capsule is unchanged
     // A re-proportioned fighter's walk cycle covers less ground than a man's (build-warrior.mjs writes `stride`, root scale × leg scale, on
     // the rig node): his locomotion clips play faster by that so the feet keep planting at the simulation's travel speed. A man's is 1.
     let stride = 1; asset.scene.traverse(o => { if (typeof o.userData.stride === 'number' && o.userData.stride > 0) stride = o.userData.stride; });
