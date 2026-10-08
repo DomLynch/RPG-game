@@ -4,7 +4,7 @@
 // animation and input; this file owns hits, reach, stamina, guard, roll, posture, stagger, death and what a creature does with its weapon.
 // S0: movement, the light cut, a telegraphed creature bite, death, leash/give-up/heal-home. S1: guard (frontal block, perfect block, chip, guard break), roll with i-frames, posture break,
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
-import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type WeaponId } from '../../src/moves.ts';
+import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type MoveId, type WeaponId } from '../../src/moves.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 
 const TICK = 1 / 60;
@@ -86,7 +86,7 @@ const PLAYER_BLOWS = { light: 'light_right', heavy: 'heavy_overhead', kick: 'kic
 const blowOf = (f: Fighter, press: 'light' | 'heavy' | 'kick' = 'light'): MoveDef => {
   if (f.side === 'player') return WEAPONS[f.weapon].moves[PLAYER_BLOWS[press]] ?? MOVES[PLAYER_BLOWS[press]];
   const row = WEAPONS[f.weapon].moves.light_right ?? MOVES.light_right, w = BLOW_WEIGHT[f.kind] ?? 1, v = VARIETY[f.kind];
-  if (v && f.plan === v.id) return { ...row, id: v.id, windup: Math.round(v.windup * 60), damage: Math.round(row.damage * w * v.mul), breaksGuard: v.breaksGuard || row.breaksGuard };
+  if (v && f.plan === v.id) return { ...row, id: v.id as MoveId, windup: Math.round(v.windup * 60), damage: Math.round(row.damage * w * v.mul), breaksGuard: v.breaksGuard || row.breaksGuard };
   return { ...row, windup: Math.round(TELEGRAPH_S * 60), damage: Math.round(row.damage * w) };
 };
 /** A blow connects from the attacker's centre to the victim's edge, inside its cone. */
