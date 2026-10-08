@@ -211,7 +211,7 @@ test('run away: at the wall, pushing outward for 1.5 s, with the foe >= 0.6 x th
   const { DISENGAGE_GAP_FRAC, DISENGAGE_PUSH_S, fleeStep } = await import('./mobs.ts');
   const { RULES } = await import('../../src/moves.ts'), { STEP } = await import('../../src/sim.ts');
   assert.deepEqual([DISENGAGE_PUSH_S, DISENGAGE_GAP_FRAC], [1.0, 0.6]);
-  assert.ok(Math.ceil(DISENGAGE_PUSH_S / STEP) <= 100 && DISENGAGE_PUSH_S / STEP < RULES.wall.loiter.raise, 'the flee ends the fight before the loiter whip tell (raise) and well inside the whip (180 ticks)');
+  assert.ok(Math.ceil(DISENGAGE_PUSH_S / STEP) <= 100 && DISENGAGE_PUSH_S / STEP < RULES.wall.loiter.ticks - RULES.wall.loiter.raise, 'the flee ends the fight before the loiter whip tell (raised raise ticks before the lash at 180)');
   for (const r of [3.79, 8.55]) {
     const hero = { x: r - RULES.wall.loiter.band + 0.2, z: 0 }, out = { x: 0, z: 1, yaw: Math.PI / 2 };   // yaw +90 deg: the sim reads (0,1) as +x, straight out through the wall at (r, 0)
     const at = { ...hero, radius: r, gap: 0.6 * 2 * r, push: out };
