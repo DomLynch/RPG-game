@@ -199,16 +199,17 @@ test('a heavy: the row\'s telegraph (32 ticks), damage 18, stamina 35', () => {
 });
 
 test('a heavy chips through a guard (the row\'s 40%) and costs more posture than a cut; a kick goes THROUGH a guard', () => {
-  const g = (attacker: 'heavy' | 'kick') => {
+  const g = (attacker: 'heavy' | 'kick', seconds: number) => {
     const foe = creature('c', 'wolf', 0, 1.2, Math.PI); foe.phase = 'guard';   // a guarding creature held in front
-    return run(newWorld([player('p', 0, 0, 0), foe]), 1.5, press(attacker));
+    return run(newWorld([player('p', 0, 0, 0), foe]), seconds, press(attacker));
   };
-  const heavy = g('heavy'), kick = g('kick');
+  const heavy = g('heavy', 0.7), kick = g('kick', 0.4);   // the kick lands at tick 18; 0.4 s is before any stamina comes back (regen delay .75 s)
   const blocked = heavy.events.find((e) => e.type === 'Blocked');
   assert.ok(blocked && blocked.type === 'Blocked' && blocked.damage === Math.round(MOVES.heavy_overhead.damage * MOVES.heavy_overhead.chip));
+  assert.ok(get(heavy.world, 'c').posture >= MOVES.heavy_overhead.posture - 1e-6 && MOVES.heavy_overhead.posture > MOVES.light_right.posture, 'the heavy fills the row\'s posture');
   assert.equal(kick.events.filter((e) => e.type === 'Blocked').length, 0, 'a kick is never blocked');
-  assert.ok(kick.events.some((e) => e.type === 'Staggered' && e.id === 'w' || e.type === 'Staggered' && e.id === 'c' && e.cause === 'kick'));
-  assert.equal(get(kick.world, 'c').stamina, Math.max(0, 100 - MOVES.kick.vsGuard!.staminaDamage));
+  assert.ok(kick.events.some((e) => e.type === 'Staggered' && e.id === 'c' && e.cause === 'kick'));
+  assert.equal(get(kick.world, 'c').stamina, 100 - MOVES.kick.vsGuard!.staminaDamage);
 });
 
 test('a kick on an unguarded fighter is a small clean hit (damage 4) with the row\'s stagger', () => {
