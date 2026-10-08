@@ -14,7 +14,7 @@ const mk = () => {
   return new Match(OPPONENTS.veteran, 'test', { storage, profile: loadProfile(storage, () => 'test').profile, trial: loadTrial(storage), scorecard: loadScorecard(storage) }, 731, 'longsword', null, 6);
 };
 const pose = { hero: { x: -2.3, z: 1.1 }, foe: { x: 1.7, z: -0.9 }, heroFacing: 0.6 };
-const at = (m: Match) => m.practice.duel.fighters.map((f) => [f.x, f.z]);
+const at = (m: Match) => m.practice.duel.fighters.map((f) => [f.body.x, f.body.z]);
 
 test('startPose: the next fight starts from it (float32-rounded), is recorded with it, and a rematch is back at the pit marks', () => {
   const m = mk(), marks = at(m);
