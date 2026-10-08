@@ -68,7 +68,7 @@ Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to
 
 ## Loot and respawn rule (Dom, 2026-10-08 10:0x, no objection; starts AFTER the current Zone 1 rows)
 
-- **Boss:** one guaranteed piece of its set per kill, never a duplicate until the set is complete (~6 pieces for the goblin); the first kill always drops something good; personal loot (each fighter gets their own); respawn 5 min.
+- **Boss:** the CURRENT PIT MODEL everywhere (Dom's correction, 2026-10-08 10:1x): the take screen, `src/loot-panel.ts` (Dom's pick, 2026-09-26). After a boss kill the player sees the full set and PICKS one piece; pieces already owned are greyed, so no duplicates until the set is complete (~6 pieces for the goblin). Reuse `loot-panel.ts` in the world, do not rebuild it. Personal loot (each fighter gets their own); respawn 5 min.
 - **Animals:** respawn 60-90 s and roll small loot (materials, bronze, a rare common item). No daily cap on normal kills. Creatures far below your level give no XP but still drop loot.
 - **Owners:** Backend (loot tables and the no-duplicate state, respawn timers via origins/world spawns), Characters (set pieces per legend). It is data rows, so it scales to every zone. Valuables save immediately as one all-or-nothing transaction (row 3).
 
