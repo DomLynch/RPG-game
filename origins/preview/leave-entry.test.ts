@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { addLeaveEntry } from './leave-entry.ts';
+import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 
 // The Pit room was removed from the game (2026-10-08) and took the game's #nav-pit with it; the Origins duel reuses the game's ☰ menu, so it adds its own
 // exit. A duel with no way out is a trapped player (Lead's ruling on PR #1835).
@@ -27,4 +27,15 @@ test('bind() uses it, and the preview page keeps the game\'s nav visible in the 
   assert.match(src, /addLeaveEntry\(element\('app-nav'\), \(\) => journal!\.close\(\), leave\)/);
   assert.doesNotMatch(html, /#duel #app-nav[^{]*\{[^}]*display: none/, 'the nav that carries the exit is not hidden');
   assert.match(html, /#duel\.world #journal[^{]*\{[^}]*pointer-events: auto/, 'the world layer is pointer-events none: the menu inside it must take taps, or the exit cannot be pressed (browser run, PR #1835)');
+});
+
+test('the menu\'s first entry is "Arena / Pit", which goes to /arena/ once however often it is bound, ahead of Leave the Pit', () => {
+  const { nav, made, children } = fakeNav(), calls: string[] = [];
+  addLeaveEntry(nav, () => {}, () => {});
+  const arena = addArenaEntry(nav, () => calls.push('go')) as unknown as (typeof made)[number];
+  assert.equal(arena.id, 'nav-arena-page'); assert.equal(arena.textContent, 'Arena / Pit'); assert.equal(children[0], arena, 'first in the nav, before Leave the Pit');
+  arena.listeners.click!(); assert.deepEqual(calls, ['go']);
+  addArenaEntry(nav, () => {}); assert.equal(made.length, 2, 'bound again: no third entry');
+  const src = readFileSync(new URL('./pit-duel.ts', import.meta.url), 'utf8');
+  assert.match(src, /addArenaEntry\(element\('app-nav'\), \(\) => location\.assign\('\/arena\/'\)\)/, 'bind() sends it to /arena/');
 });
