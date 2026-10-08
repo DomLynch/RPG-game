@@ -32,5 +32,6 @@ test('the attack clip is sped so its contact frame lands on the sim\'s strike: t
   assert.ok(Math.abs(at(900) - 0.47) < 0.02, `bear heavy ${at(900)}`);
   assert.ok(Math.abs((0.46 * 0.93) / at(900) - 0.9) < 0.03, 'contact meets the end of a 0.9 s windup');
   assert.ok(attackTimeScale('Attack', 1, 400) > 0.8 && attackTimeScale('Attack', 1, 400) < 0.9, 'a humanoid Attack (the Pit\'s .34 contact) at a 0.4 s windup');
-  assert.equal(attackTimeScale('Bite', 0.93, 5000), 0.45); assert.equal(attackTimeScale('Bite', 0.93, 50), 1.3);
+  assert.equal(attackTimeScale('Bite', 0.93, 5000), 0.45); assert.equal(attackTimeScale('Bite', 0.93, 50), 2);
+  assert.ok(Math.abs((0.46 * 0.93) / attackTimeScale('Bite', 0.93, 14 / 60 * 1000) - 14 / 60) < 0.02, 'the Pit\'s 14-tick bite tell: contact still meets the strike');
 });
