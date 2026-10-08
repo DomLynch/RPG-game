@@ -1,5 +1,7 @@
 # Frankendom — the top 10 (Dom, 2026-10-08 07:0x)
 
+**Vision (Dom, 2026-10-08 10:0x, via Strategy): "deeper than any MMO/RPG (700+ legends, best of best from donor games) but quick, pick up and play on phone/tablet, multi-platform."** Depth by breadth, never by grind length.
+
 **STANDING RULE (Dom, 2026-10-08 09:3x, via Strategy): keep everything ON.** Too many on/off variables, we forget what is on. New features ship ON by default; a flag is only a kill switch, never a staged switch-on; one joint GO and one Auditor POST per install. Exceptions only for real money or irreversible deletes. Applied now: the writer reinstall and ORIGINS_REWARDS=1 are one step (#1727). Seamless combat (#1779) becomes the default Zone 1 behaviour, not hidden behind ?worldfight, once the Auditor passes it.
 
 **STATUS: APPROVED by Dom, 2026-10-08 10:0x** (his words, relayed by Strategy: "yes.. Do you approve this top-10 list as written? If you do, every lane works only on its rows."). Every lane works only on its rows, starting now. Changes to this list need Dom.
@@ -63,6 +65,12 @@ One legend per zone. ~760 fightable legends / 50 levels = ~15 zones per level = 
 Asset budget rule (Strategy, Lead 2026-10-08): the world-body gzip cap rose 6.5 to 7.57 MB once for the boar (#1777: seven bodies 6,690,374 B + 13 %). A total that grows with every creature will not scale to 800 zones, so when World does the zone work the cap in `scripts/check-budget.mjs` becomes per-zone (only that zone's animals and legend load); no further global raises.
 
 Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to confirm:** World, Pit & Audio (owner of origins/world and `generateZone`), with Characters supplying the legend roster and fame numbers and Lead writing the table's schema and legend-name rules (legends-rule) as docs. Starts only after Zone 1 quality is done.
+
+## Loot and respawn rule (Dom, 2026-10-08 10:0x, no objection; starts AFTER the current Zone 1 rows)
+
+- **Boss:** one guaranteed piece of its set per kill, never a duplicate until the set is complete (~6 pieces for the goblin); the first kill always drops something good; personal loot (each fighter gets their own); respawn 5 min.
+- **Animals:** respawn 60-90 s and roll small loot (materials, bronze, a rare common item). No daily cap on normal kills. Creatures far below your level give no XP but still drop loot.
+- **Owners:** Backend (loot tables and the no-duplicate state, respawn timers via origins/world spawns), Characters (set pieces per legend). It is data rows, so it scales to every zone. Valuables save immediately as one all-or-nothing transaction (row 3).
 
 Items not on this list wait.
 
