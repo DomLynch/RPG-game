@@ -535,7 +535,7 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
-const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): the preview's first pick; absent = no stances anywhere
+const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
@@ -1001,12 +1001,12 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
-// The stance preview (?stances=, src/stance-panel.ts): off unless the URL asks. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
+// The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
 let stancePanel: StancePanel | null = null;
 // Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
 function showStances() {
   if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
-  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
+  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
   if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
 }
 function began() {
@@ -1093,7 +1093,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances));   // the level's body, as match.startClip replays it (on the record's math); the Gambit and the stance pick like src/replay.ts, or a stances clip would re-sim a different fight
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
