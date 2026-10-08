@@ -87,7 +87,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
 export const killIdOf = (token: string): string => `enc.${createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
 
 // One placed instance as origins_apply's `mint` (202610060001): its pack place, its mint key (loot:<killIdOf(token)>:<n>, unique, so a replay cannot mint twice).
-function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
+export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
   const l = inst.location as { kind: string; owner: string; index?: number };
   return {
     op: 'mint', item: {
