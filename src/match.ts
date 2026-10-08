@@ -68,7 +68,8 @@ export class Match {
   private sparSpecials: { first: number; level?: number; enabled?: boolean } | null = null;   // preview level/off can differ from ordinary live specials; body/AI stay on difficulty
   private sparSelection?: SparringSpecialSelection;
   private sparLegacySkill: SkillId | null = null;
-  startPose: DuelPose | undefined = undefined;   // seamless step 3 (RV38): the open world's hero/foe positions and hero facing, arena-local metres; the NEXT career/practice begin() takes it (one shot, so a rematch starts at the pit marks) and the record carries it as v38
+  startPose: DuelPose | undefined = undefined;   // seamless step 3 (RV38): the open world's hero/foe positions and hero facing, arena-local metres; the NEXT career/practice/sparring begin() takes it (one shot, so a rematch starts at the pit marks) and the record carries it as v38
+  fightPose: DuelPose | undefined = undefined;   // the pose THIS fight began from (float32-rounded), or undefined: a sparring Match keeps no recorder, so the page that records it (origins/preview/world-record.ts) passes this to createRecorder as `pose`
   stancePref: PickedStance | undefined = undefined;   // the stance preview's pick (src/stance-panel.ts, ?stances=): a live career/practice fight takes it at begin(); undefined = no stances, every live fight today
   stances: PickedStance | undefined = undefined;   // the player's stance pick (src/stance.ts, RV34): undefined = a fight without stances, which is every live fight until a flag turns them on; a replay takes its record's own
   gambit = false;   // the Gambit (RV33, src/gambit.ts): off in every live fight until a flag turns it on; a replay takes its record's own
@@ -126,7 +127,7 @@ export class Match {
     this.lesson = mode === 'lesson' ? createFirstLoss(this.onLesson) : null;
     this.tutorial = mode === 'tutorial' ? createTutorial(this.onTutorial) : null;
     this.epoch++;
-    const pose = (mode === 'career' || mode === 'practice') && this.startPose ? roundPose(this.startPose) : undefined; this.startPose = undefined;
+    const pose = (mode === 'career' || mode === 'practice' || mode === 'sparring') && this.startPose ? roundPose(this.startPose) : undefined; this.startPose = undefined; this.fightPose = pose;
     const test = mode === 'sparring' ? this.sparSpecials : null;
     const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= CLASS_B_FROM && this.level <= LEVELS;
     if (mode !== 'replay') { this.gambit = false; this.stances = mode === 'career' || mode === 'practice' ? this.stancePref : undefined; }   // only a replay carries the Gambit until a live flag exists
