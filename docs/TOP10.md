@@ -1,5 +1,7 @@
 # Frankendom — the top 10 (Dom, 2026-10-08 07:0x)
 
+**STATUS: APPROVED by Dom, 2026-10-08 10:0x** (his words, relayed by Strategy: "yes.. Do you approve this top-10 list as written? If you do, every lane works only on its rows."). Every lane works only on its rows, starting now. Changes to this list need Dom.
+
 One list, ranked. One owner per item. Lanes work ONLY on their item. No other work starts until Dom approves this table.
 Each owner fills in their row: **done** (with a receipt: PR, sha, command or link), **left** (steps), **finish** (a date). Lead posts it to Strategy by 09:00.
 
