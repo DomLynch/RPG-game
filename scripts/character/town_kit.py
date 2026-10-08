@@ -3,7 +3,7 @@
 # beyond one 256 swatch atlas; grain and ground-dust live in the vertex colour (same trick as zone1_kit.py).
 #   blender -b -P scripts/character/town_kit.py -- <out.glb> <manifest.json> [atlas.png]
 # Frame: 1 unit = 1 m, glTF +Y up; every piece's origin is its base centre on the ground; its FRONT faces glTF +Z (Blender -Y). A wall piece is 3 m long along X,
-# .3 m thick, 3 m high (a module); a roof piece covers a 3 x 3 m module with its ridge along X; rotate a piece in 90 degree steps about Y to place it.
+# .3 m thick, 3 m high (a module); a roof piece covers 3 m (X) x 6 m (Z, a two-module-deep building) with its ridge along X down the middle; rotate a piece in 90 degree steps about Y.
 # Donor: 2004Scape-Server (MIT; LocShape wall / corner / roof / centrepiece taxonomy with four rotation angles): the idea of typed pieces + rotations, no code or assets copied.
 # Budget per piece (tris): wall <= 200, corner <= 80, arch <= 220, roof <= 120, stall <= 260, counter <= 260, sign <= 90, chimney <= 90; the script fails over budget.
 import json
@@ -184,9 +184,9 @@ def arch_gate():
 
 # ---- roofs (3 x 3 module, ridge along X, two slopes) ---------------------------------------------------------------------------------------------
 
-def roof(swatch, rise=1.2, over=.35):
+def roof(swatch, rise=1.8, over=.35, depth=2 * M):
     def make(bm, uv, col):
-        hz = M / 2 + over
+        hz = depth / 2 + over
         for s in (-1, 1):
             a, b = Vector((-1.5 - .05, s * hz, 0)), Vector((1.5 + .05, s * hz, 0))
             c, d = Vector((1.5 + .05, 0, rise)), Vector((-1.5 - .05, 0, rise))
@@ -196,12 +196,13 @@ def roof(swatch, rise=1.2, over=.35):
     return make
 
 
-def roof_end(swatch):
+def roof_end(swatch, half=M, rise=1.8):
+    """The gable triangle that closes a roof's end: 2 * half wide (a 2-module-deep building: 6 m), `rise` high, standing on the wall top."""
     def make(bm, uv, col):
-        v = [bm.verts.new(p) for p in ((-1.5, -.15, 0), (1.5, -.15, 0), (0, -.15, 1.2), (-1.5, .15, 0), (1.5, .15, 0), (0, .15, 1.2))]
+        v = [bm.verts.new(p) for p in ((-half, -.15, 0), (half, -.15, 0), (0, -.15, rise), (-half, .15, 0), (half, .15, 0), (0, .15, rise))]
         fs = [bm.faces.new(f) for f in ((v[0], v[2], v[1]), (v[3], v[4], v[5]), (v[0], v[1], v[4], v[3]), (v[0], v[3], v[5], v[2]), (v[1], v[2], v[5], v[4]))]
-        paint(bm, uv, col, fs, swatch, top=1.2)
-        box(bm, uv, col, (-.08, -.19, .2), (.08, .19, 1.1), "timber")
+        paint(bm, uv, col, fs, swatch, top=rise)
+        box(bm, uv, col, (-.08, -.19, .2), (.08, .19, rise - .1), "timber")
     return make
 
 
@@ -312,17 +313,24 @@ PIECES = [   # (node, kind, weight, make)
 # walls sit on the module edges, roofs on the module centres, front (the door wall) at +Z. World places the same lists; this script assembles them for the stills.
 RECIPES = {
     "bank": {"modules": [2, 2], "parts": [
-        ["wall_door_b", 0, 3, 0], ["wall_window_a", 0, -3, 2], ["wall_window_b", -3, 0, 3], ["wall_plain_c", 3, 0, 1],
-        ["wall_plain_c", -3, 3, 0], ["wall_corner_b", 3, 3, 0], ["wall_corner_b", -3, 3, 0], ["wall_corner_b", 3, -3, 0], ["wall_corner_b", -3, -3, 0],
-        ["roof_b", -1.5, 0, 0], ["roof_b", 1.5, 0, 0], ["chimney_a", 2.2, -1.5, 0], ["sign_bank_a", -1.2, 3.3, 0], ["counter_bank_a", 0, 1.2, 0]]},
+        ["wall_door_b", -1.5, 3, 0], ["wall_window_a", 1.5, 3, 0], ["wall_plain_c", -1.5, -3, 2], ["wall_plain_c", 1.5, -3, 2],
+        ["wall_window_b", -3, -1.5, 3], ["wall_plain_c", -3, 1.5, 3], ["wall_plain_c", 3, -1.5, 1], ["wall_window_b", 3, 1.5, 1],
+        ["wall_corner_b", 3, 3, 0], ["wall_corner_b", -3, 3, 0], ["wall_corner_b", 3, -3, 0], ["wall_corner_b", -3, -3, 0],
+        ["roof_b", -1.5, 0, 0, 3], ["roof_b", 1.5, 0, 0, 3], ["roof_end_a", 3, 0, 1, 3], ["roof_end_a", -3, 0, 3, 3],
+        ["chimney_a", 2.2, -1.3, 0, 3.2], ["sign_bank_a", 0.2, 3.2, 0], ["counter_bank_a", 0, 1.0, 0]]},
     "smithy": {"modules": [2, 2], "parts": [
-        ["wall_plain_b", 0, -3, 2], ["wall_window_a", -3, 0, 3], ["wall_plain_b", 3, 0, 1], ["wall_corner_a", 3, -3, 0], ["wall_corner_a", -3, -3, 0],
-        ["roof_a", -1.5, 0, 0], ["roof_a", 1.5, 0, 0], ["chimney_b", -2.4, -1.4, 0], ["stall_c", 0, 3.4, 0], ["sign_smith_a", 3.3, 1.2, 1]]},
+        ["wall_plain_b", -1.5, -3, 2], ["wall_plain_b", 1.5, -3, 2], ["wall_window_a", -3, -1.5, 3], ["wall_plain_b", -3, 1.5, 3],
+        ["wall_plain_b", 3, -1.5, 1], ["wall_plain_b", 3, 1.5, 1], ["wall_plain_b", 1.5, 3, 0],
+        ["wall_corner_a", 3, 3, 0], ["wall_corner_a", -3, 3, 0], ["wall_corner_a", 3, -3, 0], ["wall_corner_a", -3, -3, 0],
+        ["roof_a", -1.5, 0, 0, 3], ["roof_a", 1.5, 0, 0, 3], ["roof_end_a", 3, 0, 1, 3], ["roof_end_a", -3, 0, 3, 3],
+        ["chimney_b", -2.2, -1.5, 0, 3.2], ["stall_c", -1.5, 3.9, 0], ["sign_smith_a", 3.2, 1.5, 1]]},
     "inn": {"modules": [3, 2], "parts": [
-        ["wall_door_a", -1.5, 3, 0], ["wall_window_a", 1.5, 3, 0], ["wall_window_b", -4.5, 0, 3], ["wall_plain_b", 4.5, 0, 1],
-        ["wall_window_a", -3, -3, 2], ["wall_plain_a", 0, -3, 2], ["wall_window_b", 3, -3, 2],
+        ["wall_door_a", -3, 3, 0], ["wall_window_a", 0, 3, 0], ["wall_window_b", 3, 3, 0],
+        ["wall_plain_b", -3, -3, 2], ["wall_window_a", 0, -3, 2], ["wall_plain_a", 3, -3, 2],
+        ["wall_window_b", -4.5, -1.5, 3], ["wall_plain_b", -4.5, 1.5, 3], ["wall_plain_b", 4.5, -1.5, 1], ["wall_window_b", 4.5, 1.5, 1],
         ["wall_corner_a", 4.5, 3, 0], ["wall_corner_a", -4.5, 3, 0], ["wall_corner_a", 4.5, -3, 0], ["wall_corner_a", -4.5, -3, 0],
-        ["roof_a", -3, 0, 0], ["roof_a", 0, 0, 0], ["roof_a", 3, 0, 0], ["chimney_a", 3.6, -1.4, 0], ["sign_tavern_a", -3.0, 3.3, 0], ["counter_bar_a", 1.5, 0.8, 0]]},
+        ["roof_a", -3, 0, 0, 3], ["roof_a", 0, 0, 0, 3], ["roof_a", 3, 0, 0, 3], ["roof_end_a", 4.5, 0, 1, 3], ["roof_end_a", -4.5, 0, 3, 3],
+        ["chimney_a", 3.6, -1.3, 0, 3.2], ["sign_tavern_a", -1.5, 3.2, 0], ["counter_bar_a", 1.5, 0.8, 0]]},
 }
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
