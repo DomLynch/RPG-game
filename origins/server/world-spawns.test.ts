@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ACCOUNT, PC } from '../contracts/fixtures.ts';
-import { fightSetup, loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
+import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { mobBatch } from './mob-rewards.ts';
@@ -134,11 +134,7 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
   assert.equal(nearDb.kills[0]!.g.reach, 'checked', 'a fresh presence pose in the zone: reach checked');
 });
 
-test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance), not the form\'s: a level-1 wolf pays level-1 CP and loot (Auditor, #1900)', async () => {
-  const form = fightSetup(wolf.fight, content);
-  if (!form.ok) throw new Error(wolf.fight);
-  const formLevel = form.value.opponent.level;
-  assert.notEqual(formLevel, 1, 'the wolf form is not level 1 (else this test proves nothing)');
+test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance), not the form\'s: a level-1 spawn pays level-1 CP and loot, a level-2 spawn pays level-2 (Auditor, #1900; priced against level 2, not the form: the Zone 1 form level is 1 now)', async () => {
   const paidAt = async (level: number) => {
     const spawn: Spawn = { ...wolf, spec: { ...wolf.spec, level } };
     const ops = worldSpawnOps({ content, spawns: new Map([[wolf.spec.id, spawn]]), seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {} });
@@ -147,8 +143,8 @@ test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance),
     return db.kills[0]!.b;
   };
   const expect = (level: number) => mobBatch({ account: UID, character: PC, token: TOKEN, fight: wolf.fight, seed: 7, enemy: wolf.spec.body, level, twist: null }, { career: row(), inventory: emptyPack(), metal: 'absent' }, content, '2026-10-08T10:01:00.000Z', { level }).batch;
-  const one = await paidAt(1), atForm = await paidAt(formLevel);
+  const one = await paidAt(1), two = await paidAt(2);
   assert.deepEqual(one.slice(1), expect(1), 'level 1: exactly what mobBatch pays a level-1 kill');
-  assert.deepEqual(atForm.slice(1), expect(formLevel), 'the form level: what it paid before');
-  assert.notDeepEqual(one.slice(1), atForm.slice(1), 'and the two differ');
+  assert.deepEqual(two.slice(1), expect(2), 'level 2: exactly what mobBatch pays a level-2 kill');
+  assert.notDeepEqual(one.slice(1), two.slice(1), 'and the two differ: the spawn\'s level prices the kill');
 });
