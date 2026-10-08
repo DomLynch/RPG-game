@@ -13,14 +13,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 5, 'a camp of four (a leader and three, Strategy) and one lone opener near the entry (zone-rules)');
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 6, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), and the one Ash Boar at the hold road');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:cinder-scavenger', 'character:hrungnir']);
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
   assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul']);
   assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 17);
+  assert.equal(SPECS.length, 18);
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -175,7 +175,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '17 creatures, same ids, bodies, levels, homes, roam and aggro');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '18 creatures: the 17 before, unchanged, plus the Ash Boar (appended last so the others keep their seeds)');
 });
 
 test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {
@@ -185,19 +185,20 @@ test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: with
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= 11 && w.level <= 13 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
-test('a world fight hides only the duel\'s foe and the far creatures: packmates beside the hero stay in view (Dom, 2026-10-08: 2 vs 1 is fine)', () => {
-  assert.equal(hiddenInFight('wolves-1', 'wolves-1', 3, 20), true, 'the duel draws the foe');
-  assert.equal(hiddenInFight('wolves-2', 'wolves-1', 2.5, 20), false, 'a packmate beside the hero stays visible');
-  assert.equal(hiddenInFight('goblin-1', 'wolves-1', 25, 20), true, 'past the freeze radius: hidden');
-  assert.equal(hiddenInFight('goblin-1', null, 12, 20), false);
+test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {
+  assert.equal(hiddenInFight('wolves-1', 'wolves-1'), true, 'the duel draws the foe');
+  assert.equal(hiddenInFight('wolves-2', 'wolves-1'), false, 'a packmate beside the hero stays visible');
+  assert.equal(hiddenInFight('goblin-1', 'wolves-1'), false, 'a far creature is still drawn: nothing past a radius is hidden any more');
+  assert.equal(hiddenInFight('goblin-1', null), false);
 });
 
-test('the world keeps living during a world duel: attach starts the creature tick, detach stops it, the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world)', () => {
+test('the world keeps living during a world duel: the walk loop never stops, it keeps ticking the creatures, fires and arena while the duel draws, and the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world; re-pinned from the separate liveWorld tick)', () => {
   const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
-  assert.match(main, /attach\(\) \{[^\n]*liveWorld\(spec\.id, at\);/, 'attach starts the live tick');
-  assert.match(main, /detach\(\) \{ liveWorld\(null, at\);/, 'detach stops it first');
-  assert.match(main, /mobs\?\.update\([^\n]*, at, foe, foe\)/, 'the tick steps every creature round the hero and hides the foe\'s world body');
-  assert.match(view, /v\.group\.visible = v\.ring\.visible = s\.id !== hideBody;/);
+  assert.match(main, /attach\(\) \{[^\n]*mobs\?\.engage\(spec\.id\); duelDrawing = true;/, 'attach hides the foe and hands the drawing to the duel');
+  assert.match(main, /detach\(\) \{[^\n]*mobs\?\.engage\(null\); duelDrawing = false;/, 'detach gives it back');
+  assert.match(main, /if \(duelDrawing\) \{[^\n]*\n\s*mobs\?\.update\(dt, state, cardId\);[^\n]*\n\s*return;/, 'while the duel draws, the walk loop still steps the creatures and does not render');
+  assert.match(main, /if \(!WORLDFIGHT\) renderer\.setAnimationLoop\(null\);/, 'a world fight never stops the loop');
+  assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
 });
 
 test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {

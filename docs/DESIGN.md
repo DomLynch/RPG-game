@@ -7,7 +7,7 @@ One page. Tokens live in `src/tokens.css`; every screen reads them and adds no f
 3. **Colour (Dom's pick: Frost Iron).** `--bg` gradient #1b2228 to #0d1114; `--panel` #20272c; `--panel2` #14191d; `--edge` #9fd6ff; `--edge2` #3a4650; `--text` #e9eef2; `--soft` #a9b6bf; `--acc` (the primary fill, light-to-frost gradient) with `--acci` ink; `--accs` #9fd6ff for rings; `--hp`, `--st`, `--danger`, `--ok`. No other button fills. The old sand gold (#b7a276) is retired.
 4. **Button styles.** `.btn-primary` (`--acc` fill, **one per screen**), `.btn-secondary` (`--panel2` with an inset 1 px `--edge2` line), icon button (44 px minimum). Touch floor 44 px, primary 48 px. A selected tile or slot carries an inset 2 px `--accs` ring, never a fill.
 5. **Thumb zones.** The bottom-left 176 x 176 px (plus `env(safe-area-inset-*)`) belongs to the joystick: nothing enters it. The right 40% is the action column. Position with grid/flex, never as an offset from another button.
-6. **End screen (phone portrait).** One column, bottom right: Next (primary) at the bottom, Enter the Pit (secondary) above it, then the share icon row (DUEL, LINK, CLIP).
+6. **End screen (phone portrait).** One column, bottom right: Next fight (primary) at the bottom, then the share icon row (DUEL, LINK, CLIP) above it; there is no Pit door (the Pit room was removed, #1835).
 7. **Take screen.** Panel header, item grid, footer: only the grid scrolls. Take (primary) and Leave (secondary) side by side at 48 px, pinned; Next steps down to a secondary while the offer is up (one gold per screen).
 
 Pinned-footer popups follow the idea in Unciv's `Popup` (MPL-2.0): rewritten here, nothing copied.

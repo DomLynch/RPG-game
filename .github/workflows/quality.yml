@@ -154,6 +154,8 @@ jobs:
           - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }
           - { name: counter-thrust, script: scripts/counter-browser-check.mjs, required: false, only: riposte }
           - { name: counter-heavy, script: scripts/counter-browser-check.mjs, required: false, only: heavy_riposte }
+          # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional until it has a sample on this runner; builds the origins preview itself.
+          - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}
@@ -218,6 +220,43 @@ jobs:
           path: artifacts/net-engines/receipt.json
           if-no-files-found: ignore
 
+  # Asset rows in PR time (Deploy, Lead 2026-10-08: row 29 went red on fold 11 because no PR job ran it; Dom: no asset change rides a fold
+  # without its matching rows green). Runs only when the PR changes a shipped look/texture/GLB, a material source map or manifest, or a polish script itself; every
+  # scripts/*-polish-check.mjs (today veteran-polish-check, release row 29) runs on the PR's merge result. tests/rank-look already runs
+  # inside quality (test:all). Not a gate on docs or code-only PRs: they finish in seconds without installing anything.
+  asset-rows:
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Does this PR touch shipped assets?
+        id: scope
+        run: |
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
+          if grep -E -q '^(src/assets/.*\.glb|src/assets/source/materials/|public/looks/|public/assets/textures/|scripts/[a-z-]+-polish-check\.mjs)' changed.txt; then
+            echo "run=1" >> "$GITHUB_OUTPUT"; grep -E '^(src/assets/.*\.glb|src/assets/source/materials/|public/looks/|public/assets/textures/|scripts/[a-z-]+-polish-check\.mjs)' changed.txt | head -20
+          else
+            echo "run=0" >> "$GITHUB_OUTPUT"; echo "no shipped-asset path changed: nothing to run"
+          fi
+      - if: steps.scope.outputs.run == '1'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.scope.outputs.run == '1'
+        run: npm ci
+      - if: steps.scope.outputs.run == '1'
+        name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - if: steps.scope.outputs.run == '1'
+        run: npx playwright install --with-deps chromium
+      - if: steps.scope.outputs.run == '1'
+        name: Polish rows (release row 29 and any later *-polish-check)
+        run: for f in scripts/*-polish-check.mjs; do echo "== $f"; node "$f"; done
   duel-two-page:
     # A live duel between two real pages over the real path (challenge link, relay, WebRTC when it opens, lobby, rollback): both must settle
     # on the same finish with the same confirmed fingerprints and 0 desyncs (scripts/duel-two-page-check.mjs). CPU only, draws skipped.
