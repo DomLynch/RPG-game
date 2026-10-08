@@ -207,6 +207,7 @@ card.addEventListener('click', (e) => {
 });
 document.getElementById('allegiance')!.addEventListener('click', () => openPanel('allegiance'));
 document.getElementById('walk-journal')!.addEventListener('click', () => openPanel('journal'));
+{ const start = new URLSearchParams(location.search).get('panel'); if (start === 'gear' || start === 'bank') openPanel(start); }   // ?panel=gear|bank opens that screen at load (stills and checks; the greybox preview only)
 for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
 prompt.addEventListener('click', tapNear);
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
@@ -339,6 +340,9 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
+      const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear';   // what you wear and carry, from anywhere (the same screen docks the vault at the bank)
+      gearEntry.addEventListener('click', () => { menu.close(); openPanel('gear'); });
+      chips.append(gearEntry);
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
       pick.addEventListener('click', () => { menu.close(); openPanel('allegiance'); });

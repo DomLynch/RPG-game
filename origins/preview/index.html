@@ -40,6 +40,8 @@
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap-xs); }
     .slot { aspect-ratio: 1; padding: 2px; border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); font: var(--fs-xs)/1.15 var(--f-serif); overflow: hidden; }
     .piece { display: flex; width: 100%; justify-content: space-between; padding: var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: none; font-size: var(--fs-m); }
+    /* The one gear screen docks 50/50 (docs/DESIGN.md rule 9): worn + vault on the left, backpack on the right; two columns of slots each so a cell stays tappable at 375. */
+    .dock { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-s); align-items: start; } .dock .grid { grid-template-columns: repeat(2, 1fr); } .dock .piece { flex-direction: column; gap: 2px; font-size: var(--fs-s); }
     .slot.on, .piece.on { border-color: var(--c-brass); box-shadow: inset 0 0 0 1px var(--c-brass); }
     .act { display: block; width: 100%; min-height: var(--tap); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-btn); font: 600 var(--fs-l) var(--f-serif); }
     .act:disabled { opacity: 0.5; }

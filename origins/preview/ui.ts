@@ -11,5 +11,6 @@ export const ui = {
   button: (label: string, d: Record<string, string>, disabled = false) => `<button class="act"${data(d)}${disabled ? ' disabled' : ''}>${esc(label)}</button>`,
   row: (left: string, right: string, d: Record<string, string>, on = false) => `<button class="piece${on ? ' on' : ''}"${data(d)}><span>${esc(left)}</span><span>${esc(right)}</span></button>`,
   choices: (lines: { id: string; text: string }[]) => lines.map((l) => ui.button(l.text, { say: l.id })).join(''),
+  dock: (left: string, right: string) => `<div class="dock"><div>${left}</div><div>${right}</div></div>`,   // 50/50 on a phone: worn + vault left, backpack right (docs/DESIGN.md rule 9)
   grid: (cells: Cell[]) => `<div class="grid">${cells.map((c) => (c ? `<button class="slot${c.on ? ' on' : ''}" data-item="${esc(c.id)}">${esc(c.label)}</button>` : '<i class="slot"></i>')).join('')}</div>`,
 };

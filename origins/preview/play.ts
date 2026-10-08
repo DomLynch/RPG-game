@@ -15,6 +15,7 @@ import { advance, entries, newJournal, type Journal } from '../quests/journal.ts
 import { orla } from '../talk/fixtures.ts';
 import { choices, loadTalk, newTalkState, pick, type Facts, type Talk } from '../talk/talk.ts';
 import { BANK_STEP_Z, FORGE } from './exchange.ts';
+import { SLOT_LABEL, wearSwap, wornRows } from './gear.ts';
 import { ui, type Cell } from './ui.ts';
 
 // Every new world number in one place (to be swapped for origins/world): Orla's spot, the ore pile and how near you must stand.
@@ -26,7 +27,7 @@ export const WORLD_TUNING = {
 // Every model the preview loads, id → URL; null = a greybox stand-in built in main.ts. Swapping art is a one-line change here.
 export const ASSETS: Record<'hero' | 'orla' | 'ore', string | null> = { hero: warriorUrl, orla: null, ore: null };
 
-export type Kind = 'talk' | 'journal' | 'bank' | 'blacksmith' | 'ore' | 'bounty';   // bounty: the ?region=1 Bounty giver (enableBounty)
+export type Kind = 'talk' | 'journal' | 'bank' | 'gear' | 'blacksmith' | 'ore' | 'bounty';   // bounty: the ?region=1 Bounty giver (enableBounty)
 const must = <T>(r: Result<T>): T => { if (!r.ok) throw new Error(JSON.stringify(r.issues)); return r.value; };
 const why = (r: Result<unknown>) => (r.ok ? '' : r.issues[0]!.message);
 
@@ -103,6 +104,12 @@ export const play = {
     else if (d.do === 'move' && picked) {
       const where = find(inv, picked)?.location.kind, r = (where === 'bank' ? withdraw : deposit)(inv, picked, lookup, BANK_PLACE);
       if (r.ok) { inv = r.value; picked = null; } msg = why(r);
+    } else if (d.do === 'wear' && picked) {
+      const r = wearSwap(inv, picked, lookup, STANDING);
+      if (r.ok) { inv = r.value; msg = `You put on ${nameOf(find(inv, picked)!)}.`; } else msg = why(r);
+    } else if (d.do === 'takeoff' && picked) {
+      const r = unequip(inv, picked, lookup);
+      if (r.ok) { inv = r.value; msg = 'Taken off into your pack.'; } else msg = why(r);
     } else if (d.do === 'upgrade' && picked) play.upgrade(picked);
     return open;
   },
@@ -121,6 +128,21 @@ export const play = {
     if (!opened.ok) { msg = why(opened); return; }
     inv = opened.value; coin = out.balance; receipts.set(key, out.receipt); msg = `Upgraded to +${out.receipt.toLevel} for ${out.receipt.coin} coin.`;
   },
+  // ONE gear screen (TOP10 holding-cell move): what you wear and your backpack anywhere (☰ Gear); at the Concord Exchange the same screen docks the vault beside them,
+  // so you swap between vault, pack and body in one place. Worn + vault on the left, backpack on the right (docs/DESIGN.md rule 9).
+  gearScreen(docked: boolean): string {
+    const sel = picked ? find(inv, picked) : undefined, def = sel ? lookup(sel.item) : undefined, p = sel?.provenance, where = sel?.location.kind;
+    const wornList = wornRows(inv).filter((r) => r.item).map((r) => ui.row(SLOT_LABEL[r.slot], nameOf(r.item!), { item: r.item!.id }, r.item!.id === picked)).join('') || ui.text('Nothing worn.', true);
+    const detail = sel ? `${nameOf(sel)}${p && 'wonBy' in p ? ` · won by ${p.wonBy}${'fromLegend' in p ? ` from ${p.fromLegend} at ${p.atRank}` : ''}, ${p.at.slice(0, 10)}` : ''}` : 'Tap an item.';
+    const actions = [
+      where === 'pack' && def?.slot ? ui.button('Wear', { do: 'wear' }) : '',
+      where === 'equipped' ? ui.button('Take off', { do: 'takeoff' }) : '',
+      docked ? ui.button(where === 'bank' ? 'Withdraw' : 'Deposit', { do: 'move' }, !sel || where === 'equipped') : '',
+    ].join('');
+    return ui.panel(docked ? 'Bank — Concord Exchange' : 'Gear',
+      ui.dock(ui.heading('Worn') + wornList + (docked ? ui.heading('Vault') + ui.grid(cells('bank')) : ''), ui.heading('Backpack') + ui.grid(cells('pack'))),
+      ui.text(detail, true), actions, ui.text(msg, true));
+  },
   render(kind: Kind): string {
     const sel = picked ? find(inv, picked) : undefined;
     switch (kind) {
@@ -129,12 +151,8 @@ export const play = {
       case 'talk': return ui.panel(SMITH_NAME, ui.text(reply || 'She looks up from the anvil.'), ended ? '' : ui.choices(play.lines()), ui.text(msg, true), ui.button('Upgrade a piece', { go: 'blacksmith' }));
       case 'journal': return ui.panel('Journal', ...(journal.quests.size ? [...journal.quests.values()].map((s) =>
         ui.heading(`${QUESTS.get(s.quest)?.title ?? s.quest} — ${s.status}`) + entries(journal).filter((e) => e.quest === s.quest).map((e) => ui.text(e.text)).join('')) : [ui.text('No quests yet.', true)]));
-      case 'bank': {
-        const p = sel?.provenance;
-        return ui.panel('Bank — Concord Exchange', ui.grid(cells('bank')), ui.heading('Backpack'), ui.grid(cells('pack')),
-          ui.text(sel ? `${nameOf(sel)}${p && 'wonBy' in p ? ` · won by ${p.wonBy}${'fromLegend' in p ? ` from ${p.fromLegend} at ${p.atRank}` : ''}, ${p.at.slice(0, 10)}` : ''}` : 'Tap an item.', true),
-          ui.button(sel?.location.kind === 'bank' ? 'Withdraw' : 'Deposit', { do: 'move' }, !sel), ui.text(msg, true));
-      }
+      case 'bank': return play.gearScreen(true);
+      case 'gear': return play.gearScreen(false);
       case 'blacksmith': {
         const gear = inv.items.filter((i) => lookup(i.item)?.power === 'slot-weight');
         const row = sel && COSTS.rows.find((c) => c.level === upgradeLevelOf(sel) + 1 && c.rarity === lookup(sel.item)?.rarity);
