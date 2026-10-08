@@ -6,7 +6,7 @@ import { SHOP_HOURS, type NpcRow } from '../npcs/row.ts';
 
 export const REGION1_NPCS: readonly NpcRow[] = [
   { npc: 'character:banker-exchange', roles: ['banker'], zone: 'exchange', at: 'bank', hours: 'always' },
-  { npc: 'character:provisioner-exchange', roles: ['vendor'], zone: 'exchange', at: 'provisioner-stall', hours: SHOP_HOURS, shop: 'service:exchange-provisioner' },
+  { npc: 'character:provisioner-exchange', roles: ['vendor'], zone: 'exchange', at: 'forge', hours: SHOP_HOURS, shop: 'service:exchange-provisioner' },   // at the forge (grave iron is forge stock) until World builds a stall
   { npc: 'character:innkeeper-exchange', roles: ['innkeeper'], zone: 'exchange', at: 'inn', hours: 'always' },
   { npc: 'character:recorder-marrow', roles: ['recorder'], zone: 'exchange', at: 'contract-board', hours: SHOP_HOURS },
   { npc: 'character:smith-quarter', roles: ['smith'], zone: 'exchange-quarter', at: 'quarter-forge', hours: SHOP_HOURS },

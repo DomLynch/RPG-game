@@ -49,3 +49,7 @@ export function atWork(row: NpcRow, hour: number): boolean {
   const [open, close] = row.hours;
   return open < close ? hour >= open && hour < close : hour >= open || hour < close;
 }
+
+// Each shop's counter: the vendor row that names it (shop service id -> the vendor's zone and landmark). The writer's shop_buy checks the buyer stands there.
+export const shopCounters = (rows: readonly NpcRow[]): ReadonlyMap<string, { zone: string; at: string }> =>
+  new Map(rows.flatMap((r) => (r.shop ? [[r.shop, { zone: r.zone, at: r.at }] as const] : [])));
