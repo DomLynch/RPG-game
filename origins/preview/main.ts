@@ -267,7 +267,7 @@ function step(dt: number) {
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
-    mobsAsked = true; preloadFight();
+    mobsAsked = true; if (WORLDFIGHT) preloadFight();   // the fight chunks only come early for ?worldfight
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   if (mobs) { mobs.update(dt, state, cardId); if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
@@ -469,13 +469,16 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
   };
 }
 // The fight's chunks (the duel, the hunt, the encounter) are fetched when the Frontier's creatures come in, in an idle moment, not at the tap: the first engage no longer waits on three imports (Dom 2026-10-08, seamless combat).
-let warmAt = -Infinity;
-const WARM_M = 14;   // a creature this near is the likely next fight: its stage is built now, not at the tap
+let warmAt = -Infinity, warmKey = '', warmSince = 0;
+const WARM_M = 14, WARM_DWELL_S = 2;   // a creature this near is the likely next fight: its stage is built now, not at the tap
 function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
-  if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 2) return;
-  const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) return;
+  if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;
+  warmAt = time;
+  const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
-  warmAt = time; const o = run.value.setup.opponent;
+  const o = run.value.setup.opponent, key = `${o.body}:${o.level}`;
+  if (key !== warmKey) { warmKey = key; warmSince = time; return; }   // the nearest creature type must hold this long before its stage is built or replaced: a walk past a camp must not churn GPU memory (Auditor M2)
+  if (time - warmSince < WARM_DWELL_S) return;
   duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), scene);
 }
 function preloadFight() {
