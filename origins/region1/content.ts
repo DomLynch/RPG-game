@@ -58,6 +58,8 @@ export const LOOT_TABLES = [
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
+  // The Ash Wolf's table is a placeholder (a preview-only creature until Content cites it and rules its drops): the same grave iron the other mobs give.
+  table('loottable:ash-wolf', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 20, quantity: 1, levelMin: null, levelMax: null }])], null),
   table('loottable:mere-brood', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 30, quantity: 1, levelMin: null, levelMax: null }])], null),
   table('loottable:court-thrall', 'take-one', [weighted(25, [
     gearEntry('item:frontier.thrall-gloves', 50), gearEntry('item:frontier.ferryman-boots', 30), gearEntry('item:frontier.watch-greaves', 20),
@@ -100,6 +102,8 @@ export const FOES = [
     ], 'court-thrall'),
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
     null, [{ id: 'mob', opponent: 'goblin', level: 11, encounter: null }], 'cinder-scavenger'),
+  figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
+    null, [{ id: 'mob', opponent: 'wolf', level: 12, encounter: null }], 'ash-wolf'),
   figure('character:mere-brood', 'Mere brood', ORIGINAL, "One of the mere's spawn, out of the reeds and hungry.",
     null, [{ id: 'mob', opponent: 'goblin', level: 12, encounter: 'encounter:mere-mother' }], 'mere-brood'),
   figure('character:ruin-ghoul', 'Ruin ghoul', ORIGINAL, 'A starved servant of the Blood Court ruin.',
@@ -218,6 +222,7 @@ export const REGIONS = [
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
       spawn('scavengers', 'ash-pits', null, ['character:cinder-scavenger']),
+      spawn('wolves', 'hold-road', null, ['character:ash-wolf']),   // inert until a preview adds the wolf's mob row (origins/preview/mobs.ts previewRows ?wolf)
       spawn('brood', 'reed-bank', null, ['character:mere-brood']),
       spawn('ghouls', 'causeway-end', null, ['character:ruin-ghoul']),
       spawn('hold-ruler', 'hold-hall', null, ['character:warden-brannoc']),
@@ -314,6 +319,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:rift-spawn': 'elite',
   'character:cinder-scavenger': 'mob',
   'character:mere-brood': 'mob',
+  'character:ash-wolf': 'mob',
   'character:ruin-ghoul': 'mob',
 };
 export const PROPOSED_ROWS = ['rift-boss'] as const; // living-world §8.4: weight 150, once false, rested, party each
@@ -330,6 +336,7 @@ export const CREATURE_LOOT: Record<string, string> = {
   'character:cinder-scavenger': 'loottable:cinder-scavenger',
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
+  'character:ash-wolf': 'loottable:ash-wolf',
   'character:court-thrall': 'loottable:court-thrall',
 };
 

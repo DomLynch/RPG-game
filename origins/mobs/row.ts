@@ -34,7 +34,7 @@ export type MobRow = {
   chance?: number;               // a rare row: the chance (RARE_CHANCE range) a camp of its placeholder is the rare's instead, seeded; default RARE_DEFAULT
   ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
   rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
-  later?: boolean;               // reserved for a later batch: needs no look or source yet, never generated
+  later?: boolean;               // reserved for a later batch: needs no look, source or registered loot table yet, never generated
 };
 
 export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
@@ -80,7 +80,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   const [lo, hi] = row.level;
   if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || lo > hi) add('level-band', 'level', 'the level band is whole numbers, 1 or more, low to high');
   else if (ctx.zone && (hi < ctx.zone.levelMin || lo > ctx.zone.levelMax)) add('level-miss', 'level', `band ${lo}..${hi} does not meet the zone's ${ctx.zone.levelMin}..${ctx.zone.levelMax}`);
-  if (!ctx.lootTables.has(row.loot)) add('loot-unknown', 'loot', `${row.loot} is not a registered loot table`);
+  if (!row.later && !ctx.lootTables.has(row.loot)) add('loot-unknown', 'loot', `${row.loot} is not a registered loot table`);
   const b = row.behaviour;
   for (const [k, [min, max]] of Object.entries(RANGES)) {
     const v = (b as Record<string, number | undefined>)[k];
