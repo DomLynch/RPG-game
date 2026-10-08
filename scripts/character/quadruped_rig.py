@@ -38,6 +38,16 @@ BODIES = {
         "hind": [(.74, .50), (.70, .32), (.77, .20), (.76, .03)],
         "legx": .60,
     },
+    # Measured on the reduced moor bear (2026-10-08, 20k tris): a high head (nose v~.6), front paws y~.2-.45, hind y~.7-.9, belly v~.25, a short nub of a tail.
+    "bear": {
+        "spine": [(.78, .60), (.66, .60), (.52, .58), (.40, .62), (.30, .62)],
+        "neck": [(.20, .70)], "head": (.10, .68), "nose": (.01, .62), "jaw": (.04, .58),
+        "ear": ((.13, .88), .35),
+        "tail": [(.88, .74), (.94, .70), (.98, .67), (1.0, .66)],
+        "front": [(.34, .55), (.33, .36), (.34, .20), (.34, .03)],
+        "hind": [(.78, .55), (.75, .36), (.81, .22), (.80, .03)],
+        "legx": .62,
+    },
 }[BODY]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
