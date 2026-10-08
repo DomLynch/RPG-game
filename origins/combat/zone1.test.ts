@@ -183,3 +183,12 @@ test('parry: a guard raised just before a creature\'s blow turns it aside - a Pa
   assert.ok(of(events, 'Parried').length > 0, 'parried');
   assert.ok(of(events, 'Staggered', 'c').length > 0, 'the creature is thrown off');
 });
+
+// Dom's ruling (via Strategy): the level band is ONE-WAY - the higher player cannot attack down past MAX_LEVEL_GAP, the lower player still can attack up - plus protection to L3. The symmetric Pit duel above refuses
+// the pair outright, so this stays a TODO (node reports it as todo, not as a failure) until the PvP PR gives the duel a one-way hit rule.
+test('pvp one-way band: a level-20 player CAN attack a level-40 player, and the level-40 cannot attack down (TODO: the symmetric duel refuses the pair)', { todo: 'PvP PR: Dom\'s one-way 10-level band' }, () => {
+  const w = duo({ aLevel: 20, bLevel: 40 });
+  const up = swing(w, 'a', 1.2).world, down = swing(duo({ aLevel: 40, bLevel: 20 }), 'a', 1.2).world;
+  assert.ok(get(up, 'b').health < RULES.health, 'the lower attacks up');
+  assert.equal(get(down, 'b').health, RULES.health, 'the higher cannot attack down');
+});
