@@ -617,7 +617,11 @@ export function createScene(
     // they are borrowed here as clones for the compile and taken out again (nothing is drawn).
     warmOwn(lights: THREE.Object3D[]) {
       const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed);
-      return renderer.compileAsync(scene, camera).catch(() => {}).finally(() => { scene.remove(...borrowed); });
+      // compile only visits visible objects, and the hit effects (sparks, blood, trails) stay hidden until the first hit: show them for the traversal, which compileAsync does synchronously before it returns, then hide them again.
+      const hidden: THREE.Object3D[] = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      const done = renderer.compileAsync(scene, camera).catch(() => {}).finally(() => { scene.remove(...borrowed); });
+      for (const o of hidden) o.visible = false;
+      return done;
     },
     warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
