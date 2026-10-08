@@ -31,7 +31,7 @@ import { recordWorldFight, worldRecord } from './world-record.ts';
 import type { FightRecord } from '../../src/record.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
-import type { Object3D } from 'three';
+import type { Object3D, Quaternion, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
@@ -55,7 +55,8 @@ type View = ReturnType<typeof createScene>;
 type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
-export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; at: { x: number; z: number }; toward: { x: number; z: number } };
+const CAMERA_EASE_S = 0.7;   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
+export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number } };
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
@@ -179,6 +180,21 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
   mount.holder.matrixWorldNeedsUpdate = true;
 }
 
+// ?worldfight, seamless combat: build (and so warm: createScene compiles its shaders) the world-mounted stage for a creature BEFORE its tap, so the engage reuses it (stageFor's same-opponent rule).
+let warmedFor: Stage | null = null;
+let ownWarmed: Stage | null = null;
+export type Warm = { world: Object3D; lights: Object3D[]; dress?: (root: Object3D) => void };   // the page's world scene, its lights (borrowed for the compile) and the foe's cloth
+export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, warm?: Warm): void {
+  if (!(opponent in OPPONENTS)) return;
+  const made = stageFor(host, opponent as OpponentId, level, mount);
+  if (warm && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(warm.world); }   // once per stage
+  if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
+    ownWarmed = made; const root = made.view.opponentRoot();
+    if (root && warm?.dress) { warm.dress(root); void made.view.warmOwn(warm.lights).then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
+    else if (warm) void made.view.warmOwn(warm.lights);
+  }
+}
+
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
@@ -197,7 +213,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
-  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) stage!.view.easeCamera(from, CAMERA_EASE_S); }
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
