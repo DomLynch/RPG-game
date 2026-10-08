@@ -145,7 +145,7 @@ export const spawnTouch = async (db: Db, account: string, token: string): Promis
   return out === null ? null : JSON.parse(out);
 };
 // The kill report: consume the token, mark the spawn dead until now() + respawnS, apply the batch (the kill event and its reward lines) and write its beta-ledger row in ONE transaction, or a refusal that wrote nothing.
-export type BetaLedger = { cp: number; reach: 'checked' | 'unchecked' };
+export type BetaLedger = { reach: 'checked' | 'unchecked' };   // cp is derived in SQL from the career row (Auditor)
 export const spawnKill = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger): Promise<({ result?: string; instance?: string; respawnAt?: string } & SpawnRefusal) | null> => {
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);

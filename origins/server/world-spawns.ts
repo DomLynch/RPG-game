@@ -132,7 +132,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, cp: paid.summary.cp, paid: paid.batch.length > 0, beta: true },
     };
-    const got = await store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch], { cp: paid.summary.cp, reach }).catch(GONE);
+    const got = await store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch], { reach }).catch(GONE);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
     log(`kill_report ${token.slice(-6)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);

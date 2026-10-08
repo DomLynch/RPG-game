@@ -85,7 +85,7 @@ test('kill_report: too few hits is refused before anything is written; a valid r
   assert.equal(k!.b[0]!.op, 'event'); assert.equal(k!.b[0]!.event_id, `enc:${TOKEN}`);
   assert.deepEqual((k!.b[0]!.payload as Json).beta, true);
   assert.ok(!JSON.stringify(k!.b).includes('999'), 'nothing in the body is paid');
-  assert.deepEqual(k!.g, { cp: out.cp, reach: 'unchecked' }, 'the beta ledger row: the cp paid, reach unchecked with no presence pose');
+  assert.deepEqual(k!.g, { reach: 'unchecked' }, 'the ledger input is the reach status only (cp is derived in SQL); unchecked with no presence pose');
 });
 
 test('kill_report: the database\'s refusals map to the contract (dead 409, too-fast 422, cap 429, used 409); reach via presence', async () => {

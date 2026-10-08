@@ -32,7 +32,7 @@ const code = async (role, sql) => { const r = await as(role, sql); return r.code
 const tok = n => `spawn-tok-${n}-`.padEnd(24, 'x');
 const ENGAGE = (acct, pc, t, inst, kind = 'character:ash-wolf') => `select public.origins_spawn_engage('${acct}', '${pc}', '${t}', '${inst}', '${kind}')::text;`;
 const EV = (t, acct, pc) => `[{"op":"event","event_id":"enc:${t}","kind":"mob","account":"${acct}","character":"${pc}","payload":{"result":"won","world":true,"beta":true}}]`;
-const KILL = (acct, t, minMs, respawnS, batch, ledger = '{"cp":12,"reach":"unchecked"}') => `select public.origins_spawn_kill('${acct}', '${t}', ${minMs}, ${respawnS}, '${batch}'::jsonb, '${ledger}'::jsonb)::text;`;
+const KILL = (acct, t, minMs, respawnS, batch, ledger = '{"reach":"unchecked"}') => `select public.origins_spawn_kill('${acct}', '${t}', ${minMs}, ${respawnS}, '${batch}'::jsonb, '${ledger}'::jsonb)::text;`;
 const ledger = t => psql(`select coalesce((select reach_status || '/' || cp || '/' || bronze || '/' || cardinality(item_ids) from public.origins_beta_ledger where event_id = 'enc:${t}'), 'none')`);
 const events = t => psql(`select count(*) from public.origins_events where event_id = 'enc:${t}'`);
 const used = t => psql(`select coalesce(result, 'open') from public.origins_spawn_engages where token = '${t}'`);
@@ -94,7 +94,7 @@ try {
   eq(await code(V, KILL(A, tok(1), 0, 75, `[{"op":"event","event_id":"enc:${tok(1)}","kind":"nope","account":"${A}","character":"${pcA}","payload":{}}]`)) !== null, true, 'kill: a bad batch fails');
   eq([used(tok(1)), events(tok(1)), psql(`select alive::text from public.origins_spawns where instance = 'wolves-1'`)], ['open', '0', 'true'], 'kill: a failed batch rolls back the token, the spawn and the event');
   eq(ledger(tok(1)), 'none', 'kill: a failed batch leaves no beta-ledger row');
-  eq(await code(V, KILL(A, tok(1), 0, 75, EV(tok(1), A, pcA), '{"cp":1,"reach":"maybe"}')), 'O0002', 'kill: a ledger without a reach status is refused');
+  eq(await code(V, KILL(A, tok(1), 0, 75, EV(tok(1), A, pcA), '{"reach":"maybe"}')), 'O0002', 'kill: a ledger without a reach status is refused');
   eq([used(tok(1)), events(tok(1)), ledger(tok(1))], ['open', '0', 'none'], 'kill: ... and rolls back the token, the event and the ledger');
   psql(`update public.origins_world_config set kills_per_min = 1`);
   psql(`insert into public.origins_spawns (instance, kind) values ('cap-1', 'character:ash-wolf'); insert into public.origins_spawn_engages (token, account, character, instance, generation, expires_at, used_at, result) values ('${tok(90)}', '${A}', '${pcA}', 'cap-1', 0, now(), now(), 'killed')`);
@@ -107,7 +107,7 @@ try {
   const k1 = await val(V, KILL(A, tok(1), 20_000, 75, EV(tok(1), A, pcA)));
   eq([k1.result, k1.instance, typeof k1.respawnAt], ['killed', 'wolves-1', 'string'], 'kill: consumed, the spawn is dead with a respawn time');
   eq([used(tok(1)), events(tok(1)), psql(`select alive::text || '/' || generation || '/' || (respawn_at > now() + interval '70 seconds')::text from public.origins_spawns where instance = 'wolves-1'`)], ['killed', '1', 'false/0/true'], 'kill: token used, event written once, spawn dead ~75 s');
-  eq(ledger(tok(1)), 'unchecked/12/0/0', 'kill: ONE beta-ledger row in the same transaction (reach status, cp; no mint, no bronze in this batch)');
+  eq(ledger(tok(1)), 'unchecked/0/0/0', 'kill: ONE beta-ledger row in the same transaction (no career_set, mint or bronze in this batch: all 0)');
   eq(await code(V, KILL(A, tok(1), 0, 75, EV(tok(1), A, pcA))), 'O0009', 'kill: a second report is refused');
   eq(await val(V, KILL(B, tok(20), 0, 75, EV(tok(20), B, pcB))), { refused: 'dead', respawnAt: k1.respawnAt }, 'kill: the other player\'s report answers dead');
   eq(used(tok(20)), 'dead', 'kill: the loser\'s token is closed');
@@ -117,10 +117,15 @@ try {
   eq(st.spawns.map(s => [s.instance, s.alive, s.generation]), [['wolves-1', false, 0]], 'state: the dead spawn and its respawn time');
 
   backdate(tok(12), 30);
+  psql(`set role frankendom_origins; select public.origins_snapshot('${A}', 0, 5000);`);   // A's career row (the CP the kill books lands in world_credit)
+  const career = (acct, add) => { const c = JSON.parse(psql(`select row_to_json(c)::text from public.origins_career c where account = '${acct}'`)); return JSON.stringify({ op: 'career_set', account: acct, expected_version: c.version, world_credit: Number(c.world_credit) + add, rested: c.rested, rested_at: c.rested_at, heat: c.heat, story: c.story, beaten: c.beaten }); };
   const mint = `{"op":"mint","item":{"id":"it-beta-1","item":"item:ash-pelt","quantity":1,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":0},"bound_to":null,"mint_key":"loot:enc.beta0001:0","provenance":{"mintKey":"loot:enc.beta0001:0"},"history":[],"single_copy":false}}`;
-  const paidKill = await as(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},${mint},{"op":"metal","account":"${A}","delta_bronze":7,"reason":"award","event_id":"enc:${tok(12)}"}]`, '{"cp":30,"reach":"checked"}'));
+  const paidKill = await as(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},${mint},{"op":"metal","account":"${A}","delta_bronze":7,"reason":"award","event_id":"enc:${tok(12)}"},${career(A, 30)}]`, '{"reach":"checked","cp":999999}'));
+  // condition 1: a batch with any op outside event/mint/metal/career_set is refused and writes nothing
+  eq(await code(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},{"op":"character_set","account":"${A}"}]`)), 'O0002', 'kill: an op outside the allowlist is refused');
+  eq([used(tok(12)), events(tok(12)), ledger(tok(12))], ['open', '0', 'none'], 'kill: ... and writes nothing');
   if (paidKill.code !== 0) fail(`kill (paying batch): ${paidKill.err.trim().slice(0, 200)}`);
-  eq(ledger(tok(12)), 'checked/30/7/1', 'kill: the ledger reads the minted ids and the bronze from the batch that was written');
+  eq(ledger(tok(12)), 'checked/30/7/1', 'kill: the ledger reads the minted ids and bronze from the batch, and cp from the career row (30, not the 999999 the ledger input claimed)');
 
   // ---- respawn: generation + 1 ----------------------------------------------------------------------------------------------------------------------
   psql(`update public.origins_spawns set respawn_at = now() - interval '1 second' where instance = 'wolves-1'`);

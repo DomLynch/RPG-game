@@ -40,7 +40,7 @@ create table public.origins_spawn_engages (
   result text check (result in ('killed', 'dead'))
 );
 -- The BETA ledger (Strategy 2026-10-08: every reward from this path is beta-tagged, so the pre-launch wipe can clear exactly it): one row per kill report that kills (paid or not), written in the kill's own
--- transaction. Item ids are read from the batch's mint ops and bronze from its metal ops (what was actually written); cp and reach come from the writer. The wipe is migration 0015.
+-- transaction. Item ids are read from the batch's mint ops and bronze from its metal ops (what was actually written); cp is the career's world_credit after the batch minus before (the CP actually booked); reach comes from the writer. The wipe is migration 0015.
 create table public.origins_beta_ledger (
   event_id text primary key,
   account uuid not null,
@@ -119,9 +119,12 @@ end $$;
 -- the time since issue is at least p_min_ms (the time-to-kill floor from the creature's HP), and the account's kills in the last minute / hour are under the caps. Then ONE
 -- transaction: consume the token, mark the spawn dead until now() + p_respawn_s, apply p_batch (the kill event and its reward lines). A second report raises O0009.
 create function public.origins_spawn_kill(p_account uuid, p_token text, p_min_ms int, p_respawn_s int, p_batch jsonb, p_ledger jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$
-declare cfg public.origins_world_config; e public.origins_spawn_engages; s public.origins_spawns; out jsonb;
+declare cfg public.origins_world_config; e public.origins_spawn_engages; s public.origins_spawns; out jsonb; credit_before bigint;
 begin
   if not public.origins_allowed(p_account) then raise exception 'origins is not open for this account' using errcode = 'O0007'; end if;
+  -- Only these ops ever ride a kill (Auditor PRE, condition 1): nothing outside the beta ledger can be paid through this path, whatever the writer sends.
+  if jsonb_typeof(p_batch) <> 'array' or exists (select 1 from jsonb_array_elements(p_batch) l where l ->> 'op' is null or l ->> 'op' not in ('event', 'mint', 'metal', 'career_set')) then
+    raise exception 'a kill batch carries only event, mint, metal and career_set ops' using errcode = 'O0002'; end if;
   select * into cfg from public.origins_world_config;
   select * into e from public.origins_spawn_engages where token = p_token and account = p_account and used_at is null and expires_at > now() for update;
   if not found then raise exception 'engage token unknown, used or expired' using errcode = 'O0009'; end if;
@@ -138,12 +141,13 @@ begin
   update public.origins_spawn_engages set used_at = now(), result = 'killed' where token = p_token;
   update public.origins_spawns set alive = false, generation = e.generation, respawn_at = now() + make_interval(secs => least(greatest(p_respawn_s, 10), 86400)), killed_by = p_account, killed_at = now()
     where instance = e.instance returning * into s;
+  credit_before := coalesce((select world_credit from public.origins_career where account = p_account), 0);
   out := public.origins_apply(p_batch, array[p_account]);
   if p_ledger ->> 'reach' not in ('checked', 'unchecked') then raise exception 'ledger reach must be checked or unchecked' using errcode = 'O0002'; end if;
   insert into public.origins_beta_ledger (event_id, account, character, instance, item_ids, cp, bronze, reach_status)
     values ('enc:' || p_token, p_account, e.character, e.instance,
       coalesce((select array_agg(l -> 'item' ->> 'id') from jsonb_array_elements(p_batch) l where l ->> 'op' = 'mint'), '{}'),
-      greatest(coalesce((p_ledger ->> 'cp')::bigint, 0), 0),
+      coalesce((select world_credit from public.origins_career where account = p_account), 0) - credit_before,   -- the CP this kill actually booked (Auditor condition 2): read, never taken from the writer
       coalesce((select sum((l ->> 'delta_bronze')::bigint) from jsonb_array_elements(p_batch) l where l ->> 'op' = 'metal'), 0),
       p_ledger ->> 'reach');
   return jsonb_build_object('result', 'killed', 'instance', s.instance, 'respawnAt', s.respawn_at, 'applied', out);
