@@ -15,3 +15,14 @@ vps_receipts_apply() {
   trust_source="$trust_source + VPS receipts (rows $vps_trusted; tree-bound)"
   echo "$n trusted from VPS receipts: rows $vps_trusted"
 }
+
+# The quality step: a tree-bound unit-suite receipt (vps-shadow-rows.sh <sha> --unit, then --fetch) replaces the Mac's `npm test`/test:all.
+# DEPLOY_VPS_RECEIPTS=on only; prints "ok" (and the Mac skips its suite) or nothing (the Mac runs it, as before).
+vps_unit_receipt_ok() {
+  [[ "${DEPLOY_VPS_RECEIPTS:-}" == on ]] || return 0
+  local receipt_sha="${VPS_RECEIPT_SHA:-$revision}"
+  [[ "$receipt_sha" =~ ^[0-9a-f]{40}$ ]] || return 0
+  rm -f "artifacts/vps-shadow/$receipt_sha/unit.json"   # fresh or nothing
+  scripts/vps-shadow-rows.sh "$receipt_sha" --fetch >/dev/null 2>&1 || true
+  node scripts/vps-receipt-trust.mjs "$revision" --unit || true
+}
