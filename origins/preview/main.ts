@@ -27,7 +27,7 @@ import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } f
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import '../../src/monitoring.ts';   // Sentry through the game's own options (no PII, no user/request/breadcrumbs): the stale-session event below
 import { beacon, reportSignedOut } from './session-report.ts';
-import { beginOnline, createPrefetch, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
+import { beginOnline, commitTarget, createPrefetch, type Candidate, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -518,7 +518,11 @@ const WARM_M = 14, WARM_DWELL_S = 2, COMMIT_M = 8;   // COMMIT_M: the hero withi
 function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
   if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;
   warmAt = time;
-  const close = ONLINE ? mobs.nearest(state.x, state.z, COMMIT_M) : null; if (close?.mode === 'aggro') prefetch.want(close.spec.id);
+  if (ONLINE) {   // follow ONE creature: keep the started slot while it stays in range and aggro (a camp's nearest flips as the hero moves; each switch would drop a token)
+    const heroTo = (p: { x: number; z: number } | null | undefined) => (p ? Math.hypot(p.x - state.x, p.z - state.z) : Infinity), asC = (p: ReturnType<Mobs['nearest']>): Candidate | null => (p ? { id: p.spec.id, dist: heroTo(p), mode: p.mode } : null);
+    const cur = prefetch.current(), follow = commitTarget(cur ? asC(mobs.find(cur)) : null, asC(mobs.nearest(state.x, state.z, COMMIT_M)), COMMIT_M);
+    if (follow) prefetch.want(follow);
+  }
   const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
   const lights: THREE.Object3D[] = []; scene.traverse((o) => { if ((o as THREE.Light).isLight) lights.push(o); });

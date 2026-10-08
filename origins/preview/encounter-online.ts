@@ -90,6 +90,7 @@ export function createPrefetch(begin: (id: string) => Promise<Online | null>, cl
         if (o) mine.expiry = after(() => drop(mine), PREFETCH_MAX_AGE_MS);
       });
     },
+    current(): string | null { return slot?.id ?? null; },
     take(id: string): Online | null {
       const got = slot; slot = null;
       if (!got) return null;
@@ -99,4 +100,12 @@ export function createPrefetch(begin: (id: string) => Promise<Online | null>, cl
       return null;
     },
   };
+}
+
+// Which creature the prefetch follows (Auditor 2026-10-08): inside a camp the nearest aggro creature flips as the hero moves, and every switch would drop a started token. The slot is KEPT while its
+// creature stays within `range` and keeps noticing the hero; the follow only moves when it has left. `nearest` is the closest candidate (already within range) or null.
+export type Candidate = { id: string; dist: number; mode?: string };
+export function commitTarget(current: Candidate | null, nearest: Candidate | null, range: number): string | null {
+  if (current && current.dist <= range && current.mode === 'aggro') return current.id;
+  return nearest && nearest.dist <= range && nearest.mode === 'aggro' ? nearest.id : null;
 }

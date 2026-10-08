@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { STEP } from '../../src/sim.ts';
-import { beginOnline, createPrefetch, onlineWanted, type HeldFight, RETRY_AFTER_MS, START_TIMEOUT_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
+import { beginOnline, commitTarget, createPrefetch, onlineWanted, type HeldFight, RETRY_AFTER_MS, START_TIMEOUT_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
@@ -224,4 +224,17 @@ test('createPrefetch: onDropped counts a started session that was never fought (
   p.want('b'); await settle(); timers[timers.length - 1]!(); assert.equal(drops, 1, 'expired');
   p.want('c'); await settle(); p.want('d'); assert.equal(drops, 2, 'displaced by d'); await settle(); assert.equal(p.take('x'), null); assert.equal(drops, 3, "another creature's tap dropped d");
   p.want('e'); assert.equal(p.take('e'), null); await settle(); assert.equal(drops, 4, 'late arrival after a miss');
+});
+
+test('commitTarget: inside a camp the follow stays on the started creature while it is in range and aggro, so alternating nearest makes one begin and no drop', async () => {
+  const R = 8; let begins = 0, drops = 0;
+  const p = createPrefetch(async () => (begins++, { seed: 1, settle: async () => 'settled', played() {}, stop() {}, drop() {} }) as never, { onDropped: () => void drops++ });
+  const near = { id: 'a', dist: 4, mode: 'aggro' }, other = { id: 'b', dist: 3, mode: 'aggro' };
+  const step = async (nearest: typeof near | null, cur: typeof near | null) => { const f = commitTarget(cur, nearest, R); if (f) p.want(f); await Promise.resolve(); await Promise.resolve(); };
+  await step(near, null);                         // a notices the hero: followed
+  for (let i = 0; i < 6; i++) await step(i % 2 ? near : other, { ...near, dist: 5 + (i % 2) });   // the hero moves in the camp: nearest flips a/b/a/b, a stays in range and aggro
+  assert.equal(begins, 1, 'one begin'); assert.equal(drops, 0, 'no drop'); assert.equal(p.current(), 'a');
+  await step(other, { ...near, dist: 9 });         // a left the range: now b is followed (a is dropped)
+  assert.equal(p.current(), 'b'); assert.equal(begins, 2); assert.equal(drops, 1);
+  assert.equal(commitTarget({ ...near, mode: 'idle' }, other, R), 'b', 'a stopped noticing: switch'); assert.equal(commitTarget(null, { ...other, dist: 9 }, R), null, 'out of range: nothing');
 });
