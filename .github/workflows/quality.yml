@@ -153,6 +153,8 @@ jobs:
           - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }
           - { name: counter-thrust, script: scripts/counter-browser-check.mjs, required: false, only: riposte }
           - { name: counter-heavy, script: scripts/counter-browser-check.mjs, required: false, only: heavy_riposte }
+          # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional until it has a sample on this runner; builds the origins preview itself.
+          - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}
