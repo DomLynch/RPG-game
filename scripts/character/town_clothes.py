@@ -10,7 +10,7 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, OUT = argv[0], argv[1]
@@ -216,10 +216,54 @@ for piece in PIECES:
     ob.parent = arm
     m = ob.modifiers.new("Armature", "ARMATURE")
     m.object = arm
+# ---- the Talk clip ------------------------------------------------------------------------------------------------------------------
+# The warrior body has Idle and Walk but no Talk. Talk is Idle's pose (frame 1) with a small speaking gesture on top, keyed on EVERY bone so it plays on its own
+# (no blending with another clip), 2 s at 30 fps, looping (the last key is the first). It ships inside clothes.glb: three.js binds a clip by node name, so it
+# plays on the warrior body's own bones. Deltas are local to each bone (degrees, XYZ euler), added after the Idle pose.
+TALK = {   # frame -> {bone: (x, y, z) degrees}
+    1: {},
+    16: {"upperarm_r": (0, 0, -22), "lowerarm_r": (0, 0, -55), "hand_r": (0, 0, 12), "spine_03": (0, 3, 0), "Head": (6, 0, 4), "clavicle_r": (0, 0, -4)},
+    31: {"upperarm_r": (0, 0, -12), "lowerarm_r": (0, 0, -35), "hand_r": (0, 0, -10), "spine_03": (0, -2, 0), "Head": (-3, 0, -3), "upperarm_l": (0, 0, 6)},
+    46: {"upperarm_r": (0, 0, -26), "lowerarm_r": (0, 0, -60), "hand_r": (0, 0, 8), "spine_03": (0, 2, 0), "Head": (4, 0, 3), "clavicle_r": (0, 0, -3)},
+    61: {},
+}
+
+
+def author_talk():
+    sc = bpy.context.scene
+    sc.render.fps = 30
+    idle = bpy.data.actions["Idle"]
+    arm.animation_data_create()
+    arm.animation_data.action = idle
+    sc.frame_set(int(idle.frame_range[0]))
+    bpy.context.view_layer.update()
+    pb = arm.pose.bones
+    for b in pb:
+        b.rotation_mode = "QUATERNION"
+    base = {b.name: (b.rotation_quaternion.copy(), b.location.copy()) for b in pb}
+    talk = bpy.data.actions.new("Talk")
+    arm.animation_data.action = talk
+    for frame, deltas in TALK.items():
+        for b in pb:
+            q, loc = base[b.name]
+            d = deltas.get(b.name)
+            b.rotation_quaternion = q @ Euler([math.radians(a) for a in d], "XYZ").to_quaternion() if d else q
+            b.location = loc
+            b.keyframe_insert("rotation_quaternion", frame=frame)
+            if b.name in ("root", "pelvis"):
+                b.keyframe_insert("location", frame=frame)
+    talk.use_fake_user = True
+    return talk
+
+
 # The shipped file is the CLOTHES ONLY: the garments plus the armature's joint names (the game skins them onto the warrior world body's own skeleton by bone name),
-# no body mesh, no clips. TOWN_FULL=1 keeps the body and the clips for the preview renders.
+# no body mesh, and ONE clip (Talk). TOWN_FULL=1 keeps the body and all its clips for the preview renders.
 full = os.environ.get("TOWN_FULL") == "1"
+author_talk()
 if not full:
     bpy.data.objects.remove(body, do_unlink=True)
-bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_apply=False, export_animations=full, export_skins=True, export_yup=True)
+    for a in list(bpy.data.actions):   # only Talk ships: Idle and Walk are the warrior body's own
+        if a.name != "Talk":
+            bpy.data.actions.remove(a)
+bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_apply=False, export_animations=True, export_skins=True, export_yup=True)
 print("CLOTHES-TOTAL", sum(counts.values()), "tris,", len(counts), "pieces ->", OUT)
