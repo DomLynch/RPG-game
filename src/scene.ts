@@ -625,7 +625,27 @@ export function createScene(
         scene.remove(...borrowed); for (const light of borrowed) (light as THREE.Light).dispose?.();
       }
     },
-    warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
+    // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them. The shadow pass's depth programs (one per
+    // material that casts, with its uv/alpha/instancing variant) only exist once drawn, so one proxy per distinct casting material goes through the same 4x4 frame under the borrowed lights, then the proxies and clones go.
+    async warmWorld(root: THREE.Object3D, lights: THREE.Object3D[] = []) {
+      await renderer.compileAsync(root, camera, scene).catch(() => {});
+      const proxies: THREE.Object3D[] = [], seen = new Set<string>();
+      root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh || !m.castShadow || (m as THREE.SkinnedMesh).isSkinnedMesh || Array.isArray(m.material)) return;
+        const key = `${m.material.uuid}|${(m as THREE.InstancedMesh).isInstancedMesh ? 'i' : 'm'}|${m.geometry.attributes.uv ? 'uv' : ''}`;
+        if (seen.has(key)) return; seen.add(key);
+        const proxy = (m as THREE.InstancedMesh).isInstancedMesh ? new THREE.InstancedMesh(m.geometry, m.material, 1) : new THREE.Mesh(m.geometry, m.material);
+        proxy.castShadow = true; proxy.frustumCulled = false; proxies.push(proxy);
+      });
+      if (!proxies.length) return;
+      const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed, ...proxies);
+      const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
+      try { renderer.setRenderTarget(target); renderer.render(scene, camera); } catch { /* a failed warm only means the first frame compiles, as before */ } finally {
+        renderer.setRenderTarget(before); target.dispose(); scene.remove(...borrowed, ...proxies);
+        for (const light of borrowed) (light as THREE.Light).dispose?.();
+      }
+    },
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
       ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };
     },

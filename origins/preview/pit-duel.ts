@@ -187,7 +187,7 @@ export type Warm = { world: Object3D; lights: Object3D[]; dress?: (root: Object3
 export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, warm?: Warm): void {
   if (!(opponent in OPPONENTS)) return;
   const made = stageFor(host, opponent as OpponentId, level, mount);
-  if (warm && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(warm.world); }   // once per stage
+  if (warm && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(warm.world, warm.lights); }   // once per stage
   if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
     ownWarmed = made; const root = made.view.opponentRoot();
     if (root && warm?.dress) { warm.dress(root); void made.view.warmOwn(warm.lights).then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
