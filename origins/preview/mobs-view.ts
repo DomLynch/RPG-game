@@ -11,6 +11,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
+import { gateWithBound } from './warm-gate.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -116,11 +117,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     try {
       while (pending.size) {
         const kind = [...pending.keys()].sort((x, y) => kindDist(x) - kindDist(y))[0]!, body = pending.get(kind)!; pending.delete(kind);
-        const t0 = performance.now(), work = warmKind(kind, body).then(() => 'ok' as const, (error: unknown) => { console.warn(`${kind} warm-up failed`, error); return 'failed' as const; });
-        let timer = 0; const bound = new Promise<'late'>((r) => { timer = window.setTimeout(() => r('late'), WARM_BOUND_MS); });
-        const r = await Promise.race([work, bound]); window.clearTimeout(timer); warmed.add(kind);
-        if (r !== 'ok') console.warn(`${kind} warm-up ${r} after ${Math.round(performance.now() - t0)} ms; revealed anyway`);
-        if (r === 'late') await work;   // still one in flight
+        const g = await gateWithBound(kind, warmKind(kind, body), WARM_BOUND_MS);
+        warmed.add(kind);   // revealed: warmed, failed or past the bound (logged by the gate)
+        if (g.result === 'late') await g.settled;   // still one compile in flight
       }
     } finally { pumping = false; }
   }
