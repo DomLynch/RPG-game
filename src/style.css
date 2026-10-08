@@ -2585,3 +2585,8 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 :root.card-up #actions button:not(#reset-button) {
   visibility: hidden !important; pointer-events: none !important;
 }
+
+/* The Coached tag (TOP10 row 8): one component, the live "tap to play" button while the Coach fights and the plain "Coached win" mark on the end screen. Only the live state takes pointer events. */
+.coach-tag { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 64px); transform: translateX(-50%); z-index: 6; padding: 4px 12px; font: 600 12px/1.2 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #e8dcc4; background: rgba(15, 12, 10, .72); border: 1px solid rgba(232, 220, 196, .4); border-radius: 999px; pointer-events: none; }
+.coach-tag[data-live='true'] { pointer-events: auto; cursor: pointer; }
+.coach-tag[hidden] { display: none; }
