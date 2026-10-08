@@ -8,7 +8,6 @@
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
 import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
-import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
