@@ -13,7 +13,7 @@ on:
   # When a docs-only commit is trunk HEAD there is no CI run for it, so scripts/deploy.sh finds no green run and
   # falls back to the full local quality gate — slower at deploy time, never less safe.
   push:
-    branches: [codex/01a09a76/task-1]
+    branches: [codex/01a09a76/task-1, release-candidate]   # release-candidate runs the required jobs on the self-hosted `vps` runner (push only)
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -42,7 +42,7 @@ jobs:
   quality:
     # NOT_RETARGET: a title/body `edited` event is not a code change.
     if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release-candidate' && fromJSON('["self-hosted","vps"]') || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +159,7 @@ jobs:
           # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional until it has a sample on this runner; builds the origins preview itself.
           - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release-candidate' && fromJSON('["self-hosted","vps"]') || 'ubuntu-latest' }}
     continue-on-error: ${{ !matrix.gate.required }}
     timeout-minutes: 40
     steps:

@@ -22,6 +22,11 @@ on:
   # when any row failed: a red row is a defect until it is reproduced on the Mac and shown to be the runner's (AGENTS.md).
   pull_request:
     types: [opened, labeled, synchronize, reopened, ready_for_review]
+  # The release-candidate branch (Deploy pushes each fold's exact commit there): the only event that reaches the self-hosted `vps`
+  # runner. A push needs write access, so a fork can never trigger it; pull_request and pull_request_target never use that runner
+  # while the repo is public (Dom 2026-10-08: it stays public).
+  push:
+    branches: [release-candidate]
   workflow_dispatch:
     inputs:
       ref:
@@ -41,7 +46,7 @@ env:
 jobs:
   plan:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release-candidate' && fromJSON('["self-hosted","vps"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
     outputs:
       checks: ${{ steps.list.outputs.checks }}
@@ -101,7 +106,7 @@ jobs:
     needs: plan
     if: github.event_name == 'pull_request' && needs.plan.outputs.checks == '[]'
     name: release rows (none for this diff)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release-candidate' && fromJSON('["self-hosted","vps"]') || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "0 release rows run for this pull request (no ci:release-checks label, another label added, or a diff that triggers no row) — every row runs on the Mac at deploy (scripts/deploy.sh). Lead adds ci:release-checks when slotting a run."
@@ -115,7 +120,7 @@ jobs:
       matrix:
         check: ${{ fromJson(needs.plan.outputs.checks) }}
     name: check ${{ matrix.check.index }} (${{ matrix.check.name }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release-candidate' && fromJSON('["self-hosted","vps"]') || 'ubuntu-latest' }}
     continue-on-error: true
     timeout-minutes: 30
     steps:
@@ -191,7 +196,7 @@ jobs:
     needs: [plan, check]
     # Not when the matrix never ran (a docs-only PR push): a red "summary" there means nothing.
     if: always() && needs.plan.result == 'success' && needs.plan.outputs.checks != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release-candidate' && fromJSON('["self-hosted","vps"]') || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - uses: actions/download-artifact@v4
