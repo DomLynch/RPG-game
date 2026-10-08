@@ -27,6 +27,8 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
   // The Ash Wolf (preview only, ?wolf): the wolf rig's own body, ash grey and sooted, at twice its size (Dom, 2026-10-07 23:08: "very small").
   'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: WOLF_RENDER_SCALE, dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (src/beast-scale.ts)
+  // The Ash Boar: the boar rig's own body, earth brown with ash, at the size the duel draws a bite-weapon beast (src/characters.ts: WOLF_RENDER_SCALE), so the boar met walking is the boar fought.
+  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, scale: WOLF_RENDER_SCALE, dressing: { soot: .35, burnt: 0 } },
   // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
   'character:lambton-worm': { opponent: 'minotaur', tint: 0x5a4a3a, scale: 1.2, dressing: { soot: .8, burnt: .4 }, later: true },
   'character:rift-spawn': { opponent: 'goblin', tint: 0x7a5f8c, scale: 1, dressing: { soot: .2, burnt: .1 }, later: true },
