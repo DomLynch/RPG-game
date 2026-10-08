@@ -129,7 +129,7 @@ Remove the walkable stone room after arena fights (`src/pit/room.ts`, `sheet.ts`
 | The gate | A "Next fight" primary button on the victory screen (fits the alignment pass) | Web |
 | Bed, table, torches | Dropped | none |
 
-**Order:** build the menu gear screen and the Next-fight button first, then delete the room, so nothing is lost in between. The Auditor checks that no feature disappears. Web leads; World does the hub boards. In Web's queue right after the alignment pass. The UI/arena donor study is still running; Strategy passes any refinement.
+**Gear at the town bank (Dom, 11:4x):** the menu gear screen works anywhere for what you wear plus your pack (64 slots). At the bank, where the 1000-slot vault opens only at the Exchange (`origins/inventory/inventory.ts:178-180`), the SAME gear screen opens side by side with the vault, so you swap between vault, pack and body in one screen. One screen, two entry points; no separate bank gear UI. **Order:** build the menu gear screen and the Next-fight button first, then delete the room, so nothing is lost in between. The Auditor checks that no feature disappears. Web leads; World does the hub boards. In Web's queue right after the alignment pass. The UI/arena donor study is still running; Strategy passes any refinement.
 
 Items not on this list wait.
 
