@@ -154,7 +154,7 @@ jobs:
           - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }
           - { name: counter-thrust, script: scripts/counter-browser-check.mjs, required: false, only: riposte }
           - { name: counter-heavy, script: scripts/counter-browser-check.mjs, required: false, only: heavy_riposte }
-          # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional until it has a sample on this runner; builds the origins preview itself.
+          # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional and NOT gating: software GL (swiftshader) shows 0.7-2.6 s frames after the tap that a real GPU does not (Mac Metal, Apple M5, 1c5b5d99: worst gap 19 ms for the wolf and the shrine); the verdict is the Metal reading. Builds the origins preview itself.
           - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
