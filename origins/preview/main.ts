@@ -462,6 +462,7 @@ const worldHolder = new THREE.Group();
 function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
   const holder = worldHolder; let moved: THREE.Object3D[] = [];
   return {
+    cameraFrom: () => ({ position: camera.position.clone(), quaternion: camera.quaternion.clone() }),   // the walk's camera: the duel's eases from it (scene.ts easeCamera)
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
     attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.engage(spec.id); duelDrawing = true; duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
     detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; mobs?.engage(null); duelDrawing = false; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },

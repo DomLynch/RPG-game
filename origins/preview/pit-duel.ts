@@ -55,7 +55,7 @@ type View = ReturnType<typeof createScene>;
 type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
-export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; at: { x: number; z: number }; toward: { x: number; z: number } };
+export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number } };
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
@@ -202,7 +202,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
-  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) stage!.view.easeCamera(from, CAMERA_EASE_S); }
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
