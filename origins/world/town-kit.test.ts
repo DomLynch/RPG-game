@@ -22,11 +22,14 @@ test('signs and counters follow the building: a smithy gets the smith sign, the 
   for (const l of t.lots.filter((q) => q.trade === 'inn')) assert.ok(l.pieces.filter((p) => p.node === 'sign').every((p) => kitPiece(p, l) === 'sign_tavern_a'));
 });
 
+// Characters' manifest also carries three landmark pieces (arena, pit gate, rankings stone) that the generator does not place from the building kit: the plaza boards are World's hand-placed props for now.
+const LANDMARKS = ['pit_arena_a', 'pit_gate_a', 'leaderboard_stone_a'];
+
 test('a shop front has a door, and the table matches public/world/town/buildings.json when it is there', () => {
   const t = generateTown('ferry', 0.6);
   for (const l of t.lots.filter((q) => q.kind === 'shop' || q.kind === 'house' || q.kind === 'bank')) assert.ok(l.pieces.some((p) => p.node === 'wall' && p.slot === 'door'), `${l.id} has no door`);
   const file = new URL('../../public/world/town/buildings.json', import.meta.url);
   if (!fs.existsSync(file)) return;   // lands with Characters' #1825
   const manifest = JSON.parse(fs.readFileSync(file, 'utf8')) as { pieces: Record<string, { weight: number }> };
-  assert.deepEqual([...KIT_NAMES].sort(), Object.keys(manifest.pieces).filter((n) => !n.endsWith('_end_a') && n !== 'roof_end_a').sort());
+  assert.deepEqual([...KIT_NAMES].sort(), Object.keys(manifest.pieces).filter((n) => !n.endsWith('_end_a') && n !== 'roof_end_a' && !LANDMARKS.includes(n)).sort());
 });
