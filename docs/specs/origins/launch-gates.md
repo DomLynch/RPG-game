@@ -72,3 +72,11 @@ only in the arena (living-world.md, phasing).
 | P3 | The verifier host carries the v28 decoder in a release before any client can write v28 (patron-perks-sim.md, "Release order") | Deploy | The verifier release receipt, dated before the client release | open |
 | P4 | Every template is measured on the battery before it ships; the ladder anchors stay in their bands with the worst-case template (patron-perks-sim.md, "Balance gate") | Combat | The battery report | open |
 | P5 | Combat runs the win-rate-by-patron check before and after release, with its battery and ladder sweeps; a template drifting beyond 1 percentage point is retuned (living-world.md §10, "Checked"; Combat owns it as no Stats lane runs, Strategy, 2026-10-07) | Combat | The check's report before release | open |
+
+## Pre-launch wipe (Dom, 2026-10-08 09:4x, via Strategy)
+
+There are no players yet, so everything stays ON and we test and learn. Before beta or launch, the test progress is wiped and every account starts from scratch. Opens: beta / launch.
+
+| ID | Gate | Owner | Proof that closes it | Status |
+|---|---|---|---|---|
+| P1 | A scripted reset of Origins progress, loot and bronze (character level/CP, inventory and loot, bronze and currency, encounter and fight history, saved places) for the accounts that exist at launch. Dry-run first with row counts per table, then the reset, then the counts read back at zero. Class 2 (destructive): needs the Auditor's PRE on the script and POST on the run, a joint GO (Lead + Strategy), and Dom's own word for the run date. A backup of the tables is taken first and its restore is tested once | Backend | The script in a PR with its Auditor PRE, the dry-run counts, the post-run counts at zero, the backup restore receipt, and Dom's go | open |
