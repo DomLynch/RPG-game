@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 
-const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview'), out = process.env.AB_OUT || path.join(root, 'artifacts/zone1-wire-ab');
+const root = process.cwd(), built = process.env.AB_DIST || path.join(root, 'artifacts/origins-preview'), out = process.env.AB_OUT || path.join(root, 'artifacts/zone1-wire-ab');
 fs.mkdirSync(out, { recursive: true });
 if (!fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 900_000 });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
@@ -22,7 +22,8 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`, base = `${origin}/preview/origins/?region=1`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// AB_BROWSER=webkit: Playwright WebKit (real GPU on the Mac). AB_ANGLE=metal: Chromium on the Mac GPU. Default: Chromium on software GL (the VPS), numbers relative only.
+const browser = process.env.AB_BROWSER === 'webkit' ? await webkit.launch() : await chromium.launch({ args: process.env.AB_ANGLE === 'metal' ? ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { origin, errors: [], stills: [], ab: {} };
 const open = async (query) => {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
@@ -41,7 +42,7 @@ const gaps = async (page, ms) => {
 };
 try {
   // Stills: the shipped state at 375 (spawn, the open field past the gate by day, and the far west by day and by night).
-  for (const [tag, query, spots] of [['day', '', [['spawn', null], ['field', [-35, 5]], ['west', [-70, 10]]]], ['night', '&hour=22', [['west', [-70, 10]], ['spawn', null]]]]) {
+  if (!process.env.AB_SKIP_STILLS) for (const [tag, query, spots] of [['day', '', [['spawn', null], ['west', [-70, 10]]]], ['night', '&hour=22', [['west', [-70, 10]], ['spawn', null]]]]) {
     const page = await open(query);
     for (const [name, at] of spots) { if (at) { await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), at); await page.waitForTimeout(6000); } await still(page, `${tag}-${name}`); }
     await page.context().close();
@@ -49,7 +50,8 @@ try {
   // A/B: frame gaps standing in the open field, ON vs all three kill switches, 5 windows each.
   for (const [tag, query] of [['on', ''], ['off', '&relief=0&kit=0&daynight=0']]) {
     const page = await open(query);
-    await page.evaluate(() => window.originsPreview.place(-40, 5, 0)); await page.waitForTimeout(6000);
+    await page.waitForTimeout(6000);   // the A/B stands at the spawn: the camp, the creatures, the dressing and the kit in view
+    receipt.gl = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl2'); const e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a'; });
     receipt.ab[tag] = [];
     for (let i = 0; i < 5; i++) receipt.ab[tag].push(await gaps(page, 8000));
     receipt.ab[tag + 'Calls'] = await page.evaluate(() => window.originsPreview.renderInfo?.()?.calls ?? null).catch(() => null);
@@ -59,5 +61,5 @@ try {
 const worst = (a) => Math.max(...a.map((w) => w.median));
 receipt.summary = { onMedianMax: worst(receipt.ab.on), offMedianMax: worst(receipt.ab.off), onP95Max: Math.max(...receipt.ab.on.map((w) => w.p95)), offP95Max: Math.max(...receipt.ab.off.map((w) => w.p95)) };
 fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 1));
-console.log(JSON.stringify(receipt.summary), 'errors:', receipt.errors.length);
+console.log('gl:', receipt.gl, JSON.stringify(receipt.summary), 'errors:', receipt.errors.length);
 process.exit(receipt.errors.length ? 1 : 0);
