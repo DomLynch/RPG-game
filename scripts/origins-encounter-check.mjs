@@ -123,14 +123,14 @@ try {
   // ---- 202610080013, Dom's world-fight rule: an expired WORLD fight (never played, or played and left) is closed once and records NOTHING ---------------------------
   const worldOf = t => psql(`select world::text from public.origins_encounter_runs where token = '${t}'`);
   eq(worldOf(tok(9)), 'false', 'world: the 11-argument start leaves world = false (an old writer keeps today\'s behaviour)');
-  eq(await code(V, START(C, pcC, tok(40), 11, 'knight', 6, { instance: 'camp:wolf-9', world: true })), null, 'world: the 12-argument start (as the verifier role)');
+  eq(await code(V, START(A, pcA, tok(40), 11, 'knight', 6, { instance: 'camp:wolf-9', world: true })), null, 'world: the 12-argument start (as the verifier role)');
   eq(worldOf(tok(40)), 'true', 'world: stored server-side at start');
   psql(`update public.origins_encounter_runs set last_tick = 40 where token = '${tok(40)}'`);   // PLAYED, then left (ran away / closed the page)
   age(tok(40));
   eq((await as(O, `select public.origins_encounter_expire(50);`)).out.split('\n').pop(), '1', 'world sweep: closes the expired world fight (as the origins role)');
   eq(state(tok(40)), { used: true, settled: true, result: 'abandoned', claims: 0, events: 0 }, 'world sweep: token used, run settled internally, creature released, NO event (no loss)');
   eq((await as(V, `select public.origins_encounter_expire(50);`)).out.split('\n').pop(), '0', 'world sweep: run twice, nothing more (idempotent)');
-  eq(await code(V, START(C, pcC, tok(41), 12, 'knight', 6, { instance: 'camp:wolf-9', world: true })), null, 'world sweep: the creature is free again');
+  eq(await code(V, START(A, pcA, tok(41), 12, 'knight', 6, { instance: 'camp:wolf-9', world: true })), null, 'world sweep: the creature is free again');
   age(tok(41)); await as(V, `select public.origins_encounter_expire(50);`);
   eq(state(tok(41)), { used: true, settled: true, result: 'abandoned', claims: 0, events: 0 }, 'world sweep: a never-played world fight records nothing either');
   eq(state(tok(9)).settled, false, 'world sweep: a live fight is untouched');
@@ -232,11 +232,12 @@ try {
   eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
   psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
   psql(readFileSync(join(dir, '..', 'down', '202610080013_world_fight_no_loss_down.sql'), 'utf8'));
-  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is null)::text || '/' || (pg_get_functiondef('public.origins_encounter_expire(int)'::regprocedure) like '%insert into public.origins_events%')::text`), 'true/true', '0013 down: the new function is gone and the sweep records abandonments again (0002)');
+  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is null)::text || '/' || (pg_get_functiondef('public.origins_encounter_expire(int)'::regprocedure) like '%if not t.world%')::text`), 'true/false', '0013 down: the new function is gone and the sweep is 0002\'s again (no world branch: every expiry records an abandonment)');
   psql(readFileSync(join(dir, '202610080013_world_fight_no_loss.sql'), 'utf8'));
-  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is not null)::text || '/' || (pg_get_functiondef('public.origins_encounter_expire(int)'::regprocedure) like '%insert into public.origins_events%')::text`), 'true/false', '0013 up again: the function is back and the sweep records nothing');
+  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is not null)::text || '/' || (pg_get_functiondef('public.origins_encounter_expire(int)'::regprocedure) like '%if not t.world%')::text`), 'true/true', '0013 up again: the function is back and the sweep has its world branch');
 
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
+  psql(readFileSync(join(dir, '..', 'down', '202610080013_world_fight_no_loss_down.sql'), 'utf8'));   // newest first: 0013 builds on 0002
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins_encounter\\_%' and proname not in ('origins_issue_encounter', 'origins_consume_encounter')`), '0', 'down: the five functions are gone');
   eq(psql(`select count(*) from pg_class where relname in ('origins_encounter_runs', 'origins_creature_claims')`), '0', 'down: the two tables are gone');
