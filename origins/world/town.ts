@@ -38,7 +38,7 @@ function building(kind: LotKind, trade: string | undefined, w: number, d: number
   run(w, (t) => [(t - 0.5) * w, d / 2], 0, true); run(w, (t) => [(t - 0.5) * w, -d / 2], 0);
   run(d, (t) => [-w / 2, (t - 0.5) * d], Math.PI / 2); run(d, (t) => [w / 2, (t - 0.5) * d], Math.PI / 2);
   piece('roof', 0, 0, 0, Math.max(w, d) / 6);
-  if (kind === 'shop') piece('sign', 0, d / 2 + 0.3, 0);
+  if (kind === 'shop' || kind === 'bank') piece('sign', 0, d / 2 + 0.3, 0);
   if (kind === 'house' || trade === 'smith' || trade === 'baker') piece('chimney', w / 4, -d / 4, 0);
   if (kind === 'bank') piece('counter', 0, d / 2 - 1.2, 0, w / 5);
   return out;
@@ -70,5 +70,5 @@ export function generateTown(seed: string, wealth: number): Town {
   // the gates: the road comes in on -z and goes out on +z, an arch at the town's rim on each
   for (const s of [-1, 1]) put('gate', 3, 0, s * (r3 + 6), 0, 0, 6, 2);
   lots.at(-2)!.pieces.push({ node: 'arch', x: 0, z: 0, rotY: 0, scale: 1, variant: 0 }); lots.at(-1)!.pieces.push({ node: 'arch', x: 0, z: 0, rotY: Math.PI, scale: 1, variant: 0 });
-  return { seed, wealth: k, lots, radius: r3 + 8 };
+  return { seed, wealth: k, lots, radius: r3 + 12 };
 }
