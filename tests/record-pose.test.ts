@@ -32,7 +32,7 @@ test('absent pose: the record keeps its old version and its old bytes (no pose f
   const { record } = fight(meta), bytes = packRecord(record);
   assert.equal(record.v, NO_PATRON_VERSION);
   const withPose = packRecord(fight({ ...meta, pose }).record);
-  assert.equal(withPose.length - bytes.length, 20, 'a pose is exactly five float32');
+  assert.equal(withPose.length - bytes.length, 21, 'five float32 plus the patron byte every v32+ header carries');
   assert.equal(unpackRecord(bytes).pose, undefined);
 });
 
@@ -46,10 +46,13 @@ test('a pose that is not float32, or that decodes outside the wall, is refused',
   assert.throws(() => unpackRecord(bad), /unusable pose/);
 });
 
-test('a v38 record without its pose, and a pose below v38, are refused', () => {
-  const rec = fight({ ...meta, pose }).record;
-  assert.throws(() => packRecord({ ...rec, pose: undefined }), /names its pose/);
+test('a v38 record without its pose flag, and a pose on an older version, are refused', () => {
+  const rec = fight({ ...meta, pose }).record, bytes = packRecord(rec);
   assert.throws(() => packRecord({ ...rec, v: 37 as never }), /pose on a version/);
-  const bytes = packRecord(rec); bytes[2] = 37;
-  assert.throws(() => unpackRecord(bytes), /unknown specials flag/);
+  const flagAt = 3 + 1 + rec.build.length + 1 + rec.opponent.length + 1 + rec.weapon.length + 1;
+  assert.equal(bytes[flagAt], 32, 'the flag byte is the pose bit alone');
+  const noFlag = bytes.slice(); noFlag[flagAt] = 0;
+  assert.throws(() => unpackRecord(noFlag), /names its pose/);
+  const old = bytes.slice(); old[2] = 37;
+  assert.throws(() => unpackRecord(old), /unknown specials flag/);
 });
