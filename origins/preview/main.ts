@@ -144,7 +144,13 @@ const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
-new ResizeObserver(() => document.documentElement.style.setProperty('--hud-bottom', `${Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom)}px`)).observe(document.getElementById('hud')!);
+let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars: creature name tags are kept below it (mobs-view clampLabels)
+const measureHud = () => {
+  const bottom = Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom);
+  document.documentElement.style.setProperty('--hud-bottom', `${bottom}px`);
+  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));
+};
+const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!); const barsEl = document.querySelector('.combat-hud'); if (barsEl) hudWatch.observe(barsEl);
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, FRONTIER_ROWS, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run, or hold RUN. Creatures stop and watch when you come near.';
@@ -343,6 +349,7 @@ const walkLoop = () => {
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
+  camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight);
   renderer.render(scene, camera);
 };
 renderer.setAnimationLoop(walkLoop);

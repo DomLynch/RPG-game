@@ -11,7 +11,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
-import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
+import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
@@ -53,6 +53,7 @@ function bangSprite(): THREE.Sprite {
 export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
+  clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void;   // before the draw: a name tag under the HUD slides down the view to just below it
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
   nearest(x: number, z: number, within: number): MobPick | null;   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
@@ -102,7 +103,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
     stand.position.y = 0.85;
-    const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height;
+    const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height; label.userData.y0 = height;
     const bang = bangSprite(); bang.position.y = label.position.y + 0.55; bang.visible = false;
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - 0.12, s.aggro, 48), new THREE.MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
@@ -143,6 +144,16 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
           if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; v.mixer.update(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)
           else { v.pending += dt; if (++v.skip % 4 === 0) { v.mixer.update(v.pending); v.pending = 0; } }
         }
+      }
+    },
+    clampLabels(camera, floorPx, heightPx) {
+      const ceiling = labelCeilingNdc(floorPx, heightPx), at = new THREE.Vector3();
+      for (const v of views.values()) {
+        const y0 = v.label.userData.y0 as number; v.label.position.set(0, y0, 0);   // back home every frame, then clamped from there
+        if (!v.label.visible || !v.group.visible) continue;
+        v.group.updateMatrixWorld(true); v.label.getWorldPosition(at).project(camera);
+        if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;   // behind the camera, or already clear of the HUD
+        at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at);
       }
     },
     pick(ray) {

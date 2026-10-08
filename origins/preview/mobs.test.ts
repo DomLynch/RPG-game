@@ -203,3 +203,12 @@ test('"Back to the fields" takes a tap in a world fight: #leave is in the world 
   const auto = /([^{}]*)\{\s*pointer-events:\s*auto;\s*\}/g, lists = [...html.matchAll(auto)].map((m) => m[1]!);
   assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
 });
+
+test('name tags are kept below the HUD: the ceiling is the floor plus half a tag, in NDC', async () => {
+  const { labelCeilingNdc } = await import('./mobs.ts');
+  assert.equal(labelCeilingNdc(0, 800, 0), 1, 'no HUD: the top of the screen');
+  assert.equal(labelCeilingNdc(400, 800, 0), 0, 'a floor at mid-screen: the centre line');
+  const c = labelCeilingNdc(280, 812);   // 375x812 phone, bars end near y 280: tags sit at least 12 px under it
+  assert.ok(Math.abs(((1 - c) / 2) * 812 - 292) < 1e-6, 'centre 292 px from the top');
+  assert.ok(Number.isFinite(labelCeilingNdc(280, 0)), 'a zero-height window cannot divide by zero');
+});
