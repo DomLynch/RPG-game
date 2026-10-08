@@ -13,6 +13,6 @@ export const BEAST_RENDER_SCALE: Readonly<Record<string, number>> = { wolf: WOLF
 export const beastRenderScale = (opponentId: string): number => BEAST_RENDER_SCALE[opponentId] ?? 1;
 // The beasts whose duel body is NOT in the src/assets glob (it would ride every player's download and TOTAL) but a file under public/beasts/, fetched on demand by URL (Lead's ruling 2026-10-08, the carrierUrls pattern):
 // when the creature is near (World's preload warms the browser cache with this same URL) or the duel starts. The wolf stays in src/assets: it shipped that way. scripts/check-budget.mjs gives the folder its own line.
-export const ON_DEMAND_BEASTS: ReadonlySet<string> = new Set(['boar', 'bear']);
+export const ON_DEMAND_BEASTS: ReadonlySet<string> = new Set(['boar']);
 // Absolute from the site root (like '/world/<kind>.glb' and '/looks/...'): the main page and the Origins preview (/preview/origins/, publicDir off) both read the game's deployed public/beasts.
 export const beastBodyUrl = (opponentId: string): string => `/beasts/${opponentId}.glb`;
