@@ -75,7 +75,7 @@ if (before) {
 
 }
 if(args.includes('--cpu-only')) { console.log(JSON.stringify(receipt)); process.exit(0); }
-const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
+const server = await createServer({ root: process.cwd(), server: { host: '127.0.0.1', port: 0, watch: null }, optimizeDeps: { noDiscovery: true }, logLevel: 'silent' });
 await server.listen();
 let browser;
 try {
