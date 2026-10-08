@@ -4,6 +4,13 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-08 08:2x (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_0822 + project_dom_decided_ledger (00:xx–08:2x).
+
+**Now.** CronList, re-arm /checkin. Get Dom's approval on Lead's TOP10 (docs/TOP10.md, #1763). Live f7ec5ec3; preview CotSfP5w. Origins OPEN to all signed-in (#1769) + fight recording ON; Dom's test: /preview/origins/?region=1&online=1.
+**Done.** Wolf 2x + world keeps moving in fights; Expansion removed (9 lanes); 50 levels + MMO + Mac-busy + donor-first notes (#1762); donor save study (#1774).
+**Open.** Rewards #1767 (level+loot) + #1768 bronze; position save 5 min (Concord 10-12; Zone 1 needs Frontier presence + preview join); Coach 10/day and coached Pit marks asked of Dom.
+**Gotchas.** Explain from Dom's model (one live world, hostile flag), never from engine limits. Experiments = preview-only. Any job on a busy Mac → VPS/HF.
+
 ## 2026-10-07 22:45 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-07_2245 + project_dom_decided_ledger (17:4x–22:4x).
 
 **Now.** CronList; re-arm the /checkin advisor-light crons + a 10-min fast watch until the wolf release (fold4 1d9269c8, lock since 22:31) is live, then tell Dom. Live 4931b343 (21:31): end-screen loot fix, Execution, HUD bars, Credits, Heracles, world bodies.
