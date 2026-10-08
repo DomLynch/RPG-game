@@ -78,12 +78,13 @@ test('one intent per tick: the coach drives only while on, the player only while
     if (t === 200) driver.stop(t);          // a press: stop BEFORE this tick's pick
     const player = t === 200 ? tap : idleIntent();
     const intent = driver.pick(p.duel, player);
+    if (!driver.on) assert.equal(intent, player, `tick ${t}: coach off, so the intent is the player's own`);   // the very object: the coach contributed nothing
     used.push(driver.on ? 'coach' : 'player');
     if (t === 200) assert.deepEqual(intent, tap, 'the tap that handed over IS that tick\'s input: nothing dropped');
     if (t >= 20 && t < 200) assert.equal(driver.on, true);
     p = stepPractice(p, intent, profileAt(OPPONENTS.veteran, 6));
   }
-  assert.equal(used.length, used.filter((u) => u === 'coach' || u === 'player').length, 'exactly one source per tick');
+  assert.ok(used.slice(20, 200).every((u) => u === 'coach') && used.slice(200).every((u) => u === 'player') && used.slice(0, 20).every((u) => u === 'player'), 'coach exactly on [20,200), the player everywhere else');
   assert.deepEqual(driver.spans, [{ from: 20, to: 200 }]);
 });
 
