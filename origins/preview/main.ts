@@ -514,10 +514,11 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
 }
 // The fight's chunks (the duel, the hunt, the encounter) are fetched when the Frontier's creatures come in, in an idle moment, not at the tap: the first engage no longer waits on three imports (Dom 2026-10-08, seamless combat).
 let warmAt = -Infinity, warmKey = '', warmSince = 0;
-const WARM_M = 14, WARM_DWELL_S = 2;   // a creature this near is the likely next fight: its stage is built now, not at the tap
+const WARM_M = 14, WARM_DWELL_S = 2, COMMIT_M = 3.5;   // COMMIT_M: the hero this close to a creature has committed to the fight: the paid session is prefetched then, never on its growl (a free cancel would reopen seed shopping, an unfought token is swept as a loss: Auditor/Strategy 2026-10-08)   // a creature this near is the likely next fight: its stage is built now, not at the tap
 function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
   if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;
   warmAt = time;
+  const close = ONLINE ? mobs.nearest(state.x, state.z, COMMIT_M) : null; if (close) prefetch.want(close.spec.id);
   const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
   const lights: THREE.Object3D[] = []; scene.traverse((o) => { if ((o as THREE.Light).isLight) lights.push(o); });
@@ -534,7 +535,6 @@ const prefetch = createPrefetch(async (id) => {
   await AUTH_READY;
   return beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.value.fight, setup: run.value.setup, base: writerBase(location.search), held: HELD });
 });
-addEventListener('origins:creature', (e) => { const d = (e as CustomEvent<{ id?: string; cue?: string }>).detail; if (ONLINE && d?.cue === 'growl' && d.id) prefetch.want(d.id); });
 function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
   idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
