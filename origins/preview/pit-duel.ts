@@ -182,17 +182,17 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
 
 // ?worldfight, seamless combat: build (and so warm: createScene compiles its shaders) the world-mounted stage for a creature BEFORE its tap, so the engage reuses it (stageFor's same-opponent rule).
 let warmedFor: Stage | null = null;
-let ownWarmed: Stage | null = null;
-export type Warm = { world: Object3D; lights: Object3D[]; dress?: (root: Object3D) => void };   // the page's world scene, its lights (borrowed for the compile) and the foe's cloth
+export type Warm = { dress?: (root: Object3D) => void };   // the foe's cloth (the creature's look is a material variant: its program is built for the fight too)
 export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, warm?: Warm): void {
   if (!(opponent in OPPONENTS)) return;
   const made = stageFor(host, opponent as OpponentId, level, mount);
-  if (warm && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(warm.world); }   // once per stage
-  if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
-    ownWarmed = made; const root = made.view.opponentRoot();
-    if (root && warm?.dress) { warm.dress(root); void made.view.warmOwn(warm.lights).then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
-    else if (warm) void made.view.warmOwn(warm.lights);
-  }
+  if (!warm || !made.ready || warmedFor === made || running || !mount.borrow) return;   // once per stage, when its rigs are in
+  warmedFor = made;
+  requestAnimationFrame(() => {   // between frames: the world is lent for one 4x4 draw of the duel scene, placed as the engage will place it, then given back
+    if (running || stage !== made) return;
+    const root = made.view.opponentRoot(); if (root) warm.dress?.(root);
+    try { mount.borrow!(() => { placeInWorld(mount, initialPractice(1, OPPONENTS[opponent as OpponentId])); made.view.warmDraw(); }); } finally { if (root && warm.dress && dressedRoot !== root) undressMob(root); }
+  });
 }
 
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.

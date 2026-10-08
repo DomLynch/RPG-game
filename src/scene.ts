@@ -84,7 +84,7 @@ export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapo
 // the Pit's rigs, effects and locked camera in the arena's own coordinates, except that no arena, crowd or arena light is built: `holder` (the page's world, moved in by the page) is
 // the ground, `background` and `fog` are the world's, and the page's renderer draws it (no second GL context). The page places `holder` with the inverse of where the duel stands in
 // the world. Without a mount (every Pit and game page) none of this runs.
-export type WorldMount = { renderer: THREE.WebGLRenderer; holder: THREE.Object3D; background: THREE.Color | THREE.Texture | null; fog: THREE.Fog | THREE.FogExp2 | null };
+export type WorldMount = { renderer: THREE.WebGLRenderer; holder: THREE.Object3D; background: THREE.Color | THREE.Texture | null; fog: THREE.Fog | THREE.FogExp2 | null; borrow?(run: () => void): void };   // borrow: the page puts its world in `holder` for the duration of `run` (warmDraw), then takes it back
 const worldArena = (): Arena => ({ group: new THREE.Group(), floor: new THREE.Mesh(), sky: Object.assign(new THREE.Texture(), { image: { width: 1 } }), materials: undefined, ready: Promise.resolve(), update() {}, raiseGate() {} }) as unknown as Arena;
 export function createScene(
   canvas: HTMLCanvasElement,
@@ -613,19 +613,12 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    // world fights: warm this scene's own rigs (hero, foe, weapons) once they have loaded, before the engage. A program's variant depends on the lights it is lit by, and the world's lights only join this scene at the
-    // attach, so they are borrowed here as clones. `compile` builds the lit programs, but the shadow pass's depth programs only exist once a shadow map is really rendered, so one frame is drawn into a 4x4 target (nothing shown), then the clones go.
-    async warmOwn(lights: THREE.Object3D[]) {
-      const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed);
-      try {
-        await renderer.compileAsync(scene, camera);
-        const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
-        try { renderer.setRenderTarget(target); renderer.render(scene, camera); } finally { renderer.setRenderTarget(before); target.dispose(); }
-      } catch { /* a failed warm only means the first frame compiles, as before */ } finally {
-        scene.remove(...borrowed); for (const light of borrowed) (light as THREE.Light).dispose?.();
-      }
+    // world fights, ONE path in every browser (Dom, 2026-10-08: "one universal option"): draw this scene into a 4x4 target before the engage. Drawing is what builds every program the first duel frame needs (lit, shadow-depth and skinned
+    // variants, the world's materials under THIS scene's environment, fog and lights); the page lends its world for it (WorldMount.borrow). No compileAsync / parallel compile, so nothing here depends on which browser runs it.
+    warmDraw() {
+      const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
+      try { renderer.setRenderTarget(target); renderer.render(scene, camera); } catch { /* a failed warm only means the first frame compiles, as before */ } finally { renderer.setRenderTarget(before); target.dispose(); }
     },
-    warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
       ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };
     },

@@ -480,6 +480,7 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
   return {
     cameraFrom: () => ({ position: camera.position.clone(), quaternion: camera.quaternion.clone() }),   // the walk's camera: the duel's eases from it (scene.ts easeCamera)
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
+    borrow(run: () => void) { const lent = [...scene.children]; holder.add(...lent); try { run(); } finally { scene.add(...lent); holder.matrix.identity(); } },   // a 4x4 warm draw (scene.ts warmDraw): the world in the holder and back, no engage side effects
     attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.engage(spec.id); duelDrawing = true; duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
     detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; mobs?.engage(null); duelDrawing = false; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
   };
@@ -492,11 +493,10 @@ function warmFight(time: number) {   // every 2 s on the walk, with the fight ch
   warmAt = time;
   const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
-  const lights: THREE.Object3D[] = []; scene.traverse((o) => { if ((o as THREE.Light).isLight) lights.push(o); });
   const o = run.value.setup.opponent, key = `${o.body}:${o.level}`;
   if (key !== warmKey) { warmKey = key; warmSince = time; return; }   // the nearest creature type must hold this long before its stage is built or replaced: a walk past a camp must not churn GPU memory (Auditor M2)
   if (time - warmSince < WARM_DWELL_S) return;
-  duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), { world: scene, lights, dress: (root) => { const look = mobVariant(t.spec.character, t.spec.id); if (look) dressMob(root, look, false); } });
+  duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), { dress: (root) => { const look = mobVariant(t.spec.character, t.spec.id); if (look) dressMob(root, look, false); } });
 }
 function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
