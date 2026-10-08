@@ -29,30 +29,21 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
   } catch { return null; }
 }
 
-// Zone 1 refreshes the stored session itself (a bookmark or reload lands here without the arena having run supabase-js). A session whose access token is
-// expired or within a minute of it, with a refresh_token, is exchanged at Supabase's token endpoint and written back to the SAME key, under the Web Lock
-// supabase-js takes, so a second tab cannot spend the rotating refresh token twice. Any failure leaves the storage untouched = signed out; nothing throws, nothing is logged.
-type Store = { getItem(key: string): string | null; setItem(key: string, value: string): void };
-export async function refreshStoredSession(storage: Store | null, nowMs: number, env: { url?: string; key?: string }, doFetch: typeof fetch = globalThis.fetch,
-  locks: { request<T>(name: string, cb: () => Promise<T>): Promise<T> } | null = typeof navigator !== 'undefined' ? navigator.locks ?? null : null): Promise<void> {
-  const read = () => { try { return JSON.parse(storage?.getItem(AUTH_KEY) ?? 'null') as { refresh_token?: unknown; expires_at?: unknown } | null; } catch { return null; } };
-  const stale = (s: ReturnType<typeof read>) => !!s && typeof s.refresh_token === 'string' && s.refresh_token.length > 0 && !(typeof s.expires_at === 'number' && s.expires_at * 1000 > nowMs + 60_000);
-  if (!storage || !env.url || !env.key || !stale(read())) return;
-  const run = async () => {
-    const again = read();   // another tab may have refreshed while this one waited for the lock
-    if (!stale(again)) return;
-    try {
-      const res = await doFetch(`${env.url}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: env.key!, 'content-type': 'application/json' }, body: JSON.stringify({ refresh_token: again!.refresh_token }), credentials: 'omit', signal: AbortSignal.timeout(4000) });
-      if (res.status !== 200) return;
-      const next = (await res.json()) as { access_token?: unknown; refresh_token?: unknown; expires_in?: unknown; expires_at?: unknown };
-      if (typeof next.access_token !== 'string' || typeof next.refresh_token !== 'string') return;
-      const expires_at = typeof next.expires_at === 'number' ? next.expires_at : typeof next.expires_in === 'number' ? Math.floor(nowMs / 1000) + next.expires_in : null;
-      if (expires_at === null) return;
-      storage.setItem(AUTH_KEY, JSON.stringify({ ...(JSON.parse(storage.getItem(AUTH_KEY) ?? '{}') as object), ...next, expires_at }));
-    } catch { /* offline or storage refused: stays signed out */ }
-  };
-  try { await (locks ? locks.request(AUTH_KEY.replace(/^/, 'lock:'), run) : run()); } catch { /* lock refused */ }
+// Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
+// the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
+// stored and its access token is expired or about to be; a fresh token, or none, costs nothing. Any failure leaves the storage as it was = signed out.
+export type AuthClient = { auth: { getSession(): Promise<unknown> } };
+export async function ensureFreshSession(storage: { getItem(key: string): string | null } | null, nowMs: number, makeClient: () => Promise<AuthClient | null>): Promise<void> {
+  try {
+    if (!storage?.getItem(AUTH_KEY) || storedToken(storage, nowMs)) return;
+    await (await makeClient())?.auth.getSession();
+  } catch { /* offline or refused: stays signed out */ }
 }
+export const authClient = async (env: { url?: string; key?: string }): Promise<AuthClient | null> => {
+  if (!env.url || !env.key) return null;
+  const { createClient } = await import('@supabase/supabase-js');
+  return createClient(env.url, env.key, { auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: AUTH_KEY, autoRefreshToken: false } });   // src/account.ts options; no timer: one renewal per page
+};
 
 export type Character = { id: string; name: string };
 export type Opened = { career: CareerState; characters: Character[]; marks: number };

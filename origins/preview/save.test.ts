@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
-import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, refreshStoredSession, type Opened } from './save.ts';
+import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, type Opened } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { NEW_ALLEGIANCE } from '../patrons/patrons.ts';
 
@@ -175,21 +175,16 @@ test('the picker opens only on the saved career at Gladiator (level 11) or above
   assert.match(picker.render(co, 'Aldren'), /Aldren swore to The Free Company on 2026-09-21/);
 });
 
-test('refreshStoredSession: a stale session is exchanged once and written back; fresh, no refresh_token, a rejection and a lost race leave it alone', async () => {
-  const now = 1_700_000_000_000, env = { url: 'https://x.test', key: 'pub' };
-  const mk = (s: unknown) => { const m = new Map<string, string>([[AUTH_KEY, JSON.stringify(s)]]); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m }; };
-  const calls: string[] = [];
-  const ok = (async (u: string, init: { body: string }) => { calls.push(u + ' ' + init.body); return { status: 200, json: async () => ({ access_token: 'new', refresh_token: 'r2', expires_in: 3600 }) }; }) as never;
-  const stale = mk({ access_token: 'old', refresh_token: 'r1', expires_at: now / 1000 - 4000, user: { id: 'u' } });
-  await refreshStoredSession(stale, now, env, ok, null);
-  assert.equal(storedToken(stale, now), 'new'); assert.equal(calls.length, 1); assert.match(calls[0], /grant_type=refresh_token .*"r1"/);
-  assert.equal(JSON.parse(stale.m.get(AUTH_KEY)!).user.id, 'u', 'the rest of the session is kept');
-  const fresh = mk({ access_token: 'a', refresh_token: 'r1', expires_at: now / 1000 + 3600 }); await refreshStoredSession(fresh, now, env, ok, null); assert.equal(calls.length, 1, 'fresh: no call');
-  const bare = mk({ access_token: 'a', expires_at: 1 }); await refreshStoredSession(bare, now, env, ok, null); assert.equal(calls.length, 1, 'no refresh_token: no call');
-  const bad = mk({ access_token: 'a', refresh_token: 'r', expires_at: 1 }); await refreshStoredSession(bad, now, env, (async () => ({ status: 400, json: async () => ({}) })) as never, null); assert.equal(storedToken(bad, now), null);
-  const boom = mk({ access_token: 'a', refresh_token: 'r', expires_at: 1 }); await refreshStoredSession(boom, now, env, (async () => { throw new Error('net'); }) as never, null); assert.equal(storedToken(boom, now), null);
-  const race = mk({ access_token: 'a', refresh_token: 'r', expires_at: 1 });   // another tab refreshes while this one waits for the lock: no second spend
-  await refreshStoredSession(race, now, env, ok, { request: async (_n, cb) => { race.m.set(AUTH_KEY, JSON.stringify({ access_token: 'theirs', refresh_token: 'r9', expires_at: now / 1000 + 3600 })); return cb(); } });
-  assert.equal(calls.length, 1); assert.equal(storedToken(race, now), 'theirs');
-  await refreshStoredSession(mk({ access_token: 'a', refresh_token: 'r', expires_at: 1 }), now, {}, ok, null); assert.equal(calls.length, 1, 'no env: no call');
+test('ensureFreshSession: only a stored, stale session loads the client and asks it to renew; fresh, none and a failing client do not throw', async () => {
+  const now = 1_700_000_000_000;
+  const mk = (s: unknown) => ({ getItem: (k: string) => (k === AUTH_KEY && s !== null ? JSON.stringify(s) : null) });
+  let made = 0, asked = 0;
+  const factory = async () => { made++; return { auth: { getSession: async () => { asked++; return {}; } } }; };
+  await ensureFreshSession(mk({ access_token: 'old', refresh_token: 'r', expires_at: now / 1000 - 4000 }), now, factory); assert.deepEqual([made, asked], [1, 1], 'stale: renewed');
+  await ensureFreshSession(mk({ access_token: 'a', refresh_token: 'r', expires_at: now / 1000 + 3600 }), now, factory); assert.deepEqual([made, asked], [1, 1], 'fresh: untouched');
+  await ensureFreshSession(mk(null), now, factory); assert.deepEqual([made, asked], [1, 1], 'no session: signed out, no client');
+  await ensureFreshSession(null, now, factory); assert.equal(made, 1, 'no storage');
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => { throw new Error('chunk'); });
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => null);
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: async () => { throw new Error('net'); } } }));
 });
