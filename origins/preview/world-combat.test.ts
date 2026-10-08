@@ -63,3 +63,13 @@ test('call-site pin: the page reaches combat only through zone1.ts stepCombat (s
   assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
+
+test('specials: with a special set he casts it on special() once it is off cooldown (the loop telegraphs it); without one the press does nothing', () => {
+  const swings = (special: 'quake' | null) => { let n = 0; const f = fakeMobs([]); const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void n++, hero: () => ({ gear: { attack: 1, res: 1 }, level: 40, special }) }); run(wc, { x: 0, z: 0, facing: 0 }, 25); wc.special(); run(wc, { x: 0, z: 0, facing: 0 }, 0.2); return n; };
+  assert.equal(swings('quake'), 1); assert.equal(swings(null), 0);
+});
+
+test('a creature joins with a mood seeded by its id: the same creature fights in the same stance every time', () => {
+  const stance = () => { const f = fakeMobs([{ spec: spec('wolf-7', 'wolf'), x: 0, z: 6 }]); const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} }); run(wc, { x: 0, z: 0, facing: 0 }, 1); return JSON.stringify(wc.debug()); };
+  assert.equal(stance(), stance());
+});
