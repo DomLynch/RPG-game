@@ -32,11 +32,12 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
 // Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
 // stored and its access token is expired or about to be; a fresh token, or none, costs nothing. Any failure leaves the storage as it was = signed out.
+export const RENEW_TIMEOUT_MS = 3000;
 export type AuthClient = { auth: { getSession(): Promise<unknown> } };
 export async function ensureFreshSession(storage: { getItem(key: string): string | null } | null, nowMs: number, makeClient: () => Promise<AuthClient | null>): Promise<void> {
   try {
     if (!storage?.getItem(AUTH_KEY) || storedToken(storage, nowMs)) return;
-    await (await makeClient())?.auth.getSession();
+    await Promise.race([(async () => { await (await makeClient())?.auth.getSession(); })(), new Promise((resolve) => setTimeout(resolve, RENEW_TIMEOUT_MS))]);   // a hung renewal must not hold presence, the saved career or the paid fight
   } catch { /* offline or refused: stays signed out */ }
 }
 export const authClient = async (env: { url?: string; key?: string }): Promise<AuthClient | null> => {
