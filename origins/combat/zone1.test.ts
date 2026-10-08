@@ -73,7 +73,7 @@ test('a kill: Died is emitted once, the body stays dead, and the creature stops 
   assert.equal(get(world, 'c').hunting, false);
 });
 
-test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the chase, it walks home and heals to full with no event', () => {
+test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the chase, it walks home and heals to full, one Evaded event and nothing else', () => {
   const b = creature('b', 'boar', 0, 4); b.health = 40;
   const w = newWorld([player('p', 0, 0), b]);
   const away = run(w, 12, () => ({ x: 0, z: -1, run: true }));
@@ -83,7 +83,7 @@ test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the c
   const home = run(away.world, 60);   // the player stands far away; it walks home at the amble
   assert.equal(get(home.world, 'b').health, OPPONENTS.boar.health);
   assert.equal(get(home.world, 'b').returning, false);
-  assert.deepEqual(home.events, [], 'no event on the heal');
+  assert.deepEqual(home.events, [{ type: 'Evaded', id: 'b' }], 'one Evaded for the mount, nothing else: no Hit, no Died, no XP-bearing event');
 });
 
 test('the wolf is faster than a runner but gives up at a 15 m leash, the boar at 30', () => {
