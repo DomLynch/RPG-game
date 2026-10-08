@@ -2,8 +2,9 @@
 // kill event, and everything commits in ONE transaction with the token's consumption, so a retried settle pays nothing twice).
 // Reused as they are: resolveFight + rollLoot + intoBackpack (origins/encounters: the EQEmu loot port and the inventory's `receive`), award() for the
 // kill's CP booked with career_set (as questBatch and pitBatch book theirs), openHoldingsWith for the pack, and origins_apply's `mint` op.
-// Not paid yet, so it can never overpay: bronze (the writer has no read of the metal balance row the `metal` op needs), Bounty metal and weekly
-// boss rolls (both need "wins today / rolls this week", which needs an events read). Those caps are passed as reached.
+// Bronze (the loot table's currency roll) is paid with origins_apply's `metal` op, versioned by the balance row origins_metal_of reads (migration 202610080004;
+// without it, bronze is reported unpaid). Not paid yet, so it can never overpay: Bounty metal and weekly boss rolls (both need "wins today / rolls this week",
+// which needs an events read). Those caps are passed as reached.
 import { createHash } from 'node:crypto';
 import type { CharacterInstanceId, EncounterId } from '../contracts/ids.ts';
 import type { ItemInstance } from '../contracts/items.ts';
@@ -15,16 +16,16 @@ import { careerState } from './career.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
 import * as store from './store.ts';
-import type { CareerRow, Json } from './store.ts';
+import { metalOf, type CareerRow, type Json, type MetalRow } from './store.ts';
 
 export type Kill = { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null };
-export type Paid = { batch: Json[]; summary: { cp: number; cpReason: string; drops: string[]; lootRefused: string | null; unpaid: string[] } };
+export type Paid = { batch: Json[]; summary: { cp: number; cpReason: string; drops: string[]; bronze: number; lootRefused: string | null; unpaid: string[] } };
 
 const CAP_REACHED = Number.MAX_SAFE_INTEGER;   // no "wins today / rolls this week" read yet: the cap counts as reached, so nothing is paid past it
 
 // Pure: the server's own state in, the batch lines out. `at` is the server time (ISO). Nothing here reads the client's body.
-export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory }, content: EncounterContent, at: string): Paid {
-  const none = (why: string): Paid => ({ batch: [], summary: { cp: 0, cpReason: why, drops: [], lootRefused: null, unpaid: [] } });
+export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string): Paid {
+  const none = (why: string): Paid => ({ batch: [], summary: { cp: 0, cpReason: why, drops: [], bronze: 0, lootRefused: null, unpaid: [] } });
   if (!kill.fight) return none('no-fight-id');   // a token issued before the fight id was carried: the event only, as before
   const setup = fightSetup(kill.fight, content);
   if (!setup.ok || setup.value.opponent.body !== kill.enemy || setup.value.opponent.level !== kill.level) return none('fight-mismatch');   // never pay a fight the run does not describe
@@ -52,7 +53,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
 
   // The loot: the table rolled on the SERVER's seed (the page rolls the same seed, so it shows the same drops), into the pack all or nothing.
   const drops: string[] = [];
-  let lootRefused: string | null = null;
+  let bronze = 0, lootRefused: string | null = null;
   if (payout.lootTable) {
     const rolled = rollLoot(payout.lootTable, kill.seed, content, { foeLevel: kill.level });
     if (!rolled.ok) lootRefused = rolled.issues[0]!.message;
@@ -67,12 +68,16 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
           batch.push(mintOp(inst, lookup(inst.item)?.stack === 1));
           drops.push(inst.item);
         }
-        if (got.value.metal > 0) unpaid.push(`bronze ${got.value.metal}`);
+        bronze += got.value.metal;
       }
     }
   }
   if (payout.metal > 0) unpaid.push(`bounty bronze ${payout.metal}`);
-  return { batch, summary: { cp, cpReason, drops, lootRefused, unpaid } };
+  // The bronze, in the same batch: the first award inserts the balance row, every later one names its version (a stale one aborts the whole settle).
+  const metal = state.metal === undefined ? 'absent' : state.metal;   // null = no row yet (the first award inserts it), not 'absent'
+  if (bronze > 0 && metal === 'absent') unpaid.push(`bronze ${bronze}`);
+  else if (bronze > 0 && metal !== 'absent') batch.push({ op: 'metal', account: kill.account, delta_bronze: bronze, reason: 'award', event_id: eventId, ...(metal ? { expected_version: metal.version } : {}) });
+  return { batch, summary: { cp, cpReason, drops, bronze: bronze > 0 && metal !== 'absent' ? bronze : 0, lootRefused, unpaid } };
 }
 
 // The kill's key inside mint keys: mint keys are lowercase (/^[a-z0-9][a-z0-9:._-]{7,127}$/) and the token is base64url, so the key is a digest of
@@ -97,7 +102,7 @@ function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 export const RESPAWN_MS = 300_000;
 export type Cooldown = Map<string, { at: number; token: string }>;
 
-// The writer's `rewards` for encounterOps: read the character's pack and career row (one origins_open), then price the kill.
+// The writer's `rewards` for encounterOps: read the character's pack and career row (one origins_open) and the bronze row, then price the kill.
 export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log, cooldown: Cooldown = new Map()) {
   const lookup = lookupOf(content);
   return async (kill: Kill, db: Db): Promise<Json[]> => {
@@ -109,7 +114,8 @@ export function mobRewards(content: EncounterContent, now: () => Date = () => ne
       return [];
     }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
-    const paid = mobBatch(kill, { career: snap.career, inventory }, content, now().toISOString());
+    const metal = await metalOf(db, kill.account);
+    const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
     if (paid.batch.length > 0) {
       for (const [k, v] of cooldown) if (t - v.at >= RESPAWN_MS) cooldown.delete(k);   // L2: expired windows are dropped, so the map holds at most the last 5 minutes of paid kills
       cooldown.set(key, { at: t, token: kill.token });

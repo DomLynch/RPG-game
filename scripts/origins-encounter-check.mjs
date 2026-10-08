@@ -3,6 +3,7 @@
 // has one live claimant and a stale claim is taken over; touch continues the same token and seed inside the grace and is refused after it; settle consumes the token, closes the run, releases the
 // creature and writes the batch in ONE transaction (a bad batch rolls all of it back; a second settle is refused); the sweep settles an expired fight once as a loss by abandonment under the same
 // event id, skips a row another transaction holds, and a settle after it is refused; nothing is reachable except through the definer functions; the down-script removes the new objects only.
+// Also: the rewards hook's real lines (mob-rewards.ts) pay CP + loot once with the settle, and bronze through migration 202610080004's origins_metal_of read.
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -150,6 +151,35 @@ try {
   const stale = linesFor(tok(21), careerBefore);   // priced on the career row as it was BEFORE the first kill: its expected_version is stale
   eq(await code(V, SETTLE(C, tok(21), 'won', 400, JSON.stringify([...JSON.parse(EV(tok(21), C, pcC, 'won')), ...stale.batch]))), 'O0002', 'rewards: a stale career version aborts the settle');
   eq([state(tok(21)).used, state(tok(21)).settled, items()], [false, false, paid.summary.drops.length], 'rewards: nothing was written and the token is still open for a retry');
+
+  eq(await code(V, SETTLE(C, tok(21), 'won', 400, EV(tok(21), C, pcC, 'won'))), null, 'rewards: the stale fight settles once priced again (here: the event only), freeing the account');
+  // ---- bronze (migration 202610080004 origins_metal_of): the read the `metal` op's version needs, granted to the two writer roles only --------------
+  const fnPriv = role => psql(`select has_function_privilege('${role}', 'public.origins_metal_of(uuid)', 'execute')`);
+  eq([fnPriv(V), fnPriv(O), fnPriv('anon'), fnPriv('authenticated')], ['t', 't', 'f', 'f'], 'metal_of: the writer roles execute it, anon and authenticated do not (default privileges revoked)');
+  const metalOf = () => JSON.parse(psql(`set role ${V}; select coalesce(public.origins_metal_of('${C}')::text, 'null');`).split('\n').pop());
+  eq(metalOf(), null, 'metal_of: no row before the first award');
+  let bseed = 1; while (!(rollLoot(content.local.creatureLoot[creature], bseed, content, { foeLevel: foe.level }).value.metal > 0)) bseed++;
+  const bronzeFight = async (t, s, metal, career) => {
+    eq(await code(V, START(C, pcC, t, s, foe.body, foe.level)), null, `bronze: fight ${t} starts`);
+    const inv = openInventory({ owner: pcC, account: `account:${C}`, items: [], packSize: 64, bankSize: 1000 }, lookup).value;
+    const p = mobBatch({ account: C, character: pcC, token: t, fight: creature, seed: s, enemy: foe.body, level: foe.level, twist: null }, { career, inventory: inv, metal }, content, '2026-10-08T10:00:00.000Z');
+    return { p, settle: () => code(V, SETTLE(C, t, 'won', 400, JSON.stringify([...JSON.parse(EV(t, C, pcC, 'won')), ...p.batch.filter(l => l.op === 'metal')]))) };
+  };
+  const b1 = await bronzeFight(tok(22), bseed, metalOf(), open().career);
+  eq(b1.p.batch.filter(l => l.op === 'metal').length, 1, 'bronze: the kill carries one metal award');
+  eq(await b1.settle(), null, 'bronze: the first award inserts the balance row with the settle');
+  eq(metalOf(), { bronze: b1.p.summary.bronze, version: 1 }, 'bronze: balance and version after the first award');
+  const b2 = await bronzeFight(tok(23), bseed, metalOf(), open().career);
+  eq(await b2.settle(), null, 'bronze: a later award names the version and commits');
+  eq(metalOf(), { bronze: b1.p.summary.bronze + b2.p.summary.bronze, version: 2 }, 'bronze: the balance adds up, version 2');
+  eq(psql(`select count(*) || '/' || sum(delta_bronze) from public.origins_metal_ledger where account = '${C}'`), `2/${b1.p.summary.bronze + b2.p.summary.bronze}`, 'bronze: two ledger lines, conserved');
+  const b3 = await bronzeFight(tok(24), bseed, { bronze: 0, version: 1 }, open().career);   // priced on a stale balance version
+  eq(await b3.settle(), 'O0002', 'bronze: a stale balance version aborts the settle');
+  eq([state(tok(24)).settled, metalOf().version], [false, 2], 'bronze: nothing written, the token still open');
+  psql(readFileSync(join(dir, '..', 'down', '202610080004_origins_metal_of_down.sql'), 'utf8'));
+  eq(psql(`select to_regprocedure('public.origins_metal_of(uuid)') is null`), 't', 'metal_of down: the function is gone');
+  eq(psql(`select count(*) from public.origins_metal_ledger where account = '${C}'`), '2', 'metal_of down: no data touched');
+  psql(readFileSync(join(dir, '202610080004_origins_metal_of.sql'), 'utf8'));
 
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
