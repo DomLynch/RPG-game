@@ -101,7 +101,7 @@ export const FACTIONS = [
 export const FOES = [
   figure('character:mere-mother', "Grendel's Mother", 'Beowulf (Old English poem, Cotton Vitellius A.xv)',
     'In the old poem she came up out of a haunted mere to avenge her son and was cut down in her own hall beneath the water. The Fracture set her mere on the Ash Frontier, and she drowns every boat put on it.',
-    null, [{ id: 'public', opponent: 'witch', level: 15, encounter: 'encounter:mere-mother' }], 'mere-mother'),
+    null, [{ id: 'public', opponent: 'witch', level: 4, encounter: 'encounter:mere-mother' }], 'mere-mother'),
   figure('character:hrungnir', 'Hrungnir', 'Snorri Sturluson, Prose Edda, Skaldskaparmal, c. 1220',
     'A giant of stone with a heart of stone. Here he stands on the displaced shrine in the Cinder Fields and takes any challenge put to him.',
     null, [{ id: 'bounty', opponent: 'knight', level: 3, encounter: 'encounter:bounty-hrungnir' }], 'hrungnir'),
@@ -177,7 +177,7 @@ export const ENCOUNTERS = [
   {
     kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:mere-mother', name: 'The Mere-Mother Rises', region: 'region:ash-frontier', scope: 'public',
     stages: [{ id: 'guard', killsToAdvance: 1, population: 1, roster: [{ character: 'character:mere-brood', weight: 1 }], loot: null }],
-    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 15, health: 15_000 },   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
+    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 4, health: 15_000 },   // Zone 1's boss is the zone level + 3 (Dom 2026-10-08: Zone N = level N, boss N+3); health unchanged, still the boss battery's to set   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
     decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 3600, rewards: { minContributionPercent: 10 },
   },
   solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 3),
