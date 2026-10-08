@@ -7,7 +7,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
-export const OUTLAW_CAMP = { id: 'outlaw-camp', zone: 'ferry-landing', at: { x: -146, z: -72 }, heading: 0, kit: '/world/camp/caravan-kit.glb', manifest: '/world/camp/caravan-kit.json' } as const;
+export const OUTLAW_CAMP = { id: 'outlaw-camp', zone: 'ferry-landing', at: { x: -146, z: -72 }, heading: Math.atan2(14, 22),   // the camp's front (and its sign) face the road end (-132,-50): (+14,+22) from the fire; Characters' convention: rotate the whole layout by H and add H to each piece's heading
+   kit: '/world/camp/caravan-kit.glb', manifest: '/world/camp/caravan-kit.json' } as const;
 export type KitManifest = { layout: ReadonlyArray<readonly [string, number, number, number]>; anchors: Record<'bank' | 'trader' | 'fire' | 'red_respawn', readonly [number, number, number]>; camp_radius_m: number };
 export type Placement = { piece: string; x: number; z: number; rotY: number };
 
