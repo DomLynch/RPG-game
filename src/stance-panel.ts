@@ -1,6 +1,6 @@
 // The stance preview (Strategy, 2026-10-07: "?stances=1, a look-test on the existing Pit page"): a small panel where the player picks one of the four stances and sees both stances at the fight start,
 // theirs and the opponent's mood. Presentation only: the pick is Match.stancePref, the sim reads it through begin() -> initialPractice, and ?stances=off never builds this panel, so every
-// fight is as it was. Nothing appears over the arena; the panel sits in a corner (the ruling's tell is the versus-card reveal, which this reproduces for the preview).
+// fight is as it was. The panel sits top-right under the menu button, clear of the touch controls (the joystick and action cluster own the bottom corners: a bottom-left panel took the joystick's presses, scripts/sparring-browser-check.mjs caught it); nothing else appears over the arena (the ruling's tell is the versus-card reveal, which this reproduces for the preview).
 import { PICKS, moodOf, type PickedStance } from './stance.ts';
 
 // Stances are ON for everyone (Dom 2026-10-08: new features ship ON, a flag is only a kill switch): no flag, `?stances=1`, `?stances=on` and anything unrecognised pick Balanced (the id `neutral`);
@@ -18,7 +18,7 @@ export type StancePanel = { show(mine: PickedStance, seed: number, opponent: str
 export function mountStancePanel(host: HTMLElement, pick: (p: PickedStance) => void, doc: Document = document): StancePanel {   // `doc`: the caller's document (the graphics harness runs main.ts with its own; a module-global `document` is undefined there)
   const box = doc.createElement('div');
   box.id = 'stance-panel'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Stance preview');
-  box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:rgba(15,12,10,.82);color:#e8dcc4;font:12px/1.3 system-ui,sans-serif;border:1px solid rgba(232,220,196,.25);border-radius:6px;max-width:220px';
+  box.style.cssText = 'position:fixed;right:8px;top:64px;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:rgba(15,12,10,.82);color:#e8dcc4;font:12px/1.3 system-ui,sans-serif;border:1px solid rgba(232,220,196,.25);border-radius:6px;max-width:220px';
   const line = doc.createElement('div'); line.id = 'stance-reveal'; line.style.opacity = '.85';
   const row = doc.createElement('div'); row.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap';
   const buttons = new Map<PickedStance, HTMLButtonElement>();
