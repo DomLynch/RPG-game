@@ -189,6 +189,7 @@ test('wildlife rows are valid held rows: no look, source or loot table needed, n
   assert.deepEqual(validateRows(WILDLIFE_ROWS, ctx), []);
   assert.ok(WILDLIFE_ROWS.every((r) => r.later && styleOpponent(r.role) !== undefined), 'every one is later, with a real MobStyle');
   assert.ok(WILDLIFE_ROWS.every((r) => r.role === 'beast'), 'the quadruped family are beasts (they flee at low health)');
+  assert.ok(WILDLIFE_ROWS.every((r) => r.respawnSeconds !== undefined && r.respawnSeconds >= 60 && r.respawnSeconds <= 90), 'Dom\'s animal rule (2026-10-08): each animal stands again in 60-90 s, not the 300 s default');
   for (let seed = 1; seed <= 20; seed++) {
     const zone = generateZone(WILDS, seed);
     assert.ok(zone.ok);
