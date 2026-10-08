@@ -21,6 +21,7 @@ for (let run = 0; run < N; run++) {
   const q0 = await quiet(); const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }), page = await ctx.newPage(), res = { run: run + 1, errors: [], quiet: q0 };
   page.on('pageerror', (e) => res.errors.push(String(e).slice(0, 160)));
   try {
+    if (process.env.TEXTRACE) await page.addInitScript(() => { window.__tex = []; for (const C of [WebGL2RenderingContext, WebGLRenderingContext]) for (const f of ['texImage2D', 'texStorage2D', 'texSubImage2D']) { const o = C.prototype[f]; C.prototype[f] = function (...a) { window.__texAll = (window.__texAll || 0) + 1; if (window.__t0 != null && f !== 'texSubImage2D') window.__tex.push([f, Math.round(performance.now()), String(a[a.length - 1]?.constructor?.name), (a[a.length - 1]?.width ?? ''), (new Error().stack || '').split('\n').slice(2, 7).map((l) => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ')]); return o.apply(this, a); }; } });
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
     res.zoneReady = await page.waitForFunction(() => window.__zoneReady, null, { timeout: 120000 }).then((h) => h.jsonValue()).catch(() => 'never');
@@ -58,7 +59,7 @@ for (let run = 0; run < N; run++) {
     const nodes = new Map(profile.nodes.map((n) => [n.id, n])), self = new Map();
     profile.samples.forEach((id, i) => { const cf = nodes.get(id).callFrame, k = `${cf.functionName || '(anon)'} ${cf.url.split('/').slice(-2).join('/')}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0) / 1000); });
     res.topSelfMs = [...self.entries()].sort((a, b) => b[1] - a[1]).filter(([k]) => !/^\((idle)\)/.test(k)).slice(0, 10).map(([k, v]) => [k, Math.round(v)]);
-    res.mem1 = await page.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.textures, i.geometries]; }); res.hero1 = (await page.evaluate(() => window.originsPreview.combat())).hero.health;
+    if (process.env.TEXTRACE) { res.texTrace = await page.evaluate(() => window.__tex.slice(0, 60)); res.texAll = await page.evaluate(() => window.__texAll); } res.mem1 = await page.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.textures, i.geometries]; }); res.hero1 = (await page.evaluate(() => window.originsPreview.combat())).hero.health;
     await page.screenshot({ path: `${OUT}/run${run + 1}.png` }).catch(() => {});
   } catch (e) { res.fail = String(e).slice(0, 300); }
   await ctx.close(); results.push(res); console.log(JSON.stringify(res));
