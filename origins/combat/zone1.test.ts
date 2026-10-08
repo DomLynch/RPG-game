@@ -418,3 +418,49 @@ test('stances: Balanced / no stance is byte for byte the stance-less step', () =
   const mk = (pick?: 'neutral') => { let w = newWorld([pick ? withStance(player('p', 0, 0), pick) : player('p', 0, 0), creature('c', 'wolf', 0, 1.3)]); const out: string[] = []; for (let t = 0; t < 240; t++) { const r = stepCombat(w, { p: t % 90 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT, NEVER); w = r.world; out.push(JSON.stringify(r.events)); } return JSON.stringify(w.fighters) + out.join(); };
   assert.equal(mk('neutral'), mk());
 });
+
+// ---- S5b: specials (RULES.special frame, named identity as data) and creature mood ----
+import { specialOf } from '../../src/moves.ts';
+import { withMood, withSpecial } from './zone1.ts';
+const SP = RULES.special;
+const caster = (name = specialOf('knight', 36)!, level = 10) => withSpecial(player('p', 0, 0, 0, undefined, level), name);
+const cast = (w: World, secs: number, input: (t: number) => Input = (t) => (t === 0 ? { x: 0, z: 0, special: true } : STILL)) => { const events: Event[] = []; for (let t = 0; t < secs * 60; t++) { const r = stepCombat(w, { p: input(t) }, DT, NEVER); w = r.world; events.push(...r.events); } return { world: w, events }; };
+
+test('special: not ready until RULES.special.first seconds in; then a 2 s telegraph carrying its name, an unblockable release on every enemy in reach for a share of THEIR max health', () => {
+  const name = specialOf('knight', 36)!, c = caster(name), bear = creature('b', 'bear', 0, 2.0), wolf = creature('w', 'wolf', 2.0, 0);
+  bear.phase = wolf.phase = 'stagger'; bear.hurtFor = wolf.hurtFor = 99;
+  const early = cast(newWorld([c, creature('x', 'wolf', 40, 0)]), 1);
+  assert.ok(!early.events.some((e) => e.type === 'Telegraph'), 'not ready in the first seconds');
+  const { world, events } = cast(newWorld([{ ...c, specialIn: 0 }, bear, wolf]), 3);
+  assert.deepEqual(events.filter((e) => e.type === 'Telegraph' && e.id === 'p'), [{ type: 'Telegraph', id: 'p', move: name, ms: Math.round((SP.windup / 60) * 1000) }]);
+  assert.equal(events.filter((e) => e.type === 'Hit' && e.attacker === 'p').length, 2, 'both in reach hit, whatever the facing');
+  assert.equal(get(world, 'b').health, OPPONENTS.bear.health - Math.round(SP.damage * OPPONENTS.bear.health));
+  assert.equal(get(world, 'w').health, OPPONENTS.wolf.health - Math.round(SP.damage * OPPONENTS.wolf.health));
+  assert.ok(get(world, 'p').specialIn > SP.cooldown / 60 - 1.5, 'cooldown re-armed from the release');
+});
+
+test('special: out of reach nothing happens; a guard does not stop it; a boss-level caster hits for bossDamage', () => {
+  const ready = { ...caster(), specialIn: 0 }, far = creature('f', 'wolf', 0, 8); far.phase = 'stagger'; far.hurtFor = 99;
+  assert.equal(get(cast(newWorld([ready, far]), 3).world, 'f').health, OPPONENTS.wolf.health, 'out of reach');
+  const a = { ...ready }, g = player('g', 0, 2, Math.PI, undefined, 10); a.pvp = g.pvp = true;
+  let w = newWorld([a, g]); const events: Event[] = [];
+  for (let t = 0; t < 180; t++) { const r = stepCombat(w, { p: t === 0 ? { x: 0, z: 0, special: true } : STILL, g: { x: 0, z: 0, guard: true } }, DT, NEVER); w = r.world; events.push(...r.events); }
+  assert.ok(events.some((e) => e.type === 'Hit' && e.victim === 'g') && !events.some((e) => e.type === 'Blocked'), 'a raised guard is no defence');
+  const boss = { ...caster(specialOf('knight', 41)!, SP.bossFrom), specialIn: 0 }, t1 = creature('b', 'bear', 0, 2.0); t1.phase = 'stagger'; t1.hurtFor = 99;
+  assert.equal(get(cast(newWorld([boss, t1]), 3).world, 'b').health, OPPONENTS.bear.health - Math.round(SP.bossDamage * OPPONENTS.bear.health));
+});
+
+test('special: a hit taken inside the windup breaks it; no release; the shorter cooldown', () => {
+  const c = { ...caster(), specialIn: 0 }, foe = creature('w', 'wolf', 0, 1.0);   // the wolf's bite (10 hp) lands inside the 2 s windup
+  const out = cast(newWorld([c, foe]), 3);
+  assert.ok(out.events.some((e) => e.type === 'Staggered' && e.id === 'p'), 'the cast broke (the player has poise 0, so a clean hit staggers and cancels it; the 10 % rule covers fighters with poise)');
+  assert.ok(!out.events.some((e) => e.type === 'Swing' && e.id === 'p'), 'no release');
+  assert.ok(get(out.world, 'p').specialIn > 0 && get(out.world, 'p').specialIn <= SP.interruptCooldown / 60, 'on the shorter cooldown');
+});
+
+test('creature mood: half its home stance, half one of the other three, from the injected rand; same rand = same stance', () => {
+  const picks = new Set<string>(); let home = 0;
+  for (let i = 0; i < 200; i++) { const f = withMood(creature('c', 'wolf', 0, 0), () => i / 200); picks.add(f.stance ?? 'neutral'); if (!f.stance) home++; }
+  assert.equal(home, 100, 'wolf home = Balanced'); assert.deepEqual([...picks].sort(), ['aggressive', 'defensive', 'neutral', 'trickster']);
+  assert.equal(withMood(creature('c', 'bear', 0, 0), () => 0.77).stance, withMood(creature('c', 'bear', 0, 0), () => 0.77).stance);
+});

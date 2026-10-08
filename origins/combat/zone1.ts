@@ -4,9 +4,9 @@
 // animation and input; this file owns hits, reach, stamina, guard, roll, posture, stagger, death and what a creature does with its weapon.
 // S0: movement, the light cut, a telegraphed creature bite, death, leash/give-up/heal-home. S1: guard (frontal block, perfect block, chip, guard break), roll with i-frames, posture break,
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
-import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type MoveId, type WeaponId } from '../../src/moves.ts';
+import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type MoveId, type SpecialName, type WeaponId } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
-import { asStance, stanced, type PickedStance, type StanceId } from '../../src/stance.ts';
+import { asStance, homePick, stanced, PICKS, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 
 const TICK = 1 / 60;
@@ -43,6 +43,14 @@ function clampLevel(level: number): number { return Math.min(MAX_LEVEL, Math.max
 export const PROTECT_LEVEL = 3, MAX_LEVEL_GAP = 10;
 export const AGGRO_WINDOW_S = 60;                       // a player who hit you in the last minute is not "first" when you hit back
 
+/** Specials (S5b): the Pit's generic frame (RULES.special) with the named identity as data. A telegraphed (2 s) unblockable release around the caster: every enemy inside `reach` takes `damage` of ITS max health (`bossDamage` from
+ *  level `bossFrom`); a roll's i-frames dodge it, a guard does not stop it. 10 % of the caster's max health taken during the windup interrupts it. First available `first` seconds in, then `cooldown` after the release (`interruptCooldown` after a break).
+ *  Per-class effects and animation stay with Weapons' class specials; here a special is its name on the Telegraph / Swing events. */
+const SP = RULES.special;
+const isSpecial = (m: MoveDef | null): boolean => !!m && (m as MoveDef & { special?: boolean }).special === true;
+export const SPECIAL_RELEASE_TICKS = 6;                 // how long the burst stays live (active phase)
+const specialMove = (name: SpecialName, level: number): MoveDef => ({ ...MOVES.light_right, id: name as unknown as MoveId, windup: SP.windup, active: SPECIAL_RELEASE_TICKS, recovery: SP.recovery, reach: SP.reach, breaksGuard: true, chip: 0, vsGuard: null, posture: 0, stagger: 0, stamina: 0, damage: level >= SP.bossFrom ? SP.bossDamage : SP.damage, special: true } as MoveDef);
+
 export type Phase = 'ready' | 'guard' | 'roll' | 'windup' | 'active' | 'recover' | 'stagger' | 'dead';
 export type Fighter = {
   id: string; side: 'player' | 'creature'; kind: string;   // kind: 'player' or a ROSTER id ('wolf', 'boar', 'bear', ...)
@@ -61,20 +69,21 @@ export type Fighter = {
   hunting: boolean; chaseX: number; chaseZ: number;     // creature only: it is on a chase that STARTED at (chaseX, chaseZ); the leash is measured from there
   unseen: number;                                       // creature only: seconds the prey has been out of sight
   attack: number; res: number;                          // damage multipliers (src/gear-stats.ts Loadout): `attack` scales what it deals, `res` what it takes, chip included; a creature's `attack` is its level's damage
+  special: SpecialName | null; specialIn: number; windupTaken: number;   // the named special this fighter can cast, seconds until it is ready, damage taken while winding it up
   stance?: StanceId;                                    // src/stance.ts: the Pit's table, read through `stanced` (absent = Balanced, the unscaled value untouched)
   pvp: boolean; level: number; shielded: boolean;       // player only: attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
   plan: string | null;                                  // creature only: the variety blow rolled for its next attack ('basic' = none), null until rolled
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
 export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>> };   // aggro[attacker][victim] = when the attacker's last blow met that player
-export type Input = { x: number; z: number; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
+export type Input = { x: number; z: number; special?: boolean; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
 export type Event =
   | { type: 'Telegraph'; id: string; move: string; ms: number }   // a windup began: the tell World animates and sounds
   | { type: 'Swing'; id: string; move: string }                    // the blow's active part began
   | { type: 'Hit'; attacker: string; victim: string; damage: number; move: string }
   | { type: 'Blocked'; attacker: string; victim: string; perfect: boolean; damage: number }   // `damage` is the chip that passed through (0 for a cut)
   | { type: 'Dodged'; attacker: string; victim: string }          // the blow met a roll's invulnerable ticks
-  | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' }
+  | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' | 'interrupt' }
   | { type: 'Aggressed'; attacker: string; victim: string; first: boolean }   // a player's blow met another player (hit, block or dodge): `first` = the victim had not hit him in the last AGGRO_WINDOW_S. The server's murder rule reads Aggressed(first) then Died(by)
   | { type: 'Died'; id: string; by: string }
   | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
@@ -83,7 +92,7 @@ const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENT
 
 function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: number, facing: number, radius: number, health: number, poise: number, weapon: WeaponId): Fighter {
   return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, pause: 0, hurtFor: 0,
-    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, pvp: false, level: 1, shielded: false, plan: null, returning: false };
+    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, special: null, specialIn: 0, windupTaken: 0, pvp: false, level: 1, shielded: false, plan: null, returning: false };
 }
 /** The player, with his gear's Loadout (NAKED = the identity: no gear changes nothing). */
 export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED, level = 1): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res, level, shielded: level < PROTECT_LEVEL });
@@ -95,6 +104,15 @@ export function creature(id: string, kind: string, x: number, z: number, facing 
 }
 /** A fighter with a picked stance ('neutral' = Balanced = none). The same four picks and the same signed per-mille table as the Pit (src/stance.ts), one kit everywhere. */
 export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, stance: asStance(pick) });
+/** Give a fighter a named special (SpecialName from src/moves.ts; `specialOf(opponent, level)` names the class's). It is ready `first` seconds in. */
+export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, special: name, specialIn: SP.first / 60 });
+/** A creature's stance mood, drawn from the injected `rand` the way the Pit draws the AI's (src/stance.ts moodOf): half its home stance, half one of the other three picks. Call once at spawn. */
+export function withMood(f: Fighter, rand: () => number): Fighter {
+  const home = homePick(f.kind), u = rand();
+  if (u < 0.5) return withStance(f, home);
+  const others = PICKS.filter((p) => p !== home);
+  return withStance(f, others[Math.min(others.length - 1, Math.floor((u - 0.5) * 2 * others.length))]!);
+}
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
@@ -125,7 +143,8 @@ function begin(f: Fighter, move: MoveDef, events: Event[]): void {
   spend(f, move.stamina);
   events.push({ type: 'Telegraph', id: f.id, move: move.id, ms: Math.round(secs(move.windup) * 1000) });
 }
-function stagger(v: Fighter, ticks: number, cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry', events: Event[]): void {
+function stagger(v: Fighter, ticks: number, cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' | 'interrupt', events: Event[]): void {
+  if (isSpecial(v.move)) v.specialIn = SP.interruptCooldown / 60;   // a special broken in its windup re-arms on the shorter cooldown
   v.phase = 'stagger'; v.t = 0; v.move = null; v.hurtFor = secs(ticks);
   events.push({ type: 'Staggered', id: v.id, ms: Math.round(secs(ticks) * 1000), cause });
 }
@@ -135,7 +154,10 @@ function addPosture(v: Fighter, amount: number, events: Event[]): void {
 }
 function hurt(a: Fighter, v: Fighter, damage: number, events: Event[]): boolean {   // true when it killed
   v.health = Math.max(0, v.health - damage);
-  if (v.health > 0) return false;
+  if (v.health > 0) {
+    if (isSpecial(v.move) && v.phase === 'windup' && (v.windupTaken += damage) >= SP.interruptAt * v.maxHealth) stagger(v, SP.interruptCooldown / 8, 'interrupt', events);   // 10 % of max health taken in the windup breaks the cast
+    return false;
+  }
   v.phase = 'dead'; v.t = 0; v.move = null; events.push({ type: 'Died', id: v.id, by: a.id });
   return true;
 }
@@ -187,6 +209,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (!alive(f)) continue;
     f.t += dt;
     if (f.pause > 0) f.pause = Math.max(0, f.pause - dt);
+    if (f.specialIn > 0) f.specialIn = Math.max(0, f.specialIn - dt);
     if (f.regenIn > 0) f.regenIn = Math.max(0, f.regenIn - dt);
     f.postureIdle += dt;
     if (f.postureIdle >= secs(RULES.posture.hold) && f.posture > 0) f.posture = Math.max(0, f.posture - stanced(f, 'recover', RULES.posture.decay) * 60 * dt);
@@ -210,7 +233,8 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
             f.x += input.x * k * speed * dt; f.z += input.z * k * speed * dt; f.facing = Math.atan2(input.x, input.z);
             if (running) spend(f, RULES.sprintCost * 60 * dt);
           }
-          if (input.attack && f.phase === 'ready' && !f.exhausted && f.stamina > 0) begin(f, blowOf(f, input.attack), events);
+          if (input.special && f.special && f.specialIn <= 0 && f.phase === 'ready' && !f.exhausted) { f.windupTaken = 0; begin(f, specialMove(f.special, f.level), events); }
+          else if (input.attack && f.phase === 'ready' && !f.exhausted && f.stamina > 0) begin(f, blowOf(f, input.attack), events);
         }
       }
     } else if (f.phase === 'ready') {
@@ -242,19 +266,19 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     // The blow's phases, in the move row's own ticks.
     if (f.move && (f.phase === 'windup' || f.phase === 'active' || f.phase === 'recover')) {
       const m = f.move;
-      if (f.phase === 'windup' && f.t >= secs(m.windup)) { f.phase = 'active'; f.t -= secs(m.windup); events.push({ type: 'Swing', id: f.id, move: m.id });
+      if (f.phase === 'windup' && f.t >= secs(m.windup)) { f.phase = 'active'; f.t -= secs(m.windup); events.push({ type: 'Swing', id: f.id, move: m.id }); if (isSpecial(m)) f.specialIn = SP.cooldown / 60;   // re-arms from the RELEASE
         const v = VARIETY[f.kind], prey = f.side === 'creature' && v && f.plan === v.id && v.dash > 0 ? fighters.filter((p) => p.side === 'player' && alive(p)).sort((a, b) => dist(f, a) - dist(f, b))[0] : undefined;
         if (prey) { const gap = Math.max(0, dist(f, prey) - (m.reach * 0.85 + prey.radius)), step = Math.min(v!.dash, gap), h = aim(f, prey); f.x += Math.sin(h) * step; f.z += Math.cos(h) * step; f.facing = h; }   // the lunge / charge covers its ground as the blow goes active
       }
       if (f.phase === 'active') {
-        for (const v of fighters) if (v !== f && hostile(f, v) && alive(v) && !f.struck.includes(v.id) && inReach(f, v, m)) {
+        for (const v of fighters) if (v !== f && hostile(f, v) && alive(v) && !f.struck.includes(v.id) && (isSpecial(m) ? dist(f, v) <= m.reach + v.radius : inReach(f, v, m))) {
           f.struck.push(v.id);
           if (f.side === 'player' && v.side === 'player') {   // player against player: log who struck first, drop the attacker's low-level shield
             const back = aggro[v.id]?.[f.id];
             events.push({ type: 'Aggressed', attacker: f.id, victim: v.id, first: back === undefined || world.time - back > AGGRO_WINDOW_S });
             (aggro[f.id] ??= {})[v.id] = world.time; f.shielded = false;
           }
-          land(f, v, m, events);
+          land(f, v, isSpecial(m) ? { ...m, damage: Math.round(m.damage * v.maxHealth) } : m, events);   // a special takes a share of the VICTIM's max health
         }
         if (f.t >= secs(m.active) && f.phase === 'active') { f.phase = 'recover'; f.t -= secs(m.active); }
       } else if (f.phase === 'recover' && f.t >= secs(m.recovery)) { f.phase = 'ready'; f.t = 0; f.move = null; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
