@@ -1,0 +1,34 @@
+// Seamless step 3, Match half (RV38): match.startPose is the open world's hero/foe positions; the next career/practice begin() fights from it,
+// the record carries it (v38), a rematch goes back to the pit marks, and a lesson ignores it.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Match } from '../src/match.ts';
+import { OPPONENTS } from '../src/moves.ts';
+import { loadProfile } from '../src/profile.ts';
+import { loadScorecard } from '../src/scorecard.ts';
+import { loadTrial } from '../src/trial.ts';
+import { roundPose } from '../src/duel.ts';
+
+const mk = () => {
+  const storage = { getItem: () => null, setItem: () => undefined };
+  return new Match(OPPONENTS.veteran, 'test', { storage, profile: loadProfile(storage, () => 'test').profile, trial: loadTrial(storage), scorecard: loadScorecard(storage) }, 731, 'longsword', null, 6);
+};
+const pose = { hero: { x: -2.3, z: 1.1 }, foe: { x: 1.7, z: -0.9 }, heroFacing: 0.6 };
+const at = (m: Match) => m.practice.duel.fighters.map((f) => [f.x, f.z]);
+
+test('startPose: the next fight starts from it (float32-rounded), is recorded with it, and a rematch is back at the pit marks', () => {
+  const m = mk(), marks = at(m);
+  m.startPose = pose; m.rematch();
+  const want = roundPose(pose);
+  assert.deepEqual(at(m), [[want.hero.x, want.hero.z], [want.foe.x, want.foe.z]]);
+  assert.equal(m.startPose, undefined, 'one shot');
+  assert.deepEqual(m.recorder?.finish('abandoned').pose, want, 'the record carries the pose');
+  m.rematch();
+  assert.deepEqual(at(m), marks, 'the rematch starts at the marks');
+});
+
+test('startPose is dropped outside career/practice: a lesson starts at the marks', () => {
+  const m = mk(), marks = at(m);
+  m.startPose = pose; m.startLesson(() => undefined);
+  assert.deepEqual(at(m), marks); assert.equal(m.startPose, undefined);
+});
