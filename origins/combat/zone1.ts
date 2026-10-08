@@ -4,7 +4,7 @@
 // animation and input; this file owns hits, reach, stamina, guard, roll, posture, stagger, death and what a creature does with its weapon.
 // S0: movement, the light cut, a telegraphed creature bite, death, leash/give-up/heal-home. S1: guard (frontal block, perfect block, chip, guard break), roll with i-frames, posture break,
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
-import { LEVELS, LEVEL_ANCHORS, MOVES, OPPONENTS, RULES, WEAPONS, opponentAt, type MoveDef, type MoveId, type SpecialName, type WeaponId } from '../../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, MOVES, SKILL_MOVE, OPPONENTS, RULES, WEAPONS, opponentAt, type MoveDef, type MoveId, type SkillId, type SpecialName, type WeaponId } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
 import { asStance, moodOf, stanced, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { openStream, stepStream, type Stream } from './open-fight.ts';
@@ -69,6 +69,8 @@ export type Fighter = {
   hunting: boolean; chaseX: number; chaseZ: number;     // creature only: it is on a chase that STARTED at (chaseX, chaseZ); the leash is measured from there
   unseen: number;                                       // creature only: seconds the prey has been out of sight
   attack: number; res: number;                          // damage multipliers (src/gear-stats.ts Loadout): `attack` scales what it deals, `res` what it takes, chip included; a creature's `attack` is its level's damage
+  skillIn: number;                                      // seconds until the equipped skill may fire again (RULES.skillCooldown, spent at commitment; the duel's own `skillCooldown`, in seconds)
+  skill: SkillId | null;                                // the equipped skill (moves.ts SkillId, the Pit's `equippedSkill(profile.loot)`): the SKILL button fires its move on the duel when no named special is set (duel.ts Fighter.skill; match.ts:110 hands it to initialDuel the same way)
   special: SpecialName | null; specialIn: number; windupTaken: number;   // the named special this fighter can cast, seconds until it is ready, damage taken while winding it up
   stance?: StanceId;                                    // src/stance.ts: the Pit's table, read through `stanced` (absent = Balanced, the unscaled value untouched)
   pvp: boolean; level: number; shielded: boolean;       // player only: attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
@@ -76,7 +78,7 @@ export type Fighter = {
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
 export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>>; streams: Record<string, Stream>; open?: boolean };   // streams: creature id -> its fight on the copied Pit duel (open-fight.ts); `open: false` keeps every fight on the S0-S5b rows below (the pack path)   // aggro[attacker][victim] = when the attacker's last blow met that player
-export type Input = { x: number; z: number; special?: boolean; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
+export type Input = { x: number; z: number; special?: boolean; skill?: boolean; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
 export type Event =
   | { type: 'Telegraph'; id: string; move: string; ms: number }   // a windup began: the tell World animates and sounds
   | { type: 'Swing'; id: string; move: string }                    // the blow's active part began
@@ -93,10 +95,10 @@ const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENT
 
 function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: number, facing: number, radius: number, health: number, poise: number, weapon: WeaponId): Fighter {
   return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, parryCooldown: 0, pause: 0, hurtFor: 0,
-    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, special: null, specialIn: 0, windupTaken: 0, pvp: false, level: 1, shielded: false, plan: null, returning: false };
+    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, skill: null, skillIn: 0, special: null, specialIn: 0, windupTaken: 0, pvp: false, level: 1, shielded: false, plan: null, returning: false };
 }
 /** The player, with his gear's Loadout (NAKED = the identity: no gear changes nothing). */
-export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED, level = 1): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res, level, shielded: level < PROTECT_LEVEL });
+export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED, level = 1, skill: SkillId | null = null): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res, level, shielded: level < PROTECT_LEVEL, skill });
 /** A creature of `kind` (a moves.ts ROSTER id): its health, poise, body scale and weapon are the roster's own rows. */
 export function creature(id: string, kind: string, x: number, z: number, facing = 0, level: number = LEVEL_ANCHORS.easy): Fighter {
   const o = OPPONENT(kind);
@@ -232,6 +234,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     f.t += dt;
     if (f.pause > 0) f.pause = Math.max(0, f.pause - dt);
     if (f.parryCooldown > 0) f.parryCooldown = Math.max(0, f.parryCooldown - dt);
+    if (f.skillIn > 0) f.skillIn = Math.max(0, f.skillIn - dt);
     if (f.specialIn > 0) f.specialIn = Math.max(0, f.specialIn - dt);
     if (f.regenIn > 0) f.regenIn = Math.max(0, f.regenIn - dt);
     f.postureIdle += dt;
@@ -256,7 +259,8 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
             f.x += input.x * k * speed * dt; f.z += input.z * k * speed * dt; f.facing = Math.atan2(input.x, input.z);
             if (running) spend(f, RULES.sprintCost * 60 * dt);
           }
-          if (input.special && f.special && f.specialIn <= 0 && f.phase === 'ready' && !f.exhausted) { f.windupTaken = 0; begin(f, specialMove(f.special, f.level), events); }
+          if (input.skill && !f.special && f.skill && f.skillIn <= 0 && f.phase === 'ready' && !f.exhausted && f.stamina >= MOVES[SKILL_MOVE[f.skill]].stamina) { begin(f, MOVES[SKILL_MOVE[f.skill]], events); f.skillIn = secs(RULES.skillCooldown); }   // the equipped skill's move, as the duel's 'skill' action (duel.ts legal / chooseMove); the cooldown is spent at commitment
+          else if (input.special && f.special && f.specialIn <= 0 && f.phase === 'ready' && !f.exhausted) { f.windupTaken = 0; begin(f, specialMove(f.special, f.level), events); }
           else if (input.attack && f.phase === 'ready' && !f.exhausted && f.stamina > 0) begin(f, blowOf(f, input.attack), events);
         }
       }
