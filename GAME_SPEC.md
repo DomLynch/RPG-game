@@ -94,6 +94,13 @@ placement (e.g. `Invictus IV — career rank` beside `#327 / 1842 MMR — compet
 twice for one lost fight. Ranked power still cannot depend on grind or purchases (Product defaults); rank is identity and
 matchmaking context, never stats.
 
+## Launch scene, starting level and zone levels — owner direction 2026-10-08 (Dom via Strategy; recorded by Lead; build 2026-10-09, NOT built yet)
+- **A new hero starts at level 1.** Today the Zone 1 preview starts a new or offline player at `START_LEVEL = 16` (`origins/preview/play.ts`); a signed-in player gets the saved career. That constant goes away for new heroes. Check before building: Strategy noted START_LEVEL 16 also drives the Pit's gates (not verified by Lead), so the Pit's use of it needs a decision in the same change.
+- **The Pit is the launch scene.** A new player's first game is ONE fight in the Pit. When it ends the gate opens to the town and Zone 1. Players may stay in the Pit ladder as before. The Pit and its ladder (see Fighter progression ladder above) are unchanged; only the entry point changes. The Pit stays one prominent building in the one shared world.
+- **Zone N has level N creatures and NPCs** (Zone 1 = L1 ... Zone 50 = L50, the Origin cap; Dom's final rule, 2026-10-08 20:0x). Inside a zone: near town = the zone's level, at the zone's edge = zone level +1, and named rare creatures only = zone level +2. Zone 1 is L1 near the spawn, L2 at the edge, L3 for a named rare. Bosses and legends are unruled (Strategy recommended zone level +3, solo-beatable with gear; open for Dom). The distance rule is measured from the Zone 1 spawn point until the bank town is placed; then it is one constant.
+- **Endgame starts at Zone 50**, with the other ~650 zones. Strategy's recommendation, open for Dom: a second progress axis past level 50 (EverQuest-style "legend ranks"), named rares and world bosses per zone, deeper gear tiers, the Pit legends ladder, and outlaw/PvP.
+- **Server pricing note.** A kill is priced at the spawn's level (`#1880` fixes it from the encounter form's level), so a level-1 creature pays level-1 rewards. Without that fix, low-level edge creatures underpay, which is the safe direction.
+
 ## Your fighter: Origins
 Players are human fighters with an Origin. In v1 an Origin is a visual and equipment family on the shared skeleton, not a separate species: it sets starting silhouette, armour family, weapon family and idle/salute style. It changes how you look and what you start with, not how strong you are.
 
