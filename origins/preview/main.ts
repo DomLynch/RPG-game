@@ -307,15 +307,30 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
-let uploaded = false, uploadMs = -1;
-// The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Draw the whole world ONCE during the walk,
-// frustum culling off, into a 4x4 target: textures and geometry buffers go to the GPU then, in one frame of the walk, and the engage finds them there. Same path in every browser.
-function warmUpload() {
-  if (uploaded || !WORLDFIGHT || !mobs) return; uploaded = true;
-  const flipped: THREE.Object3D[] = []; scene.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; flipped.push(o); } });
-  const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget(), t0 = performance.now();
-  try { renderer.setRenderTarget(target); renderer.render(scene, camera); } finally { renderer.setRenderTarget(before); target.dispose(); for (const o of flipped) o.frustumCulled = true; }
-  uploadMs = Math.round(performance.now() - t0);
+let uploadMs = -1, uploadQueue: (() => void)[] = [], uploadTotal = 0, uploadNext = 0;
+const uploaded = new WeakSet<object>();   // textures and geometries already on the GPU through this path
+// The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
+// frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
+const UPLOAD_BUDGET_MS = 6;
+function planUpload() {
+  const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh; if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return;
+    if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture);
+  });
+  const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4), queue: (() => void)[] = [];
+  for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
+  for (const g of geometries) queue.push(() => { const mesh = new THREE.Mesh(g, proxy); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(null); tmp.remove(mesh); } uploaded.add(g); });
+  if (queue.length) queue.push(() => { target.dispose(); proxy.dispose(); }); else { target.dispose(); proxy.dispose(); }
+  uploadTotal += queue.length; return queue;
+}
+function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
+  if (!WORLDFIGHT || !mobs) return;
+  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); if (!uploadQueue.length) return; }
+  const t0 = performance.now();
+  while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
+  uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B
 }
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
@@ -323,7 +338,7 @@ const walkLoop = () => {
     mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
   }
-  step(dt); warmFight(time); if (time > 6) warmUpload(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); warmFight(time); warmUpload(time); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -552,7 +567,8 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, rollClip: !!rollAct, guardClip: !!guardAct }),
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
-  uploadMs: () => uploadMs,   // how long the one-time world upload frame took (-1 = not yet)
+  uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
+  uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
   mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },
