@@ -83,7 +83,7 @@ export function createPrefetch(begin: (id: string) => Promise<Online | null>) {
     take(id: string): Online | null {
       const got = slot; slot = null;
       if (got && got.id === id && got.ready) return got.ready;
-      if (got) got.gone = true;
+      if (got) { got.gone = true; got.ready?.stop(); }   // not taken: stop touching, the writer sweeps it
       return null;
     },
   };

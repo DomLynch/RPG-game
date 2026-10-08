@@ -187,7 +187,7 @@ test('createPrefetch: the tap takes only this creature\'s ready session, never w
   p.want('a'); assert.equal(p.take('a'), null, 'not here yet: unpaid, at once'); gates.get('a')!(mk('a')); await Promise.resolve(); await Promise.resolve();
   assert.deepEqual(stops, ['a'], 'it arrived after the tap went offline: stopped');
   p.want('b'); gates.get('b')!(mk('b')); await Promise.resolve(); await Promise.resolve();
-  assert.equal(p.take('c'), null, "another creature's tap does not take b's session"); assert.deepEqual(stops, ['a'], 'b was dropped by the taker, not stopped twice');
+  assert.equal(p.take('c'), null, "another creature's tap does not take b's session"); assert.deepEqual(stops, ['a', 'b'], 'b was not taken: stopped (no touch loop on an unused token)');
   p.want('d'); gates.get('d')!(mk('d')); await Promise.resolve(); await Promise.resolve();
   const got = p.take('d'); assert.ok(got, 'ready for this creature: taken'); assert.equal(p.take('d'), null, 'a session is taken once');
   p.want('e'); p.want('f'); gates.get('e')!(mk('e')); await Promise.resolve(); await Promise.resolve(); assert.ok(stops.includes('e'), 'displaced by f: e stopped when it arrived');
