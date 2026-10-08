@@ -6,7 +6,6 @@ import goblinUrl from '../../src/assets/goblin.glb?url';
 import knightUrl from '../../src/assets/knight.glb?url';
 import pitbornUrl from '../../src/assets/pitborn.glb?url';
 import witchUrl from '../../src/assets/witch.glb?url';
-import wolfUrl from '../../src/assets/wolf.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
@@ -17,7 +16,7 @@ import { TUNING, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, 
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
 // Pit fights with the same files), one download per body kind, fetched only when a creature of that kind first comes within reach; every
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
-const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl, wolf: wolfUrl };
+const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl };   // the wolf is served from WORLD_URLS (public/world), not bundled
 // The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
 const WORLD_URLS: Record<string, string> = { goblin: '/world/goblin.glb', wolf: '/world/wolf.glb' };   // public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
