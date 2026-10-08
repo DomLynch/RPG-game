@@ -20,13 +20,13 @@ export type Deps = {
   onTelegraph?(id: string, ms: number): void;
   hero?: () => { gear: Loadout; level: number };   // his resolved gear and career level (default: naked, level 1); a creature's level is its spec's
 };
-type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number };
+type Fx = { hurtT: number; fallT: number; fallLen: number; windupT: number; windupMs: number; swingT: number };
 
 export function createWorldCombat(d: Deps) {
   const mine = () => d.hero?.() ?? { gear: NAKED, level: 1 };
   let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false;
   const specs = new Map<string, MobSpec>(), fx = new Map<string, Fx>();
-  const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
+  const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, fallLen: FALL_S, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
   const gearOf = () => { const { gear, level } = mine(), p = player(ME, 0, 0, 0, gear, level); return { attack: p.attack, res: p.res, level: p.level, shielded: p.shielded }; };
   const me = (): Fighter => world.fighters[0]!;
   function release(id: string) { d.mobs()?.drive(id, null); specs.delete(id); fx.delete(id); world = { ...world, fighters: world.fighters.filter((f) => f.id !== id) }; }
@@ -35,11 +35,11 @@ export function createWorldCombat(d: Deps) {
     specs.set(p.spec.id, p.spec); world = { ...world, fighters: [...world.fighters, creature(p.spec.id, kind, p.x, p.z, 0, p.spec.level)] };
   }
   function handle(ev: Event) {
-    if (ev.type === 'Telegraph') { if (ev.id === ME) d.onSwing(); else { const f = fxOf(ev.id); f.windupT = 0.0001; f.windupMs = ev.ms; d.onTelegraph?.(ev.id, ev.ms); } }
+    if (ev.type === 'Telegraph') { if (ev.id === ME) d.onSwing(); else { const f = fxOf(ev.id); f.windupT = 0.0001; f.windupMs = ev.ms; d.mobs()?.play(ev.id, 'attack'); d.onTelegraph?.(ev.id, ev.ms); } }
     else if (ev.type === 'Swing' && ev.id !== ME) fxOf(ev.id).swingT = 0.0001;
-    else if (ev.type === 'Hit') { if (ev.victim === ME) d.onHeroHit(ev.damage); else fxOf(ev.victim).hurtT = PULSE_S; }
+    else if (ev.type === 'Hit') { if (ev.victim === ME) d.onHeroHit(ev.damage); else { fxOf(ev.victim).hurtT = PULSE_S; d.mobs()?.play(ev.victim, 'hit'); } }
     else if (ev.type === 'Evaded') release(ev.id);   // it gave up, walked home and healed: back to its own wander
-    else if (ev.type === 'Died') { if (ev.id === ME) { heroDead = true; d.onHeroDied(); } else fxOf(ev.id).fallT = 0.0001; }
+    else if (ev.type === 'Died') { if (ev.id === ME) { heroDead = true; d.onHeroDied(); } else { const f = fxOf(ev.id); f.fallT = 0.0001; f.fallLen = Math.max(FALL_S, d.mobs()?.play(ev.id, 'death') ?? 0); } }   // the Death clip plays out before the body is released (a goblin's is 2.4 s)
   }
   return {
     /** An attack press (STAB / SLASH / a tap on a creature): the cut starts on the next step if he is free. */
@@ -63,7 +63,7 @@ export function createWorldCombat(d: Deps) {
         const s = specs.get(f.id); if (!s) continue; const x = fxOf(f.id);
         if (f.phase === 'dead') {
           x.fallT += dt; mobs.drive(f.id, { x: f.x, z: f.z, facing: f.facing, moving: false, fall: Math.min(1, x.fallT / 0.6), pulse: 1 });
-          if (x.fallT >= FALL_S) { const done = s; release(f.id); d.onKill(done); }
+          if (x.fallT >= x.fallLen) { const done = s; release(f.id); d.onKill(done); }
           continue;
         }
         x.hurtT = Math.max(0, x.hurtT - dt);
