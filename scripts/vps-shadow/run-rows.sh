@@ -33,7 +33,7 @@ echo "START shadow rows sha=$full user=$(id -un) nice=$(nice) load1=$(cut -d' ' 
 lock_now=$(sha256sum package-lock.json | cut -c1-64)
 if [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" != "$lock_now" ]]; then
   npm ci --no-audit --no-fund > "$run/npm-ci.log" 2>&1
-  npx playwright install chromium webkit >> "$run/npm-ci.log" 2>&1
+  npx playwright install --with-deps chromium >> "$run/npm-ci.log" 2>&1   # --with-deps: a fresh container has none of chromium's system libraries (WebKit rows are never trusted from here, so webkit is not installed)
   echo "$lock_now" > "$home/.lock-installed"
 fi
 install -m 600 "$home/env.production.local" .env.production.local
@@ -43,7 +43,9 @@ npm run build > "$run/build.log" 2>&1 || build_status=$?
 rows_status=0
 if [[ $build_status -eq 0 ]]; then
   # The exact Mac invocation (deploy.sh), with nothing trusted: every row runs here.
-  RELEASE_CHECKS_SKIP= RELEASE_CHECKS_SKIP_SOURCE= node scripts/release-checks.mjs > "$run/rows.log" 2>&1 || rows_status=$?
+  # ROWS_ONLY="31,33" (a shard): every other row is skipped, so this receipt vouches for those rows only.
+  skip=""; if [[ -n "${ROWS_ONLY:-}" ]]; then skip=$(ROWS_ONLY="$ROWS_ONLY" node -e 'const n = JSON.parse(require("fs").readFileSync(".quality-gate.json", "utf8")).release_commands.length, only = new Set(process.env.ROWS_ONLY.split(",").map(Number)); console.log(Array.from({ length: n }, (_, i) => i + 1).filter(i => !only.has(i)).join(","))'); fi
+  RELEASE_CHECKS_SKIP="$skip" RELEASE_CHECKS_SKIP_SOURCE= node scripts/release-checks.mjs > "$run/rows.log" 2>&1 || rows_status=$?
   cp artifacts/release-checks/*.log "$run/logs/" 2>/dev/null || true
   cp artifacts/release-checks.json "$run/release-checks.json" 2>/dev/null || true
 else
