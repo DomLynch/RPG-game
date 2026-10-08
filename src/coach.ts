@@ -60,7 +60,7 @@ export function createCoachDriver(stance: PickedStance, seed: number, level: Lev
   };
 }
 
-// The record's `build` string (Backend, 2026-10-08): `<label> coach:<stance>@<a>-<b>,<c>-<d> kit:<tag>`. The verifier refuses to count any record whose build contains ` coach:` for ratings; kitOfBuild reads the tail,
+// The record's `build` string (Backend, 2026-10-08): `<label> coach:<stance>@<a>-<b>,<c>-<d> kit:<tag>`. A coached duel counts on the ladder and the rankings like a played one (Dom's ruling, 2026-10-08), so the verifier does not refuse it; the tag only marks which ticks the coach played. kitOfBuild reads the tail,
 // so the kit tag stays LAST. `build` is encoded as len u8 + ascii (src/record.ts), so the whole string is at most 255 bytes: when the spans would push it past that, `coach:<stance>@*` (coached, spans not listed)
 // is written instead and a span is never cut in half. An open span (coached to the finish) is `<a>-`.
 export const BUILD_MAX = 255;
