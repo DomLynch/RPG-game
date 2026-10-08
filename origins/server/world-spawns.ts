@@ -127,7 +127,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const at = now().toISOString(), { inventory, snap } = await openHoldingsWith(db, account, open.character, { lookup });
     const metal = await store.metalOf(db, account);
     const kill = { account, character: open.character, token, fight: spawn.fight, seed: seed(), enemy: setup.value.opponent.body, level: setup.value.opponent.level, twist: null };
-    const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, at);
+    const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level });
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, cp: paid.summary.cp, paid: paid.batch.length > 0, beta: true },
