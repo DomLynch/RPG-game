@@ -42,6 +42,7 @@ export function verifyEncounter(record: FightRecord, p: EncounterParams): Verifi
     if (theirs !== mine) return { ok: false, kitMismatch: true, reason: `kit mismatch: the record was played on mob kit ${theirs ?? '(untagged)'}, this build's is ${mine}` };
   }
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
+  if (record.group) return refuse('one stream of a shared-health group is not verified alone (its siblings supply its incoming damage)');
   if (!!record.specials !== liveSpecials(p.level)) return refuse('the record\'s special-move phase is not the one this warden fights in');
   if (!Number.isInteger(record.ticks) || record.ticks < 1 || record.intents.length !== record.ticks || record.ticks > MAX_FIGHT_TICKS) return refuse('the record\'s length is not a fight');
   try { return underRecord(record, () => run(record, p)); }   // the record's version picks the sim's math, as in every replay
@@ -52,7 +53,7 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   const opponent = OPPONENTS[record.opponent];
   if (!opponent || !Number.isInteger(p.level) || p.level < 1 || p.level > LEVELS) return refuse('unknown opponent or warden level');
   const profile = profileAt(opponent, p.level), flags = p.flags;
-  let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? p.seed : undefined, record.stances);   // the record's own Gambit and stance pick, as src/replay.ts (RV34: stances ON for all)
+  let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? p.seed : undefined, record.stances, record.pose);   // the record's own Gambit and stance pick, as src/replay.ts (RV34: stances ON for all)
   if (p.bar !== null && flags.some((f) => f.kind === 'one-health-bar')) practice = withBar(practice, p.bar);
   const layer = p.layer === null ? undefined : mobLayer(p.layer as MobStyle);   // fresh per fight: its state resets on tick 0, as the client's does
   let twist = noTwist(), endedAt = 0;
