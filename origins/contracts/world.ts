@@ -21,7 +21,7 @@ import {
 // ---- gates and the one career -----------------------------------------------------------------------------------------------------
 
 // Ruling 2: Gladiator opens the outer gate (the Exchange, the first region, chapter one), Champion the next realm, Origin the endgame.
-// The Pit is open from level 1. These are TIERS (rank titles, 1..10), not career levels (1..46): Gladiator I is level 11, 10 wins.
+// The Pit is open from level 1. These are TIERS (rank titles, 1..10), not career levels (1..50): Gladiator I is level 11, 10 wins.
 export const GATES = ['pit', 'outer', 'second-realm', 'endgame'] as const;
 export type Gate = (typeof GATES)[number];
 export const GATE_TIER: Readonly<Record<Gate, Tier>> = { pit: 'Recruit', outer: 'Gladiator', 'second-realm': 'Champion', endgame: 'Origin' };
@@ -124,7 +124,7 @@ export type CharacterDefinition = {
   relationships: { character: CharacterId; relation: (typeof RELATIONS)[number] }[];
   questRoles: { quest: QuestId; role: (typeof QUEST_ROLES)[number] }[];
   presentations: { id: string; asset: string }[];
-  // How the figure fights. `opponent` routes the fight through today's duel (src/duel.ts opponentFighter) at `level` (1..46).
+  // How the figure fights. `opponent` routes the fight through today's duel (src/duel.ts opponentFighter) at `level` (1..50).
   encounterForms: { id: string; opponent: OpponentId | null; level: number | null; encounter: EncounterId | null }[];
   routine: Routine[];
 };
@@ -226,7 +226,7 @@ export function parseCharacterDefinition(raw: unknown, path = ''): Result<Charac
     const level = r.level === null || r.level === undefined ? null : readInt(issues, r, 'level', p, 1, MAX_LEVEL);
     const encounter = readOptionalId(issues, r, 'encounter', p, 'encounter');
     if (opponent === null && encounter === null) issues.add('rule-violation', p, 'an encounter form fights as a roster opponent or inside an encounter (or both)');
-    if (opponent !== null && level === null) issues.add('rule-violation', join(p, 'level'), 'a duel form names the level (1..46) it is fought at');
+    if (opponent !== null && level === null) issues.add('rule-violation', join(p, 'level'), 'a duel form names the level (1..50) it is fought at');
     return fid && opponent !== undefined && level !== undefined && encounter !== undefined && (opponent !== null || encounter !== null) && !(opponent !== null && level === null) ? { id: fid, opponent, level, encounter } : undefined;
   }, { max: 16 });
   uniqueIds(issues, encounterForms, join(path, 'encounterForms'));

@@ -18,12 +18,13 @@ export const standingEnd = (twist: 'fled' | 'escaped'): EncounterEnd => ({ resul
 
 
 // Fight `setup` (fightSetup's) with `seed` (fightSeed's). `done` fires once, when the fight is over.
-export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, seed: number, done: (end: EncounterEnd) => void, leave: () => void, as?: Shown, mount?: WorldDuel): Promise<void> {
+export async function startEncounterDuel(host: HTMLElement, setup: FightSetup, seed: number, done: (end: EncounterEnd) => void, leave: () => void, as?: Shown, started?: () => void, mount?: WorldDuel): Promise<void> {
   const duel = await import('./pit-duel.ts');
   let over = false;
   const finish = (end: EncounterEnd) => { if (!over) { over = true; done(end); } };
   duel.openDuel(host, { opponent: setup.opponent.body, level: setup.opponent.level, seed, flags: setup.combatFlags, bar: setup.bar, mob: styleOf(setup.opponent.body), as, record: true }, {
     ended: (f, record) => { finish({ ...endOf(f, duel.duelTwist().outcome), record }); },
+    stepped: started,
     again: as ? leave : () => {},   // a creature has no rematch: its one end button goes back to the walk
     twisted: (outcome, record) => { if (outcome === 'fled' || outcome === 'escaped') finish({ ...standingEnd(outcome), record }); },
   }, leave, mount);

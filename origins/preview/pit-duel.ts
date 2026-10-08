@@ -42,6 +42,7 @@ export type Shown = { name: string; level: number; dress?: (root: Object3D) => v
 export type DuelHooks = {
   ended(finish: Finished, record?: FightRecord | null): { next?: string } | void;   // record: only when the fight asked for one (DuelFight.record)   // the page settles the career; `next` names the next fight for the Rematch button
   again(): void;                                       // the Rematch / Next button
+  stepped?(): void;                                    // once, after the duel's first simulated tick (the encounter online path marks its server token as played)
   twisted?(outcome: TwistOutcome, record?: FightRecord | null): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
@@ -58,7 +59,7 @@ export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
-let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null;
+let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null, steppedOnce = false;
 let twist: Twist = noTwist(), dressed = false, dressedRoot: Object3D | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
@@ -185,7 +186,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
   if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
-  fight = asked; hooks = page; next = undefined; result = null; twist = noTwist();
+  fight = asked; hooks = page; steppedOnce = false; next = undefined; result = null; twist = noTwist();
   mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
   stageFor(host, opponent, asked.level, mount);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
@@ -253,6 +254,7 @@ function frame(now: number) {
         return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action: i.action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
       });
       const p = match.practice;
+      if (!steppedOnce) { steppedOnce = true; hooks?.stepped?.(); }
       for (const e of p.events) if (e.actor === 0) { if (e.type === 'ActionStarted') saw(e.action!); else if (e.type === 'AttackStarted') saw(e.move!); else if (e.type === 'Charged') saw('charged'); }
       feedback!.update(p.events, undefined, { match: match.seed, ended: !!p.finish, tick: p.duel.tick, drawing: p.duel.fighters[0].phase === 'draw', holding: foeHolding(p.duel.fighters[1]), opponent: stage.opponent,
         loiter: Math.max(p.duel.fighters[0].loiter, p.duel.fighters[1].loiter) / RULES.wall.loiter.ticks });   // the game's sound, fed as src/main.ts feeds it
