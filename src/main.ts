@@ -1082,7 +1082,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances));   // the level's body, as match.startClip replays it (on the record's math); the Gambit and the stance pick like src/replay.ts, or a stances clip would re-sim a different fight
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
