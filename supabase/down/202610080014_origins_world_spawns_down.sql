@@ -2,6 +2,7 @@
 begin;
 drop function public.origins_spawn_kill(uuid, text, int, int, jsonb);
 drop function public.origins_spawn_touch(uuid, text);
+drop function public.origins_spawn_engage_get(uuid, text);
 drop function public.origins_spawn_engage(uuid, text, text, text, text);
 drop function public.origins_spawn_state(text[]);
 drop function public.origins_spawn_view(public.origins_spawns);

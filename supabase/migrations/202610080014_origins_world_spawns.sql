@@ -1,4 +1,4 @@
--- CLASS 1, ADDITIVE and Origins-only: three new tables (RLS on, no policy, no grant), four new definer functions granted to the two writer roles. No existing table, function,
+-- CLASS 1, ADDITIVE and Origins-only: three new tables (RLS on, no policy, no grant), five new definer functions granted to the two writer roles. No existing table, function,
 -- grant or policy is altered. ROLLBACK: supabase/down/202610080014_origins_world_spawns_down.sql (drops exactly what this file creates).
 -- Why (Strategy, Dom's direction 2026-10-08 ~19:00 +04: Zone 1 is DETACHED from the Pit): a world creature fight is played on the page in real time, with no duel record. The server
 -- owns the creature's life instead (EverQuest's spawn2 pattern: the server holds each spawn point's alive/respawn timer, the client never names a corpse): a player ENGAGES a live
@@ -84,6 +84,12 @@ begin
   return jsonb_build_object('token', e.token, 'instance', e.instance, 'generation', e.generation, 'kind', s.kind, 'issuedAt', e.issued_at, 'expiresAt', e.expires_at);
 end $$;
 
+-- Read one OPEN engage of this account (null when unknown, used or expired): what the writer needs to check the kill report before it prices it.
+create function public.origins_spawn_engage_get(p_account uuid, p_token text) returns jsonb language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('token', e.token, 'character', e.character, 'instance', e.instance, 'generation', e.generation, 'issuedAt', e.issued_at, 'expiresAt', e.expires_at)
+  from public.origins_spawn_engages e where e.token = p_token and e.account = p_account and e.used_at is null and e.expires_at > now()
+$$;
+
 -- Keep an engage alive: expires `engage_ttl_s` after this touch. O0009 once used or expired.
 create function public.origins_spawn_touch(p_account uuid, p_token text) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare e public.origins_spawn_engages;
@@ -121,8 +127,8 @@ begin
   return jsonb_build_object('result', 'killed', 'instance', s.instance, 'respawnAt', s.respawn_at, 'applied', out);
 end $$;
 
-revoke all on function public.origins_spawn_view(public.origins_spawns), public.origins_spawn_state(text[]), public.origins_spawn_engage(uuid, text, text, text, text),
+revoke all on function public.origins_spawn_view(public.origins_spawns), public.origins_spawn_state(text[]), public.origins_spawn_engage(uuid, text, text, text, text), public.origins_spawn_engage_get(uuid, text),
   public.origins_spawn_touch(uuid, text), public.origins_spawn_kill(uuid, text, int, int, jsonb) from public, anon, authenticated;
-grant execute on function public.origins_spawn_state(text[]), public.origins_spawn_engage(uuid, text, text, text, text),
+grant execute on function public.origins_spawn_state(text[]), public.origins_spawn_engage(uuid, text, text, text, text), public.origins_spawn_engage_get(uuid, text),
   public.origins_spawn_touch(uuid, text), public.origins_spawn_kill(uuid, text, int, int, jsonb) to frankendom_origins, frankendom_verifier;
 commit;
