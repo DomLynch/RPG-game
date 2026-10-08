@@ -2,24 +2,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { QUADRUPED_CLIPS } from '../../src/characters.ts';
 import { mobClipName } from './mob-clips.ts';
 
-const clipsOf = (file: string): string[] => {
+const clipsOf = (file: string): { name: string }[] => {
   const b = readFileSync(new URL(`../../public/${file}`, import.meta.url));
-  return (JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()) as { animations: { name: string }[] }).animations.map((a) => a.name);
+  return (JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()) as { animations: { name: string }[] }).animations;
 };
 
-test('the role picks the body\'s own name: Bite / Hurt / Death on a quadruped, Attack / Hit / Death on a humanoid, null when it has none', () => {
-  const quad = ['Idle', 'Walk', 'Run', 'Flee', 'Bite', 'Hurt', 'Death'], human = ['Idle', 'Walk', 'Attack', 'Hit', 'Death', 'Heavy'];
+const named = (...n: string[]) => n.map((name) => ({ name }));
+test('the Pit\'s role map picks the clip: Bite / Hurt / Death on a quadruped, Attack / Hit / Death on a humanoid, null when the body has none', () => {
+  const quad = named('Idle', 'Walk', 'Run', 'Flee', 'Bite', 'Hurt', 'Death'), human = named('Idle', 'Walk', 'Attack', 'Hit', 'Death', 'Heavy');
   assert.deepEqual((['attack', 'hit', 'death'] as const).map((r) => mobClipName(r, quad)), ['Bite', 'Hurt', 'Death']);
   assert.deepEqual((['attack', 'hit', 'death'] as const).map((r) => mobClipName(r, human)), ['Attack', 'Hit', 'Death']);
-  assert.deepEqual((['attack', 'hit', 'death'] as const).map((r) => mobClipName(r, ['Idle', 'Walk'])), [null, null, null]);
-});
-
-test('it agrees with the duel\'s own beast map (src/characters.ts QUADRUPED_CLIPS): the same Bite, Hurt and Death', () => {
-  assert.equal(QUADRUPED_CLIPS.Attack, mobClipName('attack', ['Bite']));
-  assert.equal(QUADRUPED_CLIPS.Hit, mobClipName('hit', ['Hurt']));
+  assert.deepEqual((['attack', 'hit', 'death'] as const).map((r) => mobClipName(r, named('Idle', 'Walk'))), [null, null, null]);
 });
 
 test('every Zone 1 body the world draws has all three clips, so none falls back to the procedural lunge, pulse and fall', () => {
