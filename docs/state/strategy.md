@@ -4,6 +4,13 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-08 12:35 (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_1235 + project_dom_decided_ledger (08:37–12:3x).
+
+**Now.** CronList, re-arm /checkin. Seamless combat #1779: World fixing the shrine-foe 3 s freeze + wolf 400 ms frame found on Mac Metal; Auditor delta, then my Metal re-test, then ONE link to Dom. UI: Dom picked Frost Iron + Roman + Blade Cut; Web applying (#1800, tokens + DESIGN.md).
+**Done.** Rewards ON 09:39, bronze ON 11:33 (Backend), stance-pay fix #1791 GO, respawn #1793 GO; TOP10 approved + many rulings (ledger); donor studies (landscape, towns, UI, recheck); VPS 37→72 GB; SCOPE PR #1785, prune-3 PR #1794.
+**Open.** Dom: duel-ladder wipe, stances count (option A), 3D item upgrade. Animal respawn rows must be 60-90 s.
+**Gotchas.** Only final, self-tested links to Dom. Donor studies cover all genres. Lead keeps every lane 3 rows deep.
+
 ## 2026-10-08 08:2x (+04, `date`) — HANDOFF (Dom /clear). READ FIRST: memory frankendom_strategy_handoff_2026-10-08_0822 + project_dom_decided_ledger (00:xx–08:2x).
 
 **Now.** CronList, re-arm /checkin. Get Dom's approval on Lead's TOP10 (docs/TOP10.md, #1763). Live f7ec5ec3; preview CotSfP5w. Origins OPEN to all signed-in (#1769) + fight recording ON; Dom's test: /preview/origins/?region=1&online=1.
