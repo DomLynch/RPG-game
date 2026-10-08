@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES } from '../../src/moves.ts';
 import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { BLOW_WEIGHT, creature, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { BLOW_WEIGHT, creature, minKillSeconds, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -102,4 +102,83 @@ test('stepCombat is pure: it never mutates the world it is given', () => {
 
 test('the player\'s health is the rules\' number', () => {
   assert.equal(player('p', 0, 0).health, RULES.health);
+});
+
+// ── S1: guard, roll, posture, stamina, the kill bound ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+const bite = (kind = 'wolf') => { const c = creature('c', kind, 0, 0.9, Math.PI); c.hunting = true; return c; };   // a creature already in reach of a player at the origin facing +z
+const GUARD: Input = { x: 0, z: 0, guard: true };
+
+test('a held guard blocks a frontal bite: no damage, a Blocked event, the row\'s stamina and posture cost', () => {
+  const { world, events } = run(newWorld([player('p', 0, 0, 0), bite()]), 1, () => GUARD);
+  const blocked = events.find((e) => e.type === 'Blocked');
+  assert.ok(blocked && blocked.type === 'Blocked' && blocked.damage === 0, JSON.stringify(blocked));
+  assert.equal(events.filter((e) => e.type === 'Hit').length, 0);
+  assert.equal(get(world, 'p').health, RULES.health);
+  assert.ok(get(world, 'p').stamina < 100 && get(world, 'p').posture > 0);
+});
+
+test('a guard raised just before the blow is a PERFECT block and costs half; a guard from behind does not cover', () => {
+  const blocked = (guardFrom: number) => run(newWorld([player('p', 0, 0, 0), bite()]), 0.5, (t) => (t >= guardFrom ? GUARD : STILL));   // the bite's swing is tick 25
+  const early = blocked(0), justInTime = blocked(24);
+  const flag = (r: ReturnType<typeof blocked>) => r.events.find((e) => e.type === 'Blocked');
+  assert.ok(flag(early) && flag(early)!.type === 'Blocked' && !flag(early)!.perfect, 'a guard held a while is an ordinary block');
+  assert.ok(flag(justInTime) && flag(justInTime)!.type === 'Blocked' && flag(justInTime)!.perfect, 'a guard raised just before the blow is perfect');
+  const spent = (r: ReturnType<typeof blocked>) => 100 - get(r.world, 'p').stamina;
+  assert.ok(spent(justInTime) < spent(early) * 0.75, `perfect ${spent(justInTime)} vs ordinary ${spent(early)}`);
+  const behind = run(newWorld([player('p', 0, 0, Math.PI), bite()]), 1, () => GUARD);   // the player faces away: the bite lands
+  assert.equal(behind.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 1);
+});
+
+test('a roll is invulnerable between safeStart and safeEnd: a bite that lands inside it is Dodged; one that lands as the roll begins hits', () => {
+  const rollAt = (tick: number) => run(newWorld([player('p', 0, 0, 0), bite()]), 0.6, (t) => (t === tick ? { x: 0, z: 0, roll: { x: 1, z: 0 } } : STILL));   // the bite's swing is tick 25
+  const inside = rollAt(20);   // 5 ticks into the roll when the blow lands: inside the 4..20 window, and still in the bite's reach so the dodge is what saves him
+  assert.ok(inside.events.some((e) => e.type === 'Dodged'));
+  assert.equal(inside.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0);
+  assert.equal(get(inside.world, 'p').health, RULES.health);
+  const tooLate = rollAt(25);   // the roll begins the same tick: not yet invulnerable
+  assert.equal(tooLate.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 1);
+});
+
+test('rolling costs the rules\' stamina and moves a stride; no roll without the stamina', () => {
+  const r = run(newWorld([player('p', 0, 0, 0)]), 0.7, (t) => (t === 0 ? { x: 0, z: 0, roll: { x: 1, z: 0 } } : STILL));
+  const p = get(r.world, 'p');
+  assert.ok(p.x > 2.5, `rolled ${p.x}`);
+  assert.ok(Math.abs(p.stamina - (100 - RULES.rollCost)) < 1e-6, `stamina ${p.stamina}`);
+  const tired = player('p', 0, 0, 0); tired.stamina = 10;
+  assert.notEqual(get(run(newWorld([tired]), 0.2, () => ({ x: 0, z: 0, roll: { x: 1, z: 0 } })).world, 'p').phase, 'roll');
+});
+
+test('posture: blocks fill it and a full bar breaks the guard into a stagger; it drains after the hold', () => {
+  const p = player('p', 0, 0, 0); p.posture = 95;
+  const r = run(newWorld([p, bite()]), 1, () => GUARD);
+  assert.ok(r.events.some((e) => e.type === 'Staggered' && e.id === 'p' && e.cause === 'posture'));
+  const calm = player('p', 0, 0, 0); calm.posture = 50;
+  assert.ok(get(run(newWorld([calm]), 2).world, 'p').posture < 50, 'posture drains once idle');
+});
+
+test('a guard that runs out of stamina breaks (guardBreak) and a clean hit on a creature fills ITS posture', () => {
+  const p = player('p', 0, 0, 0); p.stamina = 5; p.regenIn = 5;   // nearly spent and no regen: the block's stamina cost empties it
+  const r = run(newWorld([p, bite()]), 1, () => GUARD);
+  assert.ok(r.events.some((e) => e.type === 'Staggered' && e.id === 'p' && e.cause === 'guardBreak'));
+  const target = creature('w', 'wolf', 0, 1.2); target.phase = 'stagger'; target.hurtFor = 99;
+  const hit = run(newWorld([player('p', 0, 0, 0), target]), 0.8, (t) => (t === 0 ? { x: 0, z: 0, attack: 'light' } : STILL));
+  assert.ok(get(hit.world, 'w').posture > 0);
+});
+
+test('sprinting drains stamina; at zero he is exhausted (slower, no new action) until he recovers', () => {
+  const run1 = run(newWorld([player('p', 0, 0)]), 12, () => ({ x: 0, z: 1, run: true }));
+  const p = get(run1.world, 'p');
+  assert.ok(p.stamina < 100 && p.exhausted, `stamina ${p.stamina}`);
+  const slow = get(run(newWorld([{ ...p }]), 1, () => ({ x: 0, z: 1 })).world, 'p');
+  assert.ok(slow.z - p.z < SPEEDS.player.walk, 'exhausted walking is slower than a fresh walk');
+});
+
+test('minKillSeconds is a conservative lower bound: no honest light-cut kill beats it, and a bigger creature takes longer', () => {
+  assert.ok(minKillSeconds('wolf') > 0 && minKillSeconds('bear') > minKillSeconds('boar') && minKillSeconds('boar') > minKillSeconds('wolf'));
+  // an honest fight: the player cuts as fast as the rules allow against a held dummy; the bound must not exceed the time it really took
+  const dummy = creature('w', 'wolf', 0, 1.2); dummy.phase = 'stagger'; dummy.hurtFor = 999;
+  let w = newWorld([player('p', 0, 0, 0), dummy]), t = 0;
+  while (get(w, 'w').phase !== 'dead' && t < 600) { w = stepCombat(w, { p: { x: 0, z: 0, attack: 'light' } }, DT).world; t += DT; }
+  assert.equal(get(w, 'w').phase, 'dead');
+  assert.ok(t >= minKillSeconds('wolf'), `really took ${t.toFixed(2)} s, bound ${minKillSeconds('wolf').toFixed(2)} s`);
 });
