@@ -8,7 +8,7 @@
 import { decide, initialAi, type AiState } from './ai.ts';
 import { idleIntent, type Duel, type Intent } from './duel.ts';
 import { PROFILES, type AiProfile, type Level } from './moves.ts';
-import type { PickedStance } from './stance.ts';
+import { PICKS, type PickedStance } from './stance.ts';
 
 // The knobs a stance brain may set: how it PLAYS (cadence, guard, feints, kicks), never how fast it sees. Numbers are the stance battery's BY_STANCE brains (scripts/stance-battery.mjs), which
 // Strategy ruled (2026-10-07) are what a human who picks that stance plays; neutral is the player-level profile untouched.
@@ -32,4 +32,50 @@ export function createCoach(stance: PickedStance, seed: number, level: Level = '
     // A player starts sheathed and taps Fight: any attack press draws (src/duel.ts), so the coach opens with a light press, then the brain takes over (decide() idles against a sheathed side).
     step(duel) { if (duel.fighters[side].phase === 'sheathed') return { ...idleIntent(), action: 'light' }; const r = decide(duel, side, ai, profile); ai = r.ai; return r.intent; },
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// The on/off switch and the mid-fight hand-over (TOP10 row 8; Web builds the toggle, the "Coached" tag and the menu against this).
+// ONE input source per tick: every tick the fight takes exactly one Intent, the coach's or the player's, never both. `pick` is that rule:
+// while the coach is on it returns the coach's intent, and the player's only when the coach is off. A press (a fight button, the HUD tag, the menu toggle) calls `stop` BEFORE that tick's `pick`,
+// so the tap that caused the hand-over IS that tick's player input (nothing dropped) and the coach is not stepped that tick (nothing doubled). What the coach had already started (a swing in its windup,
+// a roll) is sim state and plays out under the sim's rules; what it was HOLDING (guard, a heavy charge) is an Intent field, and an Intent is per tick, so it is released the tick the player's own
+// intent takes over unless the player holds that same button. Display data only: `spans` feed the "Coached" marker and Watch again through the record's `build` string (below); no sim file reads them.
+export type CoachStopReason = 'tap' | 'tag' | 'menu' | 'end';
+export type CoachSpan = { from: number; to: number | null };   // [from, to) in ticks; null = still coached
+export type CoachDriver = {
+  readonly on: boolean; readonly stance: PickedStance; readonly spans: readonly CoachSpan[];
+  start(tick: number): void;
+  stop(tick: number): void;
+  pick(duel: Duel, player: Intent): Intent;
+};
+export function createCoachDriver(stance: PickedStance, seed: number, level: Level = 'normal', side: 0 | 1 = 0): CoachDriver {
+  const coach = createCoach(stance, seed, level, side), spans: CoachSpan[] = [];
+  const isOn = (): boolean => spans.length > 0 && spans[spans.length - 1]!.to === null;
+  return {
+    get on() { return isOn(); }, stance, spans,
+    start(tick) { if (!isOn()) spans.push({ from: tick, to: null }); },
+    stop(tick) { if (isOn()) spans[spans.length - 1]!.to = tick; },
+    pick(duel, player) { return isOn() ? coach.step(duel) : player; },
+  };
+}
+
+// The record's `build` string (Backend, 2026-10-08): `<label> coach:<stance>@<a>-<b>,<c>-<d> kit:<tag>`. The verifier refuses to count any record whose build contains ` coach:` for ratings; kitOfBuild reads the tail,
+// so the kit tag stays LAST. `build` is encoded as len u8 + ascii (src/record.ts), so the whole string is at most 255 bytes: when the spans would push it past that, `coach:<stance>@*` (coached, spans not listed)
+// is written instead and a span is never cut in half. An open span (coached to the finish) is `<a>-`.
+export const BUILD_MAX = 255;
+const spanText = (s: CoachSpan): string => `${s.from}-${s.to ?? ''}`;
+export function coachBuild(label: string, stance: PickedStance, spans: readonly CoachSpan[], kit: string | null): string {
+  if (spans.length === 0) return kit ? `${label} kit:${kit}` : label;
+  const tail = kit ? ` kit:${kit}` : '';
+  const listed = `${label} coach:${stance}@${spans.map(spanText).join(',')}${tail}`;
+  return listed.length <= BUILD_MAX ? listed : `${label} coach:${stance}@*${tail}`;
+}
+// Read back: the stance and the spans (null spans = not listed), or null for a record the coach did not play.
+export function coachOfBuild(build: string): { stance: PickedStance; spans: CoachSpan[] | null } | null {
+  const m = /(?:^| )coach:([a-z]+)@(\*|[0-9,-]*)(?= |$)/.exec(build);
+  if (!m || !(PICKS as readonly string[]).includes(m[1]!)) return null;
+  if (m[2] === '*') return { stance: m[1] as PickedStance, spans: null };
+  const spans = m[2]!.split(',').filter(Boolean).map((t) => { const [a, b] = t.split('-'); return { from: Number(a), to: b === '' || b === undefined ? null : Number(b) }; });
+  return { stance: m[1] as PickedStance, spans };
 }

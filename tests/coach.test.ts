@@ -61,3 +61,61 @@ test('a coached fight is a pure function of seed and stance, and the stances pla
   assert.deepEqual(a.record.intents, b.record.intents, 'same seed and stance, same intents');
   assert.notDeepEqual(a.record.intents, c.record.intents, 'a different stance plays a different fight');
 });
+
+// ---- the on/off switch, the hand-over and the `build` string (TOP10 row 8; the contract Web builds against) ----
+import { BUILD_MAX, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
+import { idleIntent, type Intent } from '../src/duel.ts';
+import { kitOfBuild } from '../origins/mobs/kit-version.ts';
+
+test('one intent per tick: the coach drives only while on, the player only while off; a press hands over on the SAME tick with the tap as that tick\'s input', () => {
+  const seed = 7, opp = opponentAt(OPPONENTS.veteran, 6);
+  const driver = createCoachDriver('aggressive', seed);
+  let p = initialPractice(seed, opp, 'longsword', null);
+  const tap: Intent = { ...idleIntent(), action: 'light' };
+  const used: Array<'coach' | 'player'> = [];
+  for (let t = 0; t < 400 && !p.finish; t++) {
+    if (t === 20) driver.start(t);
+    if (t === 200) driver.stop(t);          // a press: stop BEFORE this tick's pick
+    const player = t === 200 ? tap : idleIntent();
+    const intent = driver.pick(p.duel, player);
+    used.push(driver.on ? 'coach' : 'player');
+    if (t === 200) assert.deepEqual(intent, tap, 'the tap that handed over IS that tick\'s input: nothing dropped');
+    if (t >= 20 && t < 200) assert.equal(driver.on, true);
+    p = stepPractice(p, intent, profileAt(OPPONENTS.veteran, 6));
+  }
+  assert.equal(used.length, used.filter((u) => u === 'coach' || u === 'player').length, 'exactly one source per tick');
+  assert.deepEqual(driver.spans, [{ from: 20, to: 200 }]);
+});
+
+test('a hold the coach had is released the tick the player takes over unless the player holds it; start and stop are idempotent', () => {
+  const driver = createCoachDriver('defensive', 3);
+  let p = initialPractice(3, opponentAt(OPPONENTS.veteran, 6), 'longsword', null);
+  driver.start(0); driver.start(5);          // a second start does not open a second span
+  let guardedAtCoach = false;
+  for (let t = 0; t < 600 && !guardedAtCoach; t++) { const i = driver.pick(p.duel, idleIntent()); if (i.guard) guardedAtCoach = true; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
+  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 600 ticks');
+  driver.stop(p.duel.tick); driver.stop(p.duel.tick + 1);   // a second stop changes nothing
+  assert.equal(driver.spans.length, 1); assert.notEqual(driver.spans[0]!.to, null);
+  const released = driver.pick(p.duel, idleIntent());
+  assert.equal(released.guard, false, 'the coach\'s guard is not carried into the player\'s tick');
+  const holding = driver.pick(p.duel, { ...idleIntent(), guard: true });
+  assert.equal(holding.guard, true, 'a player who holds guard keeps it');
+});
+
+test('the record build string: spans listed, kit tag last and still readable; over 255 bytes it falls back to @* and never cuts a span', () => {
+  const spans = [{ from: 0, to: 1340 }, { from: 2100, to: null }];
+  const b = coachBuild('abc1234', 'defensive', spans, 'k9z');
+  assert.equal(b, 'abc1234 coach:defensive@0-1340,2100- kit:k9z');
+  assert.equal(kitOfBuild(b), 'k9z'); assert.deepEqual(coachOfBuild(b), { stance: 'defensive', spans });
+  assert.equal(coachBuild('abc1234', 'defensive', [], 'k9z'), 'abc1234 kit:k9z', 'no spans: not a coached record');
+  const many = Array.from({ length: 80 }, (_, i) => ({ from: i * 100000 + 11, to: i * 100000 + 99999 }));   // far past 255 bytes
+  const long = coachBuild('abc1234', 'trickster', many, 'k9z');
+  assert.ok(long.length <= BUILD_MAX, `${long.length} bytes`);
+  assert.equal(long, 'abc1234 coach:trickster@* kit:k9z'); assert.equal(kitOfBuild(long), 'k9z');
+  assert.deepEqual(coachOfBuild(long), { stance: 'trickster', spans: null });
+  const edge = []; let n = 0; while (coachBuild('abc1234', 'neutral', [...edge, { from: n * 10, to: n * 10 + 5 }], 'k9z').includes('@*') === false) { edge.push({ from: n * 10, to: n * 10 + 5 }); n++; }
+  const justFits = coachBuild('abc1234', 'neutral', edge, 'k9z');
+  assert.ok(justFits.length <= BUILD_MAX && !justFits.includes('@*'), 'the longest list that fits is written whole');
+  assert.ok(coachBuild('abc1234', 'neutral', [...edge, { from: n * 10, to: n * 10 + 5 }], 'k9z').includes('@*'), 'one span more tips it to @*');
+  assert.equal(coachOfBuild('abc1234 kit:k9z'), null, 'a played record has no coach token');
+});
