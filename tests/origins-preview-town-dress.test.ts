@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { Bone, Matrix4, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { BANKER_OUTFIT, CLOTH_PIECES, clothesTriangles, outfitFor, talkClip, wearClothes } from '../origins/preview/town-dress.ts';
+import { BANKER_OUTFIT, CLOTH_PIECES, NAMED_OUTFITS, clothesTriangles, outfitFor, talkClip, wearClothes } from '../origins/preview/town-dress.ts';
 
 async function parse(file: string) {
   const bytes = readFileSync(new URL(`../public/world/${file}`, import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
@@ -54,4 +54,14 @@ test('a piece the file lacks throws; an outfit is a stable function of its seed:
   assert.deepEqual([...seen].sort(), [...CLOTH_PIECES].sort(), '400 townspeople between them wear every piece');
   assert.ok(tints.size > 4, 'the tint pool varies');
   for (const piece of CLOTH_PIECES) wearClothes(body.scene, clothes.scene, { pieces: [piece], tint: 0x808080 });   // every piece binds to the body's bones
+});
+
+test('the three named townspeople (Backend #1828) have outfits whose pieces all exist, no two alternatives, and a tunic under any apron', () => {
+  assert.deepEqual(Object.keys(NAMED_OUTFITS).sort(), ['character:banker-exchange', 'character:innkeeper-exchange', 'character:provisioner-exchange']);
+  for (const [id, { pieces }] of Object.entries(NAMED_OUTFITS)) {
+    assert.ok(pieces.every((p) => (CLOTH_PIECES as readonly string[]).includes(p)), id);
+    assert.equal(pieces.filter((p) => p === 'robe' || p === 'tunic').length, 1, `${id}: one body garment`);
+    assert.ok(!pieces.includes('apron') || pieces.includes('tunic'), `${id}: an apron only over a tunic`);
+    assert.ok(pieces.filter((p) => p === 'cap' || p === 'hat' || p === 'hood').length <= 1, `${id}: at most one headgear`);
+  }
 });

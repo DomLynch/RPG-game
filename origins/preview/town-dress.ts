@@ -10,6 +10,14 @@ export type Outfit = { readonly pieces: readonly ClothPiece[]; readonly tint: nu
 
 /** The banker (Backend's row `character:banker-exchange`, `roles: ['banker']`): robe, sleeves, belt and cap, in a deep green wash. */
 export const BANKER_OUTFIT: Outfit = { pieces: ['robe', 'sleeves', 'belt', 'cap'], tint: 0x6b7f5e };
+/** Dunmore the Provisioner (`character:provisioner-exchange`): a working tunic, an apron, a belt and a wide-brimmed hat, in a warm brown wash. */
+export const PROVISIONER_OUTFIT: Outfit = { pieces: ['tunic', 'apron', 'belt', 'hat'], tint: 0x8a6f4a };
+/** Brisa of the Last Lamp (`character:innkeeper-exchange`): a tunic with sleeves, an apron and a belt, bareheaded, in a wine-red wash. */
+export const INNKEEPER_OUTFIT: Outfit = { pieces: ['tunic', 'sleeves', 'apron', 'belt'], tint: 0x7a5c6a };
+/** The named townspeople's outfits by NPC row id (Backend, #1828); everyone else gets `outfitFor(rowId)`. */
+export const NAMED_OUTFITS: Readonly<Record<string, Outfit>> = {
+  'character:banker-exchange': BANKER_OUTFIT, 'character:provisioner-exchange': PROVISIONER_OUTFIT, 'character:innkeeper-exchange': INNKEEPER_OUTFIT,
+};
 
 const TINTS = [0x8a6f4a, 0x6b7f5e, 0x7a5c6a, 0x5f6f86, 0x9a8a6a, 0x7d6a58, 0x6a7a74, 0x8c6a52] as const;
 const HEADGEAR = [undefined, 'cap', 'hat', 'hood'] as const;
