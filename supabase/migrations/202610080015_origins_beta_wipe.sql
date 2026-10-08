@@ -12,7 +12,7 @@ begin;
 create function public.origins_beta_wipe() returns jsonb language plpgsql security definer set search_path = '' as $$
 declare a record; r record; c public.origins_career; m public.origins_metal; take bigint; out jsonb := jsonb_build_object('accounts', 0, 'items_burned', 0, 'items_skipped', 0, 'bronze_reversed', 0, 'bronze_short', 0, 'cp_reversed', 0, 'cp_short', 0, 'rows', 0);
 begin
-  for a in select l.account, sum(l.cp) as cp, sum(l.bronze) as bronze, array_agg(l.event_id) as events, array(select unnest(array_agg(l.item_ids))) as ids
+  for a in select l.account, sum(l.cp) as cp, sum(l.bronze) as bronze, array_agg(l.event_id) as events, coalesce((select array_agg(x) from public.origins_beta_ledger l2, unnest(l2.item_ids) x where l2.account = l.account and l2.wiped_at is null), '{}') as ids   -- not array_agg(item_ids): a kill that minted nothing has '{}', which array_agg cannot stack
            from public.origins_beta_ledger l where l.wiped_at is null group by l.account order by l.account loop
     out := jsonb_set(out, '{accounts}', to_jsonb((out ->> 'accounts')::int + 1));
     -- items (and split children), live ones only
