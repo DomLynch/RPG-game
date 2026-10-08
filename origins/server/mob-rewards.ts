@@ -10,6 +10,8 @@ import type { CharacterInstanceId, EncounterId } from '../contracts/ids.ts';
 import type { ItemInstance } from '../contracts/items.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
+import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { award } from '../progression/model.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
 import { careerState } from './career.ts';
@@ -96,30 +98,31 @@ function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 }
 
 // Farming bound while the server cannot yet tell WHERE a character stands in the Frontier (presence only knows the Concord's pit-yard and exchange, and the content binds
-// no creature to a zone): one paid kill of the same fight per account per respawn window (Region 1's own `spawns.respawnSeconds`, 300 s). A second kill inside it settles
-// as a recorded fight and pays nothing. The window lives in the writer's memory (one process; a restart only forgets it, which can cost one extra payout per fight),
-// and a retry of the SAME token is never blocked (the hook runs before the commit, so a stale abort must be able to pay on the retry).
+// no creature to a zone): one paid kill of the same fight per account per respawn window. The window is the creature row's `respawnSeconds` (Dom's animal rule,
+// 2026-10-08: 60..90 s; Characters' field, #1787), else RESPAWN_MS. It is read from the DATABASE (origins_last_paid_kill, 202610080006: the time since this account's
+// last PAID kill of the fight, from the `enc:<token>` events the settle commits with its rewards), so a writer restart forgets nothing, only committed kills count, and a
+// retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = 300_000;
-export type Cooldown = Map<string, { at: number; token: string }>;
+const ROW_RESPAWN = new Map([...FRONTIER_ROWS, ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
+export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
+  const setup = fightSetup(fight, content);
+  return (setup.ok ? rows.get(setup.value.opponent.character) : undefined) ?? RESPAWN_MS;
+}
 
-// The writer's `rewards` for encounterOps: read the character's pack and career row (one origins_open) and the bronze row, then price the kill.
-export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log, cooldown: Cooldown = new Map()) {
+// The writer's `rewards` for encounterOps: the respawn window, then the character's pack and career row (one origins_open) and the bronze row, then price the kill.
+export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log) {
   const lookup = lookupOf(content);
   return async (kill: Kill, db: Db): Promise<Json[]> => {
-    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-6)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }   // L3: never priced, and never outside the window
-    const key = `${kill.account}|${kill.fight}`, last = cooldown.get(key), t = now().getTime();
-    // L1: the hook runs BEFORE settle commits, so a window only counts once the earlier kill really paid (its enc:<token> event exists); a retry of the same token is never blocked.
-    if (last && last.token !== kill.token && t - last.at < RESPAWN_MS && (await store.event(db, kill.account, `enc:${last.token}`)) !== null) {
-      log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((RESPAWN_MS - (t - last.at)) / 1000)} s left), the fight is recorded and pays nothing`);
+    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-6)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }
+    const since = await store.lastPaidKill(db, kill.account, kill.fight), window = respawnMsOf(kill.fight, content);
+    if (since === 'absent') { log(`encounter rewards ${kill.token.slice(-6)}: the respawn read (202610080006) is not applied, recorded, pays nothing`); return []; }
+    if (since !== null && since < window) {
+      log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((window - since) / 1000)} s left), the fight is recorded and pays nothing`);
       return [];
     }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
     const metal = await metalOf(db, kill.account);
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
-    if (paid.batch.length > 0) {
-      for (const [k, v] of cooldown) if (t - v.at >= RESPAWN_MS) cooldown.delete(k);   // L2: expired windows are dropped, so the map holds at most the last 5 minutes of paid kills
-      cooldown.set(key, { at: t, token: kill.token });
-    }
     log(`encounter rewards ${kill.token.slice(-6)}: ${JSON.stringify(paid.summary)}`);
     return paid.batch;
   };
