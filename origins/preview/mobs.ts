@@ -115,6 +115,15 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   }
   return out;
 }
+// Which world bodies a zone spawns (the bodies the phone downloads for it): the unique `body` of its specs, sorted. check-budget reads this, so a world body
+// counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
+export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {
+  const out: Record<string, Set<string>> = {};
+  for (const s of specs) (out[s.zone] ??= new Set()).add(s.body);
+  return Object.fromEntries(Object.entries(out).map(([zone, set]) => [zone, [...set].sort()]));
+};
+export const regionBodies = (specs: readonly MobSpec[]): string[] => [...new Set(specs.map((s) => s.body))].sort();
+
 // The middle of a zone's footprint, world metres (zone frame: across 0, inward depth/2).
 function zoneCentre(z: ZonePlan): Pos {
   const s = Math.sin(z.mount.heading), c = Math.cos(z.mount.heading), d = z.depth / 2;
