@@ -53,9 +53,9 @@ test('the live era writes a stances fight as v40 and runs the trimmed row; its r
 
 test('a v34..v39 Defensive record replays on the FROZEN pre-trim row: the digest computed on trunk before the trim, for every version in the window', () => {
   const { rec } = record(false);   // the fight is RECORDED on the pre-trim row too, as the pin was on trunk
-  for (const v of [34, 35, 36, 37] as const) assert.equal(replay(unpackRecord(packRecord({ ...rec, v } as FightRecord))), PRE_TRIM, `v${v}`);
+  assert.equal(replay(unpackRecord(packRecord({ ...rec, v: 34 } as FightRecord))), PRE_TRIM, 'v34 (the only pre-40 stances writer)');
   assert.equal(replay(unpackRecord(packRecord({ ...rec, v: 38, pose: POSE } as FightRecord))), PRE_TRIM_POSED, 'v38 (a posed stances fight)');
-  for (const v of [34, 38, 39]) assert.equal(underRecord({ v }, () => DEFENSIVE_TRIM), false, `the era is off for v${v} (v39 is a group stream: it cannot replay alone, its row is chosen by the version all the same)`);
+  for (const v of [34, 35, 36, 37, 38, 39]) assert.equal(underRecord({ v }, () => DEFENSIVE_TRIM), false, `the era is off for v${v} (v35..v37 wrote no stance records and v39 is a group stream that cannot replay alone: the row is chosen by the version all the same)`);
   assert.equal(underRecord({ v: 40 }, () => DEFENSIVE_TRIM), true);
   assert.equal(DEFENSIVE_TRIM, true, 'the era flag is put back after a replay');
 });

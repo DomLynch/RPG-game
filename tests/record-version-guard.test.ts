@@ -23,7 +23,7 @@ import type { OpponentId } from '../src/roster.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/detmath.ts', 'src/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
-const SIM_DIGEST = 'fa680d0a50ee9ce5dc471bdd8a74158f7261de0200c4e5477820fdcbfa53db2f';   // RV40 (2026-10-08, the Defensive trim: stance.ts defensive block -150 -> -60 and recover 250 -> none; no codec change)
+const SIM_DIGEST = 'a9f3305fb8417e236489eee4437e2c27c48c2b0a6f4ca6eaa60be4e09e3ed9ac';   // RV40 (2026-10-08, the Defensive trim: stance.ts defensive block -150 -> -60 and recover 250 -> none, FROZEN pre-trim row for v<40 replays (stance.ts underDefensiveTrim, detmath.ts underRecord); a stances fight is written as v40, tests/stance-era.test.ts)
 const PINNED_FOR_VERSION = 40;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {

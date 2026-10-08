@@ -91,7 +91,7 @@ test('a stances fight is recorded as v40 (RV40: the version names the Defensive 
     assert.equal(W(p.duel).stance, asStance(moodOf(seed, 'executioner')));
     assert.equal(p.duel.fighters[0].stance, asStance(pick));
     const record = unpackRecord(packRecord(rec.finish('abandoned')));
-    assert.equal(record.v, 34); assert.equal(record.stances, pick);
+    assert.equal(record.v, 40); assert.equal(record.stances, pick);
     const replay = verifyRecord(record);
     assert.ok(replay.ok); assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
   }
