@@ -65,7 +65,7 @@ try {
   for (let i = 0; i < 240 && !booted; i++) { booted = await page.evaluate(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false); if (!booted) await sleep(500); }
   assert.ok(booted, 'the page after "Fight for real" boots to a fight');
   const real = await page.evaluate(() => ({ search: location.search, lesson: typeof globalThis.__lesson, dataLesson: document.documentElement.dataset.lesson ?? null }));
-  assert.equal(real.search, '?fight=1', '"Fight for real" lands on ?fight=1');
+  assert.equal(real.search, '?fight=1', 'the arena fight link is ?fight=1');
   assert.equal(real.lesson, 'undefined', 'the real fight is not the lesson');
   assert.equal(real.dataLesson, null, 'no lesson beat is showing');
   await run(200); await page.keyboard.press('KeyF'); await run(300);
