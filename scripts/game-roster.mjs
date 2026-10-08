@@ -33,7 +33,8 @@ export function roster() {
   const backstory = new Map(LEGEND_OPPONENTS.flatMap((o) => LEGENDS[o].map((l) => [l.name, l.backstory.replace(/\s*In Frankendom[^.]*\.\s*$/, '').trim()])));
   return ladder.map((r) => {
     const line = backstory.get(r.name) || origins.get(r.id)?.clan_theme || extra[r.id] || '';
-    return { id: r.id, name: r.name, group: label(r.group), kind: r.kind, rank: Number(r.rank_1_10), line, source: origins.get(r.id)?.source ?? '' };
+    const sentence = (t) => (t ? t[0].toUpperCase() + t.slice(1) + (/[.!?]$/.test(t) ? '' : '.') : t);
+    return { id: r.id, name: r.name, group: label(r.group), kind: r.kind, rank: Number(r.rank_1_10), line: sentence(line), source: origins.get(r.id)?.source ?? '' };
   });
 }
 
@@ -46,7 +47,7 @@ export function render() {
     .replace('<link rel="canonical" href="https://frankendom.com/game/">', '<link rel="canonical" href="https://frankendom.com/game/legends/">')
     .replace(/<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="The roster: Frankendom Origins">')
     .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${list.length} legends, ten ranks.">`);
-  const css = '\n<style>.roster{max-width:760px;margin:0 auto;padding:0 20px 80px}.roster h2{font-family:var(--caps);font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);font-size:1.05rem;margin:56px 0 6px}.roster h2 small{color:var(--fog);letter-spacing:.1em;font-size:.8rem;margin-left:10px}.roster ul{list-style:none;margin:0;padding:0}.roster li{padding:12px 0;border-bottom:1px solid var(--line);font-size:1.05rem;line-height:1.5}.roster li b{color:var(--ink);font-weight:600}.roster li span{display:block;color:var(--fog);font-weight:300}.roster li small{color:var(--dim);font-size:.8rem;letter-spacing:.06em}.roster .back{display:block;text-align:center;margin:40px 0 0}</style>\n';
+  const css = '\n<style>.roster{max-width:760px;margin:0 auto;padding:0 20px 80px}.roster h2{font-family:var(--caps);font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);font-size:1.05rem;margin:56px 0 6px}.roster h2 small{color:var(--fog);letter-spacing:.1em;font-size:.8rem;margin-left:10px}.roster ul{list-style:none;margin:0;padding:0}.roster li{padding:12px 0;border-bottom:1px solid var(--line);font-size:1.05rem;line-height:1.5}.roster li b{color:var(--ink);font-weight:600}.roster li span{display:block;color:var(--fog);font-weight:300}.roster li small{color:var(--dim);font-size:.8rem;letter-spacing:.06em}.roster-rank{padding:0}.roster .back{display:block;text-align:center;margin:40px 0 0}</style>\n';
   const sections = RANKS.map((title, i) => {
     const rows = list.filter((l) => l.rank === i + 1).sort((a, b) => a.name.localeCompare(b.name));
     return `<section class="roster-rank" id="rank-${i + 1}"><h2>${title}<small>${rows.length} legends</small></h2><ul>${rows.map((l) => `<li><b>${esc(l.name)}</b> <small>${esc(l.group)}${l.kind === 'patron' ? ' · patron' : ''}</small>${l.line ? `<span>${esc(l.line)}</span>` : ''}</li>`).join('')}</ul></section>`;
@@ -58,7 +59,7 @@ export function render() {
   <nav><a href="/game/#hundred">The Hundred</a><a href="/game/#ladder">The Ladder</a><a class="btn line" href="https://frankendom.com/">Play free</a></nav>
 </header>
 <main class="roster" style="padding-top:120px">
-<div class="narrow head"><div class="caps">The roster</div><h1 style="font-weight:400">${list.length} legends</h1><p>Every name the arena remembers, from myth, folklore, history and books older than 1931. Each stands at one rank of the ladder. Where the page has a line for a name, the line is ours.</p></div>
+<div class="narrow head"><div class="caps">The roster</div><h1 style="font-weight:400">${list.length} legends</h1><p>Every name the arena remembers, from myth, folklore, history and books older than 1931. Each stands at one rank of the ladder.</p></div>
 ${sections}
 <a class="back caps" href="/game/">← Back to Frankendom</a>
 </main>
