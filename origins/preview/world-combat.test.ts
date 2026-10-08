@@ -45,3 +45,11 @@ test('the hero dies once: onHeroDied, nothing hunts him afterwards, and reset st
   wc.reset({ x: 0, z: 3, facing: 0 }); assert.equal(wc.hero().health, wc.hero().max); assert.ok(!wc.hero().dead);
   assert.equal(ME, 'me');
 });
+
+test('Evaded: a creature that gave up and is home and healed is released at once (back to wander), not kept in the loop', () => {
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 6 }]); const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 }; let sawDriven = false, releasedAt = -1;
+  for (let t = 0; t < 60; t += 1 / 30) { hero.z -= 7 / 30; wc.update(1 / 30, hero); if (f.driven.has('wolf-1')) sawDriven = true; else if (sawDriven && releasedAt < 0) releasedAt = t; }
+  assert.ok(sawDriven && releasedAt > 0, 'it was in the loop, then released');
+  assert.ok(!wc.debug().some((x) => x.id === 'wolf-1'), 'gone from the world after Evaded');
+});
