@@ -22,6 +22,15 @@ export const TELEGRAPH_S = 0.4;                        // a creature's windup, l
 // Damage by kind: the bite row's damage (10) times the creature's weight. Health, poise and body scale are the roster's own rows (moves.ts OPPONENTS).
 export const BLOW_WEIGHT: Readonly<Record<string, number>> = { wolf: 1, boar: 1.4, bear: 2.2 };
 
+/** The creature variety rows (S2): each kind's second blow, thrown with probability `p` (an injected `rand` decides, one roll per blow). `dash` is the metres it covers when the blow goes active (a lunge, a charge): it starts
+ *  that much farther out, and the windup is the tell the player rolls or backs out of. `mul` scales the kind's weight damage; `breaksGuard` makes a raised guard useless against it (answer: roll, or parry the basic blow). */
+export const VARIETY: Readonly<Record<string, { id: 'lunge' | 'charge' | 'heavy'; p: number; windup: number; mul: number; dash: number; breaksGuard: boolean }>> = {
+  wolf: { id: 'lunge', p: 0.3, windup: 0.5, mul: 1.3, dash: 1.2, breaksGuard: false },
+  boar: { id: 'charge', p: 0.35, windup: 0.7, mul: 1.6, dash: 4, breaksGuard: false },
+  bear: { id: 'heavy', p: 0.3, windup: 0.9, mul: 2, dash: 0, breaksGuard: true },
+};
+export const PARRY_STAGGER_S = 0.7;                     // a perfect block of a creature's plain blow throws the creature off for this long (a heavy / charge cannot be parried: roll it)
+
 export type Phase = 'ready' | 'guard' | 'roll' | 'windup' | 'active' | 'recover' | 'stagger' | 'dead';
 export type Fighter = {
   id: string; side: 'player' | 'creature'; kind: string;   // kind: 'player' or a ROSTER id ('wolf', 'boar', 'bear', ...)
@@ -39,6 +48,7 @@ export type Fighter = {
   homeX: number; homeZ: number;                         // creature only: where it spawned (it walks back here)
   hunting: boolean; chaseX: number; chaseZ: number;     // creature only: it is on a chase that STARTED at (chaseX, chaseZ); the leash is measured from there
   unseen: number;                                       // creature only: seconds the prey has been out of sight
+  plan: string | null;                                  // creature only: the variety blow rolled for its next attack ('basic' = none), null until rolled
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
 export type World = { time: number; fighters: Fighter[] };
@@ -49,7 +59,7 @@ export type Event =
   | { type: 'Hit'; attacker: string; victim: string; damage: number; move: string }
   | { type: 'Blocked'; attacker: string; victim: string; perfect: boolean; damage: number }   // `damage` is the chip that passed through (0 for a cut)
   | { type: 'Dodged'; attacker: string; victim: string }          // the blow met a roll's invulnerable ticks
-  | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' }
+  | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' }
   | { type: 'Died'; id: string; by: string }
   | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
@@ -57,7 +67,7 @@ const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENT
 
 function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: number, facing: number, radius: number, health: number, poise: number, weapon: WeaponId): Fighter {
   return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, pause: 0, hurtFor: 0,
-    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, returning: false };
+    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, plan: null, returning: false };
 }
 export const player = (id: string, x: number, z: number, facing = 0): Fighter => fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword');
 /** A creature of `kind` (a moves.ts ROSTER id): its health, poise, body scale and weapon are the roster's own rows. */
@@ -76,8 +86,9 @@ const alive = (f: Fighter): boolean => f.phase !== 'dead';
 const PLAYER_BLOWS = { light: 'light_right', heavy: 'heavy_overhead', kick: 'kick' } as const;   // the longsword's rows (moves.ts MOVES): the heavy chips through a guard, the kick ignores it
 const blowOf = (f: Fighter, press: 'light' | 'heavy' | 'kick' = 'light'): MoveDef => {
   if (f.side === 'player') return WEAPONS[f.weapon].moves[PLAYER_BLOWS[press]] ?? MOVES[PLAYER_BLOWS[press]];
-  const row = WEAPONS[f.weapon].moves.light_right ?? MOVES.light_right;
-  return { ...row, windup: Math.round(TELEGRAPH_S * 60), damage: Math.round(row.damage * (BLOW_WEIGHT[f.kind] ?? 1)) };
+  const row = WEAPONS[f.weapon].moves.light_right ?? MOVES.light_right, w = BLOW_WEIGHT[f.kind] ?? 1, v = VARIETY[f.kind];
+  if (v && f.plan === v.id) return { ...row, id: v.id, windup: Math.round(v.windup * 60), damage: Math.round(row.damage * w * v.mul), breaksGuard: v.breaksGuard || row.breaksGuard };
+  return { ...row, windup: Math.round(TELEGRAPH_S * 60), damage: Math.round(row.damage * w) };
 };
 /** A blow connects from the attacker's centre to the victim's edge, inside its cone. */
 const inReach = (a: Fighter, b: Fighter, move: MoveDef): boolean => dist(a, b) <= move.reach + b.radius && Math.abs(wrap(aim(a, b) - a.facing)) <= HIT_ARC / 2;
@@ -93,7 +104,7 @@ function begin(f: Fighter, move: MoveDef, events: Event[]): void {
   spend(f, move.stamina);
   events.push({ type: 'Telegraph', id: f.id, move: move.id, ms: Math.round(secs(move.windup) * 1000) });
 }
-function stagger(v: Fighter, ticks: number, cause: 'hit' | 'posture' | 'guardBreak' | 'kick', events: Event[]): void {
+function stagger(v: Fighter, ticks: number, cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry', events: Event[]): void {
   v.phase = 'stagger'; v.t = 0; v.move = null; v.hurtFor = secs(ticks);
   events.push({ type: 'Staggered', id: v.id, ms: Math.round(secs(ticks) * 1000), cause });
 }
@@ -119,6 +130,7 @@ function land(a: Fighter, v: Fighter, move: MoveDef, events: Event[]): void {
   if (v.phase === 'guard' && !move.breaksGuard && covered(v, a)) {   // a frontal block: no damage but the row's chip; the stamina and posture it costs are the row's own
     const perfect = v.t < secs(RULES.perfectBlock), chip = Math.round(move.damage * move.chip);
     events.push({ type: 'Blocked', attacker: a.id, victim: v.id, perfect, damage: chip });
+    if (perfect && a.side === 'creature' && a.plan === 'basic' && alive(a)) stagger(a, PARRY_STAGGER_S * 60, 'parry', events);   // a parry: the creature's plain blow is turned aside and it staggers
     if (chip > 0 && hurt(a, v, chip, events)) return;
     spend(v, move.staminaDamage * (perfect ? RULES.perfectBlockCost : 1));
     addPosture(v, move.posture * (perfect ? RULES.posture.perfect : 1), events);
@@ -142,8 +154,11 @@ function separate(f: Fighter, all: Fighter[]): void {
   }
 }
 
+/** The default `rand`: no variety, every creature throws its plain blow (a test is a plain call). Production passes Math.random or a seeded stream. */
+export const NO_RAND = (): number => 1;
+
 /** The next world: movement, blows, stamina, guard, roll, posture, creature behaviour. Never mutates its input. */
-export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number): { world: World; events: Event[] } {
+export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number, rand: () => number = NO_RAND): { world: World; events: Event[] } {
   const events: Event[] = [];
   const fighters = world.fighters.map((f) => ({ ...f, struck: f.struck.slice() }));
   for (const f of fighters) {
@@ -189,7 +204,8 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
         if (f.unseen >= GIVE_UP_UNSEEN_S || Math.hypot(f.x - f.chaseX, f.z - f.chaseZ) > leashOf(f.kind)) { f.hunting = false; f.returning = true; f.unseen = 0; }
         else {
           f.facing = aim(f, prey);
-          const move = blowOf(f), startAt = move.reach * 0.85 + prey.radius;
+          if (f.plan === null) { const v = VARIETY[f.kind]; f.plan = v && rand() < v.p ? v.id : 'basic'; }
+          const move = blowOf(f), v = VARIETY[f.kind], dash = v && f.plan === v.id ? v.dash : 0, near = move.reach * 0.85 + prey.radius, startAt = near + dash * 0.9;
           if (dist(f, prey) > startAt + CLOSE_EPS) { const step = Math.min(chaseSpeed(f.kind) * dt, dist(f, prey) - startAt); f.x += Math.sin(f.facing) * step; f.z += Math.cos(f.facing) * step; }
           else if (f.pause <= 0 && fighters.filter((o) => o !== f && o.side === 'creature' && (o.phase === 'windup' || o.phase === 'active')).length < MAX_ATTACKERS) begin(f, move, events);
           separate(f, fighters);
@@ -204,12 +220,15 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     // The blow's phases, in the move row's own ticks.
     if (f.move && (f.phase === 'windup' || f.phase === 'active' || f.phase === 'recover')) {
       const m = f.move;
-      if (f.phase === 'windup' && f.t >= secs(m.windup)) { f.phase = 'active'; f.t -= secs(m.windup); events.push({ type: 'Swing', id: f.id, move: m.id }); }
+      if (f.phase === 'windup' && f.t >= secs(m.windup)) { f.phase = 'active'; f.t -= secs(m.windup); events.push({ type: 'Swing', id: f.id, move: m.id });
+        const v = VARIETY[f.kind], prey = f.side === 'creature' && v && f.plan === v.id && v.dash > 0 ? fighters.filter((p) => p.side === 'player' && alive(p)).sort((a, b) => dist(f, a) - dist(f, b))[0] : undefined;
+        if (prey) { const gap = Math.max(0, dist(f, prey) - (m.reach * 0.85 + prey.radius)), step = Math.min(v!.dash, gap), h = aim(f, prey); f.x += Math.sin(h) * step; f.z += Math.cos(h) * step; f.facing = h; }   // the lunge / charge covers its ground as the blow goes active
+      }
       if (f.phase === 'active') {
         for (const v of fighters) if (v !== f && v.side !== f.side && alive(v) && !f.struck.includes(v.id) && inReach(f, v, m)) { f.struck.push(v.id); land(f, v, m, events); }
         if (f.t >= secs(m.active) && f.phase === 'active') { f.phase = 'recover'; f.t -= secs(m.active); }
-      } else if (f.phase === 'recover' && f.t >= secs(m.recovery)) { f.phase = 'ready'; f.t = 0; f.move = null; if (f.side === 'creature') f.pause = RECOVER_PAUSE_S; }
-    } else if (f.phase === 'stagger' && f.t >= f.hurtFor) { f.phase = 'ready'; f.t = 0; if (f.side === 'creature') f.pause = RECOVER_PAUSE_S; }
+      } else if (f.phase === 'recover' && f.t >= secs(m.recovery)) { f.phase = 'ready'; f.t = 0; f.move = null; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
+    } else if (f.phase === 'stagger' && f.t >= f.hurtFor) { f.phase = 'ready'; f.t = 0; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
   }
   return { world: { time: world.time + dt, fighters }, events };
 }

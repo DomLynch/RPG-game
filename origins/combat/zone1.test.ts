@@ -242,3 +242,56 @@ test('a creature that starts anywhere inside its aggro ring, at any angle and an
     assert.ok(tele, `${kind} from ${d.toFixed(2)} m at ${ang.toFixed(3)} rad (player at ${px.toFixed(2)},${pz.toFixed(2)}) never telegraphed`);
   }
 });
+
+// ---- S2b: creature variety rows (injected rand), parry ----
+const ALWAYS = () => 0, NEVER = () => 1;
+function runR(world: World, seconds: number, rand: () => number, input: (t: number, w: World) => Input = () => STILL): { world: World; events: Event[] } {
+  const events: Event[] = [];
+  for (let t = 0; t < Math.round(seconds * 60); t++) { const r = stepCombat(world, { p: input(t, world) }, DT, rand); world = r.world; events.push(...r.events); }
+  return { world, events };
+}
+const firstTell = (events: Event[]) => events.find((e) => e.type === 'Telegraph' && e.id === 'c') as Extract<Event, { type: 'Telegraph' }>;
+
+test('variety: with rand() below p each kind throws its second blow (lunge / charge / heavy), slower to read and harder; the default rand never does', () => {
+  for (const [kind, id] of [['wolf', 'lunge'], ['boar', 'charge'], ['bear', 'heavy']] as const) {
+    const mk = () => newWorld([player('p', 0, 0), creature('c', kind, 0, 6)]);
+    const v = firstTell(runR(mk(), 4, ALWAYS).events), plain = firstTell(runR(mk(), 4, NEVER).events), dflt = firstTell(run(mk(), 4).events);
+    assert.equal(v.move, id); assert.notEqual(plain.move, id); assert.equal(dflt.move, plain.move);
+    assert.ok(v.ms > plain.ms, `${kind} ${id} windup ${v.ms} vs ${plain.ms}`);
+    const dmg = (rand: () => number) => { const e = runR(mk(), 6, rand).events.find((x) => x.type === 'Hit' && x.attacker === 'c'); return e && e.type === 'Hit' ? e.damage : 0; };
+    assert.ok(dmg(ALWAYS) > dmg(NEVER) && dmg(NEVER) > 0, `${kind} ${id} hits harder`);
+  }
+});
+
+test('variety: a lunge / charge starts from farther out and covers its ground on the swing, so a roll through the windup dodges it', () => {
+  const w = newWorld([player('p', 0, 0), creature('c', 'boar', 0, 7)]);
+  let world = w, gap0 = 0, tele = false;
+  for (let t = 0; t < 600 && !tele; t++) { const r = stepCombat(world, { p: STILL }, DT, ALWAYS); world = r.world; tele = r.events.some((e) => e.type === 'Telegraph'); }
+  gap0 = Math.hypot(get(world, 'c').x, get(world, 'c').z);
+  assert.ok(gap0 > 2.5, `a charge winds up from ${gap0.toFixed(2)} m`);
+  const out = runR(world, 2, ALWAYS, (t) => (t === 30 ? { x: 0, z: 0, roll: { x: 1, z: 0 } } : STILL));
+  assert.ok(out.events.some((e) => e.type === 'Dodged') || !out.events.some((e) => e.type === 'Hit' && e.victim === 'p'), 'the rolled player is not hit');
+});
+
+test('variety: the bear heavy goes through a raised guard; its plain swipe does not', () => {
+  const guarding = () => ({ x: 0, z: 0, guard: true });
+  const hitsOn = (rand: () => number) => runR(newWorld([player('p', 0, 0, 0), creature('c', 'bear', 0, 1.5)]), 4, rand, guarding).events.filter((e) => e.type === 'Hit' && e.victim === 'p').length;
+  assert.ok(hitsOn(ALWAYS) >= 1, 'heavy lands through the guard');
+  assert.equal(hitsOn(NEVER), 0, 'plain swipe is blocked');
+});
+
+test('parry: a perfect block of a creature\'s plain blow staggers the creature; a heavy is not parried', () => {
+  const mk = (rand: () => number) => {
+    let w = newWorld([player('p', 0, 0, 0), creature('c', 'wolf', 0, 1.2)]); const events: Event[] = [];
+    for (let t = 0; t < 360; t++) {
+      const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= secs0(c.move!.windup) - 0.04;   // raise the guard just before the blow lands
+      const r = stepCombat(w, { p: { x: 0, z: 0, guard } }, DT, rand); w = r.world; events.push(...r.events);
+    }
+    return events;
+  };
+  const secs0 = (ticks: number) => ticks / 60;
+  const plain = mk(NEVER);
+  assert.ok(plain.some((e) => e.type === 'Blocked' && e.perfect), 'perfect block');
+  assert.ok(plain.some((e) => e.type === 'Staggered' && e.id === 'c' && e.cause === 'parry'), 'the creature is parried');
+  assert.ok(!mk(ALWAYS).some((e) => e.type === 'Staggered' && e.cause === 'parry'), 'the lunge cannot be parried');
+});
