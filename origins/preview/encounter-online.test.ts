@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { STEP } from '../../src/sim.ts';
-import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, START_TIMEOUT_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
+import { beginOnline, createPrefetch, onlineWanted, type HeldFight, RETRY_AFTER_MS, START_TIMEOUT_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
@@ -178,4 +178,18 @@ test('a 409 whose remembered token was played at tick 1 is forgotten and plays o
   assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: again.f, held: { get: () => held, set: (t) => { held = t; } } }), null);
   assert.deepEqual(again.calls, ['encounter_start'], 'no touch for a played token');
   assert.equal(held, null);
+});
+
+test('createPrefetch: the tap takes only this creature\'s ready session, never waits, and stops a late or displaced one', async () => {
+  const stops: string[] = [], mk = (id: string) => ({ seed: 1, settle: async () => 'settled', played() {}, stop: () => void stops.push(id) }) as never;
+  const gates = new Map<string, (o: unknown) => void>();
+  const p = createPrefetch((id) => new Promise((res) => gates.set(id, res as never)));
+  p.want('a'); assert.equal(p.take('a'), null, 'not here yet: unpaid, at once'); gates.get('a')!(mk('a')); await Promise.resolve(); await Promise.resolve();
+  assert.deepEqual(stops, ['a'], 'it arrived after the tap went offline: stopped');
+  p.want('b'); gates.get('b')!(mk('b')); await Promise.resolve(); await Promise.resolve();
+  assert.equal(p.take('c'), null, "another creature's tap does not take b's session"); assert.deepEqual(stops, ['a'], 'b was dropped by the taker, not stopped twice');
+  p.want('d'); gates.get('d')!(mk('d')); await Promise.resolve(); await Promise.resolve();
+  const got = p.take('d'); assert.ok(got, 'ready for this creature: taken'); assert.equal(p.take('d'), null, 'a session is taken once');
+  p.want('e'); p.want('f'); gates.get('e')!(mk('e')); await Promise.resolve(); await Promise.resolve(); assert.ok(stops.includes('e'), 'displaced by f: e stopped when it arrived');
+  const q = createPrefetch(async () => null); q.want('x'); await Promise.resolve(); await Promise.resolve(); assert.equal(q.take('x'), null, 'the writer said no: unpaid');
 });

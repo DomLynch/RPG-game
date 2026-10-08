@@ -67,3 +67,24 @@ export async function beginOnline(d: Deps): Promise<Online | null> {
     },
   };
 }
+
+// The engage never awaits the writer (Strategy 2026-10-08): the server's seed drives the fight from tick 0 and cannot join mid-fight, so the session is PREFETCHED
+// when a creature turns hostile (`want`), one at a time. At the tap `take` hands it over only if it is THIS creature's and already here; otherwise null: the fight starts at
+// once on the local seed, unpaid (no settle), and a session that arrives late is stopped (its token stays open: the next engage resumes it, else the writer sweeps it after 120 s).
+export function createPrefetch(begin: (id: string) => Promise<Online | null>) {
+  let slot: { id: string; ready: Online | null; gone: boolean } | null = null;
+  return {
+    want(id: string): void {
+      if (slot?.id === id) return;
+      slot?.ready?.stop();
+      const mine = slot = { id, ready: null as Online | null, gone: false };
+      void begin(id).then((o) => { if (mine.gone || slot !== mine) o?.stop(); else mine.ready = o; });
+    },
+    take(id: string): Online | null {
+      const got = slot; slot = null;
+      if (got && got.id === id && got.ready) return got.ready;
+      if (got) got.gone = true;
+      return null;
+    },
+  };
+}

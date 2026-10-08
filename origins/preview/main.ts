@@ -25,7 +25,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
+import { beginOnline, createPrefetch, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -524,6 +524,14 @@ function warmFight(time: number) {   // every 2 s on the walk, with the fight ch
   if (time - warmSince < WARM_DWELL_S) return;
   duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), { world: scene, lights, dress: (root) => { const look = mobVariant(t.spec.character, t.spec.id); if (look) dressMob(root, look, false); } });
 }
+// Prefetch (see startMobFight; encounter-online.ts createPrefetch): beginOnline caps the start at START_TIMEOUT_MS and never rejects; the token of a creature the player walked away from is swept by the writer after its 120 s grace.
+const prefetch = createPrefetch(async (id) => {
+  const spec = mobSpecList.find((m) => m.id === id), run = spec && huntMod && hunt ? huntMod.prepare(hunt, spec) : null;
+  if (!run?.ok) return null;
+  await AUTH_READY;
+  return beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.value.fight, setup: run.value.setup, base: writerBase(location.search), held: HELD });
+});
+addEventListener('origins:creature', (e) => { const d = (e as CustomEvent<{ id?: string; cue?: string }>).detail; if (ONLINE && d?.cue === 'growl' && d.id) prefetch.want(d.id); });
 function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
   idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
@@ -545,7 +553,8 @@ async function startMobFight(spec: MobSpec) {
   const run = prepared.value, quest = bountyQuestId(frontier.giver);
   // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
   const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
-  if (ONLINE && !bar) { await AUTH_READY; online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
+  // The engage NEVER awaits the writer (Strategy 2026-10-08): the server's seed drives the fight from tick 0 and cannot join mid-fight, so the session is PREFETCHED when this creature turned hostile (prefetchOnline). Ready for THIS creature: the fight plays on the server's seed. Not ready, or another creature's: it starts at once on the local seed and is unpaid (no settle), and the next engage tries again.
+  if (ONLINE && !bar) online = prefetch.take(spec.id);
   const on = online;   // `online` is cleared when the fight ends; the first-tick mark belongs to this fight
   void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
     const wasOnline = online !== null;
