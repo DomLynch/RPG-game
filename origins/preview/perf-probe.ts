@@ -37,7 +37,7 @@ export const perfMark = (name: string) => { recorder?.mark(name, performance.now
 export function installPerf(search: string, ready: () => boolean): void {
   if (!/[?&]perf\b/.test(search) || recorder) return;
   const rec = (recorder = new Recorder()); let supported = false, wasReady = false;
-  try { new PerformanceObserver((list) => { for (const e of list.getEntries()) rec.longTask(e.startTime, e.duration); }).observe({ entryTypes: ['longtask'] }); supported = true; } catch { /* Safari: no longtask */ }
+  try { if (!PerformanceObserver.supportedEntryTypes?.includes('longtask')) throw new Error('no longtask'); new PerformanceObserver((list) => { for (const e of list.getEntries()) rec.longTask(e.startTime, e.duration); }).observe({ entryTypes: ['longtask'] }); supported = true; } catch { /* Safari: no longtask */ }
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;left:4px;right:4px;bottom:4px;z-index:99999;font:11px/1.3 ui-monospace,monospace;color:#9f9;background:rgba(0,0,0,.72);padding:4px 6px;border-radius:4px;word-break:break-all;pointer-events:auto';
   box.title = 'tap to copy'; document.body.appendChild(box);
