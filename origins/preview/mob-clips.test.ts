@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { attackTimeScale, mobClipName } from './mob-clips.ts';
+import { attackTimeScale, holdsAttack, mobClipName } from './mob-clips.ts';
 
 const clipsOf = (file: string): { name: string }[] => {
   const b = readFileSync(new URL(`../../public/${file}`, import.meta.url));
@@ -34,4 +34,12 @@ test('the attack clip is sped so its contact frame lands on the sim\'s strike: t
   assert.ok(attackTimeScale('Attack', 1, 400) > 0.8 && attackTimeScale('Attack', 1, 400) < 0.9, 'a humanoid Attack (the Pit\'s .34 contact) at a 0.4 s windup');
   assert.equal(attackTimeScale('Bite', 0.93, 5000), 0.45); assert.equal(attackTimeScale('Bite', 0.93, 50), 2);
   assert.ok(Math.abs((0.46 * 0.93) / attackTimeScale('Bite', 0.93, 14 / 60 * 1000) - 14 / 60) < 0.02, 'the Pit\'s 14-tick bite tell: contact still meets the strike');
+});
+
+test('a Hit during the creature\'s own windup does not cut its Bite (the sim\'s bite still lands); a Staggered, or a Bite that has finished, lets Hurt play', () => {
+  assert.equal(holdsAttack('attack', true, 'hit'), true, 'hit while the Bite runs: held');
+  assert.equal(holdsAttack('attack', true, 'hit', true), false, 'a Staggered interrupts');
+  assert.equal(holdsAttack('attack', false, 'hit'), false, 'the Bite is over');
+  assert.equal(holdsAttack('hit', true, 'hit'), false); assert.equal(holdsAttack(undefined, false, 'hit'), false);
+  assert.equal(holdsAttack('attack', true, 'death'), false, 'a death always plays'); assert.equal(holdsAttack('attack', true, 'attack'), false);
 });

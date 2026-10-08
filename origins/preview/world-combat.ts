@@ -38,6 +38,7 @@ export function createWorldCombat(d: Deps) {
     if (ev.type === 'Telegraph') { if (ev.id === ME) d.onSwing(); else { const f = fxOf(ev.id); f.windupT = 0.0001; f.windupMs = ev.ms; d.mobs()?.play(ev.id, 'attack', ev.ms); d.onTelegraph?.(ev.id, ev.ms); } }
     else if (ev.type === 'Swing' && ev.id !== ME) fxOf(ev.id).swingT = 0.0001;
     else if (ev.type === 'Hit') { if (ev.victim === ME) d.onHeroHit(ev.damage); else { fxOf(ev.victim).hurtT = PULSE_S; d.mobs()?.play(ev.victim, 'hit'); } }
+    else if (ev.type === 'Staggered') { if (ev.id !== ME) d.mobs()?.play(ev.id, 'hit', undefined, true); }   // the sim cancelled its blow: Hurt plays over a Bite
     else if (ev.type === 'Evaded') release(ev.id);   // it gave up, walked home and healed: back to its own wander
     else if (ev.type === 'Died') { if (ev.id === ME) { heroDead = true; d.onHeroDied(); } else { const f = fxOf(ev.id); f.fallT = 0.0001; f.fallLen = Math.max(FALL_S, d.mobs()?.play(ev.id, 'death') ?? 0); } }   // the Death clip plays out before the body is released (a goblin's is 2.4 s)
   }
