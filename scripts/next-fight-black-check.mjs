@@ -15,7 +15,16 @@ import fs from 'node:fs/promises';
 const outDir = 'artifacts/next-fight/build', out = 'artifacts/next-fight';
 await fs.mkdir(out, { recursive: true });
 const LIVE = process.env.NEXT_FIGHT_URL;   // measure another build (e.g. https://frankendom.com) instead of this tree's: the live-vs-head comparison, never the release row
-if (!LIVE) await build({ logLevel: 'error', build: { outDir } });
+if (!LIVE && !process.env.NEXT_FIGHT_CHILD) await build({ logLevel: 'error', build: { outDir } });
+// Up to three attempts, passing on the first that passes (Lead 2026-10-08): a loaded Mac can hold one capture past the limit (a 637 ms gap was read under load), while a real 2 s regression fails every attempt.
+// The build is made once; each attempt is this script again with NEXT_FIGHT_CHILD set, and its line names the attempt and its max gap. NEXT_FIGHT_MAX lowers the limit (the mutation receipt: at 1 ms all three attempts fail).
+if (!process.env.NEXT_FIGHT_CHILD) {
+  const { spawnSync } = await import('node:child_process');
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (spawnSync(process.execPath, [process.argv[1]], { stdio: 'inherit', env: { ...process.env, NEXT_FIGHT_CHILD: '1', NEXT_FIGHT_ATTEMPT: String(attempt) } }).status === 0) process.exit(0);
+  }
+  console.error('next-fight-black-check FAIL: all 3 attempts over the limit'); process.exit(1);
+}
 const server = LIVE ? null : await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
 const origin = LIVE ?? `http://127.0.0.1:${server.httpServer.address().port}`;
 // As the live server does (deploy/frankendom.com.conf: `location /assets/ { expires 1y; }`).
@@ -85,7 +94,7 @@ async function fightTo(opponent, win) {
 }
 
 
-const BLACK_MAX = 600, WINDOW = 12000, FLOOR = 12;   // FLOOR: mean luminance (0..255) under which a frame reads as black
+const BLACK_MAX = Number(process.env.NEXT_FIGHT_MAX || 600), WINDOW = 12000, FLOOR = 12;   // FLOOR: mean luminance (0..255) under which a frame reads as black
 try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);
@@ -136,7 +145,7 @@ try {
   await browser.close(); server?.httpServer.close();
 }
 const e = receipt.exit;
-console.log(`next-fight-black: max capture gap ${e.maxGapMs} ms, ${e.blackMs} ms under luminance ${e.floor} (longest ${e.longestMs} ms, darkest ${e.minLuma}), navigated at ${e.navigatedMs} ms, fight ready at ${e.fightReadyMs} ms, ${e.frames} frames`);
+console.log(`next-fight-black attempt ${process.env.NEXT_FIGHT_ATTEMPT ?? '-'}/3: max capture gap ${e.maxGapMs} ms, ${e.blackMs} ms under luminance ${e.floor} (longest ${e.longestMs} ms, darkest ${e.minLuma}), navigated at ${e.navigatedMs} ms, fight ready at ${e.fightReadyMs} ms, ${e.frames} frames`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
 assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
 assert.ok(e.blackMs <= BLACK_MAX, `black after the press: ${e.blackMs} ms (max ${BLACK_MAX}; Dom's 2026-09-30 report was about 2 s)`);
