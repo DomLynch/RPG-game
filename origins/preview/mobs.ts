@@ -5,6 +5,7 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
+import { SPEEDS } from './speeds.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
 import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
@@ -25,7 +26,7 @@ export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: numb
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
 export const TUNING = {
-  walk: 0.9,            // m/s: a creature's amble, well under the hero's 2.3
+  walk: SPEEDS.creature.amble,   // m/s: a creature's amble, well under the hero's walk (the one speed table, speeds.ts)
   turn: 3.2,            // rad/s the body swings toward where it is going or looking
   aggro: 7,             // m: the ring a creature notices the hero inside (named ones 9)
   aggroNamed: 9,

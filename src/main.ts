@@ -20,7 +20,7 @@ import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
-import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
+import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
@@ -33,6 +33,7 @@ import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, re
 import { Match, equipNotice } from './match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts';
 import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
+import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
@@ -237,6 +238,8 @@ if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try
 // ?dpr= (quality.ts DPR_OVERRIDE, read before this line runs) is the same: this page load only, gone from the address at once. dprOverride is
 // the same value read here, before the strip: the readout tags it, and it turns off the frame-time auto-drop below for this load.
 const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(location.search);
+// Play goes to Zone 1 (src/zone1-hop.ts): a returning player on a plain `/`; a storage that cannot be read stays on the arena.
+if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: location.search, pathname: location.pathname, hasFighter: localStorage.getItem(FIGHTER_KEY) !== null, lessonDone: localStorage.getItem(LESSON_DONE_KEY) === '1' }); if (to) location.replace(to); } catch { /* blocked storage: stay */ } }
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
@@ -969,7 +972,7 @@ function sparEnd(shown: boolean) {
 }
 // The next-fight command: the kill screen's Next fight / Rematch button runs it.
 function nextFight(): void {
-  if (match.mode === 'lesson') { location.assign(`${location.pathname}?fight=1`); return; }   // the first loss is over: a non-empty search fails firstLossDue, so even where storage cannot write (blocked site data, a full quota) this never reloads into the lesson again; nothing reads the key, and LESSON_DONE_KEY keeps the next plain visit out of it
+  if (match.mode === 'lesson') { location.assign(zone1AfterLesson() ?? `${location.pathname}?fight=1`); return; }   // the first loss is over: a non-empty search fails firstLossDue, so even where storage cannot write (blocked site data, a full quota) this never reloads into the lesson again; nothing reads the key, and LESSON_DONE_KEY keeps the next plain visit out of it
   if (invalidSparringPreview) { element<HTMLInputElement>('journal-tab-arena').checked = true; journal.showModal(); return; }
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight

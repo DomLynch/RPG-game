@@ -245,7 +245,7 @@ test('glbTriangles: indices / 3 per triangle primitive, POSITION / 3 unindexed, 
 // ---- the WORLD budget is per zone (Lead and Strategy 2026-10-08: no more global raises) ----
 
 test('world bodies: Zone 1\'s set is the bodies its rows spawn, read from the zone data; any other body is checked per file only', () => {
-  assert.deepEqual(ZONE1_BODIES, ['boar', 'goblin', 'knight', 'pitborn', 'witch', 'wolf'], 'the Ash Frontier spawns these six (the boar from its Tusked Boar row, the wolf with ?wolf); the hero\'s own warrior body and a bear with no row are not in it');
+  assert.deepEqual(ZONE1_BODIES, ['bear', 'boar', 'goblin', 'knight', 'pitborn', 'witch', 'wolf'], 'the Ash Frontier spawns these seven (the Cinder Bear and Ash Boar from their rows, the wolf with ?wolf); the hero\'s own warrior body is not in it');
   const files = ['goblin', 'warrior', 'boar', 'wolf'].map((k, i) => ({ name: `${k}.glb`, gzip: 1000 * (i + 1) }));
   const z = worldZones(files);
   assert.deepEqual(z.zone1.map((f: { name: string }) => f.name), ['goblin.glb', 'boar.glb', 'wolf.glb']);
