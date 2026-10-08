@@ -129,7 +129,14 @@ Remove the walkable stone room after arena fights (`src/pit/room.ts`, `sheet.ts`
 | The gate | A "Next fight" primary button on the victory screen (fits the alignment pass) | Web |
 | Bed, table, torches | Dropped | none |
 
-**Gear at the town bank (Dom, 11:4x):** the menu gear screen works anywhere for what you wear plus your pack (64 slots). At the bank, where the 1000-slot vault opens only at the Exchange (`origins/inventory/inventory.ts:178-180`), the SAME gear screen opens side by side with the vault, so you swap between vault, pack and body in one screen. One screen, two entry points; no separate bank gear UI. **Order:** build the menu gear screen and the Next-fight button first, then delete the room, so nothing is lost in between. The Auditor checks that no feature disappears. Web leads; World does the hub boards. In Web's queue right after the alignment pass. The UI/arena donor study is still running; Strategy passes any refinement.
+**Gear at the town bank (Dom, 11:4x):** the menu gear screen works anywhere for what you wear plus your pack (64 slots). At the bank, where the 1000-slot vault opens only at the Exchange (`origins/inventory/inventory.ts:178-180`), the SAME gear screen opens side by side with the vault, so you swap between vault, pack and body in one screen. One screen, two entry points; no separate bank gear UI. **Pit as a building in the town (Dom APPROVED 2026-10-08 11:5x, via Strategy):**
+1. **Remove** the Zone 1 Pit yard zone, the 9.6 m gladiator-gate tunnel and the pit-yard to exchange link (`origins/world/concord.ts:19-39`), the walk-to-gate-after-a-win step, and `#pit-fade` / `#pit-ui` (`style.css:2255-2287`). Zone 1 starts in the bank town.
+2. **The Pit becomes a physical arena building in the town:** you walk up to it and enter through its door or gate (the gate sound is cut to a one-second flourish at the door), AND there is a "Pit" entry in the menu (fight from anywhere).
+3. **A leaderboard stone next to it** (rankings, kills and PvP tables; donor patterns: the UO LadderItem and the WoC podium/ladder rows, MIT).
+4. **Rules:** you cannot enter while in combat (the ModernUO ArenaGump.cs:21 pattern); no trade or logout during a duel (the 2004Scape zone flags).
+Owners: World (building, door, stone placement, zone change), Web (menu entry, board sheet, podium), Characters (the arena building in the town kit), Backend (rankings data and the rules). Web applies Strategy's token / three-button / joystick-zone spec to every screen including these. The donor references are Strategy's, not read by Lead.
+
+**Order:** build the menu gear screen and the Next-fight button first, then delete the room, so nothing is lost in between. The Auditor checks that no feature disappears. Web leads; World does the hub boards. In Web's queue right after the alignment pass. The UI/arena donor study is still running; Strategy passes any refinement.
 
 Items not on this list wait.
 
