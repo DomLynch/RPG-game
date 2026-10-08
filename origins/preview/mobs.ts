@@ -114,8 +114,17 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     if (!spot) continue;
     out.push({ id: `opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
-  return out;
+  return levelByDistance(f, b, out);
 }
+// Risk = reward by depth (Dom): a common creature's row level is the level it has at the FAR edge; near the hero's spawn it is level 1, rising
+// linearly with the distance of its home from the spawn point. Named creatures (bosses) keep their form's level. The origin is the Zone 1 spawn
+// (spawnAmong) until the bank town is placed: then it is this one function to change. Rewards and loot already follow the resulting spec.level.
+export const LEVEL_NEAR_M = 30, LEVEL_FAR_M = 150;
+export const levelAt = (d: number, rowLevel: number): number => Math.max(1, Math.min(rowLevel, Math.round(1 + ((d - LEVEL_NEAR_M) / (LEVEL_FAR_M - LEVEL_NEAR_M)) * (rowLevel - 1))));
+const levelByDistance = (f: Frontier, b: Build, specs: MobSpec[]): MobSpec[] => {
+  const origin = spawnAmong(f, b, specs);
+  return origin ? specs.map((s) => (s.named ? s : { ...s, level: levelAt(Math.hypot(s.home.x - origin.x, s.home.z - origin.z), s.level) })) : specs;
+};
 // Which world bodies a zone spawns (the bodies the phone downloads for it): the unique `body` of its specs, sorted. check-budget reads this, so a world body
 // counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
 export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {
