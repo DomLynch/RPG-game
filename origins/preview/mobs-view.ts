@@ -11,7 +11,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
-import { gateWithBound } from './warm-gate.ts';
+import { gateWithBound, settleWithin } from './warm-gate.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -112,6 +112,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     finally { target.dispose(); proxy.dispose(); }
   }
   const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
+  let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate
   async function pump() {   // one compileAsync in flight at a time (three 0.186's compileAsync has a disposal race under concurrency in Claudecraft's vendored patch); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
     if (pumping) return; pumping = true;
     try {
@@ -120,11 +121,11 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const kind = [...pending.keys()].sort((x, y) => kindDist(x) - kindDist(y))[0]!, body = pending.get(kind)!; pending.delete(kind);
         const g = await gateWithBound(kind, warmKind(kind, body), WARM_BOUND_MS);
         warmed.add(kind);   // revealed: warmed, failed or past the bound (logged by the gate)
-        if (g.result === 'late') await g.settled;   // still one compile in flight
+        if (g.result === 'late' && !(await settleWithin(kind, g.settled, WARM_BOUND_MS))) { ungated = true; for (const k of pending.keys()) warmed.add(k); pending.clear(); }   // still one compile in flight, but only for one more bound: a compile that never settles must not leave the rest of the zone a capsule (they are revealed ungated, as on trunk, and logged)
       }
     } finally { pumping = false; }
   }
-  const queueWarm = (kind: string, body: { scene: THREE.Object3D }) => { pending.set(kind, body); void pump(); };
+  const queueWarm = (kind: string, body: { scene: THREE.Object3D }) => { if (ungated) { warmed.add(kind); return; } pending.set(kind, body); void pump(); };
   const revealed = (kind: string) => !gate || warmed.has(kind);
 
   const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
