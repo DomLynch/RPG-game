@@ -114,9 +114,10 @@ const poseBodies = (pose: DuelPose): [State, State] => {
   const { hero, foe, heroFacing } = pose;
   for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || M.hypot(p.x, p.z) > RADIUS) throw RangeError('Duel pose: a fighter must start inside the wall');
   if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
+  const facing = heroFacing > Math.PI || heroFacing <= -Math.PI ? wrapAngle(heroFacing) : heroFacing;
   const gap = M.hypot(hero.x - foe.x, hero.z - foe.z);
   if (gap <= .85) throw RangeError('Duel pose: the fighters start inside each other');
-  return [{ x: hero.x, z: hero.z, heading: wrapAngle(heroFacing), distance: 0 }, { x: foe.x, z: foe.z, heading: wrapAngle(heroFacing + Math.PI), distance: 0 }];
+  return [{ x: hero.x, z: hero.z, heading: facing, distance: 0 }, { x: foe.x, z: foe.z, heading: facing > 0 ? facing - Math.PI : facing + Math.PI, distance: 0 }];   // no sin/cos round trip: the marks' own pi and 0 come back exactly
 };
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, pose?: DuelPose): Duel => {
   const [hero, foe] = pose ? poseBodies(pose) : [initialState(), { ...initialTarget(), heading: 0, distance: 0 }];
