@@ -1,5 +1,7 @@
 # Frankendom: Origins
 
+**What Frankendom is (Dom, 2026-10-08, standing):** an MMO, and always has been. ONE always-on shared world for thousands of players, server-run, that never stops or freezes for a fight. The duel Pit is the starting zone and stays a headline feature; around it is the open world with open PvP (flag on/off) and NPCs/creatures that are each hostile or not (a flag). The ladder is 50 levels (Origin I–V). Details: docs/SCOPE.md.
+
 ## Account recovery slice — owner-authorized 2026-09-19
 Optional Google sign-in and Supabase account saves live inside Field Journal on mobile and desktop. Guest practice
 starts without login or a network dependency. First slice saves fighter name and selected encounter explicitly;
