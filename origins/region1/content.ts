@@ -60,8 +60,11 @@ export const LOOT_TABLES = [
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
   // The Ash Wolf's table is a placeholder (a preview-only creature until Content cites it and rules its drops): the same grave iron the other mobs give.
   table('loottable:ash-wolf', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 20, quantity: 1, levelMin: null, levelMax: null }])], null),
-  // PLACEHOLDER (Characters 2026-10-08): the wolf's shape, not a ruling. Backend owns animal loot (Dom's animal rule: small, materials/bronze/a rare common item); this table must not merge until they rule it.
-  table('loottable:cinder-bear', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 20, quantity: 1, levelMin: null, levelMax: null }])], null),
+  // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
+  table('loottable:cinder-bear', 'collect', [
+    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 2, max: 8 }),
   table('loottable:mere-brood', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 30, quantity: 1, levelMin: null, levelMax: null }])], null),
   table('loottable:court-thrall', 'take-one', [weighted(25, [
     gearEntry('item:frontier.thrall-gloves', 50), gearEntry('item:frontier.ferryman-boots', 30), gearEntry('item:frontier.watch-greaves', 20),
