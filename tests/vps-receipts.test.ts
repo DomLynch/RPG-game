@@ -36,9 +36,7 @@ test('nothing is trusted for another tree, a failed or dirty build, a failed row
   assert.ok(!trustedFromVps(edited, tree, commands, source, sums).includes(base[0]));
 });
 
-test('deploy.sh applies the VPS receipts before the Mac rows, opt-in', () => {
-  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  assert.ok(deploy.indexOf('vps_receipts_apply') < deploy.indexOf('node scripts/release-checks.mjs'));
+test('the VPS receipt steps are opt-in (their order in deploy.sh and their behaviour: tests/vps-receipts-guards.test.ts)', () => {
   assert.match(readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), /DEPLOY_VPS_RECEIPTS:-\}" == on/);
 });
 
@@ -85,9 +83,7 @@ test('the unit-suite receipt needs this tree, zero failures, a known flavor and 
   assert.equal(unitReceiptOk(unit(), tree, {}), false);
 });
 
-test('deploy.sh takes the unit-suite receipt branch before the CI/Mac gates, and the producers name flavor + checksums', () => {
-  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  assert.ok(deploy.indexOf('vps_unit_receipt_ok') < deploy.indexOf('quality_green "$revision"') + 5000 && deploy.indexOf('vps_unit=') < deploy.indexOf('npm run quality\n'));
+test('the producers name flavor + checksums (the unit branch order in deploy.sh: tests/vps-receipts-guards.test.ts)', () => {
   assert.match(readFileSync('scripts/vps-shadow/rows-json.mjs', 'utf8'), /flavor: process\.env\.SHADOW_FLAVOR/);
   assert.match(readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8'), /"run-unit\.sh": c\.createHash/);
 });
