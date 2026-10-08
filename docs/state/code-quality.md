@@ -1,5 +1,11 @@
 # Code quality lane (Auditor)
 
+## 2026-10-08 ~17:0x (+04) — HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-08g` (and 08f below)
+
+**Now.** **#1857 S1 @d9684d721 + #1858 S2 @db81be8ea: reviewed, verdict NOT posted yet.** Strategy ruled them GO without the <100 ms gate; my PASS naming both heads is the last gate. Merges verified clean (remerge-diff empty; S1 = 95f2ab3d7 + trunk merge; S2 = d50ee15fd + d9684d721). Code: no blocker. LOWs: world camera overrides the finisher camera; degenerate lookAt if hero and foe overlap. Pictures: place line kept, no title/Fight gate/Leave, same distance; hero x 39 % (+0.3), 43–45 % (+2.5), **29–32 % at +1 s** on both engines (framing Strategy approved at 764014d3d; named, not held). S1's +0.3 WebKit still swings through the arena (fixed by S2), so **S1 and S2 ship in the same fold**. Suite/tsc/build on HF: jobs `6ac78e11df2184ac91ad02bd` (#1857) and `6ac78e12e7a0dae8a2788981` (#1858); read them, check want==HEAD, then post.
+
+**Queue after.** #1835 @a769403f9 (row-52 retry delta) · #1818 delta PRE @338ca62e · **#1859 @a2a570319** (wolves live; waits on Backend's independent(60)→50) · #1845 @4ae681785 (groundY + kit v3 from trunk) · 0009 after #1805 · #1787. **Writer install:** one PRE/GO/POST at the trunk sha with #1852 + #1859 merged, after #1856 is live (else #1852 alone first); the PRE names the final merge sha from Backend.
+
 ## 2026-10-08 ~16:4x (+04) — HANDOFF before self-clear (context ~575k, COO's request). READ FIRST, then memory `frankendom_handoff_2026-10-08f`
 
 **Now.** Live was 82fb4145 at my last read, with trunk ahead (fold 13 7beb748e → 38ce210b; Lead reports fold 17 = #1853 + #1847 + #1855 next). Prod: **0012 POST PASS** (#1821) and **0007 boar POST PASS** (#1778; writer was on 7beb748e). Every verdict below is on its thread and names its sha. My heavy runs go on HF CPU (`hf jobs run --flavor cpu-upgrade node:22`, **apt install libjpeg-turbo-progs first**, write the sha into the script; zsh doesn't split `set -- $spec`), never the VPS.
