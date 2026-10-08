@@ -6,7 +6,7 @@ For Dom. Source of the requirement: `docs/TOP10.md` "Remove the Pit holding cell
 
 | Piece | Node | Size (m, w x d x h) | Tris | What it is |
 |---|---|---|---|---|
-| Pit arena | `pit_arena_a` | 12.1 x 12.5 x 5.4 | 528 | A twelve-sided stone drum open to the sky: low wall ring, three window bays, sand floor stepped down inside. Reads as a small colosseum from the road. |
+| Pit arena | `pit_arena_a` | 12.1 x 12.5 x 5.4 | 528 | A twelve-sided stone drum open to the sky: a thick wall ring with window bays, sand floor stepped down inside. Reads as a small colosseum from the road. |
 | Pit gate | `pit_gate_a` | 3.3 x 1.0 x 4.5 | 156 | Stone arch with a barred gate and a brass plaque. The walk-up entrance: the gate flourish (the one-second sound) belongs here. Two red banner poles flank it. |
 | Leaderboard stone | `leaderboard_stone_a` | 1.9 x 3.1 x 1.4 base | 174 | A tall stone on a stepped plinth with a brass title plate and **ten dark rows**: `anchor_row_01..10` are empty children, one per row, for Web's ranking text (kills, PvP, ladder). |
 
@@ -20,9 +20,9 @@ Total 858 tris for all three (the whole kit is 28 pieces / 2,907 tris / 31,681 B
 
 ## How it answers the four points
 
-1. **Physical building you walk up to:** the drum is walk-around scale (a hero is 1.84 m, the wall ring about 3 m, open top 5.4 m); the gate arch is the door. No interior room: the old holding cell is deleted, fights happen as they do now.
+1. **Physical building you walk up to:** the drum is walk-around scale (12 m across, 5.4 m tall, a hero is 1.84 m); the gate arch is the door. No interior room: the old holding cell is deleted, fights happen as they do now.
 2. **Menu entry as well:** nothing in the model; Web's.
-3. **Stone next to it:** placed beside the gate at the road side (the render shows it 3 m off the right pillar); ten rows, one title plate.
+3. **Stone next to it:** a separate piece placed beside the gate (the renders show it just to the right of the right-hand banner pole); ten rows, one title plate.
 4. **Rules (no entry in combat, no trade or logout in a duel):** Backend / World logic, not geometry.
 
 ## What is not done (honest list)
