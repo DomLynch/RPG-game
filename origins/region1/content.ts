@@ -60,8 +60,11 @@ export const LOOT_TABLES = [
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
   // The Ash Wolf's table is a placeholder (a preview-only creature until Content cites it and rules its drops): the same grave iron the other mobs give.
   table('loottable:ash-wolf', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 20, quantity: 1, levelMin: null, levelMax: null }])], null),
-  // The Ash Boar (Backend's ruling, 2026-10-08, Dom's animal rule): grave iron on about half the kills, a common Frontier helm every kill.
-  table('loottable:ash-boar', 'collect', [independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]), independent(100, [gearEntry('item:frontier.ash-helm', 1)])], { min: 1, max: 5 }),
+  // The Ash Boar's table (Backend 2026-10-08): a lone uncommon beast, level 13-14, a little richer than a scavenger camp's single kill; Frontier gear only.
+  table('loottable:ash-boar', 'collect', [
+    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 3), gearEntry('item:frontier.watch-greaves', 3)]),
+  ], { min: 5, max: 15 }),
   table('loottable:mere-brood', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 30, quantity: 1, levelMin: null, levelMax: null }])], null),
   table('loottable:court-thrall', 'take-one', [weighted(25, [
     gearEntry('item:frontier.thrall-gloves', 50), gearEntry('item:frontier.ferryman-boots', 30), gearEntry('item:frontier.watch-greaves', 20),
