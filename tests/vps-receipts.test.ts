@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
-import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
+import { SLOW_ROWS, hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -211,4 +211,18 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));
   assert.ok(!/vps-shadow-rows\.sh/.test(lib), 'the old ssh fetch is gone');
   assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
+});
+
+test('launch.mjs refuses the slow rows on cpu-upgrade (a shard with one loses everything to the job timeout) but lets t4-medium carry them', () => {
+  assert.deepEqual(SLOW_ROWS, [5, 7, 9, 13, 16, 21, 28, 34, 36]);
+  for (const row of SLOW_ROWS) assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', `30,${row}`), /slow rows/, `row ${row}`);
+  assert.ok(hfArgs('rows', sha, 'cpu-upgrade', '30,31,33').includes('ROWS_ONLY=30,31,33'));
+  assert.ok(hfArgs('rows', sha, 't4-medium', '5,7,16').includes('ROWS_ONLY=5,7,16'), 'the t4-medium trial');
+  assert.equal(hfArgs('rows', sha).includes('node:22'), true, 'the image is JOB_IMAGE');
+});
+
+test('the runners show their evidence in the job log: rows tee the per-row lines (keeping the release-checks exit code), the unit runner prints the failing tests', () => {
+  const rowsSh = readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), unitSh = readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8');
+  assert.match(rowsSh, /release-checks\.mjs 2>&1 \| tee "\$run\/rows\.log"; rows_status=\$\{PIPESTATUS\[0\]\}/);
+  assert.match(unitSh, /grep -E '\^not ok' "\$run\/unit\.log" \| grep -v '# TODO' \| head -20/);
 });
