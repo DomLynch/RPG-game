@@ -14,7 +14,7 @@ import { act, arena, idle, W } from './strategies.ts';
 test('the stance table is Dom\'s: every delta, per mille, and nothing else', () => {
   assert.deepEqual(STANCES, {
     aggressive: { damage: 50, posture: 100, block: 100 },
-    defensive: { damage: -50, block: -150, recover: 250, window: 250, counter: 250 },
+    defensive: { damage: -50, block: -60, window: 250, counter: 250 },
     trickster: { heavyDamage: -50, feint: -500, kickPosture: 500 },
   });
   assert.deepEqual([...PICKS], ['neutral', 'aggressive', 'defensive', 'trickster']);
@@ -22,7 +22,7 @@ test('the stance table is Dom\'s: every delta, per mille, and nothing else', () 
 
 test('stanced() leaves a stance-less fighter\'s number untouched (no float drift) and scales a stanced one by its delta', () => {
   assert.equal(stanced({}, 'damage', 18), 18); assert.equal(stanced({ stance: 'trickster' }, 'damage', 18), 18, 'a key the stance does not name is untouched');
-  assert.equal(stanced({ stance: 'aggressive' }, 'damage', 20), 21); assert.equal(stanced({ stance: 'defensive' }, 'block', 40), 34); assert.equal(stanced({ stance: 'trickster' }, 'feint', 10), 5);
+  assert.equal(stanced({ stance: 'aggressive' }, 'damage', 20), 21); assert.equal(stanced({ stance: 'defensive' }, 'block', 40), 37.6); assert.equal(stanced({ stance: 'trickster' }, 'feint', 10), 5);
 });
 
 // The player starts with the sword drawn and throws one heavy; the opponent stands (or guards the overhead). The first Hit / Blocked is the blow under test.

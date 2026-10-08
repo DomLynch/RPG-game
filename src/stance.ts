@@ -9,7 +9,7 @@ export const PICKS: readonly PickedStance[] = ['neutral', 'aggressive', 'defensi
 export type StanceKey = 'damage' | 'heavyDamage' | 'posture' | 'kickPosture' | 'block' | 'feint' | 'recover' | 'window' | 'counter';
 export const STANCES: Readonly<Record<StanceId, Readonly<Partial<Record<StanceKey, number>>>>> = {
   aggressive: { damage: 50, posture: 100, block: 100 },   // +5% damage, +10% posture dealt; blocks cost 10% more stamina. Beats the Trickster
-  defensive: { damage: -50, block: -150, recover: 250, window: 250, counter: 250 },   // -5% damage; blocks cost 15% less stamina, posture drains 25% faster (Dom: "faster", no figure); the parry window and the guard-counter window a quarter longer (~4 ticks: Strategy's state-conditional counter, attack spam gets punished). Beats the Aggressive
+  defensive: { damage: -50, block: -60, window: 250, counter: 250 },   // RV40 trim (Strategy 2026-10-08, scripts/defensive-trim.mjs: it lifted the ladder win rate +8 to +11 at L6+, now within +5 of no stance): -5% damage; blocks cost 6% less stamina (Dom's table said 15%) and the posture-drain perk (was recover 250) is gone; the parry window and the guard-counter window a quarter longer (~4 ticks: Strategy's state-conditional counter, attack spam gets punished). Beats the Aggressive
   trickster: { heavyDamage: -50, feint: -500, kickPosture: 500 },   // -5% damage on heavies; feints cost half, a kick against a HELD guard deals 50% more posture, and only then (Strategy's state-conditional counter: guarding is the weak spot against a trickster). Beats the Defensive
 };
 export const stanced = (f: { stance?: StanceId }, key: StanceKey, x: number): number => { const d = f.stance && STANCES[f.stance][key]; return d ? (x * (1000 + d)) / 1000 : x; };
