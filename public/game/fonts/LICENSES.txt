@@ -6,6 +6,9 @@ Copyright 2015 The Cormorant Project Authors (https://github.com/CatharsisFonts/
 == Cinzel (cinzel.woff2) — https://github.com/NDISCOVER/Cinzel
 Copyright 2020 The Cinzel Project Authors (https://github.com/NDISCOVER/Cinzel)
 
+== Alegreya Sans (alegreya-sans-400.woff2, alegreya-sans-700.woff2, Latin subset) — https://github.com/huertatipografica/Alegreya-Sans
+Copyright 2013 The Alegreya Sans Project Authors (https://github.com/huertatipografica/Alegreya-Sans)
+
 == Instrument Sans (instrument.woff2) — https://github.com/Instrument/instrument-sans
 Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
 

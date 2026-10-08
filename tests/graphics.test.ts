@@ -2211,7 +2211,7 @@ test('actual main new-form legacy Miasma remains SKILL and explicit preset off; 
 // layout, the stylesheet side effect, monitoring); anything else that appears must be registered, e.g. `modules['./x.ts'] = x;` beside the others.
 test('every src module main.ts imports is registered in the harness (a new import names itself here)', () => {
   unstubbed.clear(); boot();
-  const known = ['./arena.ts', './gate-light.ts', './gate-rise.ts', './monitoring.ts', './style.css'];
+  const known = ['./arena.ts', './gate-light.ts', './gate-rise.ts', './monitoring.ts', './style.css', './tokens.css'];
   const fresh = [...unstubbed].filter((id) => id.startsWith('.') && !known.includes(id)).sort();
   assert.deepEqual(fresh, [], `main.ts imports ${fresh.join(', ')} but tests/graphics.test.ts does not register ${fresh.length === 1 ? 'it' : 'them'} in \`modules\` (boot), so the actual-main tests boot with ${fresh.length === 1 ? 'it' : 'them'} stubbed to {}: add \`modules['<path>'] = <import>;\` beside the others`);
   assert.deepEqual([...unstubbed].filter((id) => id.startsWith('.')).sort(), known, 'a known gap was closed: remove it from `known` so the list stays exact');

@@ -19,6 +19,7 @@ import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
+import './tokens.css';   // design tokens first (docs/DESIGN.md), then the page rules that read them
 import './style.css';
 import { PLAY_SCALE, STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
