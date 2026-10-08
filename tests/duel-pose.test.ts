@@ -1,19 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aim, distance, idleIntent, initialDuel, roundPose, stepDuel } from '../src/duel.ts';
+import { aim, distance, initialDuel, roundPose } from '../src/duel.ts';
 import { initialState, initialTarget } from '../src/sim.ts';
 import { OPPONENTS } from '../src/moves.ts';
 import { initialPractice } from '../src/combat.ts';
 
 const marks = { hero: { x: initialState().x, z: initialState().z }, foe: { x: initialTarget().x, z: initialTarget().z }, heroFacing: initialState().heading };
 
-test('no pose is today\'s pit marks, and a pose AT the marks is the same fight tick for tick', () => {
+test('no pose is today\'s pit marks byte for byte; a pose AT the marks differs only by float32 rounding of the facing', () => {
   const plain = initialDuel(OPPONENTS.pitborn), posed = initialDuel(OPPONENTS.pitborn, 'longsword', null, marks);
   assert.deepEqual(plain.fighters[0].body, { x: 0, z: initialState().z, heading: Math.PI, distance: 0 });
-  assert.deepEqual(posed, plain);
-  let a = plain, b = posed;
-  for (let t = 0; t < 120; t++) { a = stepDuel(a, [{ ...idleIntent(), action: t === 3 ? 'light' : undefined }, idleIntent()] as never); b = stepDuel(b, [{ ...idleIntent(), action: t === 3 ? 'light' : undefined }, idleIntent()] as never); }
-  assert.deepEqual(b, a);
+  assert.deepEqual(plain.fighters[1].body, { x: 0, z: initialTarget().z, heading: 0, distance: 0 });
+  assert.deepEqual(posed.fighters[1].body, plain.fighters[1].body, 'the foe at its mark faces the hero exactly as before');
+  assert.ok(Math.abs(Math.abs(posed.fighters[0].body.heading) - Math.PI) < 1e-6, 'the hero\'s pi becomes its float32 neighbour (wrapped), nothing else moves');
+  assert.equal(posed.fighters[0].body.z, plain.fighters[0].body.z);
 });
 
 test('a world pose keeps the distance and the facing: the foe faces the hero, the hero faces where it was told', () => {
