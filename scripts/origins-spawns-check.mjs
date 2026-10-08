@@ -145,8 +145,8 @@ try {
     psql(`select md5(row_to_json(c)::text) from public.origins_career c where account = '${B}'`) + '/' + psql(`select count(*) from public.origins_events`);
   const careerA = () => psql(`select world_credit || '/' || seed_credit || '/' || version from public.origins_career where account = '${A}'`);
   const pre = { others: others(), career: careerA(), bronze: psql(`select bronze from public.origins_metal where account = '${A}'`) };
-  eq(await code(V, `select public.origins_beta_wipe();`), 'permission denied', 'wipe: the verifier role cannot run it');
-  eq(await code(O, `select public.origins_beta_wipe();`), 'permission denied', 'wipe: the origins role cannot run it');
+  eq(await code(V, `select public.origins_beta_wipe();`), '42501', 'wipe: the verifier role cannot run it');
+  eq(await code(O, `select public.origins_beta_wipe();`), '42501', 'wipe: the origins role cannot run it');
   const w1 = JSON.parse(psql(`select public.origins_beta_wipe()::text`));
   eq([w1.items_burned, w1.items_skipped, w1.bronze_reversed, w1.cp_reversed, w1.rows], [1, 0, 7, 30, 2], 'wipe: one item, 7 bronze, 30 CP, both ledger rows of A');
   eq(psql(`select retire_reason from public.origins_items where id = 'it-beta-1'`), 'burn', 'wipe: the beta item is retired as a burn');
