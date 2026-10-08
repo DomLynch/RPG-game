@@ -32,6 +32,7 @@ for (let run = 0; run < N; run++) {
     await page.evaluate(() => { window.__idle = []; let last = performance.now(); const tick = (n) => { window.__idle.push([n, n - last]); last = n; if (window.__idle.length > 400) window.__idle.shift(); requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
     for (let i = 0; i < 90; i++) { await page.waitForTimeout(1000); const ok = await page.evaluate(() => { const n = performance.now(); return window.__idle.filter(([a]) => a > n - 3000).every(([, g]) => g < 100) && window.__idle.some(([a]) => a > n - 3000); }); if (ok && i >= 8) { res.idleAfterS = i + 1; break; } }
     res.hero0 = (await page.evaluate(() => window.originsPreview.combat())).hero.health;
+    await page.screenshot({ path: `${OUT}/run${run + 1}-idle.png` }).catch(() => {});   // the 375 still before the walk: a capsule standing in for a creature must not be visible in normal play (#1919)
     // logs START now, >= 1 s before the walk
     await page.evaluate(() => { window.__t0 = performance.now(); window.__long = []; window.__gaps = []; let last = performance.now(); const tick = (n) => { window.__gaps.push([Math.round(n - window.__t0), Math.round(n - last)]); last = n; requestAnimationFrame(tick); }; requestAnimationFrame(tick); new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__long.push([Math.round(e.startTime - window.__t0), Math.round(e.duration)]); }).observe({ type: 'longtask', buffered: false }); });
     const cdp = await ctx.newCDPSession(page); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start');
@@ -56,7 +57,7 @@ for (let run = 0; run < N; run++) {
     profile.samples.forEach((id, i) => { const cf = nodes.get(id).callFrame, k = `${cf.functionName || '(anon)'} ${cf.url.split('/').slice(-2).join('/')}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0) / 1000); });
     res.topSelfMs = [...self.entries()].sort((a, b) => b[1] - a[1]).filter(([k]) => !/^\((idle)\)/.test(k)).slice(0, 10).map(([k, v]) => [k, Math.round(v)]);
     res.hero1 = (await page.evaluate(() => window.originsPreview.combat())).hero.health;
-    await page.screenshot({ path: `${OUT}/run${run + 1}.png` }).catch(() => {});
+    await page.screenshot({ path: `${OUT}/run${run + 1}-engaged.png` }).catch(() => {});
   } catch (e) { res.fail = String(e).slice(0, 300); }
   await ctx.close(); results.push(res); console.log(JSON.stringify(res));
 }
