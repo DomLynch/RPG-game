@@ -255,6 +255,23 @@
   "named": false
  },
  {
+  "id": "bears-1",
+  "character": "character:cinder-bear",
+  "name": "Cinder bear",
+  "encounter": null,
+  "body": "bear",
+  "level": 13,
+  "zone": "blood-ruin",
+  "spawn": "bears",
+  "home": {
+   "x": -274.64479556791787,
+   "z": -103.75317339989999
+  },
+  "roam": 6,
+  "aggro": 8,
+  "named": false
+ },
+ {
   "id": "opener-ferry-landing-1",
   "character": "character:mere-brood",
   "name": "Mere brood",
@@ -264,8 +281,8 @@
   "zone": "ferry-landing",
   "spawn": "opener",
   "home": {
-   "x": -156.35860600498634,
-   "z": -59.52660108684306
+   "x": -156.22086009083844,
+   "z": -32.29119159367335
   },
   "roam": 6,
   "aggro": 7,
@@ -281,8 +298,8 @@
   "zone": "cinder-fields",
   "spawn": "opener",
   "home": {
-   "x": -66.22086009083846,
-   "z": 47.70880840632668
+   "x": -50.70507073774435,
+   "z": 7.195910352862118
   },
   "roam": 8,
   "aggro": 7,

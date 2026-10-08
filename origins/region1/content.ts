@@ -227,7 +227,6 @@ export const REGIONS = [
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
       spawn('scavengers', 'ash-pits', null, ['character:cinder-scavenger']),
       spawn('wolves', 'hold-road', null, ['character:ash-wolf']),   // inert until a preview adds the wolf's mob row (origins/preview/mobs.ts previewRows ?wolf)
-      spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),
       spawn('brood', 'reed-bank', null, ['character:mere-brood']),
       spawn('ghouls', 'causeway-end', null, ['character:ruin-ghoul']),
       spawn('hold-ruler', 'hold-hall', null, ['character:warden-brannoc']),
@@ -237,6 +236,7 @@ export const REGIONS = [
       spawn('end-ruler', 'end-hall', null, ['character:reeve-osk']),
       spawn('end-steward', 'end-hall', null, ['character:steward-mere']),
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
+      spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
