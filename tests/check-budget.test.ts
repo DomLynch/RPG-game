@@ -384,8 +384,8 @@ test('world bodies: Zone 1\'s set is the bodies its rows spawn, read from the zo
   assert.deepEqual(ZONE1_BODIES, ['goblin', 'knight', 'pitborn', 'witch', 'wolf'], 'the Ash Frontier spawns these five (with ?wolf); the hero\'s own warrior body and a boar or bear with no row are not in it');
   const files = ['goblin', 'warrior', 'boar', 'wolf'].map((k, i) => ({ name: `${k}.glb`, gzip: 1000 * (i + 1) }));
   const z = worldZones(files);
-  assert.deepEqual(z.zone1.map((f) => f.name), ['goblin.glb', 'wolf.glb']);
+  assert.deepEqual(z.zone1.map((f: { name: string }) => f.name), ['goblin.glb', 'wolf.glb']);
   assert.equal(z.zone1Gzip, 1000 + 4000);
   assert.deepEqual(z.unassigned, ['warrior.glb', 'boar.glb'], 'not spawned by a zone yet: out of every zone\'s set');
-  assert.deepEqual(worldZones(files, [...ZONE1_BODIES, 'boar']).zone1.map((f) => f.name), ['goblin.glb', 'boar.glb', 'wolf.glb'], 'a row that spawns the boar in Zone 1 puts it in the set');
+  assert.deepEqual(worldZones(files, [...ZONE1_BODIES, 'boar']).zone1.map((f: { name: string }) => f.name), ['goblin.glb', 'boar.glb', 'wolf.glb'], 'a row that spawns the boar in Zone 1 puts it in the set');
 });
