@@ -24,10 +24,13 @@ export const COACH_FIXED: readonly (keyof AiProfile)[] = ['reaction', 'tellReact
 // matchup, 35-45 % in a bad one, so the lapse (the share of cuts the coach does not answer) moves by foe, added to the stance's own. A foe not listed adds nothing. Only lapse moves: reaction, tell reaction, anticipate, accuracy and
 // discipline stay the warden's own (COACH_FIXED), so the coach is never faster than the foe's eye.
 export const FOE_LAPSE: Readonly<Record<string, number>> = { goblin: 0.15, nightborn: 0.08, executioner: 0.2, dwarf: 0.25, knight: 0.18, shieldmaiden: 0.08, plaguedoctor: -0.1 };
+// The first n=100 table showed the stances answer lapse very differently: the defensive brain (it lives on its answers) fell from 62 % to 42 % against the Executioner on +0.2, while the aggressive one barely moved (99 % -> 93 %). So the
+// per-foe amount is scaled by how much each stance leans on answering.
+export const FOE_LAPSE_SCALE: Readonly<Record<PickedStance, number>> = { neutral: 1, aggressive: 1.8, defensive: 0.35, trickster: 0.8 };
 const LAPSE_MIN = 0.1, LAPSE_MAX = 0.85;
 export const coachProfile = (stance: PickedStance, level: Level = 'normal', foe?: string): AiProfile => {
   const p = { ...PROFILES[level], ...COACH_BRAINS[stance] }, add = foe ? FOE_LAPSE[foe] : undefined;
-  return add ? { ...p, lapse: Math.min(LAPSE_MAX, Math.max(LAPSE_MIN, p.lapse + add)) } : p;
+  return add ? { ...p, lapse: Math.min(LAPSE_MAX, Math.max(LAPSE_MIN, p.lapse + add * FOE_LAPSE_SCALE[stance])) } : p;
 };
 
 export type Coach = { stance: PickedStance; level: Level; step(duel: Duel): Intent };
