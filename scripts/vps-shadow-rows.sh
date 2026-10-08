@@ -31,10 +31,8 @@ status() {
 fetch() {
   local dest="artifacts/vps-shadow/$full"
   mkdir -p "$dest"
-  # The unit-suite receipt first, and a missing row run is not fatal: a unit-only sha has no runs/<sha>/latest/, and under set -e the
-  # rows copy used to end the script before unit.json was fetched (Auditor M2 on #1916; the Mac then always ran its own suite).
+  rsync -az -e "ssh ${ssh_options[*]}" "$host:$home/runs/$full/latest/" "$dest/"
   rsync -az -e "ssh ${ssh_options[*]}" "$host:$home/runs/$full/unit.json" "$dest/" 2>/dev/null || true   # the unit-suite receipt, when one exists
-  rsync -az -e "ssh ${ssh_options[*]}" "$host:$home/runs/$full/latest/" "$dest/" 2>/dev/null || { echo "fetched $dest: no row run for $full on the VPS (unit.json: $([[ -f "$dest/unit.json" ]] && echo yes || echo no))"; return 0; }
   [[ -f "$dest/rows.json" ]] || { echo "fetched $dest, but no rows.json: the run is not finished (status: $(cat "$dest/status" 2>/dev/null || echo unknown))"; return 0; }
   echo "fetched -> $dest/rows.json"
   node -e 'const r=require(process.argv[1]);console.log(`VPS ${r.sha.slice(0,8)} build=${r.buildStatus} rows=${r.rowsStatus} wall=${r.wall}s rows_wall=${r.rowsWallSeconds}s`, JSON.stringify(r.summary))' "$PWD/$dest/rows.json"
