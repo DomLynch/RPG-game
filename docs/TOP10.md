@@ -101,6 +101,15 @@ Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to
 
 **B. Day and night (corrected, Dom 2026-10-08 10:5x: mobile = shorter).** ONE game day = 100 real minutes (`ambience.dayNightSpeed` = 14.4, where 1 = real time), not a real 24-hour clock. Why 100 and not 90, 120, 180 or 240: those divide 24 hours evenly, so a player who always plays at 8 pm would always meet the same phase (permanent night for one country). 100 minutes gives 14.4 game days per real day, so the phase moves about 9.6 game hours each real day and every time zone cycles through day, dusk and night within a few days. Night (22:00-06:00 game time, townsfolk asleep) is about 33 real minutes. One server clock for everyone, no daylight saving, plus a sky/fog/light gradient by game hour and a `night` flag on spawn rows so vampires and werewolves can be night-only later. Night-only content is always extra, never required; the bank and the night trader stay open. Owner: World, together with the Zone 1 sky work.
 
+## UI alignment pass — TOP PRIORITY for Web (Dom, 2026-10-08 11:1x, via Strategy)
+
+Dom sees Web as empty and the UI as poor from the Pit through Zone 1 (his phone stills: Pit end screen buttons overlap the joystick, LINK/CLIP float, four button styles). Web's queue, in order:
+
+1. **Alignment pass on the Pit end screen and the take screen at 375 wide:** one button style, one grid, nothing over the joystick, before/after stills at 375 (visual-PR rule).
+2. **Then the Zone 1 UI rows:** the town screen in the menu, Talk/Trade, the bank screen, the take screen for world boss loot (reuse `src/loot-panel.ts`), the rankings board, the collection book, the Coach (#1746 / Web's #1790).
+
+Web's queue must never run empty: Lead keeps it full from the rows above and the four features and town plan sections.
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
