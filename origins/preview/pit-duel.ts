@@ -179,6 +179,11 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
   mount.holder.matrixWorldNeedsUpdate = true;
 }
 
+// ?worldfight, seamless combat: build (and so warm: createScene compiles its shaders) the world-mounted stage for a creature BEFORE its tap, so the engage reuses it (stageFor's same-opponent rule).
+export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel): void {
+  if (opponent in OPPONENTS) stageFor(host, opponent as OpponentId, level, mount);
+}
+
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
 export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);

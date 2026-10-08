@@ -305,7 +305,7 @@ const walkLoop = () => {
     mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
   }
-  step(dt); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); warmFight(time); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -468,6 +468,15 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
   };
 }
 // The fight's chunks (the duel, the hunt, the encounter) are fetched when the Frontier's creatures come in, in an idle moment, not at the tap: the first engage no longer waits on three imports (Dom 2026-10-08, seamless combat).
+let warmAt = -Infinity;
+const WARM_M = 14;   // a creature this near is the likely next fight: its stage is built now, not at the tap
+function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
+  if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 2) return;
+  const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) return;
+  const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
+  warmAt = time; const o = run.value.setup.opponent;
+  duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }));
+}
 function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
   idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
