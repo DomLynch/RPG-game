@@ -10,7 +10,7 @@ import witchUrl from '../../src/assets/witch.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobClipName, type MobRole } from './mob-clips.ts';
+import { attackTimeScale, mobClipName, type MobRole } from './mob-clips.ts';
 import { mobVariant } from './mob-looks.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
@@ -59,7 +59,7 @@ export type Mobs = {
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
   nearest(x: number, z: number, within: number): MobPick | null;
   within(x: number, z: number, r: number): MobPick[];   // every drawn creature inside r metres
-  play(id: string, role: MobRole): number;   // a combat event's clip (attack = Bite / Attack, hit = Hurt / Hit, death = Death, held): plays once over the gait and returns its length in seconds, or 0 when the body has no such clip (or is not loaded yet) and World's procedural lunge / pulse / fall stands in
+  play(id: string, role: MobRole, windupMs?: number): number;   // a combat event's clip (attack = Bite / Attack, sped so its contact frame meets the strike at the end of `windupMs`, hit = Hurt / Hit, death = Death, held): plays once over the gait and returns its length in seconds, or 0 when the body has no such clip (or is not loaded yet) and World's procedural lunge / pulse / fall stands in
   drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
@@ -178,12 +178,13 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       return best;
     },
     within(x, z, r) { const out: MobPick[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }); } return out; },
-    play(id, role) {
+    play(id, role, windupMs) {
       const i = specs.findIndex((sp) => sp.id === id), v = i < 0 ? undefined : views.get(i), a = v?.clips[role];
       if (!v || !a || v.dead) return 0;
       if (v.shot && v.shot.action !== a) v.shot.action.stop();
-      a.reset().setEffectiveWeight(v.shotW).play(); v.shot = { role, action: a }; v.dead = role === 'death';
-      return a.getClip().duration;
+      const clip = a.getClip(), speed = role === 'attack' && windupMs ? attackTimeScale(clip.name, clip.duration, windupMs) : 1;
+      a.reset().setEffectiveWeight(v.shotW).setEffectiveTimeScale(speed).play(); v.shot = { role, action: a }; v.dead = role === 'death';
+      return clip.duration / speed;
     },
     drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else { driven.delete(i); const v = views.get(i); if (v && !v.dead) v.shot = undefined; } },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
