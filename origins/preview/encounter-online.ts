@@ -1,5 +1,5 @@
 // Origins: a world creature fight played on the SERVER's seed and settled with its record (origins/preview/encounter-net.ts over #1688's encounter_start/touch/settle).
-// Opt-in and additive: only `?online=1` on a page with a live Supabase session asks the writer at all. Signed out, no character yet, the flag off (the writer answers 503), a
+// On by default but additive: only a page with a live Supabase session asks the writer at all (`?online=0` turns it off). Signed out, no character yet, the flag off (the writer answers 503), a
 // foe the server resolved differently from the page, or any failure all return null and the page plays exactly as it did: its own seed, nothing settled. No DOM, storage or clock read here.
 import { STEP } from '../../src/sim.ts';
 import type { FightRecord } from '../../src/record.ts';
@@ -7,7 +7,7 @@ import type { FightSetup } from '../encounters/encounters.ts';
 import { isOffline } from './save.ts';
 import { settleFight, startFight, touchFight, type Fight } from './encounter-net.ts';
 
-export const onlineWanted = (search: string): boolean => /[?&]online=1(?:&|$)/.test(search);
+export const onlineWanted = (search: string): boolean => !/[?&]online=0(?:&|$)/.test(search);   // on by default for a signed-in player; ?online=0 is the off switch (QA and offline play)
 export const RETRY_AFTER_MS = [5_000, 15_000];   // a settle that could not reach the server (network, timeout, 5xx) is retried after these waits: the token's grace (120 s from the last touch) outlasts them
 export const TOUCH_EVERY_MS = 30_000;   // the writer's reconnect grace is 120 s: a fight that outlasts it without a touch would settle as abandoned
 export type Ended = { result: 'won' | 'lost'; record?: FightRecord | null };   // EncounterEnd (encounter-duel.ts) carries `record` once Expansion's #1708 is on trunk

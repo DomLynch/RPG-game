@@ -1,5 +1,5 @@
 // The preview's online path (encounter-online.ts): who may go online, that it plays the server's seed, the touch timer, the settle outcomes (a 409 is "already settled", never an error),
-// and a round trip against the real writer handlers. The offline path is not touched: with no ?online=1, no session or no character nothing is requested at all.
+// and a round trip against the real writer handlers. The offline path is not touched: with ?online=0, no session or no character nothing is requested at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -22,8 +22,8 @@ function server(answer: (op: string, n: number) => Response | Promise<Response>)
 }
 const ok = (op: string): Response => reply(200, { ok: true, result: op === 'encounter_settle' ? { result: 'won', verified: true, twist: null, ticks: record.ticks, event: 'enc:x' } : run });
 
-test('?online=1 is the only switch', () => {
-  for (const [search, want] of [['?online=1', true], ['?region=1&online=1', true], ['?online=1&region=1', true], ['', false], ['?online=0', false], ['?online=10', false], ['?region=1', false]] as const) assert.equal(onlineWanted(search), want, search);
+test('online is on by default; ?online=0 is the only off switch (and it needs the exact 0)', () => {
+  for (const [search, want] of [['', true], ['?region=1', true], ['?online=1', true], ['?region=1&online=1', true], ['?online=10', true], ['?online=0', false], ['?region=1&online=0', false], ['?online=0&region=1', false]] as const) assert.equal(onlineWanted(search), want, search);
 });
 
 test('signed out or no character: null, and not one request is made (the offline path is untouched)', async () => {
