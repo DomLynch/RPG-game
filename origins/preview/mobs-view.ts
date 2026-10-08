@@ -88,7 +88,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     }).catch((error: unknown) => { bodies.set(kind, 'failed'); console.warn(`${kind} body did not load; capsules stand in`, error); });
   };
 
-  const modelHeight = (m?: THREE.Object3D) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
+  const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
     const model = clone(body.scene), look = mobVariant(s.character, s.id);
     model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
