@@ -5,6 +5,15 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-08 (midday, ~11:50 +04) — HANDOFF before /clear: rewards + stances + BRONZE LIVE (writer f8632f62); #1793 next
+**READ FIRST:** the full handoff is the memory file `frankendom_backend_handoff_2026-10-08_midday.md` (lane memory). Short form:
+1. **#1793** (0006 respawn window in DB) @acd1e188: Lead's GO half posted (conditional on green CI + Auditor delta at acd1e188 + Strategy's GO); delta + Strategy GO asked. Then merge → sha to Lead → apply 0006 → reinstall → POST.
+2. **Duel hold**: Lead approved the DATABASE design per ROOM, cap 35 min (30 min record cap + 3 min forfeit + 2 margin), migration 0010; arena entry = report_duel_start (class 2 to change).
+3. Set schema → swap op → PvP-flag roll (after Combat) → save-unify note → write queue → R1.
+**Live:** writer f8632f62 since 11:33:08 (REWARDS=1); 0004 applied v20261008073128 sha 54cabcf3…9f04e; Auditor POST PASS. Prod 0 mob events (live kill checks wait on Dom's first fight).
+**Rulings:** coached fights (PvE and PvP duels/ladder/rankings) count and pay exactly like played ones: no path may read a coach flag (0 today).
+**Open PRs:** #1793, #1805 (0009), #1799, #1780 (needs presence install). Migrations: 0006 #1793, 0007 boar, 0008 bear, 0009 #1805, 0010 next free.
+
 ## 2026-10-08 (late morning, ~10:30 +04) — KILL REWARDS LIVE (writer 87b7a63b + ORIGINS_REWARDS=1), #1791 urgent, bronze next, respawn window in DB
 **READ FIRST / Now (in order):**
 1. **#1791** (stance fights verify with their pick; Auditor PRE PASS @b4b2f655, CI green): LIVE-URGENT (stances ON + REWARDS=1: a stance world fight settles as an unverified loss). Asked Lead + Strategy for the GO, Deploy to merge. Then reinstall the writer at that trunk sha (REWARDS=1 kept), one Auditor POST. Rollback: `current` → 87b7a63b.
