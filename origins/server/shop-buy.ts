@@ -6,9 +6,10 @@
 // Valuables are ONE transaction (Dom 2026-10-08 08:37): the `shop:<character>:<op>` event (carrying the receipt and the shelf after the buy), the bronze spend
 // (versioned: a stale balance aborts the batch) and the minted items commit in ONE origins_apply batch. The op id is the one-time token: an identical retry is
 // answered from the stored receipt (replayed: true), a different request under the same op id is a 409, and a racing retry (O0001) answers from what committed.
-// Beta: the shelf is per account (a global shelf needs its own table and a lock). Open hours are World's schedule; until it exists `open` says every shop is open.
+// Gear (power 'slot-weight') is minted at REGION1_LOOT_TIER, the tier a Region 1 drop carries. Beta: the shelf is per account (a global shelf needs its own table and a lock). Open hours are World's schedule; until it exists `open` says every shop is open.
 import { createHash } from 'node:crypto';
 import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
+import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
 import { receive } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../progression/model.ts';
 import { checkBuy } from '../shops/shop.ts';
@@ -72,7 +73,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     const minted: ItemInstance[] = [];
     for (const [n, q] of lines.entries()) {
       const parsed = parseItemInstance({
-        kind: 'item-instance', schemaVersion: 1, id: `inst:shop-${key.slice(0, 16)}-${n}`, item, version: 0, quantity: q, tier: null,
+        kind: 'item-instance', schemaVersion: 1, id: `inst:shop-${key.slice(0, 16)}-${n}`, item, version: 0, quantity: q, tier: def?.power === 'slot-weight' ? REGION1_LOOT_TIER : null,   // shop gear carries the Region's loot tier, as a drop does
         location: { kind: 'trade-escrow', container: 'container:shop-mint', from: character }, boundTo: null,
         provenance: { kind: 'shop', mintKey: `shop:${key}:${n}`, at, boughtBy: character, shop }, history: [],
       }, `items[${n}]`);
