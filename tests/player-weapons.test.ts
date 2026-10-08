@@ -124,7 +124,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   const before21 = (v: number) => { const b = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })), out = new Uint8Array([...b.subarray(0, skillAt + 1), ...b.subarray(skillAt + 3)]); out[2] = v; return out; };
   // RV29 (REACH[29] lists every opponent): every older stream is refused, whatever its layout. The layouts still parse up to the reach check.
   for (const v of [18, 19, 20]) assert.throws(() => unpackRecord(before21(v)), new RegExp(`^Error: Fight record: version ${v} is not supported for the goblin from level 1 .*bump 29 changed`), `a v${v} stream is refused by the RV29 reach`);
-  assert.equal(RECORD_VERSION, 38); setLateNotice(false); setStab(false);
+  assert.equal(RECORD_VERSION, 39); setLateNotice(false); setStab(false);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
