@@ -53,7 +53,7 @@ export function generateTown(seed: string, wealth: number): Town {
   };
   const free = (x: number, z: number, r: number) => lots.every((l) => Math.hypot(l.x - x, l.z - z) >= l.r + r);
   // ring 0: the civic centre, three fixed buildings 120 degrees apart round a plaza whose size follows the wealth
-  const plaza = 9 + 6 * k, civic = [['bank', 12 + 5 * k, 9 + 3 * k], ['board', 6, 4], ['rankings', 6, 4]] as const, turn = R() * Math.PI * 2;
+  const plaza = 9 + 6 * k, civic = [['bank', 12 + 5 * k, 9 + 3 * k], ['board', 6, 4], ['rankings', 6, 4]] as const, spin = R() * Math.PI * 2, third = Math.PI / 3, turn = Math.floor(spin / third) * third + (27 + (6 * (spin % third)) / third) * (Math.PI / 180);   // the three centres are 120 degrees apart, so mod 180 they sit at t, t+60, t+120 (t = turn mod 60): t in [27, 33] degrees keeps every centre 27-33 degrees off the road axis (+-z), the best any turn can do (30 is the maximin)
   civic.forEach(([kind, w, d], i) => { const a = turn + (i * Math.PI * 2) / 3; put(kind, 0, Math.sin(a) * plaza, Math.cos(a) * plaza, 0, 0, w, d); });
   // rings 1 to 3: lots packed on a circle at each ring's radius, each facing the centre, skipping a spot that would overlap
   const ring = (n: number, radius: number, kind: LotKind, ringNo: Lot['ring'], size: (i: number) => [number, number], trade?: (i: number) => string | undefined) => {

@@ -62,3 +62,11 @@ test('the road between the gate arches (the z axis, ROAD_HALF either side) is cl
     assert.ok(Math.abs(l.x) >= ROAD_HALF + l.r - 1e-9, `road${i} wealth ${w}: ${l.id} (x ${l.x.toFixed(2)}, r ${l.r.toFixed(2)}) stands on the road`);
   }
 });
+
+test('the civic centre keeps its distance from where the road meets the plaza: no bank / board / rankings centre within 25 degrees of the road axis (+-z), over many seeds and wealths', () => {
+  const ROAD_AXIS_MARGIN = (25 * Math.PI) / 180;
+  for (let i = 0; i < 100; i++) for (const w of [0, 0.5, 1]) for (const l of generateTown(`civic${i}`, w).lots.filter((q) => q.ring === 0)) {
+    const off = Math.atan2(Math.abs(l.x), Math.abs(l.z));   // angle off the nearest z axis direction, 0 = on the road
+    assert.ok(off >= ROAD_AXIS_MARGIN, `civic${i} wealth ${w}: ${l.id} stands ${(off * 180 / Math.PI).toFixed(1)} degrees off the road axis`);
+  }
+});
