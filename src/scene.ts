@@ -643,6 +643,7 @@ export function createScene(
       const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
       try { renderer.setRenderTarget(target); renderer.render(scene, camera); } catch { /* a failed warm only means the first frame compiles, as before */ } finally {
         renderer.setRenderTarget(before); target.dispose(); scene.remove(...borrowed, ...proxies);
+        for (const proxy of proxies) (proxy as THREE.InstancedMesh).isInstancedMesh && (proxy as THREE.InstancedMesh).dispose();   // the proxy's own instance buffer; geometry and material are the world's
         for (const light of borrowed) (light as THREE.Light).dispose?.();
       }
     },
