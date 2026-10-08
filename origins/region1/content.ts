@@ -58,8 +58,11 @@ export const LOOT_TABLES = [
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
-  // The Ash Wolf's table is a placeholder (a preview-only creature until Content cites it and rules its drops): the same grave iron the other mobs give.
-  table('loottable:ash-wolf', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 20, quantity: 1, levelMin: null, levelMax: null }])], null),
+  // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
+  table('loottable:ash-wolf', 'collect', [
+    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 3, max: 10 }),
   // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
   table('loottable:cinder-bear', 'collect', [
     independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
@@ -113,7 +116,7 @@ export const FOES = [
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
     null, [{ id: 'mob', opponent: 'goblin', level: 11, encounter: null }], 'cinder-scavenger'),
   figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
-    null, [{ id: 'mob', opponent: 'wolf', level: 12, encounter: null }], 'ash-wolf'),
+    null, [{ id: 'mob', opponent: 'wolf', level: 11, encounter: null }], 'ash-wolf'),
   figure('character:cinder-bear', 'Cinder bear', ORIGINAL, 'Heavy and soot-matted, it came down off the burnt moor when the herds went and takes what it finds.',
     null, [{ id: 'mob', opponent: 'bear', level: 13, encounter: null }], 'cinder-bear'),
   figure('character:ash-boar', 'Ash boar', ORIGINAL, 'Tusked and ash-streaked, it roots the verge of the hold road for what the Fracture left in the ground.',

@@ -2108,7 +2108,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#fight-rank, #reset-button, #pit-button, #share-status, .spar-end, .clip-pick {
+#fight-rank, #reset-button, #share-status, .spar-end, .clip-pick {
   transition: opacity 250ms ease-out;
 }
 /* One exemption (Lead 2026-09-27, the live CLIP receipt): while a made clip waits for SEND (main.ts clipState 'ready' sets
@@ -2117,7 +2117,6 @@ dialog .rank-seg { --rank-fill: var(--js); }
    them, and Rematch, an idle SHARE + CLIP and the sparring pair stay faded and inert through the tour as above. The precedent is PLAY NOW on a
    viewer page (main.ts `watching`). */
 :root.endgame-fade #reset-button,
-:root.endgame-fade #pit-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick,
@@ -2125,7 +2124,6 @@ dialog .rank-seg { --rank-fill: var(--js); }
   opacity: 0;
 }
 :root.endgame-fade #reset-button,
-:root.endgame-fade #pit-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick {
@@ -2142,7 +2140,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #fight-rank, #reset-button, #pit-button, #share-status, .clip-pick { transition: none; }
+  #fight-rank, #reset-button, #share-status, .clip-pick { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
@@ -2229,24 +2227,9 @@ dialog .rank-seg { --rank-fill: var(--js); }
   #journal-button, #journal-button::after, #actions .share-button { animation: none; }
 }
 
-/* The Pit (docs/pit-design.md): while it shows, the fight's HUD steps aside; the scene, the Pit's sheet and (touch) the move pad stay.
-   The look test (?look=pit) is a still: the scene alone. */
-body[data-pit='on'] > :not(#world):not(#pit-ui):not(#joystick):not(header):not(#journal),
-body[data-pit='look'] > :not(#world):not(#pit-ui),
-body[data-pit='look'] > #joystick { display: none !important; }
-/* The header's ☰ menu stays in the Pit (Dom 2026-10-01: Settings from the room), and the journal dialog it opens; the fight's HUD and the brand/sound
-   chips step aside, so the top-right corner is the menu alone, clear of the move pad at the bottom left. */
-body[data-pit='on'] > header > :not(#journal-button) { display: none !important; }
-/* The door on the kill screen (Web 2026-09-29): desktop under Next; the phone cluster under SHARE + CLIP, left of Next, clear of the
-   Take / Leave row at top:137px and of the move pad. The reset button's dark glass, never PLAY NOW's sand. */
-@media (min-width: 901px) and (not (pointer: coarse)) { .actions #pit-button { grid-column: 1; grid-row: 2; } }
-@media (max-width:900px),(pointer:coarse) {
-  .actions[data-gestures=cluster] #pit-button { position: absolute; left: -155px; top: 98px; width: 134px; height: 44px; padding: 0 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-}
-#pit-button[aria-disabled='true'] { opacity: .7; }
 /* The kill screen's one action column (Web 2026-10-07, Dom's iPhone shots: the Pit pill sat on the move pad, LINK and CLIP collided with it
-   and with Next). Portrait phone: a right-hand column on the footer's 16 px gutter, left edge clear of the 128 px pad (x >= 174, so the walk
-   to the gate keeps its stick), bottom up: Next / Enter the Pit as two matching 48 px buttons, then the LINK + CLIP icon row. One grid, nothing
+   and with Next). Portrait phone: a right-hand column on the footer's 16 px gutter, left edge clear of the 128 px pad (x >= 174), bottom up:
+   Next fight as a 48 px button, then the LINK + CLIP icon row. One grid, nothing
    placed off another button's corner, so nothing can overlap at 320, 375 or 430. The viewer page's PLAY NOW keeps its own box. */
 @media (orientation: portrait) and (max-width: 900px), (orientation: portrait) and (pointer: coarse) {
   :root {
@@ -2254,13 +2237,11 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
     --end-base: max(34px, env(safe-area-inset-bottom));
     --end-width: min(220px, calc(100vw - 190px));
   }
-  .actions[data-gestures=cluster] #reset-button:not([data-play='1']),
-  .actions[data-gestures=cluster] #pit-button {
+  .actions[data-gestures=cluster] #reset-button:not([data-play='1']) {
     position: fixed; left: auto; top: auto; right: var(--end-gutter); width: var(--end-width); height: 48px; min-height: 48px;
     box-sizing: border-box; padding: 0 12px; border-radius: 14px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .actions[data-gestures=cluster] #reset-button:not([data-play='1']) { bottom: var(--end-base); background: #b7a276; border: 1px solid #e9d9b3; color: #1b1916; font-weight: 700; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 2px 10px #0007; }   /* Next is the primary: solid sand, dark ink */
-  .actions[data-gestures=cluster] #pit-button { bottom: calc(var(--end-base) + 56px); background: #172329e6; border: 1px solid #e9d9b380; color: #f3e9cf; }   /* the Pit is the secondary: the cluster's dark glass */
   .actions[data-gestures=cluster] .clip-pick { position: fixed; top: auto; left: auto; bottom: calc(var(--end-base) + 112px); }
   .actions[data-gestures=cluster] #clip-button { left: auto; right: var(--end-gutter); }
   .actions[data-gestures=cluster] #share-link { left: auto; right: calc(var(--end-gutter) + 66px); }
@@ -2271,38 +2252,8 @@ body[data-pit='on'] > header > :not(#journal-button) { display: none !important;
   /* While the take-one offer is up it takes the column's slot above Next (it sat at left 0 / top 137 of the old cluster and covered Next, so Next could not
      be tapped: release rows 16, 21 and 25, Lead 2026-10-07). The rest of the column waits (visibility: nothing reflows) and returns with the offer's close. */
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; left: auto; top: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 56px); width: var(--end-width); }
-  :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#pit-button, #share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
+  :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
 }
-/* The door and the move pad share the thumb corner at 375 (Web 2026-09-29): on the kill screen, with the fight over, the stick hides the
-   way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
-body:not([data-pit]):has(#pit-button:not([hidden])) #joystick { visibility: hidden; }
-body[data-pit='on'] > #joystick { visibility: visible !important; }
-/* The walk to the gate after a win (docs/pit-design.md §9, D2): the stick walks him, the fight's buttons leave (visibility: nothing reflows).
-   Rematch, Next, Share and the door stay. */
-:root.walking body:not([data-pit]) > #joystick { visibility: visible !important; }
-:root.walking #actions button[data-mobile], :root.walking #run-button { visibility: hidden !important; }
-/* The Pit's sheet (src/pit/sheet.ts): low and short (Dom rejected panels over the arena twice, #670). Phone: bottom right, beside the move
-   pad; desktop: a short bar at the bottom centre. */
-#pit-ui { position: fixed; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); left: 164px; max-height: 38vh; overflow: auto; touch-action: pan-y; padding: 10px 12px; border-radius: 14px; background: #120e0bd6; border: 1px solid #dfd7bd40; color: #eadfc6; font-size: 14px; line-height: 1.35; }
-#pit-ui h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #cbb58a; }
-#pit-ui p { margin: 4px 0; }
-#pit-ui .pit-rack { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-#pit-ui .pit-rack li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
-#pit-ui .pit-rack li small { grid-column: 1; font-size: 11px; opacity: .75; }
-#pit-ui .pit-rack li button { grid-row: 1 / span 2; grid-column: 2; min-height: 36px; padding: 0 12px; }
-#pit-ui .pit-go { width: 100%; min-height: 44px; }
-@media (min-width: 901px) and (not (pointer: coarse)) { #pit-ui { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; } }
-
-/* The gate's fade to black while the winner walks into the Pit (docs/pit-design.md §9): a second out, a second back in the room. */
-#pit-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1s ease; z-index: 30; }
-:root.gate-fade #pit-fade { opacity: 1; }
-/* The gate's light (src/gate-light.ts): leaving the Pit for the next fighter's page, this page fades to it and the fresh page starts on it
-   (src/gate-light-boot.js), so no black shows across the reload; the arena's first frame fades it out. The colour is the daylight behind the
-   Pit's gate bars (src/pit/room.ts). */
-:root.gate-light { background: #d9b37a; }
-:root.gate-light #pit-fade, :root.gate-light-out #pit-fade { background: #d9b37a; }
-:root.gate-light #pit-fade { opacity: 1; transition: opacity 0.35s ease; }
-
 /* ===== The gear sheet: Fitting rail (Strategy 2026-10-01, concept 03). Grey box: the painted pieces (docs: gear-fitting-painted-pieces) replace these plain plates.
    The sheet is the whole phone, dark in the /game Golden Order palette. While the live mannequin is up (#journal[data-gear=live]) the Gear tab leaves
    the stage window clear so the canvas shows through it; every other region has its own ground. ===== */
@@ -2325,14 +2276,12 @@ body[data-pit='on'] > #joystick { visibility: visible !important; }
 #journal .tab-strip { margin: 0; padding: 0 12px; gap: 0; background: var(--jb); border-radius: 0; border-bottom: 1px solid var(--jl); }
 #journal .tab-strip label { min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 0; font: 600 11px "Cinzel", Georgia, serif; letter-spacing: .16em; text-transform: uppercase; color: var(--jm); }
 /* Fitting rail (Dom via Strategy, 2026-10-01): Stats / Settings are header links (the Gear label is the bottom bar's job), and the APP NAV
-   The Pit | Gear & pack | Arena is pinned to the foot of the sheet. */
+   Gear & pack | Arena is pinned to the foot of the sheet. */
 #journal .tab-strip { justify-content: flex-end; gap: 4px; padding: 0 12px; border-bottom: 0; }
 #journal .tab-strip .tab-profile { display: none; }
 #journal .tab-strip label { padding: 0 12px; letter-spacing: .1em; }
-#journal .app-nav { display: grid; grid-template-columns: repeat(3, 1fr); }
+#journal .app-nav { display: grid; grid-template-columns: repeat(2, 1fr); }
 #journal .app-nav button { min-height: 48px; background: none; border: 0; border-radius: 0; color: var(--jm); font: 600 10px "Cinzel", Georgia, serif; letter-spacing: .08em; white-space: nowrap; text-transform: uppercase; }
-#journal .app-nav button[aria-disabled=true] { opacity: .4; }
-#journal .app-nav p { grid-column: 1 / -1; margin: 0; padding: 0 16px 8px; text-align: center; font-size: 12px; color: var(--jm); }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
 #journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: none; box-shadow: inset 0 -2px 0 var(--jg); color: var(--jg2); }
 #journal .tab-pane { background: var(--jb); padding: 12px 16px; }
@@ -2439,9 +2388,8 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #journal .pack li small[data-rank='05'] { border-image-source: url(/gear-ui/rank-05.png); } #journal .pack li small[data-rank='06'] { border-image-source: url(/gear-ui/rank-06.png); } #journal .pack li small[data-rank='07'] { border-image-source: url(/gear-ui/rank-07.png); }
 #journal .pack li small[data-rank='08'] { border-image-source: url(/gear-ui/rank-08.png); } #journal .pack li small[data-rank='09'] { border-image-source: url(/gear-ui/rank-09.png); } #journal .pack li small[data-rank='10'] { border-image-source: url(/gear-ui/rank-10.png); }
 /* the bottom bar: the painted plate (its 32 px safe-area strip stretches to the real inset) and the three tabs */
-#journal .app-nav { grid-template-columns: repeat(3, 1fr); gap: 0; border: 6px solid transparent; border-image: url(/gear-ui/bottom-bar-safe32.png) 18 fill / 6px / 0 stretch; background: var(--jb); padding: 0 0 env(safe-area-inset-bottom, 0); }
+#journal .app-nav { grid-template-columns: repeat(2, 1fr); gap: 0; border: 6px solid transparent; border-image: url(/gear-ui/bottom-bar-safe32.png) 18 fill / 6px / 0 stretch; background: var(--jb); padding: 0 0 env(safe-area-inset-bottom, 0); }
 #journal .app-nav button { min-height: 48px; background: url(/gear-ui/bottom-tab-rest.png) center / 100% 100% no-repeat; }
-#journal .app-nav button[aria-disabled=true] { opacity: 1; background-image: url(/gear-ui/bottom-tab-dimmed.png); }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { box-shadow: none; background-image: url(/gear-ui/bottom-tab-active.png); }
 
 /* the account block on the dark sheet (the base dialog button is a white plate with light text here: unreadable) */
@@ -2461,13 +2409,11 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #journal .tab-strip .tab-settings { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3.3' stroke-width='2.2'/%3E%3Ccircle cx='12' cy='12' r='6.6' stroke-width='2.2'/%3E%3Cpath d='M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1' stroke-width='2.6'/%3E%3C/svg%3E"); }
 #journal .tab-strip .tab-arena { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-linecap='round' stroke-width='2.4'%3E%3Cpath d='M4 20L18 6M14 4h6v6M20 20L6 6M4 10V4h6'/%3E%3C/svg%3E"); }
 #journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
-/* the tab bar under the header: sticky, so The Pit | Gear & pack | Arena stay in reach while a long screen scrolls */
+/* the tab bar under the header: sticky, so Gear & pack | Arena stay in reach while a long screen scrolls */
 #journal .app-nav { order: -1; position: sticky; top: 0; bottom: auto; margin: 0; z-index: 3; padding: 0; border: 0; border-image: none; border-top: 1px solid #c8a45e66; border-bottom: 1px solid #c8a45e66; background: var(--jb); }
 #journal .app-nav button { min-height: 52px; font-size: 12px; letter-spacing: .14em; color: var(--jm); background: none; border-radius: 0; }
 #journal .app-nav button + button { border-left: 1px solid var(--jl); }
-#journal .app-nav button[aria-disabled=true] { background: none; opacity: 1; color: #8a8474; font-style: italic; }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { background: none; color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
-#journal .app-nav p { color: var(--jm); }
 /* Gear: the stage window (#gear-window, where the live hero shows through) with the rail on its right, then Main hand and Off hand as two wide tiles */
 #journal .doll { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 54px; align-items: center; justify-items: end; gap: 0 6px; height: auto; padding: 0 8px 10px; overflow: hidden; }
 #journal .gear-window { grid-column: 1 / 3; grid-row: 1 / 8; width: 100%; height: 100%; pointer-events: none; }

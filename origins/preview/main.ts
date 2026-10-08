@@ -67,7 +67,7 @@ scene.add(sun, sun.target);
 // ?region=1 (Origins slice 1): the Exchange's west gate opens onto the Ash Frontier, laid out from the Region 1 data (frontier-plan.ts).
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-const REGION = new URLSearchParams(location.search).get('region') === '1';
+const REGION = new URLSearchParams(location.search).get('region') !== '0';
 const ONLINE = onlineWanted(location.search);   // ?online=1: a creature fight is played on the server's seed and settled with its record (encounter-online.ts); anything else is the offline path
 const HELD_KEY = 'frankendom:encounter-token';   // the open server fight's token, so a reload or a second try inside its 120 s grace resumes it (a 409 on start names no token)
 const HELD = { get: (): HeldFight | null => { try { const v = JSON.parse(sessionStorage.getItem(HELD_KEY) ?? 'null') as Partial<HeldFight> | null; return v && typeof v.token === 'string' ? { token: v.token, played: v.played === true } : null; } catch { return null; } }, set: (f: HeldFight | null) => { try { if (f) sessionStorage.setItem(HELD_KEY, JSON.stringify(f)); else sessionStorage.removeItem(HELD_KEY); } catch { /* private mode: no resume, offline as before */ } } };
@@ -146,7 +146,7 @@ const hint = document.getElementById('hint')!, place = document.getElementById('
 new ResizeObserver(() => document.documentElement.style.setProperty('--hud-bottom', `${Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom)}px`)).observe(document.getElementById('hud')!);
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, FRONTIER_ROWS, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
-if (frontier) hint.textContent = 'Left thumb walks (push to the edge to run), right thumb looks. Creatures stop and watch when you come near.';
+if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run, or hold RUN. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
 type Side = 'move' | 'look';
@@ -264,7 +264,7 @@ function step(dt: number) {
     gait.forEach((a, i) => { a.setEffectiveWeight(rolling || guarding ? 0 : w[i]!); if (i) a.timeScale = forward < 0 ? -1 : 1; }); mixer.update(dt);
   }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
-  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9;   // the right stick's up lowers the camera and raises the gaze
+  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9; walkCam = { back, up: inPassage ? 2.1 : 2.7 };   // the right stick's up lowers the camera and raises the gaze
   eye.set(state.x - Math.sin(heading) * back, up, state.z - Math.cos(heading) * back);
   if (camSnap) { camAt.copy(eye); camSnap = false; } else camAt.lerp(eye, 1 - Math.exp(-dt * 4));   // the first frame starts behind the hero, not at the old start easing over (slow phones showed a wall for ~10 s)
   look.set(state.x + Math.sin(heading) * 3, 1.5 + pitchNow * 1.6, state.z + Math.cos(heading) * 3);
@@ -361,7 +361,7 @@ if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then((m) => {
     duel = m; m.enterWorld(leaveFight); kit = true; releaseSticks(); document.body.classList.add('kit');
-    hint.textContent = 'Left stick walks (push to the edge to run). Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
+    hint.textContent = 'Left stick walks. Push to the edge to run, or hold RUN. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
     if (menu && chips) {
@@ -463,6 +463,7 @@ function showResult(text: string) {
   const note = document.createElement('div'); note.id = 'hunt-result'; note.className = 'glass'; note.textContent = text;
   note.style.cssText = 'position:fixed;left:12px;right:12px;top:30%;z-index:5;padding:12px 14px;text-align:center;font:600 17px/1.4 Georgia,serif;pointer-events:none';
   duelLayer.append(note);
+  if (WORLDFIGHT) { const run = fightRun; setTimeout(() => { if (fighting && run === fightRun) leaveFight(); }, 2600); }   // the banner, then simply walking again: nothing to tap
 }
 canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY, far: 0, lx: e.clientX }); });
 canvas.addEventListener('pointermove', (e) => {
@@ -500,11 +501,12 @@ const WORLDFIGHT = !/[?&]worldfight=(?:0|off)\b/.test(location.search);   // ON 
 let duelDrawing = false;   // the duel's own frame is drawing this scene (between the mount's attach and detach): the walk loop keeps the world alive but does not draw
 // One holder per page: createScene adds it to its scene once, at creation, and the next fight against the same body and level REUSES that stage, so a new holder per fight would be in no rendered scene (a bare background). detach() resets its matrix.
 const worldHolder = new THREE.Group();
+let walkCam = { back: 5.2, up: 2.7 };   // the walk camera's distance behind the hero and height, as the last frame had them
 function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
   const holder = worldHolder; let moved: THREE.Object3D[] = [];
   return {
     cameraFrom: () => ({ position: camera.position.clone(), quaternion: camera.quaternion.clone() }),   // the walk's camera: the duel's eases from it (scene.ts easeCamera)
-    renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
+    renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward, walkCam: { ...walkCam },
     attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.engage(spec.id); duelDrawing = true; duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
     detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; mobs?.engage(null); duelDrawing = false; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
   };
@@ -527,11 +529,12 @@ function preloadFight() {
   const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
   idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
 }
+let fightRun = 0;   // which fight a banner belongs to
 async function startMobFight(spec: MobSpec) {
   if (fighting || !frontier) { say(frontier ? 'A fight is already starting.' : 'There is nothing to fight here.'); return; }
-  fighting = true; kit = false; if (!WORLDFIGHT) duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
+  fighting = true; fightRun++; kit = false; if (!WORLDFIGHT) duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
-  duelLayer.hidden = false; journalButton.hidden = allegianceButton.hidden = true; if (!WORLDFIGHT) canvas.hidden = true; place.textContent = `${spec.name}: a duel`;
+  duelLayer.hidden = false; journalButton.hidden = allegianceButton.hidden = true; if (!WORLDFIGHT) { canvas.hidden = true; place.textContent = `${spec.name}: a duel`; }   // a world fight keeps the walk's place line: no mode switch
   if (!WORLDFIGHT) renderer.setAnimationLoop(null);   // ?worldfight never stops the world loop (Dom 2026-10-08): the walk keeps ticking and drawing until the duel takes over the drawing
   document.getElementById('art-status')!.textContent = 'Loading…';
   try {   // a chunk that never arrives must not leave `fighting` set for good: 20 s and the catch below hands the hero back

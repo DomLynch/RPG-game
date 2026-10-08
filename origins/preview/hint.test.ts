@@ -20,11 +20,11 @@ test('the health and stamina bars sit under the hint and creature card, never ov
 });
 
 // Dom/Lead rulings 2026-10-07 on the world duel's chrome (Web's sweep, #1750): at fight-camera distance nothing may cover the foe or the status lines. Pinned by name so it cannot drift back.
-test('world duel chrome: the wordmark, the hint, the creature card and the empty #art-status box are off during a fight; the duel\'s own bars and Leave stay', () => {
+test('world duel chrome: the wordmark, the hint, the creature card and the empty #art-status box are off during a fight; the duel\'s own bars stay and Leave is gone (seamless S1: a world fight ends on its banner, nothing to tap)', () => {
   assert.match(html, /#duel\.world header \.brand \{ visibility: hidden; \}/, 'the FRANKENDOM / ORIGINS wordmark is hidden (visibility, not display, so the menu button stays put)');
   assert.match(html, /body\.infight #hint, body\.infight #creature-card \{ display: none; \}/, 'the walk hint and the creature card are off during a fight');
   const revert = /#duel\.world\.infight #opponent-name[^{]*\{ display: revert !important; \}/.exec(html)?.[0] ?? '';
-  assert.match(revert, /#target-health/); assert.match(revert, /#leave/);
+  assert.match(revert, /#target-health/); assert.doesNotMatch(revert, /#leave/, 'no Back to the fields button in a world fight: it ends on its banner and the walk resumes');
   assert.doesNotMatch(revert, /#art-status/, 'the empty status box drew as a dark slate rectangle mid-screen');
   assert.match(main, /document\.body\.classList\.add\('infight'\)/); assert.match(main, /document\.body\.classList\.remove\('infight'\)/);
 });
