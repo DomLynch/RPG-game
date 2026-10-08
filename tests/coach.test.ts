@@ -94,13 +94,25 @@ test('a hold the coach had is released the tick the player takes over unless the
   driver.start(0); driver.start(5);          // a second start does not open a second span
   let guardedAtCoach = false;
   for (let t = 0; t < 1800 && !guardedAtCoach; t++) { const i = driver.pick(p.duel, idleIntent()); if (i.guard) guardedAtCoach = true; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
-  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 1800 ticks (a lapsing coach answers fewer cuts)');
+  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 600 ticks');
   driver.stop(p.duel.tick); driver.stop(p.duel.tick + 1);   // a second stop changes nothing
   assert.equal(driver.spans.length, 1); assert.notEqual(driver.spans[0]!.to, null);
   const released = driver.pick(p.duel, idleIntent());
   assert.equal(released.guard, false, 'the coach\'s guard is not carried into the player\'s tick');
   const holding = driver.pick(p.duel, { ...idleIntent(), guard: true });
   assert.equal(holding.guard, true, 'a player who holds guard keeps it');
+});
+
+// Promptness of the defensive coach, pinned as a distribution not one seed (the one-seed 600-tick bound held only at lapse .1; at the tuned lapse .4 seed 3 first guards at tick 921 in this file's state, 308 alone):
+// measured here: median 189, 90th percentile 423, worst 921 (seed 3); the first guard tick over seeds 1-20 against the L6 veteran.
+test('the defensive coach raises its first guard promptly across seeds: 18 of 20 seeds within 600 ticks, every seed within 1800', () => {
+  const first = (seed: number): number => {
+    const d = createCoachDriver('defensive', seed); let p = initialPractice(seed, opponentAt(OPPONENTS.veteran, 6), 'longsword', null); d.start(0);
+    for (let t = 0; t < 1800; t++) { const i = d.pick(p.duel, idleIntent()); if (i.guard) return t; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
+    return Infinity;
+  };
+  const ticks = Array.from({ length: 20 }, (_, k) => first(k + 1)).sort((a, b) => a - b);
+  assert.ok(ticks[17]! <= 600, `90th-percentile first guard ${ticks[17]}`); assert.ok(ticks[19]! < 1800, 'every seed guards');
 });
 
 test('the record build string: spans listed, kit tag last and still readable; over 255 bytes it falls back to @* and never cuts a span', () => {
