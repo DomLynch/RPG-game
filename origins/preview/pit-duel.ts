@@ -267,7 +267,9 @@ function frame(now: number) {
       previous = state;
       const outcome = match.step(() => {
         const i = controls!.intent();
-        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action: i.action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
+        // A world fight starts drawn: the engage press IS the fight, so the sheathed 'Fight' gate never shows. The draw is the fight's own first input (recorded like any other), taken on the first tick.
+        const action = mounted && match!.practice.duel.fighters[0].phase === 'sheathed' ? 'light' : i.action;
+        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
       });
       const p = match.practice;
       if (!steppedOnce) { steppedOnce = true; hooks?.stepped?.(); }
