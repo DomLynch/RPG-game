@@ -77,7 +77,7 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
   - The title is `TITLES[floor((level-1)/5)]`, the numeral is `I..V[(level-1) % 5]`, and the label is `"<Title> <Numeral>"`.
 - Each sub-rank takes one win. Marks only ever increase (`awardMark`, `:19-23`), so a rank never demotes (`:3-7`).
 
-Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITLES[2]`, and as a tier it is `grades.levelOf('Gladiator') = 3` (`src/grades.ts:18`). As a *career level*, though, Gladiator I is level 11 (10 wins). Origins docs must say which scale they mean: tier 1–10 or level 1–46.
+Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITLES[2]`, and as a tier it is `grades.levelOf('Gladiator') = 3` (`src/grades.ts:18`). As a *career level*, though, Gladiator I is level 11 (10 wins). Origins docs must say which scale they mean: tier 1–10 or level 1–50.
 
 **Which marks the rank shows:** `shownMarks(server, profile, pending)`. This is the server figure plus pending claims when the server has a figure, otherwise the device count (`src/career.ts:17`).
 
