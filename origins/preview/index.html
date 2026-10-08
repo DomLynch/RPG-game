@@ -16,6 +16,7 @@
     }
     html, body { margin: 0; height: 100%; background: var(--c-sand); overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
     canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; }
+    body { text-rendering: geometricPrecision; font-kerning: normal; }   /* Alegreya Sans: unhinted advances, so word gaps stay even at any pixel ratio */
     button { font-family: var(--f-serif); color: var(--c-ink); }
     [hidden] { display: none !important; }   /* #shade / #prompt set display, which would override the hidden attribute */
     .glass { border: 0; border-top: 2px solid var(--c-brass); background: var(--c-glass); color: var(--c-ink); clip-path: var(--cut-tile); }   /* Blade Cut */
