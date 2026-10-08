@@ -6,7 +6,7 @@ import { ACCOUNT, PC } from '../contracts/fixtures.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';
-import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, type Kill } from './mob-rewards.ts';
+import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, type Kill } from './mob-rewards.ts';
 import type { Db } from './db.ts';
 import type { CareerRow } from './store.ts';
 
@@ -96,22 +96,39 @@ test('Bounty bronze is never written yet (no "wins today" read): reported unpaid
   }
 });
 
-// The respawn window: a stub db answers origins_open with an empty pack and the career row; nothing else is read.
-const committed = new Set<string>();   // the enc:<token> events the fake database holds (the window counts only a kill that really paid)
-const fakeOpen = (): Db => ({ run: async (sql: string, v?: Record<string, string>) => (/origins_metal_of/.test(sql) ? 'absent' : /origins_event\(/.test(sql) ? (committed.has(v?.e ?? '') ? '{}' : 'null')
-  : JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] })) } as Db);
-test('respawn window: a second paid kill of the same fight inside 300 s by the same account pays nothing; another account, another fight, and the same token again are not blocked', async () => {
-  const fight = creatures[0]!, other = creatures[1]!, seedA = droppingSeed(fight), seedB = droppingSeed(other);
-  let clock = Date.parse(AT); const hook = mobRewards(content, () => new Date(clock), () => {}), db = fakeOpen();
+// The respawn window (202610080006): a stub db answers origins_open with an empty pack and the career row, origins_metal_of as absent, and origins_last_paid_kill
+// from `paid` (account|fight -> the database time it paid) on the stub's own clock, as the real function reads committed events on the database clock.
+let dbClock = 0;
+const paid = new Map<string, number>();
+const fakeOpen = (lastPaid: 'absent' | 'present' = 'present'): Db => ({ run: async (sql: string, v?: Record<string, string>) => {
+  if (/origins_last_paid_kill/.test(sql)) { if (lastPaid === 'absent') return 'absent'; const at = paid.get(`${v?.a}|${v?.f}`); return at === undefined ? 'null' : String(dbClock - at); }
+  if (/origins_metal_of/.test(sql)) return 'absent';
+  return JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] });
+} } as Db);
+test('respawn window from the database: a paid kill of the same fight inside the window pays nothing; another fight or account, and after the window, pays', async () => {
+  const fight = creatures[0]!, other = creatures[1]!, seedA = droppingSeed(fight), seedB = droppingSeed(other), db = fakeOpen(), hook = mobRewards(content, () => new Date(AT), () => {});
+  paid.clear(); dbClock = 1_000_000;
   const first = await hook(kill(fight, seedA), db);
-  assert.ok((await hook(kill(fight, seedA, { token: 'UNCOMMITTED'.padEnd(40, 'u') }), db)).length > 0, 'L1: the first kill has not committed yet (no enc: event), so a second token is not blocked');
-  committed.add(`enc:${kill(fight, seedA).token}`); committed.add(`enc:${'UNCOMMITTED'.padEnd(40, 'u')}`);
-  assert.ok(first.some((l) => l.op === 'mint'), 'the first kill pays');
-  assert.deepEqual(await hook(kill(fight, seedA, { token: 'SECOND'.padEnd(40, 'y') }), db), [], 'a second kill of the same fight inside the window pays nothing');
-  assert.deepEqual((await hook(kill(fight, seedA, { token: 'UNCOMMITTED'.padEnd(40, 'u') }), db)).map((l) => l.op), first.map((l) => l.op), 'the same token again (a retry after a stale abort) is priced as before');
+  assert.ok(first.some((l) => l.op === 'mint'), 'no paid kill on record: it pays');
+  assert.ok((await hook(kill(fight, seedA, { token: 'UNCOMMITTED'.padEnd(40, 'u') }), db)).length > 0, 'the first kill has not committed (no paid event yet): a second token is not blocked');
+  paid.set(`${UID}|${fight}`, dbClock); dbClock += 10_000;   // it committed; 10 s later
+  assert.deepEqual(await hook(kill(fight, seedA, { token: 'SECOND'.padEnd(40, 'y') }), db), [], 'inside the 300 s window: pays nothing');
   assert.ok((await hook(kill(other, seedB), db)).length > 0, 'another fight is its own window');
   assert.ok((await hook(kill(fight, seedA, { account: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', token: 'THIRD'.padEnd(40, 'z') }), db)).length > 0, 'another account is its own window');
-  clock += RESPAWN_MS; assert.ok((await hook(kill(fight, seedA, { token: 'FOURTH'.padEnd(40, 'w') }), db)).length > 0, 'after the window it pays again');
+  dbClock += RESPAWN_MS; assert.ok((await hook(kill(fight, seedA, { token: 'FOURTH'.padEnd(40, 'w') }), db)).length > 0, 'after the window it pays again');
+  const restarted = mobRewards(content, () => new Date(AT), () => {});   // a writer restart: nothing in memory
+  paid.set(`${UID}|${fight}`, dbClock); dbClock += 10_000;
+  assert.deepEqual(await restarted(kill(fight, seedA, { token: 'FIFTH'.padEnd(40, 'v') }), db), [], 'a restarted writer still sees the window (it lives in the database)');
+});
+
+test('respawn window: a row with respawnSeconds binds that (the bear: 75 s), a row without keeps 300 s; the migration absent pays nothing (fail closed)', async () => {
+  const [a, b] = creatures as [string, string];
+  assert.equal(respawnMsOf(a, content, new Map([[a, 75_000]])), 75_000);
+  assert.equal(respawnMsOf(b, content, new Map([[a, 75_000]])), RESPAWN_MS);
+  assert.equal(respawnMsOf('character:nobody', content), RESPAWN_MS);
+  const logs: string[] = [], hook = mobRewards(content, () => new Date(AT), (l) => logs.push(l));
+  assert.deepEqual(await hook(kill(a, droppingSeed(a)), fakeOpen('absent')), []);
+  assert.match(logs.join('\n'), /202610080006\) is not applied, recorded, pays nothing/);
 });
 
 test('no fight id (a token from before the fight was carried): the hook pays nothing and records no window (L3)', async () => {
