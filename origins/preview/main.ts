@@ -281,7 +281,8 @@ function step(dt: number) {
     mobsAsked = true; if (WORLDFIGHT) preloadFight();   // the fight chunks come early (worldfight is on unless ?worldfight=0|off)
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
-  if (mobs) { mobs.update(dt, state, cardId); if (WORLDCOMBAT) { const aim = mobs.nearest(state.x, state.z, 3.5); wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); updateBars(); }   // Zone 1's own combat: stepped with the walk, every frame if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
+  // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
+  if (mobs) { mobs.update(dt, state, cardId); if (WORLDCOMBAT) { const aim = mobs.nearest(state.x, state.z, 3.5); wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); updateBars(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
