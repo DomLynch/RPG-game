@@ -9,7 +9,7 @@ export const stanceFlag = (search: string): PickedStance | undefined => {
   if (v === '1' || v === 'on') return 'neutral';
   return (PICKS as readonly string[]).includes(v ?? '') ? (v as PickedStance) : undefined;
 };
-export const stanceLabel = (p: PickedStance): string => p[0].toUpperCase() + p.slice(1);
+export const stanceLabel = (p: PickedStance): string => (p === 'neutral' ? 'Balanced' : p[0].toUpperCase() + p.slice(1));   // Dom 2026-10-07: the fourth stance is SHOWN as Balanced; its id stays `neutral` (the record's 2-bit code, ?stances=neutral, every pin)
 // The reveal line: both stances at once ("Aggressive vs Defensive"), the foe's mood being the seed's draw (src/stance.ts moodOf).
 export const stanceReveal = (mine: PickedStance, seed: number, opponent: string): string => `You: ${stanceLabel(mine)} · ${opponent}: ${stanceLabel(moodOf(seed, opponent))}`;
 
