@@ -81,6 +81,24 @@ Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to
 | c | Mix-and-match sets into your own build, never required; pieces fit across sets | Characters (pieces fit across sets), Web (gear screen) |
 | d | Hub rankings: levels, kills, PvP, sets collected; a board in the Concord hub and in the menu, reading recorded data | Web + Backend |
 
+## Two more Dom approved (2026-10-08 10:3x, via Strategy; AFTER seamless combat)
+
+**A. Town plan.** Donors: World of Claudecraft and 2004Scape are MIT (copy with notice); UO, EQ, WoW, openmw, vcmi, OpenTTD, Simutrans, micropolis, OpenRCT2, 0AD, Widelands and Civ are study-and-rewrite. Budget targets (measure, not facts): <=150 draw calls, one 1-2k atlas, <=14 NPCs on screen.
+
+| # | Part | Owner |
+|---|---|---|
+| 1 | Townspeople as NPC rows: name, role flags (like WoW npcflag), humanoid world body, random outfit per spawn, visibly carry what they bought | Characters (bodies, outfits), Backend (rows) |
+| 2 | Composable shop lists (item, price, max, restock) with level gates and a server re-check on every buy | Backend |
+| 3 | Building kit (wall, corner, arch, roof, stall, counter, sign, chimney) with weighted variants and props on one shared atlas | Characters (art, atlas), World (placement) |
+| 4 | Upgrade chains (forge: stall, smithy, foundry) by town / player progress | Backend |
+| 5 | Town generator in OpenTTD rings (centre: bank, Pit board, rankings; then shops, houses, edge) from a seed and a wealth number for how grand | World |
+| 6 | Per-state buildings (forge lit with smoke while the smith works) | World |
+| 7 | Heroes-style town screen in the menu (every service one tap) | Web |
+| 8 | Banker behind a counter, skyline ring, Talk / Trade verbs | World (skyline), Web (verbs), Characters (banker) |
+| 9 | Regional building variants | Characters + World |
+
+**B. Day and night.** A simple real 24-hour world clock: server time, one clock for everyone, normal sunrise and sunset, no daylight saving or anything clever. Use the existing `ambience.dayNightSpeed` (1 = real time) plus a sky/fog/light gradient by hour, and a `night` flag on spawn rows so vampires and werewolves can be night-only later. Owner: World, together with the Zone 1 sky work.
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
