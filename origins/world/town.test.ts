@@ -48,3 +48,10 @@ test('only the kit\'s node names appear, shops carry a sign and a trade, banks a
   assert.ok(t.lots.filter((l) => l.kind === 'house').every((l) => l.pieces.some((p) => p.node === 'chimney')));
   assert.ok(t.lots.filter((l) => l.kind === 'gate').every((l) => l.pieces.some((p) => p.node === 'arch')));
 });
+
+test('no two lots overlap (gates included), over many seeds and wealths: a stall never blocks the road between the gate arches', () => {
+  for (let i = 0; i < 60; i++) for (const w of [0, 0.3, 0.6, 1]) {
+    const lots = generateTown(`audit${i}`, w).lots;
+    for (let a = 0; a < lots.length; a++) for (let b = a + 1; b < lots.length; b++) assert.ok(Math.hypot(lots[a]!.x - lots[b]!.x, lots[a]!.z - lots[b]!.z) >= lots[a]!.r + lots[b]!.r - 1e-9, `audit${i} wealth ${w}: ${lots[a]!.id} overlaps ${lots[b]!.id}`);
+  }
+});

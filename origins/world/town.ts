@@ -14,6 +14,7 @@ export type TownPiece = { node: TownNode; x: number; z: number; rotY: number; sc
 export type Lot = { id: string; kind: LotKind; ring: 0 | 1 | 2 | 3; x: number; z: number; rotY: number; w: number; d: number; r: number; trade?: string; pieces: TownPiece[] };
 export type Town = { seed: string; wealth: number; lots: Lot[]; radius: number };
 
+export const ROAD_HALF = 6;   // metres either side of the z axis kept clear of stalls: the road runs through the gate arches
 export const MODULE = 3;   // metres: the building kit's wall module
 const TRADES = ['smith', 'general', 'apothecary', 'inn', 'tailor', 'fletcher', 'chandler', 'baker', 'cooper', 'jeweller'] as const;
 
@@ -59,7 +60,7 @@ export function generateTown(seed: string, wealth: number): Town {
     const start = R() * Math.PI * 2;
     for (let i = 0, placed = 0, tries = 0; placed < n && tries < n * 6; i++, tries++) {
       const a = start + (i / n) * Math.PI * 2 + (R() - 0.5) * 0.25, rr = radius + (R() - 0.5) * 2, [w, d] = size(placed), x = Math.sin(a) * rr, z = Math.cos(a) * rr;
-      if (!free(x, z, Math.hypot(w, d) / 2 + 1)) continue;
+      if (!free(x, z, Math.hypot(w, d) / 2 + 1) || (kind === 'stall' && Math.abs(x) < ROAD_HALF)) continue;   // a stall never stands on the road the two gate arches sit on (z axis)
       put(kind, ringNo, x, z, 0, 0, w, d, trade?.(placed)); placed++;
     }
   };
