@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { STEP } from '../../src/sim.ts';
-import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
+import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, START_TIMEOUT_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
@@ -36,6 +36,15 @@ test('signed out or no character: null, and not one request is made (the offline
 test('the flag off (503), no session (401), a second open fight (409, with no remembered token) and a network failure all play offline', async () => {
   for (const status of [503, 401, 409, 403]) assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: server(() => reply(status, { ok: false })).f }), null, String(status));
   assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: (async () => { throw new TypeError('down'); }) as unknown as typeof fetch }), null);
+});
+
+test('a writer that never answers the start does not stall the engage: offline after the short start budget, not the 4 s op timeout', async () => {
+  const hang = (async (_u: unknown, init?: { signal?: AbortSignal }) => new Promise((_, no) => init?.signal?.addEventListener('abort', () => no(new Error('aborted'))))) as unknown as typeof fetch;
+  assert.ok(START_TIMEOUT_MS <= 1_500, 'the engage budget');
+  const t0 = Date.now(); assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: hang }), null);
+  const took = Date.now() - t0; assert.ok(took >= START_TIMEOUT_MS - 50 && took < 2_500, `offline after ${took} ms`);
+  const t1 = Date.now(); assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: hang, startTimeoutMs: 100 }), null);
+  assert.ok(Date.now() - t1 < 1_000, 'the budget is the caller\'s to shorten');
 });
 
 test('a foe the server resolved differently from the page is not played online, and says so (the server\'s token stays open until its grace runs out)', async () => {
