@@ -69,19 +69,36 @@ test('a full pack mints nothing (all or nothing, as the page says) but the kill 
   assert.ok(noCareer.batch.some((l) => l.op === 'mint'));
 });
 
-test('no bronze line is ever written yet (no metal read): rolled bronze and Bounty bronze are reported as unpaid, never paid', () => {
-  for (const fight of [...creatures, ...content.region.bounties.map((b) => b.encounter)]) {
+test('bronze: the rolled currency is one metal award in the same batch, versioned by the balance row; without the 0004 read it is reported unpaid, never written', () => {
+  let seen = 0;
+  for (const fight of creatures) {
     const s = fightSetup(fight, content); if (!s.ok) continue;
     for (let seed = 1; seed <= 40; seed++) {
-      const paid = mobBatch(kill(fight, seed), { career: row(), inventory: pack() }, content, AT);
-      assert.ok(!paid.batch.some((l) => l.op === 'metal'), `${fight} seed ${seed}: no metal op`);
+      const rolled = rollLoot(content.local.creatureLoot[fight], seed, content, { foeLevel: s.value.opponent.level });
+      if (!rolled.ok || rolled.value.metal === 0) continue;
+      seen++;
+      const k = kill(fight, seed), absent = mobBatch(k, { career: row(), inventory: pack() }, content, AT);
+      assert.ok(!absent.batch.some((l) => l.op === 'metal') && absent.summary.unpaid.includes(`bronze ${rolled.value.metal}`), `${fight} ${seed}: no read, no metal op`);
+      const first = mobBatch(k, { career: row(), inventory: pack(), metal: null }, content, AT).batch.filter((l) => l.op === 'metal');
+      assert.deepEqual(first, [{ op: 'metal', account: UID, delta_bronze: rolled.value.metal, reason: 'award', event_id: `enc:${k.token}` }], 'the first award inserts the row');
+      const later = mobBatch(k, { career: row(), inventory: pack(), metal: { bronze: 7, version: 4 } }, content, AT).batch.filter((l) => l.op === 'metal');
+      assert.deepEqual(later, [{ ...first[0], expected_version: 4 }], 'a later award names the row version');
     }
+  }
+  assert.ok(seen > 0, 'some Region 1 creature drops bronze');
+});
+
+test('Bounty bronze is never written yet (no "wins today" read): reported unpaid, with or without the metal read', () => {
+  for (const fight of content.region.bounties.map((b) => b.encounter)) {
+    if (!fightSetup(fight, content).ok) continue;
+    const paid = mobBatch(kill(fight, 1), { career: row(), inventory: pack(), metal: null }, content, AT);
+    assert.ok(!paid.batch.some((l) => l.op === 'metal'), `${fight}: no metal op`);
   }
 });
 
 // The respawn window: a stub db answers origins_open with an empty pack and the career row; nothing else is read.
 const committed = new Set<string>();   // the enc:<token> events the fake database holds (the window counts only a kill that really paid)
-const fakeOpen = (): Db => ({ run: async (sql: string, v?: Record<string, string>) => (/origins_event\(/.test(sql) ? (committed.has(v?.e ?? '') ? '{}' : 'null')
+const fakeOpen = (): Db => ({ run: async (sql: string, v?: Record<string, string>) => (/origins_metal_of/.test(sql) ? 'absent' : /origins_event\(/.test(sql) ? (committed.has(v?.e ?? '') ? '{}' : 'null')
   : JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] })) } as Db);
 test('respawn window: a second paid kill of the same fight inside 300 s by the same account pays nothing; another account, another fight, and the same token again are not blocked', async () => {
   const fight = creatures[0]!, other = creatures[1]!, seedA = droppingSeed(fight), seedB = droppingSeed(other);
