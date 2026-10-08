@@ -21,7 +21,7 @@ import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene, type WorldMount } from '../../src/scene.ts';
-import { Matrix4 } from 'three';
+import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
@@ -31,9 +31,10 @@ import { recordWorldFight, worldRecord } from './world-record.ts';
 import type { FightRecord } from '../../src/record.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
-import type { Object3D, Quaternion, Vector3 } from 'three';
+import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
+import { addLeaveEntry } from './leave-entry.ts';
 
 export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
@@ -115,7 +116,7 @@ function bind(leave: () => void) {
   element('journal-button').addEventListener('click', () => { controls!.clear(); element<HTMLInputElement>('journal-tab-settings').checked = true; journal!.showModal(); });
   element('close-journal').addEventListener('click', () => journal!.close());
   element('nav-arena').addEventListener('click', () => journal!.close());
-  element('nav-pit').addEventListener('click', () => { journal!.close(); leave(); });
+  addLeaveEntry(element('app-nav'), () => journal!.close(), leave);   // the game's own nav no longer carries The Pit (the Pit room was removed): the Origins duel adds its exit
   journal.addEventListener('close', () => { controls!.clear(); accumulator = 0; });
   window.addEventListener('blur', () => controls!.clear());
   document.addEventListener('visibilitychange', () => controls!.clear());
@@ -213,7 +214,8 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
-  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) stage!.view.easeCamera(from, CAMERA_EASE_S); }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) { const m = mount.holder.matrix; stage!.view.easeCamera({ position: from.position.clone().applyMatrix4(m), quaternion: new Quaternion().setFromRotationMatrix(m).multiply(from.quaternion) }, CAMERA_EASE_S); } stage!.view.setWorldCamera(mount.walkCam ?? null); }   // the walk camera is in WORLD metres, the duel camera in the duel's own: carried through the holder first, or the ease swings through the arena
+  if (!mount) stage!.view.setWorldCamera(null);
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
@@ -267,7 +269,9 @@ function frame(now: number) {
       previous = state;
       const outcome = match.step(() => {
         const i = controls!.intent();
-        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action: i.action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
+        // A world fight starts drawn: the engage press IS the fight, so the sheathed 'Fight' gate never shows. The draw is the fight's own first input (recorded like any other), taken on the first tick.
+        const action = mounted && match!.practice.duel.fighters[0].phase === 'sheathed' ? 'light' : i.action;
+        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
       });
       const p = match.practice;
       if (!steppedOnce) { steppedOnce = true; hooks?.stepped?.(); }

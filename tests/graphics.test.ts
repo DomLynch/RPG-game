@@ -17,7 +17,6 @@ import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
 const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
-import { atGateLine, doorHidden, DOOR_STILL, GATE_LINE } from '../src/pit-coordinator.ts';   // the D2 gate helpers are pure: main.ts reads them through this stub
 import * as ladder from '../src/ladder.ts';
 import * as arenaThemes from '../src/arena-themes.ts';
 import * as roster from '../src/roster.ts';
@@ -71,7 +70,6 @@ import * as zone1Hop from '../src/zone1-hop.ts';
 import * as coachUi from '../src/coach-ui.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
-import * as postWalk from '../src/post-walk.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
 // Every `./x.ts` main.ts requires that no test registered in `modules` (boot below): a stub of `{}`, so an import that main.ts reads at
@@ -90,8 +88,6 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-// The Pit stub: never opens unless a test swaps openPit (the F6 test below), as tests swap matchModule.Match.
-const pitCoordinator = { openPit: (stage?: unknown): Promise<unknown> => { void stage; return new Promise(() => {}); }, loadPit: () => new Promise(() => {}), loadSkulls: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} };
 const captureMatch = (receive: (live: match.Match) => void) => class extends match.Match {
   constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); receive(this); }
 };
@@ -105,7 +101,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {}, finisherOverride: string | null = null;
   let sceneArena: unknown;
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, startStandoff() {}, restartStandoff() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, hamstrungInstalled: () => true, executionInstalled: () => true, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, startStandoff() {}, restartStandoff() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, hamstrungInstalled: () => true, executionInstalled: () => true, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, gearStage: () => ({}), renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ['frankendom.firstloss.v1', '1'] /* the one-time first loss (lessons.ts) is behind every harness fighter; seed '' to meet it */, ['frankendom.lesson.pace.v1', '1'] /* the one-time pace line (first FatigueBand >= 2) is behind every harness fighter; seed '' to meet it */, ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
@@ -117,7 +113,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './stance-panel.ts': stancePanel, './coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './stance-panel.ts': stancePanel, './coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./execution.ts'] = execution; modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
   modules['./zone1-hop.ts'] = zone1Hop;   // Play -> Zone 1 (off until World's default is live: the harness stays on the arena)
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
@@ -146,9 +142,9 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   };
   Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
-  runInNewContext(code, context);   // main.ts's globalThis is this object: the ?debug __pit handle lands on it
+  runInNewContext(code, context);   // main.ts's globalThis is this object:
   element('welcome').hidden = true;
-  return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -1563,34 +1559,6 @@ test('challenger wait: the link panel shows with the link, Cancel leaves for the
   assert.equal(arrived.element('duel-wait').hidden, true, 'the guest is here: the panel goes');
 });
 
-// GPT audit of e65a6d8 (2026-09-30, F6): the Pit's gate left by pressing the kill screen's button (resetButton.click()), tying the leave
-// to a DOM element the HUD owns. It now runs the next-fight command itself. The harness boots with ?debug, so __pit.open() reaches
-// pitStage() and the gate; the button's click is made to throw here, so a leave that still went through the button fails the test.
-test('F6: the Pit gate leaves by the next-fight command, not by pressing the kill screen button', async () => {
-  const app = boot({ id: 'tester-0001' }, undefined, {}, '?debug'); app.tick(); app.key('KeyF'); app.tick();   // ?debug: the __pit handle (main.ts) reaches pitStage() and its gate
-  for (let i = 0; i < 60; i++) app.tick();
-  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
-  app.tick(120000);
-  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
-  app.tick();   // the walk-away death (the AFK test above): a decided fight, the kill screen up
-  assert.ok(app.rendered.finish, 'a decided fight: the kill screen is up');
-  const fights = JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights;
-  let stage: { gate(): { label: string; go(): void } } | undefined, left = 0;
-  const openPit = pitCoordinator.openPit;
-  pitCoordinator.openPit = (s: unknown) => { stage = s as typeof stage; return Promise.resolve({ frame() {}, leave() { left++; }, dispose() {}, ready: Promise.resolve() }); };
-  try {
-    await app.pit!.open('defeat');
-    assert.ok(stage, 'the room got the page\'s stage');
-    const button = app.element('reset-button'), gate = stage!.gate();
-    assert.equal(gate.label, button.textContent, 'the gate wears the kill screen\'s label');
-    button.click = () => { throw new Error('the gate pressed the kill screen button'); };   // the DOM path is closed: the command must run on its own
-    gate.go(); app.tick();
-    assert.equal(left, 1, 'the room was left');
-    assert.ok(app.rendered.finish === null || app.reloads === 1, 'the next fight began (a rematch in place, or a fresh page for a new rung)');
-    assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights, fights, 'leaving is not a fight');
-  } finally { pitCoordinator.openPit = openPit; }
-});
-
 test('a failed rig load retries when the page returns to the foreground, when the network returns, and on a tap; never while loading or after success', () => {
   const app = boot(); app.tick();
   const status = app.element('art-status');
@@ -1651,16 +1619,6 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped, {}, 'trying a stored piece on does not wear it (the rig shows it in memory only)'); assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'nor change the pack');
   app.element('fitting-wear').click();
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear this puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
-});
-
-// Fitting rail (Strategy 2026-10-01): the sheet's app nav. The Pit is dimmed with no kill-screen door; a tap says why for 2 s instead of doing nothing.
-test('gear sheet nav: The Pit is dimmed without the door, a tap shows the line', () => {
-  const app = boot();
-  app.element('journal-button').click();
-  assert.equal(app.element('nav-pit').attributes.get('aria-disabled'), 'true');
-  app.element('nav-note').hidden = true;   // the harness's fake elements do not read index.html
-  app.element('nav-pit').click();
-  assert.equal(app.element('nav-note').hidden, false, 'a dimmed Pit tap says why');
 });
 
 // Dom 2026-09-28: after the versus card the opponent is the legend on every surface. A piece with a tier names the legend of that rung on
@@ -1753,7 +1711,8 @@ test('a take records its rung (taken[id].tier) and the Next button names the nex
   app.element('reset-button').click();   // Next: the pick is stored before the page reloads
   const next = saved().encounter;
   assert.ok(legends.isLegendOpponent(next), `the next rung (${next}) is on the legend roster`);
-  assert.equal(label, `Next: ${legends.legendAt(next, 1).name}`, 'the legend the next page meets (one win: still Recruit, rung 1), not "Next: the <class>"');
+  assert.equal(label, 'Next fight', 'a win with a next rung offers the single primary, Next fight');
+  assert.ok(legends.legendAt(next, 1).name, 'the next page meets a named legend (one win: still Recruit, rung 1)');
   assert.deepEqual(app.errors, []);
 });
 
@@ -2210,11 +2169,11 @@ test('actual main new-form legacy Miasma remains SKILL and explicit preset off; 
 
 // The harness stubs every import main.ts makes through `modules` (boot). An import left out resolves to `{}`, so whatever main.ts takes from it is
 // `undefined` at boot and the 'actual main' tests run against a main that never calls it: #1535, #1536 and #1542 each shipped a new src module that
-// way and CI only caught it later. The five below are the known gaps whose values main.ts only reads in paths no test here reaches (gate light, arena
-// layout, the stylesheet side effect, monitoring); anything else that appears must be registered, e.g. `modules['./x.ts'] = x;` beside the others.
+// way and CI only caught it later. The two below are the known gaps whose values main.ts only reads in paths no test here reaches (the stylesheet side effect,
+// monitoring); anything else that appears must be registered, e.g. `modules['./x.ts'] = x;` beside the others.
 test('every src module main.ts imports is registered in the harness (a new import names itself here)', () => {
   unstubbed.clear(); boot();
-  const known = ['./arena.ts', './gate-light.ts', './gate-rise.ts', './monitoring.ts', './style.css'];
+  const known = ['./monitoring.ts', './style.css'];
   const fresh = [...unstubbed].filter((id) => id.startsWith('.') && !known.includes(id)).sort();
   assert.deepEqual(fresh, [], `main.ts imports ${fresh.join(', ')} but tests/graphics.test.ts does not register ${fresh.length === 1 ? 'it' : 'them'} in \`modules\` (boot), so the actual-main tests boot with ${fresh.length === 1 ? 'it' : 'them'} stubbed to {}: add \`modules['<path>'] = <import>;\` beside the others`);
   assert.deepEqual([...unstubbed].filter((id) => id.startsWith('.')).sort(), known, 'a known gap was closed: remove it from `known` so the list stays exact');
