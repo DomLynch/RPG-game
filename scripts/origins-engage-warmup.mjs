@@ -4,8 +4,9 @@
 // `npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview`); GL=swiftshader for a software run (frame times mean nothing). Related: scripts/origins-engage-live.mjs (#1912, the live-site CPU trace).
 // Player-path engage trace on the LIVE build, real GPU. Fresh page load per run; wait idle; start rAF gap log + longtask observer + CPU profile >= 1 s BEFORE engage;
 // place the hero 14 m from an untouched creature facing it, WALK in (hold W) until it notices, press STAB (#thrust-button tap); capture 5 s after.
+// STILLS=1 takes the idle + mid-fight 375 stills; a screenshot read-back costs 66-300 ms of frame time (receipt.shots lists each one's [start, end] on the gap log's clock, and the gaps line up with them), so it is OFF by default and STILLS=1 skips the gap check. Exit 1 on a failed run, a program added after [zone ready], or (real GPU) a gap >= 200 ms.
 import fs from 'node:fs'; import os from 'node:os'; import { execSync } from 'node:child_process'; import { chromium } from 'playwright';
-const quiet = async () => { for (let i = 0; i < 60; i++) { const q = execSync("ps -Ao command | grep -c '[q]uality-stop' || true").toString().trim(); if (os.loadavg()[0] < 10 && q === '0') return { load1: +os.loadavg()[0].toFixed(1), qs: 0, waitedS: i * 5 }; await new Promise((r) => setTimeout(r, 5000)); } return { load1: +os.loadavg()[0].toFixed(1), qs: 'busy', waitedS: 300 }; };
+const quiet = async () => { for (let i = 0; i < 60; i++) { let q = 'busy'; try { q = execSync("ps -Ao command | grep -c '[q]uality-stop' || true", { timeout: 5000 }).toString().trim(); } catch { /* a ps that cannot answer counts as not quiet */ } if (os.loadavg()[0] < 10 && q === '0') return { load1: +os.loadavg()[0].toFixed(1), qs: 0, waitedS: i * 5 }; await new Promise((r) => setTimeout(r, 5000)); } return { load1: +os.loadavg()[0].toFixed(1), qs: 'busy', waitedS: 300 }; };
 import http from 'node:http'; import path from 'node:path';
 let URL = process.env.URL || 'https://frankendom.com/zone1/'; let _srv = null;
 if (process.env.SERVE) {   // SERVE=1: serve artifacts/origins-preview (built here) on localhost instead of the live site
@@ -39,7 +40,8 @@ for (let run = 0; run < N; run++) {
     // logs START now, >= 1 s before the walk
     await page.evaluate(() => { window.__t0 = performance.now(); window.__long = []; window.__gaps = []; let last = performance.now(); const tick = (n) => { window.__gaps.push([Math.round(n - window.__t0), Math.round(n - last)]); last = n; requestAnimationFrame(tick); }; requestAnimationFrame(tick); new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__long.push([Math.round(e.startTime - window.__t0), Math.round(e.duration)]); }).observe({ type: 'longtask', buffered: false }); });
     const cdp = await ctx.newCDPSession(page); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start');
-    res.programs0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames.length); res.programNames0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames); res.mem0 = await page.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.textures, i.geometries]; }); await page.screenshot({ path: `${OUT}/run${run + 1}-idle.png` }).catch(() => {}); const keys0 = await page.evaluate(() => window.originsPreview.renderInfo().programKeys);
+    res.programs0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames.length); res.programNames0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames); res.mem0 = await page.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.textures, i.geometries]; }); res.shots = []; const shot = async (name) => { const a = await page.evaluate(() => performance.now()); await page.screenshot({ path: `${OUT}/run${run + 1}-${name}.png` }).catch(() => {}); res.shots.push([name, a, await page.evaluate(() => performance.now())]); };   // absolute ms, rebased to the gap log's clock (t0) at the end: a gap that lines up with [start, end] is the screenshot
+    if (process.env.STILLS) await shot('idle'); const keys0 = await page.evaluate(() => window.originsPreview.renderInfo().programKeys);
     await page.waitForTimeout(1500);
     const now = () => page.evaluate(() => Math.round(performance.now() - window.__t0));
     res.walkStartMs = await now(); await page.keyboard.down('KeyW');
@@ -47,7 +49,7 @@ for (let run = 0; run < N; run++) {
     for (let i = 0; i < 300 && reachAt === null; i++) { await page.waitForTimeout(100); const s = await page.evaluate((id) => { const m = window.originsPreview.mobs().mobs.find((x) => x.id === id), c = window.originsPreview.combat(), p = window.originsPreview.pos; return { joined: c.fighters.length > 1, dist: m ? Math.hypot(m.x - p.x, m.z - p.z) : 99, hp: c.hero.health }; }, t.id); if (s.joined && joinedAt === null) joinedAt = await now(); if (s.dist < 2.6) reachAt = await now(); }
     await page.keyboard.up('KeyW'); res.joinedAtMs = joinedAt; res.reachAtMs = reachAt;
     res.stabAtMs = await now();
-    for (let k = 0; k < 7; k++) { if (k === 3) await page.screenshot({ path: `${OUT}/run${run + 1}-fight.png` }).catch(() => {}); await page.tap('#thrust-button').catch((e) => { if (!res.errors.includes('tap')) res.errors.push('tap ' + String(e).slice(0, 80)); }); await page.waitForTimeout(700); const c = await page.evaluate(() => window.originsPreview.combat()); const f = c.fighters[1]; if (f && telegraphAt === null && (f.phase === 'windup' || f.phase === 'active')) telegraphAt = await now(); if (hitAt === null && c.hero.health < hp0) hitAt = await now(); }
+    for (let k = 0; k < 7; k++) { if (k === 3 && process.env.STILLS) await shot('fight'); await page.tap('#thrust-button').catch((e) => { if (!res.errors.includes('tap')) res.errors.push('tap ' + String(e).slice(0, 80)); }); await page.waitForTimeout(700); const c = await page.evaluate(() => window.originsPreview.combat()); const f = c.fighters[1]; if (f && telegraphAt === null && (f.phase === 'windup' || f.phase === 'active')) telegraphAt = await now(); if (hitAt === null && c.hero.health < hp0) hitAt = await now(); }
     res.telegraphAtMs = telegraphAt; res.heroHitAtMs = hitAt; res.engaged = (await page.evaluate(() => window.originsPreview.combat())).fighters.map((f) => f.phase + ':' + f.hp).join(',');
     await page.waitForTimeout(5000);
     const { profile } = await cdp.send('Profiler.stop'); fs.writeFileSync(`${OUT}/run${run + 1}.cpuprofile`, JSON.stringify(profile));
@@ -59,9 +61,11 @@ for (let run = 0; run < N; run++) {
     const nodes = new Map(profile.nodes.map((n) => [n.id, n])), self = new Map();
     profile.samples.forEach((id, i) => { const cf = nodes.get(id).callFrame, k = `${cf.functionName || '(anon)'} ${cf.url.split('/').slice(-2).join('/')}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0) / 1000); });
     res.topSelfMs = [...self.entries()].sort((a, b) => b[1] - a[1]).filter(([k]) => !/^\((idle)\)/.test(k)).slice(0, 10).map(([k, v]) => [k, Math.round(v)]);
+    { const t0 = await page.evaluate(() => window.__t0); res.shots = res.shots.map(([n, a, b]) => [n, Math.round(a - t0), Math.round(b - t0)]); }
     if (process.env.TEXTRACE) { res.texTrace = await page.evaluate(() => window.__tex.slice(0, 60)); res.texAll = await page.evaluate(() => window.__texAll); } res.mem1 = await page.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.textures, i.geometries]; }); res.hero1 = (await page.evaluate(() => window.originsPreview.combat())).hero.health;
     await page.screenshot({ path: `${OUT}/run${run + 1}.png` }).catch(() => {});
   } catch (e) { res.fail = String(e).slice(0, 300); }
   await ctx.close(); results.push(res); console.log(JSON.stringify(res));
 }
-await browser.close(); _srv?.close(); fs.writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 1));
+await browser.close(); _srv?.close();
+const bad = results.filter((r) => r.fail || r.programsAdded?.length || (!process.env.STILLS && r.maxGapAroundEngage >= 200 && !/swiftshader|llvmpipe|software/i.test(r.renderer ?? ''))); if (bad.length) { console.error(`engage-warmup: FAIL in ${bad.length} of ${results.length} runs (fail, programs added after [zone ready], or a gap >= 200 ms on a real GPU; STILLS=1 skips the gap check)`); process.exitCode = 1; } fs.writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 1));
