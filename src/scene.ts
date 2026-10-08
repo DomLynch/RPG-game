@@ -84,7 +84,7 @@ export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapo
 // the Pit's rigs, effects and locked camera in the arena's own coordinates, except that no arena, crowd or arena light is built: `holder` (the page's world, moved in by the page) is
 // the ground, `background` and `fog` are the world's, and the page's renderer draws it (no second GL context). The page places `holder` with the inverse of where the duel stands in
 // the world. Without a mount (every Pit and game page) none of this runs.
-export type WorldMount = { renderer: THREE.WebGLRenderer; holder: THREE.Object3D; background: THREE.Color | THREE.Texture | null; fog: THREE.Fog | THREE.FogExp2 | null; borrow?(run: () => void): void };   // borrow: the page puts its world in `holder` for the duration of `run` (warmDraw), then takes it back
+export type WorldMount = { renderer: THREE.WebGLRenderer; holder: THREE.Object3D; background: THREE.Color | THREE.Texture | null; fog: THREE.Fog | THREE.FogExp2 | null; later?(run: () => void): void };   // later: the page runs `run` inside its next walk frame with its world in `holder`, then takes it back (warmDraw), and draws the walk over it
 const worldArena = (): Arena => ({ group: new THREE.Group(), floor: new THREE.Mesh(), sky: Object.assign(new THREE.Texture(), { image: { width: 1 } }), materials: undefined, ready: Promise.resolve(), update() {}, raiseGate() {} }) as unknown as Arena;
 export function createScene(
   canvas: HTMLCanvasElement,
@@ -613,12 +613,10 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    // world fights, ONE path in every browser (Dom, 2026-10-08: "one universal option"): draw this scene into a 4x4 target before the engage. Drawing is what builds every program the first duel frame needs (lit, shadow-depth and skinned
-    // variants, the world's materials under THIS scene's environment, fog and lights); the page lends its world for it (WorldMount.borrow). No compileAsync / parallel compile, so nothing here depends on which browser runs it.
-    warmDraw() {
-      const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
-      try { renderer.setRenderTarget(target); renderer.render(scene, camera); } catch { /* a failed warm only means the first frame compiles, as before */ } finally { renderer.setRenderTarget(before); target.dispose(); }
-    },
+    // world fights, ONE path in every browser (Dom, 2026-10-08: "one universal option"): draw this scene once on the page's own canvas before the engage, from inside the walk's frame (main.ts draws the walk right over it). Drawing is what builds
+    // every program the first duel frame needs, and it must be the canvas, not an off-screen target: tone mapping and the output colour space are part of a program and only apply on screen. The page lends its world for it (WorldMount.later).
+    // No compileAsync / parallel compile, so nothing here depends on which browser runs it.
+    warmDraw() { try { renderer.render(scene, camera); } catch { /* a failed warm only means the first frame compiles, as before */ } },
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
       ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };
     },

@@ -186,12 +186,12 @@ export type Warm = { dress?: (root: Object3D) => void };   // the foe's cloth (t
 export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, warm?: Warm): void {
   if (!(opponent in OPPONENTS)) return;
   const made = stageFor(host, opponent as OpponentId, level, mount);
-  if (!warm || !made.ready || warmedFor === made || running || !mount.borrow) return;   // once per stage, when its rigs are in
+  if (!warm || !made.ready || warmedFor === made || running || !mount.later) return;   // once per stage, when its rigs are in
   warmedFor = made;
-  requestAnimationFrame(() => {   // between frames: the world is lent for one 4x4 draw of the duel scene, placed as the engage will place it, then given back
+  mount.later(() => {   // inside the walk's next frame: the world is lent for one draw of the duel scene, placed as the engage will place it, then given back
     if (running || stage !== made) return;
     const root = made.view.opponentRoot(); if (root) warm.dress?.(root);
-    try { mount.borrow!(() => { placeInWorld(mount, initialPractice(1, OPPONENTS[opponent as OpponentId])); made.view.warmDraw(); }); } finally { if (root && warm.dress && dressedRoot !== root) undressMob(root); }
+    try { placeInWorld(mount, initialPractice(1, OPPONENTS[opponent as OpponentId])); made.view.warmDraw(); } finally { if (root && warm.dress && dressedRoot !== root) undressMob(root); }
   });
 }
 

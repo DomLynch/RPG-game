@@ -307,6 +307,7 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
+let pendingWarm: (() => void) | null = null;   // a warm draw of the duel scene, run in the walk frame just before the walk's own draw (pit-duel.ts warmStage)
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
@@ -317,6 +318,7 @@ const walkLoop = () => {
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
+  if (pendingWarm) { const run = pendingWarm; pendingWarm = null; run(); }
   renderer.render(scene, camera);
 };
 renderer.setAnimationLoop(walkLoop);
@@ -480,7 +482,7 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
   return {
     cameraFrom: () => ({ position: camera.position.clone(), quaternion: camera.quaternion.clone() }),   // the walk's camera: the duel's eases from it (scene.ts easeCamera)
     renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward,
-    borrow(run: () => void) { const lent = [...scene.children]; holder.add(...lent); try { run(); } finally { scene.add(...lent); holder.matrix.identity(); } },   // a 4x4 warm draw (scene.ts warmDraw): the world in the holder and back, no engage side effects
+    later(run: () => void) { pendingWarm = () => { const lent = [...scene.children]; holder.add(...lent); try { run(); } finally { scene.add(...lent); holder.matrix.identity(); } }; },   // scene.ts warmDraw, inside the next walk frame: the world in the holder and back, no engage side effects
     attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.engage(spec.id); duelDrawing = true; duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
     detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; mobs?.engage(null); duelDrawing = false; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
   };
