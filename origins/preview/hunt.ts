@@ -48,9 +48,9 @@ const line = (n: number, name: string) => (n > 1 ? `${name} ×${n}` : name);
 // Settle a finished duel. `bountyOpen(encounter)`: the player holds that Bounty (talked to its giver, quest at "posted"), so a win pays it.
 // The Bounty's metal is only credited when it is open; a kill without the Bounty taken still counts as a kill and says so.
 export function settle(h: Hunt, spec: MobSpec, run: { fight: string; attempt: number; seed: number }, end: { result: 'won' | 'lost'; twistOutcome: 'fled' | 'caught' | 'escaped' | null },
-  at: string, bountyOpen: (encounter: EncounterId) => boolean): Outcome {
+  at: string, bountyOpen: (encounter: EncounterId) => boolean, serverCaps = false): Outcome {   // serverCaps: an online fight shows only what the server pays (it prices Bounty metal and weekly boss rolls as capped until it can count them)
   h.attempts.set(run.fight, run.attempt);
-  const res = resolveFight({ fight: run.fight, result: end.result, twistOutcome: end.twistOutcome, firstWin: !h.beaten.has(run.fight), bountyWinsToday: h.bountyWins, bossRollsThisWeek: 0 }, h.content);
+  const res = resolveFight({ fight: run.fight, result: end.result, twistOutcome: end.twistOutcome, firstWin: !h.beaten.has(run.fight), bountyWinsToday: serverCaps ? Number.MAX_SAFE_INTEGER : h.bountyWins, bossRollsThisWeek: serverCaps ? Number.MAX_SAFE_INTEGER : 0 }, h.content);
   if (!res.ok) return { won: false, text: `This fight cannot pay out (${res.issues[0]!.message}).`, drops: [], metal: 0, bounty: null };
   const r = res.value;
   if (!r.kill) {
