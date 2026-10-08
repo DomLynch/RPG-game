@@ -5,6 +5,8 @@ description: The fast release mode for frankendom.com when the Mac is busy or th
 
 # CI-trust release run (Deploy)
 
+> **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it (fold6 died that way). How: the `vps-heavy-jobs` skill. Only Safari/WebKit rows and real-iPhone checks stay on the Mac.
+
 Tonight's proof: 054603e0 (Options + row-4 re-pin) ran ONE row locally (row 4, 45 s), trusted rows 1–3 and 5–46 from the LOCAL 1094653e run's receipts (that tree differed only by scripts/audio-preview.mjs, which only row 4 runs) and row 47 by ruling; launched at load ~50, published in 5–6 minutes (20:24:52 → 20:30). The full 47-row run takes 40+ minutes and hangs under load.
 
 ## When to use it

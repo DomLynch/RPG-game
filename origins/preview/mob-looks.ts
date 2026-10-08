@@ -24,6 +24,8 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
   // Starved servant of the ruin: tall for a goblin, grey and ragged.
   'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
+  // The Ash Wolf (preview only, ?wolf): the wolf rig's own body, ash grey and sooted; Characters may re-dress it when its world body lands.
+  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: 1, dressing: { soot: .4, burnt: 0 } },
   // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
   'character:lambton-worm': { opponent: 'minotaur', tint: 0x5a4a3a, scale: 1.2, dressing: { soot: .8, burnt: .4 }, later: true },
   'character:rift-spawn': { opponent: 'goblin', tint: 0x7a5f8c, scale: 1, dressing: { soot: .2, burnt: .1 }, later: true },

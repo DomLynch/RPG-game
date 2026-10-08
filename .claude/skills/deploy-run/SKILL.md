@@ -5,6 +5,8 @@ description: One release run on frankendom.com, Deploy lane only. Merge the READ
 
 # Deploy run (Deploy lane only)
 
+> **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it (fold6 died that way). How: the `vps-heavy-jobs` skill. Only Safari/WebKit rows and real-iPhone checks stay on the Mac.
+
 One deployer, one Mac. Only the Deploy session runs this. Every other lane opens PRs and sends the sha.
 
 ## 0. Preconditions (all four, or do not launch)
