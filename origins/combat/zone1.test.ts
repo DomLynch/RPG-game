@@ -105,6 +105,20 @@ test('level: a creature of level L has the Pit\'s own level body (moves.ts oppon
   assert.ok(minKillSeconds('wolf') > 0);
 });
 
+test('minKillSeconds is a bound from the whole Pit kit: no attack spam at the best gear kills any kind at L1-3 faster, and a low-level creature falls to one stacked blow (so the bound is the fastest windup)', () => {
+  const kinds = Object.keys(OPPONENTS).filter((k) => k !== 'player' && ['wolf', 'boar', 'bear', 'goblin'].includes(k));
+  let kills = 0;
+  for (const kind of kinds) for (const level of [1, 2, 3]) for (const attack of ['light', 'heavy'] as const) {
+    const p = boost(player('p', 0, 0, 0, { attack: CAPS.attack, res: 1 }, 10)), c = creature('c', kind, 0, 1.3, Math.PI, level);
+    const r = run(newWorld([p, c]), 120, () => ({ p: { x: 0, z: 0, attack } }), (w) => get(w, 'c').health <= 0);
+    if (get(r.world, 'c').health > 0) continue;   // never killed in 120 s of spam: nothing to bound
+    kills++;
+    assert.ok(r.ticks / 60 + 1e-9 >= minKillSeconds(kind, level), `${kind} L${level} ${attack}: killed in ${(r.ticks / 60).toFixed(2)} s, bound ${minKillSeconds(kind, level).toFixed(2)} s`);
+  }
+  assert.ok(kills > 0, 'the spam killed something, so the bound was actually compared');
+  for (const kind of ['wolf', 'boar', 'bear']) assert.ok(minKillSeconds(kind, 1) < 1, `${kind} L1: one stacked blow can kill, so the bound is under a second`);
+});
+
 test('stances: the Pit table applies in the open - aggressive deals more than Balanced, defensive less; Balanced is the stance-less fight', () => {
   const hit = (pick: 'neutral' | 'aggressive' | 'defensive') => {   // against an idle player, so nothing interrupts the cut
     const a = withStance(player('a', 0, 0, 0, undefined, 10), pick), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;

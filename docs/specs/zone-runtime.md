@@ -50,6 +50,16 @@ Facts from a read of `origins/` (182 TS files, 22.8k lines, 7.6k of them tests):
 
 Order: 1 → (2 ∥ 3) → 4. Step 1 runs alongside the core/pit split (Combat) and the seamless-engage fix (World); none of them changes the live game's behaviour.
 
+## Schema sources (donor survey, `docs/research/zone-donors.md`)
+No donor has a 3D Three.js zone format: every 3D engine reads proprietary binaries. So the terrain and look layer stays ours (the GLB kit plus `look.ts`). Step 1's package shapes are filled from these sources, copying formats and shapes, not code:
+- **Layout grammar:** Cataclysm-DDA mapgen JSON (CC BY-SA 3.0: format/shape only, no files copied; `data/json/mapgen/house/house01.json`). Rows + palette for any grid layout, plus `place_monsters` / `place_loot` / `place_nested` lists.
+- **Zone header** (`zone.ts`): Flare's map file, format only (GPL engine, CC-BY-SA data, `mods/empyrean_campaign/maps/abandoned_mines.txt`). Entry point, music, title, enemy groups with location/category/level/number, and exits to other maps in the same file.
+- **Spawn entry fields** (`spawns.ts`): ModernUO's spawn JSON, the schema idea only (GPL, no files copied). `maxCount`, `probability`, `homeRange`, `minDelay`/`maxDelay`, alongside the existing MobRow fields.
+- **Loader shape** (`loadZone`): 2004Scape / LostCityRS `src/engine/GameMap.ts` (MIT, TypeScript). Per-region data files, plus the LostCity in-memory bundle variant for the browser. About 150-200 lines are reusable over our own types; any lifted code keeps its MIT notice.
+- **Runtime model:** FOnline (MIT). A static prototype vs a live instance: `loadZone(id)` returns the validated prototype, and instances are created and destroyed on demand.
+- **Streaming (deferred, see below):** OpenMW `changeCellGrid` and Cataclysm `map::shift` as the pattern; OpenTESArena `ChunkManager.cpp` (MIT, 134 lines) as the one liftable piece (it keeps its MIT notice).
+The result is a ~300-line schema + loader of our own, built from these shapes. Acceptance is unchanged.
+
 ## Not in this design
 - Seamless borders between zones (walking from Zone 1 into Zone 2 with no load): a later design, once two zones exist.
 - The content pipeline for hundreds of zones (generators, authoring tools): Step 4 proves the shape first.

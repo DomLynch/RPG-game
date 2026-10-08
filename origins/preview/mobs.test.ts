@@ -227,3 +227,10 @@ test('name tags are kept below the HUD: the ceiling is the floor plus half a tag
   assert.ok(Math.abs(((1 - c) / 2) * 812 - 292) < 1e-6, 'centre 292 px from the top');
   assert.ok(Number.isFinite(labelCeilingNdc(280, 0)), 'a zero-height window cannot divide by zero');
 });
+
+test('a world fight hides the zone header so the foe card no longer draws over it (live bug, Deploy Metal stills 2026-10-08), and keeps its height', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const rule = html.split('\n').find((l) => l.includes('body.infight #hud')) ?? '';
+  assert.match(rule, /body\.infight #hud \{ visibility: hidden; \}/, 'visibility, not display: --hud-bottom and the player\'s bars stay put');
+  assert.ok(!/body\.infight #hud \{[^}]*display/.test(html), 'never display:none on #hud');
+});
