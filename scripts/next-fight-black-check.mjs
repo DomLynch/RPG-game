@@ -21,7 +21,7 @@ if (!LIVE && !process.env.NEXT_FIGHT_CHILD) await build({ logLevel: 'error', bui
 if (!process.env.NEXT_FIGHT_CHILD) {
   const { spawnSync } = await import('node:child_process');
   for (let attempt = 1; attempt <= 3; attempt++) {
-    if (spawnSync(process.execPath, [process.argv[1]], { stdio: 'inherit', env: { ...process.env, NEXT_FIGHT_CHILD: '1', NEXT_FIGHT_ATTEMPT: String(attempt) } }).status === 0) process.exit(0);
+    if (spawnSync(process.execPath, [process.argv[1]], { stdio: 'inherit', timeout: 600_000, env: { ...process.env, NEXT_FIGHT_CHILD: '1', NEXT_FIGHT_ATTEMPT: String(attempt) } }).status === 0) process.exit(0);
   }
   console.error('next-fight-black-check FAIL: all 3 attempts over the limit'); process.exit(1);
 }
