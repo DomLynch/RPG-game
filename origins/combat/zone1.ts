@@ -4,9 +4,10 @@
 // animation and input; this file owns hits, reach, stamina, guard, roll, posture, stagger, death and what a creature does with its weapon.
 // S0: movement, the light cut, a telegraphed creature bite, death, leash/give-up/heal-home. S1: guard (frontal block, perfect block, chip, guard break), roll with i-frames, posture break,
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
-import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type MoveId, type SpecialName, type WeaponId } from '../../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, MOVES, OPPONENTS, RULES, WEAPONS, opponentAt, type MoveDef, type MoveId, type SpecialName, type WeaponId } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
 import { asStance, moodOf, stanced, type PickedStance, type StanceId } from '../../src/stance.ts';
+import { openStream, stepStream, type Stream } from './open-fight.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 
 const TICK = 1 / 60;
@@ -17,6 +18,7 @@ export const PLAYER_RADIUS = 0.425;                    // half the sim's 0.85 m 
 export const AGGRO_M = 9;                              // a creature that is hunting a player notices him inside this ring (World's mob layer decides who is in the world at all)
 export const SIGHT_M = 14;                              // a hunting creature keeps the player in sight inside this ring (hysteresis over AGGRO_M); past it the unseen clock runs
 export const MAX_ATTACKERS = 2;                         // at most this many creatures wind up or swing at once (Dom: "it can be 2 vs 1, that is fine"); the rest hold off at the ring until a slot frees
+export const ENGAGE_M = 4, ENGAGE_OUT_M = 6;           // a lone hunting creature this close to the lone player fights on the Pit's duel (open-fight.ts); it stays there out to ENGAGE_OUT_M. Chase before that, leash and give-up after, are the world layer below
 export const CLOSE_EPS = 1e-6;                          // the clamped last step of a chase lands within float error of the blow's start distance: that counts as arrived (it once left a creature standing 1 ulp short, never swinging)
 export const RECOVER_PAUSE_S = 0.6;                    // a creature's beat between its blows
 export const TELEGRAPH_S = 0.4;                        // a creature's windup, long enough to read in the open world (Strategy, 2026-10-08); the bite row's own 14 ticks (.23 s) is a Pit number
@@ -32,11 +34,9 @@ export const VARIETY: Readonly<Record<string, { id: 'lunge' | 'charge' | 'heavy'
 };
 export const PARRY_STAGGER_S = 0.7;                     // a perfect block of a creature's plain blow throws the creature off for this long (a heavy / charge cannot be parried: roll it)
 
-/** Creature level scaling (S3): the roster row is level 1; each level adds this much health and damage (linear, like the ladder's own knobs; tune from play). Level 18 = x1.51 health, x1.26 damage; 46 = x2.35, x1.68. */
-export const LEVEL_HEALTH = 0.03, LEVEL_DAMAGE = 0.015, MAX_LEVEL = 50;
-export const levelHealth = (level: number): number => 1 + LEVEL_HEALTH * (clampLevel(level) - 1);
-export const levelDamage = (level: number): number => 1 + LEVEL_DAMAGE * (clampLevel(level) - 1);
-function clampLevel(level: number): number { return Math.min(MAX_LEVEL, Math.max(1, Math.round(level))); }
+/** Creature levels (Dom: copy the Pit): a creature of level L has the Pit's own level body (moves.ts `opponentAt`: health and poise by level) and, in a one-on-one fight, the Pit's level brain (`profileAt`). No Zone 1 scaling of our own. */
+export const MAX_LEVEL = LEVELS;
+export const levelHealth = (kind: string, level: number): number => opponentAt(OPPONENT(kind)!, level).health;
 
 /** PvP (S4, Dom via Strategy): no toggle. The SERVER sets `Fighter.pvp` each step to "attackable here, now" (wild zone = true, safe-town volume = false); the rules below decide between two such players.
  *  Under PROTECT_LEVEL a player is shielded until his own first attack; nobody may hit a player more than MAX_LEVEL_GAP levels below them. A player's blows always land on creatures, whatever the flags. */
@@ -75,7 +75,7 @@ export type Fighter = {
   plan: string | null;                                  // creature only: the variety blow rolled for its next attack ('basic' = none), null until rolled
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
-export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>> };   // aggro[attacker][victim] = when the attacker's last blow met that player
+export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>>; streams: Record<string, Stream>; open?: boolean };   // streams: creature id -> its fight on the copied Pit duel (open-fight.ts); `open: false` keeps every fight on the S0-S5b rows below (the pack path)   // aggro[attacker][victim] = when the attacker's last blow met that player
 export type Input = { x: number; z: number; special?: boolean; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
 export type Event =
   | { type: 'Telegraph'; id: string; move: string; ms: number }   // a windup began: the tell World animates and sounds
@@ -97,10 +97,10 @@ function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: 
 /** The player, with his gear's Loadout (NAKED = the identity: no gear changes nothing). */
 export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED, level = 1): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res, level, shielded: level < PROTECT_LEVEL });
 /** A creature of `kind` (a moves.ts ROSTER id): its health, poise, body scale and weapon are the roster's own rows. */
-export function creature(id: string, kind: string, x: number, z: number, facing = 0, level = 1): Fighter {
+export function creature(id: string, kind: string, x: number, z: number, facing = 0, level: number = LEVEL_ANCHORS.easy): Fighter {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
-  return { ...fighter(id, 'creature', kind, x, z, facing, PLAYER_RADIUS * o.scale, Math.round(o.health * levelHealth(level)), o.poise, o.weapon), attack: levelDamage(level) };
+  return { ...fighter(id, 'creature', kind, x, z, facing, PLAYER_RADIUS * o.scale, opponentAt(o, level).health, opponentAt(o, level).poise, o.weapon), level: Math.min(MAX_LEVEL, Math.max(1, Math.round(level))) };
 }
 /** A fighter with a picked stance ('neutral' = Balanced = none). The same four picks and the same signed per-mille table as the Pit (src/stance.ts), one kit everywhere. */
 export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, stance: asStance(pick) });
@@ -108,7 +108,7 @@ export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, 
 export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, special: name, specialIn: SP.first / 60 });
 /** A creature's stance mood: the Pit's own draw (src/stance.ts moodOf: half its home stance, half one of the other three), seeded from the injected `rand` instead of the fight seed. Call once at spawn. */
 export const withMood = (f: Fighter, rand: () => number): Fighter => withStance(f, moodOf(Math.floor(rand() * 4294967296) >>> 0, f.kind));
-export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {} });
+export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
 const aim = (from: Fighter, to: Fighter): number => Math.atan2(to.x - from.x, to.z - from.z);
@@ -200,8 +200,21 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   const events: Event[] = [];
   const fighters = world.fighters.map((f) => ({ ...f, struck: f.struck.slice() })), aggro: World['aggro'] = {};
   for (const [a, m] of Object.entries(world.aggro)) aggro[a] = { ...m };
+  // One player and one hunting creature close together = a duel on the Pit's own step (open-fight.ts). Two or more creatures (a pack), or more than one player, stay on the S0-S5b rows until the Pit's N-v-1 is copied.
+  const streams: World['streams'] = { ...world.streams }, engaged = new Set<string>();
+  let pair: [Fighter, Fighter] | null = null;
+  if (world.open !== false) {
+    const players = fighters.filter((f) => f.side === 'player' && alive(f)), p = players[0];
+    const hunters = p && players.length === 1 ? fighters.filter((c) => c.side === 'creature' && alive(c) && !c.returning && (c.hunting || dist(c, p) <= AGGRO_M)) : [];
+    const c = hunters.length === 1 ? hunters[0] : undefined;
+    if (p && c && (c.hunting || !streams[c.id]) && dist(c, p) <= (streams[c.id] ? ENGAGE_OUT_M : ENGAGE_M)) {
+      if (!c.hunting) { c.hunting = true; c.chaseX = c.x; c.chaseZ = c.z; c.unseen = 0; }   // inside the engage ring it is on the prey whether or not its chase had begun
+      pair = [p, c]; engaged.add(p.id); engaged.add(c.id);
+    }
+  }
+  for (const id of Object.keys(streams)) if (!engaged.has(id)) delete streams[id];
   for (const f of fighters) {
-    if (!alive(f)) continue;
+    if (!alive(f) || engaged.has(f.id)) continue;
     f.t += dt;
     if (f.pause > 0) f.pause = Math.max(0, f.pause - dt);
     if (f.specialIn > 0) f.specialIn = Math.max(0, f.specialIn - dt);
@@ -279,7 +292,12 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
       } else if (f.phase === 'recover' && f.t >= secs(m.recovery)) { f.phase = 'ready'; f.t = 0; f.move = null; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
     } else if (f.phase === 'stagger' && f.t >= f.hurtFor) { f.phase = 'ready'; f.t = 0; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
   }
-  return { world: { time: world.time + dt, fighters, aggro }, events };
+  if (pair) {
+    const [p, c] = pair, r = stepStream(streams[c.id] ?? openStream(p, c), p, c, inputs[p.id] ?? { x: 0, z: 0 }, dt);
+    streams[c.id] = r.stream; events.push(...r.events);
+    if (alive(c) && Math.hypot(c.x - c.chaseX, c.z - c.chaseZ) > leashOf(c.kind)) { c.hunting = false; c.returning = true; c.phase = 'ready'; delete streams[c.id]; }   // the leash is the world layer's, on the duel too
+  }
+  return { world: { time: world.time + dt, fighters, aggro, streams, ...(world.open === false ? { open: false } : {}) }, events };
 }
 
 /**
@@ -290,7 +308,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
 export function minKillSeconds(kind: string, level = 1): number {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
-  const cut = MOVES.light_right, best = Math.round(cut.damage * CAPS.attack) * RULES.rear.damage, hits = Math.ceil(Math.round(o.health * levelHealth(level)) / best);   // the best gear (CAPS.attack) and the creature's level health
+  const cut = MOVES.light_right, best = Math.round(cut.damage * CAPS.attack) * RULES.rear.damage, hits = Math.ceil(opponentAt(o, level).health / best);   // the best gear (CAPS.attack) and the creature's level health
   const chained = cut.chained ?? cut, cycle = secs(chained.windup + chained.active + chained.recovery);
   return secs(cut.windup) + Math.max(0, hits - 1) * cycle;   // the first blow lands after its windup; every later one a full chained cycle apart
 }
