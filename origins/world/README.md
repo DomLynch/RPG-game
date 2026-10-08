@@ -47,6 +47,7 @@ in 0..1 of its zone.
 | | connections.‹id›.twoWay | bool | true | — | the target must link back between the same landmarks |
 | 12 | terrain.biome / ground | id | ash-waste / sand | id | biome, ground surface |
 | | terrain.heightMin / heightMax | m | 0 / 0 | −500–2000 | ground height range; min ≤ max |
+| | terrain.relief / hillScale / seed | m / m / seed | 0 / 40 / 0 | 0–3 / 8–200 / 0–2³¹−1 | gentle hills (relief.ts: seeded warped noise, flat pads, 0 = flat); seed 0 = the zone id |
 | 13 | rules.safe / pvp | bool | false / false | — | no PvP or hostile spawns / open PvP; never both |
 | | rules.restAllowed / tradeAllowed / mountsAllowed | bool | true / true / false | — | what the zone allows |
 | 14 | difficulty.levelMin / levelMax | level | 1 / 1 | 1–100 | the creature level band (the one band; spawns does not repeat it) |
