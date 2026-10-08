@@ -50,7 +50,7 @@ const killed = (d: Duel, victim: 0 | 1, draw = false): Duel => ({ ...d, finish: 
 
 test('pack: the next member walks in only when the engaged one is dead or fled; the player\'s fighter carries over untouched', () => {
   const pack = startPack([OPPONENTS.goblin, OPPONENTS.pitborn, OPPONENTS.veteran]);
-  let duel = initialDuel(OPPONENTS.goblin);
+  const duel = initialDuel(OPPONENTS.goblin);
   assert.equal(nextBout(pack, duel), null, 'still standing');
   assert.equal(nextBout(pack, killed(duel, 0)), null, 'the player fell: the camp wins');
   assert.equal(nextBout(pack, killed(duel, 1, true)), null, 'a draw ends it');
