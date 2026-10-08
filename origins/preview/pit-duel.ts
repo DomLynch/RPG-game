@@ -307,7 +307,8 @@ function frame(now: number) {
   hud!.update(match.practice, { legend: fight!.as?.name ?? legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
   if (fight!.as) {   // a creature, not a legend: no rematch
     const again = element('reset-button'), status = element('combat-status');
-    again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', '');
+    if (stage.mounted) { again.hidden = true; if (match.practice.finish) status.textContent = ''; }   // the wild has no fight end: no button, no win/lose line (main.ts worldEnded)
+    else { again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', ''); }
   }
   frameId = requestAnimationFrame(frame);
 }
