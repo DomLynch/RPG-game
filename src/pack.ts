@@ -4,7 +4,7 @@
 //     from the play circle's far edge, the leader enters last. Waiting members are presentation only, not in the sim.
 //  2. The creature's THREAT LIST (`ThreatList`): who the creature turns on when several players hit it. Donor: AzerothCore ThreatManager (damage adds threat; the current victim changes only when another beats it
 //     by 110 %, casters 130 %; a list cap of 7; suppressed targets are used only when no online one is left). Deterministic: a pure function of the join order and the damage stream, ties go to the earlier joiner.
-import { opponentFighter, type Duel } from './duel.ts';
+import { opponentFighter, stepDuel, type Duel, type Intent } from './duel.ts';
 import { M } from './detmath.ts';
 import type { Opponent } from './moves.ts';
 import { RADIUS, type State } from './sim.ts';
@@ -67,4 +67,22 @@ export function nextBout(pack: Pack, duel: Duel, fled = false): { pack: Pack; du
   if (!memberDown || packLeft(pack) <= 0) return null;
   const next = pack.members[pack.index + 1]!;
   return { pack: { ...pack, index: pack.index + 1 }, duel: { ...duel, fighters: [duel.fighters[0], opponentFighter(next, walkInBody(duel))], finish: null } };
+}
+
+// ---- N attackers on one creature: parallel ordinary duels, ONE shared health pool (RV39; docs/specs/combat/threat-list.md "Decision") -------------------------------------------------------------------
+// Each attacker fights their own Pit duel against their own copy of the creature; a copy attacks only its own attacker. The pool is shared by the one sim hook there is: Duel.incoming, the damage the OTHER streams dealt
+// last tick, which lands on this copy after its own blows (one tick of latency, identical live and on replay). A stream cannot be judged without its siblings, so a group is 2..THREAT_MAX streams and nothing else.
+export type StreamGroup = { duels: readonly Duel[]; carry: readonly number[] };
+export const startStreams = (duels: readonly Duel[]): StreamGroup => {
+  if (duels.length < 2 || duels.length > THREAT_MAX) throw RangeError(`Streams: a shared-health group is 2..${THREAT_MAX} duels (a lone stream is the ordinary fight, and cannot be verified without its siblings)`);
+  return { duels, carry: duels.map(() => 0) };
+};
+// Damage this tick's blows put on the creature (side 1) by its attacker: blows and landed specials. SharedHit is the pool's own delivery and never counts, or the streams would feed each other forever.
+const dealtOn = (d: Duel): number => d.events.reduce((sum, e) => (e.tick === d.tick && e.target === 1 && e.actor === 0 && (e.type === 'Hit' || e.type === 'SpecialLanded') ? sum + (e.damage ?? 0) : sum), 0);
+export function stepStreams(group: StreamGroup, intents: readonly (readonly [Intent, Intent])[]): StreamGroup {
+  if (intents.length !== group.duels.length) throw RangeError('Streams: one intent pair per stream');
+  const stepped = group.duels.map((d, i) => (d.finish ? d : stepDuel(group.carry[i] ? { ...d, incoming: group.carry[i] } : d, [intents[i]![0], intents[i]![1]])));
+  const dealt = stepped.map((d, i) => (d === group.duels[i] ? 0 : dealtOn(d)));
+  const total = dealt.reduce((a, b) => a + b, 0);
+  return { duels: stepped, carry: dealt.map((own) => total - own) };
 }
