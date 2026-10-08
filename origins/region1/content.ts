@@ -139,7 +139,10 @@ export const TOWNSFOLK = [
   figure('character:fence-cinder', 'The Hold Fence', ORIGINAL, 'Trades from the shrine road, where the warden does not look.', null,
     [{ id: 'duel', opponent: 'executioner', level: 12, encounter: null }], 'fence'),
   figure('character:healer-mere', 'The Mere End Healer', ORIGINAL, 'Draws mere-water out of drowned lungs, most days.', null,
-    [{ id: 'duel', opponent: 'plaguedoctor', level: 13, encounter: null }], 'healer'),
+    [{ id: 'duel', opponent: 'plaguedoctor', level: 13, encounter: null }], 'healer'),  // The Exchange's working NPCs (Town plan A1, NPC rows in origins/region1/npcs.ts). PROPOSED (Backend) names; no duel form: they are not grudge rivals.
+  figure('character:banker-exchange', 'Cassa the Banker', ORIGINAL, 'Holds the Exchange vault, day and night; a night teller takes the counter while she sleeps.', 'faction:concord', [], 'banker'),
+  figure('character:provisioner-exchange', 'Dunmore the Provisioner', ORIGINAL, 'Sells grave iron by the piece to anyone the smith will serve.', 'faction:concord', [], 'provisioner'),
+  figure('character:innkeeper-exchange', 'Brisa of the Last Lamp', ORIGINAL, 'Keeps the only lamp in the square that never goes out.', 'faction:concord', [], 'innkeeper'),
 ];
 
 // The encounters (region1 §4; living-world §8). Bounties are solo, no decay, restart 0. The contract needs at least one stage before the
