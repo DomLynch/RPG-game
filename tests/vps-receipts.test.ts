@@ -15,7 +15,7 @@ const sums = { 'run-rows.sh': 'r'.repeat(64), 'rows-json.mjs': 'j'.repeat(64), '
 const sha = 'e'.repeat(40);
 const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', job: 'J1', sha, scripts: sums, tree, buildStatus: 0, dirty: 0, rows: rows.map((r: Row) => ({ ...r, status: 'pass', exit: 0 })), ...over });
 // What `hf jobs inspect` says about the job a receipt names (the flavor comes from here, never from the receipt).
-const jobs = (flavor = 'cpu-upgrade', over = {}, kind = 'rows') => ({ J1: { id: 'J1', flavor, status: { stage: 'COMPLETED' }, environment: { SHA: sha }, command: jobCommand(kind, sha), ...over } });
+const jobs = (flavor = 'cpu-upgrade', over = {}, kind = 'rows') => ({ J1: { id: 'J1', flavor, status: { stage: 'COMPLETED' }, docker_image: 'node:22', arguments: [], owner: { name: 'Domlynch' }, space_id: null, secrets: [], environment: { SHA: sha }, command: jobCommand(kind, sha), ...over } });
 const JOBS = jobs();
 const TREES = { [sha]: tree };   // `git rev-parse <receipt.sha>^{tree}` for the receipt's commit
 
@@ -108,14 +108,25 @@ test('a string or missing row index can neither be trusted nor dodge a FAIL veto
 });
 
 test('the job environment is a closed set with strict values, and no secrets: an injected NODE_OPTIONS/BASH_ENV/npm_config_* job is refused', () => {
-  const ok = (env: Record<string, string>, extra = {}) => trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { environment: env, ...extra }), TREES).length > 0;
+  const ok = (env: Record<string, string | undefined>, extra = {}) => trustedFromVps(receipt(), tree, commands, source, sums, jobs('cpu-upgrade', { environment: env, ...extra }), TREES).length > 0;
   assert.equal(ok({ SHA: sha }), true);
   assert.equal(ok({ SHA: sha, ROWS_ONLY: '31,33', RELEASE_CHECK_CONCURRENCY: '2' }), true, 'the allowed set is accepted');
   for (const bad of [{ NODE_OPTIONS: '--require /x.js' }, { BASH_ENV: '/x' }, { npm_config_script_shell: '/x' }, { ROWS_ONLY: '31;rm' }, { ROWS_ONLY: '' }, { RELEASE_CHECK_CONCURRENCY: '9' }, { RELEASE_CHECK_CONCURRENCY: '2 ' }]) assert.equal(ok({ SHA: sha, ...bad }), false, JSON.stringify(bad));
   assert.equal(ok({}), false, 'no SHA');
   assert.equal(ok({ SHA: sha }, { secrets: { HF_TOKEN: 'x' } }), false, 'a job with secrets');
   assert.equal(ok({ SHA: sha }, { secrets: [] }), true);
-  const U = (env: Record<string, string>) => unitReceiptOk({ kind: 'vps-unit-suite', job: 'J1', sha, tree, pass: 5, fail: 0, exit: 0, scripts: { 'run-unit.sh': 'u'.repeat(64) } }, tree, { 'run-unit.sh': 'u'.repeat(64) }, jobs('cpu-upgrade', { environment: env }, 'unit'), TREES);
+  assert.equal(ok({ SHA: sha }, { secrets: undefined }), false, 'secrets absent = refused (a real inspect always has the empty array)');
+  for (const key of ['LD_PRELOAD', 'NODE_OPTIONS', 'BASH_ENV']) assert.equal(ok({ SHA: sha, [key]: '/x' }), false, key);
+  assert.equal(ok({ sha }), false, 'a lowercase sha key is not SHA');
+  assert.equal(ok({ SHA: sha, sha }), false, 'an extra lowercase sha key');
+  assert.equal(ok({ SHA: sha }, { docker_image: 'node:22.1' }), false, 'another image');
+  assert.equal(ok({ SHA: sha }, { docker_image: 'evil/node:22' }), false);
+  assert.equal(ok({ SHA: sha }, { arguments: ['--x'] }), false, 'job arguments');
+  assert.equal(ok({ SHA: sha }, { arguments: undefined }), true, 'arguments absent is fine');
+  assert.equal(ok({ SHA: sha }, { owner: { name: 'domlynch' } }), false, 'another account (case matters)');
+  assert.equal(ok({ SHA: sha }, { owner: undefined }), false);
+  assert.equal(ok({ SHA: sha }, { space_id: 'x/y' }), false, 'a Space job');
+  const U = (env: Record<string, string | undefined>) => unitReceiptOk({ kind: 'vps-unit-suite', job: 'J1', sha, tree, pass: 5, fail: 0, exit: 0, scripts: { 'run-unit.sh': 'u'.repeat(64) } }, tree, { 'run-unit.sh': 'u'.repeat(64) }, jobs('cpu-upgrade', { environment: env }, 'unit'), TREES);
   assert.equal(U({ SHA: sha }), true);
   assert.equal(U({ SHA: sha, ROWS_ONLY: '31' }), false, 'unit allows SHA only');
   assert.equal(U({ SHA: sha, NODE_OPTIONS: '--require /x.js' }), false);

@@ -45,8 +45,12 @@ export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; apt-get update 
 const ENV_RULES = { SHA: (v, sha) => v === sha, ROWS_ONLY: v => /^\d+(,\d+)*$/.test(v), RELEASE_CHECK_CONCURRENCY: v => /^[1-8]$/.test(v) };
 const ENV_ALLOWED = { rows: ['SHA', 'ROWS_ONLY', 'RELEASE_CHECK_CONCURRENCY'], unit: ['SHA'] };
 export const jobEnvOk = (env, sha, kind) => !!env && typeof env === 'object' && Object.keys(env).every(k => (ENV_ALLOWED[kind] || []).includes(k) && typeof env[k] === 'string' && ENV_RULES[k](env[k], sha)) && env.SHA === sha;
+// Everything `hf jobs inspect` reports about how the job ran is pinned: image, no arguments, the account that owns it, no Space, no secrets (the field is present and empty
+// in a real inspect, so absent is refused), the closed env above and the canonical command.
+export const JOB_IMAGE = 'node:22', JOB_OWNER = 'Domlynch';
 export const jobVerified = (info, id, sha, kind) => !!info && !!id && info.id === id && info.status?.stage === 'COMPLETED' && FLAVORS.includes(info.flavor) && fullHex(sha)
-  && jobEnvOk(info.environment, sha, kind) && Object.keys(info.secrets || {}).length === 0 && JSON.stringify(info.command) === JSON.stringify(jobCommand(kind, sha));
+  && info.docker_image === JOB_IMAGE && (info.arguments === undefined || (Array.isArray(info.arguments) && info.arguments.length === 0)) && info.owner?.name === JOB_OWNER && !info.space_id
+  && Array.isArray(info.secrets) && info.secrets.length === 0 && jobEnvOk(info.environment, sha, kind) && JSON.stringify(info.command) === JSON.stringify(jobCommand(kind, sha));
 // The runner files a receipt names (sha256 by file name) must equal the deploy tree's own copies: a run started from another checkout
 // copied different runner scripts. `ownSums` = { 'run-rows.sh': sha256, ... } of the deploy tree.
 export const boundToTree = (receipt, ownSums) => !!receipt?.scripts && Object.keys(ownSums).length > 0 && Object.entries(ownSums).every(([name, sum]) => receipt.scripts[name] === sum);
