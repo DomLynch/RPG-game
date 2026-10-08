@@ -5,7 +5,9 @@
 # Frame: 1 unit = 1 m, glTF +Y up; every piece's origin is its base centre on the ground; its FRONT faces glTF +Z (Blender -Y). A wall piece is 3 m long along X,
 # .3 m thick, 3 m high (a module); a roof piece covers 3 m (X) x 6 m (Z, a two-module-deep building) with its ridge along X down the middle; rotate a piece in 90 degree steps about Y.
 # Donor: 2004Scape-Server (MIT; LocShape wall / corner / roof / centrepiece taxonomy with four rotation angles): the idea of typed pieces + rotations, no code or assets copied.
-# Budget per piece (tris): wall <= 200, corner <= 80, arch <= 220, roof <= 120, stall <= 260, counter <= 260, sign <= 90, chimney <= 90; the script fails over budget.
+# Budget per piece (tris): wall <= 200, corner <= 80, arch <= 220, roof <= 120, stall <= 260, counter <= 260, sign <= 90, chimney <= 90, arena <= 600, stone <= 260; the script fails over budget.
+# The Pit building and the leaderboard stone (TOP10 'Remove the Pit holding cell', Dom 2026-10-08) are `pit_arena_a`, `pit_gate_a` and `leaderboard_stone_a`; the stone carries ten
+# child empties `anchor_row_01..10` (local positions, front face) where Web / World hang the ranking rows. Donor patterns for the stone: UO LadderItem, WoC podium (Strategy's refs).
 import json
 import math
 import os
@@ -18,7 +20,7 @@ from mathutils import Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT, MANIFEST = argv[0], argv[1]
 ATLAS = argv[2] if len(argv) > 2 else os.path.splitext(OUT)[0] + "-atlas.png"
-BUDGET = {"wall": 200, "corner": 80, "arch": 220, "roof": 120, "stall": 260, "counter": 260, "sign": 90, "chimney": 90}
+BUDGET = {"wall": 200, "corner": 80, "arch": 220, "roof": 120, "stall": 260, "counter": 260, "sign": 90, "chimney": 90, "arena": 600, "stone": 260}
 M = 3.0   # the module (m)
 
 SWATCHES = [
@@ -280,6 +282,73 @@ def chimney(swatch, tall):
         box(bm, uv, col, (-.22, -.22, tall + .18), (.22, .22, tall + .4), "soot")   # the flue
     return make
 
+# ---- the Pit building and the leaderboard stone ------------------------------------------------------------------------------------------------------
+
+def wedge(bm, a0, a1, r0, r1, z0, z1):
+    """A ring segment between angles a0..a1 (radians, Blender XY plane), radii r0..r1, heights z0..z1."""
+    def p(r, a, z):
+        return bm.verts.new((math.cos(a) * r, math.sin(a) * r, z))
+    v = [p(r0, a0, z0), p(r1, a0, z0), p(r1, a1, z0), p(r0, a1, z0), p(r0, a0, z1), p(r1, a0, z1), p(r1, a1, z1), p(r0, a1, z1)]
+    return [bm.faces.new(f) for f in ((v[0], v[3], v[2], v[1]), (v[4], v[5], v[6], v[7]), (v[0], v[1], v[5], v[4]), (v[1], v[2], v[6], v[5]), (v[2], v[3], v[7], v[6]), (v[3], v[0], v[4], v[7]))]
+
+
+def pit_arena():
+    """The arena building: a round stone ring (outer 6 m), 12 segments, the front one (+Z) left open for `pit_gate_a`; alternating solid segments and arched windows, a cornice,
+    an inner seating tier, a sand floor and two banner poles. About 12.6 m across, 4.8 m high."""
+    def make(bm, uv, col):
+        n, ro, ri, H = 12, 6.0, 5.2, 4.5
+        for k in range(1, n):   # k = 0 is the gate
+            a0 = math.radians(-90 + 30 * k - 15)
+            a1 = a0 + math.radians(30)
+            if k % 2 == 1:   # solid segment, in the darker stone
+                paint(bm, uv, col, wedge(bm, a0, a1, ri, ro, 0, H), "stone_dark", top=H, dark=.8)
+            else:   # a window: a sill below, a lintel above, the opening between
+                paint(bm, uv, col, wedge(bm, a0, a1, ri, ro, 0, 1.0), "stone", top=H, dark=.8)
+                paint(bm, uv, col, wedge(bm, a0, a1, ri, ro, 3.0, H), "stone", top=H, dark=.8)
+        for k in range(n):   # the cornice, and one tier of seats inside
+            a0 = math.radians(-90 + 30 * k - 15)
+            a1 = a0 + math.radians(30)
+            paint(bm, uv, col, wedge(bm, a0, a1, ri - .1, ro + .25, H, H + .3), "stone_dark", top=H + .3, dark=.8)
+            if k:
+                paint(bm, uv, col, wedge(bm, a0, a1, 3.9, ri, 0, 1.4), "plaster_warm", top=H, dark=.8)
+        fan = [bm.verts.new((math.cos(math.radians(30 * i)) * 3.9, math.sin(math.radians(30 * i)) * 3.9, .03)) for i in range(n)]
+        paint(bm, uv, col, [bm.faces.new(fan)], "plaster_warm", top=H, dark=.9)   # the sand floor
+        for sx in (-2.2, 2.2):   # banner poles each side of the gate
+            post(bm, uv, col, sx, -6.4, 0, 5.4, .08, "timber", 5)
+            x0, x1 = (sx - .7, sx) if sx < 0 else (sx, sx + .7)   # the banner hangs outward from its pole
+            box(bm, uv, col, (x0, -6.43, 3.4), (x1, -6.37, 5.0), "canvas_red", dark=.9)
+    return make
+
+
+def pit_gate():
+    """The gate piece that fills the arena's front opening (3.2 m wide, 4.5 m high): two pillars, a lintel with a brass plaque, an iron portcullis."""
+    def make(bm, uv, col):
+        for sx in (-1.35, 1.35):
+            box(bm, uv, col, (sx - .3, -.45, 0), (sx + .3, .45, 4.5), "stone", "stone_dark", dark=.8)
+        box(bm, uv, col, (-1.65, -.5, 3.4), (1.65, .5, 4.5), "stone_dark", "stone", dark=.8)
+        box(bm, uv, col, (-.6, -.52, 3.7), (.6, -.45, 4.2), "brass", dark=.9)   # the plaque
+        for i in range(7):   # portcullis bars
+            x = -1.0 + i * (2.0 / 6)
+            box(bm, uv, col, (x - .035, -.12, 0), (x + .035, -.06, 3.4), "iron", dark=.9)
+        for z in (1.0, 2.2):
+            box(bm, uv, col, (-1.05, -.14, z), (1.05, -.08, z + .07), "iron", dark=.9)
+    return make
+
+
+def leaderboard_stone():
+    """The ranking stone: two steps, a tall slab in dark stone with ten inset rows on its front face, a brass crown plaque and a pyramid cap."""
+    def make(bm, uv, col):
+        box(bm, uv, col, (-.95, -.7, 0), (.95, .7, .18), "stone", "stone", dark=.8)
+        box(bm, uv, col, (-.8, -.55, .18), (.8, .55, .36), "stone_dark", "stone", dark=.8)
+        box(bm, uv, col, (-.62, -.2, .36), (.62, .2, 2.7), "stone_dark", dark=.8)
+        top = [bm.verts.new(p) for p in ((-.62, -.2, 2.7), (.62, -.2, 2.7), (.62, .2, 2.7), (-.62, .2, 2.7), (0, 0, 3.05))]
+        paint(bm, uv, col, [bm.faces.new((top[0], top[1], top[4])), bm.faces.new((top[1], top[2], top[4])), bm.faces.new((top[2], top[3], top[4])), bm.faces.new((top[3], top[0], top[4])), bm.faces.new((top[3], top[2], top[1], top[0]))], "stone", top=3.05, dark=.85)
+        box(bm, uv, col, (-.5, -.23, 2.35), (.5, -.2, 2.62), "brass", dark=.9)   # the crown plaque
+        for i in range(10):   # ten rows
+            z = 0.55 + i * .17
+            box(bm, uv, col, (-.5, -.22, z), (.5, -.2, z + .12), "soot", dark=.9)
+    return make
+
 
 PIECES = [   # (node, kind, weight, make)
     ("wall_plain_a", "wall", 4, wall_plain("plaster", "stone", None)),
@@ -305,6 +374,9 @@ PIECES = [   # (node, kind, weight, make)
     ("sign_tavern_a", "sign", 1, sign("mug", "timber_light")),
     ("sign_smith_a", "sign", 1, sign("anvil", "stone_dark")),
     ("sign_bank_a", "sign", 1, sign("coin", "timber")),
+    ("pit_arena_a", "arena", 1, pit_arena()),
+    ("pit_gate_a", "arch", 1, pit_gate()),
+    ("leaderboard_stone_a", "stone", 1, leaderboard_stone()),
     ("chimney_a", "chimney", 2, chimney("brick", 2.0)),
     ("chimney_b", "chimney", 2, chimney("stone", 2.6)),
 ]
@@ -375,7 +447,15 @@ for name, kind, weight, make in PIECES:
     dims = [round(v, 2) for v in ob.dimensions]
     manifest["pieces"][name] = {"kind": kind, "weight": weight, "tris": tris, "size": dims}
     ob.location.x = x
-    x += 4.2
+    x += max(4.2, dims[0] + 1.5)
+    if name == "leaderboard_stone_a":   # ten row anchors, children of the stone (local positions on its front face, -Y in Blender = +Z in glTF)
+        manifest["anchors"] = {name: []}
+        for i in range(10):
+            e = bpy.data.objects.new(f"anchor_row_{i + 1:02d}", None)
+            bpy.context.collection.objects.link(e)
+            e.parent = ob
+            e.location = (0, -.23, .61 + i * .17)
+            manifest["anchors"][name].append([0, round(.61 + i * .17, 3), .23])   # glTF local (x, y, z)
     print(f"TOWN {name:16s} {tris:4d} tris (budget {BUDGET[kind]}) size {dims}")
     if tris > BUDGET[kind]:
         raise SystemExit(f"{name} is over its budget: {tris} > {BUDGET[kind]}")
