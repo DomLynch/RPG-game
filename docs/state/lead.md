@@ -20,6 +20,16 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    - **Gate:** if tonight's Metal engage trace (World) already names a cause whose fix measures under 200 ms on Metal, the spike is skipped and recorded as not needed.
    - **Knock-on:** Combat's core/pit split moves to Sat 10-10 (boundary + lint) and Sun 10-11 (split done).
    - **The zone-runtime design** (decision 3) is PR #1913 (`docs/specs/zone-runtime.md`): Auditor docs PASS with corrections, and the corrections are pushed.
+**STANDING RULE: DONOR READ BEFORE BUILD** (Dom's instruction via the Optimizer, ~22:15; the method that worked twice tonight, in #1914/#1915 and the zone survey #1918). For each area below, before the first line of our own code:
+- one lane, one day, read-only on `/mnt/frankendom-donors`;
+- a docs page with path:line evidence and an explicit quality + licence verdict;
+- then copy the IDEA. Code comes only from MIT/Apache/BSD, keeping its notice; from GPL/AGPL/CC BY-SA, only the shape.
+The read happens when the area is next scheduled, not now. Lead assigns the owner (the lane that will build it) at scheduling time.
+1. **Server authority + interest management at scale** (azerothcore `Map.cpp` EnsureGridLoaded/LoadGridsInRange, OpenDAoC SubZones, ModernUO sectors). Trigger: the first multi-player zone work after presence. Likely owner: Backend.
+2. **Creature AI, aggro, leashing** (EQEmu hate lists/spawn groups/pathing grids, rathena mob AI, veloren rtsim). Trigger: before the threat list grows past the seamless step-5 note. Likely owner: Combat.
+3. **Loot + economy tables** (EQEmu loottable/lootdrop, azerothcore creature_loot_template, veloren RON loot, rathena map_drops.yml). Trigger: before loot v3 or the first zone-specific drop table. Likely owner: Backend/Characters.
+4. **Content tooling + validation** (Wesnoth map/scenario editor + WML validator, the Cataclysm JSON mapgen validator + palettes, the Flare map format). Trigger: zone-runtime Step 3 (validator + budget test). Owner: Auditor/Code quality.
+5. **Live ops: rollbacks, bans, dupes, GM commands** (ModernUO admin commands, azerothcore GM levels + ban tables, forgottenserver). Trigger: before beta-launch ops. Likely owner: Backend.
 **~21:55 SEAMLESS RESULT (World's Mac Metal trace on LIVE 27086155, ANGLE Metal, Apple M5, 375x812, a fresh page each run, logging from 1.5 s before, the PLAYER path, 3 creatures, load1 7.3/9.5/6.5, no quality gate running):**
 - The engage frame's worst gap is **18 ms** in all 3 runs, so Dom's < 200 ms bar is MET for engage. No longtask fell in the engage window.
 - The remaining hitch is a **first-draw shader compile + texture upload** when a creature or material set is first seen: up to a 179 ms longtask (Gambeson_goblin, WeaponKnife, Steel, Bone, Skin/Photo…; `(program)` 1635 ms, `texSubImage2D` 189 ms). That matches the donor study #1914.
