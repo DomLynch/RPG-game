@@ -5,6 +5,13 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-08 (afternoon, ~15:15 +04) — HANDOFF before /clear: 0006, 0012, 0007 applied + POST PASS; writer 7beb748e
+**READ FIRST:** lane memory `frankendom_backend_handoff_2026-10-08_pm.md` (NOW block at its top). Short form:
+- **Live:** fold 13 = 7beb748e; writer `/opt/frankendom-origins/7beb748e` (ENCOUNTERS=1, REWARDS=1). Migrations applied today with Auditor POST PASS: 0006 respawn window (v20261008084659), 0012 shop stock (v20261008103908), 0007 boar (v20261008105731). Prod still 0 mob events (a 30-min watch posts the first real kill's read-back, unnamed).
+- **Open PRs:** #1824 Region 1 shop, #1828 NPC rows, #1838 shop presence check, #1831 shop gear (after #1838), #1833 serial write queue, #1837 bronze in open, #1813 engage state, #1818 + #1834 season close (run only under Lead + Strategy GO), #1805 rankings (0009 under its GO), #1799, #1807.
+- **Rulings:** Dom 12:5x everything live and ON (DB/money steps keep PRE/GO/POST); never sign in for Dom or ask him to playtest; boar loot = #1847 @2bc682db (merge go given); heavy VPS jobs only via `lanejob`/`capture`.
+- **Gotchas:** origins_events.kind has a CHECK list (reuse 'metal' for bronze spends); the conservation trigger refuses direct origins_metal updates; `gh pr edit --body-file` with an empty file wiped a body once (check the length after); zsh `$T:path` is a modifier, write `${T}:path`.
+
 ## 2026-10-08 (midday, ~11:50 +04) — HANDOFF before /clear: rewards + stances + BRONZE LIVE (writer f8632f62); #1793 next
 **READ FIRST:** the full handoff is the memory file `frankendom_backend_handoff_2026-10-08_midday.md` (lane memory). Short form:
 1. **#1793** (0006 respawn window in DB) @acd1e188: Lead's GO half posted (conditional on green CI + Auditor delta at acd1e188 + Strategy's GO); delta + Strategy GO asked. Then merge → sha to Lead → apply 0006 → reinstall → POST.
