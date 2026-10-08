@@ -79,8 +79,8 @@ const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel
 const dress = frontier && frontierParts ? (CINDER ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = /[?&]kit\b/.test(location.search);   // ?kit (with ?region=1): the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; default off
-const kit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
-if (frontierParts && kit) frontierParts.solids.push(...kit.solids);
+const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
+if (frontierParts && zoneKit) frontierParts.solids.push(...zoneKit.solids);
 const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ? demoCamps(frontier, frontierParts, dress?.pieces) : [];   // ?camps: Expansion's generator drops these through placeCamp; this is the preview's stand-in
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
@@ -88,7 +88,7 @@ const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.ma
 let frontierGroup: THREE.Group | null = null;
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps);
-  if (kit) void loadKit(kit).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
+  if (zoneKit) void loadKit(zoneKit).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
