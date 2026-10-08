@@ -3,7 +3,7 @@
 -- Why (Strategy 2026-10-08): every reward of the detached Zone 1 path (202610080014) lands in origins_beta_ledger; the pre-launch wipe reverses EXACTLY those and nothing else.
 --   items:  every ledger item still live (and its split children, id || '::s<n>') is burned as origins_apply's `burn` does: an item-ledger 'burn' row and the item retired 'burn'.
 --           An item already retired (merged, sold, burned) is skipped and counted: what it became is no longer beta-only.
---   bronze: the ledger's bronze is spent back through the metal ledger ('spend', event 'betawipe:<event>'), clamped at the balance (bronze already spent is counted, not driven below 0).
+--   bronze: the ledger's bronze is spent back through the metal ledger ('spend', event 'betawipe:<account>'), clamped at the balance (bronze already spent is counted, not driven below 0).
 --   CP:     the career trigger refuses any world_credit decrease on UPDATE (O0004, the guard against a writer bug). The wipe is the one sanctioned decrease: it DELETES the row and
 --           re-inserts it with world_credit - beta cp (clamped at 0), every other column equal and version + 1 (any writer holding the old version aborts as stale).
 --   ledger: each row reversed gets wiped_at; a second run reverses nothing. The kill events stay (append-only history).
