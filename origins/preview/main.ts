@@ -315,13 +315,13 @@ const UPLOAD_BUDGET_MS = 6;
 function planUpload() {
   const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
   scene.traverse((o) => {
-    const m = o as THREE.Mesh; if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return;
+    const m = o as THREE.Mesh; if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return;   // skinned bodies are warmed by their own stage (pit-duel warmStage / warmOwn), not here
     if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture);
   });
   const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4), queue: (() => void)[] = [];
   for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
-  for (const g of geometries) queue.push(() => { const mesh = new THREE.Mesh(g, proxy); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(null); tmp.remove(mesh); } uploaded.add(g); });
+  for (const g of geometries) queue.push(() => { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } uploaded.add(g); });
   if (queue.length) queue.push(() => { target.dispose(); proxy.dispose(); }); else { target.dispose(); proxy.dispose(); }
   uploadTotal += queue.length; return queue;
 }
