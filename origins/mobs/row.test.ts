@@ -197,9 +197,8 @@ test('wildlife rows are valid held rows: no look, source or loot table needed, n
   }
 });
 
-test('respawn: a whole-second band inside 30..86400 with min <= max, else respawn-range', () => {
-  assert.deepEqual(codes({ ...good, respawn: [60, 90] }), []);
-  assert.deepEqual(codes({ ...good, respawn: [90, 60] }), ['respawn-range'], 'min above max');
-  assert.deepEqual(codes({ ...good, respawn: [10, 20] }), ['respawn-range'], 'under half a minute');
-  assert.deepEqual(codes({ ...good, respawn: [60.5, 90] }), ['respawn-range'], 'whole seconds');
+test('respawnSeconds: inside 30..300 s, else respawn-range', () => {
+  assert.deepEqual(codes({ ...good, respawnSeconds: 75 }), []);
+  assert.deepEqual(codes({ ...good, respawnSeconds: 10 }), ['respawn-range'], 'under half a minute');
+  assert.deepEqual(codes({ ...good, respawnSeconds: 900 }), ['respawn-range'], 'a typo-sized wait');
 });

@@ -98,9 +98,9 @@ function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // and a retry of the SAME token is never blocked (the hook runs before the commit, so a stale abort must be able to pay on the retry).
 export const RESPAWN_MS = 300_000;
 export type Cooldown = Map<string, { at: number; token: string; ms: number }>;
-// The window for one fight: its creature row's `respawn` minimum (Dom's animal rule, 2026-10-08: 60..90 s), else RESPAWN_MS. Keyed by the fight's foe, read
+// The window for one fight: its creature row's `respawnSeconds` (Dom's animal rule, 2026-10-08: 60..90 s; Characters' field, #1787), else RESPAWN_MS. Keyed by the fight's foe, read
 // from the server's own fightSetup, never the client's body. A fight the content does not describe keeps the default (mobBatch pays it nothing anyway).
-const ROW_RESPAWN = new Map([...FRONTIER_ROWS, ...WILDLIFE_ROWS].flatMap((r) => (r.respawn ? [[r.id, r.respawn[0] * 1000] as const] : [])));
+const ROW_RESPAWN = new Map([...FRONTIER_ROWS, ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
 export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
   const setup = fightSetup(fight, content);
   return (setup.ok ? rows.get(setup.value.opponent.character) : undefined) ?? RESPAWN_MS;
