@@ -1,5 +1,7 @@
 # Frankendom — the top 10 (Dom, 2026-10-08 07:0x)
 
+**STANDING RULE (Dom, 2026-10-08 09:3x, via Strategy): keep everything ON.** Too many on/off variables, we forget what is on. New features ship ON by default; a flag is only a kill switch, never a staged switch-on; one joint GO and one Auditor POST per install. Exceptions only for real money or irreversible deletes. Applied now: the writer reinstall and ORIGINS_REWARDS=1 are one step (#1727). Seamless combat (#1779) becomes the default Zone 1 behaviour, not hidden behind ?worldfight, once the Auditor passes it.
+
 **STATUS: APPROVED by Dom, 2026-10-08 10:0x** (his words, relayed by Strategy: "yes.. Do you approve this top-10 list as written? If you do, every lane works only on its rows."). Every lane works only on its rows, starting now. Changes to this list need Dom.
 
 One list, ranked. One owner per item. Lanes work ONLY on their item. No other work starts until Dom approves this table.
