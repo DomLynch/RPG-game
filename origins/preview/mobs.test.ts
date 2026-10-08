@@ -175,7 +175,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '19 creatures: the 17 before, unchanged, plus the Cinder Bear and the Ash Boar (appended last so the others keep their seeds)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '19 creatures: the 17 before (same seeds; 3 placements moved, the ferry-landing opener by 43 m, because the bears spawn before the boars), plus the Cinder Bear and the Ash Boar');
 });
 
 test('?wolf adds the Ash Wolf camp to the Cinder Fields for that page only: without it nothing changes, with it three wolves stand on their own body', () => {
