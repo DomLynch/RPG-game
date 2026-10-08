@@ -119,8 +119,8 @@ try {
   backdate(tok(12), 30);
   const mint = `{"op":"mint","item":{"id":"it-beta-1","item":"item:ash-pelt","quantity":1,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":0},"bound_to":null,"mint_key":"loot:enc.beta0001:0","provenance":{"mintKey":"loot:enc.beta0001:0"},"history":[],"single_copy":false}}`;
   const paidKill = await as(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},${mint},{"op":"metal","account":"${A}","delta_bronze":7,"reason":"award","event_id":"enc:${tok(12)}"}]`, '{"cp":30,"reach":"checked"}'));
-  if (paidKill.code === 0) eq(ledger(tok(12)), 'checked/30/7/1', 'kill: the ledger reads the minted ids and the bronze from the batch that was written');
-  else console.log(`origins-spawns-check: (paying-batch probe skipped: ${paidKill.err.trim().slice(0, 160)})`);
+  if (paidKill.code !== 0) fail(`kill (paying batch): ${paidKill.err.trim().slice(0, 200)}`);
+  eq(ledger(tok(12)), 'checked/30/7/1', 'kill: the ledger reads the minted ids and the bronze from the batch that was written');
 
   // ---- respawn: generation + 1 ----------------------------------------------------------------------------------------------------------------------
   psql(`update public.origins_spawns set respawn_at = now() - interval '1 second' where instance = 'wolves-1'`);
