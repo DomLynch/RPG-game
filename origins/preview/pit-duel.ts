@@ -213,7 +213,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
-  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) { const m = mount.holder.matrix; stage!.view.easeCamera({ position: from.position.clone().applyMatrix4(m), quaternion: new Quaternion().setFromRotationMatrix(m).multiply(from.quaternion) }, CAMERA_EASE_S); }   // the walk camera is in WORLD metres, the duel camera in the duel's own: carry it through the holder first, or the ease swings through the arena stage!.view.setWorldCamera(mount.walkCam ?? null); }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) { const m = mount.holder.matrix; stage!.view.easeCamera({ position: from.position.clone().applyMatrix4(m), quaternion: new Quaternion().setFromRotationMatrix(m).multiply(from.quaternion) }, CAMERA_EASE_S); } stage!.view.setWorldCamera(mount.walkCam ?? null); }   // the walk camera is in WORLD metres, the duel camera in the duel's own: carried through the holder first, or the ease swings through the arena
   if (!mount) stage!.view.setWorldCamera(null);
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
