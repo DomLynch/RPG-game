@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import { ME, createWorldCombat, kindOf } from './world-combat.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
@@ -52,4 +53,13 @@ test('Evaded: a creature that gave up and is home and healed is released at once
   for (let t = 0; t < 60; t += 1 / 30) { hero.z -= 7 / 30; wc.update(1 / 30, hero); if (f.driven.has('wolf-1')) sawDriven = true; else if (sawDriven && releasedAt < 0) releasedAt = t; }
   assert.ok(sawDriven && releasedAt > 0, 'it was in the loop, then released');
   assert.ok(!wc.debug().some((x) => x.id === 'wolf-1'), 'gone from the world after Evaded');
+});
+
+test('call-site pin: the page reaches combat only through zone1.ts stepCombat (so a lone creature always takes the copied duel/ai, a pack the legacy rows, as zone1.ts routes them)', () => {
+  const dir = new URL('.', import.meta.url), src = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  const users = src.filter((f) => /from '\.\.\/combat\//.test(readFileSync(new URL(f, dir), 'utf8')));
+  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports origins/combat');
+  const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
+  assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
+  assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
