@@ -1,7 +1,7 @@
 // Seamless Zone 1 combat gates (#1758 / TOP10 "Row 1 - seamless Zone 1 combat"), on the built origins preview with ?region=1&worldfight:
 //   no swap at engage: one canvas before and after the tap, the page's canvas stays shown, body.infight is set
 //   world live during the fight: the creatures other than the foe keep moving while the duel draws
-//   engage hitch budget: the worst frame gap from the tap on is at most max(200 ms, 5x the walk's median gap (Strategy accepted this formula for the software-GL harness, 2026-10-08; tighten from the Mac Metal reading)) in the first 5 s after the tap: a first number to tighten (software GL runs ~3 fps, so the floor alone could never hold there)
+//   engage hitch budget (PROVISIONAL 5x: loosened from 4x because the engage frame is still ~4-5x a walk frame on software GL; OPEN: find the remaining ~1 s first-draw cost, and tighten from the Mac Metal reading): the worst frame gap from the tap on is at most max(200 ms, 5x the walk's median gap (Strategy accepted this formula for the software-GL harness, 2026-10-08; tighten from the Mac Metal reading)) in the first 5 s after the tap: a first number to tighten (software GL runs ~3 fps, so the floor alone could never hold there)
 // Serves artifacts/origins-preview (built here when missing). Exit 1 with the numbers on a miss; a receipt goes to artifacts/origins-seamless.json.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
