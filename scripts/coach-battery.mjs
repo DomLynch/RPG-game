@@ -12,7 +12,7 @@ import { arena } from '../tests/strategies.ts';
 const FIGHTS = Number(process.argv[2] ?? 120), LEVEL = Number(process.argv[3] ?? 6), base = arena();
 const FOES = process.env.FOES ? process.env.FOES.split(',') : Object.keys(OPPONENTS).filter((id) => !ROSTER[id]?.hold);
 const fight = (stance, foeId, seed) => {
-  const foe = OPPONENTS[foeId], profile = profileAt(foe, LEVEL), coach = createCoach(stance, seed);
+  const foe = OPPONENTS[foeId], profile = profileAt(foe, LEVEL), coach = createCoach(stance, seed, 'normal', 0, process.env.NOFOE ? undefined : foeId);
   let d = { ...base, fighters: [opponentFighter(OPPONENTS.veteran, base.fighters[0].body), opponentFighter(foe, base.fighters[1].body)] };
   d = withStances(d, asStance(stance), asStance(moodOf(seed, foeId)));
   let ai = initialAi((seed * 40503 + 7) >>> 0);
