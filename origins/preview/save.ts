@@ -34,11 +34,14 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
 // stored and its access token is expired or about to be; a fresh token, or none, costs nothing. Any failure leaves the storage as it was = signed out.
 export const RENEW_TIMEOUT_MS = 3000;
 export type AuthClient = { auth: { getSession(): Promise<unknown> } };
-export async function ensureFreshSession(storage: { getItem(key: string): string | null } | null, nowMs: number, makeClient: () => Promise<AuthClient | null>): Promise<void> {
+export async function ensureFreshSession(storage: { getItem(key: string): string | null } | null, nowMs: number, makeClient: () => Promise<AuthClient | null>,
+  onSignedOut: (reason: 'no-client' | 'timeout' | 'refused') => void = () => {}): Promise<void> {
   try {
     if (!storage?.getItem(AUTH_KEY) || storedToken(storage, nowMs)) return;
-    await Promise.race([(async () => { await (await makeClient())?.auth.getSession(); })(), new Promise((resolve) => setTimeout(resolve, RENEW_TIMEOUT_MS))]);   // a hung renewal must not hold presence, the saved career or the paid fight
-  } catch { /* offline or refused: stays signed out */ }
+    const done = (async () => { const client = await makeClient(); if (!client) return 'no-client' as const; await client.auth.getSession(); return 'asked' as const; })();
+    const out = await Promise.race([done, new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), RENEW_TIMEOUT_MS))]);   // a hung renewal must not hold presence, the saved career or the paid fight
+    if (out === 'asked' ? !storedToken(storage, Date.now()) : true) onSignedOut(out === 'asked' ? 'refused' : out);   // a stored session that is still no session: counted once per page load
+  } catch { onSignedOut('refused'); /* offline or refused: stays signed out */ }
 }
 export const authClient = async (env: { url?: string; key?: string }): Promise<AuthClient | null> => {
   if (!env.url || !env.key) return null;

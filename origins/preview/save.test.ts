@@ -187,6 +187,11 @@ test('ensureFreshSession: only a stored, stale session loads the client and asks
   await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => { throw new Error('chunk'); });
   await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => null);
   await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: async () => { throw new Error('net'); } } }));
+  const why: string[] = []; const rec = (r: string) => void why.push(r);
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => null, rec as never);
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: async () => ({}) } }), rec as never);
+  await ensureFreshSession(mk(null), now, async () => null, rec as never); await ensureFreshSession(mk({ access_token: 'a', expires_at: now / 1000 + 3600 }), now, async () => null, rec as never);
+  assert.deepEqual(why, ['no-client', 'refused'], 'a stored session that stays signed out is reported once, with an enum reason; none stored or fresh: silent');
   const t0 = Date.now(); await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: () => new Promise(() => {}) } }));
   assert.ok(Date.now() - t0 >= RENEW_TIMEOUT_MS - 50 && Date.now() - t0 < RENEW_TIMEOUT_MS + 1500, 'a renewal that never answers lets go after ~3 s');
 });
