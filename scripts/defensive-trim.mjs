@@ -25,6 +25,7 @@ const VARIANTS = {
   recover0: { ...TODAY, recover: 0 },                                 // posture drains at the normal rate
   b0r100: { ...TODAY, block: 0, recover: 100 },
   b0r0: { ...TODAY, block: 0, recover: 0 },
+  b60r0: { ...TODAY, block: -60, recover: 0 },                       // Strategy's first try: a smaller discount, no posture-drain perk
   b30r100: { ...TODAY, block: -30, recover: 100 },
 };
 const roster = Object.keys(OPPONENTS).filter((id) => !isHeld(id));
