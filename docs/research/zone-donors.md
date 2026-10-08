@@ -31,7 +31,7 @@ Not verified by agent 1: loot-table formats beyond file names; DOL/EQEmu SQL col
 
 ## Part 2: RPG engines (agent 2, 17 repos, 38 tool calls)
 
-Headline: two licence-clean, fully data-driven zone formats exist (Cataclysm-DDA JSON, Flare INI), both 2D; the 3D engines (OpenMW, Gothic, Daggerfall, Arena, Diablo) all read proprietary binaries, so only their streaming patterns are usable.
+Headline: two fully data-driven zone formats exist, both CC BY-SA, so FORMAT ONLY (Cataclysm-DDA JSON, Flare INI), both 2D; the 3D engines (OpenMW, Gothic, Daggerfall, Arena, Diablo) all read proprietary binaries, so only their streaming patterns are usable.
 
 | Repo | Lang / licence | Zone unit and format | Data vs code | Loader (separable?) | Streaming | Score |
 |---|---|---|---|---|---|---|
@@ -67,4 +67,4 @@ No donor has a 3D Three.js zone format; every 3D engine reads proprietary binari
 
 Recommendation for #1913: keep its acceptance as written; fill the zone schema with 1 + 2 + 5 (JSON or validated literal), take the loader shape from 3, the runtime model from 4, defer 6. Nothing here argues for copying a whole engine; everything argues for a ~300-line schema + loader of our own built from these shapes.
 
-**Licence rule for anything lifted (Auditor, 2026-10-08):** code is copied only from MIT/Apache/BSD sources and keeps the original MIT notice (2004Scape/LostCityRS `GameMap.ts`, OpenTESArena `ChunkManager.cpp`). From GPL/AGPL/CC BY-SA sources (Cataclysm-DDA, Flare, ModernUO and the rest) only the format/shape is used, and no files are copied.
+**Licence rule for anything lifted (Auditor, 2026-10-08):** code is copied only from MIT/Apache/BSD sources and keeps its original licence notice (Apache lifts also keep their NOTICE) (2004Scape/LostCityRS `GameMap.ts`, OpenTESArena `ChunkManager.cpp`). From GPL/AGPL/CC BY-SA sources (Cataclysm-DDA, Flare, ModernUO and the rest) only the format/shape is used, and no files are copied.
