@@ -22,6 +22,7 @@ git fetch -q origin
 full=$(git rev-parse --verify -q "$sha^{commit}") || { echo "unknown sha $sha"; exit 2; }
 git checkout -q --detach "$full"
 git reset -q --hard && git clean -fdq   # a scratch checkout: no lane work lives here; node_modules is ignored and stays
+want_tree=$(git rev-parse "$full^{tree}"); [[ "$(git rev-parse HEAD^{tree})" == "$want_tree" ]] || { echo "tree mismatch at start"; exit 3; }
 run="$home/runs/$full/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$run/logs"
 ln -sfn "$run" "$home/runs/$full/latest"
@@ -49,6 +50,7 @@ else
   echo "build failed (exit $build_status); no rows ran" > "$run/rows.log"
 fi
 ended=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+[[ "$(git rev-parse HEAD^{tree})" == "$want_tree" ]] || { echo "tree changed during the run; no receipt"; exit 5; }
 node "$bin/rows-json.mjs" "$run" \
   --sha "$full" --tree "$(git rev-parse HEAD^{tree})" --started "$started" --ended "$ended" \
   --wall "$(( $(date +%s) - wall0 ))" --build-status "$build_status" --rows-status "$rows_status" \
