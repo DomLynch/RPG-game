@@ -343,10 +343,6 @@
     ],
     [
       "node",
-      "scripts/pit-exit-check.mjs"
-    ],
-    [
-      "node",
       "scripts/first-loss-browser-check.mjs"
     ],
     [
@@ -456,7 +452,6 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "pit-exit-check",
         "first-loss-browser-check"
       ]
     },
@@ -491,8 +486,7 @@
         "profile-figure-check",
         "double-tap-browser-check",
         "desktop-intro-check",
-        "clip-send-tour-check",
-        "pit-exit-check"
+        "clip-send-tour-check"
       ]
     },
     {
@@ -509,7 +503,6 @@
         "account-browser-check",
         "double-tap-browser-check",
         "clip-send-tour-check",
-        "pit-exit-check",
         "first-loss-browser-check"
       ]
     },
@@ -533,8 +526,7 @@
         "account-database-check",
         "account-browser-check",
         "double-tap-browser-check",
-        "clip-send-tour-check",
-        "pit-exit-check"
+        "clip-send-tour-check"
       ]
     },
     {
@@ -589,14 +581,6 @@
       ],
       "rows": [
         "browser-replay-check"
-      ]
-    },
-    {
-      "paths": [
-        "scripts/pit-exit-check.mjs"
-      ],
-      "rows": [
-        "pit-exit-check"
       ]
     },
     {

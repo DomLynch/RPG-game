@@ -8,20 +8,15 @@ import { createTitheLighting } from './special-lighting.ts';
 import { warmFirstFrame } from './first-frame.ts';
 import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
-import { PORTRAIT_KEYS } from './legends.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
 import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
-import { nextRungFiles } from './gate-light.ts';
-import { kitWorn, type Loot } from './loot.ts';
+import { kitWorn } from './loot.ts';
 import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
@@ -30,9 +25,8 @@ import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungP
 import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
 import { createHamstrungAssets } from './hamstrung-assets.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
-import { buildArena, LAYOUT, type Arena } from './arena.ts';
-import { fbm, patchPixels, sandAlbedo, sandNormal, type Pixels } from './assets/arena/textures.ts';
-import { arenaFor, hasArena1Sand } from './arena-themes.ts';
+import { buildArena, type Arena } from './arena.ts';
+import { arenaFor } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
@@ -42,7 +36,7 @@ import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
-import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
+import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fatigue-tune.ts';
 import { fatigueReadFrom } from './fatigue-read.ts';
@@ -52,9 +46,6 @@ import { createBurstPool } from './armfeel-fx.ts';
 import { bloodGrow, foeBurstPull } from './blood-style.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
-import type { SceneStage } from './pit-coordinator.ts';
-import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
-import { clonesOf } from './arena-materials.ts';
 import { createCameraRig, framingLow, framingTall } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
@@ -233,11 +224,7 @@ export function createScene(
   // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
-  let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
-  const pitProps: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props (pitStage prop), loaded once per page
-  const pitExtras: Record<string, Promise<THREE.Group | null>> = {};   // the Pit's extras (pitStage extra), once per page, asked for only after the room is ready
-  let pitSand: { map: THREE.DataTexture; normalMap: THREE.DataTexture } | undefined;   // Arena 1's sand maps for a Pit under another arena, once per page (pitStage arenaMaterials)
-  let pitGate: ReturnType<typeof loadPitGate> | undefined;   // the gate's two nodes, once per page (pitStage gateModel)
+  let pitRestore: (() => void) | undefined;   // the gear seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -547,7 +534,6 @@ export function createScene(
   let heading = Math.PI;
   const standoffOn = typeof location !== 'undefined' && standoffFlag(location.search);   // on by default, ?standoff=0 off (standoff.ts)
   const standoff = standoffClock();   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
-  let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
   // World fights (seamless combat step 4, Dom 2026-10-08): the duel's camera does not cut in, it eases from where the walk's camera stood. `easeCamera` is set by the page at the engage; every frame after rig.update blends the rig's pose with that start (smoothstep), and the rig itself is untouched.
   let ease: { pos: THREE.Vector3; quat: THREE.Quaternion; age: number; dur: number } | null = null;
@@ -595,17 +581,8 @@ export function createScene(
     },
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
-    // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
-    // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
     startStandoff() { standoff.start(); },   // main.ts, the moment the versus card lifts: idempotent (an art retry re-emits 'ready' mid-fight)
     restartStandoff() { standoff.restart(); },   // main.ts nextFight: the rematch plays the draw-in again (a no-op with ?standoff=0)
-    walkToGate(on: boolean) {
-      walking = on;
-      rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE } : null);   // the gate comes inward with the arena (play-radius.ts)
-    },
-    raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
-    // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
-    rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
     opponentRoot: () => warriors?.opponent.anchor ?? null,   // the foe rig's root (undefined-safe): the Origins preview dresses a creature's cloth on it; the sim never reads it
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
@@ -639,33 +616,13 @@ export function createScene(
     },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
-    // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29): the Stage src/pit-coordinator.ts hands the lazy Pit. The fight never calls
-    // it. Hidden (stage-hide.ts): everything in the scene but the lights and the player, so the arena, the opponent and every fight effect
-    // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
-    pitStage(loot: () => Loot): SceneStage {
+    // The gear sheet's seam (gear-room.ts, the live mannequin; it began as the Pit's seam and outlived the Pit room). Hidden (stage-hide.ts):
+    // everything in the scene but the lights and the player, so the arena, the opponent and every fight effect go; all stay built for the
+    // fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
+    gearStage() {
       return {
-        scene, camera, renderer, loot, legendKeys: () => PORTRAIT_KEYS,
-        // A prop from public/pit/props/<name>.glb (GPT's models, World's intake #1163): its first mesh, once per page. Absent, a 404 or a
-        // failed decode (pit-prop.ts: retried, then reported) = null and the room leaves the spot bare. Shared geometry and material: the Pit never disposes them.
-        prop: (name) => (pitProps[name] ??= loadPitProp(`pit/props/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`),
-          (error) => captureException(error, { tags: { pit: 'prop', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((mesh) => {
-          if (mesh) budgetTextures(mesh, phoneTier() ? 256 : 512);   // the arena props' cap (arena-props.ts PROP_TEXTURE_CAP), so the memory accounting matches (World)
-          return mesh;
-        })),
-        // The gate (public/pit/props/gate.glb): the arch and the bars as two meshes, once per page; same texture cap as a prop. Null = bare gate.
-        gateModel: () => (pitGate ??= loadPitGate('pit/props/gate.glb', () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('pit/props/gate.glb'),
-          (error) => captureException(error, { tags: { pit: 'gate', ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((nodes) => {
-          if (nodes) budgetTextures(nodes.arch, phoneTier() ? 256 : 512);   // one material, shared by the bars
-          return nodes;
-        })),
-        // An extra from public/pit/extra/<name>.glb (World's intake #3): its whole node tree, once per page, same texture cap as a prop. Null = bare spot.
-        extra: (name) => (pitExtras[name] ??= loadPitExtra(`pit/extra/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/extra/${name}.glb`),
-          (error) => captureException(error, { tags: { pit: 'extra', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((tree) => {
-          if (tree) budgetTextures(tree, phoneTier() ? 256 : 512);
-          return tree;
-        })),
-        noise: { fbm, blood: (size, seed) => patchPixels(size, 'blood', seed) },   // the glow Pit's grime and stains (pit/stage.ts noise)
-        setArenaVisible(on) {
+        scene, camera,
+        setArenaVisible(on: boolean) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }
           else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
@@ -673,42 +630,12 @@ export function createScene(
         hero: {
           // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the
           // simulation never sees it, and the next fight frame puts him back on the sim's state.
-          place(x, z, heading, speed, dt) {
+          place(x: number, z: number, heading: number, speed: number, dt: number) {
             player.position.set(x, 0, z); player.rotation.y = heading;
             warriors?.player.update(speed, dt, 'sheathed', 0);   // m/s, as the fight passes it (travel = distance / dt): the gait blends on speed
           },
         },
-        draw() { renderer.render(scene, camera); },   // the Pit's frame: the fight's render() never runs while it shows
-        // The arena's own background grade (colour-grade.ts) on a Pit material, so the room reads as the same game.
-        grade(material, kind) { gradeMaterial(material, BACKGROUND_GRADE[kind], kind); },
-        // The ring's surfaces for a look mock (`?look=pit&style=`), as clones: what the Pit tweaks never touches the arena's own render (Lead).
-        // The glow Pit's yard is always Arena 1's sand (`sand: 'arena-1'`): a clay or flagged arena's own maps (cracks, tint) are swapped for Arena 1's, generated
-        // once per page at the Pit's size (256 on a phone, 512 else) and shared by every clone; an arena that already has them keeps its own.
-        arenaMaterials(options) {
-          const set = clonesOf(arena.materials);
-          if (options?.sand === 'arena-1' && !hasArena1Sand(theme.textures)) {
-            const size = PHONE ? 256 : 512, texture = (p: Pixels, srgb: boolean) => {
-              const t = new THREE.DataTexture(p.data, p.width, p.height); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-              t.wrapS = t.wrapT = THREE.RepeatWrapping; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 8; t.needsUpdate = true;
-              return t;
-            };
-            pitSand ??= { map: texture(sandAlbedo(size, 7), true), normalMap: texture(sandNormal(size, 7), false) };
-            set.sand.map = pitSand.map; set.sand.normalMap = pitSand.normalMap;
-          }
-          return set;
-        },
-        // Still copies of owned pieces for the rack and trophies: each loot.glb piece holding one of `ids`, in its bind pose, unskinned.
-        // Geometry and material stay the loot file's, shared with the worn set: the caller never disposes them.
-        async pieces(ids) {
-          if (!lootPieces) await loadLootPieces();
-          // His rig's mapped materials, so a mapless palette piece shows as it will on him (sourceMaterial); his worn copies are not his rig.
-          const player = warriors?.player, materials = player ? rigMaterials(player.anchor, new Set(player.worn())) : new Map<string, THREE.MeshStandardMaterial>();
-          return (lootPieces ?? []).filter((piece) => lootIds(piece).some((id) => ids.includes(id))).map((piece) => {
-            const still = new THREE.Mesh(piece.geometry, sourceMaterial(piece, materials));
-            still.name = piece.name; still.userData.ids = lootIds(piece);
-            return still;
-          });
-        },
+        draw() { renderer.render(scene, camera); },   // the sheet's frame: the fight's render() does not run while it shows
       };
     },
     arena,
@@ -1142,7 +1069,7 @@ export function createScene(
         return h?.pose ?? p;
       };
       standoff.advance(dt * 1000);
-      const stand = (p: ReturnType<typeof actorPose>) => standoffOn && standoff.age >= 0 && !walking && !practice.finish ? standoffPose(p, standoff.age) : p;
+      const stand = (p: ReturnType<typeof actorPose>) => standoffOn && standoff.age >= 0 && !practice.finish ? standoffPose(p, standoff.age) : p;
       const mine = stand(struck(held(actorPose(practice, 0), 0), 0)),
         theirs = stand(struck(held(actorPose(practice, 1), 1), 1));
       // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
@@ -1154,9 +1081,9 @@ export function createScene(
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
-      const runThroughHold = !walking && finisher === 'runThrough' && practice.finish?.victim === 1;   // the walk lets go of the tableau
-      const hamstrungFinish = !walking && finisher === 'hamstrung' && practice.finish?.victim === 1;
-      const executionFinish = !walking && finisher === 'execution' && practice.finish?.victim === 1;
+      const runThroughHold = finisher === 'runThrough' && practice.finish?.victim === 1;
+      const hamstrungFinish = finisher === 'hamstrung' && practice.finish?.victim === 1;
+      const executionFinish = finisher === 'execution' && practice.finish?.victim === 1;
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
@@ -1184,12 +1111,12 @@ export function createScene(
         opponent.rotation.y = practice.enemy.heading;
         executionSteps = warriors.player.executionStep(EXECUTION_BEATS.strike, warriors.opponent.executionContacts().nape);
       }
-      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : hamstrungFinish ? 'hamstrungStrike' : executionFinish ? 'executionStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : hamstrungFinish ? 'hamstrungStrike' : executionFinish ? 'executionStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
+      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, hamstrungFinish ? 'hamstrungStrike' : executionFinish ? 'executionStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, hamstrungFinish ? 'hamstrungStrike' : executionFinish ? 'executionStrike' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
       warriors?.player.update(
         mineGait.travel,
         animationDt,
         mineGait.pose,
-        walking ? 0 : runThroughHold || hamstrungFinish || executionFinish ? finishClock : (playerDefence?.progress ?? mine.progress),
+        runThroughHold || hamstrungFinish || executionFinish ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,

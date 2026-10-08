@@ -115,7 +115,7 @@ function bind(leave: () => void) {
   element('journal-button').addEventListener('click', () => { controls!.clear(); element<HTMLInputElement>('journal-tab-settings').checked = true; journal!.showModal(); });
   element('close-journal').addEventListener('click', () => journal!.close());
   element('nav-arena').addEventListener('click', () => journal!.close());
-  element('nav-pit').addEventListener('click', () => { journal!.close(); leave(); });
+  document.getElementById('nav-pit')?.addEventListener('click', () => { journal!.close(); leave(); });   // the game's index.html no longer carries The Pit button (the Pit room was removed), so this is absent until the Origins page brings its own
   journal.addEventListener('close', () => { controls!.clear(); accumulator = 0; });
   window.addEventListener('blur', () => controls!.clear());
   document.addEventListener('visibilitychange', () => controls!.clear());

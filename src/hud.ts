@@ -139,7 +139,7 @@ export function createHud(element: Lookup) {
       resetButton.hidden = !ended && !view.stalled;
       const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? view.next : undefined;   // the page's own pick (match.ts nextRung): label and button agree
       // "PLAY NOW" on a shared link, not "Avenge him" (owner 2026-09-22): a stranger does not know whose death they are avenging.
-      resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : view.lessonFight ? LESSON_NEXT : next ? `Next: ${next.name}` : 'Rematch';
+      resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : view.lessonFight ? LESSON_NEXT : next ? 'Next fight' : 'Rematch';
       // On a viewer page PLAY NOW is the only live control on the screen (every combat button beside it is asleep), so it wears the
       // kill screen's primary rather than the dark glass it shares with Rematch — style.css `#reset-button[data-play='1']`.
       resetButton.dataset.play = view.replay || view.stalled ? '1' : '0';
