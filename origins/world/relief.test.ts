@@ -52,6 +52,6 @@ test('heightfield is 32 x 32 row-major and equals the samples at its nodes', () 
 });
 
 test('the schema: relief is off by default, bounded, and part of terrain', () => {
-  const t = SCHEMA.terrain.fields as Record<string, { def: number; min: number; max: number }>;
+  const t = SCHEMA.terrain.fields as unknown as Record<string, { def: number; min: number; max: number }>;
   assert.equal(t.relief!.def, 0); assert.equal(t.relief!.max, 3); assert.equal(t.hillScale!.def, 40); assert.equal(t.seed!.def, 0);
 });
