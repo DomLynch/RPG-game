@@ -74,8 +74,8 @@ async function fightTo(opponent, win) {
   }
   // The kill screen once settled and the fade has finished (endgame-hud-check's deterministic sample).
   await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled, 8000);
-  await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 5000 });
-  await page.waitForFunction(() => { const d = document.getElementById('pit-button'); return !!d && !d.hidden && getComputedStyle(d).opacity === '1'; }, null, { timeout: 5000 });
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 15000, polling: 100 });
+  await page.waitForFunction(() => { const d = document.getElementById('pit-button'); return !!d && !d.hidden && getComputedStyle(d).opacity === '1'; }, null, { timeout: 15000, polling: 100 });
   return page;
 }
 
