@@ -4,20 +4,34 @@
 // Donor: the EQEmu / 2004Scape equipment-appearance idea (an NPC is a body model plus worn pieces and colours, not a model per role).
 import { Bone, Color, Material, Mesh, Skeleton, SkinnedMesh, type AnimationClip, type MeshStandardMaterial, type Object3D } from 'three';
 
-export const CLOTH_PIECES = ['robe', 'sleeves', 'belt', 'cap'] as const;
+export const CLOTH_PIECES = ['robe', 'tunic', 'sleeves', 'belt', 'cap', 'apron', 'hat', 'hood'] as const;
 export type ClothPiece = (typeof CLOTH_PIECES)[number];
 export type Outfit = { readonly pieces: readonly ClothPiece[]; readonly tint: number };
 
-/** The banker (Backend's row `character:banker-exchange`, `roles: ['banker']`): the whole kit, in a deep green wash. */
-export const BANKER_OUTFIT: Outfit = { pieces: CLOTH_PIECES, tint: 0x6b7f5e };
+/** The banker (Backend's row `character:banker-exchange`, `roles: ['banker']`): robe, sleeves, belt and cap, in a deep green wash. */
+export const BANKER_OUTFIT: Outfit = { pieces: ['robe', 'sleeves', 'belt', 'cap'], tint: 0x6b7f5e };
+/** Dunmore the Provisioner (`character:provisioner-exchange`): a working tunic, an apron, a belt and a wide-brimmed hat, in a warm brown wash. */
+export const PROVISIONER_OUTFIT: Outfit = { pieces: ['tunic', 'apron', 'belt', 'hat'], tint: 0x8a6f4a };
+/** Brisa of the Last Lamp (`character:innkeeper-exchange`): a tunic with sleeves, an apron and a belt, bareheaded, in a wine-red wash. */
+export const INNKEEPER_OUTFIT: Outfit = { pieces: ['tunic', 'sleeves', 'apron', 'belt'], tint: 0x7a5c6a };
+/** The named townspeople's outfits by NPC row id (Backend, #1828); everyone else gets `outfitFor(rowId)`. */
+export const NAMED_OUTFITS: Readonly<Record<string, Outfit>> = {
+  'character:banker-exchange': BANKER_OUTFIT, 'character:provisioner-exchange': PROVISIONER_OUTFIT, 'character:innkeeper-exchange': INNKEEPER_OUTFIT,
+};
 
 const TINTS = [0x8a6f4a, 0x6b7f5e, 0x7a5c6a, 0x5f6f86, 0x9a8a6a, 0x7d6a58, 0x6a7a74, 0x8c6a52] as const;
-const OPTIONAL = ['sleeves', 'belt', 'cap'] as const;
+const HEADGEAR = [undefined, 'cap', 'hat', 'hood'] as const;
 
-/** A townsperson's outfit from a stable seed (their NPC row id): the robe always, each other piece on a coin flip, a tint from the pool. FNV-1a, so it is the same every visit. */
+/** A townsperson's outfit from a stable seed (their NPC row id), FNV-1a so it is the same every visit: a robe OR a tunic (an apron over a tunic half the time), sleeves and a belt
+ *  on a coin flip each, and one of no headgear / cap / hat / hood; a tint from the pool. Pieces that are alternatives (robe | tunic, one headgear) never come together. */
 export function outfitFor(seed: string): Outfit {
   let h = 2166136261; for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-  const pieces: ClothPiece[] = ['robe', ...OPTIONAL.filter((_, i) => ((h >>> (i + 3)) & 1) === 1)];
+  const bit = (n: number) => ((h >>> n) & 1) === 1, tunic = bit(3), head = HEADGEAR[(h >>> 7) & 3];
+  const pieces: ClothPiece[] = [tunic ? 'tunic' : 'robe'];
+  if (bit(4)) pieces.push('sleeves');
+  if (bit(5)) pieces.push('belt');
+  if (tunic && bit(6)) pieces.push('apron');
+  if (head) pieces.push(head);
   return { pieces, tint: TINTS[h % TINTS.length]! };
 }
 

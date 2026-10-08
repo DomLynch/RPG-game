@@ -1,6 +1,6 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
-import { inBufferWindow, initialDuel, legal, withGambit, withSpecials, withStances, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
+import { inBufferWindow, initialDuel, legal, type DuelPose, withGambit, withSpecials, withStances, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { asStance, moodOf, type PickedStance } from './stance.ts';
 import { MOVES, OPPONENTS, SKILL_MOVE, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
@@ -149,8 +149,8 @@ export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: I
   };
 }
 // `specials`: the fight has Special Moves (duel.ts withSpecials: the ladder level picks the opponent's share, `aiSkill` names his special).
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance): Practice => {   // stance: the fight has stances (RV34, the record's flag): the player's pick, and the opponent's mood drawn from the seed   // gambit: the fight has the Gambit (RV33, the record's flag); its draws are seeded by this number, the fight's own seed
-  const duel = specials ? withSpecials(initialDuel(opponent, weapon, skill), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill);
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance, pose?: DuelPose): Practice => {   // stance: the fight has stances (RV34, the record's flag): the player's pick, and the opponent's mood drawn from the seed   // gambit: the fight has the Gambit (RV33, the record's flag); its draws are seeded by this number, the fight's own seed
+  const duel = specials ? withSpecials(initialDuel(opponent, weapon, skill, pose), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill, pose);
   const armed = gambit === undefined ? duel : withGambit(duel, gambit);
   return project(stance === undefined ? armed : withStances(armed, asStance(stance), asStance(moodOf(seed, opponent.id))), initialAi(seed));
 };

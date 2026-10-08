@@ -8,7 +8,7 @@ import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
-  assert.equal(ENCOUNTERS.length, 16);
+  assert.equal(ENCOUNTERS.length, 17);
   for (const { id } of ENCOUNTERS) {
     const recipe = ROSTER[id], opponent = OPPONENTS[id];
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);
@@ -17,7 +17,7 @@ test('every recipe resolves to its shipped rig, simulation weapon and offline bu
     if (build.pipeline === 'reconstruction') {
       assert.ok(existsSync(new URL(`../src/assets/source/creatures/${id}.glb`, import.meta.url)), 'reconstruction has a reproducible source');
       assert.equal(supportsFinishers(id), false, 'unvalidated creature executions use plain death');
-    } else if (recipe.rig !== 'wolf' && recipe.rig !== 'boar') assert.ok(warriorAppearance(id).steel.color, 'humanoid recipes have an explicit appearance');   // the Ash Wolf is Characters' quadruped export (rig10), no humanoid appearance preset
+    } else if (recipe.rig !== 'wolf' && recipe.rig !== 'boar' && recipe.rig !== 'bear') assert.ok(warriorAppearance(id).steel.color, 'humanoid recipes have an explicit appearance');   // the Ash Wolf is Characters' quadruped export (rig10), no humanoid appearance preset
     assert.equal(build.body, recipe.body);
     assert.equal(build.weapon, weaponOf(recipe.weapon).placeholder ? 'longsword' : recipe.weapon);
   }
