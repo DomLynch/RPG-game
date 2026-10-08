@@ -185,7 +185,7 @@ test('noDrop: absent or 0 rolls exactly as before; a heavy weight empties most p
   const base = content.region.registry.lootTables.get('loottable:court-thrall' as never)!;
   const weightedAt = base.rolls.findIndex((r) => r.mode === 'weighted');
   assert.ok(weightedAt >= 0, 'court-thrall has a weighted roll');
-  const variant = (patch: object, id: string) => ({ ...base, id, rolls: base.rolls.map((r, i) => (i === weightedAt ? { ...r, ...patch } : r)) });
+  const variant = (patch: object, id: string) => ({ ...base, id: id as typeof base.id, rolls: base.rolls.map((r, i) => (i === weightedAt ? { ...r, ...patch } : r)) });
   const withTables = (...ts: ReturnType<typeof variant>[]) => ({ ...content, region: { ...content.region, registry: { ...content.region.registry, lootTables: new Map([...content.region.registry.lootTables, ...ts.map((t) => [t.id, t] as const)]) } } }) as typeof content;
   const zero = variant({ noDrop: 0 }, 'loottable:t-zero'), heavy = variant({ probability: 100, noDrop: 100_000, minDrop: 0 }, 'loottable:t-heavy'), owed = variant({ probability: 100, noDrop: 100_000, minDrop: 1, dropLimit: Math.max(1, base.rolls[weightedAt]!.dropLimit) }, 'loottable:t-owed');
   const always = variant({ probability: 100 }, 'loottable:t-always');   // the heavy one's baseline: the same roll firing every time, no noDrop
