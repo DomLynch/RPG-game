@@ -347,7 +347,8 @@ const uploaded = new WeakSet<object>();   // textures and geometries already on 
 // The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
 // frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
 const UPLOAD_BUDGET_MS = 6;
-const kindsWarmed = async () => { for (;;) { const w = mobs?.warmState(); if (w && w.kinds.length && w.warmed.length >= w.kinds.length) return; await new Promise((r) => setTimeout(r, 50)); } };
+const KINDS_WAIT_MS = 20000;
+const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
 function planUpload() {
   const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh>();
   scene.traverse((o) => {
