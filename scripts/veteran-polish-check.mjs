@@ -32,7 +32,10 @@ for (const name of ['Bronze', 'Leather', 'Gambeson', 'Photo', 'Face']) {
   const p = m.pbrMetallicRoughness;
   for (const [key, info] of [['baseColor', p.baseColorTexture], ['normal', m.normalTexture], ['metallicRoughness', p.metallicRoughnessTexture]]) {
     const image = current.doc.images[current.doc.textures[info.index].source]; changes.add(image.bufferView);
-    assert.deepEqual(current.view(image.bufferView), await fs.readFile(`${root}/${manifest[name][key]}`), `${name}.${key} is the reviewed source map`);
+    // The shipped normal / ORM maps are the surface-budget cut of the reviewed source (#1744): the manifest pins those exact bytes as `budget.<key>`; baseColor ships as reviewed.
+    const accepted = [manifest[name][key], manifest[name].budget?.[key]].filter(Boolean), got = current.view(image.bufferView);
+    let matched = false; for (const file of accepted) matched ||= Buffer.compare(got, await fs.readFile(`${root}/${file}`)) === 0;
+    assert.ok(matched, `${name}.${key} is the reviewed source map or its pinned budget cut (${accepted.join(' | ')}); shipped ${got.length} bytes`);
   }
   assert.equal(m.normalTexture.scale, manifest[name].normalScale);
 }
