@@ -49,7 +49,7 @@ export function fakeDb(now: { t: number }) {
   return { db, rows, events };
 }
 
-export const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer: null, instance: null };
+export const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer: null, instance: null, world: true };
 export const deps = (over: Partial<EncounterDeps> = {}): EncounterDeps => ({ resolve: (_w, id) => (id === 'encounter:knight' ? RESOLVED : null), verify: verifyEncounter, now: () => clock.t, ...over });
 
 // The client: plays the fight with the server's seed, records it as the Pit's recorder does, packs it for the wire.

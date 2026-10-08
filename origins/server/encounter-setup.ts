@@ -10,6 +10,6 @@ export function resolveFromRegion1(): (who: { account: string; character: string
     const setup = fightSetup(encounter, content.value);
     if (!setup.ok) return null;
     const { opponent, combatFlags } = setup.value;
-    return { enemy: opponent.body, level: opponent.level, bar: combatFlags.some((f) => f.kind === 'one-health-bar') ? setup.value.bar : null, flags: combatFlags, layer: null, instance: null };
+    return { enemy: opponent.body, level: opponent.level, bar: combatFlags.some((f) => f.kind === 'one-health-bar') ? setup.value.bar : null, flags: combatFlags, layer: null, instance: null, world: setup.value.kind === 'world-mob' };
   };
 }

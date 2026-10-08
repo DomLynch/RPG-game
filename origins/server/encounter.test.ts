@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import { encounterOps, fightOfToken, poseOfToken, POSED_FIGHT_MAX, tokenFor } from './encounter.ts';
-import { issuePose, MARK_GAP, MIN_GAP, poseBounds } from './encounter-pose.ts';
+import { issuePose, isLegalPose, MARK_GAP, MIN_GAP, poseBounds } from './encounter-pose.ts';
 import { verifyEncounter } from './encounter-verify.ts';
 import { decodeRecord } from '../../src/record.ts';
 import { roundPose, type DuelPose } from '../../src/duel.ts';
@@ -167,4 +167,50 @@ test('a fight with no pose is today\'s: the token has no pose block, the answer 
   const posed = tokenFor('encounter:knight', issuePose('knight', { hero: { x: 0, z: -3 }, foe: { x: 0, z: 3 } }));
   assert.match(posed, /^[A-Za-z0-9_-]{16,128}$/); assert.equal(fightOfToken(posed), 'encounter:knight');
   assert.match(tokenFor('a'.repeat(POSED_FIGHT_MAX), issuePose('knight', { hero: { x: 0, z: 0 }, foe: { x: 0, z: 3 } })), /^[A-Za-z0-9_-]{16,128}$/, 'the longest posed fight id still fits the token cap');
+});
+
+// S3 legal-pose settle (Strategy 2026-10-08, accepted knowingly; the Auditor's tamper list): a POSELESS world token may settle a record whose pose is a strict fixed point of issuePose.
+test('issuePose is a fixed point of its own output, bit for bit (an honest client is never refused on an ulp), and every issued pose is legal', () => {
+  let s = 0x2545f491; const rnd = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+  for (const enemy of ['knight', 'veteran', 'wolf']) for (let i = 0; i < 3000; i++) {
+    const span = [0.5, 4, 12, 40][i % 4]!, p = { hero: { x: (rnd() * 2 - 1) * span, z: (rnd() * 2 - 1) * span }, foe: { x: (rnd() * 2 - 1) * span, z: (rnd() * 2 - 1) * span } };
+    const once = issuePose(enemy, p)!, twice = issuePose(enemy, once)!;
+    for (const [a, b] of [[once.hero.x, twice.hero.x], [once.hero.z, twice.hero.z], [once.foe.x, twice.foe.x], [once.foe.z, twice.foe.z], [once.heroFacing, twice.heroFacing]]) assert.ok(Object.is(a, b), `${enemy} #${i}: ${a} !== ${b}`);
+    assert.ok(isLegalPose(enemy, once), `${enemy} #${i}: the issued pose is legal`);
+  }
+});
+
+test('isLegalPose refuses: a gap under 2 m or over the foe\'s max, a fighter outside the circle, a facing not derived from the points, a value that is not float32', () => {
+  const ok = issuePose('knight', { hero: { x: 0, z: -2 }, foe: { x: 0, z: 2 } })!;
+  assert.equal(isLegalPose('knight', ok), true);
+  const at = (hero: { x: number; z: number }, foe: { x: number; z: number }) => roundPose({ hero, foe, heroFacing: Math.atan2(foe.x - hero.x, foe.z - hero.z) });
+  assert.equal(isLegalPose('knight', at({ x: 0, z: -0.75 }, { x: 0, z: 0.75 })), false, 'gap 1.5 m < 2');
+  assert.equal(isLegalPose('knight', at({ x: 0, z: -4 }, { x: 0, z: 4 })), false, 'gap 8 m > 6.5');
+  assert.equal(isLegalPose('veteran', at({ x: 0, z: -2 }, { x: 0, z: 2 })), false, 'gap 4 m > an Arena 1 foe\'s 3.25');
+  assert.equal(isLegalPose('knight', at({ x: 8.6, z: 0 }, { x: 8.6, z: 3 })), false, 'outside the 8.55 m circle');
+  assert.equal(isLegalPose('veteran', at({ x: 3.5, z: 0 }, { x: 3.5, z: 2.5 })), false, 'outside an Arena 1 foe\'s 3.79 m circle');
+  assert.equal(isLegalPose('knight', { ...ok, heroFacing: Math.fround(ok.heroFacing + 0.25) }), false, 'a facing the points do not give');
+  assert.equal(isLegalPose('knight', { ...ok, hero: { x: 0.1, z: -2 } }), false, 'not float32 (0.1)');
+});
+
+test('settle a poseless WORLD token with a legal pose: verified (the fight starts from that pose); an illegal pose is a loss; a replay is 409; a non-world fight refuses any pose', async () => {
+  const { db, events } = fakeDb({ t: 1e6 }), ops = encounterOps(deps());
+  const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number; pose?: DuelPose };
+  assert.equal(start.pose, undefined, 'poseless (a prefetched token)');
+  const legal = issuePose('knight', { hero: { x: -1.5, z: 2 }, foe: { x: 1.5, z: -1 } })!;
+  const run = (pose: DuelPose) => { let r = ''; for (let k = 1; k < 120 && !r; k++) r = fight(start.seed, k, 6, 'knight', true, undefined, pose); return r; };
+  const params = { seed: start.seed, enemy: 'knight', level: 6, bar: null, flags: [], layer: null, pose: null, freePose: true };
+  const tooClose = roundPose({ hero: { x: 0, z: -0.6 }, foe: { x: 0, z: 0.6 }, heroFacing: 0 });
+  const bad = verifyEncounter(await decodeRecord(run(tooClose)), params);
+  assert.equal(bad.ok, false); assert.match(!bad.ok ? bad.reason : '', /pose the server would not issue/);
+  const record = run(legal); assert.ok(record);
+  assert.equal(verifyEncounter(await decodeRecord(record), { ...params, freePose: false }).ok, false, 'freePose off: a pose on a poseless token is refused, as before');
+  const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
+  assert.equal(out.verified, true, String(out.reason)); assert.equal(events.length, 1);
+  await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record }), Conflict, 'a replay of the same settle is 409');
+  const pit = encounterOps(deps({ resolve: (_w, id) => (id === 'encounter:knight' ? { ...RESOLVED, world: false } : null) })), db2 = fakeDb({ t: 1e6 }).db;
+  const s2 = await pit.encounter_start!(ctx(db2), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  let r2 = ''; for (let k = 1; k < 120 && !r2; k++) r2 = fight(s2.seed, k, 6, 'knight', true, undefined, legal);
+  const out2 = await pit.encounter_settle!(ctx(db2), { token: s2.token, record: r2 }) as Record<string, unknown>;
+  assert.equal(out2.verified, false); assert.match(String(out2.reason), /not issued/);
 });

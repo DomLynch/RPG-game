@@ -20,7 +20,8 @@ import { issuePose, packPose, unpackPose } from './encounter-pose.ts';
 import type { DuelPose } from '../../src/duel.ts';
 
 // What `resolve` returns for a fight the character may start (Expansion's FightSetup, reduced to what the server holds and re-simulates).
-export type Resolved = { enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; instance: string | null };
+// world: an open-world creature fight (encounters.ts kind 'world-mob'): only such a fight may settle a legal pose on a poseless token (S3).
+export type Resolved = { enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; instance: string | null; world?: boolean };
 export type EncounterDeps = {
   resolve(who: { account: string; character: string }, encounter: string): Resolved | null;   // null: unknown fight, or not open to this character
   verify: VerifyEncounter;
@@ -96,6 +97,9 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     return view(run);
   };
 
+  // A poseless token of a WORLD fight may settle a legal pose (S3): the fight is re-resolved from the id the token carries, never from the client.
+  const freePoseFor = (token: string, account: string, character: string): boolean => { if (poseOfToken(token)) return false; const fight = fightOfToken(token); return !!fight && resolve({ account, character }, fight)?.world === true; };
+
   const settle: Handler = async ({ db, account }, body) => {
     const token = tokenOf(body.token);
     if (typeof body.record !== 'string' || body.record.length < 8 || body.record.length > 60_000) throw new BadRequest('record: a packed duel record');
@@ -105,7 +109,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     if (run === 'none') throw new BadRequest('token: unknown encounter');
     if (run.used || run.settled || Date.parse(run.expires_at) <= (deps.now ?? Date.now)()) throw new Conflict('encounter token unknown, used or expired');
     let verdict: ReturnType<VerifyEncounter>;
-    try { verdict = verify(await decodeRecord(body.record), { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token) }); }
+    try { verdict = verify(await decodeRecord(body.record), { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), freePose: freePoseFor(token, account, run.character) }); }
     catch (e) { verdict = { ok: false, reason: `unreadable record: ${e instanceof Error ? e.message : String(e)}` }; }   // never a throw: a refusal
     if (!verdict.ok && verdict.kitMismatch) throw new Refused(422, verdict.reason, 'kit-mismatch');   // not a loss and not consumed: the token is left to the sweep ('abandoned', nothing paid)
     const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;

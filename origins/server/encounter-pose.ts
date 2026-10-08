@@ -12,6 +12,7 @@ import { BadRequest } from './errors.ts';
 
 export const MIN_GAP = 2, MARK_GAP = 6.5, POSE_BYTES = 20;
 const EDGE = 0.01;   // stay this far inside the wall so float32 rounding can never push a fighter onto it
+const TOL = 1e-4;   // float32 rounding of a clamped pair moves it by ~1e-6 m: within this of a bound still fits, so the clamp's own output is a fixed point
 
 // The circle and the widest start gap for this foe, as a posed (v38) record of it replays (detmath.ts underRecord -> play-radius.ts underPlayScale).
 export function poseBounds(enemy: string): { radius: number; maxGap: number } {
@@ -32,13 +33,28 @@ export function issuePose(enemy: string, proposal: unknown): DuelPose | undefine
   const hero = point((proposal as { hero?: unknown }).hero, 'hero'), foe = point((proposal as { foe?: unknown }).foe, 'foe');
   const { radius, maxGap } = poseBounds(enemy), r = radius - EDGE;
   const dx = foe.x - hero.x, dz = foe.z - hero.z, len = Math.hypot(dx, dz);
-  const [ux, uz] = len > 1e-6 ? [dx / len, dz / len] : [0, 1];   // on top of each other: the hero faces +z, as at the marks
-  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, 2 * r);
-  let mx = (hero.x + foe.x) / 2, mz = (hero.z + foe.z) / 2;
-  const room = r - gap / 2, m = Math.hypot(mx, mz);
-  if (m > room) { mx *= room / m; mz *= room / m; }   // pull the pair in toward the centre until both ends are inside
-  const h = { x: mx - ux * gap / 2, z: mz - uz * gap / 2 }, f = { x: mx + ux * gap / 2, z: mz + uz * gap / 2 };
-  return roundPose({ hero: h, foe: f, heroFacing: Math.atan2(f.x - h.x, f.z - h.z) });
+  let h = hero, f = foe;
+  // A pair that already fits (within TOL of the bounds, so a clamped and float32-rounded pair fits too) is kept as it is: issuePose is then a fixed point on its own output, bit for bit,
+  // and a client may compute it locally (a prefetched, poseless token: the record's pose is checked with isLegalPose at settle).
+  if (!(len >= MIN_GAP - TOL && len <= Math.min(maxGap, 2 * r) + TOL && Math.hypot(hero.x, hero.z) <= r + TOL && Math.hypot(foe.x, foe.z) <= r + TOL)) {
+    const [ux, uz] = len > 1e-6 ? [dx / len, dz / len] : [0, 1];   // on top of each other: the hero faces +z, as at the marks
+    const gap = Math.min(Math.max(len, MIN_GAP), maxGap, 2 * r);
+    let mx = (hero.x + foe.x) / 2, mz = (hero.z + foe.z) / 2;
+    const room = r - gap / 2, m = Math.hypot(mx, mz);
+    if (m > room) { mx *= room / m; mz *= room / m; }   // pull the pair in toward the centre until both ends are inside
+    h = { x: mx - ux * gap / 2, z: mz - uz * gap / 2 }; f = { x: mx + ux * gap / 2, z: mz + uz * gap / 2 };
+  }
+  const placed = roundPose({ hero: h, foe: f, heroFacing: 0 });   // the points first: the facing is derived from the bits the fight starts from
+  return roundPose({ ...placed, heroFacing: Math.atan2(placed.foe.x - placed.hero.x, placed.foe.z - placed.hero.z) });
+}
+
+// S3 legal-pose settle (Strategy 2026-10-08, accepted knowingly): a POSELESS world token (prefetched before the tap) may settle a record that starts from a pose, if that pose is one
+// the server would issue itself: a strict fixed point of issuePose for this foe (inside its circle, gap within [MIN_GAP, the foe's max], the hero facing the foe, float32), bit for bit.
+// The clamp was always the only guarantee a server-issued pose gave; a token issued WITH a pose still needs those exact bytes (encounter-verify.ts).
+export function isLegalPose(enemy: string, pose: DuelPose): boolean {
+  let again: DuelPose | undefined;
+  try { again = issuePose(enemy, { hero: pose.hero, foe: pose.foe }); } catch { return false; }
+  return !!again && [[again.hero.x, pose.hero.x], [again.hero.z, pose.hero.z], [again.foe.x, pose.foe.x], [again.foe.z, pose.foe.z], [again.heroFacing, pose.heroFacing]].every(([a, b]) => Object.is(a, b));
 }
 
 // Five float32 LE, the record's own order (record.ts v38): hero x, z, foe x, z, heroFacing.

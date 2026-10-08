@@ -15,6 +15,7 @@ import type { FightRecord } from '../../src/record.ts';
 import { recordSpecials } from '../../src/replay.ts';
 import { STEP } from '../../src/sim.ts';
 import type { DuelPose } from '../../src/duel.ts';
+import { isLegalPose } from './encounter-pose.ts';
 import { noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import { kitOfBuild, kitTag } from '../mobs/kit-version.ts';
@@ -23,7 +24,8 @@ import { withBar } from '../shared/with-bar.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 // pose: the start pose the server issued at encounter_start (encounter-pose.ts, read back from the token), null for a pit-mark fight; the record must name exactly it.
-export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null };
+// freePose: a POSELESS world token (S3 prefetch): the record may start from a pose the server would issue itself (isLegalPose). Never for a token issued with a pose, never outside the world.
+export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null; freePose?: boolean };
 // kitMismatch: the record was played on another mob kit than this build's (see origins/mobs/kit-version.ts): not a loss, the fight cannot be judged here.
 export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string; kitMismatch?: true };
 export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => Verified;
@@ -48,7 +50,8 @@ export function verifyEncounter(record: FightRecord, p: EncounterParams): Verifi
   }
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
   if (record.group) return refuse('one stream of a shared-health group is not verified alone (its siblings supply its incoming damage)');
-  if (!samePose(record.pose, p.pose ?? null)) return refuse(p.pose ? 'the record does not start from the pose this encounter was issued' : 'the record starts from a pose this encounter was not issued');
+  if (p.pose) { if (!samePose(record.pose, p.pose)) return refuse('the record does not start from the pose this encounter was issued'); }
+  else if (record.pose && !(p.freePose && isLegalPose(p.enemy, record.pose))) return refuse(p.freePose ? 'the record starts from a pose the server would not issue for this foe' : 'the record starts from a pose this encounter was not issued');
   if (!!record.specials !== liveSpecials(p.level)) return refuse('the record\'s special-move phase is not the one this warden fights in');
   if (!Number.isInteger(record.ticks) || record.ticks < 1 || record.intents.length !== record.ticks || record.ticks > MAX_FIGHT_TICKS) return refuse('the record\'s length is not a fight');
   try { return underRecord(record, () => run(record, p)); }   // the record's version picks the sim's math, as in every replay
@@ -59,7 +62,7 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   const opponent = OPPONENTS[record.opponent];
   if (!opponent || !Number.isInteger(p.level) || p.level < 1 || p.level > LEVELS) return refuse('unknown opponent or warden level');
   const profile = profileAt(opponent, p.level), flags = p.flags;
-  let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? p.seed : undefined, record.stances, p.pose ?? undefined);   // the SERVER's issued pose (equal to the record's, checked above); the record's own Gambit and stance pick, as src/replay.ts (RV34: stances ON for all)
+  let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? p.seed : undefined, record.stances, p.pose ?? record.pose);   // the SERVER's issued pose (equal to the record's), else the record's own legal pose (checked above): the first tick starts from exactly the pose the record names; the record's own Gambit and stance pick, as src/replay.ts (RV34: stances ON for all)
   if (p.bar !== null && flags.some((f) => f.kind === 'one-health-bar')) practice = withBar(practice, p.bar);
   const layer = p.layer === null ? undefined : mobLayer(p.layer as MobStyle);   // fresh per fight: its state resets on tick 0, as the client's does
   let twist = noTwist(), endedAt = 0;
