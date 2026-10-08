@@ -33,6 +33,10 @@ const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-b
 const TOKENS = { ta: A, tb: B, tc: C, td: D };
 // The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
+// The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
+const SHOP = 'service:frontier-provisioner';
+const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rows: [
+  { item: 'item:grave-iron', price: 4, max: 5, restockSeconds: 60 }, { item: 'item:exchange-ore', price: 1, max: 5, restockSeconds: 60, minLevel: 99 }] };
 let checks = 0, started = false, server;
 // Presence as the writer sees it (launch gate X1: the only source of a player's place). Empty = nobody online; `presenceDown` makes every ask throw.
 const presence = {};
@@ -65,6 +69,8 @@ try {
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
     lookup: id => defs.get(id),
     smith: smithContent(F.blacksmith(), { ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 0, materials: [{ item: 'item:grave-iron', quantity: 5 }] }, { level: 2, rarity: 'common', coin: 250, materials: [] }] }),
+
+    shops: new Map([[SHOP, SHOP_LIST]]),
   }), ...storyOps(readStoryContent(join(root, 'content.json'))) } });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/origins/`;
@@ -244,6 +250,33 @@ try {
   eq([oathBurn.status, oathBurn.json.result?.burn.lines.map(l => [l.instance, l.quantity]), oathRow(), conserved()],
     [200, [['inst:oath-wc', 1]], `item:stolen-name-gauntlets|${pc}|-|true|1:v3|upgrade|burn`, '0'], 'consume: its quest step burns the upgraded story piece (retired), conserved');
 
+
+  // shop_buy (Town plan A2): bronze for items in ONE batch (event + versioned spend + mint); the server prices it; retry, conflict, stale list, funds, stock,
+  // level and a race. A starts with 30 bronze (an award row, as a verified kill pays it).
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":30,"reason":"award","event_id":"test:shop-seed"}]$j$::jsonb);`);
+  const bronze = () => psql(`select bronze || ':v' || version from public.origins_metal where account = '${A}'`);
+  const shopEvents = () => psql(`select count(*) from public.origins_events where kind = 'metal' and payload ? 'shop' and account = '${A}'`);
+  const bought = () => psql(`select coalesce(string_agg(quantity::text || ':' || (provenance ->> 'kind') || ':' || (provenance ->> 'shop'), ',' order by id), '') from public.origins_items where item = 'item:grave-iron' and provenance ->> 'kind' = 'shop' and retired_at is null`);
+  const buy = over => ({ character: pc, op: 'shop:iron-0001', shop: SHOP, item: 'item:grave-iron', quantity: 2, revision: 2, ...over });
+  const s1 = await call('shop_buy', 'ta', buy({ price: 0, cost: 0, stock: 99 }));
+  eq([s1.status, s1.json.result?.cost, s1.json.result?.replayed, bronze(), shopEvents(), bought(), conserved()],
+    [200, 8, false, '22:v2', '1', `2:shop:${SHOP}`, '0'], 'shop: 2 iron for 8 bronze priced from the list (body price/cost/stock ignored), one event, minted with shop provenance');
+  eq(psql(`select payload -> 'stock' ->> 'count' from public.origins_events where kind = 'metal' and payload ? 'shop' and account = '${A}'`), '3', 'shop: the event carries the shelf after the buy');
+  const s2 = await call('shop_buy', 'ta', buy());
+  eq([s2.status, s2.json.result?.replayed, s2.json.result?.cost, bronze(), shopEvents(), bought()], [200, true, 8, '22:v2', '1', `2:shop:${SHOP}`], 'shop: an identical retry answers the stored receipt and writes nothing');
+  eq((await call('shop_buy', 'ta', buy({ quantity: 1 }))).status, 409, 'shop: the same op id for a different buy is a 409');
+  eq((await call('shop_buy', 'ta', buy({ op: 'shop:iron-0002', revision: 1 }))).status, 409, 'shop: a stale list revision is a 409');
+  const noStock = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0003', quantity: 4 }));
+  eq([noStock.status, noStock.json.code], [422, 'stock'], 'shop: 3 left on the shelf, 4 refused');
+  const gated = await call('shop_buy', 'ta', buy({ op: 'shop:ore-0001', item: 'item:exchange-ore', quantity: 1 }));
+  eq([gated.status, gated.json.code], [422, 'level'], 'shop: the level gate');
+  eq([(await call('shop_buy', 'ta', buy({ op: 'shop:x-0001', item: 'item:nothing' }))).status, (await call('shop_buy', 'ta', buy({ op: 'shop:x-0002', shop: 'service:nope' }))).status], [400, 400], 'shop: an item off the list, an unknown shop');
+  const race = await Promise.all([call('shop_buy', 'ta', buy({ op: 'shop:race-0001', quantity: 1 })), call('shop_buy', 'ta', buy({ op: 'shop:race-0002', quantity: 1 }))]);
+  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,409', '18:v3', '2', '0'], 'shop: two buys on one balance version: one commits, the other is stale');
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-15,"reason":"spend","event_id":"test:shop-drain","expected_version":3}]$j$::jsonb);`);   // down to 3, through the ledger
+  const poor = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0004', quantity: 1 }));
+  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
+  eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
   const seedD = creditFromMarks(10);

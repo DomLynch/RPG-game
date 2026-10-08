@@ -1,3 +1,4 @@
+import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
@@ -405,6 +406,11 @@ export const SHIELD_CARRY = {
   lifted: { elbow: new Vector3(.3, .55, .35).normalize(), wrist: new Vector3(-.2, 1, .25).normalize() },
   planted: { elbow: new Vector3(.3, -.75, .6).normalize(), wrist: new Vector3(.05, -1, .3).normalize() },
 } as const;
+// A beast is drawn at the size it is met walking (src/beast-scale.ts), by roster id: render only, the sim's capsule is untouched. scene.ts calls this once the foe's rig is built.
+export function sizeBeast(warriors: { opponent: { anchor: Group } }, opponentId: string): void {
+  const k = beastRenderScale(opponentId);
+  if (k !== 1) warriors.opponent.anchor.scale.setScalar(k);
+}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');

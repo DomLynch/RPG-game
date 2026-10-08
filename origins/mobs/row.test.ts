@@ -8,6 +8,8 @@ import { mobLook } from '../preview/mob-looks.ts';
 import { CREATURE_LOOT } from '../region1/content.ts';
 import { FRONTIER_ROWS } from './frontier-rows.ts';
 import { populateZone } from './populate.ts';
+import { styleOpponent } from './styles.ts';
+import { WILDLIFE_ROWS } from './wildlife-rows.ts';
 import { BOSS_CAMP_MAX, CAMP_MAX, rungWeights, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
 
 const registry = frontierPlan().data.registry;
@@ -16,16 +18,16 @@ const cited = { kind: 'folklore', work: 'A cited collection', locator: 'ch. 3' }
 const good: MobRow = { ...FRONTIER_ROWS[0]!, source: cited };
 const codes = (row: MobRow, c: RowContext = ctx) => validateMobRow(row, c).map((i) => i.code);
 
-test('the three shipped kinds are valid rows with a complete citation, eligible for the generator (legends-rule)', () => {
+test('the four shipped kinds are valid rows with a complete citation, eligible for the generator (legends-rule)', () => {
   assert.deepEqual(validateRows(FRONTIER_ROWS, ctx), []);
   assert.deepEqual(validateRows(FRONTIER_ROWS, { ...ctx, generated: true }), [], 'a cited row is generated');
-  assert.equal(FRONTIER_ROWS.length, 3);
+  assert.equal(FRONTIER_ROWS.length, 4);
   for (const r of FRONTIER_ROWS) {
     assert.ok(!('pending' in r.source) && !('legendId' in r.source), `${r.id}: a full citation, not a placeholder`);
     const s = r.source as { kind: string; work: string; author?: string; year?: number; scripture?: boolean };
     assert.ok(s.work && s.author && s.year !== undefined && !s.scripture, `${r.id}: names work, author and year, never scripture`);
   }
-  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore']);
+  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore', 'literature']);
 });
 
 test('the shipped rows agree with the content: loot is the creature\'s own table, the look exists, the band holds the character\'s level', () => {
@@ -180,4 +182,23 @@ test('populateZone: a band that misses the zone is skipped quietly, a malformed 
   const r = populateZone(zone.value, [cited3[0]!, far, broken], 7, ctx);
   assert.deepEqual(r.rejected.map((x) => [x.row, x.issues.map((i) => i.code)]), [['character:mere-brood', ['level-band']]]);
   assert.ok(r.camps.every((c) => c.row === cited3[0]!.id), 'only the eligible kind is placed');
+});
+
+// ---- the wildlife batch (held as `later`) ----
+test('wildlife rows are valid held rows: no look, source or loot table needed, never generated', () => {
+  assert.deepEqual(validateRows(WILDLIFE_ROWS, ctx), []);
+  assert.ok(WILDLIFE_ROWS.every((r) => r.later && styleOpponent(r.role) !== undefined), 'every one is later, with a real MobStyle');
+  assert.ok(WILDLIFE_ROWS.every((r) => r.role === 'beast'), 'the quadruped family are beasts (they flee at low health)');
+  for (let seed = 1; seed <= 20; seed++) {
+    const zone = generateZone(WILDS, seed);
+    assert.ok(zone.ok);
+    const out = populateZone(zone.value, [...cited3, ...WILDLIFE_ROWS], seed, ctx);
+    assert.ok(out.camps.every((c) => !WILDLIFE_ROWS.some((w) => w.id === c.row)), 'a later row is never placed');
+  }
+});
+
+test('respawnSeconds: inside 30..300 s, else respawn-range', () => {
+  assert.deepEqual(codes({ ...good, respawnSeconds: 75 }), []);
+  assert.deepEqual(codes({ ...good, respawnSeconds: 10 }), ['respawn-range'], 'under half a minute');
+  assert.deepEqual(codes({ ...good, respawnSeconds: 900 }), ['respawn-range'], 'a typo-sized wait');
 });

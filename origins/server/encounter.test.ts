@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Db } from './db.ts';
+import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
-import { encounterOps } from './encounter.ts';
+import { encounterOps, fightOfToken, tokenFor } from './encounter.ts';
 import { ACCOUNT, CHAR, fakeDb, RESOLVED, deps, fight } from './encounter-fixtures.ts';
 
 const ctx = (db: Db) => ({ db, account: ACCOUNT });
@@ -18,7 +18,8 @@ test('start: the server resolves the fight and picks the seed; the body names no
   const { db, rows } = fakeDb({ t: 1e6 }), ops = encounterOps(deps());
   const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight', enemy: 'dragon', level: 99, seed: 1 }) as Record<string, unknown>;
   assert.equal(out.enemy, 'knight'); assert.equal(out.level, 6); assert.ok(Number.isInteger(out.seed) && (out.seed as number) !== 1);
-  assert.match(String(out.token), /^[A-Za-z0-9_-]{32}$/); assert.equal(rows.size, 1);
+  assert.match(String(out.token), /^[A-Za-z0-9_-]{16,128}$/); assert.equal(rows.size, 1);
+  assert.equal(fightOfToken(String(out.token)), 'encounter:knight', 'the token carries the fight the server resolved, so settle can price it');
   await assert.rejects(async () => ops.encounter_start!(ctx(fakeDb({ t: 0 }).db), { character: CHAR, encounter: 'encounter:nope' }), BadRequest);
   await assert.rejects(async () => ops.encounter_start!(ctx(db), { character: 'x', encounter: 'encounter:knight' }), BadRequest);
   await assert.rejects(async () => ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }), Conflict, 'a second open fight is refused: resume the first');
@@ -39,12 +40,13 @@ test('touch inside the grace continues the SAME token and seed; after the expiry
 
 test('settle: a verified record writes the event enc:<token> and the reward lines once; a replay of the same settle is refused and writes nothing more', async () => {
   const { db, events } = fakeDb({ t: 1e6 }), rewards: string[] = [];
-  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321 }), rewards: (f) => { rewards.push(f.token); return [{ op: 'reward-line', token: f.token }]; } }));
-  const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321 }), rewards: (f, rdb) => { rewards.push(f.token); assert.equal(f.fight, 'encounter:knight', 'the hook is told the fight the server resolved'); assert.equal(f.seed, start.seed, 'and the server seed'); assert.equal(rdb, db); return [{ op: 'reward-line', token: f.token }]; } }));
+  let start = { token: '', seed: 0 };
+  start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
   const record = fight(start.seed, 1);
   const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
   assert.equal(out.result, 'won'); assert.equal(out.verified, true); assert.equal(out.twist, 'caught'); assert.equal(out.event, `enc:${start.token}`);
-  assert.equal(events.length, 1); assert.deepEqual(events[0]!.payload, { result: 'won', ticks: 321, enemy: 'knight', level: 6, twist: 'caught', verified: true }); assert.deepEqual(rewards, [start.token]);
+  assert.equal(events.length, 1); assert.deepEqual(events[0]!.payload, { result: 'won', ticks: 321, enemy: 'knight', level: 6, twist: 'caught', verified: true, fight: 'encounter:knight', paid: true }); assert.deepEqual(rewards, [start.token]);
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record }), Conflict, 'settled once');
   assert.equal(events.length, 1);
 });
@@ -78,4 +80,32 @@ test('settle after the expiry is refused (the sweep settles it as an abandonment
   clock.t += 200_000;
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record: fight(start.seed, 1) }), Conflict);
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: 'A'.repeat(32), record: fight(1, 1) }), BadRequest);
+});
+
+test('fightOfToken: the server-made prefix reads back; an old 32-character token, a forged prefix and a non-fight id read as null', () => {
+  for (const fight of ['encounter:knight', 'character:cinder-scavenger', 'a'.repeat(64)]) { const t = tokenFor(fight); assert.match(t, /^[A-Za-z0-9_-]{16,128}$/); assert.equal(fightOfToken(t), fight); }
+  assert.equal(fightOfToken('A'.repeat(32)), null, 'a token issued before the prefix');
+  assert.equal(fightOfToken(`${Buffer.from('Not A Fight!').toString('base64url')}_${'B'.repeat(32)}`), null, 'decodes to something that is not a fight id');
+  assert.equal(fightOfToken(`x${'_'.repeat(1)}${'C'.repeat(31)}`), null, 'too short for a prefix');
+});
+
+test('a stale reward line (O0002 at settle) is a retryable 503 code "stale", never a 409; nothing is written, and the same token settles on the retry', async () => {
+  const { db, events } = fakeDb({ t: 1e6 });
+  let stale = true;
+  const flaky = { run: async (sql: string, v?: Record<string, string>) => { if (stale && /origins_encounter_settle/.test(sql)) { stale = false; throw new DbError('O0002', 'career write is stale'); } return db.run(sql, v); } } as Db;
+  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 200 }), rewards: () => [{ op: 'reward-line' }] }));
+  const start = await ops.encounter_start!(ctx(flaky), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  const record = fight(start.seed, 1);
+  await assert.rejects(async () => ops.encounter_settle!(ctx(flaky), { token: start.token, record }), (e: unknown) => e instanceof Refused && e.status === 503 && e.code === 'stale');
+  assert.equal(events.length, 0, 'nothing written');
+  const out = await ops.encounter_settle!(ctx(flaky), { token: start.token, record }) as Record<string, unknown>;
+  assert.equal(out.verified, true); assert.equal(events.length, 1, 'the retry on the very same token settles it');
+});
+
+test('settle with a record from another mob kit: 422 kit-mismatch, the token is NOT consumed and nothing is written (not a loss)', async () => {
+  const clock = { t: 1e6 }, { db, rows, events } = fakeDb(clock), ops = encounterOps(deps({ resolve: () => ({ ...RESOLVED, layer: 'brute' }) }));
+  const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+  await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: out.token, record: fight(out.seed, 1, 6, 'knight', false, 'test kit:zzz') }), (e: unknown) => e instanceof Refused && e.status === 422 && e.code === 'kit-mismatch' && /kit mismatch/.test(e.message));
+  assert.equal(events.length, 0, 'no event, so no loss');
+  assert.equal(rows.get(out.token)!.used, false, 'the token stays open for the sweep');
 });

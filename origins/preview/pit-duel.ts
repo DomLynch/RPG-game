@@ -20,7 +20,8 @@ import { bareName } from '../../src/roster.ts';
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
-import { createScene } from '../../src/scene.ts';
+import { createScene, type WorldMount } from '../../src/scene.ts';
+import { Matrix4 } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
@@ -30,7 +31,7 @@ import { recordWorldFight, worldRecord } from './world-record.ts';
 import type { FightRecord } from '../../src/record.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
-import type { Object3D } from 'three';
+import type { Object3D, Quaternion, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
@@ -51,7 +52,12 @@ const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as read
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
 type View = ReturnType<typeof createScene>;
-type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean };
+type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
+// ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
+// (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
+const CAMERA_EASE_S = 0.7;   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
+export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number } };
+let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
 let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null, steppedOnce = false;
@@ -141,34 +147,64 @@ function nameOpponent(opponent: OpponentId, level: number, as?: Shown) {
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
 
-function stageFor(host: HTMLElement, opponent: OpponentId, level: number) {
-  if (stage && stage.opponent === opponent && stage.level === level) {   // the same scene again: its art is in, so the page's "Loading…" goes now
+function stageFor(host: HTMLElement, opponent: OpponentId, level: number, mount?: WorldDuel) {
+  if (stage && stage.opponent === opponent && stage.level === level && stage.mounted === !!mount) {   // the same scene again: its art is in, so the page's "Loading…" goes now
     if (stage.ready) element('art-status').textContent = '';
     return stage;
   }
-  if (stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); stage = null; }   // one GL context at a time
-  const canvas = document.createElement('canvas');
-  canvas.id = 'world'; canvas.tabIndex = 0; canvas.setAttribute('aria-label', 'The Pit duel');   // the game's #world: src/style.css places it
-  host.prepend(canvas);
+  if (stage?.mounted) { stage.holder?.parent?.remove(stage.holder); stage.view.dispose(); }   // the old world-mounted scene lets go of the holder, then of its own GPU memory and resize listener (scene.ts dispose); the page's renderer is never disposed here
+  else if (stage) { stage.view.renderer.dispose(); stage.view.renderer.forceContextLoss(); stage.canvas.remove(); }   // one GL context at a time
+  stage = null;
+  const canvas = mount?.canvas ?? document.createElement('canvas');
+  if (!mount) {
+    canvas.id = 'world'; canvas.tabIndex = 0; canvas.setAttribute('aria-label', 'The Pit duel');   // the game's #world: src/style.css places it
+    host.prepend(canvas);
+  }
   const status = document.getElementById('art-status');
-  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View };
+  const made: Stage = { opponent, level, canvas, ready: false, view: undefined as unknown as View, mounted: !!mount, holder: mount?.holder ?? null };
   made.view = createScene(canvas, (line, kind) => {
     if (status) status.textContent = kind === 'ready' ? '' : line;
     made.ready = kind === 'ready';
-  }, opponent, undefined, 'longsword', () => {}, level);
+  }, opponent, undefined, 'longsword', () => {}, level, undefined, mount);
   made.view.setTier(tierAt(level - 1)); made.view.setPlayerTier(tierAt(level - 1));   // the sparring look: his kit at the fight's rung (main.ts shownTier)
   return (stage = made);
 }
 
+// The holder carries the world into the duel's own coordinates: a world point w maps to the duel's player spot plus the world offset from `at`, turned so the duel's player-to-foe
+// direction lies along `at` -> `toward`. The duel itself (sim, rigs, camera) is never moved.
+function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; enemy: { x: number; z: number } }) {
+  const angle = (x: number, z: number) => Math.atan2(x, z);
+  const theta = angle(mount.toward.x - mount.at.x, mount.toward.z - mount.at.z) - angle(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z);
+  mount.holder.matrixAutoUpdate = false;
+  mount.holder.matrix.copy(new Matrix4().makeTranslation(p.fighter.x, 0, p.fighter.z).multiply(new Matrix4().makeRotationY(-theta)).multiply(new Matrix4().makeTranslation(-mount.at.x, 0, -mount.at.z)));
+  mount.holder.matrixWorldNeedsUpdate = true;
+}
+
+// ?worldfight, seamless combat: build (and so warm: createScene compiles its shaders) the world-mounted stage for a creature BEFORE its tap, so the engage reuses it (stageFor's same-opponent rule).
+let warmedFor: Stage | null = null;
+let ownWarmed: Stage | null = null;
+export type Warm = { world: Object3D; lights: Object3D[]; dress?: (root: Object3D) => void };   // the page's world scene, its lights (borrowed for the compile) and the foe's cloth
+export function warmStage(host: HTMLElement, opponent: string, level: number, mount: WorldDuel, warm?: Warm): void {
+  if (!(opponent in OPPONENTS)) return;
+  const made = stageFor(host, opponent as OpponentId, level, mount);
+  if (warm && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(warm.world); }   // once per stage
+  if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
+    ownWarmed = made; const root = made.view.opponentRoot();
+    if (root && warm?.dress) { warm.dress(root); void made.view.warmOwn(warm.lights).then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
+    else if (warm) void made.view.warmOwn(warm.lights);
+  }
+}
+
 // Start (or restart) a duel in `host`. The same opponent at the same level keeps its scene; another one replaces it.
-export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void) {
+export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, leave: () => void, mount?: WorldDuel) {
   if (!(asked.opponent in OPPONENTS)) throw new Error(`pit duel: unknown opponent ${asked.opponent}`);
   world = false; liveLook(true);
   if (!controls) bind(leave);
   const opponent = asked.opponent as OpponentId;
   if (dressedRoot) { undressMob(dressedRoot); dressedRoot = null; }   // the scene is reused for the same body and level: it goes back to its own cloth before any next fight
   fight = asked; hooks = page; steppedOnce = false; next = undefined; result = null; twist = noTwist();
-  stageFor(host, opponent, asked.level);
+  mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
+  stageFor(host, opponent, asked.level, mount);
   const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
   match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
@@ -177,6 +213,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) stage!.view.easeCamera(from, CAMERA_EASE_S); }
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
@@ -214,6 +251,7 @@ export function worldIntent(): ControlIntent {
 }
 
 export function closeDuel() {
+  mounted?.detach(); mounted = null;
   running = false; cancelAnimationFrame(frameId); controls?.clear(); feedback?.quiet();
   if (journal?.open) journal.close();
   liveLook(false);
@@ -279,6 +317,6 @@ export function duelState() {
   return p && fight ? {
     opponent: fight.opponent, legend: legendName(fight.opponent, fight.level), level: fight.level, seed: fight.seed, ready: !!stage?.ready, running,
     tick: p.duel.tick, phase: p.phase, playerHealth: p.playerHealth, health: p.health, finish: result ?? p.finish,
-    x: p.fighter.x, z: p.fighter.z, seen: Object.fromEntries(seen), menu: !!journal?.open,
+    x: p.fighter.x, z: p.fighter.z, foe: { x: p.enemy.x, z: p.enemy.z }, gap: Math.hypot(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z), seen: Object.fromEntries(seen), menu: !!journal?.open,
   } : null;
 }

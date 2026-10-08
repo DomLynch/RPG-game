@@ -34,10 +34,11 @@ export type MobRow = {
   chance?: number;               // a rare row: the chance (RARE_CHANCE range) a camp of its placeholder is the rare's instead, seeded; default RARE_DEFAULT
   ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
   rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
-  later?: boolean;               // reserved for a later batch: needs no look or source yet, never generated
+  respawnSeconds?: number;       // seconds until a killed member of this kind stands again (Dom's animal rule: 60-90 s); the server writer reads it per row
+  later?: boolean;               // reserved for a later batch: needs no look, source or registered loot table yet, never generated
 };
 
-export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
+export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'respawn-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
 export type RowIssue = { code: RowCode; path: string; message: string };
 export type RowContext = {
   look: (id: string) => { opponent: string } | null;   // the look table: mobLook
@@ -50,6 +51,7 @@ export const DEFAULTS = { aggro: 7, leash: 26, roam: 6, campSize: [2, 3] as cons
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 1, uncommon: 0.3, rare: 0 };   // x the row's own weight in a zone's draw
 export const RARE_CHANCE: readonly [number, number] = [0.01, 0.25];
 export const RARE_DEFAULT = 0.05;
+export const RESPAWN_RANGE: readonly [number, number] = [30, 300];   // s: wide enough for the animal rule (60-90) and a slow boss-ish kind; outside is a typo
 export const CAMP_MAX = 4;        // Strategy 2026-10-07: an ordinary camp is a leader and three followers
 export const BOSS_CAMP_MAX = 6;   // ... and only a row flagged `bossCamp` may go to six
 // Each number a behaviour field may take (spec sections 2 and 3, widened to the shipped data): [min, max].
@@ -80,7 +82,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   const [lo, hi] = row.level;
   if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || lo > hi) add('level-band', 'level', 'the level band is whole numbers, 1 or more, low to high');
   else if (ctx.zone && (hi < ctx.zone.levelMin || lo > ctx.zone.levelMax)) add('level-miss', 'level', `band ${lo}..${hi} does not meet the zone's ${ctx.zone.levelMin}..${ctx.zone.levelMax}`);
-  if (!ctx.lootTables.has(row.loot)) add('loot-unknown', 'loot', `${row.loot} is not a registered loot table`);
+  if (!row.later && !ctx.lootTables.has(row.loot)) add('loot-unknown', 'loot', `${row.loot} is not a registered loot table`);
   const b = row.behaviour;
   for (const [k, [min, max]] of Object.entries(RANGES)) {
     const v = (b as Record<string, number | undefined>)[k];
@@ -93,6 +95,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   const rarity = row.rarity ?? 'common';
   if (!(rarity in RARITY_WEIGHT)) add('rarity-field', 'rarity', `rarity "${String(row.rarity)}" is not one of ${Object.keys(RARITY_WEIGHT).join(', ')}`);
   else if ((rarity === 'rare') !== (row.replaces !== undefined) || (row.chance !== undefined && (rarity !== 'rare' || !(row.chance >= RARE_CHANCE[0] && row.chance <= RARE_CHANCE[1])))) add('rarity-field', 'replaces', `a rare names the row it replaces (and only a rare does), with a chance in ${RARE_CHANCE[0]}..${RARE_CHANCE[1]}`);
+  if (row.respawnSeconds !== undefined && !(row.respawnSeconds >= RESPAWN_RANGE[0] && row.respawnSeconds <= RESPAWN_RANGE[1])) add('respawn-range', 'respawnSeconds', `respawn is ${RESPAWN_RANGE[0]}..${RESPAWN_RANGE[1]} s`);
   if (ctx.generated && row.named) add('named-generated', 'named', 'named creatures stay on their encounter and are not generated');
   return out;
 }
