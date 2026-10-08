@@ -99,6 +99,14 @@ test('a row a shard SKIPPED or never reached does not veto it; a fail or ceiling
   assert.ok(!trustedFromShards([receipt(), ceiling], tree, commands, source, sums, JOBS, TREES).includes(base[0]));
 });
 
+test('a string or missing row index can neither be trusted nor dodge a FAIL veto', () => {
+  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
+  const str = receipt({ rows: rows.map((r: Row) => ({ ...r, status: 'pass', exit: 0, index: String(r.index) })) });
+  assert.deepEqual(trustedFromVps(str, tree, commands, source, sums, JOBS, TREES), []);
+  const sneaky = receipt({ rows: [{ index: String(base[0]), command: 'x', status: 'fail', exit: 1 }] });
+  assert.ok(!trustedFromShards([receipt(), sneaky], tree, commands, source, sums, JOBS, TREES).length, 'a malformed row in a receipt for the tree poisons the shard union (fail closed)');
+});
+
 test('strict row parse: only status pass AND exit exactly 0 counts (missing, null, -1, 1 never pass)', () => {
   const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   const target = base[0];

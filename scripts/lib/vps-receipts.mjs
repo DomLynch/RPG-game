@@ -52,7 +52,7 @@ export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}
   if (!jobVerified(info, receipt.job, receipt.sha, 'rows') || !boundToTree(receipt, ownSums)) return [];
   if (receipt.buildStatus !== 0 || receipt.dirty !== 0) return [];
   return (receipt.rows || [])
-    .filter(row => row.status === 'pass' && row.exit === 0)   // strict: a missing, null or negative exit is never a pass
+    .filter(row => Number.isInteger(row.index) && row.status === 'pass' && row.exit === 0)   // strict: a missing, null or negative exit is never a pass
     .filter(row => commands[row.index - 1]?.join(' ') === row.command)   // a renumbered or edited row is never trusted by number
     .filter(row => vpsSafeRow(row.command, commands[row.index - 1], readSource, info.flavor === 't4-medium'))   // only the inspected T4 may vouch for wall-clock rows
     .map(row => row.index).sort((a, b) => a - b);
@@ -63,7 +63,7 @@ export function trustedFromShards(receipts, tree, commands, readSource, ownSums,
   const seen = new Set(), failed = new Set();
   for (const receipt of receipts) {
     if (receipt?.kind !== 'vps-shadow-rows' || receipt.tree !== tree) continue;
-    for (const row of receipt.rows || []) if (row.status === 'fail' || row.status === 'ceiling' || (Number.isInteger(row.exit) && row.exit !== 0)) failed.add(row.index);   // a row a shard SKIPPED ('trusted') or never reached ('missing') is not a failure
+    for (const row of receipt.rows || []) if (!Number.isInteger(row.index) || row.status === 'fail' || row.status === 'ceiling' || (Number.isInteger(row.exit) && row.exit !== 0)) failed.add(row.index);   // a row a shard SKIPPED ('trusted') or never reached ('missing') is not a failure
     for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums, jobs, trees)) seen.add(index);
   }
   return [...seen].filter(index => !failed.has(index)).sort((a, b) => a - b);
