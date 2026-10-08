@@ -75,7 +75,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
   // The bronze, in the same batch: the first award inserts the balance row, every later one names its version (a stale one aborts the whole settle).
   const metal = state.metal === undefined ? 'absent' : state.metal;   // null = no row yet (the first award inserts it), not 'absent'
   if (bronze > 0 && metal === 'absent') unpaid.push(`bronze ${bronze}`);
-  else if (bronze > 0) batch.push({ op: 'metal', account: kill.account, delta_bronze: bronze, reason: 'award', event_id: eventId, ...(metal ? { expected_version: metal.version } : {}) });
+  else if (bronze > 0 && metal !== 'absent') batch.push({ op: 'metal', account: kill.account, delta_bronze: bronze, reason: 'award', event_id: eventId, ...(metal ? { expected_version: metal.version } : {}) });
   return { batch, summary: { cp, cpReason, drops, bronze: bronze > 0 && metal !== 'absent' ? bronze : 0, lootRefused, unpaid } };
 }
 
