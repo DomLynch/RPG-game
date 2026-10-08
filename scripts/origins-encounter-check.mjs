@@ -45,7 +45,7 @@ try {
     alter default privileges in schema public grant all on tables to anon, authenticated;
     alter default privileges in schema public grant all on functions to anon, authenticated;
     alter default privileges in schema public grant all on sequences to anon, authenticated;
-    create schema auth; create table auth.users(id uuid primary key);
+    create schema auth; create table auth.users(id uuid primary key, is_anonymous boolean not null default false);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
     insert into auth.users values ('${A}'), ('${B}'), ('${C}');`);
@@ -122,6 +122,26 @@ try {
   age(tok(5));
   eq(await code(V, START(A, pcA, tok(11), 9, 'knight', 6, { instance: 'camp:stale' })), null, 'a stale claim (its fight expired) is taken over');
   eq(psql(`select token from public.origins_creature_claims where instance = 'camp:stale'`), tok(11), 'and the claim now names the new fight');
+
+  // ---- migration 202610080005 (Dom 2026-10-08: open to every signed-in account): who origins_allowed admits ---------------------------------------
+  const [D, E2] = ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'];
+  psql(`insert into auth.users (id, is_anonymous) values ('${D}', false), ('${E2}', true);`);
+  const allowed = acc => psql(`select public.origins_allowed('${acc}')`);
+  const cfg = (key, v) => psql(`update public.origins_config set value = '${v}'::jsonb where key = '${key}'`);
+  eq(psql(`select value from public.origins_config where key = 'origins_open_to_all'`), 'false', 'open-to-all: applied inert (the key starts false)');
+  eq([allowed(A), allowed(D)], ['t', 'f'], 'open-to-all off: the allowlist decides, as before');
+  cfg('origins_open_to_all', 'true');
+  eq([allowed(A), allowed(D), allowed(E2), allowed('ffffffff-ffff-4fff-8fff-ffffffffffff')], ['t', 't', 'f', 'f'], 'open-to-all on: any real account is in; an anonymous sign-in and an unknown id are not');
+  eq(await code(V, `select public.origins_create_character('${D}', 'Dana');`), null, 'open-to-all on: an account not on the allowlist can create a character');
+  cfg('origins_enabled', 'false');
+  eq([allowed(A), allowed(D)], ['f', 'f'], 'origins_enabled off closes everyone, allowlisted or not (the rollback order: flag first)');
+  cfg('origins_enabled', 'true'); cfg('origins_open_to_all', 'false');
+  eq(allowed(D), 'f', 'open-to-all back off: the non-allowlisted account is out again');
+  eq(psql(`select has_function_privilege('authenticated', 'public.origins_allowed(uuid)', 'execute')::text || has_function_privilege('anon', 'public.origins_allowed(uuid)', 'execute')::text`), 'falsefalse', 'open-to-all: the gate is still not callable by clients (grants kept)');
+  psql(readFileSync(join(dir, '..', 'down', '202610080005_origins_open_to_all_down.sql'), 'utf8'));
+  eq([psql(`select count(*) from public.origins_config where key = 'origins_open_to_all'`), allowed(A), allowed(D)], ['0', 't', 'f'], 'open-to-all down: the key is gone and the allowlist gate is back');
+  psql(readFileSync(join(dir, '202610080005_origins_open_to_all.sql'), 'utf8'));
+  eq(allowed(D), 'f', 'open-to-all up again: inert');
 
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
