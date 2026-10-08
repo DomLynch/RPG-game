@@ -18,6 +18,20 @@ Each owner fills in their row: **done** (with a receipt: PR, sha, command or lin
 
 **Acceptance line for the Zone 1 rows (1, 2, 3; Dom via Strategy, 2026-10-08):** finish Zone 1 first, but everything in it goes through the origins/world SCHEMA (the 15 groups) or a generator: no hand-placed numbers in renderer code. Test of done: Zone 2 can be made as a data file (`generateZone(template, seed, overrides)`) with no new code. Creatures go through the body-family pipeline (picture, TRELLIS, VPS reduce, family rig script), each with a light world body plus a close-up duel body.
 
+## Row 1 — seamless Zone 1 combat (Dom's order 2026-10-08 09:0x, via Strategy)
+
+Zone 1 combat must be SEAMLESS: no freeze, no Pit-duel switch. Strategy's audit (untimed; the file:line receipts are Strategy's, Lead has not re-read them: the paths `src/pit-duel.ts` and `src/mobs.ts` are not on trunk, so they point at the origins preview files): the fight start stops the world loop, hides the canvas, shows Loading..., imports the fight chunks only after the tap, builds a new renderer and Pit scene per fight, loads the 5.9 MB duel wolf fresh, compiles and pre-warms for ~4 s, then runs a separate sim 6.5 m apart with the Pit's locked camera. #1725 removes the second GL context and the arena but keeps the loop stop, Loading..., late imports, per-fight loads, the mob freeze (FREEZE_RADIUS 20) and the rig swap.
+
+| Step | What | Owner | Hours (Strategy's estimate; owners confirm) |
+|---|---|---|---|
+| 1 | Never stop the world loop: drop the animation-loop stop, mobs.freeze / FREEZE_RADIUS and the creature hiding | World | ~3 |
+| 2 | Preload on Frontier load/aggro: import the fight chunks early, pre-create and warm the stage once and reuse it | World | ~6-8 |
+| 3 | One body: the world creature + hero ARE the fighters (the 1.4 MB world wolf has Bite/Hurt/Death); the sim starts from real world positions (RV bump = Combat) | World + Combat | ~14-20 (#1758) |
+| 4 | Camera eases to lock-on instead of cutting | World | ~1 |
+| 5 | Fight = state on the mob (hostile flag, engaged set); retire the Pit world mode (#1758 S3/S4) | Backend + World | not estimated |
+
+Order: steps 1 + 2 first (they kill most of the freeze), preview-only. Gates are #1758's tests: no-swap-at-engage, world-live-during-fight, engage-hitch-budget. Donors, all combat as entity state in the same tick: World of Claudecraft sim.ts:7366 enterCombat, AzerothCore Unit.cpp:7308, EQEmu mob.cpp:5508, ModernUO Mobile.cs:720 (Strategy's citations).
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
