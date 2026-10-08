@@ -3,7 +3,7 @@
 // run through the verbatim copies duel-open.ts / ai-open.ts / sim-open.ts by the adapter open-fight.ts; this file owns only what the Pit has no word for: who is in whose fight (aggro, the nearest foe, the hold-off ring
 // for the rest of a pack), the chase to that ring, leash, give-up, heal-home, the creature rows (`creature`, levels from moves.ts opponentAt), player-vs-player rules (the server's pvp flag, the low-level shield, the
 // level band, the `Aggressed` first-strike event) and `minKillSeconds`. Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering, animation and input.
-import { LEVELS, LEVEL_ANCHORS, MOVES, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
 import { GAMBIT_ODDS } from '../../src/gambit.ts';
 import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/stance.ts';
