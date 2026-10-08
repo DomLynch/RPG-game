@@ -9,7 +9,9 @@ import { spawnSync } from 'node:child_process';
 import { trustedFromShards, unitReceiptOk } from './lib/vps-receipts.mjs';
 
 const [sha, flag] = process.argv.slice(2);
-const tree = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8' }).stdout.trim();
+const rev = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8', timeout: 10_000 });
+if (rev.error || rev.status !== 0 || !rev.stdout.trim()) { console.error(`vps-receipts: git rev-parse ${sha}^{tree} failed or timed out; trusting nothing, every row runs here`); process.exit(0); }
+const tree = rev.stdout.trim();
 const dir = `artifacts/vps-shadow/${process.env.VPS_RECEIPT_SHA || sha}`;
 const sum = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 const own = names => Object.fromEntries(names.map(name => [name, sum(`scripts/vps-shadow/${name}`)]));

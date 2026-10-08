@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
@@ -89,4 +90,11 @@ test('deploy.sh takes the unit-suite receipt branch before the CI/Mac gates, and
   assert.ok(deploy.indexOf('vps_unit_receipt_ok') < deploy.indexOf('quality_green "$revision"') + 5000 && deploy.indexOf('vps_unit=') < deploy.indexOf('npm run quality\n'));
   assert.match(readFileSync('scripts/vps-shadow/rows-json.mjs', 'utf8'), /flavor: process\.env\.SHADOW_FLAVOR/);
   assert.match(readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8'), /"run-unit\.sh": c\.createHash/);
+});
+
+test('vps-receipt-trust.mjs trusts nothing when git cannot resolve the sha (non-zero status), and prints no rows', () => {
+  const r = spawnSync('node', ['scripts/vps-receipt-trust.mjs', 'no-such-ref-zzzz'], { encoding: 'utf8', timeout: 30_000 });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, '');
+  assert.match(r.stderr, /trusting nothing/);
 });
