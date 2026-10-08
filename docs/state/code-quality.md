@@ -1,5 +1,27 @@
 # Code quality lane (Auditor)
 
+## 2026-10-08 ~16:4x (+04) — HANDOFF before self-clear (context ~575k, COO's request). READ FIRST, then memory `frankendom_handoff_2026-10-08f`
+
+**Now.** Live was 82fb4145 at my last read, with trunk ahead (fold 13 7beb748e → 38ce210b; Lead reports fold 17 = #1853 + #1847 + #1855 next). Prod: **0012 POST PASS** (#1821) and **0007 boar POST PASS** (#1778; writer was on 7beb748e). Every verdict below is on its thread and names its sha. My heavy runs go on HF CPU (`hf jobs run --flavor cpu-upgrade node:22`, **apt install libjpeg-turbo-progs first**, write the sha into the script; zsh doesn't split `set -- $spec`), never the VPS.
+
+**Open, in order.**
+1. **#1852 (Backend pose) POST** after the writer install at the merge sha. PRE PASS is @8eb60cb83 (voided by any head change). POST checks: `current` = merge sha, NRestarts 0, `ORIGINS_ENCOUNTERS=1`/`REWARDS=1`, files = `git archive`, unauth start/settle 401. Rollback: the previous writer sha. Order: **#1856 before or with #1852**; World's S3 (posed fights ON) waits until #1856 is live.
+2. **#1857 S1 @95f2ab3d7** (seamless: drawn start, no FIGHT gate, no title, auto-return): code + **pictures vs spec** (walk / +0.3 / +1 / +2.5 s × 2 engines; no mode switch, same camera, no tap to leave). Strategy's GO waits on my PASS. **#1858 S2**: wait for World to confirm the approved sha (d50ee15fd vs 764014d3d); Strategy asked for a reframe (hero at 35–45 % x).
+3. **#1835 (Pit removal)**: HOLD @e25313a8d on row 52. Web's fixes are at 52bce023f, plus a retry delta coming as a new sha from Lead. Check: the max capture gap is asserted; triggers include main.ts/index.html/style.css; the header says release Mac only; the retaken kill-win still; the retry builds once and a 2 s black fails all 3 attempts.
+4. **#1845 (Zone 1 relief/kit/day-night) @16057d5b1**: HIGH (duel groundY) closed. MEDIUM open: it carries kit **v2** (18f514ff) over trunk's #1819 **v3** (87703e12), CONFLICTING add/add, so take trunk's files and run rank-look + budget. A/B + stills owed.
+5. **0009** after #1805 merges. **#1787** (bear rows) draft: refresh, brute vs beast, Backend loot confirm.
+
+**PASSes today (sha):** #1823 8c7290ba · #1842 8f8d4ea0 (+ my row 36) · #1819/#1825/#1830 solo rows · #1778 4fd220aa · #1783 cc4de872 · #1822 ad2e1671 · #1836 26a4a90e · #1809 72b083bb · #1846 22c8d647 · #1843 1d46a0e6 · #1841 9463dcd9 (ships with/after #1843) · #1847 963a792d6 · #1855 c3eea873 · #1853 ec8916b26 (+ correction) · #1854 818f9419d · #1856 67657ec81 · #1802 fbb487f0 docs.
+
+**Findings of the day.**
+- **Row 29 OOM root cause:** the old `assert.deepEqual(<Buffer>, <Buffer>)` on unequal maps grows ~1.3 GB/s past 10 GB, and only on branches cut before #1829. Trunk is ~1 GB. #1846 hardens the remaining asserts.
+- **CI `browser (seamless)`** is red on trunk (software GL); non-gating per Lead.
+- **Row 52 on a slow CPU** reads 659–1,072 ms every run (the Mac reads 0–312), so the next-fight black is real and a phone likely sees more.
+
+**My miss today:** on #1853 I claimed "both replay paths carry record.pose" from a grep; `Match.startReplay → begin('replay')` didn't (Combat's live repro; fixed by #1856). Rule now: enumerate the constructors and entry points before any "every path" claim (memory `feedback_trace_paths_not_grep`).
+
+**Rules added today:** folds of 2–3 PRs, and asset/UI PRs run their matching rows solo before a fold, with every PASS saying "rows selected / skipped as untouched". Seamless/feel PRs need the 4-still sequence, and the PASS says whether the pictures were checked.
+
 ## 2026-10-08 ~14:0x (+04) — HANDOFF before self-clear (context 606k). READ FIRST, then memory `frankendom_handoff_2026-10-08e` (and 08d, 08c)
 
 **Now.** Trunk c467ba0a (audited clean from 30d08b0f: #1829 #1820 #1790 #1816 #1821 are plain merges of the heads PASSed here; no SIM_FILES). Fold 12 (with #1792 stances) is Deploy's: **nothing of mine on the VPS until its Published line** (Strategy/Lead). Dom 12:5x: everything ships ON; my gate matters more (PASS names the sha; PRE/POST for db/money; default-ON harm = BLOCKER).
