@@ -7,6 +7,7 @@ import { recordSpecials } from '../../src/replay.ts';
 import { DbError, type Db } from './db.ts';
 import type { EncounterDeps } from './encounter.ts';
 import { kitBuild } from '../mobs/kit-version.ts';
+import type { DuelPose } from '../../src/duel.ts';
 import { liveSpecials, verifyEncounter } from './encounter-verify.ts';
 
 export const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';
@@ -50,17 +51,17 @@ export const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer
 export const deps = (over: Partial<EncounterDeps> = {}): EncounterDeps => ({ resolve: (_w, id) => (id === 'encounter:knight' ? RESOLVED : null), verify: verifyEncounter, now: () => clock.t, ...over });
 
 // The client: plays the fight with the server's seed, records it as the Pit's recorder does, packs it for the wire.
-export function playFight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false, build = kitBuild('test')): FightRecord | null {
+export function playFight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false, build = kitBuild('test'), pose?: DuelPose): FightRecord | null {
   let s = intentSeed >>> 0; const rand = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
   const specials = liveSpecials(level), profile = profileAt(OPPONENTS[enemy], level);
-  const rec = createRecorder({ build, opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}) });
-  let p = initialPractice(seed, opponentAt(OPPONENTS[enemy], level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }));
+  const rec = createRecorder({ build, opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}), ...(pose ? { pose } : {}) });
+  let p = initialPractice(seed, opponentAt(OPPONENTS[enemy], level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }), undefined, undefined, pose);   // pose: the server's issued start pose, as match.startPose plays it
   for (let i = 0; i < 1500 && !p.finish; i++) p = stepPractice(p, rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: false }, action: rand() < 0.5 ? 'light' : null, guard: rand() < 0.1, lock: true }), profile);
   if (onlyFinished && !p.finish) return null;   // a scripted fight that never ended has no verifiable record
   return { ...rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned'), v: RECORD_VERSION };   // the current version, as verify-loot packs a claim
 }
-export function fight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false, build = kitBuild('test')): string {
-  const record = playFight(seed, intentSeed, level, enemy, onlyFinished, build);
+export function fight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false, build = kitBuild('test'), pose?: DuelPose): string {
+  const record = playFight(seed, intentSeed, level, enemy, onlyFinished, build, pose);
   return record ? toBase64Url(gzipSync(packRecord(record))) : '';
 }
 
