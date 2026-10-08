@@ -6,7 +6,7 @@ import { ACCOUNT, PC } from '../contracts/fixtures.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';
-import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, type Kill } from './mob-rewards.ts';
+import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, type Kill } from './mob-rewards.ts';
 import type { Db } from './db.ts';
 import type { CareerRow } from './store.ts';
 
@@ -100,4 +100,13 @@ test('respawn window: a second paid kill of the same fight inside 300 s by the s
 test('no fight id (a token from before the fight was carried): the hook pays nothing and records no window (L3)', async () => {
   const hook = mobRewards(content, () => new Date(AT), () => {}), db = fakeOpen();
   assert.deepEqual(await hook(kill(creatures[0]!, droppingSeed(creatures[0]!), { fight: null }), db), []);
+});
+
+test('respawn window per creature row (Dom\'s animal rule): a row with respawn [60, 90] binds 60 s, a row without keeps 300 s, an unknown fight keeps 300 s', () => {
+  const [a, b] = creatures as [string, string];
+  const rows = new Map([[a, 60_000]]);
+  assert.equal(respawnMsOf(a, content, rows), 60_000, 'the row\'s minimum');
+  assert.equal(respawnMsOf(b, content, rows), RESPAWN_MS, 'no respawn on the row: the zone default');
+  assert.equal(respawnMsOf('character:nobody', content, rows), RESPAWN_MS);
+  for (const c of creatures) assert.equal(respawnMsOf(c, content), RESPAWN_MS, `${c}: no shipped row sets respawn yet, so nothing changes until Characters\' rows do`);
 });

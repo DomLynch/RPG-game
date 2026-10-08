@@ -9,6 +9,8 @@ import type { CharacterInstanceId, EncounterId } from '../contracts/ids.ts';
 import type { ItemInstance } from '../contracts/items.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
+import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { award } from '../progression/model.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
 import { careerState } from './career.ts';
@@ -95,7 +97,14 @@ function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // as a recorded fight and pays nothing. The window lives in the writer's memory (one process; a restart only forgets it, which can cost one extra payout per fight),
 // and a retry of the SAME token is never blocked (the hook runs before the commit, so a stale abort must be able to pay on the retry).
 export const RESPAWN_MS = 300_000;
-export type Cooldown = Map<string, { at: number; token: string }>;
+export type Cooldown = Map<string, { at: number; token: string; ms: number }>;
+// The window for one fight: its creature row's `respawn` minimum (Dom's animal rule, 2026-10-08: 60..90 s), else RESPAWN_MS. Keyed by the fight's foe, read
+// from the server's own fightSetup, never the client's body. A fight the content does not describe keeps the default (mobBatch pays it nothing anyway).
+const ROW_RESPAWN = new Map([...FRONTIER_ROWS, ...WILDLIFE_ROWS].flatMap((r) => (r.respawn ? [[r.id, r.respawn[0] * 1000] as const] : [])));
+export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
+  const setup = fightSetup(fight, content);
+  return (setup.ok ? rows.get(setup.value.opponent.character) : undefined) ?? RESPAWN_MS;
+}
 
 // The writer's `rewards` for encounterOps: read the character's pack and career row (one origins_open), then price the kill.
 export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log, cooldown: Cooldown = new Map()) {
@@ -104,15 +113,15 @@ export function mobRewards(content: EncounterContent, now: () => Date = () => ne
     if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-6)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }   // L3: never priced, and never outside the window
     const key = `${kill.account}|${kill.fight}`, last = cooldown.get(key), t = now().getTime();
     // L1: the hook runs BEFORE settle commits, so a window only counts once the earlier kill really paid (its enc:<token> event exists); a retry of the same token is never blocked.
-    if (last && last.token !== kill.token && t - last.at < RESPAWN_MS && (await store.event(db, kill.account, `enc:${last.token}`)) !== null) {
-      log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((RESPAWN_MS - (t - last.at)) / 1000)} s left), the fight is recorded and pays nothing`);
+    if (last && last.token !== kill.token && t - last.at < last.ms && (await store.event(db, kill.account, `enc:${last.token}`)) !== null) {
+      log(`encounter rewards ${kill.token.slice(-6)}: respawning (${Math.ceil((last.ms - (t - last.at)) / 1000)} s left), the fight is recorded and pays nothing`);
       return [];
     }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
     const paid = mobBatch(kill, { career: snap.career, inventory }, content, now().toISOString());
     if (paid.batch.length > 0) {
-      for (const [k, v] of cooldown) if (t - v.at >= RESPAWN_MS) cooldown.delete(k);   // L2: expired windows are dropped, so the map holds at most the last 5 minutes of paid kills
-      cooldown.set(key, { at: t, token: kill.token });
+      for (const [k, v] of cooldown) if (t - v.at >= v.ms) cooldown.delete(k);   // L2: expired windows are dropped, so the map holds at most the last 5 minutes of paid kills
+      cooldown.set(key, { at: t, token: kill.token, ms: respawnMsOf(kill.fight, content) });
     }
     log(`encounter rewards ${kill.token.slice(-6)}: ${JSON.stringify(paid.summary)}`);
     return paid.batch;

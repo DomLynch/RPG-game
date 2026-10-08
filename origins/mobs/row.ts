@@ -34,10 +34,11 @@ export type MobRow = {
   chance?: number;               // a rare row: the chance (RARE_CHANCE range) a camp of its placeholder is the rare's instead, seeded; default RARE_DEFAULT
   ladder?: string;               // a body family's tier ladder (rows sharing it are rungs of one body: a goblin ladder, a witch ladder); set with `rung`
   rung?: number;                 // 1-based tier on the ladder: a higher rung is a harder creature (level band never below the rung under it)
+  respawn?: readonly [number, number];   // s: how soon a killed one returns, min..max (Dom's animal rule: 60..90); unset = its zone's spawns.respawnSeconds. The writer's farming window is the min
   later?: boolean;               // reserved for a later batch: needs no look, source or registered loot table yet, never generated
 };
 
-export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder';
+export type RowCode = 'no-source' | 'bad-role' | 'family-no-look' | 'level-band' | 'level-miss' | 'loot-unknown' | 'roam-leash' | 'camp-size' | 'behaviour-range' | 'dup-id' | 'named-generated' | 'rung-ladder' | 'rung-order' | 'dup-rung' | 'ladder-body' | 'rarity-field' | 'rare-placeholder' | 'respawn-range';
 export type RowIssue = { code: RowCode; path: string; message: string };
 export type RowContext = {
   look: (id: string) => { opponent: string } | null;   // the look table: mobLook
@@ -46,6 +47,7 @@ export type RowContext = {
   generated?: boolean;                                  // the generator's eligibility check: no pending source, no named row
 };
 
+export const RESPAWN_RANGE = [30, 86_400] as const;   // s: the world schema's respawn bounds raised to 30 s (a camp never pops back under half a minute)
 export const DEFAULTS = { aggro: 7, leash: 26, roam: 6, campSize: [2, 3] as const, weight: 10 };
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 1, uncommon: 0.3, rare: 0 };   // x the row's own weight in a zone's draw
 export const RARE_CHANCE: readonly [number, number] = [0.01, 0.25];
@@ -90,6 +92,7 @@ export function validateMobRow(row: MobRow, ctx: RowContext, path = ''): RowIssu
   const [cmin, cmax] = b.campSize ?? DEFAULTS.campSize;
   if (!Number.isInteger(cmin) || !Number.isInteger(cmax) || cmin < 1 || cmax > (row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX) || cmin > cmax) add('camp-size', 'behaviour.campSize', `a camp is 1..${row.bossCamp ? BOSS_CAMP_MAX : CAMP_MAX} members${row.bossCamp ? '' : ' (6 only on a boss camp)'}, min not above max`);
   if ((row.ladder === undefined) !== (row.rung === undefined) || (row.rung !== undefined && (!Number.isInteger(row.rung) || row.rung < 1))) add('rung-ladder', 'rung', 'ladder and rung come together: a ladder id and a whole rung, 1 or more');
+  if (row.respawn && !(Number.isInteger(row.respawn[0]) && Number.isInteger(row.respawn[1]) && row.respawn[0] >= RESPAWN_RANGE[0] && row.respawn[1] <= RESPAWN_RANGE[1] && row.respawn[0] <= row.respawn[1])) add('respawn-range', 'respawn', `respawn is whole seconds min..max within ${RESPAWN_RANGE[0]}..${RESPAWN_RANGE[1]}`);
   const rarity = row.rarity ?? 'common';
   if (!(rarity in RARITY_WEIGHT)) add('rarity-field', 'rarity', `rarity "${String(row.rarity)}" is not one of ${Object.keys(RARITY_WEIGHT).join(', ')}`);
   else if ((rarity === 'rare') !== (row.replaces !== undefined) || (row.chance !== undefined && (rarity !== 'rare' || !(row.chance >= RARE_CHANCE[0] && row.chance <= RARE_CHANCE[1])))) add('rarity-field', 'replaces', `a rare names the row it replaces (and only a rare does), with a chance in ${RARE_CHANCE[0]}..${RARE_CHANCE[1]}`);
