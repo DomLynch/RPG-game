@@ -151,6 +151,20 @@ try {
   eq(await code(V, SETTLE(C, tok(21), 'won', 400, JSON.stringify([...JSON.parse(EV(tok(21), C, pcC, 'won')), ...stale.batch]))), 'O0002', 'rewards: a stale career version aborts the settle');
   eq([state(tok(21)).used, state(tok(21)).settled, items()], [false, false, paid.summary.drops.length], 'rewards: nothing was written and the token is still open for a retry');
 
+  // ---- rankings (migration 202610080009 origins_rankings): one top-N per board, names only, granted to the two writer roles ----------------------
+  const rkPriv = role => psql(`select has_function_privilege('${role}', 'public.origins_rankings(text, integer)', 'execute')`);
+  eq([rkPriv(V), rkPriv(O), rkPriv('anon'), rkPriv('authenticated')], ['t', 't', 'f', 'f'], 'rankings: the writer roles execute it, anon and authenticated do not');
+  const board = b => JSON.parse(psql(`set role ${V}; select public.origins_rankings('${b}', 50)::text;`).split('\n').pop());
+  const kills = board('kills');
+  eq(Array.isArray(kills) && kills.length >= 1 && kills.every(r => Object.keys(r).sort().join() === 'name,value' && typeof r.name === 'string' && r.value >= 1), true, `rankings: the kills board lists the verified won fights as {name, value} rows (${JSON.stringify(kills).slice(0, 80)})`);
+  eq(JSON.stringify(kills).includes(C), false, 'rankings: no account id in a board');
+  for (const b of ['level', 'pvp', 'pit']) eq(Array.isArray(board(b)), true, `rankings: the ${b} board answers a list`);
+  eq((await code(V, `select public.origins_rankings('nope', 5);`)) !== null, true, 'rankings: an unknown board is refused');
+  eq(board('kills').length <= 50 && JSON.parse(psql(`set role ${V}; select public.origins_rankings('kills', 999)::text;`).split('\n').pop()).length <= 50, true, 'rankings: at most 50 rows whatever the limit asked');
+  psql(readFileSync(join(dir, '..', 'down', '202610080009_origins_rankings_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_rankings(text,integer)') is null)::text || '/' || (select count(*) from pg_indexes where indexname = 'origins_events_won_mob')`), 'true/0', 'rankings down: the function and the index are gone');
+  psql(readFileSync(join(dir, '202610080009_origins_rankings.sql'), 'utf8'));
+
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins_encounter\\_%' and proname not in ('origins_issue_encounter', 'origins_consume_encounter')`), '0', 'down: the five functions are gone');
