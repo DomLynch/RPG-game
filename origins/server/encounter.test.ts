@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
-import { encounterOps, fightOfToken, poseOfToken, POSED_FIGHT_MAX, tokenFor } from './encounter.ts';
+import { derivedSeed, encounterOps, fightOfToken, poseOfToken, POSED_FIGHT_MAX, tokenFor } from './encounter.ts';
 import { issuePose, isLegalPose, MARK_GAP, MIN_GAP, poseBounds } from './encounter-pose.ts';
 import { verifyEncounter } from './encounter-verify.ts';
 import { decodeRecord } from '../../src/record.ts';
@@ -213,4 +213,40 @@ test('settle a poseless WORLD token with a legal pose: verified (the fight start
   let r2 = ''; for (let k = 1; k < 120 && !r2; k++) r2 = fight(s2.seed, k, 6, 'knight', true, undefined, legal);
   const out2 = await pit.encounter_settle!(ctx(db2), { token: s2.token, record: r2 }) as Record<string, unknown>;
   assert.equal(out2.verified, false); assert.match(String(out2.reason), /not issued/);
+});
+
+// Dom's world-fight rule (migration 202610080013): the creature keeps its fight (a derived seed), and a world stalemate or unverified record records nothing.
+test('seed with 0013: derived from the key, account, fight and last paid kill; the same across restarts; a kill, another account or another fight changes it; no key = 503; without 0013 random', async () => {
+  const key = 'k'.repeat(64), two = (id: string) => (id === 'encounter:knight' || id === 'encounter:knight-b' ? RESOLVED : null);
+  const startOn = async (killAt: string | null | undefined, account = ACCOUNT, encounter = 'encounter:knight', over: Partial<Parameters<typeof deps>[0]> = { seedKey: key }) => {
+    const ops = encounterOps(deps({ resolve: two, ...over }));
+    return (await ops.encounter_start!({ db: fakeDb({ t: 0 }, killAt).db, account }, { character: CHAR, encounter }) as { seed: number }).seed;
+  };
+  const s0 = await startOn(null);
+  assert.equal(await startOn(null), s0, 'walk away / expire / restart: the same seed (no paid kill in between)');
+  assert.equal(s0, derivedSeed(key, ACCOUNT, 'encounter:knight', null));
+  assert.notEqual(await startOn('1760000000123'), s0, 'a paid kill (its respawn) brings a new seed');
+  assert.equal(await startOn('1760000000123'), await startOn('1760000000123'), 'and that one is stable too');
+  assert.notEqual(await startOn(null, '22222222-2222-4222-8222-222222222222'), s0, 'another account: another seed');
+  assert.notEqual(await startOn(null, ACCOUNT, 'encounter:knight-b'), s0, 'another fight kind: another seed');
+  assert.ok(s0 >= 1 && s0 < 2 ** 31);
+  await assert.rejects(async () => startOn(null, ACCOUNT, 'encounter:knight', {}), (e: unknown) => e instanceof Refused && e.status === 503 && /seed key/.test(e.message), '0013 applied but no key: 503, never a random fallback');
+  const r1 = await startOn(undefined, ACCOUNT, 'encounter:knight', {}), r2 = await startOn(undefined, ACCOUNT, 'encounter:knight', {});
+  assert.ok(r1 >= 1 && r2 >= 1 && (r1 !== r2 || r1 !== (await startOn(undefined, ACCOUNT, 'encounter:knight', {}))), 'without 0013: random seeds, no key needed (a walk-away still costs a loss there)');
+});
+
+test('settle with 0013: an unverified WORLD record records nothing (no loss, event null); a non-world fight or a database without 0013 records it as before', async () => {
+  const bad = (seed: number) => fight(seed + 1, 1, 6, 'knight', false);   // played on another seed: never verifies
+  const run = async (killAt: string | null | undefined, world: boolean) => {
+    const { db, events } = fakeDb({ t: 1e6 }, killAt), ops = encounterOps(deps({ seedKey: 'k'.repeat(64), resolve: (_w, id) => (id === 'encounter:knight' ? { ...RESOLVED, world } : null) }));
+    const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+    const out = await ops.encounter_settle!(ctx(db), { token: start.token, record: bad(start.seed) }) as Record<string, unknown>;
+    return { out, events: events.length };
+  };
+  const quiet = await run(null, true);
+  assert.deepEqual([quiet.out.verified, quiet.out.event, quiet.events], [false, null, 0], 'world + 0013: nothing recorded');
+  const pit = await run(null, false);
+  assert.deepEqual([pit.out.verified, pit.events], [false, 1], 'a non-world fight: the loss is recorded as today');
+  const before = await run(undefined, true);
+  assert.deepEqual([before.out.verified, before.events], [false, 1], 'without 0013: recorded as today (a free outcome would re-roll a random seed)');
 });

@@ -1,7 +1,7 @@
 // Migration 202610080002 (world creature fights): the five functions on a disposable PostgreSQL cluster with every migration applied, driven as BOTH writer roles (the writer connects as
 // frankendom_verifier since 202610080001; frankendom_origins is the other grant). Proves: start holds the server's parameters and claims the creature; one open fight per account; a creature
 // has one live claimant and a stale claim is taken over; touch continues the same token and seed inside the grace and is refused after it; settle consumes the token, closes the run, releases the
-// creature and writes the batch in ONE transaction (a bad batch rolls all of it back; a second settle is refused); the sweep settles an expired fight once as a loss by abandonment under the same
+// creature and writes the batch in ONE transaction (a bad batch rolls all of it back; a second settle is refused); the sweep closes an expired fight once and records nothing (202610080013; before it, a loss by abandonment) under the same
 // event id, skips a row another transaction holds, and a settle after it is refused; nothing is reachable except through the definer functions; the down-script removes the new objects only.
 // Also: the rewards hook's real lines (mob-rewards.ts) pay CP + loot once with the settle, and bronze through migration 202610080004's origins_metal_of read.
 import { execFileSync, spawn } from 'node:child_process';
@@ -34,7 +34,7 @@ const eq = (got, want, what) => { checks++; if (JSON.stringify(got) !== JSON.str
 const as = (role, sql) => psqlAsync(`set role ${role}; ${sql}`);
 const code = async (role, sql) => { const r = await as(role, sql); return r.code === 0 ? null : /(O\d{4}|\b42501\b|permission denied)/.exec(r.err)?.[1] ?? r.err.trim().slice(0, 120); };
 const tok = n => `tok-${n}-`.padEnd(24, 'x');
-const START = (acct, pc, t, seed, enemy, level, extra = {}) => `select public.origins_encounter_start('${acct}', '${pc}', '${t}', ${seed}, '${enemy}', ${level}, ${extra.tick ?? 0}, ${extra.bar ?? 'null'}, '${JSON.stringify(extra.flags ?? [])}'::jsonb, ${extra.layer ? `'${extra.layer}'` : 'null'}, ${extra.instance ? `'${extra.instance}'` : 'null'})::text;`;
+const START = (acct, pc, t, seed, enemy, level, extra = {}) => `select public.origins_encounter_start('${acct}', '${pc}', '${t}', ${seed}, '${enemy}', ${level}, ${extra.tick ?? 0}, ${extra.bar ?? 'null'}, '${JSON.stringify(extra.flags ?? [])}'::jsonb, ${extra.layer ? `'${extra.layer}'` : 'null'}, ${extra.instance ? `'${extra.instance}'` : 'null'}${extra.world === undefined ? '' : `, ${extra.world}`})::text;`;   // extra.world: the 12-argument start (202610080013)
 const EV = (t, acct, pc, result) => `[{"op":"event","event_id":"enc:${t}","kind":"mob","account":"${acct}","character":"${pc}","payload":{"result":"${result}","verified":true}}]`;
 const SETTLE = (acct, t, result, ticks, batch) => `select public.origins_encounter_settle('${acct}', '${t}', '${result}', ${ticks}, '${batch}'::jsonb)::text;`;
 const state = t => ((o) => ({ used: o.used, settled: o.settled, result: o.result, claims: o.claims, events: o.events }))(JSON.parse(psql(`select jsonb_build_object('used', e.used_at is not null, 'settled', r.settled_at is not null, 'result', r.result, 'claims', (select count(*) from public.origins_creature_claims where token = e.token), 'events', (select count(*) from public.origins_events where event_id = 'enc:' || e.token))::text from public.origins_encounters e join public.origins_encounter_runs r on r.token = e.token where e.token = '${t}'`)));
@@ -102,7 +102,7 @@ try {
   eq(await code(V, SETTLE(A, tok(1), 'won', 321, EV(tok(1), A, pcA, 'won'))), 'O0009', 'settle: a second settle is refused and writes nothing more');
   eq(await code(V, START(A, pcA, tok(8), 5, 'knight', 6, { instance: 'camp:wolf-3' })), null, 'after the settle the account and the creature are free again');
 
-  // ---- the sweep: an expired fight is one abandonment, once, under the same event id ---------------------------------------------------------
+  // ---- the sweep: a NON-world fight (started through 0002's 11-argument call: world = false) is one abandonment, once, under the same event id, exactly as before 0013 ----
   age(tok(2)); age(tok(8));
   eq(await code(V, `select public.origins_encounter_touch('${B}', '${tok(2)}', 5);`), 'O0009', 'expired: a touch after the grace is refused');
   eq(await code(V, SETTLE(B, tok(2), 'won', 5, EV(tok(2), B, pcB, 'won'))), 'O0009', 'expired: a settle after the grace is refused (a win cannot arrive late)');
@@ -116,10 +116,24 @@ try {
   const swept2 = (await as(O, `select public.origins_encounter_expire(50);`)).out.split('\n').pop();
   eq(swept2, '1', 'sweep: the skipped one is settled on the next pass (as the other role)');
   eq((await as(V, `select public.origins_encounter_expire(50);`)).out.split('\n').pop(), '0', 'sweep: nothing left, nothing settled twice');
-  eq(state(tok(2)), { used: true, settled: true, result: 'abandoned', claims: 0, events: 1 }, 'sweep: abandoned, token used, creature released, one event');
-  eq(psql(`select payload ->> 'result' || '/' || (payload ->> 'ticks') from public.origins_events where event_id = 'enc:${tok(2)}'`), 'abandoned/0', 'sweep: the event says abandoned');
-  eq(state(tok(8)).result, 'abandoned', 'sweep: both expired fights are abandonments');
+  eq(state(tok(2)), { used: true, settled: true, result: 'abandoned', claims: 0, events: 1 }, 'sweep (non-world): abandoned, token used, creature released, one event');
+  eq(psql(`select payload ->> 'result' || '/' || (payload ->> 'ticks') from public.origins_events where event_id = 'enc:${tok(2)}'`), 'abandoned/0', 'sweep (non-world): the event says abandoned, same row shape as 0002');
+  eq(state(tok(8)).result, 'abandoned', 'sweep (non-world): both expired fights are abandonments');
   eq(await code(V, START(B, pcB, tok(9), 7, 'knight', 6, { instance: 'camp:boar-1' })), null, 'after the sweep the creature is free (it resets: nobody inherits a half-dead mob)');
+  // ---- 202610080013, Dom's world-fight rule: an expired WORLD fight (never played, or played and left) is closed once and records NOTHING ---------------------------
+  const worldOf = t => psql(`select world::text from public.origins_encounter_runs where token = '${t}'`);
+  eq(worldOf(tok(9)), 'false', 'world: the 11-argument start leaves world = false (an old writer keeps today\'s behaviour)');
+  eq(await code(V, START(C, pcC, tok(40), 11, 'knight', 6, { instance: 'camp:wolf-9', world: true })), null, 'world: the 12-argument start (as the verifier role)');
+  eq(worldOf(tok(40)), 'true', 'world: stored server-side at start');
+  psql(`update public.origins_encounter_runs set last_tick = 40 where token = '${tok(40)}'`);   // PLAYED, then left (ran away / closed the page)
+  age(tok(40));
+  eq((await as(O, `select public.origins_encounter_expire(50);`)).out.split('\n').pop(), '1', 'world sweep: closes the expired world fight (as the origins role)');
+  eq(state(tok(40)), { used: true, settled: true, result: 'abandoned', claims: 0, events: 0 }, 'world sweep: token used, run settled internally, creature released, NO event (no loss)');
+  eq((await as(V, `select public.origins_encounter_expire(50);`)).out.split('\n').pop(), '0', 'world sweep: run twice, nothing more (idempotent)');
+  eq(await code(V, START(C, pcC, tok(41), 12, 'knight', 6, { instance: 'camp:wolf-9', world: true })), null, 'world sweep: the creature is free again');
+  age(tok(41)); await as(V, `select public.origins_encounter_expire(50);`);
+  eq(state(tok(41)), { used: true, settled: true, result: 'abandoned', claims: 0, events: 0 }, 'world sweep: a never-played world fight records nothing either');
+  eq(state(tok(9)).settled, false, 'world sweep: a live fight is untouched');
 
   // ---- a stale claim (its fight expired, not yet swept) is taken over by the next claimant -------------------------------------------------------
   psql(`insert into public.origins_creature_claims (instance, token) values ('camp:stale', '${tok(5)}') on conflict (instance) do update set token = excluded.token;`);
@@ -195,11 +209,32 @@ try {
   eq(await code(V, START(C, pcC, tok(26), seed + 3, foe.body, foe.level)), null, 'respawn: another fight starts');
   eq(await code(V, SETTLE(C, tok(26), 'won', 400, EVP(tok(26), 'character:other-kind', false))), null, 'respawn: an unpaid kill settles');
   eq(lastPaid('character:other-kind'), null, 'last_paid_kill: an unpaid kill opens no window');
+  // origins_last_paid_kill_at (202610080013): the TIME of the newest paid kill, stable across calls (the writer keys the fight's seed on it)
+  const atPriv = role => psql(`select has_function_privilege('${role}', 'public.origins_last_paid_kill_at(uuid, text)', 'execute')`);
+  eq([atPriv(V), atPriv(O), atPriv('anon'), atPriv('authenticated')], ['t', 't', 'f', 'f'], 'last_paid_kill_at: the writer roles execute it, anon and authenticated do not');
+  const paidAt = f => psql(`set role ${V}; select coalesce(public.origins_last_paid_kill_at('${C}', '${f}')::text, 'null');`).split('\n').pop();
+  const at1 = paidAt(creature); await psql(`select pg_sleep(0.3)`);
+  eq([at1 !== 'null', paidAt(creature)], [true, at1], 'last_paid_kill_at: the paid kill\'s time, the same on a later call');
+  eq(at1, psql(`select at::text from public.origins_events where event_id = 'enc:${tok(25)}'`), 'last_paid_kill_at: it is that event\'s own time');
+  eq(paidAt('character:other-kind'), 'null', 'last_paid_kill_at: an unpaid kill gives none');
+  eq(psql(`set role ${V}; select coalesce(public.origins_last_paid_kill_at('${A}', '${creature}')::text, 'null');`).split('\n').pop(), 'null', 'last_paid_kill_at: another account\'s kill is not visible');
+  // a world stalemate (or an unverified world record) settles with an EMPTY batch: origins_apply([]) is a no-op, the token is consumed, nothing is recorded
+  eq(await code(V, START(C, pcC, tok(42), 13, foe.body, foe.level, { world: true })), null, 'stalemate: a world fight starts');
+  eq(await code(V, SETTLE(C, tok(42), 'lost', 300, '[]')), null, 'stalemate: the settle with an empty batch commits');
+  eq(state(tok(42)), { used: true, settled: true, result: 'lost', claims: 0, events: 0 }, 'stalemate: consumed, nothing recorded');
+  eq(await code(V, SETTLE(C, tok(42), 'lost', 300, '[]')), 'O0009', 'stalemate: a second settle is refused');
+  eq(await code(V, START(C, pcC, tok(43), 14, foe.body, foe.level, { world: true })), null, 'death: a world fight starts');
+  eq(await code(V, SETTLE(C, tok(43), 'lost', 300, EV(tok(43), C, pcC, 'lost'))), null, 'death: a verified death settles');
+  eq([state(tok(43)).events, psql(`select payload ->> 'result' from public.origins_events where event_id = 'enc:${tok(43)}'`)], [1, 'lost'], 'death: a verified world death is recorded as today');
   eq(psql(`select count(*) from pg_indexes where indexname = 'origins_events_paid_mob'`), '1', 'last_paid_kill: the partial index exists');
   psql(readFileSync(join(dir, '..', 'down', '202610080006_origins_last_paid_kill_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_last_paid_kill(uuid,text)') is null)::text || '/' || (select count(*) from pg_indexes where indexname = 'origins_events_paid_mob')`), 'true/0', 'last_paid_kill down: the function and the index are gone');
   eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
   psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
+  psql(readFileSync(join(dir, '..', 'down', '202610080013_world_fight_no_loss_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is null)::text || '/' || (pg_get_functiondef('public.origins_encounter_expire(int)'::regprocedure) like '%insert into public.origins_events%')::text`), 'true/true', '0013 down: the new function is gone and the sweep records abandonments again (0002)');
+  psql(readFileSync(join(dir, '202610080013_world_fight_no_loss.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is not null)::text || '/' || (pg_get_functiondef('public.origins_encounter_expire(int)'::regprocedure) like '%insert into public.origins_events%')::text`), 'true/false', '0013 up again: the function is back and the sweep records nothing');
 
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));

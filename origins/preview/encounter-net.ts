@@ -10,7 +10,8 @@ import { encodeRecord, type FightRecord } from '../../src/record.ts';
 import { WRITER_PATH, type Offline } from './save.ts';
 
 export type Fight = { token: string; seed: number; enemy: string; level: number; bar: number | null; flags: unknown[]; layer: string | null; startTick: number; lastTick: number; graceS: number; expiresAt: string };
-export type Settled = { result: 'won' | 'lost'; verified: boolean; twist: string | null; ticks: number; event: string; reason?: string };
+// result 'draw' and event null: a world stalemate, or an unverified world record, records nothing (Dom's world-fight rule, migration 202610080013).
+export type Settled = { result: 'won' | 'lost' | 'draw'; verified: boolean; twist: string | null; ticks: number; event: string | null; reason?: string };
 type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
 
 const int = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
@@ -22,7 +23,7 @@ export function fightOf(r: unknown): Fight | null {
 }
 export function settledOf(r: unknown): Settled | null {
   const s = r as Partial<Settled> | null;
-  if (!s || typeof s !== 'object' || (s.result !== 'won' && s.result !== 'lost') || typeof s.verified !== 'boolean' || !int(s.ticks) || typeof s.event !== 'string') return null;
+  if (!s || typeof s !== 'object' || (s.result !== 'won' && s.result !== 'lost' && s.result !== 'draw') || typeof s.verified !== 'boolean' || !int(s.ticks) || !(s.event === null || typeof s.event === 'string')) return null;
   return { result: s.result, verified: s.verified, twist: typeof s.twist === 'string' ? s.twist : null, ticks: s.ticks, event: s.event, ...(typeof s.reason === 'string' ? { reason: s.reason } : {}) };
 }
 

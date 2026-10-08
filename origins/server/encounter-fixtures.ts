@@ -17,13 +17,15 @@ export const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';
 // An in-memory stand-in for the 202610080002 functions, with the same rules the SQL has: one open fight per account and per instance, token consumed once, expiry, settle applies the batch.
 type Row = { token: string; character: string; seed: number; enemy: string; level: number; start_tick: number; last_tick: number; bar: number | null; flags: unknown[]; layer: string | null; instance: string | null; expires: number; used: boolean; settled: boolean; result: string | null };
 let clock = { t: 0 };   // the fake database's clock, also what the handler's expiry pre-check reads
-export function fakeDb(now: { t: number }) {
+// killAt: undefined = a database without 202610080013 (random seeds, 0002's start); null or epoch-ms text = 0013 applied, the account's last paid kill of every fight.
+export function fakeDb(now: { t: number }, killAt?: string | null) {
   clock = now;
   const rows = new Map<string, Row>(), events: Record<string, unknown>[] = [];
   const live = (r: Row) => !r.used && !r.settled && r.expires > now.t;
   const json = (r: Row) => JSON.stringify({ token: r.token, character: r.character, seed: r.seed, enemy: r.enemy, level: r.level, expires_at: new Date(r.expires).toISOString(), used: r.used, start_tick: r.start_tick, last_tick: r.last_tick, bar: r.bar, flags: r.flags, layer: r.layer, instance: r.instance, grace_s: 120, settled: r.settled, result: r.result });
   const db: Db = {
     async run(sql, v = {}) {
+      if (sql.includes('origins_last_paid_kill_at')) return killAt === undefined ? 'absent' : killAt === null ? 'null' : killAt;
       const call = /public\.(origins_encounter_\w+)\(/.exec(sql.split('\\if :enc')[1] ?? sql)?.[1];   // after the psql "is it installed" guard
       if (call === 'origins_encounter_start') {
         if ([...rows.values()].some((r) => live(r))) throw new DbError('O0014', 'a fight is already open for this account: resume it');

@@ -94,10 +94,18 @@ const encounterCall = async (db: Db, call: string, vars: Record<string, string>)
   const out = await db.run(`${HAS_ENCOUNTERS}\\if :enc\nselect ${call}::text;\n\\else\nselect 'absent';\n\\endif\n`, vars);
   return out === 'absent' ? null : out;
 };
-export type EncounterStart = { token: string; seed: number; enemy: string; level: number; tick: number; bar: number | null; flags: readonly Json[]; layer: string | null; instance: string | null };
+// The time of this account's newest PAID kill of a fight (migration 202610080013), as epoch milliseconds with ONE fixed truncation (floor), so every call gives the same
+// string: the writer keys the fight's seed on it. 'absent' when 0013 is not applied (then the writer keeps random seeds and 0002's start).
+const HAS_KILL_AT = `select to_regprocedure('public.origins_last_paid_kill_at(uuid,text)') is not null as killat \\gset\n`;
+export const lastPaidKillAt = async (db: Db, account: string, fight: string): Promise<string | null | 'absent'> => {
+  const out = await db.run(`${HAS_KILL_AT}\\if :killat\nselect coalesce(floor(extract(epoch from public.origins_last_paid_kill_at(:'a'::uuid, :'f')) * 1000)::bigint::text, 'null');\n\\else\nselect 'absent';\n\\endif\n`, { a: acct(account), f: fight });
+  return out === 'absent' ? 'absent' : out === 'null' ? null : out;
+};
+// world: set only on a database with 202610080013 (its 12-argument start stores it server-side); undefined = 0002's start, the run is not a world run.
+export type EncounterStart = { token: string; seed: number; enemy: string; level: number; tick: number; bar: number | null; flags: readonly Json[]; layer: string | null; instance: string | null; world?: boolean };
 export const encounterStart = async (db: Db, account: string, character: string, e: EncounterStart): Promise<EncounterRun | null> => {
-  const out = await encounterCall(db, `public.origins_encounter_start(:'a'::uuid, :'c', :'t', :'s'::bigint, :'e', :'l'::int, :'k'::int, nullif(:'b', '')::int, :'f'::jsonb, nullif(:'y', ''), nullif(:'i', ''))`,
-    { a: acct(account), c: character, t: e.token, s: String(e.seed), e: e.enemy, l: String(e.level), k: String(e.tick), b: e.bar === null ? '' : String(e.bar), f: JSON.stringify(e.flags), y: e.layer ?? '', i: e.instance ?? '' });
+  const out = await encounterCall(db, `public.origins_encounter_start(:'a'::uuid, :'c', :'t', :'s'::bigint, :'e', :'l'::int, :'k'::int, nullif(:'b', '')::int, :'f'::jsonb, nullif(:'y', ''), nullif(:'i', '')${e.world === undefined ? '' : `, :'w'::boolean`})`,
+    { ...(e.world === undefined ? {} : { w: String(e.world) }), a: acct(account), c: character, t: e.token, s: String(e.seed), e: e.enemy, l: String(e.level), k: String(e.tick), b: e.bar === null ? '' : String(e.bar), f: JSON.stringify(e.flags), y: e.layer ?? '', i: e.instance ?? '' });
   return out === null ? null : JSON.parse(out);
 };
 export const encounterGet = async (db: Db, account: string, token: string): Promise<EncounterRun | 'none' | null> => {

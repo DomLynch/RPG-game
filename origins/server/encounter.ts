@@ -8,7 +8,7 @@
 //                                          (store.encounterExpire) as a loss by abandonment.
 // Fail closed: with no deps (the flag off, or no verifier installed) every op answers 503 "encounter verify not installed"; an unknown mob layer or a non-empty `swaps` (Combat's swap hook is not
 // shipped) is refused rather than guessed; a database without the migration answers 503.
-import { randomBytes, randomInt } from 'node:crypto';
+import { createHmac, randomBytes, randomInt } from 'node:crypto';
 import { decodeRecord } from '../../src/record.ts';
 import type { TwistFlag } from '../../src/twist.ts';
 import { DbError, type Db } from './db.ts';
@@ -30,7 +30,14 @@ export type EncounterDeps = {
   // (the lines commit in settle's one transaction, so a stale read aborts the whole settle and the token stays open for a retry).
   rewards?(fight: { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null }, db: Db): store.Json[] | Promise<store.Json[]>;
   now?: () => number;   // the clock the expiry pre-check reads (tests); the database's now() decides at settle regardless
+  // ORIGINS_SEED_KEY (202610080013, Dom's world-fight rule): with 0013 applied, a fight's seed is DERIVED from this server secret, the account, the fight and the time of the
+  // account's last paid kill of it, so the creature keeps its fight across walk-aways and deaths and only a paid kill (its respawn) brings a new one. Missing with 0013 = 503.
+  seedKey?: string;
 };
+
+// The seed for (account, fight, last paid kill): HMAC-SHA256 with the server's secret, the first 4 bytes into 1..2^31-1 (the range randomInt(1, 2 ** 31) gave).
+export const derivedSeed = (key: string, account: string, fight: string, killAt: string | null): number =>
+  (createHmac('sha256', key).update(`${account}|${fight}|${killAt ?? 'none'}`).digest().readUInt32BE(0) % (2 ** 31 - 1)) + 1;
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, FIGHT = /^[a-z0-9._:-]{1,64}$/;
 // The token carries the fight id the server resolved at start: base64url(fight) + '_' + 32 random characters (24 bytes). The run row keeps only the foe and level,
@@ -83,9 +90,13 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     if (fight.layer !== null && !knownLayer(fight.layer)) throw new Refused(503, `encounter verify does not know the mob layer ${fight.layer}`);   // fail closed: it could never verify
     const pose = issuePose(fight.enemy, body.pose);   // undefined: no pose asked, the pit-mark fight as before
     if (pose && encounter.length > POSED_FIGHT_MAX) throw new BadRequest(`encounter: a posed fight id is at most ${POSED_FIGHT_MAX} characters`);
-    const token = tokenFor(encounter, pose), seed = randomInt(1, 2 ** 31);
+    // Before 202610080013 a walk-away is a recorded loss, so a fresh random seed is safe; with it, walking away records nothing, so the seed must be the creature's own
+    // (derivedSeed) or a walk-away would re-roll it (seed shopping): no key then means no fight (503), never a random fallback.
+    const killAt = await store.lastPaidKillAt(db, account, encounter);
+    if (killAt !== 'absent' && !deps.seedKey) throw new Refused(503, 'encounter seed key not installed');
+    const token = tokenFor(encounter, pose), seed = killAt === 'absent' ? randomInt(1, 2 ** 31) : derivedSeed(deps.seedKey!, account, encounter, killAt);
     let run: store.EncounterRun | null;
-    try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags, layer: fight.layer, instance: fight.instance }); }
+    try { run = await store.encounterStart(db, account, character, { token, seed, enemy: fight.enemy, level: fight.level, tick: startTick, bar: fight.bar, flags: fight.flags, layer: fight.layer, instance: fight.instance, ...(killAt === 'absent' ? {} : { world: fight.world === true }) }); }
     catch (e) { if (e instanceof DbError && e.code === 'O0014') throw new Conflict(e.message); throw e; }
     if (!run) throw new Refused(503, 'encounters are not installed yet');
     return view(run);
@@ -112,16 +123,22 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     try { verdict = verify(await decodeRecord(body.record), { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), freePose: freePoseFor(token, account, run.character) }); }
     catch (e) { verdict = { ok: false, reason: `unreadable record: ${e instanceof Error ? e.message : String(e)}` }; }   // never a throw: a refusal
     if (!verdict.ok && verdict.kitMismatch) throw new Refused(422, verdict.reason, 'kit-mismatch');   // not a loss and not consumed: the token is left to the sweep ('abandoned', nothing paid)
-    const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;
+    const outcome = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;
+    // Dom's world-fight rule (202610080013): in a WORLD fight a kill is a win and a death is a death; a stalemate, or a record the server cannot verify, records NOTHING
+    // (no loss: posting a bad record must not be worse than walking away). Only once seeds are the creature's own (0013 applied): before it, a free outcome would re-roll the seed.
+    const fightId = fightOfToken(token);
+    const quiet = (outcome === 'draw' || !verdict.ok) && !!fightId && resolve({ account, character: run.character }, fightId)?.world === true && await store.lastPaidKillAt(db, account, fightId) !== 'absent';
+    const result: 'won' | 'lost' = outcome === 'won' ? 'won' : 'lost';   // the run's own bookkeeping (0002 allows won | lost); `quiet` decides whether anything is recorded
     const eventId = `enc:${token}`;
-    const fight = fightOfToken(token);
+    const fight = fightId;
     const rewards = verdict.ok && result === 'won' && deps.rewards ? await deps.rewards({ account, character: run.character, token, fight, seed: run.seed, enemy: run.enemy, level: run.level, twist }, db) : [];
     // `fight` and `paid` are what origins_last_paid_kill (202610080006) reads back: the respawn window is the time since this account's last PAID kill of this fight,
     // and it commits in this same transaction, so a settle that aborts leaves no window behind.
-    const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) } }, ...rewards];
+    if (quiet && !verdict.ok) console.log(`encounter settle: unverified world record, nothing recorded (${verdict.reason.slice(0, 120)})`);
+    const batch: store.Json[] = quiet ? [] : [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) } }, ...rewards];
     const out = await store.encounterSettle(db, account, token, result, ticks, batch).catch(GONE);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
-    return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
+    return { result: outcome === 'draw' ? 'draw' : result, verified: verdict.ok, twist, ticks, event: quiet ? null : eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
   };
 
   return { encounter_start: start, encounter_touch: touch, encounter_settle: settle };

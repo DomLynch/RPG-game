@@ -27,7 +27,7 @@ import { withBar } from '../shared/with-bar.ts';
 // freePose: a POSELESS world token (S3 prefetch): the record may start from a pose the server would issue itself (isLegalPose). Never for a token issued with a pose, never outside the world.
 export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null; freePose?: boolean };
 // kitMismatch: the record was played on another mob kit than this build's (see origins/mobs/kit-version.ts): not a loss, the fight cannot be judged here.
-export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string; kitMismatch?: true };
+export type Verified = { ok: true; result: 'won' | 'lost' | 'draw'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string; kitMismatch?: true };
 export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => Verified;
 
 export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer than 15 minutes is not a fight
@@ -85,5 +85,5 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   }
   const outcome = finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died';
   if (outcome !== record.outcome) return refuse(`the replay ends in "${outcome}", the record says "${record.outcome}"`);
-  return outcome === 'killed' ? { ok: true, result: 'won', twist: twist.outcome === 'caught' ? 'caught' : null, ticks: endedAt } : { ok: true, result: 'lost', twist: null, ticks: endedAt };
+  return outcome === 'killed' ? { ok: true, result: 'won', twist: twist.outcome === 'caught' ? 'caught' : null, ticks: endedAt } : { ok: true, result: outcome === 'draw' ? 'draw' : 'lost', twist: null, ticks: endedAt };   // a draw is its own result (a world stalemate records nothing)
 }
