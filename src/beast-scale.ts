@@ -3,3 +3,7 @@
 // Render only, deliberately outside SIM_FILES: the sim's capsule (OPPONENTS.wolf.scale .8, ~1.4 m of hit body), the bite reach and the baked jaw path are unchanged, no record or fingerprint moves.
 // The rig at x2 stands ~1.29 m, which is what that capsule was sized for; at native size the bites reached over a 0.64 m body.
 export const WOLF_RENDER_SCALE = 2;
+// The beasts whose duel body is NOT in the src/assets glob (it would ride every player's download and TOTAL) but a file under public/beasts/, fetched on demand by URL (Lead's ruling 2026-10-08, the carrierUrls pattern):
+// when the creature is near (World's preload warms the browser cache with this same URL) or the duel starts. The wolf stays in src/assets: it shipped that way. scripts/check-budget.mjs gives the folder its own line.
+export const ON_DEMAND_BEASTS: ReadonlySet<string> = new Set(['boar', 'bear']);
+export const beastBodyUrl = (opponentId: string, base = '/'): string => `${base}beasts/${opponentId}.glb`;
