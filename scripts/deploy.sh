@@ -11,6 +11,7 @@ printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
+source scripts/lib/deploy-vps.sh
 trap 'rm -f "$DEPLOY_LOCK"; hf_wall_rows_cancel; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
@@ -74,6 +75,7 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
+vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree (DEPLOY_VPS_RECEIPTS=on)
 hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 # Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
