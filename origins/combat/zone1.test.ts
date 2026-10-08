@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, WEAPONS, opponentAt } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
 import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { BLOW_WEIGHT, MAX_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { legacyRuleCalls, BLOW_WEIGHT, MAX_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 /** The S0-S5b rows (the pack path): `open: false` keeps every fight off the Pit duel. */
 const legacy = (fighters: Fighter[]): World => ({ ...newWorld(fighters), open: false });
@@ -560,4 +560,33 @@ test('parry spam is not free (the Auditor\'s repro: guard 8 ticks up / 1 down vs
   for (let t = 0; t < 60 * 30; t++) { const r = stepCombat(w, { p: { x: 0, z: 0, guard: t % 9 !== 8 } }, DT, NEVER); w = r.world; parries += r.events.filter((e) => e.type === 'Parried').length; hits += r.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length; }
   assert.ok(parries <= Math.ceil(30 / (RULES.parryCooldown / 60)), `${parries} parries in 30 s`);
   assert.ok(parries < 10, `${parries} (was 10 with a fresh window on every press)`);
+});
+
+test('legacy rows are reachable ONLY for packs: a lone creature\'s whole fight (cuts, guard, parry, roll, kick, heavy, special, to the kill) never runs zone1.ts\'s own rule functions; a pack does', () => {
+  for (const kind of ['wolf', 'boar', 'bear', 'goblin']) {
+    const before = legacyRuleCalls();
+    let w = newWorld([withSpecial(player('p', 0, 0, 0, undefined, 10), 'thesling' as never), creature('c', kind, 0, 3.5)]); let hits = 0, kills = 0;
+    w.fighters[0]!.specialIn = 0;
+    for (let t = 0; t < 60 * 40 && get(w, 'p').phase !== 'dead' && get(w, 'c').phase !== 'dead'; t++) {
+      const press: Input = { x: 0, z: 0, attack: t % 50 === 0 ? (t % 150 === 0 ? 'heavy' : t % 100 === 0 ? 'kick' : 'light') : null, guard: t % 70 > 50, roll: t % 211 === 100 ? { x: 1, z: 0 } : null, special: t === 600 };
+      const r = stepCombat(w, { p: press }, DT, NEVER); w = r.world; hits += r.events.filter((e) => e.type === 'Hit').length; kills += r.events.filter((e) => e.type === 'Died').length;
+    }
+    assert.ok(hits > 0, `${kind}: the fight happened (${hits} hits)`);
+    assert.equal(legacyRuleCalls(), before, `${kind}: a lone creature must not touch the legacy rules`);
+  }
+  const before = legacyRuleCalls();
+  duelRun(newWorld([player('p', 0, 0), creature('a', 'wolf', 0, 1.5), creature('b', 'wolf', 1, 1.5)]), 0.2);
+  duelRun(newWorld([player('p', 0, 0, 0, undefined, 10), player('q', 0, 1.2, Math.PI, undefined, 10)].map((f) => ({ ...f, pvp: true }))), 1.5, () => ({ x: 0, z: 0, attack: 'light' }));
+  assert.ok(legacyRuleCalls() >= before, 'packs and multi-player still use the legacy rows (counter is monotonic)');
+});
+
+test('a lone creature never begins a blow on the world layer: every kind x rand {0, .99}, from outside the engage ring, emits no Telegraph / Swing / Hit until its stream exists', () => {
+  for (const kind of ['wolf', 'boar', 'bear', 'goblin']) for (const rand of [() => 0, () => 0.99]) for (const d of [5.4, 7, 8.9]) {
+    let w = newWorld([player('p', 0, 0), creature('c', kind, 0, d)]), streamed = false;
+    for (let t = 0; t < 60 * 8 && !streamed; t++) {
+      const r = stepCombat(w, { p: STILL }, DT, rand); w = r.world; streamed = !!w.streams.c;
+      if (!streamed) assert.ok(!r.events.some((e) => (e.type === 'Telegraph' || e.type === 'Swing' || e.type === 'Hit') && 'id' in e ? e.id === 'c' : e.type === 'Hit' && e.attacker === 'c'), `${kind} from ${d} m began a legacy blow at tick ${t}`);
+    }
+    assert.ok(streamed, `${kind} from ${d} m reaches the duel`);
+  }
 });

@@ -37,7 +37,7 @@ function eventsOf(list: readonly CombatEvent[], ids: readonly [string, string], 
       out.push({ type: 'Hit', attacker: id(e.actor), victim: id(e.target), damage: scaled(e), move: e.move ?? e.name ?? 'special' });
       if (e.type === 'GuardBroken') out.push({ type: 'Staggered', id: id(e.target), ms: Math.round(RULES.posture.stun * TICK * 1000), cause: 'guardBreak' });
     } else if (e.type === 'Blocked' && e.target !== undefined) out.push({ type: 'Blocked', attacker: id(e.target), victim: id(e.actor), perfect: !!e.perfect, damage: scaled(e) });
-    else if (e.type === 'Parried' && e.target !== undefined) out.push({ type: 'Blocked', attacker: id(e.target), victim: id(e.actor), perfect: true, damage: 0 });
+    else if (e.type === 'Parried' && e.target !== undefined) out.push({ type: 'Parried', attacker: id(e.target), victim: id(e.actor) });   // the Pit's own Staggered for the parried attacker follows in the same list
     else if (e.type === 'Dodged' && e.target !== undefined) out.push({ type: 'Dodged', attacker: id(e.target), victim: id(e.actor) });
     else if (e.type === 'PostureBroken' && e.target !== undefined) out.push({ type: 'Staggered', id: id(e.target), ms: Math.round((e.ticks ?? RULES.posture.stun) * TICK * 1000), cause: 'posture' });
     else if (e.type === 'Staggered') out.push({ type: 'Staggered', id: id(e.actor), ms: Math.round((e.ticks ?? 0) * TICK * 1000), cause: 'hit' });

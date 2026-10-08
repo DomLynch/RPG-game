@@ -134,7 +134,11 @@ function spend(f: Fighter, cost: number): void {
   f.stamina = Math.max(0, f.stamina - cost); f.regenIn = secs(RULES.regenDelay);
   if (f.stamina <= 0) f.exhausted = true;
 }
+/** Receipt for the Auditor: how many times the legacy S0-S5b rule functions (`begin`, `land`) have run. A lone creature's fight goes through the copied Pit duel (open-fight.ts) and must never move this; only packs (2+ creatures) and multi-player fights reach the legacy rows, until the Pit's pack model is copied (slice 3), which deletes them. */
+let LEGACY_RULE_CALLS = 0;
+export const legacyRuleCalls = (): number => LEGACY_RULE_CALLS;
 function begin(f: Fighter, move: MoveDef, events: Event[]): void {
+  LEGACY_RULE_CALLS++;
   f.move = move; f.phase = 'windup'; f.t = 0; f.struck = [];
   spend(f, move.stamina);
   events.push({ type: 'Telegraph', id: f.id, move: move.id, ms: Math.round(secs(move.windup) * 1000) });
@@ -159,6 +163,7 @@ function hurt(a: Fighter, v: Fighter, damage: number, events: Event[]): boolean 
 }
 
 function land(a: Fighter, v: Fighter, row: MoveDef, events: Event[]): void {
+  LEGACY_RULE_CALLS++;
   const sd = Math.round(stanced(a, 'damage', row.charges ? stanced(a, 'heavyDamage', row.damage) : row.damage));   // the attacker's stance (aggressive +5 %, defensive -5 %, trickster -5 % on heavies)
   const kickOnGuard = row.id === 'kick' && v.phase === 'guard', dealtPosture = kickOnGuard ? stanced(a, 'kickPosture', stanced(a, 'posture', row.posture)) : stanced(a, 'posture', row.posture);
   const move = a.attack === 1 && v.res === 1 && sd === row.damage && dealtPosture === row.posture ? row : { ...row, damage: Math.round(sd * a.attack * v.res), posture: dealtPosture };   // stance, gear and level scale damage (chip follows it) and posture dealt; timings are untouched
@@ -210,11 +215,12 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   for (const [a, m] of Object.entries(world.aggro)) aggro[a] = { ...m };
   // One player and one hunting creature close together = a duel on the Pit's own step (open-fight.ts). Two or more creatures (a pack), or more than one player, stay on the S0-S5b rows until the Pit's N-v-1 is copied.
   const streams: World['streams'] = { ...world.streams }, engaged = new Set<string>();
-  let pair: [Fighter, Fighter] | null = null;
+  let pair: [Fighter, Fighter] | null = null, loneOpen = false;
   if (world.open !== false) {
     const players = fighters.filter((f) => f.side === 'player' && alive(f)), p = players[0];
     const hunters = p && players.length === 1 ? fighters.filter((c) => c.side === 'creature' && alive(c) && !c.returning && (c.hunting || dist(c, p) <= AGGRO_M)) : [];
     const c = hunters.length === 1 ? hunters[0] : undefined;
+    loneOpen = !!c;   // the only hunter of the only player: its fight is the Pit duel's alone, so on the world layer it only CHASES (to the engage ring); it never begins a legacy blow
     if (p && c && (c.hunting || !streams[c.id]) && dist(c, p) <= (streams[c.id] ? ENGAGE_OUT_M : ENGAGE_M)) {
       if (!c.hunting) { c.hunting = true; c.chaseX = c.x; c.chaseZ = c.z; c.unseen = 0; }   // inside the engage ring it is on the prey whether or not its chase had begun
       pair = [p, c]; engaged.add(p.id); engaged.add(c.id);
@@ -268,9 +274,9 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
         else {
           f.facing = aim(f, prey);
           if (f.plan === null) { const v = VARIETY[f.kind]; f.plan = v && rand() < v.p ? v.id : 'basic'; }
-          const move = blowOf(f), v = VARIETY[f.kind], dash = v && f.plan === v.id ? v.dash : 0, near = move.reach * 0.85 + prey.radius, startAt = near + dash * 0.9;
+          const move = blowOf(f), v = VARIETY[f.kind], dash = v && f.plan === v.id ? v.dash : 0, near = move.reach * 0.85 + prey.radius, startAt = loneOpen ? ENGAGE_M * 0.95 : near + dash * 0.9;   // a lone creature closes to the engage ring and the duel takes over
           if (dist(f, prey) > startAt + CLOSE_EPS) { const step = Math.min(chaseSpeed(f.kind) * dt, dist(f, prey) - startAt); f.x += Math.sin(f.facing) * step; f.z += Math.cos(f.facing) * step; }
-          else if (f.pause <= 0 && fighters.filter((o) => o !== f && o.side === 'creature' && (o.phase === 'windup' || o.phase === 'active')).length < MAX_ATTACKERS && !fighters.some((o) => o !== f && o.side === 'creature' && o.phase === 'windup')) begin(f, move, events);
+          else if (!loneOpen && f.pause <= 0 && fighters.filter((o) => o !== f && o.side === 'creature' && (o.phase === 'windup' || o.phase === 'active')).length < MAX_ATTACKERS && !fighters.some((o) => o !== f && o.side === 'creature' && o.phase === 'windup')) begin(f, move, events);
           separate(f, fighters);
         }
       } else if (f.hunting) { f.hunting = false; f.returning = true; f.unseen = 0; }   // nobody left to hunt (the prey is dead or gone)
