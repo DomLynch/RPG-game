@@ -41,7 +41,7 @@ const gaps = async (page, ms) => {
 };
 try {
   // Stills: the shipped state at 375 (spawn, the open field past the gate by day, and the far west by day and by night).
-  for (const [tag, query, spots] of [['day', '', [['spawn', null], ['field', [0, 30]], ['west', [-70, 10]]]], ['night', '&hour=22', [['west', [-70, 10]], ['spawn', null]]]]) {
+  for (const [tag, query, spots] of [['day', '', [['spawn', null], ['field', [-35, 5]], ['west', [-70, 10]]]], ['night', '&hour=22', [['west', [-70, 10]], ['spawn', null]]]]) {
     const page = await open(query);
     for (const [name, at] of spots) { if (at) { await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), at); await page.waitForTimeout(6000); } await still(page, `${tag}-${name}`); }
     await page.context().close();
@@ -49,7 +49,7 @@ try {
   // A/B: frame gaps standing in the open field, ON vs all three kill switches, 5 windows each.
   for (const [tag, query] of [['on', ''], ['off', '&relief=0&kit=0&daynight=0']]) {
     const page = await open(query);
-    await page.evaluate(() => window.originsPreview.place(0, 30, 0)); await page.waitForTimeout(6000);
+    await page.evaluate(() => window.originsPreview.place(-40, 5, 0)); await page.waitForTimeout(6000);
     receipt.ab[tag] = [];
     for (let i = 0; i < 5; i++) receipt.ab[tag].push(await gaps(page, 8000));
     receipt.ab[tag + 'Calls'] = await page.evaluate(() => window.originsPreview.renderInfo?.()?.calls ?? null).catch(() => null);
