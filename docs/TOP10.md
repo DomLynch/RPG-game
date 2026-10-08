@@ -34,6 +34,22 @@ Order: steps 1 + 2 first (they kill most of the freeze), preview-only. Gates are
 
 **World's read of the files (2026-10-08, from trunk 9d18a9fb and #1725 @71116f3a, not run):** the real files are `origins/preview/main.ts` (the loop stop is `renderer.setAnimationLoop(null)` at the Pit duel start and again in `startMobFight`), `origins/preview/mobs-view.ts` (creatures outside the fetch range are hidden; `freeze()` and `FREEZE_RADIUS` exist only in #1725) and `origins/preview/pit-duel.ts` (its own 60 Hz loop beside the walk). So step 1 needs #1725 merged first. Hours: step 1 is ~6-8 h, not ~3, because the duel must be stepped from the one world loop instead of its own (otherwise dropping the stop double-renders); step 2 ~6-8 h holds; step 4 ~1 h holds; step 3 is Combat's estimate. All unmeasured. Donor reading for these (WoC `enterCombat`, AzerothCore, EQEmu, ModernUO): not read yet, owed before each PR.
 
+## Zone 1 quality — "an empty square with grass and a few wolves" (Dom via Strategy, 2026-10-08 09:xx)
+
+Build through origins/world only (schema + `generateZone`), cheapest first, after seamless-combat steps 1+2 (combat is Dom's priority). Owners as Strategy proposed: World builds the terrain/kit/sky code; Characters builds the kit and set-piece models after the boar (same pipeline, low tri). Hours below are NOT given yet: owners date them; phone budget is measured, targets are not facts.
+
+| Step | What | Owner |
+|---|---|---|
+| 1 | terrain.relief / hillScale / seed: 32x32 heightfield +-1.5 m, vertex-colour grass/dirt; flat pads under camp, gate, boss anchor | World |
+| 2 | kits group: weighted prop lists placed by density.props, seeded by zone id, reject steep, clear of landmarks and paths; first kit tree, bush, boulder, grass tuft, 150-300 instances, instanced | World (code), Characters (models) |
+| 3 | landmark kind (camp, ruin arch, stone circle, grove) as set pieces, 3-4 in Zone 1 | World + Characters |
+| 4 | path strip gate to camp from the passages data | World |
+| 5 | sky dome gradient + fog colour row (sky.top / horizon, fog.colour) | World |
+| 6 | far ring at backdropRadius (unused today), one draw call | World |
+| 7 | a few haze sprites | World |
+
+Donors (Strategy's file:line study): World of Claudecraft terrain_relief.ts:1-30 (MIT, seeded warped fbm + ridged, same heights client and server), far_terrain_core.ts, biome_haze_field_core.ts; Daggerfall Unity DefaultTerrainSampler.cs:96-112, TerrainNature.cs:58-118, ClimateSwaps.cs; RuneScape .jm2 LOC rows; WoW int8 heights. WoC code is MIT (copy with notice); EQEmu / ModernUO / AzerothCore / openmw are GPL: study and rewrite. Acceptance: the Zone 1 acceptance line above (schema or generator; Zone 2 as a data file).
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
