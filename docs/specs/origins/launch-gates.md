@@ -30,7 +30,7 @@ Source: [trading.md](trading.md) §6, "Before player trade opens".
 | W1 | #1463 (`ops/install-origins-writer.sh`, nginx route and limits) is installed by Deploy | Deploy | The install run's output and the route answering on the VPS | open |
 | W2 | The `frankendom_origins` role password is set by Dom: Dom runs `bash /root/origins-writer-setup.sh` on the VPS and pastes the printed `alter role` line into the Supabase SQL editor. A lane never sets it | Dom | Dom says it is done; the writer connects as the role | open |
 | W3 | `/etc/frankendom/origins-writer.env` is present with mode 0600 | Dom | `stat` of the file on the VPS showing 600 | open |
-| W4 | The flag is on for Dom only first | Deploy | The allowlist read back with Dom's account as the only row | open |
+| W4 | Superseded (Dom, 2026-10-08, "keep everything ON", via Strategy): the writer flags are ON for every signed-in account, and a flag is only a kill switch, never a staged switch-on or an allowlist. Origins is open to all signed-in accounts (#1769 applied) | Backend | The writer's env read back with the flags set and no allowlist (Auditor's switch-on check 6052161449 for ORIGINS_ENCOUNTERS; the combined writer + ORIGINS_REWARDS install on #1727 gets its own POST) | open until the #1727 POST |
 
 ## Exchange-only rules (trade and smith)
 
