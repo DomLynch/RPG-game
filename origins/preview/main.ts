@@ -29,7 +29,7 @@ import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } 
 import { createWorldCombat } from './world-combat.ts';
 import { NAKED } from '../../src/gear-stats.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
-import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
@@ -415,6 +415,7 @@ function showCareer() {
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
   career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${extra ? ` · +${extra} CP (preview)` : ''}`;
   saveNote.textContent = saveLine(source);
+  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;padding:8px 0 8px 8px'; saveNote.append(' · ', a); }
 }
 showCareer();
 // The saved career, once, in the background: the walk and the Pit never wait on it. It is adopted only while no duel has started, so a

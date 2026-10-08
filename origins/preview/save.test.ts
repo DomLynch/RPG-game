@@ -194,3 +194,12 @@ test('the preview build reads the repo root env (VITE_SUPABASE_*): envDir is the
   const cfg = (await import('./vite.config.mjs')).default as { envDir?: string; root?: string };
   assert.ok(cfg.envDir && cfg.root!.startsWith(cfg.envDir) && cfg.envDir !== cfg.root, `envDir ${cfg.envDir}`);
 });
+
+test('the Sign in link shows only when the player is truly signed out (no session, 401), never on a timeout, network, 5xx, 403 or checking', async () => {
+  const { canSignIn, SIGN_IN_HREF, CHECKING } = await import('./save.ts');
+  for (const offline of ['no-session', 'http-401']) assert.equal(canSignIn({ offline }), true, offline);
+  for (const offline of ['timeout', 'network', 'bad-reply', 'http-500', 'http-503', 'http-403', 'late', 'reset']) assert.equal(canSignIn({ offline }), false, offline);
+  assert.equal(canSignIn(CHECKING), false);
+  assert.equal(canSignIn({ saved: {} as never }), false);
+  assert.equal(SIGN_IN_HREF, '/?account=signin&next=zone1');
+});
