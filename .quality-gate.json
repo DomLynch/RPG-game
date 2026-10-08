@@ -348,6 +348,10 @@
     [
       "node",
       "scripts/first-loss-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/stance-panel-check.mjs"
     ]
   ],
   "release_triggers": [

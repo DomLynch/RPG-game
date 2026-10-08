@@ -80,15 +80,24 @@ test('no bronze line is ever written yet (no metal read): rolled bronze and Boun
 });
 
 // The respawn window: a stub db answers origins_open with an empty pack and the career row; nothing else is read.
-const fakeOpen = (): Db => ({ run: async () => JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] }) } as Db);
+const committed = new Set<string>();   // the enc:<token> events the fake database holds (the window counts only a kill that really paid)
+const fakeOpen = (): Db => ({ run: async (sql: string, v?: Record<string, string>) => (/origins_event\(/.test(sql) ? (committed.has(v?.e ?? '') ? '{}' : 'null')
+  : JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] })) } as Db);
 test('respawn window: a second paid kill of the same fight inside 300 s by the same account pays nothing; another account, another fight, and the same token again are not blocked', async () => {
   const fight = creatures[0]!, other = creatures[1]!, seedA = droppingSeed(fight), seedB = droppingSeed(other);
   let clock = Date.parse(AT); const hook = mobRewards(content, () => new Date(clock), () => {}), db = fakeOpen();
   const first = await hook(kill(fight, seedA), db);
+  assert.ok((await hook(kill(fight, seedA, { token: 'UNCOMMITTED'.padEnd(40, 'u') }), db)).length > 0, 'L1: the first kill has not committed yet (no enc: event), so a second token is not blocked');
+  committed.add(`enc:${kill(fight, seedA).token}`); committed.add(`enc:${'UNCOMMITTED'.padEnd(40, 'u')}`);
   assert.ok(first.some((l) => l.op === 'mint'), 'the first kill pays');
   assert.deepEqual(await hook(kill(fight, seedA, { token: 'SECOND'.padEnd(40, 'y') }), db), [], 'a second kill of the same fight inside the window pays nothing');
-  assert.deepEqual((await hook(kill(fight, seedA), db)).map((l) => l.op), first.map((l) => l.op), 'the same token again (a retry after a stale abort) is priced as before');
+  assert.deepEqual((await hook(kill(fight, seedA, { token: 'UNCOMMITTED'.padEnd(40, 'u') }), db)).map((l) => l.op), first.map((l) => l.op), 'the same token again (a retry after a stale abort) is priced as before');
   assert.ok((await hook(kill(other, seedB), db)).length > 0, 'another fight is its own window');
   assert.ok((await hook(kill(fight, seedA, { account: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', token: 'THIRD'.padEnd(40, 'z') }), db)).length > 0, 'another account is its own window');
   clock += RESPAWN_MS; assert.ok((await hook(kill(fight, seedA, { token: 'FOURTH'.padEnd(40, 'w') }), db)).length > 0, 'after the window it pays again');
+});
+
+test('no fight id (a token from before the fight was carried): the hook pays nothing and records no window (L3)', async () => {
+  const hook = mobRewards(content, () => new Date(AT), () => {}), db = fakeOpen();
+  assert.deepEqual(await hook(kill(creatures[0]!, droppingSeed(creatures[0]!), { fight: null }), db), []);
 });

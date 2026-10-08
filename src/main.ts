@@ -1008,12 +1008,15 @@ window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 // The stance preview (?stances=, src/stance-panel.ts): off unless the URL asks. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
 let stancePanel: StancePanel | null = null;
+// Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
+function showStances() {
+  if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
+  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
+  if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+}
 function began() {
   nameOpponent();
-  if (stanceAsk && typeof document !== 'undefined' && document.body) {
-    stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); });
-    if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
-  }   // a rematch or a new rung can move the legend
+  showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (walker) { walker = null; view.walkToGate(false); view.raiseGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
@@ -1608,6 +1611,7 @@ try {
   };
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
+  showStances();   // ?stances=: the panel is on the page from load, before any fight starts
   if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });

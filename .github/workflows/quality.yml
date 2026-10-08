@@ -143,6 +143,7 @@ jobs:
       matrix:
         gate:
           - { name: combat, script: scripts/browser-check.mjs, required: true }
+          - { name: stance-panel, script: scripts/stance-panel-check.mjs, required: true }   # ?stances= must show the panel (live 1d9269c8 never mounted it)
           # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh; on this runner it failed at first (guard never
           # enabled under harness time) and passed 6/6 on 2026-09-22 (Hooks dev's sample). Still optional here until someone
           # promotes it on a longer sample; its receipts are uploaded for diagnosis.

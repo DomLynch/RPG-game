@@ -16,12 +16,14 @@ import { recordSpecials } from '../../src/replay.ts';
 import { STEP } from '../../src/sim.ts';
 import { noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
+import { kitOfBuild, kitTag } from '../mobs/kit-version.ts';
 import { MOB_STYLES, type MobStyle } from '../mobs/styles.ts';
 import { withBar } from '../shared/with-bar.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null };
-export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string };
+// kitMismatch: the record was played on another mob kit than this build's (see origins/mobs/kit-version.ts): not a loss, the fight cannot be judged here.
+export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string; kitMismatch?: true };
 export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => Verified;
 
 export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer than 15 minutes is not a fight
@@ -35,6 +37,10 @@ const refuse = (reason: string): Verified => ({ ok: false, reason });
 
 export function verifyEncounter(record: FightRecord, p: EncounterParams): Verified {
   if (p.layer !== null && !knownLayer(p.layer)) return refuse(`the mob layer ${p.layer} is not one this verifier knows`);
+  if (p.layer !== null) {   // a mob layer is in play: the record must have been played on the kit this build replays with
+    const theirs = kitOfBuild(record.build), mine = kitTag();
+    if (theirs !== mine) return { ok: false, kitMismatch: true, reason: `kit mismatch: the record was played on mob kit ${theirs ?? '(untagged)'}, this build's is ${mine}` };
+  }
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
   if (!!record.specials !== liveSpecials(p.level)) return refuse('the record\'s special-move phase is not the one this warden fights in');
   if (!Number.isInteger(record.ticks) || record.ticks < 1 || record.intents.length !== record.ticks || record.ticks > MAX_FIGHT_TICKS) return refuse('the record\'s length is not a fight');
