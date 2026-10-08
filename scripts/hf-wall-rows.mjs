@@ -20,6 +20,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || 'hf';
 const state = process.env.HF_WALL_ROWS_STATE || join(root, 'artifacts', 'hf-wall-rows', 'state');
 const envFile = process.env.HF_WALL_ROWS_ENV_FILE || join(root, '.env.production.local');
+const softwareGl = process.env.HF_WALL_ROWS_SOFTWARE_GL === '1';   // CPU flavor: the job accepts software WebGL, for an explicit --rows list only
 const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || '45m';
 const num = (name, fallback) => (process.env[name] === undefined || process.env[name] === '' ? fallback : Number(process.env[name]));
 const scheduleMaxS = num('HF_WALL_ROWS_SCHEDULE_MAX_S', 600), waitMaxS = num('HF_WALL_ROWS_WAIT_MAX_S', 1500), pollS = num('HF_WALL_ROWS_POLL_S', 20);
@@ -34,10 +35,11 @@ function launch(sha, rowsArg) {
   const gate = JSON.parse(readFileSync(join(root, '.quality-gate.json'), 'utf8')), commands = gate.release_commands;
   const rows = rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
     : selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } });
+  if (softwareGl && !rowsArg) throw new Error('HF_WALL_ROWS_SOFTWARE_GL=1 needs an explicit --rows list: the wall rows time on a GPU and must stay on a GPU job or the Mac');
   if (!rows.length) throw new Error('no wall rows to run');
   const skip = commands.map((_, i) => i + 1).filter(i => !rows.includes(i));
   const job = readFileSync(join(root, 'scripts', 'hf-wall-rows', 'job.sh'));
-  const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`];
+  const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`, ...(softwareGl ? ['--env', 'SOFTWARE_GL_OK=1'] : [])];
   let secrets = null;
   if (existsSync(envFile)) {
     // Only the three public client keys, in a private temp file the CLI reads once; nothing else from the env file leaves the Mac.

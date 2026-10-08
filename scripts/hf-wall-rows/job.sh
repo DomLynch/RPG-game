@@ -53,8 +53,13 @@ for flags in "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=vul
   if echo "$renderer" | grep -qiE 'nvidia|tesla|geforce|rtx| t4|l4|a10' && ! echo "$renderer" | grep -qiE 'swiftshader|llvmpipe|software'; then chosen="$flags"; break; fi
 done
 rm -f .gl-probe.mjs
+if [[ -z "$chosen" && "${SOFTWARE_GL_OK:-}" == 1 ]]; then
+  # A CPU flavor (Dom 2026-10-08: $0.03/h, 32 GB): software GL is fine for rows that do not time on a GPU. The launcher only sets
+  # SOFTWARE_GL_OK together with an explicit --rows list, so the wall rows never silently land here.
+  wrap ""; chosen="software"; say "SOFTWARE GL accepted (SOFTWARE_GL_OK=1; default Chromium flags; GPU-timed rows stay off this job)"
+fi
 [[ -n "$chosen" ]] || { say "BLOCKER no hardware WebGL (every flag set rendered in software)"; say "COST seconds=$(( $(date +%s) - t0 ))"; exit 11; }
-say "GPU OK: $chosen"
+[[ "$chosen" == software ]] || say "GPU OK: $chosen"
 
 say "BUILD"
 printf 'VITE_SENTRY_DSN=%s\nVITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "${VITE_SENTRY_DSN:-}" "${VITE_SUPABASE_URL:-}" "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" > .env.production.local

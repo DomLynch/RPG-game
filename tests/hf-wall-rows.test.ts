@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -154,4 +154,25 @@ test('deploy-hf.sh: the Published line carries the receipt tree, CI+T4 rows are 
   writeFileSync(join(dir, 'state.json'), '{}');
   sh('hf_wall_rows_launch; hf_wall_rows_cancel');
   assert.equal(readFileSync(join(dir, 'cancelled'), 'utf8').trim(), 'jobX', 'no second cancel once collect has written its receipt');
+});
+
+test('a CPU flavor: the cost line uses its own rate, and software GL is opt-in, needs explicit rows, and is passed to the job as SOFTWARE_GL_OK', { skip: noGit }, () => {
+  assert.equal(costLine(100, 'j', 'cpu-upgrade'), 'hf-wall-rows: job j ran 100 s on cpu-upgrade ≈ $0.00 at $0.03/h');
+  const dir = mkdtempSync(join(tmpdir(), 'hf-wall-rows-sw-')), fake = join(dir, 'hf'), argsLog = join(dir, 'args');
+  const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  writeFileSync(fake, `#!/bin/bash\nif [ "$1 $2" = "jobs run" ]; then echo "$@" > "${argsLog}"; echo "Job started with ID: swjob"; fi\n`, { mode: 0o755 });
+  const base = { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: join(dir, 'state'), HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_WALL_ROWS_FLAVOR: 'cpu-upgrade' };
+  const run = (args: string[], extra: Record<string, string> = {}) => spawnSync(process.execPath, ['scripts/hf-wall-rows.mjs', ...args], { encoding: 'utf8', env: { ...base, ...extra } });
+  const plain = run(['launch', sha, '--rows', '2,14']);
+  assert.equal(plain.status, 0, plain.stderr);
+  assert.doesNotMatch(readFileSync(argsLog, 'utf8'), /SOFTWARE_GL_OK/, 'off unless asked');
+  const refused = run(['launch', sha], { HF_WALL_ROWS_SOFTWARE_GL: '1' });
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /needs an explicit --rows list/);
+  const asked = run(['launch', sha, '--rows', '2,14'], { HF_WALL_ROWS_SOFTWARE_GL: '1' });
+  assert.equal(asked.status, 0, asked.stderr);
+  assert.match(readFileSync(argsLog, 'utf8'), /--env SOFTWARE_GL_OK=1/);
+  const job = readFileSync('scripts/hf-wall-rows/job.sh', 'utf8');
+  assert.match(job, /\$\{SOFTWARE_GL_OK:-\}" == 1/, 'the job accepts software GL only when the flag is set');
+  assert.match(job, /BLOCKER no hardware WebGL/, 'and still stops without it');
 });

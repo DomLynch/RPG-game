@@ -5,6 +5,7 @@
 // leaves the row to the Mac, which retries a failed row once alone as it always has.
 import { isWebKitRow, rowSet } from '../vps-shadow/rows-lib.mjs';
 
+export const FLAVOR_USD_PER_HOUR = { 't4-medium': 0.60, 'cpu-upgrade': 0.03, 'cpu-basic': 0.01 };   // `hf jobs hardware`, 2026-10-08
 export const T4_MEDIUM_USD_PER_HOUR = 0.60;   // Hugging Face list price, 2026-09-30; the bill is the receipt
 // Rows the T4 never takes, by script name so a renumbering cannot move a hold. Empty today: row 22 (arena-audio-check) was held until it
 // ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30). A hold is a one-line edit here.
@@ -47,7 +48,7 @@ export function parseJobLog(text) {
   return { sha: head?.[1] ?? null, tree: head?.[2] ?? null, receipts, seconds: cost ? Number(cost[1]) : null, ...(blocker ? { blocker: blocker[1] } : {}) };
 }
 
-export const costLine = (seconds, jobId, flavor = 't4-medium', rate = T4_MEDIUM_USD_PER_HOUR) =>
+export const costLine = (seconds, jobId, flavor = 't4-medium', rate = FLAVOR_USD_PER_HOUR[flavor] ?? T4_MEDIUM_USD_PER_HOUR) =>
   `hf-wall-rows: job ${jobId} ran ${seconds} s on ${flavor} ≈ $${(seconds / 3600 * rate).toFixed(2)} at $${rate.toFixed(2)}/h`;
 
 // How long collect may wait for the job, in seconds, inside the whole-deploy ceiling (scripts/lib/deploy-ceiling.sh, 50 min): the plain cap
