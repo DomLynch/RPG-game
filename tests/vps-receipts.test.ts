@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { trustedFromVps, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
@@ -49,4 +50,11 @@ test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launc
     assert.ok(!trusted.includes(index), `${name} (row ${index}) must stay off the VPS trust list`);
   }
   assert.equal(vpsSafeRow('node scripts/nope.mjs', ['node', 'scripts/nope.mjs'], source), false);
+});
+
+test('vps-receipt-trust.mjs trusts nothing when git cannot resolve the sha (non-zero status), and prints no rows', () => {
+  const r = spawnSync('node', ['scripts/vps-receipt-trust.mjs', 'no-such-ref-zzzz'], { encoding: 'utf8', timeout: 30_000 });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, '');
+  assert.match(r.stderr, /trusting nothing/);
 });

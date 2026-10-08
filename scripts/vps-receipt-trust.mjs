@@ -6,7 +6,9 @@ import { spawnSync } from 'node:child_process';
 import { trustedFromVps } from './lib/vps-receipts.mjs';
 
 const sha = process.argv[2];
-const tree = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8' }).stdout.trim();
+const rev = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8', timeout: 10_000 });
+if (rev.error || rev.status !== 0 || !rev.stdout.trim()) { console.error(`vps-receipts: git rev-parse ${sha}^{tree} failed or timed out; trusting nothing, every row runs here`); process.exit(0); }
+const tree = rev.stdout.trim();
 const file = `artifacts/vps-shadow/${process.env.VPS_RECEIPT_SHA || sha}/rows.json`;
 if (!existsSync(file)) { console.error(`vps-receipts: no receipt at ${file}; every row runs here`); process.exit(0); }
 const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
