@@ -104,13 +104,13 @@ export const FOES = [
     null, [{ id: 'public', opponent: 'witch', level: 15, encounter: 'encounter:mere-mother' }], 'mere-mother'),
   figure('character:hrungnir', 'Hrungnir', 'Snorri Sturluson, Prose Edda, Skaldskaparmal, c. 1220',
     'A giant of stone with a heart of stone. Here he stands on the displaced shrine in the Cinder Fields and takes any challenge put to him.',
-    null, [{ id: 'bounty', opponent: 'knight', level: 13, encounter: 'encounter:bounty-hrungnir' }], 'hrungnir'),
+    null, [{ id: 'bounty', opponent: 'knight', level: 3, encounter: 'encounter:bounty-hrungnir' }], 'hrungnir'),
   figure('character:peg-powler', 'Peg Powler', 'Tees folklore; W. Henderson, Notes on the Folk-Lore of the Northern Counties, 1866',
     'The green-haired hag of the river, who drags the careless under. In the Black Mere she keeps to the reeds and runs when the fight turns.',
-    null, [{ id: 'bounty', opponent: 'witch', level: 14, encounter: 'encounter:bounty-peg-powler' }], 'peg-powler'),
+    null, [{ id: 'bounty', opponent: 'witch', level: 3, encounter: 'encounter:bounty-peg-powler' }], 'peg-powler'),
   figure('character:court-thrall', 'Court thrall', ORIGINAL, 'A bonded fighter of the Blood Court, sent out along the Charnel Road to take tolls in its name.',
     'faction:blood-court', [
-      { id: 'l12', opponent: 'pitborn', level: 12, encounter: 'encounter:bounty-toll' },
+      { id: 'l12', opponent: 'pitborn', level: 3, encounter: 'encounter:bounty-toll' },
       { id: 'l13', opponent: 'pitborn', level: 13, encounter: null },
     ], 'court-thrall'),
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
@@ -180,9 +180,9 @@ export const ENCOUNTERS = [
     boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 15, health: 15_000 },   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
     decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 3600, rewards: { minContributionPercent: 10 },
   },
-  solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 13),
-  solo('encounter:bounty-toll', 'The Toll at the Milestone', { id: 'first-thrall', character: 'character:court-thrall' }, 'character:court-thrall', 12),
-  solo('encounter:bounty-peg-powler', 'Peg Powler of the Reeds', { id: DUMMY_STAGE, character: 'character:peg-powler' }, 'character:peg-powler', 14),
+  solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 3),
+  solo('encounter:bounty-toll', 'The Toll at the Milestone', { id: 'first-thrall', character: 'character:court-thrall' }, 'character:court-thrall', 3),
+  solo('encounter:bounty-peg-powler', 'Peg Powler of the Reeds', { id: DUMMY_STAGE, character: 'character:peg-powler' }, 'character:peg-powler', 3),
   // The rift (living-world §8.3): one or two guardian duels per player, then the shared bar. Level = band top 15 + levelOver 2.
   // Health PROPOSED. It decays like any public event; the rift itself closes at the scheduler's openSeconds.
   {

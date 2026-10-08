@@ -56,7 +56,7 @@
   "name": "Grendel's Mother",
   "encounter": "encounter:mere-mother",
   "body": "witch",
-  "level": 3,
+  "level": 15,
   "zone": "black-mere",
   "spawn": "matriarch",
   "home": {

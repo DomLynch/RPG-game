@@ -30,12 +30,12 @@ test('each creature carries the body, level and encounter its character record n
   assert.deepEqual([row('character:cinder-scavenger').body, row('character:mere-brood').body, row('character:ruin-ghoul').body], ['goblin', 'goblin', 'goblin']);
   assert.deepEqual([row('character:hrungnir').body, row('character:peg-powler').body, row('character:mere-mother').body, row('character:court-thrall').body], ['knight', 'witch', 'witch', 'pitborn']);
   assert.equal(row('character:hrungnir').encounter, 'encounter:bounty-hrungnir');
-  assert.equal(row('character:mere-mother').level, NAMED_LEVEL, 'a named rare is the zone level + 2 (Dom 2026-10-08; was its record\'s 15)');
+  assert.equal(row('character:mere-mother').level, 15, 'the public world boss keeps its record level (15,000 health, boss-battery tunable) until Dom rules; the bounty bosses are the named rares at the zone level + 2');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
   assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));
   assert.ok(SPECS.filter((s) => !s.named).every((s) => s.level === ZONE_LEVEL || s.level === ZONE_LEVEL + 1), 'Zone 1 creatures are level 1 near the spawn and 2 at the edge (was the flat 11-14 bands)');
-  assert.ok(SPECS.filter((s) => s.named).every((s) => s.level === NAMED_LEVEL), 'the named rares are the zone level + 2');
+  assert.ok(SPECS.filter((s) => s.named && s.character !== 'character:mere-mother').every((s) => s.level === NAMED_LEVEL), 'the bounty bosses (the named rares) are the zone level + 2');
 });
 
 test('every home stands inside its own zone, clear of every building, and nobody starts near the Exchange', () => {

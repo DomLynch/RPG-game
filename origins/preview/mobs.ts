@@ -94,7 +94,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? NAMED_LEVEL : row!.level[0],
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
