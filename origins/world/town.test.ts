@@ -1,7 +1,7 @@
 // The town generator (town.ts): same seed + wealth = the same town, the rings are where they say, the civic centre is always one of each, nothing overlaps, and wealth makes it grander.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { generateTown, TOWN_NODES } from './town.ts';
+import { generateTown, ROAD_HALF, TOWN_NODES } from './town.ts';
 
 const at = (l: { x: number; z: number }) => Math.hypot(l.x, l.z);
 
@@ -53,5 +53,12 @@ test('no two lots overlap (gates included), over many seeds and wealths: a stall
   for (let i = 0; i < 60; i++) for (const w of [0, 0.3, 0.6, 1]) {
     const lots = generateTown(`audit${i}`, w).lots;
     for (let a = 0; a < lots.length; a++) for (let b = a + 1; b < lots.length; b++) assert.ok(Math.hypot(lots[a]!.x - lots[b]!.x, lots[a]!.z - lots[b]!.z) >= lots[a]!.r + lots[b]!.r - 1e-9, `audit${i} wealth ${w}: ${lots[a]!.id} overlaps ${lots[b]!.id}`);
+  }
+});
+
+test('the road between the gate arches (the z axis, ROAD_HALF either side) is clear of every ring lot, footprint included, over many seeds and wealths', () => {
+  for (let i = 0; i < 60; i++) for (const w of [0, 0.3, 0.6, 1]) for (const l of generateTown(`road${i}`, w).lots) {
+    if (l.kind === 'gate' || l.ring === 0) continue;   // the gate arches are ON the road; the civic centre is placed before the rings
+    assert.ok(Math.abs(l.x) >= ROAD_HALF + l.r - 1e-9, `road${i} wealth ${w}: ${l.id} (x ${l.x.toFixed(2)}, r ${l.r.toFixed(2)}) stands on the road`);
   }
 });

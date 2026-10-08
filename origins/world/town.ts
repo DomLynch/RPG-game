@@ -60,7 +60,8 @@ export function generateTown(seed: string, wealth: number): Town {
     const start = R() * Math.PI * 2;
     for (let i = 0, placed = 0, tries = 0; placed < n && tries < n * 6; i++, tries++) {
       const a = start + (i / n) * Math.PI * 2 + (R() - 0.5) * 0.25, rr = radius + (R() - 0.5) * 2, [w, d] = size(placed), x = Math.sin(a) * rr, z = Math.cos(a) * rr;
-      if (!free(x, z, Math.hypot(w, d) / 2 + 1) || (kind === 'stall' && Math.abs(x) < ROAD_HALF)) continue;   // a stall never stands on the road the two gate arches sit on (z axis)
+      const r = Math.hypot(w, d) / 2 + 1;
+      if (!free(x, z, r) || Math.abs(x) < ROAD_HALF + r) continue;   // no lot of any kind (its whole footprint, radius r) stands on the road the two gate arches sit on (the z axis)
       put(kind, ringNo, x, z, 0, 0, w, d, trade?.(placed)); placed++;
     }
   };
