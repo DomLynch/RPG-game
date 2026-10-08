@@ -30,8 +30,8 @@ test('threat: a suppressed or dropped victim hands over; suppressed is used only
   t = setThreatState(t, 'b', 'suppressed'); assert.equal(t.victim, 'a', 'an online entry beats a suppressed one even with less threat');
   t = setThreatState(setThreatState(t, 'a', 'suppressed'), 'c', 'suppressed'); assert.equal(t.victim, 'b', 'all suppressed: the most threat');
   t = setThreatState(t, 'b', 'offline'); assert.equal(t.victim, 'a', 'offline is never chosen');
-  t = dropThreat(dropThreat(t, 'a'), 'c'); assert.equal(t.victim, 'b' === t.victim ? 'b' : null);
-  assert.equal(dropThreat(dropThreat(dropThreat(t, 'b'), 'a'), 'c').victim, null);
+  t = dropThreat(dropThreat(t, 'a'), 'c'); assert.equal(t.victim, null, 'only an offline entry is left: nobody to turn on');
+  assert.equal(dropThreat(t, 'b').refs.length, 0);
 });
 
 test('threat: a hit from a player who never tapped joins them, and a drop frees a slot without reusing its join number', () => {
