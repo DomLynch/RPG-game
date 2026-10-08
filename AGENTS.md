@@ -2,6 +2,8 @@
 
 **What Frankendom is (Dom, 2026-10-08, standing):** an MMO, and always has been. ONE always-on shared world for thousands of players, server-run, that never stops or freezes for a fight. The duel Pit is the starting zone and stays a headline feature; around it is the open world with open PvP (flag on/off) and NPCs/creatures that are each hostile or not (a flag). The ladder is 50 levels (Origin I–V). Details: docs/SCOPE.md.
 
+**Donor games first (Dom, standing, 2026-10-08):** before any medium or large feature (saving, combat, loot, bank, trade, crafting, quests, NPCs, world servers, economy), check how the legendary games already do it (EverQuest/EQEmu, Ultima Online/ModernUO, WoW/AzerothCore, RuneScape/2004Scape, Gothic, Morrowind/openmw, Civilization/freeciv, World of Claudecraft and the rest of the 55 repos in `/mnt/frankendom-donors` on the VPS) and take the best of the best. Don't reinvent fire. Which donor for what, plus the copy vs clean-room rule: the `reuse-first` skill. PR body: "Donor: <game>, what we took".
+
 **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it. How: the `vps-heavy-jobs` skill.
 
 Read docs/SCOPE.md, GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical design; docs/SCOPE.md is the current dated scope and wins over any older scope line.
