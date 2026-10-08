@@ -68,7 +68,7 @@ if (process.argv.includes('--judge')) {
   await b.close(); process.exit(0);
 }
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
-// --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
+// --load-query '&gfx=phone&off=lookbake' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
 const LOAD_QUERY = arg('--load-query', '');
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
 // A --dist replays the Node leg's record, so it must be the build of THIS tree (Combat/Lead 2026-09-29): a stale dist replays the same
