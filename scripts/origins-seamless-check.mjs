@@ -37,6 +37,7 @@ try {
     const a = await read(); await page.waitForTimeout(ms); const c = await read();
     return c.filter((o) => { const q = a.find((x) => x.id === o.id); return q && o.id !== target.id && Math.hypot(o.x - q.x, o.z - q.z) > 0.05; }).length;
   };
+  await page.waitForTimeout(8000);   // let the walk settle before the control reading
   receipt.walkMoved = await moved(10000);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
   await page.waitForTimeout(25000);   // the walk: the stage of the nearest creature is built meanwhile (pit-duel warmStage)
@@ -51,6 +52,7 @@ try {
   const after = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight'), gaps: window.__gaps.slice() }));
   const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0, worst = Math.max(...after.gaps.slice(0, -1), 0);
   receipt.noSwap = { canvasesBefore, canvasesAfter: after.canvases, canvasShown: after.shown, infight: after.infight };
+  receipt.gapsAfterTapMs = after.gaps.slice(0, -1).map((g) => Math.round(g));   // in order from the tap: shows WHEN the long frame is (the attach, the first draw, or the harness's own reads)
   receipt.hitch = { walkMedianGapMs: Math.round(median(walkGaps)), worstGapMs: Math.round(worst), budgetMs: Math.round(Math.max(200, 4 * median(walkGaps))) };
   assert.equal(after.canvases, canvasesBefore, 'no swap at engage: the canvas count changed');
   assert.ok(after.shown && after.infight, 'no swap at engage: the page canvas must stay shown with body.infight set');
