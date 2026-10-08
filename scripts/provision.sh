@@ -66,9 +66,10 @@ restore() {
     if test -f "$prev/$b.absent"; then rm -f "$t"; else cp "$prev/$b" "$t"; fi
   done
 }
+trap restore ERR   # any failed step from here on (an install, the copy, the reload) puts the box back exactly (Auditor LOW, #1891)
 for t in $targets; do install -m 0644 "$cand/$(basename "$t")" "$t"; done
 cp /var/www/frankendom/nginx.candidate "$config"
-if ! nginx -t; then
+if ! nginx -t; then   # a failed condition does not fire ERR: restore by hand
   restore
   exit 1
 fi
