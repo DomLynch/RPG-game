@@ -78,7 +78,7 @@ export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
 
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
+type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean };   // gambit: a Hit that was a landed Gambit (src/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
@@ -87,7 +87,7 @@ export type CombatEvent = { tick: number; type: EventType; actor: Side; target?:
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
 // `roll`: the world-mob damage roll (Origins luck ruling, Dom 2026-10-07: +/-10% on every blow in both directions, in a world-mob fight only). Absent = the Pit, PvP and the
 // ladder: today's fight byte for byte. `hits` numbers the fight's blows in the order they resolve, so the draw is a pure function of (seed, hit) and a replay reproduces it.
-export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; roll?: { seed: number; hits: number }; gambit?: { seed: number; draws: number } };
+export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number }; gambit?: { seed: number; draws: number } };
 export { ROLL_BAND, rollPercent, rolledDamage } from './roll.ts';   // the one definition (src/roll.ts), shared with origins/luck/luck.ts
 export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
 // A fight with the Gambit (src/gambit.ts, RV33): the player's side may arm it, and its draws are a pure function of (seed, draw number). Absent = today's fight byte for byte.
@@ -106,7 +106,33 @@ export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'lon
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Duel => ({ tick: 0, fighters: [{ ...createFighter(initialState(), 'sheathed', weapon), skill }, opponentFighter(opponent, { ...initialTarget(), heading: 0, distance: 0 })], finish: null, events: [] });
+// `pose` (seamless step 3, World's signature): start the fight where the hero and the foe ALREADY stand instead of at the pit marks. Metres in the arena's own axes (the caller subtracts the fight circle's
+// centre), `heroFacing` in radians as sim headings are (aim = atan2(dx, dz)); the foe faces the hero from where it stands, as at the marks. Both must lie inside the wall (RADIUS) and apart by more than a body, or it throws:
+// a pose that starts a fighter in the wall or in the other body is a caller bug, never a fight to clamp silently. Absent = today's marks, byte for byte.
+export type DuelPose = { hero: { x: number; z: number }; foe: { x: number; z: number }; heroFacing: number };
+// The one validity rule, shared with the record decoder (src/record.ts): a pose that fails it is refused, never clamped.
+// `wall`: also check the live wall (RADIUS). The record decoder passes false: RADIUS is whatever the LAST fight set, and the wall belongs to the record's own circle, which poseBodies checks at replay under the record's version (Auditor, #1822).
+export const validatePose = (pose: DuelPose, wall = true): void => {
+  const { hero, foe, heroFacing } = pose;
+  for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || (wall && M.hypot(p.x, p.z) > RADIUS)) throw RangeError('Duel pose: a fighter must start inside the wall');
+  if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
+  if (M.hypot(hero.x - foe.x, hero.z - foe.z) <= .85) throw RangeError('Duel pose: the fighters start inside each other');
+};
+// The record stores a pose as float32: a live fight and its replay must start from the SAME bits, so poseBodies (below) and the recorder both round with this. Float32 rounding is plain IEEE-754 (not a per-device
+// value); it goes through a DataView because net-determinism bans the usual single-precision spellings inside the sim files as a blanket rule.
+const f32view = new DataView(new ArrayBuffer(4));
+const f32 = (x: number): number => { f32view.setFloat32(0, x); return f32view.getFloat32(0); };
+export const roundPose = (pose: DuelPose): DuelPose => ({ hero: { x: f32(pose.hero.x), z: f32(pose.hero.z) }, foe: { x: f32(pose.foe.x), z: f32(pose.foe.z) }, heroFacing: f32(pose.heroFacing) });
+const poseBodies = (given: DuelPose): [State, State] => {
+  const pose = roundPose(given); validatePose(pose);   // rounded BEFORE the wrap and before any body is built, on the live side and the replay side alike
+  const { hero, foe, heroFacing } = pose;
+  const facing = heroFacing > Math.PI || heroFacing <= -Math.PI ? wrapAngle(heroFacing) : heroFacing;
+  return [{ x: hero.x, z: hero.z, heading: facing, distance: 0 }, { x: foe.x, z: foe.z, heading: M.atan2(hero.x - foe.x, hero.z - foe.z), distance: 0 }];   // the foe always faces the hero's actual position (the pit marks' own 0 comes back exactly), whatever heroFacing says
+};
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, pose?: DuelPose): Duel => {
+  const [hero, foe] = pose ? poseBodies(pose) : [initialState(), { ...initialTarget(), heading: 0, distance: 0 }];
+  return { tick: 0, fighters: [{ ...createFighter(hero, 'sheathed', weapon), skill }, opponentFighter(opponent, foe)], finish: null, events: [] };
+};
 
 // The one door a patron fight is built through, after initialDuel (and withSpecials): the player's perk in slot 0, the foe's (PvP only; ladder foes carry none) in slot 1.
 export const withPerks = (duel: Duel, perks: readonly [Perk | undefined, Perk | undefined]): Duel => ({ ...duel, fighters: [withPerk(duel.fighters[0], perks[0]), withPerk(duel.fighters[1], perks[1])] });
@@ -497,6 +523,18 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       A.castHurt = taken;
     }
     A.special--;
+  }
+  // Shared creature health (RV39, N attackers on one creature, src/pack.ts): each attacker fights their own ordinary duel against their own copy of the creature, and `incoming` is the damage the OTHER streams dealt to it on the
+  // previous tick, summed by the lockstep layer. It lands after this tick's blows and specials, once (the returned duel does not carry it), and kills through the same door a blow does. Absent or 0 = today's fight byte for byte.
+  if (duel.incoming && duel.incoming > 0 && fighters[1].health > 0) {
+    const D = fighters[1], A = fighters[0], move: MoveId = A.lastMove ?? SKILL_MOVE.pommel;
+    D.health = Math.max(0, D.health - duel.incoming);
+    events.push({ tick, type: 'SharedHit', actor: 0, target: 1, damage: duel.incoming });
+    if (!D.health) {
+      D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
+      finish = finish ? { ...finish, draw: true } : { victim: 1, location: 'torso', move, heading: A.body.heading };
+      events.push({ tick, type: 'Killed', actor: 0, target: 1, move, location: 'torso', heading: A.body.heading });
+    }
   }
   return { tick, fighters, finish, events, ...(duel.roll ? { roll: { seed: duel.roll.seed, hits } } : {}), ...(duel.gambit ? { gambit: { seed: duel.gambit.seed, draws: gdraws } } : {}) };
 }
