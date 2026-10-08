@@ -34,7 +34,7 @@ import liveStyle from '../../src/style.css?inline';
 import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
-import { addLeaveEntry } from './leave-entry.ts';
+import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 
 export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
@@ -117,6 +117,7 @@ function bind(leave: () => void) {
   element('close-journal').addEventListener('click', () => journal!.close());
   element('nav-arena').addEventListener('click', () => journal!.close());
   addLeaveEntry(element('app-nav'), () => journal!.close(), leave);   // the game's own nav no longer carries The Pit (the Pit room was removed): the Origins duel adds its exit
+  addArenaEntry(element('app-nav'), () => location.assign('/arena/'));   // first in the nav (prepended after the exit): the arena and its 50-level ladder at their stable path
   journal.addEventListener('close', () => { controls!.clear(); accumulator = 0; });
   window.addEventListener('blur', () => controls!.clear());
   document.addEventListener('visibilitychange', () => controls!.clear());
