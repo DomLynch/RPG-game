@@ -25,6 +25,7 @@ export function verifyRecord(record: FightRecord): Verification {
 function verifyUnder(record: FightRecord): Verification {
   const opponent = OPPONENTS[record.opponent], profile = opponent && Number.isInteger(record.level) && record.level >= 1 && record.level <= LEVELS ? profileAt(opponent, record.level) : undefined;   // the warden at the record's level, exactly as main.ts steps it
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
+  if (record.group) return { ok: false, reason: 'one stream of a shared-health group: its siblings supply its incoming damage, so it is not verified alone', practice: null };
   let practice: Practice;
   try {   // a record this build cannot step (a weapon the hero rig has no blade table for, a rule that throws) is a refusal, not a crash
     practice = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances, record.pose);

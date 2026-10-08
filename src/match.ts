@@ -169,7 +169,7 @@ export class Match {
   // A kill link: the fight on the record's seed, weapon and warden profile, stepped silently to fromTick and played from there.
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
-    if (epoch !== this.epoch) return false;
+    if (epoch !== this.epoch || record.group) return false;   // a group stream replays only with its siblings (RV39)
     this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level; this.specials = !!record.specials; this.gambit = !!record.gambit; this.stances = record.stances;
     underRecord(record, () => {   // built and stepped on the record's own version of the sim's math (detmath.ts)
       this.begin('replay');
