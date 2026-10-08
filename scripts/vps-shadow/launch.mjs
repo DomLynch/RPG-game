@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, jobCommand } from '../lib/vps-receipts.mjs';
 
 // Rows that hit the 600 s per-row ceiling on cpu-upgrade even alone (Backend's width-1 probe, 2026-10-08), or cannot run in the container at all (13: initdb refuses root).
-// Sharding one of them loses the whole shard to the job timeout, so cpu-upgrade refuses them; t4-medium may carry them (the trial of 5/7/16).
+// Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
 export const SLOW_ROWS = [5, 7, 9, 13, 16, 21, 28, 34, 36];
 
 export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '') => {
@@ -19,7 +19,7 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
   if (!FLAVORS.includes(flavor)) throw new Error(`flavor must be one of ${FLAVORS.join(', ')}`);
   const slow = rows ? rows.split(',').map(Number).filter(n => SLOW_ROWS.includes(n)) : [];
-  if (slow.length && flavor !== 't4-medium') throw new Error(`rows ${slow.join(',')} are slow rows: they stay on the Mac (or run on t4-medium as a trial)`);
+  if (slow.length) throw new Error(`rows ${slow.join(',')} are slow rows: they stay on the Mac`);
   const [bash, dashC, script] = jobCommand(kind, sha);
   return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), JOB_IMAGE, bash, dashC, script];
 };

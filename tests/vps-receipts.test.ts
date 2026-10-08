@@ -213,11 +213,11 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
 });
 
-test('launch.mjs refuses the slow rows on cpu-upgrade (a shard with one loses everything to the job timeout) but lets t4-medium carry them', () => {
+test('launch.mjs refuses the slow rows on every flavor (a shard with one loses everything to the job timeout; the t4-medium trial of 5/7/16 hit the ceiling too)', () => {
   assert.deepEqual(SLOW_ROWS, [5, 7, 9, 13, 16, 21, 28, 34, 36]);
   for (const row of SLOW_ROWS) assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', `30,${row}`), /slow rows/, `row ${row}`);
   assert.ok(hfArgs('rows', sha, 'cpu-upgrade', '30,31,33').includes('ROWS_ONLY=30,31,33'));
-  assert.ok(hfArgs('rows', sha, 't4-medium', '5,7,16').includes('ROWS_ONLY=5,7,16'), 'the t4-medium trial');
+  assert.throws(() => hfArgs('rows', sha, 't4-medium', '5,7,16'), /slow rows/, 't4-medium does not rescue them either');
   assert.equal(hfArgs('rows', sha).includes('node:22'), true, 'the image is JOB_IMAGE');
 });
 
