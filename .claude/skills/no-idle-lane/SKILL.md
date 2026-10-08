@@ -5,6 +5,8 @@ description: The queue runs around the clock and no lane sits idle while work ex
 
 # No idle lane, no idle box
 
+> **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it (fold6 died that way). How: the `vps-heavy-jobs` skill. Only Safari/WebKit rows and real-iPhone checks stay on the Mac.
+
 Dom, 2026-09-26 06:0x: "4 hours no action?" after a 02:00 stop. The queue runs 24 h. Lead self-wakes once an hour overnight; daytime is event-driven (READY, sha, still), never by the clock.
 
 ## The two defects

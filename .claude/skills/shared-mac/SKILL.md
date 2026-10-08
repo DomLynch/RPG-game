@@ -5,6 +5,8 @@ description: Rules for the one shared MacBook that runs 21 lane sessions, GPT's 
 
 # The shared Mac
 
+> **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it (fold6 died that way). How: the `vps-heavy-jobs` skill. Only Safari/WebKit rows and real-iPhone checks stay on the Mac.
+
 Load 95 at 20:22 on 2026-09-27 came from four lanes restarting at once, each running Playwright. Load 125 blocked the quality gate. Deploy rows are wall-clock browser tests: under load they hang, and a hung row idles the box for everyone.
 
 ## Before anything heavy (build, test:all, Blender, a 47-row run, a contact sheet)
