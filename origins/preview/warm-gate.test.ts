@@ -11,7 +11,7 @@ test('a gate whose compile never resolves still reveals within the bound, and lo
 
 test('a warm-up that finishes inside the bound is "ok" and logs nothing; one that throws is "failed" and still reveals', async () => {
   const lines: string[] = [];
-  assert.equal((await gateWithBound('wolf', Promise.resolve(), 200, (l) => lines.push(l))).result, 'ok'); assert.deepEqual(lines, []);
+  assert.equal((await gateWithBound('wolf', Promise.resolve(), 200, (l) => lines.push(l))).result, 'ok'); assert.equal(lines.length, 0);
   assert.equal((await gateWithBound('boar', Promise.reject(new Error('link failed')), 200, (l) => lines.push(l))).result, 'failed'); assert.match(lines[0]!, /^warmup failed boar /);
 });
 
