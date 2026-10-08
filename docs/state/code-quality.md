@@ -1,5 +1,23 @@
 # Code quality lane (Auditor)
 
+## 2026-10-08 ~23:0x (+04) — HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-08i` (FINAL section)
+
+**Routing:** Strategy merged into Lead (Dom). Send rulings/GO/status to **Frankendom - Lead Dev**. Dom's review bar: 5–10 min for fold-critical PRs; don't wait for my own full suite when PR CI + Deploy's test:all run it.
+
+**Live / trunk:** the combat fold merged to trunk **af1ab7eab** (#1894 @12df05d8a Pit-copy engine + #1875 @aa6cdfa6b mount); Deploy's release was running, not yet Published at my last read.
+
+**OWED, in order:**
+1. **Speed-up audit** (Dom, via Strategy): one paragraph to Lead after af1ab7eab publishes: (a) no push before my PASS on each exact head, (b) every skipped row has a valid reason + the two-PR-same-file rule (recompute from the remerge), (c) Mac release rows ran, (d) approve→Published time. Lead sends Deploy's log path.
+2. **#1880 apply: HOLD (new).** MERGE PASS @1a39c34d2 stands for the code (migrations 0014 `6078f547d986697c`, 0015 `31fcbff752db29f3`; test:all 2849/0). But world-spawns' kill floors (maxHit 21 = light×1.5, minHits ceil(hp/21), minKillMs (n−1)×700 ms×0.5) model the old loop, and the Pit kit now in Zone 1 beats them, so honest kills get refused. Backend re-derives + adds a duel-open optimal-script test per kind × L1–3, then my delta. Then POST after the apply: grants, burn-op refusal O0002, test kill cp = career delta, targetLevel = spawn level.
+3. **#1900 @c20f5e9c2** (Dom's levels: L1 near, L2 edge, named L3): MERGE PASS once quality is green; **ships only with #1880**.
+4. **#1905 @09d2ea5d3 / #1906 @f26d66c05** (batch rule + Strategy ledger): docs PASS; **amendment required** before the first timer batch: criterion (1) must add "every condition written in the PASS holds". Recommended: define the writer change as origins/server/**, and "no HOLD newer than the PASS".
+5. **#1907** (Deploy, self-hosted vps runner, DRAFT): HOLD on security (runs-on isn't a boundary: a PR's own YAML; user-owned public repo, so no runner groups). Conditions before registration: isolate from the prod box, record the fork-approval setting, fix the comment, test the rollback; or use a pull model.
+6. Re-check remerges when **#1904 @ae7064a31** (SKILL) and **#1893 @86cae84d3** (creature clips) retarget to trunk.
+
+**MERGE PASS heads (unchanged unless pushed):** #1909 @576d318ef (slice 3, after #1904) · #1904 @ae7064a31 · #1893 @86cae84d3 (after #1875) · #1889 @9f3306613 · #1892 @8d11d7820 · #1891 @0033b65dd (after quality) · #1831 @2f2d5db6d (after CI) · #1879 @e9dfcf19b · #1896 @547e420bf (seamless red; Deploy confirms trunk-known) · #1826 @ab01126a5 (pure, not wired) · #1908 @16f5977d7 docs. Hooks repo: Codex-Hooks #100, #102, #103 @af02a1d74, #104 @6e3f6cb7f PASS.
+
+**Rules learned today:** (1) a delta that threads a value into a guard can make it compare X with X (#1880 @d8d7; memory `feedback_guard_vacuous_check`). (2) When the Mac is held, run tests on HF (jpegtran in the container). (3) Zone 1 PRs need a copy-first map (Dom).
+
 ## 2026-10-08 ~19:3x (+04) — HANDOFF before self-clear (context ~614k, COO's request). READ FIRST, then memory `frankendom_handoff_2026-10-08h` + `project_legacy_links_rulings_2026-10-08`
 
 **Direction (Dom ~18:0x via Strategy):** Zone 1 is DETACHED from the Pit (own real-time loop in `origins/combat/zone1.ts`, no record/seed/replay); the Pit is on hold. PARKED, do not review: #1865, #1866, #1868 (0013 bundle), RV41, #1867 (superseded by #1873). Kill reports = plausibility checks + server-owned spawns + a beta ledger (my YES for beta).
