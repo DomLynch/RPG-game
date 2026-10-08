@@ -30,7 +30,7 @@ test('every Region 1 encounter and open-world creature sets up from the data, as
   for (const id of [...ids, ...Object.keys(content.local.creatureLoot)]) {
     const s = value(fightSetup(id, content));
     assert.equal(s.kind, 'world-mob', id);
-    assert.ok(s.foes.length >= 1 && s.bar > 0 && s.opponent.level >= 11, id);
+    assert.ok(s.foes.length >= 1 && s.bar > 0 && s.opponent.level >= 1, id);   // Zone 1's creatures are level 1 now (Dom 2026-10-08; was 11+)
     assert.equal(s.seedKey, `origins:${id}`);
   }
   const peg = value(fightSetup('encounter:bounty-peg-powler', content));
