@@ -189,6 +189,7 @@ export function warmStage(host: HTMLElement, opponent: string, level: number, mo
   if (world && warmedFor !== made) { warmedFor = made; void made.view.warmWorld(world); }   // once per stage
   if (made.ready && ownWarmed !== made && !running) {   // the rigs are in: compile them, with the foe in its cloth (the creature's look is a material variant, so its program is cached for the fight), then take the cloth off again
     ownWarmed = made; const root = made.view.opponentRoot();
+    ((globalThis as { __warmLog?: unknown[] }).__warmLog ??= []).push({ at: Math.round(performance.now()), root: !!root, dress: !!dress, kids: root?.children.length ?? -1 });   // DEBUG
     if (root && dress) { dress(root); void made.view.warmOwn().then(() => { if (!running && stage === made && dressedRoot !== root) undressMob(root); }); }
     else void made.view.warmOwn();
   }
