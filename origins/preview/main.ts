@@ -239,7 +239,7 @@ function step(dt: number) {
     if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
     if (WORLDCOMBAT) {   // Zone 1's own loop owns attacks, guard and roll (Combat's S1/S2); the Pit's worldStep is not used
       const a = i.action;
-      if (a === 'heavy') wc.press('heavy'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
+      if (a === 'heavy') wc.press('heavy'); else if (a === 'kick') wc.press('kick'); else if (a === 'skill') wc.special(); else if (a && STRIKES.has(a)) wc.press('light');
       if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
         const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
         wc.roll(len > 0.2 ? { x: wx, z: wz } : a === 'backstep' ? { x: -Math.sin(wc.hero().facing), z: -Math.cos(wc.hero().facing) } : { x: 0, z: 0 });
