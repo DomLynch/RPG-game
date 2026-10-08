@@ -203,3 +203,9 @@ test('"Back to the fields" takes a tap in a world fight: #leave is in the world 
   const auto = /([^{}]*)\{\s*pointer-events:\s*auto;\s*\}/g, lists = [...html.matchAll(auto)].map((m) => m[1]!);
   assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
 });
+
+test('a world fight hides the zone header so the foe card no longer draws over it (live bug, Deploy Metal stills 2026-10-08), and keeps its height', () => {
+  const rule = html.split('\n').find((l) => l.includes('body.infight #hud')) ?? '';
+  assert.match(rule, /body\.infight #hud \{ visibility: hidden; \}/, 'visibility, not display: --hud-bottom and the player\'s bars stay put');
+  assert.ok(!/body\.infight #hud \{[^}]*display/.test(html), 'never display:none on #hud');
+});
