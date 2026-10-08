@@ -106,7 +106,22 @@ export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'lon
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Duel => ({ tick: 0, fighters: [{ ...createFighter(initialState(), 'sheathed', weapon), skill }, opponentFighter(opponent, { ...initialTarget(), heading: 0, distance: 0 })], finish: null, events: [] });
+// `pose` (seamless step 3, World's signature): start the fight where the hero and the foe ALREADY stand instead of at the pit marks. Metres in the arena's own axes (the caller subtracts the fight circle's
+// centre), `heroFacing` in radians as sim headings are (aim = atan2(dx, dz)); the foe faces the other way, as at the marks. Both must lie inside the wall (RADIUS) and apart by more than a body, or it throws:
+// a pose that starts a fighter in the wall or in the other body is a caller bug, never a fight to clamp silently. Absent = today's marks, byte for byte.
+export type DuelPose = { hero: { x: number; z: number }; foe: { x: number; z: number }; heroFacing: number };
+const poseBodies = (pose: DuelPose): [State, State] => {
+  const { hero, foe, heroFacing } = pose;
+  for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || M.hypot(p.x, p.z) > RADIUS) throw RangeError('Duel pose: a fighter must start inside the wall');
+  if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
+  const gap = M.hypot(hero.x - foe.x, hero.z - foe.z);
+  if (gap <= .85) throw RangeError('Duel pose: the fighters start inside each other');
+  return [{ x: hero.x, z: hero.z, heading: wrapAngle(heroFacing), distance: 0 }, { x: foe.x, z: foe.z, heading: wrapAngle(heroFacing + Math.PI), distance: 0 }];
+};
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null, pose?: DuelPose): Duel => {
+  const [hero, foe] = pose ? poseBodies(pose) : [initialState(), { ...initialTarget(), heading: 0, distance: 0 }];
+  return { tick: 0, fighters: [{ ...createFighter(hero, 'sheathed', weapon), skill }, opponentFighter(opponent, foe)], finish: null, events: [] };
+};
 
 // The one door a patron fight is built through, after initialDuel (and withSpecials): the player's perk in slot 0, the foe's (PvP only; ladder foes carry none) in slot 1.
 export const withPerks = (duel: Duel, perks: readonly [Perk | undefined, Perk | undefined]): Duel => ({ ...duel, fighters: [withPerk(duel.fighters[0], perks[0]), withPerk(duel.fighters[1], perks[1])] });
