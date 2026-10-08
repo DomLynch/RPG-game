@@ -23,7 +23,7 @@ import type { OpponentId } from '../src/roster.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/detmath.ts', 'src/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
-const SIM_DIGEST = '3cb7b02f340b9ccb5a4dce200d916026c84c8ca982b34062ecd016c74bd343f5';   // RV38 (2026-10-08, the start pose: duel.ts DuelPose / initialDuel pose / validatePose; a pose-less fight is byte for byte as v37, tests/record-pose.test.ts)
+const SIM_DIGEST = '57f3ad0e58d7726f5f7f572f346b4749c4d5ee10e00990cba0e8c50259f46509';   // RV38 (2026-10-08, the start pose: duel.ts DuelPose / initialDuel pose / validatePose; a pose-less fight is byte for byte as v37, tests/record-pose.test.ts)
 const PINNED_FOR_VERSION = 38;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
