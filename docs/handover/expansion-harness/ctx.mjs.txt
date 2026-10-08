@@ -1,0 +1,22 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+await p.addInitScript(() => { window.__gl = []; const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...r) { const c = g.call(this, t, ...r); if (c && /webgl/.test(String(t)) && !window.__gl.includes(c)) window.__gl.push(c); return c; }; });
+const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 160)));
+await p.goto('http://127.0.0.1:4796/preview/origins/?region=1&wolf', { waitUntil: 'load' });
+await p.waitForTimeout(20000);
+const live = () => p.evaluate(() => ({ created: window.__gl.length, alive: window.__gl.filter((c) => !c.isContextLost()).length, canvases: document.querySelectorAll('canvas').length }));
+console.log('spawn', JSON.stringify(await live()), JSON.stringify(await p.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.geometries, i.textures]; })));
+for (let lap = 1; lap <= 4; lap++) {
+  const w = (await p.evaluate(() => window.originsPreview.mobs().mobs.filter((m) => m.id.startsWith('scavengers'))))[0];
+  await p.evaluate(([x, z]) => window.originsPreview.place(x, z + 7, 0), [w.x, w.z]); await p.waitForTimeout(8000);
+  const t0 = Date.now(); await p.evaluate((id) => window.originsPreview.tapMob(id), w.id);
+  for (let i = 0; i < 400 && !(await p.evaluate(() => window.originsPreview.duel?.()?.ready)); i++) await p.waitForTimeout(250);
+  console.log('lap', lap, 'tap->ready ms', Date.now() - t0);
+  await p.waitForTimeout(2000);
+  console.log('lap', lap, 'in fight', JSON.stringify(await live()));
+  await p.evaluate(() => window.originsPreview.leave()); await p.waitForTimeout(6000);
+  console.log('lap', lap, 'after leave', JSON.stringify(await live()), JSON.stringify(await p.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.geometries, i.textures]; })));
+}
+console.log('errs', JSON.stringify(errs.slice(0, 4)));
+await b.close();

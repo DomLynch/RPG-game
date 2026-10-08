@@ -1,0 +1,33 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const errs = []; p.on('pageerror', (e) => errs.push('PE ' + String(e).slice(0, 220))); p.on('console', (m) => { if (['error', 'warning'].includes(m.type())) errs.push(m.type() + ' ' + m.text().slice(0, 200)); });
+await p.goto('http://127.0.0.1:4793/preview/origins/?region=1&wolf&worldfight', { waitUntil: 'load' });
+await p.waitForTimeout(8000);
+const w = (await p.evaluate(() => window.originsPreview.mobs().mobs.filter((m) => m.body === 'wolf')))[0];
+await p.evaluate(([x, z]) => window.originsPreview.place(x, z + 7, 0), [w.x, w.z]);
+await p.waitForTimeout(20000);
+console.log('before', JSON.stringify(await p.evaluate(() => window.originsPreview.renderInfo())));
+console.log('tap', await p.evaluate((id) => window.originsPreview.tapMob(id), w.id));
+const st = () => p.evaluate(() => window.originsPreview.duel?.());
+for (let i = 0; i < 60 && !(await st())?.ready; i++) await p.waitForTimeout(2000);
+console.log('ready', JSON.stringify(await st()));
+await p.waitForTimeout(3000);
+await p.screenshot({ path: '/tmp/ww-ready.png', timeout: 180000 });
+console.log('info-ready', JSON.stringify(await p.evaluate(() => window.originsPreview.renderInfo())));
+const keys = ['f', 't', 'f', 'g', 'f', 't']; let shots = 0;
+for (let i = 0; i < 200; i++) {
+  const s = await st();
+  if (s?.finish) break;
+  if (i % 14 === 6 && shots < 3) { await p.screenshot({ path: `/tmp/ww-mid-${shots++}.png`, timeout: 180000 }); console.log('mid', s.tick, s.phase, s.playerHealth, s.health, JSON.stringify(await p.evaluate(() => window.originsPreview.renderInfo()))); }
+  await p.keyboard.press(keys[i % keys.length]);
+  await p.waitForTimeout(400);
+}
+console.log('end', JSON.stringify(await st()));
+await p.screenshot({ path: '/tmp/ww-end.png', timeout: 180000 });
+await p.evaluate(() => document.getElementById('reset-button')?.click());
+await p.waitForTimeout(8000);
+await p.screenshot({ path: '/tmp/ww-back.png', timeout: 180000 });
+console.log('back', JSON.stringify(await p.evaluate(() => ({ duel: window.originsPreview.duel?.()?.running, mobs: window.originsPreview.mobs().drawn, info: window.originsPreview.renderInfo() }))));
+console.log('errs', JSON.stringify(errs.slice(0, 8)));
+await b.close();

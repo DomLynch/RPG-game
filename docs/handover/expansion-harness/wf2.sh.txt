@@ -1,0 +1,6 @@
+W=/opt/frankendom-shadow/work/expansion/fightflow; cd $W
+git fetch -q origin +expansion/worldfight:refs/pp/wf && git checkout -q -f --detach refs/pp/wf
+nice -n 10 npx vite build --config origins/preview/vite.config.mjs 2>&1 | tail -1
+rm -rf /tmp/originsweb4 && mkdir -p /tmp/originsweb4/preview && ln -s $W/artifacts/origins-preview /tmp/originsweb4/preview/origins
+(cd /tmp/originsweb4 && nohup python3 -m http.server 4793 --bind 127.0.0.1 >/tmp/originsweb4.log 2>&1 &); sleep 2
+cp /tmp/wf2.mjs $W/wf2.mjs; node wf2.mjs 2>&1 | grep -E "^(before|tap|ready|info-ready|mid|end|back|errs)"; pkill -f "http.server 4793"

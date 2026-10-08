@@ -1,0 +1,25 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 200)));
+await p.goto('http://127.0.0.1:4795/preview/origins/?region=1&wolf&worldfight', { waitUntil: 'load' });
+await p.waitForTimeout(8000);
+const mem = () => p.evaluate(() => { const i = window.originsPreview.renderInfo(); return [i.geometries, i.textures]; });
+console.log('start', JSON.stringify(await mem()));
+const picks = ['wolves', 'wolves', 'scavengers', 'scavengers', 'wolves'];
+for (const pick of picks) {
+  const w = (await p.evaluate((k) => window.originsPreview.mobs().mobs.filter((m) => m.id.startsWith(k)), pick))[0];
+  await p.evaluate(([x, z]) => window.originsPreview.place(x, z + 7, 0), [w.x, w.z]);
+  await p.waitForTimeout(12000);
+  await p.evaluate((id) => window.originsPreview.tapMob(id), w.id);
+  for (let i = 0; i < 60 && !(await p.evaluate(() => window.originsPreview.duel?.()?.ready)); i++) await p.waitForTimeout(2000);
+  await p.waitForTimeout(2000);
+  console.log(pick, 'GAP', JSON.stringify(await p.evaluate(() => { const d = window.originsPreview.duel(); return { tick: d.tick, gap: d.gap, player: [d.x, d.z], foe: d.foe }; })));
+  await p.screenshot({ path: `/tmp/lk-${picks.indexOf(pick)}-${pick}-${Date.now() % 100000}.png`, timeout: 180000 });
+  console.log(pick, 'in duel', JSON.stringify(await mem()), (await p.evaluate(() => window.originsPreview.duel?.()?.opponent)));
+  await p.evaluate(() => document.getElementById('leave')?.click() || document.getElementById('reset-button')?.click());
+  await p.waitForTimeout(8000);
+  console.log(pick, 'back', JSON.stringify(await mem()), 'duel running', await p.evaluate(() => !!window.originsPreview.duel?.()?.running));
+}
+console.log('errs', JSON.stringify(errs.slice(0, 4)));
+await b.close();

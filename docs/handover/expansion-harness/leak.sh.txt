@@ -1,0 +1,7 @@
+W=/opt/frankendom-shadow/work/expansion/fightflow; cd $W
+REF=$1
+git fetch -q origin +expansion/worldfight:refs/pp/wf && git checkout -q -f --detach $REF; git log --oneline -1
+nice -n 10 npx vite build --config origins/preview/vite.config.mjs 2>&1 | tail -1
+rm -rf /tmp/originsweb5 && mkdir -p /tmp/originsweb5/preview && ln -s $W/artifacts/origins-preview /tmp/originsweb5/preview/origins; for d in game weapons arena pit looks legends shields herolook gear-ui; do ln -s $W/public/$d /tmp/originsweb5/$d; done
+(cd /tmp/originsweb5 && nohup python3 -m http.server 4795 --bind 127.0.0.1 >/dev/null 2>&1 &); sleep 2
+cp /tmp/leak.mjs $W/leak.mjs; node leak.mjs; pkill -f "http.server 4795"

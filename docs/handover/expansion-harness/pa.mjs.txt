@@ -1,0 +1,22 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+for (const q of ['?region=1&wolf', '?region=1']) {
+  const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const errs = []; p.on('pageerror', (e) => errs.push('PE ' + String(e).slice(0, 220)));
+  let bytes = 0; p.on('response', (r) => { if (/\.(glb|ktx2|png|jpg|webp)/.test(r.url())) bytes += Number(r.headers()['content-length'] || 0); });
+  await p.goto('http://127.0.0.1:4794/preview/origins/' + q, { waitUntil: 'load' });
+  await p.waitForTimeout(30000);
+  const snap = () => p.evaluate(() => { const m = window.originsPreview.mobs(), h = window.originsPreview.pos; return { hero: [+h.x.toFixed(1), +h.z.toFixed(1)], drawn: m.drawn, bodies: m.bodies, near: m.mobs.map((s) => ({ id: s.id, d: +Math.hypot(s.x - h.x, s.z - h.z).toFixed(1), drawn: s.drawn, model: s.model })).filter((s) => s.d < 50).sort((a, c) => a.d - c.d), info: window.originsPreview.renderInfo() }; });
+  const tag = q.includes('wolf') ? 'wolf' : 'flat';
+  console.log(tag, 'SPAWN', JSON.stringify(await snap()), 'assetMB', (bytes / 1e6).toFixed(1));
+  await p.screenshot({ path: `/tmp/pa-${tag}.png`, timeout: 180000 });
+  if (tag === 'wolf') {
+    const w = (await p.evaluate(() => window.originsPreview.mobs().mobs.filter((m) => m.body === 'wolf')))[0];
+    await p.evaluate(([x, z]) => window.originsPreview.place(x, z - 12, 0), [w.x, w.z]); await p.waitForTimeout(15000);
+    console.log(tag, 'WOLFCAMP', JSON.stringify(await snap()), 'assetMB', (bytes / 1e6).toFixed(1));
+    await p.screenshot({ path: '/tmp/pa-wolfcamp.png', timeout: 180000 });
+  }
+  console.log(tag, 'errs', JSON.stringify(errs.slice(0, 5)));
+  await p.close();
+}
+await b.close();
