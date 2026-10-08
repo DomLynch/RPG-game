@@ -135,9 +135,9 @@ export const play = {
     const wornList = wornRows(inv).filter((r) => r.item).map((r) => ui.row(SLOT_LABEL[r.slot], nameOf(r.item!), { item: r.item!.id }, r.item!.id === picked)).join('') || ui.text('Nothing worn.', true);
     const detail = sel ? `${nameOf(sel)}${p && 'wonBy' in p ? ` · won by ${p.wonBy}${'fromLegend' in p ? ` from ${p.fromLegend} at ${p.atRank}` : ''}, ${p.at.slice(0, 10)}` : ''}` : 'Tap an item.';
     const actions = [
-      where === 'pack' && def?.slot ? ui.button('Wear', { do: 'wear' }) : '',
-      where === 'equipped' ? ui.button('Take off', { do: 'takeoff' }) : '',
-      docked ? ui.button(where === 'bank' ? 'Withdraw' : 'Deposit', { do: 'move' }, !sel || where === 'equipped') : '',
+      where === 'pack' && def?.slot ? ui.button('Wear', { do: 'wear' }, false, true) : '',
+      where === 'equipped' ? ui.button('Take off', { do: 'takeoff' }, false, true) : '',
+      docked ? ui.button(where === 'bank' ? 'Withdraw' : 'Deposit', { do: 'move' }, !sel || where === 'equipped', !(where === 'pack' && def?.slot) && where !== 'equipped') : '',
     ].join('');
     return ui.panel(docked ? 'Bank — Concord Exchange' : 'Gear',
       ui.dock(ui.heading('Worn') + wornList + (docked ? ui.heading('Vault') + ui.grid(cells('bank')) : ''), ui.heading('Backpack') + ui.grid(cells('pack'))),
