@@ -52,6 +52,12 @@ Build through origins/world only (schema + `generateZone`), cheapest first, afte
 
 Donors (Strategy's file:line study): World of Claudecraft terrain_relief.ts:1-30 (MIT, seeded warped fbm + ridged, same heights client and server), far_terrain_core.ts, biome_haze_field_core.ts; Daggerfall Unity DefaultTerrainSampler.cs:96-112, TerrainNature.cs:58-118, ClimateSwaps.cs; RuneScape .jm2 LOC rows; WoW int8 heights. WoC code is MIT (copy with notice); EQEmu / ModernUO / AzerothCore / openmw are GPL: study and rewrite. Acceptance: the Zone 1 acceptance line above (schema or generator; Zone 2 as a data file).
 
+## Long-term zone plan (Dom APPROVED the world layout, 2026-10-08 09:4x, via Strategy)
+
+One legend per zone. ~760 fightable legends / 50 levels = ~15 zones per level = ~750 legend zones plus a few hubs. Each level is a region of ~15 zones sharing land type, animals and prop kit. Zone 1's headliner is Goblin L1 (the same as the Pit); zones 1-15 are all level 1. Fame mix: every region 1-45 gets at least one big-name headliner (measured fame, #1699); the most famous (Hercules/Achilles tier) are held for Origin 46-50; the rest go by strength. Zone 1 stays the priority; no new work starts on this now.
+
+Owner for the zone-to-legend data table (origins/world), **proposed, Strategy to confirm:** World, Pit & Audio (owner of origins/world and `generateZone`), with Characters supplying the legend roster and fame numbers and Lead writing the table's schema and legend-name rules (legends-rule) as docs. Starts only after Zone 1 quality is done.
+
 Items not on this list wait.
 
 ## Expansion lane removed (Dom, 2026-10-08 07:3x): open items and new owners
