@@ -11,12 +11,14 @@ import { loadRegion1, type Bounty, type Region1, type Town } from '../region1/lo
 import { CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
+import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
   region: RegionId; zone: string; name: string; mount: Mount; width: number; depth: number;
   preset: string; ground: string; landmarks: Record<string, At>;
+  relief: ReliefParams; // terrain.relief / hillScale / seed (seed 0 = the zone id): the hills frontier-relief.ts lays over the flat plan
   links: { here: string; to: string; kind: string }[]; // this zone's connections, by the landmark on this side
   town: Town | null;
 };
@@ -50,10 +52,11 @@ function zonePlan(region: RegionId, zone: string, p: Params, mount: Mount, town:
   const m = toMetres(p);
   const landmarks = Object.fromEntries(Object.entries(m.landmarks).map(([k, l]) => [k, { ...toWorld(l, mount), facing: wrap(mount.heading + l.facing) }]));
   return { region, zone, name: ZONE_NAMES[zone] ?? zone, mount, width: m.width, depth: m.depth, preset: p.ambience.preset, ground: p.terrain.ground, landmarks,
+    relief: { relief: p.terrain.relief, hillScale: p.terrain.hillScale, seed: p.terrain.seed || seedOf(zone) },
     links: Object.values(p.connections).map((c) => ({ here: c.here, to: c.to, kind: c.kind })), town };
 }
 
-export function frontierPlan(): Frontier {
+export function frontierPlan(flat = false): Frontier {   // flat: the hills off (?relief=0), every zone's relief 0 so the plan is the flat greybox again
   const loaded = loadRegion1();
   if (!loaded.ok) throw new Error(`Region 1 does not load: ${JSON.stringify(loaded.issues)}`);
   const data = loaded.value, mounts = concordMounts();
@@ -107,6 +110,7 @@ export function frontierPlan(): Frontier {
     character: town.ruler.character, name: data.registry.characters.get(town.ruler.character)!.name,
     at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, 4.5), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
   };
+  if (flat) for (const z of zones) z.relief = { ...z.relief, relief: 0 };
   return { zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
 }
 // A spot `metres` from a building toward the town centre, facing the centre: where its keeper stands.
@@ -191,8 +195,9 @@ export function frontierBuild(f: Frontier): Build {
     if (z.region !== FRONTIER) return;
     // The ground: the zone's footprint, a hair lower per zone so overlapping footprints do not fight, on a skirt of rock.
     const centre = toWorld({ x: 0, d: z.depth / 2 }, z.mount), top = -0.004 * i;
-    put('stone', ['box', z.width, 0.4, z.depth], centre.x, top - 0.2, centre.z, GROUND[z.ground] ?? ASH, z.mount.heading);
-    put('stone', ['box', z.width + 1, 12, z.depth + 1], centre.x, top - 6.4, centre.z, DARK, z.mount.heading, top - 12);
+    const drop = z.relief.relief;   // hills dip below the old flat plane: the plane and its skirt of rock sit that much lower, and frontier-relief.ts draws the ground itself
+    put('stone', ['box', z.width, 0.4, z.depth], centre.x, top - 0.2 - drop, centre.z, GROUND[z.ground] ?? ASH, z.mount.heading);
+    put('stone', ['box', z.width + 1, 12, z.depth + 1], centre.x, top - 6.4 - drop, centre.z, DARK, z.mount.heading, top - 12 - drop);
     const links = new Set(z.links.map((l) => l.here));
     for (const [name, a] of Object.entries(z.landmarks)) {
       if (links.has(name)) { // a way on: two gate posts either side of it
