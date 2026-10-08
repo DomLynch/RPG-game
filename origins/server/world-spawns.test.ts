@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PC } from '../contracts/fixtures.ts';
-import { loadEncounterContent } from '../encounters/encounters.ts';
+import { fightSetup, loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
+import { openInventory } from '../inventory/inventory.ts';
+import type { CharacterInstanceId } from '../contracts/ids.ts';
+import { mobBatch } from './mob-rewards.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
@@ -13,6 +16,7 @@ if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
 const content = loaded.value, spawns = zone1Spawns(content);
 const UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', TOKEN = 'T'.repeat(32);
 const row = (): CareerRow => ({ seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 });
+const emptyPack = () => { const inv = openInventory({ owner: PC as CharacterInstanceId, account: UID as never, items: [], packSize: 20, bankSize: 10 }, lookupOf(content)); if (!inv.ok) throw new Error(JSON.stringify(inv.issues)); return inv.value; };
 const wolf = [...spawns.values()].find((s) => s.spec.character === 'character:ash-wolf') as Spawn;
 
 // A stub database: answers each 202610080014 function from `answers` (by name), origins_open with an empty pack, origins_metal_of as absent; records the kill batch.
@@ -102,4 +106,23 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
   const nearDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
   assert.equal((await ops.kill_report!(ctx(nearDb.db, near), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
   assert.equal(nearDb.kills[0]!.g.reach, 'checked', 'a fresh presence pose in the zone: reach checked');
+});
+
+test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance), not the form\'s: a level-1 wolf pays level-1 CP and loot (Auditor, #1900)', async () => {
+  const form = fightSetup(wolf.fight, content);
+  if (!form.ok) throw new Error(wolf.fight);
+  const formLevel = form.value.opponent.level;
+  assert.notEqual(formLevel, 1, 'the wolf form is not level 1 (else this test proves nothing)');
+  const paidAt = async (level: number) => {
+    const spawn: Spawn = { ...wolf, spec: { ...wolf.spec, level } };
+    const ops = worldSpawnOps({ content, spawns: new Map([[wolf.spec.id, spawn]]), seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {} });
+    const db = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
+    await ops.kill_report!(ctx(db.db), { token: TOKEN, hits: 50 });
+    return db.kills[0]!.b;
+  };
+  const expect = (level: number) => mobBatch({ account: UID, character: PC, token: TOKEN, fight: wolf.fight, seed: 7, enemy: wolf.spec.body, level, twist: null }, { career: row(), inventory: emptyPack(), metal: 'absent' }, content, '2026-10-08T10:01:00.000Z').batch;
+  const one = await paidAt(1), atForm = await paidAt(formLevel);
+  assert.deepEqual(one.slice(1), expect(1), 'level 1: exactly what mobBatch pays a level-1 kill');
+  assert.deepEqual(atForm.slice(1), expect(formLevel), 'the form level: what it paid before');
+  assert.notDeepEqual(one.slice(1), atForm.slice(1), 'and the two differ');
 });

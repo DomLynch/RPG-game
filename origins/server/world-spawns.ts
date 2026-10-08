@@ -122,7 +122,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
         reach = 'checked';
       }
     }
-    const setup = fightSetup(spawn.fight, content);
+    const setup = fightSetup(spawn.fight, content, { level: spawn.spec.level });   // the spawn's own level (mobSpecs, by distance), never the form's: a level-1 wolf pays level-1 CP and loot
     if (!setup.ok) throw new Refused(503, `the server cannot price ${spawn.fight}`);
     const at = now().toISOString(), { inventory, snap } = await openHoldingsWith(db, account, open.character, { lookup });
     const metal = await store.metalOf(db, account);

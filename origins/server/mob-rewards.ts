@@ -29,7 +29,7 @@ const CAP_REACHED = Number.MAX_SAFE_INTEGER;   // no "wins today / rolls this we
 export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string): Paid {
   const none = (why: string): Paid => ({ batch: [], summary: { cp: 0, cpReason: why, drops: [], bronze: 0, lootRefused: null, unpaid: [] } });
   if (!kill.fight) return none('no-fight-id');   // a token issued before the fight id was carried: the event only, as before
-  const setup = fightSetup(kill.fight, content);
+  const setup = fightSetup(kill.fight, content, { level: kill.level });   // an open-world kill is priced at the level it was fought at (encounters keep their own)
   if (!setup.ok || setup.value.opponent.body !== kill.enemy || setup.value.opponent.level !== kill.level) return none('fight-mismatch');   // never pay a fight the run does not describe
   const target = setup.value.opponent.character, killRow = content.local.killRows[target] ?? null;
   const career = state.career ? careerState(state.career) : null;
