@@ -72,6 +72,19 @@ def main(src, dst, policy):
         after += nw * nh * 4 / 1048576
         print(f'{names.get(i, "?"):34} {w}x{h} -> {nw}x{nh}')
     imageviews = {im["bufferView"]: i for i, im in enumerate(d["images"])}
+    if "EXT_meshopt_compression" in d.get("extensionsUsed", []):
+        # Meshopt views carry their own offsets (extension + fallback buffer): repacking would break them. Keep every byte in place,
+        # zero the replaced images (they gzip to nothing) and append the new ones.
+        out = bytearray(b)
+        for i, data in new.items():
+            v = views[d["images"][i]["bufferView"]]
+            o = v.get("byteOffset", 0)
+            out[o : o + v["byteLength"]] = b"\0" * v["byteLength"]
+            out += b"\0" * (-len(out) % 4)
+            v["byteOffset"], v["byteLength"] = len(out), len(data)
+            out += data
+        d["buffers"][0]["byteLength"] = len(out)
+        return write(d, out, src, dst, before, after)
     out = bytearray()
     for vi, v in enumerate(views):
         data = new[imageviews[vi]] if vi in imageviews and imageviews[vi] in new else bytes(b[v.get("byteOffset", 0) : v.get("byteOffset", 0) + v["byteLength"]])
@@ -79,6 +92,10 @@ def main(src, dst, policy):
         v["byteOffset"], v["byteLength"] = len(out), len(data)
         out += data
     d["buffers"] = [{"byteLength": len(out)}]
+    write(d, out, src, dst, before, after)
+
+
+def write(d, out, src, dst, before, after):
     j = json.dumps(d, separators=(",", ":")).encode()
     j += b" " * (-len(j) % 4)
     out += b"\0" * (-len(out) % 4)
