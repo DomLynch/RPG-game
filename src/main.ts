@@ -81,7 +81,7 @@ setTier(); window.addEventListener('resize', setTier); window.addEventListener('
 // cluster); everything click-driven keeps both taps: the journal and its Options, the header, Next, camera and recenter, SHARE/CLIP and
 // the Sparring pair (.share-button), and the loot panel's buttons (Lead, 2026-09-26).
 const DOUBLE_TAP_SURFACE = '#world, #joystick, #actions', CLICK_DRIVEN = '.share-button, #reset-button, #camera-button, #recenter-button, .loot-panel-actions, #loot-undo, .loot-panel';
-lockPageZoom({ surface: DOUBLE_TAP_SURFACE, clickDriven: CLICK_DRIVEN });
+lockPageZoom(document, { surface: DOUBLE_TAP_SURFACE, clickDriven: CLICK_DRIVEN });
 const feedback = createFeedback();
 if (powerWordsLook(window.location?.search ?? '')) window.addEventListener('frankendom:powerword', (e) => { const d = (e as CustomEvent<{ word: string; opponent: string }>).detail; feedback.powerWord(d.word, d.opponent, POWER_WORD_LOOK_GAIN); });   // ?look=powerwords (power-word.ts); absent = the event has no listener
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also

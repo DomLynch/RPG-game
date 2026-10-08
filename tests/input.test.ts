@@ -67,7 +67,7 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   assert.match(main, /addEventListener\('touchend', \(event\) => \{[^]*?timeStamp - lastTouchEnd < 350[^]*?event\.preventDefault\(\)[^]*?\}, \{ passive: false \}\)/);
   assert.match(main, /DOUBLE_TAP_SURFACE = '#world, #joystick, #actions'/, 'the refusal is scoped to the fight surface, so click-driven controls keep both taps (Lead, 2026-09-26)');
   // The Origins preview zoomed on Dom's iPhone (2026-10-07): it had no guard. Every entry calls the one helper.
-  for (const entry of ['../src/main.ts', '../origins/preview/main.ts']) assert.match(readFileSync(new URL(entry, import.meta.url), 'utf8'), /\blockPageZoom\(\{ surface: /, `${entry} locks page zoom`);
+  for (const entry of ['../src/main.ts', '../origins/preview/main.ts']) assert.match(readFileSync(new URL(entry, import.meta.url), 'utf8'), /\blockPageZoom\(document, \{ surface: /, `${entry} locks page zoom`);
 });
 
 test('the journal test tools ship hidden behind the admins roster; the Sparring tab holds the overrides and ships hidden', () => {
