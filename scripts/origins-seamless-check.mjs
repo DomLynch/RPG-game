@@ -30,8 +30,10 @@ try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
   await page.goto(`${origin}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
+  const want = process.env.SEAMLESS_TARGET || '';   // a creature id to engage (default: the first drawn one), e.g. bounty-shrine-1 or wolves-1
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
-  const target = await page.evaluate(() => window.originsPreview.mobs().mobs.find((m) => m.drawn && m.body));
+  const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.find((m) => (id ? m.id === id : m.drawn && m.body)), want);
+  assert.ok(target, `no creature ${want}`); receipt.target = { id: target.id, body: target.body };
   const moved = async (ms) => {
     const read = () => page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => ({ id: m.id, x: m.x, z: m.z })));
     const a = await read(); await page.waitForTimeout(ms); const c = await read();
