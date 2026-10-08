@@ -30,11 +30,11 @@ test('every Region 1 encounter and open-world creature sets up from the data, as
   for (const id of [...ids, ...Object.keys(content.local.creatureLoot)]) {
     const s = value(fightSetup(id, content));
     assert.equal(s.kind, 'world-mob', id);
-    assert.ok(s.foes.length >= 1 && s.bar > 0 && s.opponent.level >= 11, id);
+    assert.ok(s.foes.length >= 1 && s.bar > 0 && s.opponent.level >= 1, id);   // Zone 1's creatures are level 1 now (Dom 2026-10-08; was 11+)
     assert.equal(s.seedKey, `origins:${id}`);
   }
   const peg = value(fightSetup('encounter:bounty-peg-powler', content));
-  assert.deepEqual([peg.opponent.character, peg.opponent.body, peg.opponent.level, peg.foes.length], ['character:peg-powler', 'witch', 14, 1], 'the dummy challenge stage is not a second foe');
+  assert.deepEqual([peg.opponent.character, peg.opponent.body, peg.opponent.level, peg.foes.length], ['character:peg-powler', 'witch', 3, 1], 'the dummy challenge stage is not a second foe');
   assert.deepEqual(peg.combatFlags, [{ kind: 'flee-at', percent: 30, catchSeconds: 15 }]);
   const hr = value(fightSetup('encounter:bounty-hrungnir', content));
   assert.deepEqual(hr.flags, [{ kind: 'hazard', hazard: 'embers', stillSeconds: 2 }]);
@@ -56,10 +56,10 @@ test('an unknown or malformed id is a typed error, never a throw', () => {
 
 test('the Toll: two court thralls on one health bar, summed by the oneBarHealth rule', () => {
   const s = value(fightSetup('encounter:bounty-toll', content));
-  assert.deepEqual(s.foes.map((f) => [f.character, f.body, f.level, f.health]), [['character:court-thrall', 'pitborn', 12, 190], ['character:court-thrall', 'pitborn', 12, 190]]);
+  assert.deepEqual(s.foes.map((f) => [f.character, f.body, f.level, f.health]), [['character:court-thrall', 'pitborn', 3, 156], ['character:court-thrall', 'pitborn', 3, 156]]);   // the named rares are the zone level + 2 = 3 (Dom 2026-10-08; were 12 / 190 health)
   assert.deepEqual(s.combatFlags, [{ kind: 'one-health-bar' }]);
-  assert.equal(s.bar, 380);
-  assert.equal(s.opponent.health, 380);
+  assert.equal(s.bar, 312);
+  assert.equal(s.opponent.health, 312);
   assert.equal(s.bar, oneBarHealth(s.combatFlags, s.foes.map((f) => f.health)));
   assert.equal(oneBarHealth([], [190, 190]), 190, 'without the flag: the first foe\'s own bar');
 });
