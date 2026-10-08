@@ -25,6 +25,8 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
+import { createOthers, type Rig } from './others-view.ts';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -125,7 +127,9 @@ orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.c
 const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(T.orePile.radius, 0), arena.materials.stone); ore.scale.y = 0.5;
 ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow = true; scene.add(orla, ore);
 let mixer: THREE.AnimationMixer | undefined, gait: THREE.AnimationAction[] = [], rollAct: THREE.AnimationAction | undefined, guardAct: THREE.AnimationAction | undefined;   // the clips in gaitWeights() order: Idle, Walk, Jog, Run
+let heroRig: Rig | null = null;   // the walker's loaded rig: other players are clones of it (others-view.ts)
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then((gltf) => {
+  heroRig = { scene: gltf.scene, animations: gltf.animations };
   gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   if (PHONE) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);   // the game's iPhone black-fighters guard (characters.ts loadFighter)
   mixer = new THREE.AnimationMixer(gltf.scene);
@@ -292,7 +296,8 @@ function step(dt: number) {
 
 // ?region=1: the zone you stand in and its ambience.preset, for the look (the World lane's look.ts listens for `origins:zone`; this page
 // sets no light, fog or sky). Off the Frontier the Exchange's own data names the preset (exchange-dusk; the Pit's ash-pit).
-let presence: Presence | null = null, others: Other[] = [];   // the Zone 1 page joined to presence (assigned once storage is read, below)
+let presence: Presence | null = null, others: Other[] = [];
+const othersView = createOthers(scene, () => heroRig, (o) => cloneSkeleton(o));   // PvP step 0: the other players presence knows, drawn (others-view.ts)   // the Zone 1 page joined to presence (assigned once storage is read, below)
 let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
 function showZone(id: string | null) {
   if (!frontier) return;
@@ -335,7 +340,7 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
-    mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
+    mobs?.update(dt, state, cardId); othersView.update(others, dt); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
   }
   step(dt); warmFight(time); warmUpload(time); arena.update(dt, [], camera); exchange.update(time);
@@ -561,7 +566,7 @@ async function startMobFight(spec: MobSpec) {
 }
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
-  presence: () => ({ state: presence?.state() ?? 'off', others }),
+  presence: () => ({ state: presence?.state() ?? 'off', others, drawn: othersView.debug() }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
