@@ -527,6 +527,7 @@ function warmFight(time: number) {   // every 2 s on the walk, with the fight ch
   duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), { world: scene, lights, dress: (root) => { const look = mobVariant(t.spec.character, t.spec.id); if (look) dressMob(root, look, false); } });
 }
 // Prefetch (see startMobFight; encounter-online.ts createPrefetch): beginOnline caps the start at START_TIMEOUT_MS and never rejects; the token of a creature the player walked away from is swept by the writer after its 120 s grace.
+// Known gap (Backend, LOW): nothing is prefetched until the fight chunks have loaded (preloadFight is idle-time), so a very early first engage is unpaid; the next one is not.
 const prefetch = createPrefetch(async (id) => {
   const spec = mobSpecList.find((m) => m.id === id), run = spec && huntMod && hunt ? huntMod.prepare(hunt, spec) : null;
   if (!run?.ok) return null;
