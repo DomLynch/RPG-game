@@ -1,20 +1,22 @@
 # Frankendom lanes — reorganised 2026-10-03 (Dom + Strategy)
 
-Twenty-two lanes became eight. Split **by system, not by character**: one owner per kind of work, for all ten characters, so no two lanes edit the same files. **At most 2–3 specialists run at once**, picked by the week's goal; the rest stay parked.
+Twenty-two lanes became eight, then nine (Expansion was added and removed again on 2026-10-08, see below). Split **by system, not by character**: one owner per kind of work, for all ten characters, so no two lanes edit the same files. **At most 2–3 specialists run at once**, picked by the week's goal; the rest stay parked.
 
 | Lane (session title) | Owns | Folded in (read their `docs/state/<file>.md` first when you wake) |
 |---|---|---|
-| **Lead** | Queue, READY calls, briefs, the weekly goal | — |
+| **Lead** | Queue, READY calls, briefs, the weekly goal; world design docs (quests, towns, bounties, economy rules, mobs.md, one-shard.md) and the #1758 plan document. Coordination and docs only, no building (Dom, 2026-10-08) | — |
 | **Deploy** | The only one who runs `scripts/deploy.sh`, VPS ops, relay | — |
 | **Strategy (advisor)** | Dom's occasional strategic input only; no lane orders | — |
 | **Auditor** | PR review (`PASS @ <sha>`), receipts | code-quality |
-| **Characters & Art** | Every character's model, armour, looks, hero look, weapon meshes, the FLUX/TRELLIS/Blender pipeline | character, armour, herolook, multichar, pitborn, executioner, goblin, nightborn, veteran-polish, weapons (meshes) |
-| **Combat & Specials** | Every move, special (R1–10), finisher, gore logic, stats/balance, the sim | combat, finishers, stats, weapons (class specials), and the specials parts of the character lanes |
-| **World, Pit & Audio** | Arenas, the Pit room, lighting, VFX look, crowd, all sound | world, pit, audio |
+| **Characters & Art** | Every character's model, armour, looks, hero look, weapon meshes, the FLUX/TRELLIS/Blender pipeline; creature and NPC art (Dom, 2026-10-08) | character, armour, herolook, multichar, pitborn, executioner, goblin, nightborn, veteran-polish, weapons (meshes) |
+| **Combat & Specials** | Every move, special (R1–10), finisher, gore logic, stats/balance, the sim; hostile creature fighting: the hostile flag, up to 7 attackers, N-vs-1 (Dom, 2026-10-08) | combat, finishers, stats, weapons (class specials), and the specials parts of the character lanes |
+| **World, Pit & Audio** | Arenas, the Pit room, lighting, VFX look, crowd, all sound; the open-world client: zones, scenery, towns, creatures on screen, the Zone 1 preview, the in-place world fight, the client half of the one-world plan (Dom, 2026-10-08) | world, pit, audio |
 | **Web & UI** | Menus, win screen, share row, loot UI, site pages | web |
-| **Duels & Backend** | Duel netcode, relay, Supabase, accounts, rewards, migrations | duel, backend, career |
+| **Duels & Backend** | Duel netcode, relay, Supabase, accounts, rewards, migrations; the server-run world (zone and spawn rules), saving, the economy gates (Dom, 2026-10-08) | duel, backend, career |
 
 Archived (2026-10-03, reopenable from the Archived list): Armour, Audio, Duel, Executioner, Finishers & Gore, Goblin, Hero Look, Multi Chars, Nightborn, Pitborn, Stats, The Pit, Veteran, Weapons. Their handoffs are in `docs/state/*.md` and summarised in `docs/HANDOVER-GPT-lanes.md`.
+
+**Expansion lane removed (Dom, 2026-10-08 07:3x).** Its work moved to the lanes above; the handover is `docs/handover/expansion-lane.md` (PR #1765) and the item-by-item owners are in `docs/TOP10.md`.
 
 ## Rules learned (Sept–Oct 2026)
 
