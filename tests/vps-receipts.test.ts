@@ -156,3 +156,13 @@ test('launch.mjs launches exactly the canonical job (detached, timed, allowed fl
   assert.equal(receiptFrom('RECEIPT rows {"a":1}', 'unit'), null, 'the kind must match');
   for (const f of ['run-unit.sh', 'run-rows.sh']) assert.match(readFileSync(`scripts/vps-shadow/${f}`, 'utf8'), /echo "RECEIPT (unit|rows) /);
 });
+
+test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-receipt-trust.mjs, in both the rows and the unit step, and no longer pulls from the shared VPS dir', () => {
+  const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
+  const fetches = [...lib.matchAll(/launch\.mjs fetch/g)].map(m => m.index as number), trusts = [...lib.matchAll(/vps-receipt-trust\.mjs/g)].map(m => m.index as number);
+  assert.equal(fetches.length, 2);
+  assert.equal(trusts.length, 2);
+  fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));
+  assert.ok(!/vps-shadow-rows\.sh/.test(lib.replace(/^#.*$/gm, '')), 'the old ssh fetch is gone');
+  assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
+});
