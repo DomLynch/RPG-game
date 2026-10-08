@@ -3,7 +3,7 @@
 // contract the mount relies on). Numbers marked S0 are placeholders until Combat's rows (MOVES/WEAPONS/RULES) replace them.
 // The page owns the HERO's position and facing (it walks him); it writes fighters[0].x/z/facing before each step. Creatures are owned here: chase, telegraph, strike, leash.
 export type Phase = 'idle' | 'windup' | 'strike' | 'recover' | 'stagger' | 'dead';
-export type Fighter = { id: string; kind: string; x: number; z: number; facing: number; radius: number; health: number; maxHealth: number; stamina: number; phase: Phase; phaseT: number; level: number; home?: { x: number; z: number }; lostFor?: number; evading?: boolean; hit?: boolean };
+export type Fighter = { id: string; kind: string; x: number; z: number; facing: number; radius: number; health: number; maxHealth: number; stamina: number; phase: Phase; phaseT: number; level: number; home?: { x: number; z: number }; lostFor?: number; evading?: boolean; hit?: boolean; engaged?: boolean };
 export type World = { fighters: Fighter[] };
 export type HeroInput = { attack: 'light' | null; run?: boolean };
 export type Ev = { type: 'Swing' | 'Telegraph' | 'HitTaken' | 'Died' | 'Evaded'; id: string; target?: string; amount?: number; ms?: number };
@@ -12,7 +12,7 @@ export const HERO_ID = 'hero';
 export const ROW = {   // S0 placeholders (Combat replaces)
   hero: { reach: 2.0, arcDeg: 70, damage: 14, windup: 0.12, active: 0.08, recover: 0.4, maxHealth: 100 },
   creature: { reach: 1.5, damage: (level: number) => 5 + level * 0.8, windup: 0.4, active: 0.1, recover: 0.9, health: (level: number) => 24 + level * 6 },   // windup 0.4 s = the telegraph
-  chase: 4.5, wolfChase: 6.0, leash: 30, giveUpS: 10, wolfLeash: 15, wolfGiveUpS: 6, amble: 0.9, regenAfter: 6, regen: 4,
+  notice: 9, chase: 4.5, wolfChase: 6.0, leash: 30, giveUpS: 10, wolfLeash: 15, wolfGiveUpS: 6, amble: 0.9, regenAfter: 6, regen: 4,
 };
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -56,7 +56,8 @@ export function stepCombat(world: World, input: HeroInput, dt: number, rand: () 
     if (c.phase === 'dead') continue;
     const wolf = c.kind === 'wolf', chase = wolf ? ROW.wolfChase : ROW.chase, leash = wolf ? ROW.wolfLeash : ROW.leash, giveUp = wolf ? ROW.wolfGiveUpS : ROW.giveUpS;
     const d = dist(c, hero), fromHome = c.home ? dist(c, c.home) : 0;
-    if (c.evading) { towardStep(c, c.home!, chase * 0.7, dt); if (dist(c, c.home!) < 0.3) { c.health = c.maxHealth; c.evading = false; c.phase = 'idle'; events.push({ type: 'Evaded', id: c.id }); } continue; }
+    if (c.evading) { towardStep(c, c.home!, chase * 0.7, dt); if (dist(c, c.home!) < 0.3) { c.health = c.maxHealth; c.evading = false; c.engaged = false; c.phase = 'idle'; events.push({ type: 'Evaded', id: c.id }); } continue; }
+    if (!c.engaged) { if (d <= ROW.notice && hero.phase !== 'dead') c.engaged = true; else continue; }   // it only chases once it has noticed him (the mount adds it on its own aggro ring)
     c.lostFor = d > 20 ? (c.lostFor ?? 0) + dt : 0;
     if (hero.phase === 'dead' || fromHome > leash || (c.lostFor ?? 0) >= giveUp) { c.evading = true; c.phase = 'idle'; c.lostFor = 0; continue; }   // evade: walk home and heal, no event until it arrives, no loss
     inCombat = true;
