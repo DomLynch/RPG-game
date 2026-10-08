@@ -980,7 +980,7 @@ function paintCoach(): void {
   const tag = element('coach-tag'), chip = element('mobile-coach');
   chip.hidden = coachKilled(location.search); chip.setAttribute('aria-pressed', String(coach.pref)); chip.textContent = coach.pref ? 'Coach on' : 'Coach off';
   tag.hidden = !coach.on && !(coach.coached && match.practice.finish && match.practice.finish.victim === 1);
-  tag.dataset.live = String(coach.on); tag.textContent = coach.on ? 'Coached · tap to play' : 'Coached win';
+  tag.dataset.live = String(coach.on); tag.textContent = coach.on ? 'Coached · tap' : 'Coached win';
 }
 const controls = createInput({
   element, window, paused,
