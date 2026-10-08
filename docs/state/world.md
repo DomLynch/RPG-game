@@ -2,6 +2,27 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-08 ~08:40 (+04, Mac clock) — HANDOFF #22: World now owns the open-world client (Expansion lane removed, Dom 10-08); #1710 PASSed, #1730/#1742/#1751/#1760 with the Auditor; the lane is held to its TOP10 items until Dom approves the table
+
+### Now (verify every state with `gh pr view`, none of this is a promise)
+- **TOP10 rows I own:** 1 (client half of the always-on world: S1 pre-warm + engage frame time, C0-C6 in the #1758 comment) and 2 (world side of hostile creatures: engaged creatures always drawn, a HUD pip per attacker, camera re-lock; all after Combat's hostile flag + pack field RV37). Dates in my cells are Expansion's INHERITED estimates (S1 10-10; C0-C3 10-23 if Backend freezes the protocol by 10-12), unmeasured by me. Do not start new work beyond my own items before Dom approves the table (PR #1763).
+- **#1710 (?wolf preview, branch expansion/wolf-preview) @b969362c: Auditor delta PASS**, merges on green. Condition: the walking Ash Wolf look must stay WOLF_RENDER_SCALE if #1756 (combat/wolf-render-2x) lands first; origins/preview/wolf-scale.test.ts pins it (conditional on src/beast-scale.ts existing) and is imported from tests/origins-preview-mobs.test.ts; keep it in every merge. Do NOT turn the wolf rows on for rewards until Backend's #1767 HIGH 2 (who/zone check on encounter_start) is PASSed. The 4 MB wolf GLB in the preview build is trunk's (scene.ts ./assets/*.glb glob), not #1710's.
+- **#1725 (?worldfight) @b5de3f83**: CI green, Auditor PASS, rides the next fold. **#1748 closed** (superseded by the one-world ruling; dispose() is in #1725).
+- **My PRs:** #1730 ?look=zonepreset (default off; trunk merged in, head a1f0f43a; Auditor to re-confirm), #1742 follow-up on top of it (zone row folded into LOOK_STOPS, ZONE_ROW_FALLBACK pinned; head 6130955c), #1751 Frontier shadow trim (head f6652e8d; -20.5 % tris at the region-1 spawn, 441,104 -> 350,882, load 905 ms vs trunk 1,096 at 4x throttle; mergeVertices dropped, it cost +2.7 s), #1760 test pinning Dom's 0.306 rejection and "only the backdrop differs" (1bd000d7).
+- **Owed:** WebKit-on-Mac load-time for #1751 (Lead asked; the Mac was held by the one-deployer rule); `zone.preset` per Frontier zone (cinder-fields, black-mere, blood-ruin, ferry-landing; then delete ZONE_ROW_FALLBACK in a one-line PR); S1 pre-warm.
+
+### Done today (receipts are on the PRs)
+- #1722 ?look=duel merged; #1715 crowd favour CLOSED (the roar is invisible at the fight camera in all arenas shot: 1, 2, a, b, c, d, 3, 5; frame difference ~2/255); Grey Ferry is not a bug (60x60 zone, 5 landmarks, creatures 0, the empty frames face the water side).
+- TOP10 rows 1 and 2 World parts written into docs/TOP10.md on lead-catalogue/top10 (9a66fca0).
+
+### Gotchas
+- `capture world bash <script>` runs on the VPS; queue is FCFS; run it detached (`nohup sh -c "capture ... > out; touch done"`) and poll a done file; never pkill the local ssh. Keep a capture job under 10 min.
+- Software GL runs ~3 fps with dt capped at 0.05 s: eased looks (1.5 s) are not settled at 3.5 s wall; use 20 s settles for pixel compares. `?gfx=phone` forces the phone tier headless (isMobile alone does not).
+- New origins/**/*.test.ts files must be imported by a tests/origins-*.test.ts stub or CI's "every origins test is imported" test fails.
+- zsh: write `${T}:path` (not `$T:path`); BSD sed does not do `&`/`#` tricks (use python); never put a `//` comment mid-line (it swallowed a meshPieces call once).
+- Merge trunk into PR branches, never rebase; do not push to a head Lead asked to keep unchanged unless it is dirty. One deployer: only Deploy merges to trunk.
+- This session's worktree .../wonderful-engelbart-7ecba8 has node_modules as a symlink to ~/Developer/frankendom-world/node_modules; the Mac blocks local `node --test` while a deploy runs (run on the VPS).
+
 ## 2026-10-07 05:50 (+04, Mac clock) — research #18 (distance-scaled camera kick): CLOSED, "not needed on our camera"; the ?look=kickscale flag (#1561) is REMOVED
 
 - **Do not re-run this.** The lock camera sits 4.96-7.2 m from the fight (median 5.38 m over 1221 frames of a scripted Veteran fight) and its distance does not follow fighter separation (1.0 m and 1.6 m strikes: 5.27 and 5.47 m). At the 10 real-fight hits the camera distance was 4.97-5.49 m (median 5.39), so a compensation that holds the kick's screen size is a factor of 0.93-1.02 (span 9.6%, p10-p90 5.06-5.49): below Strategy's ~10% bar. The 0.94-1.34 over all frames is retreats, not hits.
