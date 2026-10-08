@@ -30,7 +30,7 @@
     .stick i { position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%; border-radius: 50%; background: var(--c-ring); }
     @media (pointer: coarse), (max-width: 900px) { .stick { opacity: 0.55; } .stick.on { opacity: 1; } }
     #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
-    #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
+    #shade { position: fixed; inset: 0; z-index: 2; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
     #creature-card { margin-top: var(--gap-s); padding: var(--gap-xs) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-shadow: none; pointer-events: none; }   /* in the HUD's flow, under the hint; an overlay, never a pause */
     #hint { margin-top: var(--gap-s); padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; text-shadow: none; pointer-events: none; }   /* in the HUD's flow: always under the status lines, however many they wrap to */
     #panel { position: relative; width: min(100%, var(--panel-w)); max-height: calc(100dvh - 2 * var(--gap-m)); overflow-y: auto; box-sizing: border-box; padding: 18px var(--gap-m) var(--gap-m); border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); }
