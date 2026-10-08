@@ -5,6 +5,7 @@
 // S0: movement, the light cut, a telegraphed creature bite, death, leash/give-up/heal-home. S1: guard (frontal block, perfect block, chip, guard break), roll with i-frames, posture break,
 // stamina (sprint drain, exhaustion), and `minKillSeconds`, the server-side plausibility bound for a kill report (there is no record to replay in Zone 1).
 import { MOVES, OPPONENTS, RULES, WEAPONS, type MoveDef, type WeaponId } from '../../src/moves.ts';
+import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 
 const TICK = 1 / 60;
@@ -30,6 +31,12 @@ export const VARIETY: Readonly<Record<string, { id: 'lunge' | 'charge' | 'heavy'
 };
 export const PARRY_STAGGER_S = 0.7;                     // a perfect block of a creature's plain blow throws the creature off for this long (a heavy / charge cannot be parried: roll it)
 
+/** Creature level scaling (S3): the roster row is level 1; each level adds this much health and damage (linear, like the ladder's own knobs; tune from play). Level 18 = x1.51 health, x1.26 damage; 46 = x2.35, x1.68. */
+export const LEVEL_HEALTH = 0.03, LEVEL_DAMAGE = 0.015, MAX_LEVEL = 50;
+export const levelHealth = (level: number): number => 1 + LEVEL_HEALTH * (clampLevel(level) - 1);
+export const levelDamage = (level: number): number => 1 + LEVEL_DAMAGE * (clampLevel(level) - 1);
+function clampLevel(level: number): number { return Math.min(MAX_LEVEL, Math.max(1, Math.round(level))); }
+
 export type Phase = 'ready' | 'guard' | 'roll' | 'windup' | 'active' | 'recover' | 'stagger' | 'dead';
 export type Fighter = {
   id: string; side: 'player' | 'creature'; kind: string;   // kind: 'player' or a ROSTER id ('wolf', 'boar', 'bear', ...)
@@ -47,6 +54,7 @@ export type Fighter = {
   homeX: number; homeZ: number;                         // creature only: where it spawned (it walks back here)
   hunting: boolean; chaseX: number; chaseZ: number;     // creature only: it is on a chase that STARTED at (chaseX, chaseZ); the leash is measured from there
   unseen: number;                                       // creature only: seconds the prey has been out of sight
+  attack: number; res: number;                          // damage multipliers (src/gear-stats.ts Loadout): `attack` scales what it deals, `res` what it takes, chip included; a creature's `attack` is its level's damage
   plan: string | null;                                  // creature only: the variety blow rolled for its next attack ('basic' = none), null until rolled
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
@@ -66,14 +74,15 @@ const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENT
 
 function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: number, facing: number, radius: number, health: number, poise: number, weapon: WeaponId): Fighter {
   return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, pause: 0, hurtFor: 0,
-    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, plan: null, returning: false };
+    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, plan: null, returning: false };
 }
-export const player = (id: string, x: number, z: number, facing = 0): Fighter => fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword');
+/** The player, with his gear's Loadout (NAKED = the identity: no gear changes nothing). */
+export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res });
 /** A creature of `kind` (a moves.ts ROSTER id): its health, poise, body scale and weapon are the roster's own rows. */
-export function creature(id: string, kind: string, x: number, z: number, facing = 0): Fighter {
+export function creature(id: string, kind: string, x: number, z: number, facing = 0, level = 1): Fighter {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
-  return fighter(id, 'creature', kind, x, z, facing, PLAYER_RADIUS * o.scale, o.health, o.poise, o.weapon);
+  return { ...fighter(id, 'creature', kind, x, z, facing, PLAYER_RADIUS * o.scale, Math.round(o.health * levelHealth(level)), o.poise, o.weapon), attack: levelDamage(level) };
 }
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters });
 
@@ -118,7 +127,8 @@ function hurt(a: Fighter, v: Fighter, damage: number, events: Event[]): boolean 
   return true;
 }
 
-function land(a: Fighter, v: Fighter, move: MoveDef, events: Event[]): void {
+function land(a: Fighter, v: Fighter, row: MoveDef, events: Event[]): void {
+  const move = a.attack === 1 && v.res === 1 ? row : { ...row, damage: Math.round(row.damage * a.attack * v.res) };   // gear and level scale the damage (chip follows it); posture and timings are untouched
   if (invulnerable(v)) { events.push({ type: 'Dodged', attacker: a.id, victim: v.id }); return; }
   if (move.vsGuard && v.phase === 'guard') {   // a kick goes through a standing guard: a little damage, the guard's stamina, a long stagger
     events.push({ type: 'Hit', attacker: a.id, victim: v.id, damage: move.damage, move: move.id });
@@ -234,10 +244,10 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
  * `kind` with the longsword's light cut. Hits needed at the best damage multiplier the rules ever give (a rear or counter blow, RULES.rear.damage); the cadence is the fastest chained cut.
  * A claimed kill faster than this, or with hitsDealt x best damage below the creature's health, is refused. Conservative on purpose: it never refuses an honest fight.
  */
-export function minKillSeconds(kind: string): number {
+export function minKillSeconds(kind: string, level = 1): number {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
-  const cut = MOVES.light_right, best = cut.damage * RULES.rear.damage, hits = Math.ceil(o.health / best);
+  const cut = MOVES.light_right, best = Math.round(cut.damage * CAPS.attack) * RULES.rear.damage, hits = Math.ceil(Math.round(o.health * levelHealth(level)) / best);   // the best gear (CAPS.attack) and the creature's level health
   const chained = cut.chained ?? cut, cycle = secs(chained.windup + chained.active + chained.recovery);
   return secs(cut.windup) + Math.max(0, hits - 1) * cycle;   // the first blow lands after its windup; every later one a full chained cycle apart
 }

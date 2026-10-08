@@ -2,9 +2,10 @@
 // death, and the leash / give-up / heal-on-return. Pure steps at a fixed 1/60.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MOVES, OPPONENTS, RULES } from '../../src/moves.ts';
+import { MOVES, OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
+import { CAPS } from '../../src/gear-stats.ts';
 import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { BLOW_WEIGHT, creature, minKillSeconds, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { BLOW_WEIGHT, MAX_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const NEVER = () => 1, ALWAYS = () => 0, DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -318,4 +319,28 @@ test('2v1 pack: two wolves take turns - one winds up at a time, so their blows n
   assert.ok(hitters >= 4 && swings >= 4, `both wolves attack (${hitters} hits)`);
   assert.equal(same, 0, 'never two winding up or landing together');
   assert.ok(new Set(w.fighters.map((f) => f.id)).size === 3);
+});
+
+test('gear: naked changes nothing; Attack scales what the player deals, RES what he takes (chip included); both capped numbers from gear-stats', () => {
+  const dealt = (gear: { attack: number; res: number }) => {
+    const t = creature('w', 'boar', 0, 1.2); t.phase = 'stagger'; t.hurtFor = 99;
+    return OPPONENTS.boar.health - get(run(newWorld([player('p', 0, 0, 0, gear), t]), 1.2, (k) => (k === 0 ? { x: 0, z: 0, attack: 'light' } : STILL)).world, 'w').health;
+  };
+  assert.equal(dealt({ attack: 1, res: 1 }), MOVES.light_right.damage);
+  assert.equal(dealt({ attack: CAPS.attack, res: 1 }), Math.round(MOVES.light_right.damage * CAPS.attack));
+  const taken = (gear: { attack: number; res: number }, guard = false) => {
+    const w = run(newWorld([player('p', 0, 0, 0, gear), creature('c', 'bear', 0, 1.4)]), 1.5, () => ({ x: 0, z: 0, guard }));
+    return RULES.health - get(w.world, 'p').health;
+  };
+  assert.ok(taken({ attack: 1, res: CAPS.res }) < taken({ attack: 1, res: 1 }), 'RES cuts the blow');
+  assert.equal(taken({ attack: 1, res: CAPS.res }), Math.round(Math.round(WEAPONS.bite.moves.light_right!.damage * BLOW_WEIGHT.bear!) * CAPS.res));
+});
+
+test('level scaling: a creature of level L has more health and hits harder, linear from the roster row at level 1; minKillSeconds follows the level and the best gear', () => {
+  assert.equal(get(newWorld([creature('c', 'wolf', 0, 5)]), 'c').health, OPPONENTS.wolf.health);
+  assert.equal(get(newWorld([creature('c', 'wolf', 0, 5, 0, 18)]), 'c').health, Math.round(OPPONENTS.wolf.health * levelHealth(18)));
+  const hit = (level: number) => { const e = run(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.3, 0, level)]), 2).events.find((x) => x.type === 'Hit' && x.victim === 'p'); return e && e.type === 'Hit' ? e.damage : 0; };
+  assert.ok(hit(30) > hit(1) && hit(1) > 0, `${hit(1)} vs ${hit(30)}`);
+  assert.ok(minKillSeconds('wolf', 30) > minKillSeconds('wolf', 1), 'a higher level cannot be killed as fast');
+  assert.equal(levelHealth(99), levelHealth(MAX_LEVEL));
 });
