@@ -458,6 +458,27 @@ const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped fr
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
+// The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
+// stalemate shows nothing; the hero's death dims the screen for ~2 s ("You died"), then he stands up in town at full health, everything kept. The Pit keeps its own banner and rules.
+const TOWN_RESPAWN = { x: 0, z: 3 };   // the square the region page opens on until the Zone 1 bank town (town generator #1826) is placed
+function worldToast(text: string) {
+  document.getElementById('world-toast')?.remove();
+  const t = document.createElement('div'); t.id = 'world-toast'; t.className = 'glass'; t.textContent = text;
+  t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:26%;max-width:86vw;z-index:5;padding:8px 14px;text-align:center;font:600 15px/1.35 Georgia,serif;pointer-events:none';
+  document.body.append(t); setTimeout(() => t.remove(), 3500);
+}
+function worldEnded(out: { won: boolean; text: string }, end: { result: 'won' | 'lost' }) {
+  const run = fightRun;
+  if (end.result === 'lost') {
+    const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
+    veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
+    document.body.append(veil);
+    setTimeout(() => { veil.remove(); if (fighting && run === fightRun) { state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; camSnap = true; leaveFight(); } }, 2000);
+    return;
+  }
+  if (out.won) worldToast(out.text.replace(/\n+/g, ' '));
+  if (fighting && run === fightRun) leaveFight();
+}
 function showResult(text: string) {
   document.getElementById('leave')!.hidden = true;   // the end panel's own "Back to the fields" is the one way out
   document.getElementById('hunt-result')?.remove();
@@ -556,7 +577,7 @@ async function startMobFight(spec: MobSpec) {
     const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest), wasOnline);
     if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
     if (out.won) mobs?.fell(spec.id);
-    showResult(out.text);
+    if (WORLDFIGHT) worldEnded(out, end); else showResult(out.text);
   }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } }, () => on?.played(), WORLDFIGHT ? worldMount(spec, { x: state.x, z: state.z }, mobs?.find(spec.id) ?? { x: state.x, z: state.z - 4 }) : undefined);   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
   const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
 }
