@@ -3,11 +3,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { roundPose } from '../src/duel.ts';
+import { idleIntent, roundPose } from '../src/duel.ts';
+import { initialPractice, stepPractice } from '../src/combat.ts';
+import { createRecorder, packRecord, unpackRecord, RECORD_VERSION } from '../src/record.ts';
+import { playScaleFor, setPlayScale, setLateNotice } from '../src/play-radius.ts';
+import { setStab } from '../src/stab-rule.ts';
 
 const mk = () => {
   const storage = { getItem: () => null, setItem: () => undefined };
@@ -38,4 +42,16 @@ test('sparring takes the pose too (the open-world duel is a sparring Match): fig
   m.startPose = pose; m.startSparring({ weapon: 'longsword', skill: null, difficulty: 6 });
   assert.deepEqual(at(m), [[want.hero.x, want.hero.z], [want.foe.x, want.foe.z]]); assert.deepEqual(m.fightPose, want); assert.equal(m.recorder, null);
   m.rematch(); assert.deepEqual(at(m), marks); assert.equal(m.fightPose, undefined);
+});
+
+test('a posed (v38) record replays from its own pose through Match.startReplay: the page-side replay is the recorded fight, not a desync from the pit marks', () => {
+  const rec = createRecorder({ build: 'abc1234', opponent: 'veteran', weapon: 'longsword', level: 6, seed: 4242, pose: roundPose(pose) });
+  setPlayScale(playScaleFor('veteran', RECORD_VERSION)); setLateNotice(true); setStab(true);
+  let p = initialPractice(4242, opponentAt(OPPONENTS.veteran, 6), 'longsword', null, undefined, undefined, undefined, roundPose(pose));
+  for (let t = 0; t < 90; t++) p = stepPractice(p, rec.push({ ...idleIntent(), action: t === 4 ? 'light' : null }), profileAt(OPPONENTS.veteran, 6));
+  const record = unpackRecord(packRecord(rec.finish('abandoned'))), m = mk();
+  assert.equal(record.v, 38);
+  assert.ok(m.startReplay(record, 90, m.epoch));
+  assert.deepEqual(m.practice.duel, p.duel, 'the replayed fight is the recorded one at tick 90');
+  assert.equal(m.startPose, undefined);
 });
