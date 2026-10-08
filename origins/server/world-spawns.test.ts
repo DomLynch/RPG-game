@@ -17,11 +17,11 @@ const wolf = [...spawns.values()].find((s) => s.spec.character === 'character:as
 
 // A stub database: answers each 202610080014 function from `answers` (by name), origins_open with an empty pack, origins_metal_of as absent; records the kill batch.
 function stub(answers: Record<string, unknown>, opts: { absent?: boolean } = {}) {
-  const kills: { m: string; r: string; b: Json[] }[] = [];
+  const kills: { m: string; r: string; b: Json[]; g: Json }[] = [];
   const db: Db = { async run(sql, v = {}) {
     if (/origins_spawn_/.test(sql) && opts.absent) return 'absent';
     const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? '')?.[1];
-    if (fn === 'origins_spawn_kill') { kills.push({ m: v.m!, r: v.r!, b: JSON.parse(v.b!) }); }
+    if (fn === 'origins_spawn_kill') { kills.push({ m: v.m!, r: v.r!, b: JSON.parse(v.b!), g: JSON.parse(v.g!) }); }
     if (fn) { const a = answers[fn]; if (a instanceof Error) throw a; return a === undefined ? 'null' : JSON.stringify(a); }
     if (/origins_metal_of/.test(sql)) return 'absent';
     return JSON.stringify({ marks: 0, career: row(), characters: [{ id: PC, pack_slots: 20, bank_slots: 10 }], items: [], quests: [], journal: [], talk: [] });
@@ -85,6 +85,7 @@ test('kill_report: too few hits is refused before anything is written; a valid r
   assert.equal(k!.b[0]!.op, 'event'); assert.equal(k!.b[0]!.event_id, `enc:${TOKEN}`);
   assert.deepEqual((k!.b[0]!.payload as Json).beta, true);
   assert.ok(!JSON.stringify(k!.b).includes('999'), 'nothing in the body is paid');
+  assert.deepEqual(k!.g, { cp: out.cp, reach: 'unchecked' }, 'the beta ledger row: the cp paid, reach unchecked with no presence pose');
 });
 
 test('kill_report: the database\'s refusals map to the contract (dead 409, too-fast 422, cap 429, used 409); reach via presence', async () => {
@@ -98,5 +99,7 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
   const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: (wolf.spec.home.x + 50) * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
   await assert.rejects(async () => ops.kill_report!(ctx(with_({ result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }), far), { token: TOKEN, hits: 50 }), status(422, 'away'));
   const near = async () => ({ online: true as const, layer: 0, placed: true as const, x: wolf.spec.home.x * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
-  assert.equal((await ops.kill_report!(ctx(with_({ result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }), near), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
+  const nearDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
+  assert.equal((await ops.kill_report!(ctx(nearDb.db, near), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
+  assert.equal(nearDb.kills[0]!.g.reach, 'checked', 'a fresh presence pose in the zone: reach checked');
 });

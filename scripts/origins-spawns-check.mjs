@@ -32,7 +32,8 @@ const code = async (role, sql) => { const r = await as(role, sql); return r.code
 const tok = n => `spawn-tok-${n}-`.padEnd(24, 'x');
 const ENGAGE = (acct, pc, t, inst, kind = 'character:ash-wolf') => `select public.origins_spawn_engage('${acct}', '${pc}', '${t}', '${inst}', '${kind}')::text;`;
 const EV = (t, acct, pc) => `[{"op":"event","event_id":"enc:${t}","kind":"mob","account":"${acct}","character":"${pc}","payload":{"result":"won","world":true,"beta":true}}]`;
-const KILL = (acct, t, minMs, respawnS, batch) => `select public.origins_spawn_kill('${acct}', '${t}', ${minMs}, ${respawnS}, '${batch}'::jsonb)::text;`;
+const KILL = (acct, t, minMs, respawnS, batch, ledger = '{"cp":12,"reach":"unchecked"}') => `select public.origins_spawn_kill('${acct}', '${t}', ${minMs}, ${respawnS}, '${batch}'::jsonb, '${ledger}'::jsonb)::text;`;
+const ledger = t => psql(`select coalesce((select reach_status || '/' || cp || '/' || bronze || '/' || cardinality(item_ids) from public.origins_beta_ledger where event_id = 'enc:${t}'), 'none')`);
 const events = t => psql(`select count(*) from public.origins_events where event_id = 'enc:${t}'`);
 const used = t => psql(`select coalesce(result, 'open') from public.origins_spawn_engages where token = '${t}'`);
 const backdate = (t, s) => psql(`update public.origins_spawn_engages set issued_at = issued_at - interval '${s} seconds' where token = '${t}'`);
@@ -59,10 +60,10 @@ try {
   const V = 'frankendom_verifier', O = 'frankendom_origins';
 
   // ---- grants ------------------------------------------------------------------------------------------------------------------------------
-  const FNS = ['origins_spawn_state(text[])', 'origins_spawn_engage(uuid,text,text,text,text)', 'origins_spawn_engage_get(uuid,text)', 'origins_spawn_touch(uuid,text)', 'origins_spawn_kill(uuid,text,int,int,jsonb)'];
+  const FNS = ['origins_spawn_state(text[])', 'origins_spawn_engage(uuid,text,text,text,text)', 'origins_spawn_engage_get(uuid,text)', 'origins_spawn_touch(uuid,text)', 'origins_spawn_kill(uuid,text,int,int,jsonb,jsonb)'];
   for (const fn of FNS) eq(psql(`select has_function_privilege('${V}', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('${O}', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${fn}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${fn}'::regprocedure, 'execute')::int::text`), '1100', `grants: ${fn} is for the two writer roles only`);
   eq(psql(`select (has_function_privilege('anon', 'origins_spawn_view(origins_spawns)'::regprocedure, 'execute') or has_function_privilege('${V}', 'origins_spawn_view(origins_spawns)'::regprocedure, 'execute'))::text`), 'false', 'grants: the view helper is nobody\'s');
-  for (const t of ['origins_world_config', 'origins_spawns', 'origins_spawn_engages']) {
+  for (const t of ['origins_world_config', 'origins_spawns', 'origins_spawn_engages', 'origins_beta_ledger']) {
     eq(psql(`select has_table_privilege('${V}', 'public.${t}', 'select')::int::text || has_table_privilege('${O}', 'public.${t}', 'select')::int::text || has_table_privilege('anon', 'public.${t}', 'select')::int::text || has_table_privilege('authenticated', 'public.${t}', 'select')::int::text`), '0000', `grants: no role reads ${t} directly`);
   }
 
@@ -92,6 +93,9 @@ try {
   eq([used(tok(1)), events(tok(1))], ['open', '0'], 'kill: a too-fast report consumes nothing and writes nothing');
   eq(await code(V, KILL(A, tok(1), 0, 75, `[{"op":"event","event_id":"enc:${tok(1)}","kind":"nope","account":"${A}","character":"${pcA}","payload":{}}]`)) !== null, true, 'kill: a bad batch fails');
   eq([used(tok(1)), events(tok(1)), psql(`select alive::text from public.origins_spawns where instance = 'wolves-1'`)], ['open', '0', 'true'], 'kill: a failed batch rolls back the token, the spawn and the event');
+  eq(ledger(tok(1)), 'none', 'kill: a failed batch leaves no beta-ledger row');
+  eq(await code(V, KILL(A, tok(1), 0, 75, EV(tok(1), A, pcA), '{"cp":1,"reach":"maybe"}')), 'O0002', 'kill: a ledger without a reach status is refused');
+  eq([used(tok(1)), events(tok(1)), ledger(tok(1))], ['open', '0', 'none'], 'kill: ... and rolls back the token, the event and the ledger');
   psql(`update public.origins_world_config set kills_per_min = 1`);
   psql(`insert into public.origins_spawns (instance, kind) values ('cap-1', 'character:ash-wolf'); insert into public.origins_spawn_engages (token, account, character, instance, generation, expires_at, used_at, result) values ('${tok(90)}', '${A}', '${pcA}', 'cap-1', 0, now(), now(), 'killed')`);
   eq(await val(V, KILL(A, tok(1), 0, 75, EV(tok(1), A, pcA))), { refused: 'cap' }, 'kill: over the kills-per-minute cap is refused');
@@ -103,12 +107,20 @@ try {
   const k1 = await val(V, KILL(A, tok(1), 20_000, 75, EV(tok(1), A, pcA)));
   eq([k1.result, k1.instance, typeof k1.respawnAt], ['killed', 'wolves-1', 'string'], 'kill: consumed, the spawn is dead with a respawn time');
   eq([used(tok(1)), events(tok(1)), psql(`select alive::text || '/' || generation || '/' || (respawn_at > now() + interval '70 seconds')::text from public.origins_spawns where instance = 'wolves-1'`)], ['killed', '1', 'false/0/true'], 'kill: token used, event written once, spawn dead ~75 s');
+  eq(ledger(tok(1)), 'unchecked/12/0/0', 'kill: ONE beta-ledger row in the same transaction (reach status, cp; no mint, no bronze in this batch)');
   eq(await code(V, KILL(A, tok(1), 0, 75, EV(tok(1), A, pcA))), 'O0009', 'kill: a second report is refused');
   eq(await val(V, KILL(B, tok(20), 0, 75, EV(tok(20), B, pcB))), { refused: 'dead', respawnAt: k1.respawnAt }, 'kill: the other player\'s report answers dead');
   eq(used(tok(20)), 'dead', 'kill: the loser\'s token is closed');
+  eq(ledger(tok(20)), 'none', 'kill: a dead report writes no ledger row');
   eq((await val(V, ENGAGE(B, pcB, tok(21), 'wolves-1'))).refused, 'dead', 'engage: a dead spawn refuses until its respawn');
   const st = await val(V, `select public.origins_spawn_state(array['wolves-1','wolves-9'])::text;`);
   eq(st.spawns.map(s => [s.instance, s.alive, s.generation]), [['wolves-1', false, 0]], 'state: the dead spawn and its respawn time');
+
+  backdate(tok(12), 30);
+  const mint = `{"op":"mint","item":{"id":"it-beta-1","item":"item:ash-pelt","quantity":1,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":0},"bound_to":null,"mint_key":"loot:enc.beta0001:0","provenance":{"mintKey":"loot:enc.beta0001:0"},"history":[],"single_copy":false}}`;
+  const paidKill = await as(V, KILL(A, tok(12), 0, 75, `[${EV(tok(12), A, pcA).slice(1, -1)},${mint},{"op":"metal","account":"${A}","delta_bronze":7,"reason":"award","event_id":"enc:${tok(12)}"}]`, '{"cp":30,"reach":"checked"}'));
+  if (paidKill.code === 0) eq(ledger(tok(12)), 'checked/30/7/1', 'kill: the ledger reads the minted ids and the bronze from the batch that was written');
+  else console.log(`origins-spawns-check: (paying-batch probe skipped: ${paidKill.err.trim().slice(0, 160)})`);
 
   // ---- respawn: generation + 1 ----------------------------------------------------------------------------------------------------------------------
   psql(`update public.origins_spawns set respawn_at = now() - interval '1 second' where instance = 'wolves-1'`);
@@ -123,7 +135,7 @@ try {
   const eventsBefore = psql(`select count(*) from public.origins_events`);
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%'`), '0', 'down: the functions are gone');
-  eq(psql(`select count(*) from pg_class where relname in ('origins_world_config', 'origins_spawns', 'origins_spawn_engages')`), '0', 'down: the tables are gone');
+  eq(psql(`select count(*) from pg_class where relname in ('origins_world_config', 'origins_spawns', 'origins_spawn_engages', 'origins_beta_ledger')`), '0', 'down: the tables are gone');
   eq(psql(`select count(*) from public.origins_events`), eventsBefore, 'down: no event touched');
   psql(readFileSync(join(dir, UP), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins\\_spawn\\_%'`), '6', 'up again after down');

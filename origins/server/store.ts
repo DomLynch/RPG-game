@@ -120,7 +120,7 @@ export const encounterExpire = async (db: Db, limit: number): Promise<number | n
 };
 
 // Zone 1 world spawns (migration 202610080014): the server owns each creature's life. Every call answers `null` when the migration is not applied (the writer maps that to a 503).
-const HAS_SPAWNS = `select to_regprocedure('public.origins_spawn_kill(uuid,text,integer,integer,jsonb)') is not null as spawns \\gset\n`;
+const HAS_SPAWNS = `select to_regprocedure('public.origins_spawn_kill(uuid,text,integer,integer,jsonb,jsonb)') is not null as spawns \\gset\n`;
 const spawnCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
   const out = await db.run(`${HAS_SPAWNS}\\if :spawns\nselect ${call}::text;\n\\else\nselect 'absent';\n\\endif\n`, vars);
   return out === 'absent' ? null : out;
@@ -144,8 +144,9 @@ export const spawnTouch = async (db: Db, account: string, token: string): Promis
   const out = await spawnCall(db, `public.origins_spawn_touch(:'a'::uuid, :'t')`, { a: acct(account), t: token });
   return out === null ? null : JSON.parse(out);
 };
-// The kill report: consume the token, mark the spawn dead until now() + respawnS, apply the batch (the kill event and its reward lines) in ONE transaction, or a refusal that wrote nothing.
-export const spawnKill = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[]): Promise<({ result?: string; instance?: string; respawnAt?: string } & SpawnRefusal) | null> => {
-  const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch) });
+// The kill report: consume the token, mark the spawn dead until now() + respawnS, apply the batch (the kill event and its reward lines) and write its beta-ledger row in ONE transaction, or a refusal that wrote nothing.
+export type BetaLedger = { cp: number; reach: 'checked' | 'unchecked' };
+export const spawnKill = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger): Promise<({ result?: string; instance?: string; respawnAt?: string } & SpawnRefusal) | null> => {
+  const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };

@@ -1,4 +1,4 @@
--- CLASS 1, ADDITIVE and Origins-only: three new tables (RLS on, no policy, no grant), five new definer functions granted to the two writer roles. No existing table, function,
+-- CLASS 1, ADDITIVE and Origins-only: four new tables (RLS on, no policy, no grant), five new definer functions granted to the two writer roles. No existing table, function,
 -- grant or policy is altered. ROLLBACK: supabase/down/202610080014_origins_world_spawns_down.sql (drops exactly what this file creates).
 -- Why (Strategy, Dom's direction 2026-10-08 ~19:00 +04: Zone 1 is DETACHED from the Pit): a world creature fight is played on the page in real time, with no duel record. The server
 -- owns the creature's life instead (EverQuest's spawn2 pattern: the server holds each spawn point's alive/respawn timer, the client never names a corpse): a player ENGAGES a live
@@ -39,13 +39,28 @@ create table public.origins_spawn_engages (
   used_at timestamptz,
   result text check (result in ('killed', 'dead'))
 );
+-- The BETA ledger (Strategy 2026-10-08: every reward from this path is beta-tagged, so the pre-launch wipe can clear exactly it): one row per kill report that kills (paid or not), written in the kill's own
+-- transaction. Item ids are read from the batch's mint ops and bronze from its metal ops (what was actually written); cp and reach come from the writer. The wipe is migration 0015.
+create table public.origins_beta_ledger (
+  event_id text primary key,
+  account uuid not null,
+  character text not null,
+  instance text not null,
+  item_ids text[] not null default '{}',
+  cp bigint not null default 0 check (cp >= 0),
+  bronze bigint not null default 0 check (bronze >= 0),
+  reach_status text not null check (reach_status in ('checked', 'unchecked')),
+  at timestamptz not null default now()
+);
+create index origins_beta_ledger_reach on public.origins_beta_ledger (at desc, reach_status);
 create index origins_spawn_engages_open on public.origins_spawn_engages (account, instance) where used_at is null;
 create index origins_spawn_engages_kills on public.origins_spawn_engages (account, used_at desc) where result = 'killed';
 
 alter table public.origins_world_config enable row level security;
 alter table public.origins_spawns enable row level security;
 alter table public.origins_spawn_engages enable row level security;
-revoke all on public.origins_world_config, public.origins_spawns, public.origins_spawn_engages from public, anon, authenticated;   -- no policy, no grant: only the definer functions touch them
+alter table public.origins_beta_ledger enable row level security;
+revoke all on public.origins_world_config, public.origins_spawns, public.origins_spawn_engages, public.origins_beta_ledger from public, anon, authenticated;   -- no policy, no grant: only the definer functions touch them
 
 -- A dead spawn whose respawn time has passed is alive again (generation + 1). Used by every function below so the clock is the database's.
 create function public.origins_spawn_view(s public.origins_spawns) returns jsonb language sql stable set search_path = '' as $$
@@ -103,7 +118,7 @@ end $$;
 -- The kill report. The writer has already checked reach and the hit floor; the database checks what only it can: the token is open, the spawn is alive at the token's generation,
 -- the time since issue is at least p_min_ms (the time-to-kill floor from the creature's HP), and the account's kills in the last minute / hour are under the caps. Then ONE
 -- transaction: consume the token, mark the spawn dead until now() + p_respawn_s, apply p_batch (the kill event and its reward lines). A second report raises O0009.
-create function public.origins_spawn_kill(p_account uuid, p_token text, p_min_ms int, p_respawn_s int, p_batch jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$
+create function public.origins_spawn_kill(p_account uuid, p_token text, p_min_ms int, p_respawn_s int, p_batch jsonb, p_ledger jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare cfg public.origins_world_config; e public.origins_spawn_engages; s public.origins_spawns; out jsonb;
 begin
   if not public.origins_allowed(p_account) then raise exception 'origins is not open for this account' using errcode = 'O0007'; end if;
@@ -124,11 +139,18 @@ begin
   update public.origins_spawns set alive = false, generation = e.generation, respawn_at = now() + make_interval(secs => least(greatest(p_respawn_s, 10), 86400)), killed_by = p_account, killed_at = now()
     where instance = e.instance returning * into s;
   out := public.origins_apply(p_batch, array[p_account]);
+  if p_ledger ->> 'reach' not in ('checked', 'unchecked') then raise exception 'ledger reach must be checked or unchecked' using errcode = 'O0002'; end if;
+  insert into public.origins_beta_ledger (event_id, account, character, instance, item_ids, cp, bronze, reach_status)
+    values ('enc:' || p_token, p_account, e.character, e.instance,
+      coalesce((select array_agg(l -> 'item' ->> 'id') from jsonb_array_elements(p_batch) l where l ->> 'op' = 'mint'), '{}'),
+      greatest(coalesce((p_ledger ->> 'cp')::bigint, 0), 0),
+      coalesce((select sum((l ->> 'delta_bronze')::bigint) from jsonb_array_elements(p_batch) l where l ->> 'op' = 'metal'), 0),
+      p_ledger ->> 'reach');
   return jsonb_build_object('result', 'killed', 'instance', s.instance, 'respawnAt', s.respawn_at, 'applied', out);
 end $$;
 
 revoke all on function public.origins_spawn_view(public.origins_spawns), public.origins_spawn_state(text[]), public.origins_spawn_engage(uuid, text, text, text, text), public.origins_spawn_engage_get(uuid, text),
-  public.origins_spawn_touch(uuid, text), public.origins_spawn_kill(uuid, text, int, int, jsonb) from public, anon, authenticated;
+  public.origins_spawn_touch(uuid, text), public.origins_spawn_kill(uuid, text, int, int, jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.origins_spawn_state(text[]), public.origins_spawn_engage(uuid, text, text, text, text), public.origins_spawn_engage_get(uuid, text),
-  public.origins_spawn_touch(uuid, text), public.origins_spawn_kill(uuid, text, int, int, jsonb) to frankendom_origins, frankendom_verifier;
+  public.origins_spawn_touch(uuid, text), public.origins_spawn_kill(uuid, text, int, int, jsonb, jsonb) to frankendom_origins, frankendom_verifier;
 commit;
