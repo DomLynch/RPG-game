@@ -46,8 +46,10 @@ try {
   const walkGaps = (await page.evaluate(() => window.__gaps.slice())).slice(0, -1);
   const canvasesBefore = await page.evaluate(() => document.querySelectorAll('canvas').length);
   await page.evaluate(() => { window.__gaps = []; });
+  receipt.programsBeforeTap = await page.evaluate(() => window.originsPreview.renderInfo().programs);
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
+  receipt.programsAfterEngage = await page.evaluate(() => window.originsPreview.renderInfo().programs);
   receipt.fightMoved = await moved(10000);
   const after = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight'), gaps: window.__gaps.slice() }));
   const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0, worst = Math.max(...after.gaps.slice(0, -1), 0);
