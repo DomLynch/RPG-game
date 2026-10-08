@@ -22,7 +22,7 @@ We don't reinvent fire. For anything significant (saving, combat, loot, bank, tr
 | Skills, crafting, levelling | ModernUO, 2004Scape, rathena, openmw |
 | Economy, simulation | freeciv / Unciv (Civilization), OpenTTD, simutrans |
 | Phone UI, touch, HUD | World of Claudecraft (MIT) |
-**Copy or clean-room:** World of Claudecraft is MIT, so its code can be ported with credit. Almost everything else is GPL/AGPL: read it, write down the design (a study in `docs/specs/origins/`), then write our own code. Never paste GPL code into the game. Leaked or decompiled sources (e.g. OpenXRay, DevilutionX) are out.
+**Study, then rewrite ours (Dom has said it ten times — just do it):** take the best design from any donor, study exactly how it works, and REWRITE it in our own code (TypeScript / Three.js / our server), the best-practice version, not a line-by-line port. World of Claudecraft is MIT, so its code can also be ported directly with credit. Most others are GPL/AGPL: read freely, write the study in `docs/specs/origins/`, write our own implementation; never paste GPL code into the game. A TypeScript donor (2004Scape / LostCityRS for RuneScape) is the closest reference for how ours should look; C++/C# donors (EQEmu, AzerothCore, ModernUO) give the design. Leaked or decompiled sources (e.g. OpenXRay, DevilutionX) are out.
 **In the PR body:** "Donor: <game> (<file or study>), what we took" or "No donor fits: checked <games>". The Auditor asks for it on every medium/large PR.
 
 ## Before you start (two minutes, every task)
