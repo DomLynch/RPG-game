@@ -307,13 +307,23 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
+let uploaded = false, uploadMs = -1;
+// The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Draw the whole world ONCE during the walk,
+// frustum culling off, into a 4x4 target: textures and geometry buffers go to the GPU then, in one frame of the walk, and the engage finds them there. Same path in every browser.
+function warmUpload() {
+  if (uploaded || !WORLDFIGHT || !mobs) return; uploaded = true;
+  const flipped: THREE.Object3D[] = []; scene.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; flipped.push(o); } });
+  const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget(), t0 = performance.now();
+  try { renderer.setRenderTarget(target); renderer.render(scene, camera); } finally { renderer.setRenderTarget(before); target.dispose(); for (const o of flipped) o.frustumCulled = true; }
+  uploadMs = Math.round(performance.now() - t0);
+}
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
     mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
   }
-  step(dt); warmFight(time); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); warmFight(time); if (time > 6) warmUpload(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -542,6 +552,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, rollClip: !!rollAct, guardClip: !!guardAct }),
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
+  uploadMs: () => uploadMs,   // how long the one-time world upload frame took (-1 = not yet)
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
   mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },
