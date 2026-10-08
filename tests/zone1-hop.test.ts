@@ -4,10 +4,15 @@ import assert from 'node:assert/strict';
 import { ZONE1_IS_DEFAULT, ZONE1_URL, zone1AfterLesson, zone1Hop } from '../src/zone1-hop.ts';
 
 const base = { search: '', pathname: '/', hasFighter: true, lessonDone: true };
-test('the hop is OFF until World\'s no-query Zone 1 default is live (flip ZONE1_IS_DEFAULT and this pin together)', () => {
-  assert.equal(ZONE1_IS_DEFAULT, false);
-  assert.equal(zone1Hop(base), null);
-  assert.equal(zone1AfterLesson(), null);
+test('the hop is ON by default (Dom 2026-10-08: Zone 1 is the game); ZONE1_IS_DEFAULT is the one switch, flip it and this pin together', () => {
+  assert.equal(ZONE1_IS_DEFAULT, true);
+  assert.equal(zone1Hop(base), ZONE1_URL);
+  assert.equal(zone1AfterLesson(), ZONE1_URL);
+  assert.match(ZONE1_URL, /^\/preview\/origins\/\?region=1$/, 'the Frontier is on with this query today');
+});
+test('off: the switch back stays the old arena path', () => {
+  assert.equal(zone1Hop(base, false), null);
+  assert.equal(zone1AfterLesson(false), null);
 });
 test('on: a returning player on a plain / goes to Zone 1', () => {
   assert.equal(zone1Hop(base, true), ZONE1_URL);
