@@ -99,7 +99,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const act = (name: string) => { const c = THREE.AnimationClip.findByName(body.clips, name); return c ? v.mixer!.clipAction(c) : undefined; };
     v.idle = act('Idle'); v.walk = act('Walk'); v.idle?.play(); v.walk?.play(); v.walk?.setEffectiveWeight(0);
     for (const role of ['attack', 'hit', 'death'] as const) {   // the combat clips: played once on an event (play()), the death clip held on its last frame
-      const name = mobClipName(role, body.clips.map((c) => c.name)), a = name ? act(name) : undefined;
+      const name = mobClipName(role, body.clips), a = name ? act(name) : undefined;
       if (a) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; v.clips[role] = a; }
     }
     v.mixer.setTime(Math.random() * 3);   // not in step with its neighbours
