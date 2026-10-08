@@ -8,11 +8,14 @@ import type { MobRow, Source } from './row.ts';
 const GOBLIN: Source = { kind: 'chronicle', work: 'Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)', author: 'Orderic Vitalis', year: 1141, authorDied: 1142, locator: 'Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): "Hunc vulgus Gobelinum appellat"' };
 const BEOWULF: Source = { kind: 'literature', work: 'Beowulf (Hrothgar\'s mere and its nicors)', author: 'anonymous, Old English', year: 1000, locator: 'll. 1357-1379 (the mere), 1408-1428 (the nicors\' homes; nicors on the ledges, l. 1427)' };
 const GHOUL: Source = { kind: 'folklore', work: 'Les Mille et une nuits (the graveyard ghouls); read in Andrew Lang\'s 1898 Arabian Nights Entertainments, from Galland', author: 'Antoine Galland (translator)', year: 1704, authorDied: 1715, locator: 'Histoire de Sidi-Nouman ("The Story of Sidi-Nouman"): his wife Amina and the female ghoul of the cemetery' };
+const GRIMM_BEAR: Source = { kind: 'folklore', work: 'Kinder- und Hausmärchen, 7th ed. (Schneeweißchen und Rosenrot: the bear at the cottage door in the snow)', author: 'Jacob and Wilhelm Grimm', year: 1857, authorDied: 1863, locator: 'KHM 161, Schneeweißchen und Rosenrot (the bear knocks; the winter-door scene)' };
 // A zone that is not safe opens with a fight inside 10 s of its entry (zone-rules.ts). Where the data has no creature near the entry, this names the kind that
 // stands there as a lone opener, placed by the same rule the generator uses (openerSpot). Zone id -> row id.
 export const FRONTIER_OPENERS: Readonly<Record<string, string>> = { 'ferry-landing': 'character:mere-brood', 'cinder-fields': 'character:cinder-scavenger' };
 export const FRONTIER_ROWS: readonly MobRow[] = [
   { id: 'character:cinder-scavenger', source: GOBLIN, role: 'beast', loot: 'loottable:cinder-scavenger', level: [11, 12], behaviour: { roam: 8, spread: 16, pull: 0, campSize: [4, 4] } },
   { id: 'character:mere-brood', source: BEOWULF, role: 'beast', loot: 'loottable:mere-brood', level: [12, 13], behaviour: { roam: 6, spread: 9, pull: 0, campSize: [4, 4] } },
+  // The Cinder Bear (Dom 2026-10-08, via Strategy: a tougher animal for Zone 1). One bear on its own, level above the common kinds; 75 s is the middle of Dom's 60-90 s animal respawn.
+  { id: 'character:cinder-bear', source: GRIMM_BEAR, role: 'brute', loot: 'loottable:cinder-bear', level: [13, 14], respawnSeconds: 75, behaviour: { aggro: 8, roam: 6, spread: 6, pull: 0, campSize: [1, 1] } },
   { id: 'character:ruin-ghoul', source: GHOUL, role: 'brute', loot: 'loottable:ruin-ghoul', level: [11, 12], behaviour: { roam: 6, spread: 7, pull: 9, campSize: [3, 3] } },
 ];
