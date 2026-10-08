@@ -344,3 +344,44 @@ test('level scaling: a creature of level L has more health and hits harder, line
   assert.ok(minKillSeconds('wolf', 30) > minKillSeconds('wolf', 1), 'a higher level cannot be killed as fast');
   assert.equal(levelHealth(99), levelHealth(MAX_LEVEL));
 });
+
+// ---- S4: player vs player (Dom: no toggle; the server sets pvp per area; low-level shield; level band) ----
+const duo = (opts: { aPvp?: boolean; bPvp?: boolean; aLevel?: number; bLevel?: number; bFacesBack?: boolean } = {}) => {
+  const a = player('a', 0, 0, 0, undefined, opts.aLevel ?? 10), b = player('b', 0, 1.2, Math.PI, undefined, opts.bLevel ?? 10);
+  a.pvp = opts.aPvp ?? true; b.pvp = opts.bPvp ?? true;
+  return newWorld([a, b]);
+};
+const swing = (w: World, who = 'a', secs = 1.2) => { const events: Event[] = []; for (let t = 0; t < secs * 60; t++) { const r = stepCombat(w, { [who]: t === 0 ? { x: 0, z: 0, attack: 'light' } : STILL, [who === 'a' ? 'b' : 'a']: STILL }, DT, NEVER); w = r.world; events.push(...r.events); } return { world: w, events }; };
+
+test('pvp: in the wild a player\'s cut lands on another player (same hit, damage, Died as against a creature); one first-strike event names the aggressor', () => {
+  const { world, events } = swing(duo());
+  assert.equal(get(world, 'b').health, RULES.health - MOVES.light_right.damage);
+  assert.deepEqual(events.filter((e) => e.type === 'Aggressed'), [{ type: 'Aggressed', attacker: 'a', victim: 'b', first: true }]);
+  let w = duo(); get(w, 'b').health = 1; const died = swing(w).events.find((e) => e.type === 'Died');
+  assert.deepEqual(died, { type: 'Died', id: 'b', by: 'a' });
+});
+
+test('pvp: a safe-town volume (pvp false on either side) means no attack lands, no Aggressed', () => {
+  for (const o of [{ aPvp: false }, { bPvp: false }]) { const { world, events } = swing(duo(o)); assert.equal(get(world, 'b').health, RULES.health); assert.ok(!events.some((e) => e.type === 'Aggressed' || e.type === 'Hit')); }
+});
+
+test('pvp: under level 3 a player is shielded until his own first attack; the band is one-way (cannot hit someone more than 10 levels below)', () => {
+  assert.equal(get(swing(duo({ bLevel: 2 })).world, 'b').health, RULES.health, 'a level-2 target is shielded');
+  const fresh = swing(duo({ aLevel: 2, bLevel: 2 }));   // both shielded: nobody can hurt anybody
+  assert.equal(get(fresh.world, 'b').health, RULES.health);
+  assert.equal(get(swing(duo({ aLevel: 30, bLevel: 19 })).world, 'b').health, RULES.health, '11 levels below: refused');
+  assert.ok(get(swing(duo({ aLevel: 30, bLevel: 20 })).world, 'b').health < RULES.health, '10 levels below: allowed');
+  assert.ok(get(swing(duo({ aLevel: 5, bLevel: 30 })).world, 'b').health < RULES.health, 'the low can always hit up');
+  // the shield drops when the shielded player attacks (and he can then be hit back)
+  let w = duo({ aLevel: 10, bLevel: 2 }); const swungBack = swing(w, 'b');
+  assert.equal(get(swungBack.world, 'b').shielded, false);
+  assert.ok(swungBack.events.some((e) => e.type === 'Aggressed' && e.attacker === 'b' && e.first));
+});
+
+test('pvp: hitting back is not "first" (inside the window); a creature\'s blows and a player\'s on a creature ignore all of it', () => {
+  let w = duo(); w = swing(w).world;
+  const back = swing(w, 'b'), e = back.events.find((x) => x.type === 'Aggressed');
+  assert.deepEqual(e, { type: 'Aggressed', attacker: 'b', victim: 'a', first: false });
+  const cw = newWorld([player('p', 0, 0, 0, undefined, 1), creature('c', 'wolf', 0, 1.2)]);   // pvp false, level 1, shielded: creatures still fight him
+  assert.ok(run(cw, 3).events.some((x) => x.type === 'Hit' && x.victim === 'p'), 'a shielded player is not shielded from creatures');
+});

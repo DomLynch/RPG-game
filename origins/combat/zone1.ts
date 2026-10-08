@@ -37,6 +37,11 @@ export const levelHealth = (level: number): number => 1 + LEVEL_HEALTH * (clampL
 export const levelDamage = (level: number): number => 1 + LEVEL_DAMAGE * (clampLevel(level) - 1);
 function clampLevel(level: number): number { return Math.min(MAX_LEVEL, Math.max(1, Math.round(level))); }
 
+/** PvP (S4, Dom via Strategy): no toggle. The SERVER sets `Fighter.pvp` each step to "attackable here, now" (wild zone = true, safe-town volume = false); the rules below decide between two such players.
+ *  Under PROTECT_LEVEL a player is shielded until his own first attack; nobody may hit a player more than MAX_LEVEL_GAP levels below them. A player's blows always land on creatures, whatever the flags. */
+export const PROTECT_LEVEL = 3, MAX_LEVEL_GAP = 10;
+export const AGGRO_WINDOW_S = 60;                       // a player who hit you in the last minute is not "first" when you hit back
+
 export type Phase = 'ready' | 'guard' | 'roll' | 'windup' | 'active' | 'recover' | 'stagger' | 'dead';
 export type Fighter = {
   id: string; side: 'player' | 'creature'; kind: string;   // kind: 'player' or a ROSTER id ('wolf', 'boar', 'bear', ...)
@@ -55,10 +60,11 @@ export type Fighter = {
   hunting: boolean; chaseX: number; chaseZ: number;     // creature only: it is on a chase that STARTED at (chaseX, chaseZ); the leash is measured from there
   unseen: number;                                       // creature only: seconds the prey has been out of sight
   attack: number; res: number;                          // damage multipliers (src/gear-stats.ts Loadout): `attack` scales what it deals, `res` what it takes, chip included; a creature's `attack` is its level's damage
+  pvp: boolean; level: number; shielded: boolean;       // player only: attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
   plan: string | null;                                  // creature only: the variety blow rolled for its next attack ('basic' = none), null until rolled
   returning: boolean;                                   // creature only: it gave up and is walking home (it heals to full on arrival, no event)
 };
-export type World = { time: number; fighters: Fighter[] };
+export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>> };   // aggro[attacker][victim] = when the attacker's last blow met that player
 export type Input = { x: number; z: number; run?: boolean; attack?: 'light' | 'heavy' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a light cut / a roll pressed this step, a held guard
 export type Event =
   | { type: 'Telegraph'; id: string; move: string; ms: number }   // a windup began: the tell World animates and sounds
@@ -67,6 +73,7 @@ export type Event =
   | { type: 'Blocked'; attacker: string; victim: string; perfect: boolean; damage: number }   // `damage` is the chip that passed through (0 for a cut)
   | { type: 'Dodged'; attacker: string; victim: string }          // the blow met a roll's invulnerable ticks
   | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' }
+  | { type: 'Aggressed'; attacker: string; victim: string; first: boolean }   // a player's blow met another player (hit, block or dodge): `first` = the victim had not hit him in the last AGGRO_WINDOW_S. The server's murder rule reads Aggressed(first) then Died(by)
   | { type: 'Died'; id: string; by: string }
   | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
@@ -74,22 +81,24 @@ const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENT
 
 function fighter(id: string, side: Fighter['side'], kind: string, x: number, z: number, facing: number, radius: number, health: number, poise: number, weapon: WeaponId): Fighter {
   return { id, side, kind, x, z, facing, radius, health, maxHealth: health, stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, poise, weapon, move: null, phase: 'ready', t: 0, struck: [], regenIn: 0, pause: 0, hurtFor: 0,
-    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, plan: null, returning: false };
+    posture: 0, postureIdle: 0, exhausted: false, rollX: 0, rollZ: 0, homeX: x, homeZ: z, hunting: false, chaseX: x, chaseZ: z, unseen: 0, attack: 1, res: 1, pvp: false, level: 1, shielded: false, plan: null, returning: false };
 }
 /** The player, with his gear's Loadout (NAKED = the identity: no gear changes nothing). */
-export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res });
+export const player = (id: string, x: number, z: number, facing = 0, gear: Loadout = NAKED, level = 1): Fighter => ({ ...fighter(id, 'player', 'player', x, z, facing, PLAYER_RADIUS, RULES.health, 0, 'longsword'), attack: gear.attack, res: gear.res, level, shielded: level < PROTECT_LEVEL });
 /** A creature of `kind` (a moves.ts ROSTER id): its health, poise, body scale and weapon are the roster's own rows. */
 export function creature(id: string, kind: string, x: number, z: number, facing = 0, level = 1): Fighter {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
   return { ...fighter(id, 'creature', kind, x, z, facing, PLAYER_RADIUS * o.scale, Math.round(o.health * levelHealth(level)), o.poise, o.weapon), attack: levelDamage(level) };
 }
-export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters });
+export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
 const aim = (from: Fighter, to: Fighter): number => Math.atan2(to.x - from.x, to.z - from.z);
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 const alive = (f: Fighter): boolean => f.phase !== 'dead';
+/** Can `a`'s blow hurt `v`? Creatures and players always can (and are hurt by each other); two players only where both are attackable here, the victim is unshielded and not more than MAX_LEVEL_GAP below the attacker. */
+const hostile = (a: Fighter, v: Fighter): boolean => a.side !== v.side || (a.pvp && v.pvp && !v.shielded && a.level - v.level <= MAX_LEVEL_GAP);
 /** The blow a fighter throws: the player's light cut, or the creature's own weapon row (its light cut) with the open world's telegraph and its kind's weight. */
 const PLAYER_BLOWS = { light: 'light_right', heavy: 'heavy_overhead', kick: 'kick' } as const;   // the longsword's rows (moves.ts MOVES): the heavy chips through a guard, the kick ignores it
 const blowOf = (f: Fighter, press: 'light' | 'heavy' | 'kick' = 'light'): MoveDef => {
@@ -166,7 +175,8 @@ function separate(f: Fighter, all: Fighter[]): void {
 /** The next world (`rand` decides each creature's variety blow, about 1 attack in 4; the live game passes nothing and gets Math.random, tests inject): movement, blows, stamina, guard, roll, posture, creature behaviour. Never mutates its input. */
 export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number, rand: () => number = Math.random): { world: World; events: Event[] } {
   const events: Event[] = [];
-  const fighters = world.fighters.map((f) => ({ ...f, struck: f.struck.slice() }));
+  const fighters = world.fighters.map((f) => ({ ...f, struck: f.struck.slice() })), aggro: World['aggro'] = {};
+  for (const [a, m] of Object.entries(world.aggro)) aggro[a] = { ...m };
   for (const f of fighters) {
     if (!alive(f)) continue;
     f.t += dt;
@@ -231,12 +241,20 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
         if (prey) { const gap = Math.max(0, dist(f, prey) - (m.reach * 0.85 + prey.radius)), step = Math.min(v!.dash, gap), h = aim(f, prey); f.x += Math.sin(h) * step; f.z += Math.cos(h) * step; f.facing = h; }   // the lunge / charge covers its ground as the blow goes active
       }
       if (f.phase === 'active') {
-        for (const v of fighters) if (v !== f && v.side !== f.side && alive(v) && !f.struck.includes(v.id) && inReach(f, v, m)) { f.struck.push(v.id); land(f, v, m, events); }
+        for (const v of fighters) if (v !== f && hostile(f, v) && alive(v) && !f.struck.includes(v.id) && inReach(f, v, m)) {
+          f.struck.push(v.id);
+          if (f.side === 'player' && v.side === 'player') {   // player against player: log who struck first, drop the attacker's low-level shield
+            const back = aggro[v.id]?.[f.id];
+            events.push({ type: 'Aggressed', attacker: f.id, victim: v.id, first: back === undefined || world.time - back > AGGRO_WINDOW_S });
+            (aggro[f.id] ??= {})[v.id] = world.time; f.shielded = false;
+          }
+          land(f, v, m, events);
+        }
         if (f.t >= secs(m.active) && f.phase === 'active') { f.phase = 'recover'; f.t -= secs(m.active); }
       } else if (f.phase === 'recover' && f.t >= secs(m.recovery)) { f.phase = 'ready'; f.t = 0; f.move = null; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
     } else if (f.phase === 'stagger' && f.t >= f.hurtFor) { f.phase = 'ready'; f.t = 0; if (f.side === 'creature') { f.pause = RECOVER_PAUSE_S; f.plan = null; } }
   }
-  return { world: { time: world.time + dt, fighters }, events };
+  return { world: { time: world.time + dt, fighters, aggro }, events };
 }
 
 /**
