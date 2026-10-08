@@ -120,3 +120,21 @@ test('the record build string: spans listed, kit tag last and still readable; ov
   assert.ok(coachBuild('abc1234', 'neutral', [...edge, { from: n * 10, to: n * 10 + 5 }], 'k9z').includes('@*'), 'one span more tips it to @*');
   assert.equal(coachOfBuild('abc1234 kit:k9z'), null, 'a played record has no coach token');
 });
+
+test('the spans reach the record without touching record.ts: the page sets rec.meta.build just before finish(), and it survives encode/decode with the kit tag last', async () => {
+  const seed = 11, opp = OPPONENTS.veteran;
+  setPlayScale(playScaleFor(opp.id, RECORD_VERSION)); setLateNotice(true); setStab(true);
+  const rec = createRecorder({ build: 'abc1234', opponent: opp.id, weapon: 'longsword', level: 6, seed });
+  const driver = createCoachDriver('neutral', seed);
+  let p = initialPractice(seed, opponentAt(opp, 6), 'longsword', null);
+  for (let t = 0; t < 300 && !p.finish; t++) {
+    if (t === 40) driver.start(t); if (t === 160) driver.stop(t);
+    p = stepPractice(p, rec.push(driver.pick(p.duel, idleIntent())), profileAt(opp, 6));
+  }
+  driver.stop(p.duel.tick);
+  rec.meta.build = coachBuild('abc1234', 'neutral', driver.spans, 'k9z');
+  const record = rec.finish(p.finish ? 'killed' : 'abandoned');
+  const back = await decodeRecord(await encodeRecord(record));
+  assert.equal(back.build, 'abc1234 coach:neutral@40-160 kit:k9z');
+  assert.equal(kitOfBuild(back.build), 'k9z'); assert.deepEqual(coachOfBuild(back.build)!.spans, [{ from: 40, to: 160 }]);
+});
