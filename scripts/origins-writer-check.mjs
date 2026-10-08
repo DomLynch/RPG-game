@@ -272,10 +272,10 @@ try {
   eq([gated.status, gated.json.code], [422, 'level'], 'shop: the level gate');
   eq([(await call('shop_buy', 'ta', buy({ op: 'shop:x-0001', item: 'item:nothing' }))).status, (await call('shop_buy', 'ta', buy({ op: 'shop:x-0002', shop: 'service:nope' }))).status], [400, 400], 'shop: an item off the list, an unknown shop');
   const race = await Promise.all([call('shop_buy', 'ta', buy({ op: 'shop:race-0001', quantity: 1 })), call('shop_buy', 'ta', buy({ op: 'shop:race-0002', quantity: 1 }))]);
-  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,409', '18:v3', '2', '0'], 'shop: two buys on one balance version: one commits, the other is stale');
-  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-15,"reason":"spend","event_id":"test:shop-drain","expected_version":3}]$j$::jsonb);`);   // down to 3, through the ledger
+  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,200', '14:v4', '3', '0'], 'shop: two buys at once on one account: the serial write queue (#1833) runs them in turn, both commit, bronze moves twice');
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-11,"reason":"spend","event_id":"test:shop-drain","expected_version":4}]$j$::jsonb);`);   // down to 3, through the ledger
   const poor = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0004', quantity: 1 }));
-  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
+  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '3'], 'shop: 3 bronze cannot pay 4');
   eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
