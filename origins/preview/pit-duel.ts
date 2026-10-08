@@ -21,7 +21,7 @@ import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene, type WorldMount } from '../../src/scene.ts';
-import { Matrix4 } from 'three';
+import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/sim.ts';
@@ -31,7 +31,7 @@ import { recordWorldFight, worldRecord } from './world-record.ts';
 import type { FightRecord } from '../../src/record.ts';
 import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
 import liveStyle from '../../src/style.css?inline';
-import type { Object3D, Quaternion, Vector3 } from 'three';
+import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 
@@ -213,7 +213,8 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
-  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) stage!.view.easeCamera(from, CAMERA_EASE_S); }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) { const m = mount.holder.matrix; stage!.view.easeCamera({ position: from.position.clone().applyMatrix4(m), quaternion: new Quaternion().setFromRotationMatrix(m).multiply(from.quaternion) }, CAMERA_EASE_S); } stage!.view.setWorldCamera(mount.walkCam ?? null); }   // the walk camera is in WORLD metres, the duel camera in the duel's own: carried through the holder first, or the ease swings through the arena
+  if (!mount) stage!.view.setWorldCamera(null);
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
@@ -267,7 +268,9 @@ function frame(now: number) {
       previous = state;
       const outcome = match.step(() => {
         const i = controls!.intent();
-        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action: i.action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
+        // A world fight starts drawn: the engage press IS the fight, so the sheathed 'Fight' gate never shows. The draw is the fight's own first input (recorded like any other), taken on the first tick.
+        const action = mounted && match!.practice.duel.fighters[0].phase === 'sheathed' ? 'light' : i.action;
+        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
       });
       const p = match.practice;
       if (!steppedOnce) { steppedOnce = true; hooks?.stepped?.(); }

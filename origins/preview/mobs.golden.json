@@ -255,6 +255,23 @@
   "named": false
  },
  {
+  "id": "boars-1",
+  "character": "character:ash-boar",
+  "name": "Ash boar",
+  "encounter": null,
+  "body": "boar",
+  "level": 13,
+  "zone": "cinder-fields",
+  "spawn": "boars",
+  "home": {
+   "x": -84.19306075722383,
+   "z": 84.99576880013346
+  },
+  "roam": 5,
+  "aggro": 6,
+  "named": false
+ },
+ {
   "id": "opener-ferry-landing-1",
   "character": "character:mere-brood",
   "name": "Mere brood",
@@ -264,8 +281,8 @@
   "zone": "ferry-landing",
   "spawn": "opener",
   "home": {
-   "x": -156.35860600498634,
-   "z": -59.52660108684306
+   "x": -156.22086009083844,
+   "z": -32.29119159367335
   },
   "roam": 6,
   "aggro": 7,
@@ -281,8 +298,8 @@
   "zone": "cinder-fields",
   "spawn": "opener",
   "home": {
-   "x": -66.22086009083846,
-   "z": 47.70880840632668
+   "x": -50.70507073774435,
+   "z": 7.195910352862118
   },
   "roam": 8,
   "aggro": 7,

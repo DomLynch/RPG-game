@@ -14,6 +14,14 @@ function parse(raw) {
   const bin = raw.subarray(28 + size);
   return { doc, bin, view: i => { const v = doc.bufferViews[i], start = v.byteOffset ?? 0; return bin.subarray(start, start + v.byteLength); } };
 }
+// deepEqual on a big doc object builds a diff of both values on a mismatch (tens of GB for a GLB's meshes/animations): compare canonical JSON and report only where it first differs.
+const canon = v => JSON.stringify(v, (_, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(k => [k, x[k]])) : x);
+function sameDoc(a, b, label) {
+  const x = canon(a), y = canon(b);
+  if (x === y) return;
+  let i = 0; while (i < x.length && x[i] === y[i]) i++;
+  assert.fail(`${label} differs at char ${i} (lengths ${x.length} vs ${y.length}): ${x.slice(i, i + 60)} | ${y.slice(i, i + 60)}`);
+}
 const shipped = process.argv.includes('--file') ? args[args.indexOf('--file') + 1] : 'src/assets/veteran.glb';
 const bytes = await fs.readFile(shipped), current = parse(bytes), manifest = JSON.parse(await fs.readFile(`${root}/manifest_veteran.json`));
 const changes = new Set();
@@ -42,7 +50,7 @@ for (const name of ['Bronze', 'Leather', 'Gambeson', 'Photo', 'Face']) {
 const receipt = { sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length, gzip: gzipSync(bytes).length, materialSourceParity: true, skippedParts };
 if (before) {
   const old = parse(await fs.readFile(before));
-  for (const key of ['nodes', 'skins', 'meshes', 'animations', 'textures', 'images', 'samplers']) assert.deepEqual(current.doc[key], old.doc[key], key);
+  for (const key of ['nodes', 'skins', 'meshes', 'animations', 'textures', 'images', 'samplers']) sameDoc(current.doc[key], old.doc[key], key);
   const neckAccessors = new Set();
   function rows(asset,id) {
     const a=asset.doc.accessors[id],v=asset.doc.bufferViews[a.bufferView],width={VEC3:3,VEC4:4}[a.type];
@@ -67,10 +75,10 @@ if (before) {
   for(let i=0;i<old.doc.accessors.length;i++) {
     const a=structuredClone(current.doc.accessors[i]),b=structuredClone(old.doc.accessors[i]);
     if(neckAccessors.has(i)) { changes.add(a.bufferView);delete a.min;delete a.max;delete b.min;delete b.max; }
-    assert.deepEqual(a,b,`accessor ${i}`);
+    sameDoc(a,b,`accessor ${i}`);
   }
   for (let i = 0; i < old.doc.bufferViews.length; i++) if (!changes.has(i)) assert.ok(current.view(i).equals(old.view(i)), `unchanged payload ${i}`);
-  for (let i = 0; i < old.doc.materials.length; i++) if (old.doc.materials[i].name!=='TridentBronze') assert.deepEqual(current.doc.materials[i], old.doc.materials[i]);
+  for (let i = 0; i < old.doc.materials.length; i++) if (old.doc.materials[i].name!=='TridentBronze') sameDoc(current.doc.materials[i], old.doc.materials[i], `material ${i}`);
   receipt.rigAnimationUvIndicesAndUnrelatedSurfacesExact = true;
 
 }
