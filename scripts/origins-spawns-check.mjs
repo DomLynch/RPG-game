@@ -139,7 +139,7 @@ try {
 
   // ---- 0015 the beta wipe: exactly the ledger's rewards, everything else byte-identical ---------------------------------------------------------------
   const keep = `{"op":"mint","item":{"id":"it-keep-1","item":"item:ash-pelt","quantity":2,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":1},"bound_to":null,"mint_key":"loot:keep0001:0","provenance":{"mintKey":"loot:keep0001:0"},"history":[],"single_copy":false}}`;
-  psql(`set role frankendom_origins; select public.origins_apply('[${keep}]'::jsonb, array['${A}'::uuid]);`);   // a NON-beta item of the same account: must survive
+  psql(`select public.origins_apply('[${keep}]'::jsonb, array['${A}'::uuid]);`);   // a NON-beta item of the same account: must survive
   psql(`set role frankendom_origins; select public.origins_snapshot('${B}', 0, 7000);`);
   const others = () => psql(`select md5(coalesce(string_agg(row_to_json(i)::text, '|' order by i.id), '')) from public.origins_items i where i.id <> 'it-beta-1'`) + '/' +
     psql(`select md5(row_to_json(c)::text) from public.origins_career c where account = '${B}'`) + '/' + psql(`select count(*) from public.origins_events`);
