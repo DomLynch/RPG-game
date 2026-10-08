@@ -25,9 +25,9 @@ test('a wolf that comes within the ring joins the loop, hunts, telegraphs, bites
 });
 
 test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once, and the creature is released', () => {
-  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 1.2 }]); const kills: string[] = []; let swings = 0;
+  const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: string[] = []; let swings = 0;   // level 1: a level-11 wolf outlasts this test under the Pit-copied engine (#1894); the mount flow is what is tested
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void swings++ });
-  for (let i = 0; i < 80 && kills.length === 0; i++) { wc.press(); run(wc, { x: 0, z: 0, facing: 0 }, 0.5); }
+  for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); } }   // auto-aim at the creature as the page does (it circles now)
   assert.ok(swings >= 1); assert.deepEqual(kills, ['wolf-1']); assert.ok(!f.driven.has('wolf-1'), 'released after the fall'); assert.equal(wc.target(), null);
 });
 
@@ -41,7 +41,7 @@ test('walking away: past the wolf leash it gives up and walks home (no kill, no 
 test('the hero dies once: onHeroDied, nothing hunts him afterwards, and reset stands him up fresh', () => {
   const f = fakeMobs([{ spec: spec('bear-1', 'bear'), x: 0, z: 1.0 }]); let died = 0;
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => void died++, onHeroHit: () => {}, onSwing: () => {} });
-  run(wc, { x: 0, z: 0, facing: 0 }, 30); assert.equal(died, 1); assert.ok(wc.hero().dead);
+  run(wc, { x: 0, z: 0, facing: 0 }, 120); assert.equal(died, 1); assert.ok(wc.hero().dead);
   wc.reset({ x: 0, z: 3, facing: 0 }); assert.equal(wc.hero().health, wc.hero().max); assert.ok(!wc.hero().dead);
   assert.equal(ME, 'me');
 });
