@@ -1,10 +1,10 @@
 // The preview's online path (encounter-online.ts): who may go online, that it plays the server's seed, the touch timer, the settle outcomes (a 409 is "already settled", never an error),
-// and a round trip against the real writer handlers. The offline path is not touched: with no ?online=1, no session or no character nothing is requested at all.
+// and a round trip against the real writer handlers. The offline path is not touched: with ?online=0, no session or no character nothing is requested at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { STEP } from '../../src/sim.ts';
-import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
+import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, START_TIMEOUT_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
@@ -22,8 +22,8 @@ function server(answer: (op: string, n: number) => Response | Promise<Response>)
 }
 const ok = (op: string): Response => reply(200, { ok: true, result: op === 'encounter_settle' ? { result: 'won', verified: true, twist: null, ticks: record.ticks, event: 'enc:x' } : run });
 
-test('?online=1 is the only switch', () => {
-  for (const [search, want] of [['?online=1', true], ['?region=1&online=1', true], ['?online=1&region=1', true], ['', false], ['?online=0', false], ['?online=10', false], ['?region=1', false]] as const) assert.equal(onlineWanted(search), want, search);
+test('online is on by default; ?online=0 is the only off switch (and it needs the exact 0)', () => {
+  for (const [search, want] of [['', true], ['?region=1', true], ['?online=1', true], ['?region=1&online=1', true], ['?online=10', true], ['?online=0', false], ['?region=1&online=0', false], ['?online=0&region=1', false]] as const) assert.equal(onlineWanted(search), want, search);
 });
 
 test('signed out or no character: null, and not one request is made (the offline path is untouched)', async () => {
@@ -36,6 +36,15 @@ test('signed out or no character: null, and not one request is made (the offline
 test('the flag off (503), no session (401), a second open fight (409, with no remembered token) and a network failure all play offline', async () => {
   for (const status of [503, 401, 409, 403]) assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: server(() => reply(status, { ok: false })).f }), null, String(status));
   assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: (async () => { throw new TypeError('down'); }) as unknown as typeof fetch }), null);
+});
+
+test('a writer that never answers the start does not stall the engage: offline after the short start budget, not the 4 s op timeout', async () => {
+  const hang = (async (_u: unknown, init?: { signal?: AbortSignal }) => new Promise((_, no) => init?.signal?.addEventListener('abort', () => no(new Error('aborted'))))) as unknown as typeof fetch;
+  assert.ok(START_TIMEOUT_MS <= 1_500, 'the engage budget');
+  const t0 = Date.now(); assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: hang }), null);
+  const took = Date.now() - t0; assert.ok(took >= START_TIMEOUT_MS - 50 && took < 2_500, `offline after ${took} ms`);
+  const t1 = Date.now(); assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: hang, startTimeoutMs: 100 }), null);
+  assert.ok(Date.now() - t1 < 1_000, 'the budget is the caller\'s to shorten');
 });
 
 test('a foe the server resolved differently from the page is not played online, and says so (the server\'s token stays open until its grace runs out)', async () => {
