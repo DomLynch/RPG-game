@@ -27,7 +27,9 @@ try {
   await page.waitForTimeout(8000);
   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
   await shot('idle');
-  const target = await page.evaluate(() => window.originsPreview.mobs().mobs.find((m) => m.drawn && m.body));
+  const want = process.env.TAGS_TARGET || '';   // a creature id; default the first drawn one in id order, so before and after engage the same foe
+  const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body).sort((a, b) => (a.id < b.id ? -1 : 1)).find((m) => !id || m.id === id), want);
+  console.log('target:', target.id);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
   await page.waitForTimeout(20000);
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
