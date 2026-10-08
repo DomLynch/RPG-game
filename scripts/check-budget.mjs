@@ -96,9 +96,9 @@ const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${
 const SHIELDS = { shieldmaiden: 2_700_000, centurion: 2_700_000 }, SHIELD_FILE = 900_000;
 // World bodies (public/world/<kind>.glb; Lead 2026-10-07, Dom's phone test: the Origins preview went black on an iPhone 15 with full duel GLBs): one
 // cheap skinned body per kind (8k tris, one 1024 atlas, the duel rig and clip names; scripts/character/world_body.py), loaded by the world view only,
-// never by a fight, so out of the per-fight figure and out of TOTAL. Own storage line and file cap, gzip bytes, sized to the files + 13% (set cap raised from 5.5 MB when the warrior joined):
-// goblin 863,354 + wolf 881,772 + pitborn 838,561 + witch 1,134,193 + knight 1,150,856 + warrior 896,525 = 5,765,261 B gzip; the biggest file 1,150,856 B.
-const WORLD_SET = 6_500_000, WORLD_FILE = 1_300_000;
+// never by a fight, so out of the per-fight figure and out of TOTAL. Own storage line and file cap, gzip bytes, sized to the files + 13% (set cap raised from 5.5 MB when the warrior joined, to 6.5 then 7.55 MB when the boar joined):
+// goblin 863,354 + wolf 881,772 + pitborn 838,561 + witch 1,134,193 + knight 1,150,856 + warrior 896,525 + boar 908,991 = 6,690,374 B gzip (gzip -c of each file); the biggest file 1,150,856 B.
+const WORLD_SET = 7_550_000, WORLD_FILE = 1_300_000;
 // Hero preview rigs (public/herolook/, Strategy via Lead 2026-09-29): their own storage line out of TOTAL, which bounds what a player's fights
 // download; only Dom's `?hero=` link fetches them. 4.65 MB = measured 4,053,116 B gzip (legionary.glb, dist 48788d3c) + ≤ 15 %.
 const PREVIEW = 4_650_000;
