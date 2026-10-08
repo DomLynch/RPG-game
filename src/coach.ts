@@ -20,12 +20,20 @@ export const COACH_BRAINS: Readonly<Record<PickedStance, Partial<AiProfile>>> = 
 };
 // What a brain must leave alone: the noticing and timing limits it shares with the warden.
 export const COACH_FIXED: readonly (keyof AiProfile)[] = ['reaction', 'tellReaction', 'anticipate', 'accuracy', 'discipline'];
-export const coachProfile = (stance: PickedStance, level: Level = 'normal'): AiProfile => ({ ...PROFILES[level], ...COACH_BRAINS[stance] });
+// Per-foe strength (Combat, 2026-10-08, scripts/coach-battery.mjs n=100 at L6): one lapse for every foe left the coach winning 92-99 % against the easy ones and 29-47 % against the Plague Doctor. Strategy's target is 70-80 % in a good
+// matchup, 35-45 % in a bad one, so the lapse (the share of cuts the coach does not answer) moves by foe, added to the stance's own. A foe not listed adds nothing. Only lapse moves: reaction, tell reaction, anticipate, accuracy and
+// discipline stay the warden's own (COACH_FIXED), so the coach is never faster than the foe's eye.
+export const FOE_LAPSE: Readonly<Record<string, number>> = { goblin: 0.15, nightborn: 0.08, executioner: 0.2, dwarf: 0.25, knight: 0.18, shieldmaiden: 0.08, plaguedoctor: -0.1 };
+const LAPSE_MIN = 0.1, LAPSE_MAX = 0.85;
+export const coachProfile = (stance: PickedStance, level: Level = 'normal', foe?: string): AiProfile => {
+  const p = { ...PROFILES[level], ...COACH_BRAINS[stance] }, add = foe ? FOE_LAPSE[foe] : undefined;
+  return add ? { ...p, lapse: Math.min(LAPSE_MAX, Math.max(LAPSE_MIN, p.lapse + add)) } : p;
+};
 
 export type Coach = { stance: PickedStance; level: Level; step(duel: Duel): Intent };
 // The coach is the player's side (fighters[0]): a fresh brain state per fight from the fight's seed, so a coached fight is a pure function of (seed, stance, level) and the record's intents.
-export function createCoach(stance: PickedStance, seed: number, level: Level = 'normal', side: 0 | 1 = 0): Coach {
-  const profile = coachProfile(stance, level);
+export function createCoach(stance: PickedStance, seed: number, level: Level = 'normal', side: 0 | 1 = 0, foe?: string): Coach {
+  const profile = coachProfile(stance, level, foe);
   let ai: AiState = initialAi((seed * 2654435761) >>> 0);
   return {
     stance, level,
@@ -49,8 +57,8 @@ export type CoachDriver = {
   stop(tick: number): void;
   pick(duel: Duel, player: Intent): Intent;
 };
-export function createCoachDriver(stance: PickedStance, seed: number, level: Level = 'normal', side: 0 | 1 = 0): CoachDriver {
-  const coach = createCoach(stance, seed, level, side), spans: CoachSpan[] = [];
+export function createCoachDriver(stance: PickedStance, seed: number, level: Level = 'normal', side: 0 | 1 = 0, foe?: string): CoachDriver {
+  const coach = createCoach(stance, seed, level, side, foe), spans: CoachSpan[] = [];
   const isOn = (): boolean => spans.length > 0 && spans[spans.length - 1]!.to === null;
   return {
     get on() { return isOn(); }, stance, spans,

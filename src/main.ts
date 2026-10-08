@@ -1011,7 +1011,7 @@ function showStances() {
 }
 function began() {
   nameOpponent();
-  coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();
+  coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching, match.opponent.id); paintCoach();
   showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
@@ -1608,7 +1608,7 @@ try {
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   showStances();   // ?stances=: the panel is on the page from load, before any fight starts
-coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();   // the first fight of a page load never runs began(): arm the Coach (and paint the chip) here too
+coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching, match.opponent.id); paintCoach();   // the first fight of a page load never runs began(): arm the Coach (and paint the chip) here too
   if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
