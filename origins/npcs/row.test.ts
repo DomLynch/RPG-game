@@ -4,7 +4,7 @@ import { BUNDLE } from '../region1/content.ts';
 import { REGION1_NPCS } from '../region1/npcs.ts';
 import { REGION1_SHOPS } from '../region1/shops.ts';
 import { CONCORD, CONCORD_REGION } from '../world/concord.ts';
-import { atWork, validateNpcRows, type NpcContext, type NpcRow } from './row.ts';
+import { atWork, shopCounters, validateNpcRows, type NpcContext, type NpcRow } from './row.ts';
 
 const characters = new Set(BUNDLE.filter((r) => r.kind === 'character-definition').map((r) => r.id as string));
 const zones = CONCORD.regions[CONCORD_REGION]!.zones as Record<string, { layout?: Record<string, unknown> }>;
@@ -17,7 +17,7 @@ const ctx: NpcContext = {
 test('Region 1 rows are valid; the counters World has not placed yet are listed, not refused', () => {
   const { issues, unplaced } = validateNpcRows(REGION1_NPCS, ctx);
   assert.deepEqual(issues, []);
-  assert.deepEqual(unplaced, ['exchange/provisioner-stall', 'exchange/inn', 'exchange-quarter/quarter-forge', 'exchange-quarter/quarter-healer', 'exchange-quarter/quarter-fence'],
+  assert.deepEqual(unplaced, ['exchange/inn', 'exchange-quarter/quarter-forge', 'exchange-quarter/quarter-healer', 'exchange-quarter/quarter-fence'],
     'World places these counters; the bank and the contract board already exist');
   assert.ok(REGION1_NPCS.some((r) => r.roles.includes('banker') && r.hours === 'always'), 'Dom: the bank never closes');
   assert.ok(REGION1_NPCS.some((r) => r.roles.includes('vendor') && r.shop === 'service:exchange-provisioner'), 'the Exchange shop has its vendor');
@@ -42,4 +42,13 @@ test('atWork: open hours, wrap past midnight, always', () => {
   assert.deepEqual([5.99, 6, 21.99, 22, 4].map((h) => atWork(day, h)), [false, true, true, false, false]);
   assert.deepEqual([19.99, 20, 23.5, 0, 3.99, 4].map((h) => atWork(night, h)), [false, true, true, true, true, false]);
   assert.equal(atWork({ ...day, hours: 'always' }, 4), true, 'Dom: a 4 am player is never blocked at the bank');
+});
+
+test('every Region 1 shop has its counter at a landmark that exists (shop_buy refuses a buyer away from it, so an unplaced counter would close the shop)', () => {
+  const counters = shopCounters(REGION1_NPCS);
+  for (const shop of REGION1_SHOPS.keys()) {
+    const c = counters.get(shop);
+    assert.ok(c, `${shop} has a vendor row`);
+    assert.ok(ctx.landmark(c.zone, c.at), `${shop}'s counter ${c.zone}/${c.at} is placed`);
+  }
 });
