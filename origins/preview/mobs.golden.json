@@ -136,6 +136,57 @@
   "named": false
  },
  {
+  "id": "wolves-1",
+  "character": "character:ash-wolf",
+  "name": "Ash wolf",
+  "encounter": null,
+  "body": "wolf",
+  "level": 11,
+  "zone": "cinder-fields",
+  "spawn": "wolves",
+  "home": {
+   "x": -70.32666258029316,
+   "z": 87.05435427824872
+  },
+  "roam": 7,
+  "aggro": 9,
+  "named": false
+ },
+ {
+  "id": "wolves-2",
+  "character": "character:ash-wolf",
+  "name": "Ash wolf",
+  "encounter": null,
+  "body": "wolf",
+  "level": 12,
+  "zone": "cinder-fields",
+  "spawn": "wolves",
+  "home": {
+   "x": -85.17182707050547,
+   "z": 87.15940425981324
+  },
+  "roam": 7,
+  "aggro": 9,
+  "named": false
+ },
+ {
+  "id": "wolves-3",
+  "character": "character:ash-wolf",
+  "name": "Ash wolf",
+  "encounter": null,
+  "body": "wolf",
+  "level": 13,
+  "zone": "cinder-fields",
+  "spawn": "wolves",
+  "home": {
+   "x": -85.6184128331976,
+   "z": 83.84703879010226
+  },
+  "roam": 7,
+  "aggro": 9,
+  "named": false
+ },
+ {
   "id": "brood-1",
   "character": "character:mere-brood",
   "name": "Mere brood",
@@ -145,8 +196,8 @@
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
-   "x": -163.09399632226376,
-   "z": -117.6510811495762
+   "x": -174.8333032723974,
+   "z": -121.75692105198546
   },
   "roam": 6,
   "aggro": 7,
@@ -162,8 +213,8 @@
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
-   "x": -171.1795511911436,
-   "z": -115.98200824729861
+   "x": -175.37267000697085,
+   "z": -119.00815239187065
   },
   "roam": 6,
   "aggro": 7,
@@ -179,8 +230,8 @@
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
-   "x": -161.79827270446032,
-   "z": -116.35382437787568
+   "x": -162.0974456470161,
+   "z": -116.02946897872066
   },
   "roam": 6,
   "aggro": 7,
@@ -196,8 +247,8 @@
   "zone": "black-mere",
   "spawn": "brood",
   "home": {
-   "x": -174.8333032723974,
-   "z": -121.75692105198546
+   "x": -178.54533773713885,
+   "z": -112.24716339842338
   },
   "roam": 6,
   "aggro": 7,
@@ -213,8 +264,8 @@
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
-   "x": -267.1787433387551,
-   "z": -133.1174518603439
+   "x": -268.4189281625708,
+   "z": -134.3787022998833
   },
   "roam": 6,
   "aggro": 7,
@@ -230,8 +281,8 @@
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
-   "x": -256.85356883656806,
-   "z": -130.80069809456057
+   "x": -266.43305978129075,
+   "z": -135.9177395173709
   },
   "roam": 6,
   "aggro": 7,
@@ -247,11 +298,28 @@
   "zone": "blood-ruin",
   "spawn": "ghouls",
   "home": {
-   "x": -269.64637379555245,
-   "z": -127.85890486544045
+   "x": -263.50443730311076,
+   "z": -123.6158436176204
   },
   "roam": 6,
   "aggro": 7,
+  "named": false
+ },
+ {
+  "id": "bears-1",
+  "character": "character:cinder-bear",
+  "name": "Cinder bear",
+  "encounter": null,
+  "body": "bear",
+  "level": 13,
+  "zone": "blood-ruin",
+  "spawn": "bears",
+  "home": {
+   "x": -274.77462979372257,
+   "z": -103.62154705500214
+  },
+  "roam": 6,
+  "aggro": 8,
   "named": false
  },
  {
@@ -264,8 +332,8 @@
   "zone": "cinder-fields",
   "spawn": "boars",
   "home": {
-   "x": -84.19306075722383,
-   "z": 84.99576880013346
+   "x": -74.26851520876689,
+   "z": 84.53106153279536
   },
   "roam": 5,
   "aggro": 6,
@@ -281,8 +349,8 @@
   "zone": "ferry-landing",
   "spawn": "opener",
   "home": {
-   "x": -156.22086009083844,
-   "z": -32.29119159367335
+   "x": -145.60991204658106,
+   "z": -36.285343563237376
   },
   "roam": 6,
   "aggro": 7,
@@ -298,8 +366,8 @@
   "zone": "cinder-fields",
   "spawn": "opener",
   "home": {
-   "x": -50.70507073774435,
-   "z": 7.195910352862118
+   "x": -60.54075701024726,
+   "z": 47.3056213077772
   },
   "roam": 8,
   "aggro": 7,

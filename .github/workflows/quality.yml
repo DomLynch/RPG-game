@@ -66,6 +66,8 @@ jobs:
       # The Origins save/verify invariants on real PostgreSQL (GPT audit 2026-10-06, finding B: the harness existed but no required job ran it).
       - name: Origins database
         run: PG_BIN="$(pg_config --bindir)" node scripts/origins-database-check.mjs
+      - name: Duel season archive database
+        run: PG_BIN="$(pg_config --bindir)" node scripts/duel-season-database-check.mjs
   base:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
     if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))

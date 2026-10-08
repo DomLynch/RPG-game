@@ -58,8 +58,16 @@ export const LOOT_TABLES = [
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
-  // The Ash Wolf's table is a placeholder (a preview-only creature until Content cites it and rules its drops): the same grave iron the other mobs give.
-  table('loottable:ash-wolf', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 20, quantity: 1, levelMin: null, levelMax: null }])], null),
+  // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
+  table('loottable:ash-wolf', 'collect', [
+    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 3, max: 10 }),
+  // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
+  table('loottable:cinder-bear', 'collect', [
+    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 2, max: 8 }),
   // The Ash Boar's table (Backend 2026-10-08): a lone uncommon beast, level 13-14, a little richer than a scavenger camp's single kill; Frontier gear only.
   table('loottable:ash-boar', 'collect', [
     independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
@@ -108,7 +116,9 @@ export const FOES = [
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
     null, [{ id: 'mob', opponent: 'goblin', level: 11, encounter: null }], 'cinder-scavenger'),
   figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
-    null, [{ id: 'mob', opponent: 'wolf', level: 12, encounter: null }], 'ash-wolf'),
+    null, [{ id: 'mob', opponent: 'wolf', level: 11, encounter: null }], 'ash-wolf'),
+  figure('character:cinder-bear', 'Cinder bear', ORIGINAL, 'Heavy and soot-matted, it came down off the burnt moor when the herds went and takes what it finds.',
+    null, [{ id: 'mob', opponent: 'bear', level: 13, encounter: null }], 'cinder-bear'),
   figure('character:ash-boar', 'Ash boar', ORIGINAL, 'Tusked and ash-streaked, it roots the verge of the hold road for what the Fracture left in the ground.',
     null, [{ id: 'mob', opponent: 'boar', level: 13, encounter: null }], 'ash-boar'),
   figure('character:mere-brood', 'Mere brood', ORIGINAL, "One of the mere's spawn, out of the reeds and hungry.",
@@ -239,6 +249,7 @@ export const REGIONS = [
       spawn('end-ruler', 'end-hall', null, ['character:reeve-osk']),
       spawn('end-steward', 'end-hall', null, ['character:steward-mere']),
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
+      spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
@@ -328,6 +339,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:cinder-scavenger': 'mob',
   'character:mere-brood': 'mob',
   'character:ash-wolf': 'mob',
+  'character:cinder-bear': 'mob',
   'character:ash-boar': 'mob',
   'character:ruin-ghoul': 'mob',
 };
@@ -346,6 +358,7 @@ export const CREATURE_LOOT: Record<string, string> = {
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
   'character:ash-wolf': 'loottable:ash-wolf',
+  'character:cinder-bear': 'loottable:cinder-bear',
   'character:ash-boar': 'loottable:ash-boar',
   'character:court-thrall': 'loottable:court-thrall',
 };
