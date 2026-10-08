@@ -27,6 +27,7 @@ import type { Mobs } from './mobs-view.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { createWorldCombat } from './world-combat.ts';
+import { NAKED } from '../../src/gear-stats.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { CHECKING, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -570,7 +571,7 @@ async function creatureFell(spec: MobSpec) {
   worldToast(`${spec.name} is down.`);
 }
 const wc = createWorldCombat({
-  mobs: () => mobs, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence,
+  mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence,
   onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },
   onSwing: () => { attackT = 0.7; if (attackAct) { attackAct.reset().setLoop(THREE.LoopOnce, 1); attackAct.clampWhenFinished = false; attackAct.play(); } },
 });
