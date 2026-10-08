@@ -5,6 +5,17 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-08 (night, ~20:50 +04) — HANDOFF before /clear: #1880 floors rework UNTESTED @93fd91dd (GO withdrawn); town release LIVE
+**READ FIRST:** lane memory `frankendom_backend_handoff_2026-10-08_night.md`, then `frankendom_1880_apply_runbook.md`.
+**Now (in order):**
+1. **#1880 @93fd91dd: UNTESTED, Lead's GO withdrawn.** The Auditor found the kill floors were sized for the old loop; Zone 1 runs the Pit duel since #1894. The floors are rewritten as Pit-kit bounds, a duel-open test per kind × L1–3 is added, and trunk af1ab7ea is merged in. NEXT: VPS tsc + tests + suite + PG checks, then the Auditor delta from 1a39c34d, then Lead's fresh GO. Migration bytes are unchanged (0014 6078f547d986697c, 0015 31fcbff752db29f3).
+2. Apply only on Deploy's merge sha: the rehearsed runbook is `/root/backend-tools/apply-1880.sh`. `origins_beta_wipe()` is never run.
+3. **#1831 @2f2d5db6:** Auditor delta PASS; CI reruns queued; waits for a slot.
+4. Re-arm the :07/:37 kill watch (session-only). Last read 20:08: 0 mob events.
+**Done today (live):** town release 2cd38f7c (#1824 provisioner grave iron, #1828 NPC rows, #1838 shop counter check, #1891 nginx reconcile: repo conf == live, provision.sh installs ops/nginx/*, dry-run empty).
+**Rulings:** Strategy is merged into Lead (send everything to Lead). Assists with shared HP is Dom's call; default is reporter-only (design note in memory, no PR).
+**Gotchas:** full suites run on the VPS ONLY (the Mac Stop gate ran a full suite from a stacked branch: load 106). Park the worktree on trunk after branch work. Bring PRs current by merging trunk, never force-push. GitHub runs no pull_request CI on a CONFLICTING PR.
+
 ## 2026-10-08 (evening, ~19:45 +04) — HANDOFF before /clear: writer c10c5b6b (wolves) + key rotated; DETACHED ZONE 1 is the new top item
 **READ FIRST:** lane memory `frankendom_world_spawns_plan_2026-10-08.md` (the plan + the shapes World builds against, verbatim), then `frankendom_backend_handoff_2026-10-08_pm.md` (NOW blocks), `frankendom_pvp_slice1_map_2026-10-08.md` (PvP, PAUSED).
 **Now (in order):**
