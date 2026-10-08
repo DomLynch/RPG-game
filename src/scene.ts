@@ -594,6 +594,11 @@ export function createScene(
     retryArt: loadFighters,
     // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
     // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
+    // The foe's DRAWN height in world metres (its rig's Box3 after beast-scale: wolf 0.644 m x 2 = 1.29 m), for the preview's duel() hook so "same size walking and fighting" is a number, not an eyeball (Strategy 2026-10-08). null before the rig is built.
+    foeHeight(): number | null {
+      const a = warriors?.opponent.anchor; if (!a) return null;
+      a.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(a); return +(box.max.y - box.min.y).toFixed(3);
+    },
     startStandoff() { standoff.start(); },   // main.ts, the moment the versus card lifts: idempotent (an art retry re-emits 'ready' mid-fight)
     restartStandoff() { standoff.restart(); },   // main.ts nextFight: the rematch plays the draw-in again (a no-op with ?standoff=0)
     walkToGate(on: boolean) {
