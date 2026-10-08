@@ -2,7 +2,7 @@
 # this script only makes the meshes. Procedural, seeded, no downloads: every mesh is a few prisms or spheres, flat-shaded, coloured by UV into a 4x4 swatch atlas,
 # with a vertex-colour darkening toward the base so a prop sits in the ground instead of floating. Origin = the base centre, +Y up (glTF), 1 unit = 1 m.
 #   blender -b -P scripts/character/zone1_kit.py -- <out.glb> [atlas.png]
-# Budget per piece (tris): tree <= 250, bush <= 160, boulder <= 100, tuft <= 40; the script prints each count and fails when one is over.
+# Budget per piece (tris): tree <= 250, bush <= 160, boulder <= 100, tuft <= 40, landmark <= 1200 (camp, ruin arch, stone circle, grove: one node each, origin = the centre on the ground); the script prints each count and fails when one is over.
 import math
 import os
 import random
@@ -15,7 +15,7 @@ from mathutils import Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 ATLAS = argv[1] if len(argv) > 1 else os.path.splitext(OUT)[0] + "-atlas.png"
-BUDGET = {"tree": 250, "bush": 160, "boulder": 100, "tuft": 40}
+BUDGET = {"tree": 250, "bush": 160, "boulder": 100, "tuft": 40, "landmark": 1200}
 
 # The 4x4 swatch atlas: (name, rgb 0-255). A face's UV points at its swatch's centre.
 SWATCHES = [
@@ -173,11 +173,78 @@ def tuft(seed, blades, h):
     return make
 
 
+# ---- the landmarks: composites of the same primitives on the same atlas, one node each, placed once by World ---------------------------
+
+def put(bm, uv, col, make, off, rot=0.0):
+    """Run a piece's make() then move what it added to `off` (x, y, z), turned `rot` about Z."""
+    before = set(bm.verts)
+    make(bm, uv, col)
+    fresh = [v for v in bm.verts if v not in before]
+    bmesh.ops.rotate(bm, verts=fresh, cent=(0, 0, 0), matrix=__import__("mathutils").Matrix.Rotation(rot, 3, "Z"))
+    bmesh.ops.translate(bm, verts=fresh, vec=off)
+
+
+def camp():
+    """A fire ring of stones round a cold ember bed, three log seats and a lean-to of two poles and a hide."""
+    def make(bm, uv, col):
+        for i in range(8):
+            a = 2 * math.pi * i / 8
+            fs = blob(bm, (math.cos(a) * .75, math.sin(a) * .75, .1), (.2, .17, .13), 40 + i, 0, .2)
+            paint(bm, uv, col, fs, "rock_dark" if i % 2 else "rock_warm", 0, .3, .6)
+        paint(bm, uv, col, blob(bm, (0, 0, .03), (.55, .55, .06), 49, 0, .1), "soot", 0, .15, .9)
+        paint(bm, uv, col, blob(bm, (.1, -.05, .07), (.18, .15, .05), 50, 0, .1), "ember_dim", 0, .15, 1)
+        for i, a in enumerate((.6, 2.7, 4.5)):   # log seats lying round the ring
+            c = Vector((math.cos(a) * 1.7, math.sin(a) * 1.7, .0)); t = Vector((-math.sin(a), math.cos(a), 0)) * .55
+            paint(bm, uv, col, prism(bm, c - t + Vector((0, 0, .17)), c + t + Vector((0, 0, .2)), .17, .16, 6, 0), "bark_dark", 0, .4, .6)
+        for sx in (-1, 1):   # lean-to: two poles and a slanted hide
+            paint(bm, uv, col, prism(bm, (sx * 1.1 + 2.6, 1.2, 0), (sx * 1.1 + 2.6, 1.2, 1.7), .07, .05, 5, 0), "bark_ash", 0, 1.7, .6)
+        back = [bm.verts.new(p) for p in ((1.5, 2.1, 0), (3.7, 2.1, 0), (3.7, 1.2, 1.7), (1.5, 1.2, 1.7))]
+        paint(bm, uv, col, [bm.faces.new(back)], "root", 0, 1.7, .5)
+    return make
+
+
+def ruin_arch():
+    """Two fluted pillars (one snapped), a fallen lintel half and rubble: the broken arch of a road shrine."""
+    def make(bm, uv, col):
+        for sx, top in ((-1.5, 3.4), (1.5, 2.2)):
+            paint(bm, uv, col, prism(bm, (sx, 0, -.05), (sx, 0, .4), .62, .55, 8, .2), "rock_dark", 0, .4, .5)   # the plinth
+            paint(bm, uv, col, prism(bm, (sx, 0, .4), (sx, 0, top), .45, .4, 8, 0), "rock_light", 0, 3.4, .55)
+        paint(bm, uv, col, prism(bm, (-1.7, 0, 3.4), (-.2, 0, 3.55), .34, .3, 4, .8), "rock_light", 0, 3.6, .75)   # the lintel stub still on the tall pillar
+        paint(bm, uv, col, prism(bm, (1.2, 1.4, .3), (2.9, 1.9, .3), .33, .3, 4, .3), "rock_warm", 0, .6, .6)   # the fallen half
+        for i, (x, y, r) in enumerate(((.2, .6, .38), (-.6, -.7, .3), (.9, -.5, .26), (2.3, 1.1, .34), (-2.4, .9, .27))):
+            paint(bm, uv, col, blob(bm, (x, y, r * .5), (r, r * .9, r * .65), 60 + i, 0, .25), "rock_moss" if i % 2 else "rock_dark", 0, r, .6)
+    return make
+
+
+def stone_circle():
+    """Nine tapering standing stones in a ring, leaning a little, and a low altar slab in the middle."""
+    def make(bm, uv, col):
+        rnd = random.Random(70)
+        for i in range(9):
+            a = 2 * math.pi * i / 9 + rnd.uniform(-.1, .1); h = rnd.uniform(1.6, 2.6)
+            b = Vector((math.cos(a) * 3.2, math.sin(a) * 3.2, -.05)); lean = Vector((math.cos(a), math.sin(a), 0)) * rnd.uniform(-.2, .2)
+            paint(bm, uv, col, prism(bm, b, b + Vector((0, 0, h)) + lean, .42, .26, 5, rnd.uniform(0, 1)), "rock_dark" if i % 3 else "rock_moss", 0, h, .5)
+        paint(bm, uv, col, prism(bm, (0, 0, -.05), (0, 0, .5), 1.0, .9, 6, .3), "rock_warm", 0, .5, .6)
+        paint(bm, uv, col, prism(bm, (0, 0, .5), (0, 0, .62), .9, .85, 6, .3), "ash_pale", 0, .62, .9)
+    return make
+
+
+def grove():
+    """Three dead trees close together with scrub and tufts between them."""
+    def make(bm, uv, col):
+        put(bm, uv, col, tree(81, 5.4, .5, 4), (-1.5, .4, 0), .4); put(bm, uv, col, tree(82, 4.2, -.6, 4), (1.4, -.6, 0), 2.0); put(bm, uv, col, tree(83, 6.0, .2, 4), (.1, 1.9, 0), 4.0)
+        put(bm, uv, col, bush(84, 1.1, 1), (.2, -1.8, 0)); put(bm, uv, col, bush(85, .9, 0), (-2.3, -.9, 0))
+        for i, (x, y) in enumerate(((.9, .6), (-.7, -.4), (2.4, .5), (-1.2, 1.9))):
+            put(bm, uv, col, tuft(90 + i, 14, .45), (x, y, 0))
+    return make
+
+
 PIECES = [
     ("tree_dead_a", "tree", tree(1, 5.0, .6, 5)), ("tree_dead_b", "tree", tree(2, 3.6, -.8, 4)), ("tree_dead_c", "tree", tree(3, 6.4, .3, 6)),
     ("bush_scrub_a", "bush", bush(11, 1.3, 0)), ("bush_scrub_b", "bush", bush(12, .95, 1)),
     ("boulder_a", "boulder", boulder(21, 1.1, .8, "rock_dark", "rock_light")), ("boulder_b", "boulder", boulder(22, .8, 1.0, "rock_warm", "ash_pale")), ("boulder_c", "boulder", boulder(23, 1.5, .65, "rock_dark", "rock_warm")),
     ("tuft_a", "tuft", tuft(31, 18, .55)), ("tuft_b", "tuft", tuft(32, 22, .35)),
+    ("landmark_camp", "landmark", camp()), ("landmark_ruin_arch", "landmark", ruin_arch()), ("landmark_stone_circle", "landmark", stone_circle()), ("landmark_grove", "landmark", grove()),
 ]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -210,7 +277,7 @@ for name, kind, make in PIECES:
     tris = sum(len(p.vertices) - 2 for p in ob.data.polygons)
     counts[name] = tris
     ob.location.x = x
-    x += 3.2 if kind != "tuft" else 1.2
+    x += {"tuft": 1.2, "landmark": 9.0}.get(kind, 3.2)
     print(f"KIT {name:14s} {tris:4d} tris (budget {BUDGET[kind]})")
     if tris > BUDGET[kind]:
         raise SystemExit(f"{name} is over its budget: {tris} > {BUDGET[kind]}")
