@@ -6,6 +6,7 @@
 #   scripts/vps-shadow-rows.sh <sha>            start the run detached on the VPS and return (prints the run dir)
 #   scripts/vps-shadow-rows.sh <sha> --wait     start, then poll until it ends (SHADOW_WAIT_MIN, default 90) and fetch
 #   scripts/vps-shadow-rows.sh <sha> --status   one line: status, rows finished so far, load
+#   scripts/vps-shadow-rows.sh <sha> --unit      start `npm run test:all` for the sha on the VPS (unit.json receipt, scripts/vps-shadow/run-unit.sh)
 #   scripts/vps-shadow-rows.sh <sha> --fetch    rsync runs/<sha>/latest/ to artifacts/vps-shadow/<sha>/ (rows.json + every row log)
 # Env: SHADOW_CONCURRENCY (row width, default 4 = the Mac's) and SHADOW_CEILING_S (per-row ceiling, default 600) reach the VPS runner as
 # RELEASE_CHECK_CONCURRENCY / RELEASE_CHECK_CEILING_S. Overnight shadows (Lead 2026-09-30): SHADOW_CONCURRENCY=2 SHADOW_CEILING_S=1800.
@@ -31,6 +32,7 @@ fetch() {
   local dest="artifacts/vps-shadow/$full"
   mkdir -p "$dest"
   rsync -az -e "ssh ${ssh_options[*]}" "$host:$home/runs/$full/latest/" "$dest/"
+  rsync -az -e "ssh ${ssh_options[*]}" "$host:$home/runs/$full/unit.json" "$dest/" 2>/dev/null || true   # the unit-suite receipt, when one exists
   [[ -f "$dest/rows.json" ]] || { echo "fetched $dest, but no rows.json: the run is not finished (status: $(cat "$dest/status" 2>/dev/null || echo unknown))"; return 0; }
   echo "fetched -> $dest/rows.json"
   node -e 'const r=require(process.argv[1]);console.log(`VPS ${r.sha.slice(0,8)} build=${r.buildStatus} rows=${r.rowsStatus} wall=${r.wall}s rows_wall=${r.rowsWallSeconds}s`, JSON.stringify(r.summary))' "$PWD/$dest/rows.json"
@@ -44,7 +46,14 @@ start() {
   remote "cd $home && $knobs nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 < /dev/null & sleep 3; head -3 $home/runs/start-$full.log"
   echo "started on $host as $user (nice 15, ionice idle): $home/runs/$full/latest — poll with: $0 $sha --status"
 }
+unit() {
+  remote "mkdir -p $home/bin"
+  scp -q "${ssh_options[@]}" scripts/vps-shadow/run-unit.sh "$host:$home/bin/"
+  remote "cd $home && nohup nice -n 15 ionice -c3 bash $home/bin/run-unit.sh $full > $home/runs/unit-$full.log 2>&1 < /dev/null & sleep 2; echo started"
+  echo "unit suite started on $host: $home/runs/$full/unit.json (fetch with: $0 $sha --fetch)"
+}
 case "$mode" in
+  --unit) unit ;;
   start) start ;;
   --status) status ;;
   --fetch) fetch ;;
