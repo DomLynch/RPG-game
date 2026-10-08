@@ -174,3 +174,11 @@ test('the picker opens only on the saved career at Gladiator (level 11) or above
   const co = picker.act({ choose: 'company:glass' }, NEW_ALLEGIANCE, 12, 1_790_000_000)!;
   assert.match(picker.render(co, 'Aldren'), /Aldren swore to The Free Company on 2026-09-21/);
 });
+
+test('the Sign in link shows only once the read answered signed-out', async () => {
+  const { canSignIn, SIGN_IN_HREF, CHECKING } = await import('./save.ts');
+  assert.equal(canSignIn(CHECKING), false);
+  assert.equal(canSignIn({ offline: 'http-403' }), true);
+  assert.equal(canSignIn({ saved: {} as never }), false);
+  assert.equal(SIGN_IN_HREF, '/?account=signin&next=zone1');
+});

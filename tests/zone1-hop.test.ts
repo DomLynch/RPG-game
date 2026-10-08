@@ -36,3 +36,15 @@ test('Zone 1 shows the Frontier at /zone1/ with no query (the preview\'s REGION 
   assert.match(conf, /location = \/zone1\/ \{[^}]*try_files \/preview\/origins\/index\.html =404;/);
   assert.match(conf, /location = \/zone1 \{ return 301 \/zone1\/; \}/);
 });
+import { rememberZone1, takeZone1 } from '../src/zone1-hop.ts';
+const mem = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) }; };
+test('sign-in link: only ?account=signin&next=zone1 remembers Zone 1, and it is taken exactly once', () => {
+  const s = mem();
+  for (const q of ['', '?account=signin', '?next=zone1', '?account=return&next=zone1', '?account=signin&next=//evil.example']) assert.equal(rememberZone1(q, s), false, q);
+  assert.equal(takeZone1(s), null);
+  assert.equal(rememberZone1('?account=signin&next=zone1', s), true);
+  assert.equal(takeZone1(s), ZONE1_URL);
+  assert.equal(takeZone1(s), null, 'once');
+  assert.equal(rememberZone1('?account=signin&next=zone1', null), false);
+  assert.equal(takeZone1(null), null);
+});

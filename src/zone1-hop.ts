@@ -11,3 +11,15 @@ export const zone1Hop = (o: HopFacts, on = ZONE1_IS_DEFAULT): string | null =>
   on && o.search === '' && o.pathname === '/' && o.hasFighter && o.lessonDone ? ZONE1_URL : null;
 /** Where the first-loss lesson's end goes (null = the arena's `?fight=1`, as before). */
 export const zone1AfterLesson = (on = ZONE1_IS_DEFAULT): string | null => (on ? ZONE1_URL : null);
+
+// "Sign in" on Zone 1's signed-out line sends `/?account=signin&next=zone1` to the arena's own Google sign-in; the wish to come back is kept for the one OAuth round trip (sessionStorage, taken once) and honoured when the sign-in succeeds.
+const NEXT_KEY = 'frankendom.next';
+type Session = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+export const rememberZone1 = (search: string, storage: Session | null): boolean => {
+  const p = new URLSearchParams(search);
+  if (p.get('account') !== 'signin' || p.get('next') !== 'zone1') return false;
+  try { storage?.setItem(NEXT_KEY, ZONE1_URL); return !!storage; } catch { return false; }
+};
+export const takeZone1 = (storage: Session | null): string | null => {
+  try { const next = storage?.getItem(NEXT_KEY) === ZONE1_URL ? ZONE1_URL : null; storage?.removeItem(NEXT_KEY); return next; } catch { return null; }
+};

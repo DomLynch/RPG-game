@@ -8,6 +8,7 @@ import { keepsLoot, mergeLoot } from './loot.ts';
 import { session } from './session.ts';
 import { timedSignal } from './timed-signal.ts';
 import { flushThenStanding, saveStanding } from './loot-claims.ts';
+import { takeZone1 } from './zone1-hop.ts';
 
 export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -153,6 +154,7 @@ export async function mountAccount(url: string, key: string) {
         const { error } = await db.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
         await refresh(!error);
         if (error) status.textContent = 'Sign-in expired or failed. Please continue with Google again.';
+        else { let wish: string | null = null; try { wish = takeZone1(sessionStorage); } catch { /* storage blocked: stay */ } if (wish) location.replace(wish); }   // the Zone 1 sign-in link, honoured once
       } catch { await refresh(); status.textContent = 'Sign-in expired or failed. Please continue with Google again.'; }
     } else { await refresh(); if (denied) status.textContent = 'Sign-in cancelled. You can keep playing as a guest.'; }
   } else await refresh();
