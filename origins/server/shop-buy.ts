@@ -12,6 +12,9 @@ import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
 import { receive } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../progression/model.ts';
 import { checkBuy } from '../shops/shop.ts';
+import { standsWithin, type WhereFn } from '../presence/where.ts';
+import { landmarkCm } from '../presence/zones.ts';
+import { PRESENCE_FRESH_MS } from './upgrade.ts';
 import { DbError } from './db.ts';
 import { mintOp } from './mob-rewards.ts';
 import { Refused } from './errors.ts';
@@ -24,7 +27,7 @@ export type ShopReceipt = { shop: string; item: string; quantity: number; cost: 
 const OP = /^[a-z0-9][a-z0-9:._-]{7,119}$/;
 
 export function shopBuyHandler(content: Content, shops: Shops, open: (shop: string, now: number) => boolean = () => true): Handler {
-  return async ({ db, account }, body) => {
+  return async ({ db, account, where }, body) => {
     if (!shops.size) throw new Refused(501, 'there is no shop in this content', 'not-implemented');
     const { character, op, shop, item, quantity, revision } = body;
     if (typeof op !== 'string' || !OP.test(op)) throw new BadRequest('op: an operation id (8..120 of a-z 0-9 : . _ -)');
@@ -32,6 +35,10 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     if (typeof shop !== 'string' || typeof item !== 'string') throw new BadRequest('shop, item: ids');
     const list = shops.get(shop);
     if (!list) throw new BadRequest(`shop: ${shop} is not a shop`);
+    // The buyer must stand at the shop's counter (Strategy 2026-10-08 13:46): within SHOP_RANGE_CM of its vendor's landmark, by presence's last fresh pose,
+    // never by the request. Presence down, slow, unplaced or stale counts as away (fail closed), as the Exchange ops do (upgrade.ts exchangePlace).
+    const counter = content.counters?.get(shop);
+    if (!counter || !(await atCounter(where, account, counter))) throw new Refused(422, 'stand at the shop counter to buy', 'away');
     const eventId = `shop:${character}:${op}`;
     const same = (r: ShopReceipt) => r.shop === shop && r.item === item && r.quantity === quantity;
     const replay = (stored: store.Json | null) => {
@@ -92,3 +99,13 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
   };
 }
 
+
+// How near the counter a buyer must stand: 5 m (a stall's frontage plus a step back), in presence centimetres.
+export const SHOP_RANGE_CM = 500;
+async function atCounter(where: WhereFn | undefined, account: string, counter: { zone: string; at: string }): Promise<boolean> {
+  if (!where) return false;
+  try {
+    const spot = landmarkCm(counter.zone as 'exchange', counter.at);
+    return standsWithin(await where(account), { x: spot.x, z: spot.z, radiusCm: SHOP_RANGE_CM }, PRESENCE_FRESH_MS);
+  } catch (e) { console.error('origins-writer: shop counter check failed, the buyer counts as away:', e instanceof Error ? e.message : e); return false; }
+}

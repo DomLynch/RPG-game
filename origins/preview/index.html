@@ -56,13 +56,9 @@
     /* World mode (?region=1): the Pit's own kit is the walk's controls. The layer lets the walk's canvas through; only the stick, the buttons and the ☰ take a touch. */
     #duel.world { background: none; pointer-events: none; }
     #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave, #duel.world #journal { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit); #journal: the ☰ menu is a child of the layer, so it inherited none and its buttons (Leave the Pit, Arena, ✕) took no tap either (found by the leave-exit check, PR #1835) */
-    #duel.world #opponent-name, #duel.world #target-health, #duel.world #target-posture, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button { display: none !important; }
+    #duel.world #opponent-name, #duel.world #target-health, #duel.world #target-posture, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
     #duel.world .combat-hud { top: max(calc(env(safe-area-inset-top) + 92px), calc(var(--hud-bottom, 0px) + var(--gap-xs))); }   /* the player's health and stamina bars: under the place name, and under the hint / creature card when they stack taller (--hud-bottom, main.ts) */
     #duel.world #mobile-camera { display: revert !important; }
-    /* The Pit's RUN button in the world (Dom 2026-10-08: running was not discoverable; every action has a visible control). Phones hide it in the Pit (style.css: the stick's rim runs), so the world shows it as a round thumb button of the cluster's own look, above the stick; it presses Intent.running through input.ts like the stick's rim and Shift. */
-    #duel.world #run-button, #duel.world .actions[data-gestures=cluster] #run-button { display: block !important; position: fixed; left: 41px; bottom: calc(env(safe-area-inset-bottom, 0px) + 150px); grid-area: auto; width: 58px; height: 58px; padding: 0; border-radius: 50%; font-size: 0; }
-    #duel.world #run-button::after { content: 'RUN'; font: 700 13px/58px var(--bf, Arial, sans-serif); letter-spacing: .14em; color: rgba(244, 234, 216, .85); }
-    #duel.world #run-button[aria-pressed='true'] { background: rgba(244, 234, 216, .28); }
     #duel.world header .brand { visibility: hidden; }   /* the FRANKENDOM / ORIGINS wordmark drew over the status lines in a field duel at desktop width; visibility, not display, so the ☰ stays put (Web, #1732) */
     #duel.world.infight #opponent-name, #duel.world.infight #target-health, #duel.world.infight #target-posture, #duel.world.infight #combat-status { display: revert !important; }   /* no #leave: a world fight ends on its own banner, nothing to tap (seamless S1) */   /* ?worldfight: the duel's own bars over the world */
     body.infight #hint, body.infight #creature-card { display: none; }   /* ?worldfight: at fight-camera distance they covered the foe from head to waist; the duel's own name line stays */
@@ -73,7 +69,7 @@
 <body>
   <canvas id="view"></canvas>
   <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox preview · not the game</small>
-    <div id="hint" class="glass">Left thumb walks. Push to the edge to run, or hold RUN. Right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
+    <div id="hint" class="glass">Left thumb walks. Push to the edge to run. Right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
     <div id="creature-card" class="glass" hidden></div></div>
   <div id="move-stick" class="stick"><i></i></div><div id="look-stick" class="stick"><i></i></div>
   <button id="prompt" class="glass" hidden></button>

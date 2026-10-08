@@ -56,7 +56,7 @@ const FRONTIER = {
     density: { npcs: 0.05, props: 0.4, creatures: 0.25 },
     spawns: { respawnSeconds: 300 },
     ambience: { weather: 'dust', sound: 'wind' }, // the look preset is set zone by zone (frontier-haze)
-    terrain: { biome: 'ash-waste', ground: 'ash' },
+    terrain: { biome: 'ash-waste', ground: 'ash', relief: 1.5, hillScale: 40 }, // gentle hills in the open ground (origins/world/relief.ts); every building, prop and road keeps a flat pad
   },
   zones: {
     'east-road': {

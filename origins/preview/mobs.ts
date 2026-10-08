@@ -8,7 +8,7 @@
 import { SPEEDS } from './speeds.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
-import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { FRONTIER_OPENERS, FRONTIER_ROWS, ZONE_LEVEL } from '../mobs/frontier-rows.ts';
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
@@ -94,7 +94,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? 11) : row!.level[0] + (i % (row!.level[1] - row!.level[0] + 1)),
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
@@ -112,8 +112,17 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     if (!spot) continue;
     out.push({ id: `opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
-  return out;
+  return levelByDistance(f, b, out, rows);
 }
+// Risk = reward by depth (Dom 2026-10-08): a common creature is its zone's level near the hero's spawn (Zone 1 = L1) and one more at the zone's edge, a
+// row's band [N, N+1] ramped by the distance of its home from the spawn; the named rares are N+2. The origin is the Zone 1 spawn (spawnAmong) until the bank
+// town is placed: then it is this one function to change. Rewards and loot already follow the resulting spec.level.
+export const LEVEL_NEAR_M = 30, LEVEL_FAR_M = 150, NAMED_LEVEL = ZONE_LEVEL + 2;
+export const levelAt = (d: number, band: readonly [number, number]): number => band[0] + Math.round(Math.max(0, Math.min(1, (d - LEVEL_NEAR_M) / (LEVEL_FAR_M - LEVEL_NEAR_M))) * (band[1] - band[0]));
+const levelByDistance = (f: Frontier, b: Build, specs: MobSpec[], rows: readonly MobRow[]): MobSpec[] => {
+  const origin = spawnAmong(f, b, specs);
+  return origin ? specs.map((s) => { const row = s.named ? undefined : rows.find((r) => r.id === s.character); return row ? { ...s, level: levelAt(Math.hypot(s.home.x - origin.x, s.home.z - origin.z), row.level) } : s; }) : specs;
+};
 // Which world bodies a zone spawns (the bodies the phone downloads for it): the unique `body` of its specs, sorted. check-budget reads this, so a world body
 // counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
 export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {
