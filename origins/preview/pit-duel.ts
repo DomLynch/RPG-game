@@ -57,7 +57,7 @@ type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; v
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
 const CAMERA_EASE_S = 0.7;   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
-export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number } };
+export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number }; groundY?: number };   // groundY: the walk ground's height at `at` (the hills), so the world lands on the duel's flat sand
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
@@ -178,7 +178,7 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
   const angle = (x: number, z: number) => Math.atan2(x, z);
   const theta = angle(mount.toward.x - mount.at.x, mount.toward.z - mount.at.z) - angle(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z);
   mount.holder.matrixAutoUpdate = false;
-  mount.holder.matrix.copy(new Matrix4().makeTranslation(p.fighter.x, 0, p.fighter.z).multiply(new Matrix4().makeRotationY(-theta)).multiply(new Matrix4().makeTranslation(-mount.at.x, 0, -mount.at.z)));
+  mount.holder.matrix.copy(new Matrix4().makeTranslation(p.fighter.x, 0, p.fighter.z).multiply(new Matrix4().makeRotationY(-theta)).multiply(new Matrix4().makeTranslation(-mount.at.x, -(mount.groundY ?? 0), -mount.at.z)));
   mount.holder.matrixWorldNeedsUpdate = true;
 }
 
@@ -308,7 +308,8 @@ function frame(now: number) {
   hud!.update(match.practice, { legend: fight!.as?.name ?? legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
   if (fight!.as) {   // a creature, not a legend: no rematch
     const again = element('reset-button'), status = element('combat-status');
-    again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', '');
+    if (stage.mounted) { again.hidden = true; if (match.practice.finish) status.textContent = ''; }   // the wild has no fight end: no button, no win/lose line (main.ts worldEnded)
+    else { again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', ''); }
   }
   frameId = requestAnimationFrame(frame);
 }

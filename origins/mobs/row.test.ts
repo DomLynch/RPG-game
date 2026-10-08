@@ -86,7 +86,7 @@ const WILDS: Template = {
   vary: { 'zoneSize.width': [80, 230], 'zoneSize.depth': [80, 230], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
   jitter: 0.05,
 };
-const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited }));
+const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited, level: [11, 13] as const }));   // the generator tests run on WILDS zones (levels 11-13); the shipped Zone 1 bands are 1-2 (Dom 2026-10-08), so these fixtures carry the zone's own band
 
 test('populateZone: deterministic, inside the zone, band met, count within one camp of the budget, never the boss anchor', () => {
   for (let seed = 1; seed <= 60; seed++) {
@@ -147,7 +147,7 @@ test('rungWeights: the zone window picks the home rung; a row with no ladder kee
 
 // ---- rarity: uncommon curve, rares that take over a placeholder's camp ----
 
-const common = { ...FRONTIER_ROWS[0]!, source: cited }, rare: MobRow = { ...FRONTIER_ROWS[1]!, source: cited, rarity: 'rare', replaces: common.id, chance: 0.2, level: [11, 13] };
+const common = { ...FRONTIER_ROWS[0]!, source: cited, level: [11, 13] as const }, rare: MobRow = { ...FRONTIER_ROWS[1]!, source: cited, rarity: 'rare', replaces: common.id, chance: 0.2, level: [11, 13] };
 
 test('rarity rules: each failing row yields exactly its code', () => {
   const rc = (rows: MobRow[]) => validateRows(rows, ctx).map((i) => i.code);

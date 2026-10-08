@@ -103,6 +103,9 @@ export const SCHEMA = {
       ground: key('sand', 'ground surface'),
       heightMin: num('m', -500, 2000, 0, 'lowest ground'),
       heightMax: num('m', -500, 2000, 0, 'highest ground (>= min)'),
+      relief: num('m', 0, 3, 0, 'height of the hills either side of flat ground (0 = flat; relief.ts)'),
+      hillScale: num('m', 8, 200, 40, 'hill wavelength'),
+      seed: int('seed', 0, 2_147_483_647, 0, 'landscape seed (0 = the zone id seeds it)'),
     },
   },
   rules: {

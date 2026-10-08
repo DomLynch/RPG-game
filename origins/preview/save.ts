@@ -96,6 +96,9 @@ export type Source = { saved: CareerState } | { offline: string };
 export const CHECKING: Source = { offline: 'checking' };
 export const saveLine = (source: Source): string =>
   'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : 'Not signed in: progress isn’t saved';
+/** The signed-out line carries a "Sign in" link (Strategy 2026-10-08): the arena's Google sign-in via the account entry, back to Zone 1 afterwards (src/zone1-hop.ts). Not while the read is still answering. */
+export const SIGN_IN_HREF = '/?account=signin&next=zone1';
+export const canSignIn = (source: Source): boolean => !('saved' in source) && (source.offline === 'no-session' || source.offline === 'http-401');   // truly signed out only: a timeout, network, 5xx or bad reply may be a signed-in player (Auditor 2026-10-08)
 export const previewCp = (source: Source, career: CareerState): number => ('saved' in source ? Math.max(0, career.credit - source.saved.credit) : 0);
 
 // The preview's OWN save: the allegiance chosen at graduation (origins/patrons). It lives under a key of the preview's own, never one of the
