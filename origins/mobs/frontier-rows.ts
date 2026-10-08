@@ -17,5 +17,5 @@ export const FRONTIER_ROWS: readonly MobRow[] = [
   { id: 'character:mere-brood', source: BEOWULF, role: 'beast', loot: 'loottable:mere-brood', level: [12, 13], behaviour: { roam: 6, spread: 9, pull: 0, campSize: [4, 4] } },
   { id: 'character:ruin-ghoul', source: GHOUL, role: 'brute', loot: 'loottable:ruin-ghoul', level: [11, 12], behaviour: { roam: 6, spread: 7, pull: 9, campSize: [3, 3] } },
   // The Cinder Bear (Dom 2026-10-08, via Strategy: a tougher animal for Zone 1). One bear on its own, level above the common kinds; 75 s is the middle of Dom's 60-90 s animal respawn.
-  { id: 'character:cinder-bear', source: GRIMM_BEAR, role: 'brute', loot: 'loottable:cinder-bear', level: [13, 14], respawnSeconds: 75, behaviour: { aggro: 8, roam: 6, spread: 6, pull: 0, campSize: [1, 1] } },
+  { id: 'character:cinder-bear', source: GRIMM_BEAR, role: 'brute', loot: 'loottable:cinder-bear', level: [13, 14], weight: 3, respawnSeconds: 75, behaviour: { aggro: 8, roam: 6, spread: 6, pull: 0, campSize: [1, 1] } },
 ];

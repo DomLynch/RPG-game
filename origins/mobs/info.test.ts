@@ -16,7 +16,7 @@ test('the danger band is the payout ladder: every gap lands on the band whose pe
 });
 
 test('how common comes from the row weight against the zone rows; named is unique', () => {
-  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Common', 'Common', 'Common', 'Common'], 'four equal kinds share a quarter each');
+  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Common', 'Common', 'Common', 'Rare'], 'three equal kinds share a third each; the single Cinder Bear (weight 3) is the rare one');
   const rows = [row({ id: 'a', weight: 80 }), row({ id: 'b', weight: 15 }), row({ id: 'c', weight: 5 })];
   assert.deepEqual(rows.map((r) => commonOf(r, rows)), ['Common', 'Uncommon', 'Rare']);
   assert.equal(commonOf(row({ named: true }), rows), 'Unique'); assert.equal(commonOf(undefined, rows), 'Unique');
