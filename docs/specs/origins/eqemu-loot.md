@@ -223,3 +223,15 @@ G-L14 Equip: NPC wearing chest AC 10 HP 0; loot chest AC 10 HP 5 (chest-only) �
 - Harness already in donor: `zone sidecar:serve-http` (zone/cli/cli_sidecar_serve_http.cpp) boots an HTTP API on port 9099 (default) with optional Authorization key; `GET /api/v1/loot-simulate?loottable_id=&npc_id=` spawns the NPC and runs AddLootTable 100 times, returning per-item rolled percentages. The in-game `#lootsim <npc> <loottable> <iterations≤1000>` does the same with global tables.
 - For exact (not statistical) goldens: patch a test build so `EQ::Random` is seeded with a fixed seed (or reads a draw script), log every draw, and compare our implementation fed the same draw list.
 - Needs: CMake + vcpkg build of `zone` (and `shared_memory` for item data), MariaDB with the PEQ content database (tables loottable, loottable_entries, lootdrop, lootdrop_entries, global_loot, npc_types, items) plus hand-made fixture rows for G-L6 … G-L13. Build should run on the VPS in a scratch directory outside /var/www/frankendom; no world/login server is needed for the sidecar.
+
+## Addendum (2026-10-08, Backend): Diablo II's NoDrop weight, added to our weighted roll
+
+Studied: OpenDiablo2 `d2core/d2item/diablo2item/item_factory.go`, `rollTreasurePick` (about lines 199-221). A treasure class keeps `FreqNoDrop` in the
+SAME cumulative pool as its treasures' probabilities; one integer roll over the total, and a roll below `FreqNoDrop` yields nothing. So "nothing" is
+just another weighted outcome, tuned beside the items, not a separate gate.
+
+Ours (our own code, `origins/encounters/encounters.ts` rollTable; schema `origins/contracts/items.ts` LootRoll): an optional `noDrop` integer weight
+(0..100000) on a `weighted` roll only. Each pick draws over `total + noDrop`; landing on the noDrop part spends the pick with no item. Two differences
+from the donor, on purpose: (1) a pick still owed to `minDrop` ignores noDrop, so a table's guaranteed drops stay guaranteed; (2) `noDrop` absent or 0
+draws exactly as before (`draw() * total`), so every existing table and every seeded page/server roll is unchanged. D2's player-count scaling of NoDrop
+is not taken (personal loot only, blueprint §8).

@@ -572,7 +572,10 @@ export const ROLL_MODES = ['independent', 'weighted'] as const;
 export const MAX_CURRENCY = 1_000_000_000;
 
 export type LootEntry = { item: ItemId; chance: number; quantity: number; levelMin: number | null; levelMax: number | null };
-export type LootRoll = { probability: number; repeat: number; mode: (typeof ROLL_MODES)[number]; dropLimit: number; minDrop: number; entries: LootEntry[] };
+// noDrop (weighted rolls only, optional): a weight in the SAME pool as the entries' chances; a pick that lands on it gives nothing. The Diablo II treasure-class
+// NoDrop (studied in OpenDiablo2 d2core/d2item/diablo2item/item_factory.go rollTreasurePick; our own code). Absent = 0, and the roll draws exactly as before.
+export type LootRoll = { probability: number; repeat: number; mode: (typeof ROLL_MODES)[number]; dropLimit: number; minDrop: number; noDrop?: number; entries: LootEntry[] };
+export const MAX_NO_DROP = 100_000;
 export type LootTable = {
   kind: 'loot-table';
   schemaVersion: 1;
@@ -603,7 +606,7 @@ function readEntry(issues: Issues, raw: unknown, path: string): LootEntry | unde
 }
 
 function readRoll(issues: Issues, raw: unknown, path: string): LootRoll | undefined {
-  const obj = readObject(issues, raw, path, ['probability', 'repeat', 'mode', 'dropLimit', 'minDrop', 'entries']);
+  const obj = readObject(issues, raw, path, ['probability', 'repeat', 'mode', 'dropLimit', 'minDrop', 'noDrop', 'entries']);
   if (!obj) return undefined;
   const probability = readInt(issues, obj, 'probability', path, 1, 100);
   const repeat = readInt(issues, obj, 'repeat', path, 1, 10);
@@ -611,6 +614,8 @@ function readRoll(issues: Issues, raw: unknown, path: string): LootRoll | undefi
   const dropLimit = readInt(issues, obj, 'dropLimit', path, 0, 20);
   const minDrop = readInt(issues, obj, 'minDrop', path, 0, 20);
   const entries = readArray(issues, obj, 'entries', path, (v, p) => readEntry(issues, v, p), { min: 1, max: 200 });
+  const noDrop = Object.hasOwn(obj, 'noDrop') ? readInt(issues, obj, 'noDrop', path, 0, MAX_NO_DROP) : 0;
+  if (mode === 'independent' && noDrop) issues.add('rule-violation', join(path, 'noDrop'), 'noDrop is a weight among picks: a weighted roll only');
   if (mode === 'independent' && (dropLimit !== 0 || minDrop !== 0)) issues.add('rule-violation', path, 'an independent roll has no dropLimit or minDrop (both 0)');
   if (mode === 'weighted' && dropLimit !== undefined && minDrop !== undefined) {
     if (dropLimit < 1) issues.add('rule-violation', join(path, 'dropLimit'), 'a weighted roll picks at least once (dropLimit ≥ 1)');
@@ -623,7 +628,7 @@ function readRoll(issues: Issues, raw: unknown, path: string): LootRoll | undefi
       seen.add(entry.item);
     });
   }
-  return probability !== undefined && repeat !== undefined && mode && dropLimit !== undefined && minDrop !== undefined && entries ? { probability, repeat, mode, dropLimit, minDrop, entries } : undefined;
+  return probability !== undefined && repeat !== undefined && mode && dropLimit !== undefined && minDrop !== undefined && noDrop !== undefined && entries ? { probability, repeat, mode, dropLimit, minDrop, ...(noDrop ? { noDrop } : {}), entries } : undefined;
 }
 
 export function parseLootTable(raw: unknown, path = ''): Result<LootTable> {

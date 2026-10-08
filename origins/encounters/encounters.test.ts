@@ -179,3 +179,22 @@ test('world-mob damage rolls ±10% both ways, seeded; the Pit, PvP and the ladde
   for (const kind of ['pit', 'pvp', 'ladder'] as FightKind[]) for (let hit = 0; hit < 50; hit++) assert.deepEqual(fightHit(kind, ON, 20, seed, hit), { base: 20, percent: 0, damage: 20 }, kind);
   assert.deepEqual(worldMobHit(LUCK_OFF, 20, seed, 3), { base: 20, percent: 0, damage: 20 }, 'flag off: no roll');
 });
+
+// noDrop (Diablo II's treasure-class NoDrop, studied in OpenDiablo2 item_factory.go rollTreasurePick; our own rewrite): a weight in the pick pool that gives nothing.
+test('noDrop: absent or 0 rolls exactly as before; a heavy weight empties most picks; a pick owed to minDrop still drops', () => {
+  const base = content.region.registry.lootTables.get('loottable:court-thrall' as never)!;
+  const weightedAt = base.rolls.findIndex((r) => r.mode === 'weighted');
+  assert.ok(weightedAt >= 0, 'court-thrall has a weighted roll');
+  const variant = (patch: object, id: string) => ({ ...base, id, rolls: base.rolls.map((r, i) => (i === weightedAt ? { ...r, ...patch } : r)) });
+  const withTables = (...ts: ReturnType<typeof variant>[]) => ({ ...content, region: { ...content.region, registry: { ...content.region.registry, lootTables: new Map([...content.region.registry.lootTables, ...ts.map((t) => [t.id, t] as const)]) } } }) as typeof content;
+  const zero = variant({ noDrop: 0 }, 'loottable:t-zero'), heavy = variant({ probability: 100, noDrop: 100_000, minDrop: 0 }, 'loottable:t-heavy'), owed = variant({ probability: 100, noDrop: 100_000, minDrop: 1, dropLimit: Math.max(1, base.rolls[weightedAt]!.dropLimit) }, 'loottable:t-owed');
+  const always = variant({ probability: 100 }, 'loottable:t-always');   // the heavy one's baseline: the same roll firing every time, no noDrop
+  const c = withTables(zero, heavy, owed, always), items = (id: string, seed: number) => value(rollLoot(id, seed, c)).items;
+  let heavyItems = 0, baseItems = 0;
+  for (let seed = 0; seed < 200; seed++) {
+    assert.deepEqual(items(zero.id, seed), items(base.id, seed), `seed ${seed}: noDrop 0 = no noDrop`);
+    heavyItems += items(heavy.id, seed).length; baseItems += items(always.id, seed).length;
+    assert.ok(items(owed.id, seed).length >= 1, `seed ${seed}: minDrop 1 still drops through a heavy noDrop`);
+  }
+  assert.ok(heavyItems < baseItems / 2, `a heavy noDrop empties most picks (${heavyItems} vs ${baseItems})`);
+});

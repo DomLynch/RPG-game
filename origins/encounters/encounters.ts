@@ -267,7 +267,11 @@ function rollTable(table: LootTable, draw: () => number, level: number | undefin
     let drops = 0;
     for (let i = 0; i < Math.max(roll.dropLimit, roll.minDrop); i++) {
       if (!(drops < roll.minDrop || bypass || draw() >= none)) continue;
-      let w = draw() * total;
+      // noDrop (item_factory.go's FreqNoDrop, our rewrite): its weight sits in front of the entries; a pick landing on it gives nothing. A pick still owed
+      // to minDrop ignores it. With noDrop 0 the draw and the pick are exactly the old ones (the page and the server roll the same seed).
+      const nothing = drops < roll.minDrop ? 0 : roll.noDrop ?? 0;
+      let w = draw() * (total + nothing) - nothing;
+      if (w < 0) continue;
       const pick = entries.find((e) => (w < e.chance ? true : ((w -= e.chance), false)));
       if (pick) { items.push({ item: pick.item, quantity: pick.quantity }); drops++; }
     }

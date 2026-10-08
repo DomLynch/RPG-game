@@ -337,6 +337,9 @@ test('loot table: every rejection path', () => {
   refused(roll({ dropLimit: 1, minDrop: 2 }), 'rule-violation', 'rolls[0].minDrop');
   refused(roll({ mode: 'independent' }), 'rule-violation', 'rolls[0]');
   refused(roll({ entries: [] }), 'out-of-range', 'rolls[0].entries');
+  refused(roll({ noDrop: -1 }), 'out-of-range', 'rolls[0].noDrop');
+  refused(roll({ noDrop: 1.5 }), 'wrong-type', 'rolls[0].noDrop');
+  refused(roll({ mode: 'independent', dropLimit: 0, minDrop: 0, noDrop: 10 }), 'rule-violation', 'rolls[0].noDrop');
   refused(roll({ entries: [F.bossLoot().rolls[0]!.entries[0], F.bossLoot().rolls[0]!.entries[0]] }), 'duplicate-id', 'rolls[0].entries[1]');
   refused(entry({ chance: 0 }), 'out-of-range', 'rolls[0].entries[0].chance');
   refused(entry({ chance: 101 }), 'out-of-range', 'rolls[0].entries[0].chance');
@@ -350,4 +353,11 @@ test('loot table: every rejection path', () => {
   const { fallback: _f, ...noFallback } = F.bossLoot();
   void _f;
   refused(parseLootTable(noFallback), 'missing-field', 'fallback');
+});
+
+test('loot table: noDrop is an optional weight on a weighted roll; 0 is the same as absent', () => {
+  const t = parseLootTable({ ...F.bossLoot(), rolls: [{ ...F.bossLoot().rolls[0], noDrop: 300 }] });
+  assert.ok(t.ok); if (t.ok) assert.equal(t.value.rolls[0]!.noDrop, 300);
+  const z = parseLootTable({ ...F.bossLoot(), rolls: [{ ...F.bossLoot().rolls[0], noDrop: 0 }] });
+  assert.ok(z.ok); if (z.ok) assert.equal('noDrop' in z.value.rolls[0]!, false, 'a zero weight is not stored: the table reads as before');
 });
