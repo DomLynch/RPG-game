@@ -111,9 +111,10 @@ export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'
 // a pose that starts a fighter in the wall or in the other body is a caller bug, never a fight to clamp silently. Absent = today's marks, byte for byte.
 export type DuelPose = { hero: { x: number; z: number }; foe: { x: number; z: number }; heroFacing: number };
 // The one validity rule, shared with the record decoder (src/record.ts): a pose that fails it is refused, never clamped.
-export const validatePose = (pose: DuelPose): void => {
+// `wall`: also check the live wall (RADIUS). The record decoder passes false: RADIUS is whatever the LAST fight set, and the wall belongs to the record's own circle, which poseBodies checks at replay under the record's version (Auditor, #1822).
+export const validatePose = (pose: DuelPose, wall = true): void => {
   const { hero, foe, heroFacing } = pose;
-  for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || M.hypot(p.x, p.z) > RADIUS) throw RangeError('Duel pose: a fighter must start inside the wall');
+  for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || (wall && M.hypot(p.x, p.z) > RADIUS)) throw RangeError('Duel pose: a fighter must start inside the wall');
   if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
   if (M.hypot(hero.x - foe.x, hero.z - foe.z) <= .85) throw RangeError('Duel pose: the fighters start inside each other');
 };
