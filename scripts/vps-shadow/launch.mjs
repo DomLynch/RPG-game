@@ -1,5 +1,5 @@
 // The ONE place a receipt job is launched and read back (the verifier, scripts/lib/vps-receipts.mjs jobVerified, compares the job's command with jobCommand()).
-//   node scripts/vps-shadow/launch.mjs unit|rows <full sha> [cpu-upgrade|t4-medium]   -> prints the Hugging Face job id
+//   node scripts/vps-shadow/launch.mjs unit|rows <full sha> [cpu-upgrade|t4-medium] [rows e.g. 31,33]   -> prints the Hugging Face job id
 //   node scripts/vps-shadow/launch.mjs fetch <job id> <full sha>                      -> writes artifacts/vps-shadow/<sha>/unit.json | rows-<job>.json
 // Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
@@ -8,12 +8,13 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, jobCommand } from '../lib/vps-receipts.mjs';
 
-export const hfArgs = (kind, sha, flavor = 'cpu-upgrade') => {
+export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '') => {
+  if (rows && (kind !== 'rows' || !/^\d+(,\d+)*$/.test(rows))) throw new Error('rows must be a comma list of row numbers and only for kind rows');
   if (kind !== 'unit' && kind !== 'rows') throw new Error('kind must be unit or rows');
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
   if (!FLAVORS.includes(flavor)) throw new Error(`flavor must be one of ${FLAVORS.join(', ')}`);
   const [bash, dashC, script] = jobCommand(kind, sha);
-  return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : '20m', '--detach', '-e', `SHA=${sha}`, 'node:22', bash, dashC, script];
+  return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), 'node:22', bash, dashC, script];
 };
 export const receiptFrom = (logs, kind) => {
   const line = String(logs).split('\n').reverse().find(l => l.startsWith(`RECEIPT ${kind} `));
@@ -32,7 +33,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const file = `${dir}/${unit ? 'unit.json' : `rows-${a}.json`}`; writeFileSync(file, JSON.stringify(receipt, null, 1) + '\n');
       console.log(file);
     } else {
-      const args = hfArgs(cmd, a, b);
+      const args = hfArgs(cmd, a, b, c);
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else { const r = spawnSync('hf', args, { encoding: 'utf8', timeout: 60_000 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || ''); process.exit(r.status ?? 1); }
     }

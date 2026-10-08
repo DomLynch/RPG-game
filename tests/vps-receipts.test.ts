@@ -91,6 +91,14 @@ test('the receipt sha is bound to the deploy tree: a completed canonical job on 
   assert.equal(unitReceiptOk(unit, tree, { 'run-unit.sh': 'u'.repeat(64) }, U, { [old]: tree }), true);
 });
 
+test('a row a shard SKIPPED or never reached does not veto it; a fail or ceiling does', () => {
+  const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
+  const skipped = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === base[0] ? 'trusted' : 'pass', exit: r.index === base[0] ? undefined : 0 })) });
+  assert.ok(trustedFromShards([receipt(), skipped], tree, commands, source, sums, JOBS, TREES).includes(base[0]), 'shard B skipped it, shard A passed it');
+  const ceiling = receipt({ rows: rows.filter((r: Row) => r.index === base[0]).map((r: Row) => ({ ...r, status: 'ceiling' })) });
+  assert.ok(!trustedFromShards([receipt(), ceiling], tree, commands, source, sums, JOBS, TREES).includes(base[0]));
+});
+
 test('strict row parse: only status pass AND exit exactly 0 counts (missing, null, -1, 1 never pass)', () => {
   const base: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   const target = base[0];
@@ -154,6 +162,11 @@ test('launch.mjs launches exactly the canonical job (detached, timed, allowed fl
   assert.deepEqual(receiptFrom('x\nRECEIPT unit {"job":"J1","pass":3}\nbye', 'unit'), { job: 'J1', pass: 3 });
   assert.equal(receiptFrom('RECEIPT rows {bad json', 'rows'), null);
   assert.equal(receiptFrom('RECEIPT rows {"a":1}', 'unit'), null, 'the kind must match');
+  assert.deepEqual(hfArgs('rows', sha, 'cpu-upgrade', '31,33').slice(7, 11), ['-e', `SHA=${sha}`, '-e', 'ROWS_ONLY=31,33']);
+  assert.throws(() => hfArgs('unit', sha, 'cpu-upgrade', '31'));
+  assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', '31;rm'));
+  assert.match(readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), /playwright install --with-deps chromium/);
+  assert.match(jobCommand('rows', sha)[2], /libjpeg-turbo-progs/);
   for (const f of ['run-unit.sh', 'run-rows.sh']) assert.match(readFileSync(`scripts/vps-shadow/${f}`, 'utf8'), /echo "RECEIPT (unit|rows) /);
 });
 

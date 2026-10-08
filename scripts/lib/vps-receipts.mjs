@@ -39,7 +39,7 @@ export const vpsSafeRow = (command, argv, readSource, allowWall = false) => {
 export const FLAVORS = ['cpu-upgrade', 't4-medium'];
 // The job's own command must be the canonical runner invocation for this sha (jobCommand below), so a job that merely sets SHA=<sha> and runs some
 // other script is not a receipt. The runner it executes is the file inside the checked-out tree, whose sha256 the receipt carries (boundToTree).
-export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q origin ${sha}; git checkout -q --detach ${sha}; export SHADOW_HOME=/work SHADOW_JOB_KIND=${kind}; exec bash scripts/vps-shadow/run-${kind}.sh ${sha}`];
+export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q origin ${sha}; git checkout -q --detach ${sha}; export SHADOW_HOME=/work SHADOW_JOB_KIND=${kind}; exec bash scripts/vps-shadow/run-${kind}.sh ${sha}`];
 export const jobVerified = (info, id, sha, kind) => !!info && !!id && info.id === id && info.status?.stage === 'COMPLETED' && FLAVORS.includes(info.flavor) && fullHex(sha)
   && info.environment?.SHA === sha && JSON.stringify(info.command) === JSON.stringify(jobCommand(kind, sha));
 // The runner files a receipt names (sha256 by file name) must equal the deploy tree's own copies: a run started from another checkout
@@ -58,12 +58,12 @@ export function trustedFromVps(receipt, tree, commands, readSource, ownSums = {}
     .map(row => row.index).sort((a, b) => a - b);
 }
 
-// N shard receipts for one tree: a row is trusted when some receipt trusts it AND no receipt for this tree shows it failing (a FAIL anywhere vetoes).
+// N shard receipts for one tree: a row is trusted when some receipt trusts it AND no receipt for this tree shows it failing (a FAIL or CEILING anywhere vetoes; a skipped row does not).
 export function trustedFromShards(receipts, tree, commands, readSource, ownSums, jobs = {}, trees = {}) {
   const seen = new Set(), failed = new Set();
   for (const receipt of receipts) {
     if (receipt?.kind !== 'vps-shadow-rows' || receipt.tree !== tree) continue;
-    for (const row of receipt.rows || []) if (row.status !== 'pass' || row.exit !== 0) failed.add(row.index);
+    for (const row of receipt.rows || []) if (row.status === 'fail' || row.status === 'ceiling' || (Number.isInteger(row.exit) && row.exit !== 0)) failed.add(row.index);   // a row a shard SKIPPED ('trusted') or never reached ('missing') is not a failure
     for (const index of trustedFromVps(receipt, tree, commands, readSource, ownSums, jobs, trees)) seen.add(index);
   }
   return [...seen].filter(index => !failed.has(index)).sort((a, b) => a - b);
