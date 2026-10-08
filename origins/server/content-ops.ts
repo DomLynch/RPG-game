@@ -6,11 +6,12 @@ import type { Result } from '../contracts/core.ts';
 import { lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import type { Content } from './holdings.ts';
 import { handlers, withContent, type Handler } from './handlers.ts';
+import { REGION1_SHOPS } from '../region1/shops.ts';
 
 export function itemContent(content: EncounterContent): Content {
   const { services, costTables } = content.region.registry;
   const service = [...services.values()].filter((s) => s.service === 'upgrade' && costTables.has(s.costTable)).sort((a, b) => (a.id < b.id ? -1 : 1))[0];
-  return { lookup: lookupOf(content), ...(service ? { smith: { service, costs: costTables.get(service.costTable)! } } : {}) };
+  return { lookup: lookupOf(content), shops: REGION1_SHOPS, ...(service ? { smith: { service, costs: costTables.get(service.costTable)! } } : {}) };
 }
 
 // `content` is the Result of loadEncounterContent(). One that does not load leaves the writer on its base ops (the item ops are then absent, as before): a content problem must not take
