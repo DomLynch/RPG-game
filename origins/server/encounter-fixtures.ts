@@ -8,6 +8,8 @@ import { DbError, type Db } from './db.ts';
 import type { EncounterDeps } from './encounter.ts';
 import { kitBuild } from '../mobs/kit-version.ts';
 import type { DuelPose } from '../../src/duel.ts';
+import { LATE_NOTICE, setLateNotice } from '../../src/play-radius.ts';
+import { setStab, STAB_ON } from '../../src/stab-rule.ts';
 import { liveSpecials, verifyEncounter } from './encounter-verify.ts';
 
 export const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';
@@ -52,6 +54,12 @@ export const deps = (over: Partial<EncounterDeps> = {}): EncounterDeps => ({ res
 
 // The client: plays the fight with the server's seed, records it as the Pit's recorder does, packs it for the wire.
 export function playFight(seed: number, intentSeed: number, level = 6, enemy: 'knight' = 'knight', onlyFinished = false, build = kitBuild('test'), pose?: DuelPose): FightRecord | null {
+  if (!pose) return play(seed, intentSeed, level, enemy, onlyFinished, build);
+  const was = { notice: LATE_NOTICE, stab: STAB_ON };   // a posed (v38) fight is fought in the live era, as match.ts begin() sets it; a headless run has those era flags off
+  setLateNotice(true); setStab(true);
+  try { return play(seed, intentSeed, level, enemy, onlyFinished, build, pose); } finally { setLateNotice(was.notice); setStab(was.stab); }
+}
+function play(seed: number, intentSeed: number, level: number, enemy: 'knight', onlyFinished: boolean, build: string, pose?: DuelPose): FightRecord | null {
   let s = intentSeed >>> 0; const rand = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
   const specials = liveSpecials(level), profile = profileAt(OPPONENTS[enemy], level);
   const rec = createRecorder({ build, opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}), ...(pose ? { pose } : {}) });
