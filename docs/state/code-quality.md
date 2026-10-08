@@ -1,5 +1,19 @@
 # Code quality lane (Auditor)
 
+## 2026-10-08 ~19:3x (+04) — HANDOFF before self-clear (context ~614k, COO's request). READ FIRST, then memory `frankendom_handoff_2026-10-08h` + `project_legacy_links_rulings_2026-10-08`
+
+**Direction (Dom ~18:0x via Strategy):** Zone 1 is DETACHED from the Pit (own real-time loop in `origins/combat/zone1.ts`, no record/seed/replay); the Pit is on hold. PARKED, do not review: #1865, #1866, #1868 (0013 bundle), RV41, #1867 (superseded by #1873). Kill reports = plausibility checks + server-owned spawns + a beta ledger (my YES for beta).
+
+**Live:** fold 21 c10c5b6b5 (#1859 wolves, #1862, #1869); fold 22 c916a8d0e (#1864). Wolves writer at c10c5b6b: my POST PASS on #1859 (parity 906, NRestarts 0, key sha8 0498c049).
+
+**MERGE PASS, waiting for a fold (heads):** #1861 @1b8c79a6c (Play→/zone1/; Deploy installs 6 nginx lines BY HAND, deploy.sh doesn't; live checks on the PR) + #1870 @b5284aa06 with it · #1871 @82fc49428 → #1874 @7e2ad86b2 → #1876 @de710ca02 → #1877 @0bfeaa2d0 (Combat stack, in that order; HF suites green) · #1787 @9832b10f8 (bear re-pin) · #1818 @338ca62e4 (code; 0011 apply via runbook `--include-all`, season_close own GO) · #1840 @5724a6efd (RV40; Pit on hold, can wait; needs writer reinstall) · #1872 @51a1e1a5b · #1873 @d2d56606d code PASS (needs suite + stills on the new loop) · #1879 @e9dfcf19b (if quality green) · #1800 @28a62cd35 (if quality + Lead look).
+
+**PRE:** #1880 PR A @dd47c1139 (0014 spawns/engage/kill/beta ledger) PASS to apply WITH 2 conditions: (1) op allowlist in `origins_spawn_kill` (event/mint/metal/career_set) before `origins_apply`; (2) ledger cp from writer vs absolute `career_set` — derive in SQL or prove equal; 0015 wipe must restore career by subtraction/snapshot. reach 'unchecked' → ledger + Backend's hourly count. **Next: PR B (0015 wipe) PRE**, then #1880's apply-time read-back + POST.
+
+**Open / owed:** #1862 live mid-fight still (Deploy/World) · #1860 needs rebase onto #1800 · #1864's Sentry signed-out counter lives in parked #1865 (cherry-pick or other signal) · Strategy queue: World #1875, Combat #1881.
+
+**Rule learned today:** standing in for a skipped/pending CI means the FULL suite at the head (HF job: tsc ×2 + `node --test tests/*.test.ts`), never only the PR's own tests (#1871 miss; memory `feedback_ci_skipped_run_full_suite`).
+
 ## 2026-10-08 ~17:0x (+04) — HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-08g` (and 08f below)
 
 **Now.** **#1857 S1 @d9684d721 + #1858 S2 @db81be8ea: reviewed, verdict NOT posted yet.** Strategy ruled them GO without the <100 ms gate; my PASS naming both heads is the last gate. Merges verified clean (remerge-diff empty; S1 = 95f2ab3d7 + trunk merge; S2 = d50ee15fd + d9684d721). Code: no blocker. LOWs: world camera overrides the finisher camera; degenerate lookAt if hero and foe overlap. Pictures: place line kept, no title/Fight gate/Leave, same distance; hero x 39 % (+0.3), 43–45 % (+2.5), **29–32 % at +1 s** on both engines (framing Strategy approved at 764014d3d; named, not held). S1's +0.3 WebKit still swings through the arena (fixed by S2), so **S1 and S2 ship in the same fold**. Suite/tsc/build on HF: jobs `6ac78e11df2184ac91ad02bd` (#1857) and `6ac78e12e7a0dae8a2788981` (#1858); read them, check want==HEAD, then post.
