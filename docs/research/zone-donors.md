@@ -36,7 +36,7 @@ Headline: two licence-clean, fully data-driven zone formats exist (Cataclysm-DDA
 | Repo | Lang / licence | Zone unit and format | Data vs code | Loader (separable?) | Streaming | Score |
 |---|---|---|---|---|---|---|
 | Flare engine + game | C++, GPL-3 engine; data CC-BY-SA 3.0 | one INI-like text per map: `mods/empyrean_campaign/maps/abandoned_mines.txt` (`[header] width hero_pos music title`, layers, `[enemy] location category level number`, `[npc] filename`, `[event]`, `intermap=maps/x.txt,3,44`) | all data; loot in `mods/.../loot/*.txt` | `src/Map.cpp:224 Map::load` (1647 lines, singletons; no); format ~250 lines to reimplement in TS | whole map; optional procgen `Map.cpp:1695` | 4 |
-| Cataclysm-DDA | C++, Apache-2.0 | mapgen JSON keyed by `om_terrain`: `data/json/mapgen/house/house01.json` (904 files): `"rows": [ASCII grid]`, `"palettes"`, `place_monsters`, `place_loot`, `place_nested`; overmap specials for layout | all data | `src/mapgen.cpp:861 load_mapgen` (7860 lines, tangled; no); format separable | submap grid `map.cpp:9070 shift`, `:9288 loadn` | 4 |
+| Cataclysm-DDA | C++, CC BY-SA 3.0 (LICENSE.txt; the Apache file in the repo is a font licence) | mapgen JSON keyed by `om_terrain`: `data/json/mapgen/house/house01.json` (904 files): `"rows": [ASCII grid]`, `"palettes"`, `place_monsters`, `place_loot`, `place_nested`; overmap specials for layout | all data | `src/mapgen.cpp:861 load_mapgen` (7860 lines, tangled; no); format separable | submap grid `map.cpp:9070 shift`, `:9288 loadn` | 4 |
 | Crawl (DCSS) | C++/Lua, GPL-2+ | `.des` DSL vaults (`dat/des/branches/depths.des`: NAME/TAGS/KMONS/MAP..ENDMAP) + Lua | mostly data + Lua | `maps.cc:1528 read_maps`; `mapdef.cc` 6416 lines (no) | whole level | 2 |
 | KeeperRL | C++, GPL-2 (+data clause) | settlements in custom text: `data_free/game_config/enemies.txt`, `map_layouts/` (`inhabitants = { count = {2 4} }`) | inhabitants/layouts data; terrain code | `model_builder.cpp:123` (no) | whole | 2 |
 | OpenTESArena | C++, MIT | `MapDefinition`/`LevelDefinition` structs from proprietary MIF | runtime structs | not separable (MIF); `ChunkManager.cpp:46` 134 lines IS separable | chunked | 3 |
@@ -52,13 +52,13 @@ Headline: two licence-clean, fully data-driven zone formats exist (Cataclysm-DDA
 | Wesnoth (brief) | C++, GPL-2 | WML scenario `.cfg` (`[scenario] id`, `[side]`, `[event]`, music macro) + separate text map (comma terrain codes) | data | `src/map/map.cpp:110 gamemap::read` | whole | 3 |
 | VCMI (brief) | C++, GPL-2 | binary H3M; JSON object defs `config/objects/*.json` | maps binary, objects JSON | no | whole | 2 |
 
-Agent 2 top 3: Flare `abandoned_mines.txt` (format), Cataclysm `house01.json` (template, Apache), OpenMW `scene.cpp:616` (streaming pattern). Runner-up Wesnoth for its map/scenario split.
+Agent 2 top 3: Flare `abandoned_mines.txt` (format), Cataclysm `house01.json` (template; CC BY-SA 3.0, format only), OpenMW `scene.cpp:616` (streaming pattern). Runner-up Wesnoth for its map/scenario split.
 
 ## Merged ranking and recommendation (Optimizer, 22:5x)
 
 No donor has a 3D Three.js zone format; every 3D engine reads proprietary binaries. The map/terrain layer stays ours (GLB + look file). What the shelf gives us is the spawn/exits/loot/palette SCHEMA and the LOADER SHAPE, and it gives them cleanly:
 
-1. Cataclysm-DDA mapgen JSON (Apache-2.0). Zone-file grammar: rows + palette for the layout layer, `place_monsters` / `place_loot` / `place_nested` lists. Licence-clean, JSON, 904 worked examples. Use as the schema backbone.
+1. Cataclysm-DDA mapgen JSON (CC BY-SA 3.0, per its LICENSE.txt; corrected by the Auditor 2026-10-08: FORMAT/SHAPE ONLY, no files copied). Zone-file grammar: rows + palette for the layout layer, `place_monsters` / `place_loot` / `place_nested` lists. JSON, 904 worked examples to learn the shape from. Use as the schema backbone.
 2. Flare map file (format only; GPL engine, CC-BY-SA data). Header fields to adopt: entry point, music, title; `[enemy]` spawn groups with location/category/level/number; `intermap` exits in the same file. Closest single-file match to "spawn table + look + map + exits".
 3. 2004Scape / LostCityRS `src/engine/GameMap.ts` (MIT, TypeScript). Loader reference in our language; per-region data files; the LostCity in-memory bundle variant for the browser. 150-200 lines reusable over our types.
 4. FOnline prototypes (MIT). Runtime model: static prototype vs live instance; a location groups maps; `loadZone(id)` returns the validated prototype, instances are created/destroyed on demand.
@@ -66,3 +66,5 @@ No donor has a 3D Three.js zone format; every 3D engine reads proprietary binari
 6. Streaming, when a zone outgrows one load: OpenMW `changeCellGrid` and Cataclysm `map::shift` as the pattern; OpenTESArena `ChunkManager.cpp` (MIT, 134 lines) as the one liftable piece of code.
 
 Recommendation for #1913: keep its acceptance as written; fill the zone schema with 1 + 2 + 5 (JSON or validated literal), take the loader shape from 3, the runtime model from 4, defer 6. Nothing here argues for copying a whole engine; everything argues for a ~300-line schema + loader of our own built from these shapes.
+
+**Licence rule for anything lifted (Auditor, 2026-10-08):** code is copied only from MIT/Apache/BSD sources and keeps the original MIT notice (2004Scape/LostCityRS `GameMap.ts`, OpenTESArena `ChunkManager.cpp`). From GPL/AGPL/CC BY-SA sources (Cataclysm-DDA, Flare, ModernUO and the rest) only the format/shape is used, and no files are copied.
