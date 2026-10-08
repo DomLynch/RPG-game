@@ -169,7 +169,7 @@ export class Match {
   // A kill link: the fight on the record's seed, weapon and warden profile, stepped silently to fromTick and played from there.
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
-    if (epoch !== this.epoch) return false;
+    if (epoch !== this.epoch || record.group) return false;   // a group stream replays only with its siblings (RV39)
     this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level; this.specials = !!record.specials; this.gambit = !!record.gambit; this.stances = record.stances;
     underRecord(record, () => {   // built and stepped on the record's own version of the sim's math (detmath.ts)
       this.begin('replay');
@@ -187,7 +187,7 @@ export class Match {
     const saved = { scale: PLAY_SCALE, notice: LATE_NOTICE, stab: STAB_ON, practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog, specials: this.specials, gambit: this.gambit, stances: this.stances };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
     const practice = underRecord(record, () => {
-      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances);
+      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances, record.pose);
       for (let tick = 0; tick < fromTick; tick++) p = stepPractice(p, record.intents[tick], profileAt(this.opponent, record.level));
       return p;
     });
