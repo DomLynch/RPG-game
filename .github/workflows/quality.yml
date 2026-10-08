@@ -221,7 +221,7 @@ jobs:
           if-no-files-found: ignore
 
   # Asset rows in PR time (Deploy, Lead 2026-10-08: row 29 went red on fold 11 because no PR job ran it; Dom: no asset change rides a fold
-  # without its matching rows green). Runs only when the PR changes a shipped look/texture/GLB or a material manifest; every
+  # without its matching rows green). Runs only when the PR changes a shipped look/texture/GLB, a material source map or manifest, or a polish script itself; every
   # scripts/*-polish-check.mjs (today veteran-polish-check, release row 29) runs on the PR's merge result. tests/rank-look already runs
   # inside quality (test:all). Not a gate on docs or code-only PRs: they finish in seconds without installing anything.
   asset-rows:
@@ -237,8 +237,8 @@ jobs:
         id: scope
         run: |
           git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
-          if grep -E -q '^(src/assets/.*\.glb|public/looks/|public/assets/textures/|src/assets/source/materials/manifest_)' changed.txt; then
-            echo "run=1" >> "$GITHUB_OUTPUT"; grep -E '^(src/assets/.*\.glb|public/looks/|public/assets/textures/|src/assets/source/materials/manifest_)' changed.txt | head -20
+          if grep -E -q '^(src/assets/.*\.glb|src/assets/source/materials/|public/looks/|public/assets/textures/|scripts/[a-z-]+-polish-check\.mjs)' changed.txt; then
+            echo "run=1" >> "$GITHUB_OUTPUT"; grep -E '^(src/assets/.*\.glb|src/assets/source/materials/|public/looks/|public/assets/textures/|scripts/[a-z-]+-polish-check\.mjs)' changed.txt | head -20
           else
             echo "run=0" >> "$GITHUB_OUTPUT"; echo "no shipped-asset path changed: nothing to run"
           fi
