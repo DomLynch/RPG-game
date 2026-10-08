@@ -63,7 +63,7 @@ test('a coached fight is a pure function of seed and stance, and the stances pla
 });
 
 // ---- the on/off switch, the hand-over and the `build` string (TOP10 row 8; the contract Web builds against) ----
-import { BUILD_MAX, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
+import { BUILD_MAX, FOE_LAPSE, FOE_LAPSE_SCALE, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
 import { idleIntent, type Intent } from '../src/duel.ts';
 import { kitOfBuild } from '../origins/mobs/kit-version.ts';
 
@@ -149,4 +149,16 @@ test('the spans reach the record without touching record.ts: the page sets rec.m
   const back = await decodeRecord(await encodeRecord(record));
   assert.equal(back.build, 'abc1234 coach:neutral@40-160 kit:k9z');
   assert.equal(kitOfBuild(back.build), 'k9z'); assert.deepEqual(coachOfBuild(back.build)!.spans, [{ from: 40, to: 160 }]);
+});
+
+test('per-foe strength: a listed foe moves only the lapse, scaled by stance and clamped; an unlisted or absent foe changes nothing', () => {
+  for (const stance of PICKS) {
+    const base = coachProfile(stance, 'normal');
+    assert.deepEqual(coachProfile(stance, 'normal', 'veteran'), base, 'an unlisted foe adds nothing');
+    assert.deepEqual(coachProfile(stance, 'normal', undefined), base);
+    const dwarf = coachProfile(stance, 'normal', 'dwarf');
+    assert.ok(Math.abs(dwarf.lapse - Math.min(0.85, base.lapse + FOE_LAPSE.dwarf! * FOE_LAPSE_SCALE[stance])) < 1e-12, `${stance}: lapse + dwarf x scale`);
+    for (const k of COACH_FIXED) assert.equal(dwarf[k], base[k], `${stance}: ${k} stays the warden's`);
+    assert.ok(coachProfile(stance, 'normal', 'plaguedoctor').lapse >= 0.1 && dwarf.lapse <= 0.85, 'clamped');
+  }
 });
