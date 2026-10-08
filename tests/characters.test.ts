@@ -10,6 +10,8 @@ import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
+import { WOLF_RENDER_SCALE } from '../src/beast-scale.ts';
+import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
 import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, loadTextured, MissingTextures, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
@@ -996,4 +998,18 @@ test('the Centurion\'s armed run: the veteran rig carries ArmedRun, a one-hand f
   const mirror = buildWarriors(hero, undefined, ['gladius', 'gladius']).opponent;
   for (let i = 0; i < 90; i++) mirror.update(4, 1 / 60, 'ready');
   assert.ok(!/ArmedRun/.test(mirror.playing()), 'a rig without the clip never plays it');
+});
+
+// Dom 2026-10-07: the Ash Wolf is the same size walking and fighting. The world draws the rig at its mob look's scale, the duel at src/beast-scale.ts: one number, and the duel's wolf stands the height the world's does (~1.29 m, the capsule's size).
+test('the Ash Wolf is drawn the same size in the duel as in the world: one scale, the rig x2, ~1.29 m', async () => {
+  assert.equal(MOB_LOOKS['character:ash-wolf']!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale');
+  const hero = await readWarrior('warrior.glb'), wolf = await readWarrior('wolf.glb');
+  const { opponent } = buildWarriors(hero, wolf, ['longsword', 'bite']);
+  assert.equal(opponent.anchor.scale.x, WOLF_RENDER_SCALE); assert.equal(opponent.anchor.scale.y, WOLF_RENDER_SCALE);
+  const top = (a: typeof wolf) => { a.scene.updateMatrixWorld(true); const b = new Box3().setFromObject(a.scene); return b.max.y - b.min.y; };
+  const native = top(wolf), drawn = (() => { opponent.anchor.updateMatrixWorld(true); const b = new Box3().setFromObject(opponent.anchor); return b.max.y - b.min.y; })();
+  assert.ok(Math.abs(drawn / native - WOLF_RENDER_SCALE) < .02, `drawn ${drawn.toFixed(3)} m vs native ${native.toFixed(3)} m`);
+  assert.ok(drawn > 1.2 && drawn < 1.4, `the fighting wolf stands ${drawn.toFixed(3)} m (world target 1.25-1.30)`);
+  // the sim's capsule is untouched: render only
+  assert.equal(OPPONENTS.wolf.scale, .8);
 });
