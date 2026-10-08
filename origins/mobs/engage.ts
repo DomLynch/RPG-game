@@ -36,7 +36,8 @@ export function release(s: EngageState, creature: string): EngageState {
   return holder === null ? s : withList(s, holder, engagedOf(s, holder).filter((c) => c !== creature));
 }
 
-// The player died, left the zone or disconnected: every creature on their list is released.
+// The player died or left the zone through its exit: every creature on their list is released. NEVER on a disconnect (Dom's no-escape-by-disconnect
+// rule): a dropped player stays engaged and the fight runs on.
 export function releasePlayer(s: EngageState, player: string): EngageState {
   return s.engaged.has(player) ? withList(s, player, []) : s;
 }
