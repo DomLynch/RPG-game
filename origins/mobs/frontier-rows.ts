@@ -16,6 +16,6 @@ export const FRONTIER_ROWS: readonly MobRow[] = [
   { id: 'character:cinder-scavenger', source: GOBLIN, role: 'beast', loot: 'loottable:cinder-scavenger', level: [11, 12], behaviour: { roam: 8, spread: 16, pull: 0, campSize: [4, 4] } },
   { id: 'character:mere-brood', source: BEOWULF, role: 'beast', loot: 'loottable:mere-brood', level: [12, 13], behaviour: { roam: 6, spread: 9, pull: 0, campSize: [4, 4] } },
   { id: 'character:ruin-ghoul', source: GHOUL, role: 'brute', loot: 'loottable:ruin-ghoul', level: [11, 12], behaviour: { roam: 6, spread: 7, pull: 9, campSize: [3, 3] } },
-  // The Ash Boar (Dom 2026-10-08: a boar in Zone 1, spawn YES). One on its own, a little below the bear; 75 s is the middle of Dom's 60-90 s animal respawn. Moved here from the held wildlife batch.
-  { id: 'character:ash-boar', source: CALYDON, role: 'beast', loot: 'loottable:ash-boar', level: [13, 14], weight: 3, respawnSeconds: 75, behaviour: { aggro: 6, roam: 5, spread: 8, pull: 0, campSize: [1, 1] } },
+  // The Ash Boar (Dom 2026-10-08: a boar in Zone 1, spawn YES). One on its own, a little below the bear; 60 s is the low end of Dom's 60-90 s animal respawn (Backend's ruling). Moved here from the held wildlife batch.
+  { id: 'character:ash-boar', source: CALYDON, role: 'beast', loot: 'loottable:ash-boar', level: [13, 14], weight: 3, respawnSeconds: 60, behaviour: { aggro: 6, roam: 5, spread: 8, pull: 0, campSize: [1, 1] } },
 ];
