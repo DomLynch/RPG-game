@@ -29,6 +29,9 @@ export function saveQueue(save: SaveFn, log: (line: string) => void = console.lo
       if (pending.size > max) pending.delete(pending.keys().next().value!);
       void drain();
     },
+    // A character switch (/internal/rejoin): the account's queued place belongs to the OLD character, and the writer stores a post on whichever character is
+    // active when it arrives, so it must not be sent. A post already in flight (at most the 1.5 s timeout) is not recalled: the writer-side `at` guard is the follow-up.
+    drop(account: string): void { pending.delete(account); },
     idle: (): boolean => !busy && pending.size === 0,
     stats: () => ({ queued: pending.size, sent, failed }),
   };

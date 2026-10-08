@@ -171,7 +171,7 @@ export function createPresence(opts: PresenceOptions): Presence {
         if (socket.destroyed || sockets.get(player) !== socket) return false;
         const at = await (opts.locate?.(me) ?? Promise.resolve(null)).catch(() => null) ?? undefined;
         if (socket.destroyed || sockets.get(player) !== socket) return false;
-        const old = player; sockets.delete(old); world.leave(old, now());
+        const old = player; sockets.delete(old); world.leave(old, now()); saves?.drop(me);   // the old character's queued place must not land on the new one (Auditor M1)
         world.memory.delete(me);   // a rejoin is a different character: with no saved spot it starts at the spawn, never where the old one left
         const fresh = world.join(me, now(), friend, at);
         if (!fresh) { bucket.sockets--; rejoiners.delete(me); close(1013, 'world-full'); return false; }

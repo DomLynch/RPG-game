@@ -32,6 +32,17 @@ test('saveQueue: one post in flight, the newest place per account wins, the olde
   assert.equal(logs.length, 1); assert.match(logs[0]!, /position save .* failed \(writer down\)/);
 });
 
+test('saveQueue: drop removes an account\'s queued place (a character switch) and leaves the others', async () => {
+  const posted: string[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>(r => { release = r; });
+  const q = saveQueue(async (a) => { if (!posted.length) await gate; posted.push(a); }, () => {});
+  q.push('a', { x: 1, z: 1, atMs: 1 }); q.push('b', { x: 2, z: 2, atMs: 2 }); q.push('c', { x: 3, z: 3, atMs: 3 });
+  q.drop('b'); q.drop('nobody');
+  release(); await until(q.idle);
+  assert.deepEqual(posted, ['a', 'c'], 'b was switched: its old place is never sent');
+});
+
 // A presence with test auth (token `u<n>` = acct(n)), a fast speed cap (one pose may cross a zone edge) and a recording save.
 const start = async (o: { locate?: (a: string) => Promise<{ x: number; z: number } | null>; saveEveryMs?: number } = {}) => {
   const saves: [string, SaveAt][] = [];
