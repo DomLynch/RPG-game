@@ -613,15 +613,17 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    // world fights: compile this scene's own rigs (hero, foe, weapons) once they have loaded, before the engage. A program's variant depends on the lights it is lit by, and the world's lights only join this scene at the attach, so
-    // they are borrowed here as clones for the compile and taken out again (nothing is drawn).
-    warmOwn(lights: THREE.Object3D[]) {
+    // world fights: warm this scene's own rigs (hero, foe, weapons) once they have loaded, before the engage. A program's variant depends on the lights it is lit by, and the world's lights only join this scene at the
+    // attach, so they are borrowed here as clones. `compile` builds the lit programs, but the shadow pass's depth programs only exist once a shadow map is really rendered, so one frame is drawn into a 4x4 target (nothing shown), then the clones go.
+    async warmOwn(lights: THREE.Object3D[]) {
       const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed);
-      // compile only visits visible objects, and the hit effects (sparks, blood, trails) stay hidden until the first hit: show them for the traversal, which compileAsync does synchronously before it returns, then hide them again.
-      const hidden: THREE.Object3D[] = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
-      const done = renderer.compileAsync(scene, camera).catch(() => {}).finally(() => { scene.remove(...borrowed); });
-      for (const o of hidden) o.visible = false;
-      return done;
+      try {
+        await renderer.compileAsync(scene, camera);
+        const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
+        try { renderer.setRenderTarget(target); renderer.render(scene, camera); } finally { renderer.setRenderTarget(before); target.dispose(); }
+      } catch { /* a failed warm only means the first frame compiles, as before */ } finally {
+        scene.remove(...borrowed); for (const light of borrowed) (light as THREE.Light).dispose?.();
+      }
     },
     warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
