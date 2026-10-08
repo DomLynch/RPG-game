@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { jobCommand, trustedFromShards, trustedFromVps } from '../scripts/lib/vps-receipts.mjs';
+import { JOB_IMAGE, JOB_OWNER, jobCommand, trustedFromShards, trustedFromVps } from '../scripts/lib/vps-receipts.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -19,7 +19,9 @@ const rows: Row[] = rowSet(commands, source);
 const pass = rows.map(r => ({ ...r, status: 'pass', exit: 0 }));
 const sums = { 'run-rows.sh': 'r'.repeat(64), 'rows-json.mjs': 'j'.repeat(64), 'rows-lib.mjs': 'l'.repeat(64) };
 const receipt = (over = {}) => ({ kind: 'vps-shadow-rows', job: 'J1', sha, scripts: sums, tree, buildStatus: 0, dirty: 0, rows: pass, ...over });
-const job = (id: string, over = {}) => ({ id, flavor: 'cpu-upgrade', status: { stage: 'COMPLETED' }, environment: { SHA: sha }, command: jobCommand('rows', sha), ...over });
+// What `hf jobs inspect` reports for a canonical job: every field jobVerified pins (image, no arguments, owner, no Space, no secrets, env, command).
+const pinned = { docker_image: JOB_IMAGE, arguments: [], secrets: [], owner: { name: JOB_OWNER }, space_id: null };
+const job = (id: string, over = {}) => ({ id, flavor: 'cpu-upgrade', status: { stage: 'COMPLETED' }, ...pinned, environment: { SHA: sha }, command: jobCommand('rows', sha), ...over });
 const JOBS = { J1: job('J1'), J2: job('J2') };
 const TREES = { [sha]: tree };
 const exe = (file: string, text: string) => { writeFileSync(file, text); chmodSync(file, 0o755); };
@@ -116,7 +118,7 @@ test('vps-receipt-trust.mjs hashes all three runner files of the deploy commit: 
   // A dedicated receipt dir (VPS_RECEIPT_SHA names it), never artifacts/vps-shadow/<HEAD>: a deploy checkout's fetched receipts stay untouched (Auditor LOW).
   const name = `guard-test-${process.pid}`, bin = mkdtempSync(join(tmpdir(), 'vps-receipts-hf-')), dir = `artifacts/vps-shadow/${name}`;
   // hf stub: `hf jobs inspect J1` answers a completed canonical rows job for HEAD.
-  exe(join(bin, 'hf'), `#!/usr/bin/env bash\necho '${JSON.stringify([{ id: 'J1', flavor: 'cpu-upgrade', status: { stage: 'COMPLETED' }, environment: { SHA: head }, command: jobCommand('rows', head) }])}'\n`);
+  exe(join(bin, 'hf'), `#!/usr/bin/env bash\necho '${JSON.stringify([{ id: 'J1', flavor: 'cpu-upgrade', status: { stage: 'COMPLETED' }, ...pinned, environment: { SHA: head }, command: jobCommand('rows', head) }])}'\n`);
   const run = (scripts: object) => {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'rows-guard-test.json'), JSON.stringify(receipt({ sha: head, tree: headTree, scripts })));
