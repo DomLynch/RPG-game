@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseJobLog, selectWallRows, trustedRows, waitBudget, HELD_ROWS, T4_MEDIUM_USD_PER_HOUR, costLine } from '../scripts/lib/hf-wall-rows.mjs';
+import { parseJobLog, selectWallRows, splitRows, trustedRows, waitBudget, HELD_ROWS, T4_MEDIUM_USD_PER_HOUR, costLine } from '../scripts/lib/hf-wall-rows.mjs';
 
 const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8'));
 // The launcher tests read HEAD and its tree: a clone without .git (the VPS work copies) has neither. CI and the Mac keep them strict.
@@ -151,3 +151,45 @@ test('deploy-hf.sh: the Published line carries the receipt tree, CI+T4 rows are 
   sh('hf_wall_rows_launch; hf_wall_rows_cancel');
   assert.equal(readFileSync(join(dir, 'cancelled'), 'utf8').trim(), 'jobX', 'no second cancel once collect has written its receipt');
 });
+
+test('splitRows: longest rows first onto the least-loaded job, so the parallel T4 jobs finish together; never more jobs than rows', () => {
+  const secs: Record<number, number> = { 1: 90, 2: 86, 3: 55, 4: 53, 5: 53, 6: 34, 7: 23, 8: 21 };
+  const jobs = splitRows([1, 2, 3, 4, 5, 6, 7, 8], 4, (row: number) => secs[row]);
+  assert.equal(jobs.length, 4);
+  assert.deepEqual(jobs.flat().sort((a: number, b: number) => a - b), [1, 2, 3, 4, 5, 6, 7, 8], 'every row exactly once');
+  const loads = jobs.map((j: number[]) => j.reduce((sum, row) => sum + secs[row], 0));
+  assert.ok(Math.max(...loads) - Math.min(...loads) <= 40, `balanced: ${loads}`);
+  assert.deepEqual(splitRows([7, 3], 4), [[3], [7]], 'two rows: two jobs, not four');
+  assert.deepEqual(splitRows([], 4), []);
+});
+
+test('the release selection launches T4_JOBS parallel jobs, each in the ledger; a job that fails trusts none of its own rows and the others still count', { skip: noGit }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hf-wall-rows-multi-')), fake = join(dir, 'hf'), state = join(dir, 'state'), ledgerDir = join(dir, 'ledger');
+  const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim(), sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  // Fake hf: `jobs run` numbers its jobs (job1, job2, ...) and records which rows each got (from SKIP); job2 ends in ERROR; every job's log has
+  // an exit-0 receipt for each of its own rows.
+  writeFileSync(fake, `#!/bin/bash
+case "$1 $2" in
+  "jobs run") n=$(( $(cat "${dir}/n" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/n"; for a in "$@"; do case "$a" in SKIP=*) echo "\${a#SKIP=}" > "${dir}/skip$n";; esac; done; echo "Job started with ID: job$n";;
+  "jobs inspect") if [ "$3" = job2 ]; then echo '{"status": {"stage": "ERROR"}}'; else echo '{"status": {"stage": "COMPLETED"}}'; fi;;
+  "jobs logs") echo "=== HEAD ${sha} TREE ${tree} ==="; for r in 1 3 6 8; do echo "=== RECEIPT {\\"index\\":$r,\\"status\\":0,\\"seconds\\":5,\\"tree\\":\\"${tree}\\"} ==="; done; echo '=== COST seconds=100 rows_wall=20 ===';;
+  "jobs cancel") :;;
+esac`, { mode: 0o755 });
+  const total = gate.release_commands.length, keep = [1, 3, 6, 8];
+  const env = { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: state, HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_WALL_ROWS_POLL_S: '0', HF_LEDGER_DIR: ledgerDir };
+  const run = (args: string[]) => execFileSync(process.execPath, ['scripts/hf-wall-rows.mjs', ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const skip = Array.from({ length: total }, (_, i) => i + 1).filter(i => !keep.includes(i)).join(',');
+  assert.equal(run(['launch', sha, '--skip', skip]).trim(), 'job1,job2,job3,job4', 'four rows, four parallel jobs');
+  const saved = JSON.parse(readFileSync(state, 'utf8'));
+  assert.deepEqual(saved.jobs.map((j: { rows: number[] }) => j.rows).flat().sort((a: number, b: number) => a - b), keep);
+  assert.equal(readFileSync(join(ledgerDir, `${sha}.ledger`), 'utf8').trim().split('\n').length, 4, 'every job is in the ledger for hf-cleanup');
+  const job2Rows: number[] = saved.jobs[1].rows;
+  assert.equal(readFileSync(join(dir, 'skip2'), 'utf8').trim().split(',').map(Number).filter((r: number) => keep.includes(r)).length, 3, 'each job skips the other jobs\' rows');
+  const trusted = run(['collect']).trim().split(',').map(Number);
+  assert.deepEqual(trusted, keep.filter(r => !job2Rows.includes(r)), 'job2 failed: only its rows fall back to the Mac');
+  const receipt = JSON.parse(readFileSync(`${state}.json`, 'utf8'));
+  for (const r of job2Rows) assert.equal(receipt.untrusted[r], 'job ended ERROR');
+  assert.equal(receipt.seconds, 300, 'the three finished jobs\' seconds, summed');
+  rmSync(dir, { recursive: true, force: true });
+});
+

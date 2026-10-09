@@ -47,6 +47,14 @@ export function parseJobLog(text) {
   return { sha: head?.[1] ?? null, tree: head?.[2] ?? null, receipts, seconds: cost ? Number(cost[1]) : null, ...(blocker ? { blocker: blocker[1] } : {}) };
 }
 
+// The T4 leg as N parallel jobs (Dom 2026-10-09: "max out the GPU, it's cheap"): longest-first onto the least-loaded job, so the jobs finish together.
+// weight(row) = the row's expected seconds (row-placement.mjs ON_T4 measurements; others a flat guess). Never more jobs than rows; empty jobs are dropped.
+export function splitRows(rows, n, weight = () => 1) {
+  const jobs = Array.from({ length: Math.max(1, Math.min(n, rows.length)) }, () => ({ rows: [], load: 0 }));
+  for (const row of [...rows].sort((a, b) => weight(b) - weight(a) || a - b)) { const j = jobs.reduce((min, x) => (x.load < min.load ? x : min)); j.rows.push(row); j.load += weight(row); }
+  return jobs.filter(j => j.rows.length).map(j => j.rows.sort((a, b) => a - b));
+}
+
 export const costLine = (seconds, jobId, flavor = 't4-medium', rate = T4_MEDIUM_USD_PER_HOUR) =>
   `hf-wall-rows: job ${jobId} ran ${seconds} s on ${flavor} ≈ $${(seconds / 3600 * rate).toFixed(2)} at $${rate.toFixed(2)}/h`;
 
