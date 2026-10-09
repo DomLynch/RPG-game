@@ -242,6 +242,7 @@ const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(locatio
 // Play goes to Zone 1 (src/zone1-hop.ts): a returning player on a plain `/`; a storage that cannot be read stays on the arena.
 if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: location.search, pathname: location.pathname, hasFighter: localStorage.getItem(FIGHTER_KEY) !== null, lessonDone: localStorage.getItem(LESSON_DONE_KEY) === '1' }); if (to) location.replace(to); } catch { /* blocked storage: stay */ } }
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
+// eslint-disable-next-line prefer-const -- assigned after storage exists (below); closures above read it as undefined until then, which const would turn into a TDZ throw
 let serverGear: ReturnType<typeof createServerGear> | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
 const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon });
 lootPanel.wire();
