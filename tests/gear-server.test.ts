@@ -1,7 +1,7 @@
-// The engine's gear screen reads and writes the server's ledger when signed in, and falls back to the local one otherwise (origins/preview/gear-server.ts).
+// The engine's gear screen reads and writes the server's ledger when signed in, and falls back to the local one otherwise (src/gear-server.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServerGear } from '../origins/preview/gear-server.ts';
+import { createServerGear } from '../src/gear-server.ts';
 import type { Loot } from '../src/loot.ts';
 import type { GearPiece, GearView } from '../src/gear-ledger.ts';
 

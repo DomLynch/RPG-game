@@ -7,7 +7,7 @@
 // Same contract as save.ts: no DOM, storage or clock here; any failure (no session, 4xx/5xx, a timeout, the network, a malformed reply) is an answer ({ offline }), never a throw. The preview
 // then plays on its local seed and nothing is settled, exactly as today.
 import { encodeRecord, type FightRecord } from '../../src/record.ts';
-import type { Offline, Opts } from './writer-call.ts';
+import type { Offline, Opts } from '../../src/writer-call.ts';
 
 export type Fight = { token: string; seed: number; enemy: string; level: number; bar: number | null; flags: unknown[]; layer: string | null; startTick: number; lastTick: number; graceS: number; expiresAt: string };
 export type Settled = { result: 'won' | 'lost'; verified: boolean; twist: string | null; ticks: number; event: string; reason?: string };
@@ -25,8 +25,8 @@ export function settledOf(r: unknown): Settled | null {
   return { result: s.result, verified: s.verified, twist: typeof s.twist === 'string' ? s.twist : null, ticks: s.ticks, event: s.event, ...(typeof s.reason === 'string' ? { reason: s.reason } : {}) };
 }
 
-export { call } from './writer-call.ts';
-import { call } from './writer-call.ts';
+export { call } from '../../src/writer-call.ts';
+import { call } from '../../src/writer-call.ts';
 
 export const startFight = (token: string | null, character: string, encounter: string, opts: Opts & { tick?: number } = {}) =>
   call('encounter_start', { character, encounter, ...(opts.tick === undefined ? {} : { tick: opts.tick }) }, token, fightOf, opts);

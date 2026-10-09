@@ -1,7 +1,7 @@
 // When a signed-in character opens the engine's gear screen it shows the SERVER's ledger (origins/inventory through gear_open), and every wear / stow goes to the server (gear_equip /
 // gear_unequip); a guest, a failed sign-in or a writer that does not answer keeps the local ledger exactly as before. No DOM here: the page hands in storage, the clock and two callbacks.
-import { emptyLoot, type Loot } from '../../src/loot.ts';
-import { lootOfView, type GearOp, type GearView } from '../../src/gear-ledger.ts';
+import { emptyLoot, type Loot } from './loot.ts';
+import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
 import { isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
 import { call, storedToken, writerBase } from './writer-call.ts';
 
