@@ -1,4 +1,5 @@
 // Mid-hit stills of the shared zone page, Zone 1 and Zone 2, 375 wide (visual-pr-stills): a creature is engaged and cut until its health drops, then the page is photographed.
+// PROBE=1 instead records, for the first landed hit, the contact sparks' world position against the struck creature's (xz distance) in the same frame: the placement receipt (receipt.json zones[].probe).
 // Usage: AB_DIST=<built origins-preview dir> OUT=<dir> node scripts/zone-hit-stills.mjs   (run it on the trunk build for "before" and on the PR build for "after"). Chromium on software GL.
 import fs from 'node:fs';
 import http from 'node:http';
@@ -38,6 +39,7 @@ try {
     let first = null, shot = false;
     for (let t = 0; t < 90 && !shot; t++) {
       await page.evaluate(() => window.originsPreview.press('light'));
+      if (PROBE) { for (let k = 0; k < 40 && !shot; k++) { const r = await page.evaluate((i) => { const c = window.originsPreview.combat(), m = window.originsPreview.mobs().mobs.find((x) => x.id === i), p = (c.fxProbe ?? []).find((q) => q.foe === i); return m && p && p.visible ? { sparks: p.at, mob: [m.x, m.z] } : null; }, target.id); if (r) { z.probe = { ...r, dist: +Math.hypot(r.sparks[0] - r.mob[0], r.sparks[2] - r.mob[1]).toFixed(2) }; shot = true; } else await page.waitForTimeout(30); } continue; }
       await page.waitForTimeout(400);
       const h = await hp(); first ??= h;
       if (h !== null && first !== null && h < first) { await page.screenshot({ path: path.join(out, `zone${id}-hit.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); shot = true; }
