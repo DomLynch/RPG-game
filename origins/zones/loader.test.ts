@@ -80,6 +80,8 @@ test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zon
   assert.ok(specs.length >= 4 && specs.every((m) => m.zone === 'ash-reach'), 'creatures stand in the Ash Reach only');
   assert.ok(specs.every((m) => m.level >= 2 && m.level <= 3), 'at the Zone 2 band');
   assert.ok(specs.every((m) => m.id.startsWith('z2:')), 'Zone 2 instance ids carry the z2: prefix (the server keys a creature by its id alone, Backend 10-09)');
+  const wolves = specs.filter((m) => m.character === 'character:ember-wolf');
+  assert.ok(wolves.length >= 2 && wolves.every((m) => m.body === 'wolf' && /^z2:(reach-wolves|opener-ash-reach)-\d+$/.test(m.id)), 'the Ember Wolves are on the wolf body and their ids are z2:-prefixed (reach-wolves and the zone opener)');
   assert.ok(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).every((m) => !m.id.includes(':')), 'Zone 1 ids are unchanged');
   assert.equal(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).some((m) => m.zone === 'ash-reach'), false);
 });
