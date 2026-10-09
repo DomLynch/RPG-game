@@ -72,8 +72,6 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 10 }),
-  // The Pit goblin's table: bronze only here (Backend, 2026-10-09: 2-6); Backend adds his own level-1 armour pieces (goblin.Helmet ... goblin.Gloves) to this row.
-  table('loottable:pit-goblin', 'collect', [], { min: 2, max: 6 }),
   // The Ember Wolf's table (Backend ruled 2026-10-09: Ash Wolf items, bronze x1.1).
   table('loottable:ember-wolf', 'collect', [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
