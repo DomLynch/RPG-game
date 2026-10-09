@@ -7,11 +7,10 @@
 // Same contract as save.ts: no DOM, storage or clock here; any failure (no session, 4xx/5xx, a timeout, the network, a malformed reply) is an answer ({ offline }), never a throw. The preview
 // then plays on its local seed and nothing is settled, exactly as today.
 import { encodeRecord, type FightRecord } from '../../src/fight/index.ts';
-import { WRITER_PATH, type Offline } from './save.ts';
+import type { Offline, Opts } from '../../src/writer-call.ts';
 
 export type Fight = { token: string; seed: number; enemy: string; level: number; bar: number | null; flags: unknown[]; layer: string | null; startTick: number; lastTick: number; graceS: number; expiresAt: string };
 export type Settled = { result: 'won' | 'lost'; verified: boolean; twist: string | null; ticks: number; event: string; reason?: string };
-type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
 
 const int = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 export function fightOf(r: unknown): Fight | null {
@@ -26,25 +25,8 @@ export function settledOf(r: unknown): Settled | null {
   return { result: s.result, verified: s.verified, twist: typeof s.twist === 'string' ? s.twist : null, ticks: s.ticks, event: s.event, ...(typeof s.reason === 'string' ? { reason: s.reason } : {}) };
 }
 
-// One op. Never rejects: whatever goes wrong comes back as { offline: reason } within `timeoutMs`, even if the fetch ignores its signal.
-export async function call<T>(op: string, body: object, token: string | null, read: (result: unknown) => T | null, opts: Opts): Promise<T | Offline> {
-  if (!token) return { offline: 'no-session' };
-  const { base = WRITER_PATH, fetch: doFetch = globalThis.fetch, timeoutMs = 4000 } = opts;
-  const abort = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<Offline>((resolve) => { timer = setTimeout(() => { abort.abort(); resolve({ offline: 'timeout' }); }, timeoutMs); });
-  const ask = (async (): Promise<T | Offline> => {
-    try {
-      const res = await doFetch(`${base}/${op}`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: abort.signal, credentials: 'omit' });
-      if (res.status !== 200) return { offline: `http-${res.status}` };
-      const json = (await res.json()) as { ok?: unknown; result?: unknown };
-      return (json?.ok === true && read(json.result)) || { offline: 'bad-reply' };
-    } catch (e) {
-      return { offline: e instanceof SyntaxError ? 'bad-reply' : 'network' };   // after an abort, `late` has already answered 'timeout'
-    }
-  })();
-  try { return await Promise.race([ask, late]); } finally { clearTimeout(timer); }
-}
+export { call } from '../../src/writer-call.ts';
+import { call } from '../../src/writer-call.ts';
 
 export const startFight = (token: string | null, character: string, encounter: string, opts: Opts & { tick?: number } = {}) =>
   call('encounter_start', { character, encounter, ...(opts.tick === undefined ? {} : { tick: opts.tick }) }, token, fightOf, opts);

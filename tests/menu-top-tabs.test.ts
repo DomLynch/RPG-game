@@ -15,7 +15,8 @@ test('the tab bar sits at the top, sticky, and the bottom bar is gone', () => {
 
 test('the Gear stage is its own window, with Main hand and Off hand as two wide tiles under it', () => {
   assert.match(html, /<div id="gear-window" class="gear-window" aria-hidden="true"><\/div>/);
-  assert.match(main, /enterGearRoom\(view\.gearStage\(\), element\('gear-window'\)/, 'the mannequin frames in the window, not the whole doll');
+  const sheet = readFileSync(new URL('../src/gear-sheet.ts', import.meta.url), 'utf8');   // the gear sheet's wiring moved out of main.ts
+  assert.match(sheet, /enterGearRoom\(v\.gearStage\(\), d\.element\('gear-window'\)/, 'the mannequin frames in the window, not the whole doll');
   assert.match(css, /#journal \.doll \[data-slot='main'\] \{ grid-column: 1; \} #journal \.doll \[data-slot='off'\] \{ grid-column: 2; \}/);
 });
 
