@@ -2,6 +2,7 @@
 // value goes in as a psql variable (`:'name'`), so nothing a client sent is ever spliced into a statement. No driver dependency, like scripts/verify-loot.mjs.
 // With pool > 0 the psql processes stay up and are reused (a spawn per op was the writer's ceiling, 1.3 per op in the S1 load test); a refusal still kills its process
 // (ON_ERROR_STOP on a pipe exits), so the next op gets a fresh session and a half-run script never leaks state into the next op.
+import { randomBytes } from 'node:crypto';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 
 export type Db = { run(sql: string, vars?: Readonly<Record<string, string>>): Promise<string> };
@@ -38,7 +39,8 @@ export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0):
 }
 
 const quote = (v: string) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "''").replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
-const done = (id: number) => `__origins_done_${id}__`;
+const nonce = randomBytes(12).toString('hex');   // per process: data a client stored cannot spell the end-of-result line
+const done = (id: number) => `__origins_done_${nonce}_${id}__`;
 
 type Job = { sql: string; vars: Readonly<Record<string, string>>; resolve: (out: string) => void; reject: (e: Error) => void };
 type Worker = { child: ChildProcessWithoutNullStreams; job: Job | null; id: number; out: string; err: string; timer?: NodeJS.Timeout; dead: boolean };
