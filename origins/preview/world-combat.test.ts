@@ -89,3 +89,12 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
   assert.ok(total >= 1, 'the wolf did land blows');
   assert.ok(worst <= 1, `at most one blow per 0.25 s catch-up frame, saw ${worst}`);
 });
+
+// Proof 3 on the page: joins need no page code of their own, they happen inside stepCombat (#1943) for every creature the loop holds. A pack of four around an idle hero: three attack him (each telegraphs its own blow), the fourth holds off.
+test('a pack of four around the hero: three join and telegraph their own blows, the fourth waits', () => {
+  const f = fakeMobs(['w1', 'w2', 'w3', 'w4'].map((id, i) => ({ spec: { ...spec(id, 'wolf'), level: 1 }, x: Math.sin(i * 1.6) * 4, z: Math.cos(i * 1.6) * 4 })));
+  const tells = new Set<string>(), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: (id) => void tells.add(id) });
+  run(wc, { x: 0, z: 0, facing: 0 }, 3);
+  assert.equal(wc.debug().filter((x) => x.hunting).length, 4, 'all four hunt him');
+  assert.deepEqual([...tells].sort(), ['w1', 'w2', 'w4'], 'three attack, each from its own duel: the fourth (w3, the farthest) waits its turn');
+});
