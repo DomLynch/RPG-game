@@ -63,3 +63,23 @@ test('call-site pin: the page reaches combat only through zone1.ts stepCombat (s
   assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
+
+test('a foe inside the ring that moves WALKS (circling and backing show the Walk clip), and a feint (a windup cancelled into ready/guard) gets the cancel pulse after it, never during the tell', () => {
+  let moved = 0, walking = 0, cancels = 0, pulsed = 0, tellPulse = 0;
+  for (let n = 1; n <= 8 && cancels === 0; n++) {   // a bout is seeded by the creature's id: take the first of a few that feints (the Pit AI feints one swing in six against a parrier, on its own profile)
+    const id = `m-${n}`, driven = new Map<string, MobDrive>(), list = [{ spec: spec(id, 'goblin'), x: 0, z: 3 }];
+    const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: 0 })), drive: (i: string, p: MobDrive | null) => void (p ? driven.set(i, p) : driven.delete(i)) } as unknown as Mobs;
+    const wc = createWorldCombat({ mobs: () => mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+    let prev: { x: number; z: number; phase: string } | null = null;
+    for (let t = 0; t < 40; t += 1 / 60) {
+      const w = wc.debug().find((x) => x.id === id); wc.update(1 / 60, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 });
+      const d = driven.get(id), cur = wc.debug().find((x) => x.id === id); if (!d || !cur) continue;
+      if (prev && Math.hypot(cur.x - prev.x, cur.z - prev.z) * 60 > 0.5) { moved++; if (d.moving) walking++; }
+      if (prev && prev.phase === 'windup' && (cur.phase === 'ready' || cur.phase === 'guard')) { cancels++; if ((d.pulse ?? 1) > 1.01) pulsed++; }
+      if (cur.phase === 'windup' && (d.pulse ?? 1) > 1.07) tellPulse++;   // the tell's own pulse tops out at 1.06: the cancel cue never rides on it
+      prev = cur;
+    }
+  }
+  assert.ok(moved > 100 && walking / moved >= 0.95, `a moving foe walks: ${walking} of ${moved} frames`);
+  assert.ok(cancels >= 1 && pulsed === cancels, `every feint gets the cue: ${pulsed} of ${cancels}`); assert.equal(tellPulse, 0);
+});

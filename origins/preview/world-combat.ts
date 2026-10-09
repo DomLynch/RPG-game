@@ -7,7 +7,7 @@ import { OPPONENTS } from '../../src/moves.ts';
 import type { MobSpec } from './mobs.ts';
 import type { MobPick, Mobs } from './mobs-view.ts';
 
-export const ME = 'me', STEP = 1 / 60, JOIN_M = AGGRO_M + 3, DROP_M = AGGRO_M + 8, FALL_S = 1.4, PULSE_S = 0.18, MAX_STEPS = 6;
+export const ME = 'me', STEP = 1 / 60, JOIN_M = AGGRO_M + 3, DROP_M = AGGRO_M + 8, FALL_S = 1.4, PULSE_S = 0.18, MAX_STEPS = 6, WALK_MPS = 0.5, CANCEL_S = 0.2;
 /** The roster kind a Zone 1 body fights as, or null (it cannot be fought yet: it only wanders). */
 export const kindOf = (body: string): string | null => (Object.prototype.hasOwnProperty.call(OPPONENTS, body) ? body : null);
 
@@ -20,13 +20,13 @@ export type Deps = {
   onTelegraph?(id: string, ms: number): void;
   hero?: () => { gear: Loadout; level: number };   // his resolved gear and career level (default: naked, level 1); a creature's level is its spec's
 };
-type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number };
+type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number; px: number; pz: number; seen: boolean; wasWindup: boolean; cancelT: number };
 
 export function createWorldCombat(d: Deps) {
   const mine = () => d.hero?.() ?? { gear: NAKED, level: 1 };
   let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false;
   const specs = new Map<string, MobSpec>(), fx = new Map<string, Fx>();
-  const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
+  const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0, px: 0, pz: 0, seen: false, wasWindup: false, cancelT: 0 }; fx.set(id, f); } return f; };
   const gearOf = () => { const { gear, level } = mine(), p = player(ME, 0, 0, 0, gear, level); return { attack: p.attack, res: p.res, level: p.level, shielded: p.shielded }; };
   const me = (): Fighter => world.fighters[0]!;
   function release(id: string) { d.mobs()?.drive(id, null); specs.delete(id); fx.delete(id); world = { ...world, fighters: world.fighters.filter((f) => f.id !== id) }; }
@@ -68,8 +68,13 @@ export function createWorldCombat(d: Deps) {
         }
         x.hurtT = Math.max(0, x.hurtT - dt);
         const windup = f.phase === 'windup' ? Math.min(1, f.t / (x.windupMs / 1000)) : 0, strike = f.phase === 'active' ? 1 : 0;
-        const lunge = strike ? 0.7 : -0.3 * windup;   // pulls back through the tell, then snaps forward
-        mobs.drive(f.id, { x: f.x, z: f.z, facing: f.facing, moving: f.returning || (f.hunting && f.phase === 'ready' && Math.hypot(f.x - hero.x, f.z - hero.z) > 1.6), lunge, pulse: 1 + (x.hurtT > 0 ? 0.14 * (x.hurtT / PULSE_S) : 0) + windup * 0.06, fall: 0 });
+        // A windup that ends in a guard or a ready stance without an active frame or a stagger is a FEINT (ai-open: the swing is cancelled into a guard): the pull-back eases out and a faint pulse follows,
+        // only AFTER the cancel, never during the tell, so the feint still fools the player.
+        if (x.wasWindup && f.phase !== 'windup' && f.phase !== 'active' && x.hurtT === 0 && (f.phase === 'ready' || f.phase === 'guard')) x.cancelT = CANCEL_S;
+        x.wasWindup = f.phase === 'windup'; x.cancelT = Math.max(0, x.cancelT - dt);
+        const speed = x.seen ? Math.hypot(f.x - x.px, f.z - x.pz) / Math.max(dt, 1e-3) : 0; x.px = f.x; x.pz = f.z; x.seen = true;   // how fast it actually moves this frame: a circling or backing foe walks instead of sliding
+        const lunge = strike ? 0.7 : -0.3 * windup - 0.3 * (x.cancelT / CANCEL_S);   // pulls back through the tell, then snaps forward (a cancelled tell eases out)
+        mobs.drive(f.id, { x: f.x, z: f.z, facing: f.facing, moving: f.returning || (f.hunting && f.phase === 'ready' && Math.hypot(f.x - hero.x, f.z - hero.z) > 1.6) || speed > WALK_MPS, lunge, pulse: 1 + (x.hurtT > 0 ? 0.14 * (x.hurtT / PULSE_S) : 0) + windup * 0.06 + 0.04 * (x.cancelT / CANCEL_S), fall: 0 });
         if (!f.hunting && !f.returning && Math.hypot(f.x - hero.x, f.z - hero.z) > DROP_M) release(f.id);
       }
       return { dx: me().x - hero.x, dz: me().z - hero.z };   // a roll's displacement (zero on foot); the page applies it with its own collision
