@@ -206,3 +206,26 @@ test('pvp one-way band: a level-20 player CAN attack a level-40 player, and the 
   assert.ok(get(up, 'b').health < RULES.health, 'the lower attacks up');
   assert.equal(get(down, 'b').health, RULES.health, 'the higher cannot attack down');
 });
+
+test('#1936 b: a rebuilt fight resumes the creature\'s swing timing (its brain lives on the creature) instead of restarting at the 90-tick opening wait', () => {
+  const w0 = run(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.3)]), 0.5).world;   // 30 ticks in: the wait has been counting down
+  const brain0 = get(w0, 'c').brain!; assert.ok(brain0, 'the creature carries its brain after a fight step'); assert.ok(brain0.wait < 90, `wait counting down, got ${brain0.wait}`);
+  const rebuilt = run({ ...w0, streams: {} }, 1 / 60).world;   // streams cleared = the fight is rebuilt (a pack's next bout, a re-engage)
+  const resumed = get(rebuilt, 'c').brain!.wait;
+  assert.ok(resumed <= brain0.wait && resumed >= brain0.wait - 1, `resumed at ${resumed}, was ${brain0.wait}: not reset to 89`);
+  const fresh = run(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.3)]), 1 / 60).world;
+  assert.equal(get(fresh, 'c').brain!.wait, 89, 'a creature that never fought starts at the opening wait');
+  // a creature that walks home heals and forgets: its next fight starts fresh
+  const home = { ...w0, fighters: w0.fighters.map((f) => (f.id === 'c' ? { ...f, returning: true, hunting: false, x: f.homeX + 0.01, z: f.homeZ } : f)), streams: {} };
+  const after = run(home, 0.2);   // it evades (heals home) and then, with the hero still beside it, starts a NEW fight on a FRESH brain
+  assert.ok(of(after.events, 'Evaded', 'c').length >= 1, 'it evaded');
+  assert.ok(get(after.world, 'c').brain!.habits.ticks < brain0.habits.ticks, 'evading cleared the old brain: the new fight started counting from zero');
+});
+
+test('#1936 b (Auditor HOLD): a brain carried out of a LONG bout is rebased - hit late (tick > 500), rebuild, and the creature swings within ~2 s instead of retreating for the length of the old fight', () => {
+  const w0 = newWorld([boost(player('p', 0, 0)), boost(creature('c', 'wolf', 0, 1.3))]);
+  const long = run(w0, 20, (t) => ({ p: t % 90 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));   // 1200 ticks of hits taken
+  assert.ok(long.world.streams.p!.duel.tick > 500, 'a long bout'); assert.ok(of(long.events, 'Hit', 'p').length > 0, 'the creature was hit');
+  const after = run({ ...long.world, streams: {} }, 2);   // re-engage: the stream is rebuilt, the player stands still
+  assert.ok(of(after.events, 'Telegraph', 'c').length > 0, 'the creature swings within 2 s of the rebuild (not 0 swings while an old retreatUntil counts down)');
+});

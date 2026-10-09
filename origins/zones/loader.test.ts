@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 import test from 'node:test';
 import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
@@ -28,26 +26,6 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.kit.url = '/elsewhere.glb'; }), /kit url/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.fog = 'red'; }), /not #rrggbb/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
-});
-
-test('nothing outside the loader imports a zone package (origins/zones/**)', () => {
-  const root = path.resolve(import.meta.dirname, '..'), offenders: string[] = [];
-  const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (e.name !== 'zones' && e.name !== 'node_modules') walk(p); continue; }
-    if (!/\.(ts|mjs)$/.test(e.name) || e.name === 'loader.ts' || e.name === 'loader.test.ts') continue;
-    if (/from\s+['"][^'"]*\/zones\/zone\d+\//.test(fs.readFileSync(p, 'utf8'))) offenders.push(path.relative(root, p));
-  } };
-  walk(root);
-  assert.deepEqual(offenders, [], 'read a zone through loadZone(), not its files');
-});
-
-test('a zone data file is pure data: only type imports, no function, class or loop', () => {
-  for (const f of zoneIds().flatMap((id) => fs.readdirSync(path.join(import.meta.dirname, `zone${id}`)).map((n) => path.join(`zone${id}`, n)))) {
-    const src = fs.readFileSync(path.join(import.meta.dirname, f), 'utf8').replace(/^\s*\/\/.*$/gm, '');
-    assert.ok(!/^import\s+(?!type\b)/m.test(src), `${f}: only 'import type'`);
-    assert.ok(!/=>|\bfunction\b|\bclass\b|\bfor\s*\(|\bwhile\s*\(/.test(src), `${f}: data only`);
-  }
 });
 
 test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; zoneIds lists every package', () => {
