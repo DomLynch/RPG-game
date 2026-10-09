@@ -4,11 +4,14 @@ import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
-import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, type Opened } from './save.ts';
+import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, openedAccount, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { NEW_ALLEGIANCE } from '../patrons/patrons.ts';
 
 const row = { seed_credit: 5000, world_credit: 700, total_credit: 5700, rested: 12, rested_at: 99, heat: { wolf: { units: 5, at: 9 } }, beaten: ['legend:knight@12'], story: ['s1'], version: 4 };
+// The page's one open (src/fight/open.ts) through the zone page's mapping, with a fresh storage per call holding `token` as the stored sign-in (null = signed out).
+const openWith = (token: string | null, o: { fetch?: typeof fetch; timeoutMs?: number } = {}) =>
+  openedAccount({ storage: token ? { getItem: () => JSON.stringify({ access_token: token, expires_at: Date.now() / 1000 + 3600 }) } : null, search: '', retries: 0, ...o });
 const reply = (status: number, body: unknown) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const good = { ok: true, result: { marks: 4, career: row, characters: [{ id: 'pc:1', name: 'Aldren', extra: 1 }, { id: 2 }], items: [], quests: [], journal: [], talk: [] } };
 function recorder(answer: (url: string, init: RequestInit) => Promise<Response>) {
@@ -31,9 +34,9 @@ test('a row that is not a career is no career', () => {
   }
 });
 
-test('fetchOpen: POST <base>/open, empty body, the bearer token, nothing else; the reply mapped', async () => {
+test('the page open: POST <base>/open, empty body, the bearer token, nothing else; the reply mapped', async () => {
   const { f, calls } = recorder(async () => reply(200, good));
-  const got = await fetchOpen('tok', { base: '/origins', fetch: f });
+  const got = await openWith('tok', { fetch: f });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.url, '/origins/open');
   assert.equal(calls[0]!.init.method, 'POST');
@@ -48,52 +51,52 @@ test('fetchOpen: POST <base>/open, empty body, the bearer token, nothing else; t
 
 test('the default base is the one config constant', async () => {
   const { f, calls } = recorder(async () => reply(200, good));
-  await fetchOpen('tok', { fetch: f });
+  await openWith('tok', { fetch: f });
   assert.equal(calls[0]!.url, `${WRITER_PATH}/open`);
   assert.equal(WRITER_PATH, '/origins');
 });
 
 test('no session: no request at all', async () => {
   const { f, calls } = recorder(async () => reply(200, good));
-  assert.deepEqual(await fetchOpen(null, { fetch: f }), { offline: 'no-session' });
+  assert.deepEqual(await openWith(null, { fetch: f }), { offline: 'no-session' });
   assert.equal(calls.length, 0);
 });
 
 for (const status of [401, 403, 404, 409, 500, 503]) {
   test(`HTTP ${status} -> offline, no throw`, async () => {
     const { f } = recorder(async () => reply(status, { ok: false, error: 'x' }));
-    assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: `http-${status}` });
+    assert.deepEqual(await openWith('tok', { fetch: f }), { offline: `http-${status}` });
   });
 }
 
 test('an nginx 404 page (not JSON) -> offline', async () => {
   const { f } = recorder(async () => new Response('<html>404</html>', { status: 404 }));
-  assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: 'http-404' });
+  assert.deepEqual(await openWith('tok', { fetch: f }), { offline: 'http-404' });
 });
 
 test('network error -> offline, no throw', async () => {
   const { f } = recorder(async () => { throw new TypeError('fetch failed'); });
-  assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: 'network' });
+  assert.deepEqual(await openWith('tok', { fetch: f }), { offline: 'network' });
 });
 
 test('timeout -> offline within the limit, even when the fetch ignores its signal; the signal is aborted', async () => {
   let signal: AbortSignal | undefined;
   const { f } = recorder((_u, init) => { signal = init.signal ?? undefined; return new Promise(() => {}); });
   const t0 = Date.now();
-  assert.deepEqual(await fetchOpen('tok', { fetch: f, timeoutMs: 50 }), { offline: 'timeout' });
+  assert.deepEqual(await openWith('tok', { fetch: f, timeoutMs: 50 }), { offline: 'timeout' });
   assert.ok(Date.now() - t0 < 1000);
   assert.equal(signal?.aborted, true);
 });
 
 test('a fetch that honours the abort -> timeout, not network', async () => {
   const { f } = recorder((_u, init) => new Promise((_r, reject) => init.signal!.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))));
-  assert.deepEqual(await fetchOpen('tok', { fetch: f, timeoutMs: 30 }), { offline: 'timeout' });
+  assert.deepEqual(await openWith('tok', { fetch: f, timeoutMs: 30 }), { offline: 'timeout' });
 });
 
 test('malformed 200 replies -> offline bad-reply', async () => {
   for (const body of ['not json', { ok: false }, { ok: true }, { ok: true, result: { career: null, characters: [] } }, { ok: true, result: { career: row } }, { ok: true, result: { career: { ...row, total_credit: 'lots' }, characters: [] } }]) {
     const { f } = recorder(async () => reply(200, body));
-    assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: 'bad-reply' }, JSON.stringify(body));
+    assert.deepEqual(await openWith('tok', { fetch: f }), { offline: 'bad-reply' }, JSON.stringify(body));
   }
 });
 
@@ -130,17 +133,18 @@ test('preview wins sit on top of the saved career, counted as preview CP; offlin
   assert.equal(previewCp({ saved }, won.session.career), won.award!.cp);
   assert.equal(saved.credit, creditFromMarks(4), 'the saved career itself is untouched');
   assert.equal(previewCp({ offline: 'http-404' }, won.session.career), 0);
-  assert.equal(saveLine({ offline: 'http-404' }), 'Offline preview: progress is not saved');
+  assert.equal(saveLine({ offline: 'http-404' }), 'Not signed in: progress isn’t saved');
   assert.match(saveLine({ saved }), /saved career/);
 });
 
 test('the save line is neutral until the read answers, then the real career or the offline line', async () => {
   assert.equal(saveLine(CHECKING), 'Checking saved progress…');
-  for (const reason of ['no-session', 'http-403', 'timeout', 'network', 'bad-reply', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Offline preview: progress is not saved', reason);
+  for (const reason of ['no-session', 'http-401', 'http-403', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Not signed in: progress isn’t saved', reason);
   const { f } = recorder(() => new Promise(() => {}));
-  const answered = await fetchOpen('tok', { fetch: f, timeoutMs: 20 });
+  const answered = await openWith('tok', { fetch: f, timeoutMs: 20 });
   if (!isOffline(answered)) return assert.fail('a timeout is offline');
-  assert.equal(saveLine(answered), 'Offline preview: progress is not saved', 'a timeout ends the checking line');
+  assert.equal(saveLine(answered), 'Couldn’t reach the save server: retrying…', 'a timeout ends the checking line, and says the save server is unreachable, not signed out');
+  for (const reason of ['network', 'bad-reply', 'http-500', 'http-502']) assert.equal(saveLine({ offline: reason }), 'Couldn’t reach the save server: retrying…', reason);
   assert.notEqual(saveLine(answered), saveLine(CHECKING));
 });
 
@@ -173,4 +177,33 @@ test('the picker opens only on the saved career at Gladiator (level 11) or above
   assert.match(picker.render(NEW_ALLEGIANCE, 'Aldren'), /Choose your allegiance/);
   const co = picker.act({ choose: 'company:glass' }, NEW_ALLEGIANCE, 12, 1_790_000_000)!;
   assert.match(picker.render(co, 'Aldren'), /Aldren swore to The Free Company on 2026-09-21/);
+});
+
+test('ensureFreshSession: only a stored, stale session loads the client and asks it to renew; fresh, none and a failing client do not throw', async () => {
+  const now = 1_700_000_000_000;
+  const mk = (s: unknown) => ({ getItem: (k: string) => (k === AUTH_KEY && s !== null ? JSON.stringify(s) : null) });
+  let made = 0, asked = 0;
+  const factory = async () => { made++; return { auth: { getSession: async () => { asked++; return {}; } } }; };
+  await ensureFreshSession(mk({ access_token: 'old', refresh_token: 'r', expires_at: now / 1000 - 4000 }), now, factory); assert.deepEqual([made, asked], [1, 1], 'stale: renewed');
+  await ensureFreshSession(mk({ access_token: 'a', refresh_token: 'r', expires_at: now / 1000 + 3600 }), now, factory); assert.deepEqual([made, asked], [1, 1], 'fresh: untouched');
+  await ensureFreshSession(mk(null), now, factory); assert.deepEqual([made, asked], [1, 1], 'no session: signed out, no client');
+  await ensureFreshSession(null, now, factory); assert.equal(made, 1, 'no storage');
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => { throw new Error('chunk'); });
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => null);
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: async () => { throw new Error('net'); } } }));
+  const t0 = Date.now(); await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: () => new Promise(() => {}) } }));
+  assert.ok(Date.now() - t0 >= RENEW_TIMEOUT_MS - 50 && Date.now() - t0 < RENEW_TIMEOUT_MS + 1500, 'a renewal that never answers lets go after ~3 s');
+});
+test('the preview build reads the repo root env (VITE_SUPABASE_*): envDir is the repo root', async () => {
+  const cfg = (await import('./vite.config.mjs')).default as { envDir?: string; root?: string };
+  assert.ok(cfg.envDir && cfg.root!.startsWith(cfg.envDir) && cfg.envDir !== cfg.root, `envDir ${cfg.envDir}`);
+});
+
+test('the Sign in link shows only when the player is truly signed out (no session, 401), never on a timeout, network, 5xx, 403 or checking', async () => {
+  const { canSignIn, SIGN_IN_HREF, CHECKING } = await import('./save.ts');
+  for (const offline of ['no-session', 'http-401']) assert.equal(canSignIn({ offline }), true, offline);
+  for (const offline of ['timeout', 'network', 'bad-reply', 'http-500', 'http-503', 'http-403', 'late', 'reset']) assert.equal(canSignIn({ offline }), false, offline);
+  assert.equal(canSignIn(CHECKING), false);
+  assert.equal(canSignIn({ saved: {} as never }), false);
+  assert.equal(SIGN_IN_HREF, '/?account=signin&next=zone1');
 });

@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
-import { encounterOps, fightOfToken, tokenFor } from './encounter.ts';
+import { encounterOps, fightOfToken, poseOfToken, POSED_FIGHT_MAX, tokenFor } from './encounter.ts';
+import { issuePose, MARK_GAP, MIN_GAP, poseBounds } from './encounter-pose.ts';
+import { verifyEncounter } from './encounter-verify.ts';
+import { decodeRecord } from '../../src/record.ts';
+import { roundPose, type DuelPose } from '../../src/duel.ts';
 import { ACCOUNT, CHAR, fakeDb, RESOLVED, deps, fight } from './encounter-fixtures.ts';
 
 const ctx = (db: Db) => ({ db, account: ACCOUNT });
@@ -46,7 +50,7 @@ test('settle: a verified record writes the event enc:<token> and the reward line
   const record = fight(start.seed, 1);
   const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
   assert.equal(out.result, 'won'); assert.equal(out.verified, true); assert.equal(out.twist, 'caught'); assert.equal(out.event, `enc:${start.token}`);
-  assert.equal(events.length, 1); assert.deepEqual(events[0]!.payload, { result: 'won', ticks: 321, enemy: 'knight', level: 6, twist: 'caught', verified: true }); assert.deepEqual(rewards, [start.token]);
+  assert.equal(events.length, 1); assert.deepEqual(events[0]!.payload, { result: 'won', ticks: 321, enemy: 'knight', level: 6, twist: 'caught', verified: true, fight: 'encounter:knight', paid: true }); assert.deepEqual(rewards, [start.token]);
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: start.token, record }), Conflict, 'settled once');
   assert.equal(events.length, 1);
 });
@@ -108,4 +112,59 @@ test('settle with a record from another mob kit: 422 kit-mismatch, the token is 
   await assert.rejects(async () => ops.encounter_settle!(ctx(db), { token: out.token, record: fight(out.seed, 1, 6, 'knight', false, 'test kit:zzz') }), (e: unknown) => e instanceof Refused && e.status === 422 && e.code === 'kit-mismatch' && /kit mismatch/.test(e.message));
   assert.equal(events.length, 0, 'no event, so no loss');
   assert.equal(rows.get(out.token)!.used, false, 'the token stays open for the sweep');
+});
+
+// Seamless step 3 (RV38): the server issues the start pose, the token carries it, settle re-simulates from it and refuses any other.
+test('start with a pose: the server issues a legal, float32 pose (gap clamped, inside the circle, the hero facing the foe); touch hands the same pose back', async () => {
+  const { db } = fakeDb({ t: 0 }), ops = encounterOps(deps());
+  const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight', pose: { hero: { x: 8, z: 0 }, foe: { x: 8.3, z: 0 } } }) as { token: string; pose: DuelPose };
+  const { radius } = poseBounds('knight'), p = out.pose;
+  assert.deepEqual(p, roundPose(p), 'float32 bits');
+  const gap = Math.hypot(p.foe.x - p.hero.x, p.foe.z - p.hero.z);
+  assert.ok(gap >= MIN_GAP - 1e-5, `gap ${gap} widened to the minimum`);
+  for (const q of [p.hero, p.foe]) assert.ok(Math.hypot(q.x, q.z) < radius, 'inside the wall');
+  assert.ok(Math.abs(p.heroFacing - Math.fround(Math.atan2(p.foe.x - p.hero.x, p.foe.z - p.hero.z))) < 1e-6, 'the hero faces the foe');
+  assert.deepEqual(poseOfToken(out.token), p, 'the token carries it');
+  const again = await ops.encounter_touch!(ctx(db), { token: out.token, tick: 5 }) as { pose: DuelPose };
+  assert.deepEqual(again.pose, p);
+  await assert.rejects(async () => ops.encounter_start!(ctx(fakeDb({ t: 0 }).db), { character: CHAR, encounter: 'encounter:knight', pose: { hero: { x: 'a', z: 0 }, foe: { x: 1, z: 1 } } }), BadRequest);
+});
+
+test('issuePose: a far pair is pulled to the widest gap, an Arena 1 foe gets its small circle, a pose a few metres apart keeps its places', () => {
+  const far = issuePose('knight', { hero: { x: -30, z: 0 }, foe: { x: 30, z: 0 } })!;
+  assert.ok(Math.abs(Math.hypot(far.foe.x - far.hero.x, far.foe.z - far.hero.z) - MARK_GAP) < 1e-5);
+  const small = poseBounds('veteran');
+  assert.ok(small.radius < 4 && small.maxGap === MARK_GAP * 0.5);
+  const v = issuePose('veteran', { hero: { x: 5, z: 5 }, foe: { x: 9, z: 9 } })!;
+  for (const q of [v.hero, v.foe]) assert.ok(Math.hypot(q.x, q.z) < small.radius);
+  const kept = issuePose('knight', { hero: { x: 1, z: -1 }, foe: { x: 1, z: 2 } })!;
+  assert.deepEqual([kept.hero, kept.foe], [{ x: 1, z: -1 }, { x: 1, z: 2 }]);
+  assert.equal(issuePose('knight', undefined), undefined);
+});
+
+test('settle a posed fight with the REAL verifier: the issued pose verifies; another pose, no pose, or a pose on an unposed token is refused (a loss, nothing paid)', async () => {
+  const { db, events } = fakeDb({ t: 1e6 }), paid: string[] = [], ops = encounterOps(deps({ rewards: (f) => { paid.push(f.token); return []; } }));
+  const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight', pose: { hero: { x: -2, z: 1 }, foe: { x: 2, z: -1 } } }) as { token: string; seed: number; pose: DuelPose };
+  const run = (pose?: DuelPose) => { let r = ''; for (let k = 1; k < 120 && !r; k++) r = fight(start.seed, k, 6, 'knight', true, undefined, pose); return r; };
+  const record = run(start.pose); assert.ok(record);
+  const moved = { ...start.pose, hero: { ...start.pose.hero, x: Math.fround(start.pose.hero.x + 0.5) } };
+  for (const bad of [run(moved), run(undefined)]) {
+    const v = verifyEncounter(await decodeRecord(bad), { seed: start.seed, enemy: 'knight', level: 6, bar: null, flags: [], layer: null, pose: start.pose });
+    assert.equal(v.ok, false); assert.match(!v.ok ? v.reason : '', /pose/);
+  }
+  const unposed = verifyEncounter(await decodeRecord(record), { seed: start.seed, enemy: 'knight', level: 6, bar: null, flags: [], layer: null, pose: null });
+  assert.equal(unposed.ok, false, 'a posed record on a token issued without a pose');
+  const out = await ops.encounter_settle!(ctx(db), { token: start.token, record }) as Record<string, unknown>;
+  assert.equal(out.verified, true, String(out.reason)); assert.equal(events.length, 1);
+  assert.equal(paid.length, out.result === 'won' ? 1 : 0);
+});
+
+test('a fight with no pose is today\'s: the token has no pose block, the answer has no pose key, and a pose-free record verifies as before', async () => {
+  const { db } = fakeDb({ t: 0 }), ops = encounterOps(deps());
+  const out = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as Record<string, unknown>;
+  assert.equal('pose' in out, false); assert.equal(poseOfToken(out.token as string), null);
+  assert.equal(Buffer.from((out.token as string).slice(0, -33), 'base64url').toString(), 'encounter:knight', 'the prefix is the fight id alone, as before');
+  const posed = tokenFor('encounter:knight', issuePose('knight', { hero: { x: 0, z: -3 }, foe: { x: 0, z: 3 } }));
+  assert.match(posed, /^[A-Za-z0-9_-]{16,128}$/); assert.equal(fightOfToken(posed), 'encounter:knight');
+  assert.match(tokenFor('a'.repeat(POSED_FIGHT_MAX), issuePose('knight', { hero: { x: 0, z: 0 }, foe: { x: 0, z: 3 } })), /^[A-Za-z0-9_-]{16,128}$/, 'the longest posed fight id still fits the token cap');
 });

@@ -34,7 +34,7 @@ export function summaryLine(s: Summary, longTasksSupported: boolean): string {
 let recorder: Recorder | null = null;
 export const perfMark = (name: string) => { recorder?.mark(name, performance.now()); };   // no-op without ?perf
 
-export function installPerf(search: string, ready: () => boolean): void {
+export function installPerf(search: string, ready: () => boolean = () => false): void {   // `ready` is optional: Zone 1's engine has no fight-ready moment, so the page marks only the tap
   if (!/[?&]perf\b/.test(search) || recorder) return;
   const rec = (recorder = new Recorder()); let supported = false, wasReady = false;
   try { if (!PerformanceObserver.supportedEntryTypes?.includes('longtask')) throw new Error('no longtask'); new PerformanceObserver((list) => { for (const e of list.getEntries()) rec.longTask(e.startTime, e.duration); }).observe({ entryTypes: ['longtask'] }); supported = true; } catch { /* Safari: no longtask */ }

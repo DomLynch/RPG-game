@@ -2,7 +2,7 @@
 import { RULES, specialOf } from './moves.ts';
 import { skillOf } from './loot.ts';
 import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
-import { SPECIAL_CUE_OF, type SpecialCue } from './audio/special.ts';
+import { SPECIAL_CUE_OF, type SpecialCue } from './fight/sound/special.ts';
 import type { SparringKit } from './sparring.ts';
 import type { Duel, Fighter } from './duel.ts';
 

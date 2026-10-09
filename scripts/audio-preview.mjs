@@ -11,9 +11,9 @@ import { execSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
-import { cuesFor } from '../src/audio/cues.ts';
-import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/feedback.ts';
-import { CREATURE_CUES, THROATS } from '../src/audio/creature.ts';
+import { cuesFor } from '../src/fight/sound/cues.ts';
+import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/fight/sound/feedback.ts';
+import { CREATURE_CUES, THROATS } from '../src/fight/sound/creature.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
@@ -25,7 +25,7 @@ const exchange = scriptExchange();
 const cues = exchange.ticks.map(({ tick, events, presentation }) => ({ t: tick / 60, events, presentation }));
 const seconds = exchange.length / 60 + TAIL;
 
-// --- Chromium page served by the Vite dev server, so /src/feedback.ts and any asset it imports resolve exactly as in the game.
+// --- Chromium page served by the Vite dev server, so /src/fight/sound/feedback.ts and any asset it imports resolve exactly as in the game.
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0, strictPort: false }, optimizeDeps: { noDiscovery: true, include: [] } });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -37,7 +37,7 @@ try {
   browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
   const page = await browser.newPage();
   const pageErrors = []; page.on('pageerror', e => pageErrors.push(e.message));
-  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
+  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/fight/sound/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
   await page.goto(`${origin}/harness`);
   await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
   const render = (cues, seconds, balance) => page.evaluate(async ({ cues, seconds, rate, seed, fallback, balance }) => {
@@ -101,7 +101,8 @@ try {
       assert.ok(last / RATE <= PROBE_AT + spec.length + .25, `creature-${body}-${cue} rings on to ${(last / RATE).toFixed(2)} s, past its ${spec.length} s`);
       checks.creatures++;
     }
-    assert.equal(checks.creatures, 15);
+    assert.equal(checks.creatures, Object.keys(THROATS).length * Object.keys(CREATURE_CUES).length);   // every throat x cue was rendered ...
+    assert.ok(checks.creatures >= 24, `only ${checks.creatures} creature voices rendered`);   // ... and none dropped: 8 throats x 3 cues since #2009 (creature voices) added the Zone 1 wolf, boar and bear to the 5 pinned at 15
   }
   // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage flat at REFERENCE. Not ×1: there the
   // ordinary peaks (~.89 after the soft ceiling) sit above the output guard's .55 knee and the reference is itself compressed,

@@ -90,7 +90,13 @@ try {
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
   row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80, loot: { owned: [], equipped: {} } };   // the cloud row carries the loot column (PR #330); a row without it is refused as invalid
-  await page.goto(`${origin}/?account=return&code=qa-code`); await ready(page);
+  // The merge ends in location.replace (src/account.ts refresh(merge)): a second full load. `ready` and the opponent can both read true on the
+  // first page while that replace is pending, and an evaluate then dies with "Execution context was destroyed" (J4a run 1, row 14, load 30).
+  // So count real loads and read nothing until the restart's own load has fired and its page is ready.
+  let loads = 0; page.on('load', () => { loads++; });
+  await page.goto(`${origin}/?account=return&code=qa-code`);
+  for (const until = Date.now() + 120000; loads < 2; ) { if (Date.now() > until) throw new Error(`the sign-in merge never restarted the page (${loads} load)`); await page.waitForTimeout(100); }
+  await ready(page);
   // The sign-in merges the cloud fighter into the device and restarts once on it: the cloud's name and opponent, the higher mark count;
   // nothing is written up because the device had nothing the cloud lacked. No Save / Load buttons (owner 2026-09-21).
   await page.waitForFunction(() => document.querySelector('#opponent-select').value === 'goblin');

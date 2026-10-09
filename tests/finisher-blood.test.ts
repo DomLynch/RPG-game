@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { InstancedMesh, Texture, Vector3 } from 'three';
-import { bloodiesMaterial, createFinisherBlood, HANDLE_MATERIAL, type BloodSource } from '../src/finisher-blood.ts';
+import { bloodiesMaterial, createFinisherBlood, HANDLE_MATERIAL, type BloodSource } from '../src/fight/finisher-blood.ts';
 
 test('finisher blood falls from a moving wound, lands on the sand, grows at the landing and stays bounded', () => {
   const blood=createFinisherBlood(new Texture());

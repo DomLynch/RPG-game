@@ -16,7 +16,11 @@
   "baseColor": "bronze_color_polish_veteran.jpg",
   "normal": "bronze_normal_polish_veteran.jpg",
   "metallicRoughness": "bronze_orm_polish_veteran.jpg",
-  "normalScale": 1.0
+  "normalScale": 1.0,
+  "budget": {
+   "normal": "bronze_normal_polish_veteran_budget.jpg",
+   "metallicRoughness": "bronze_orm_polish_veteran_budget.jpg"
+  }
  },
  "Wrap": {
   "baseColor": "wrap_color_veteran.jpg",
@@ -39,7 +43,11 @@
   "normal": "face_normal_polish_veteran.jpg",
   "metallicRoughness": "face_orm_polish_veteran.jpg",
   "occlusion": "face_ao_veteran.jpg",
-  "normalScale": 1.6
+  "normalScale": 1.6,
+  "budget": {
+   "normal": "face_normal_polish_veteran_budget.jpg",
+   "metallicRoughness": "face_orm_polish_veteran_budget.jpg"
+  }
  },
  "HairCards": {
   "baseColor": "hair_cards.png",
@@ -57,7 +65,11 @@
   "baseColor": "kt_face_color_polish_veteran.jpg",
   "normal": "kt_face_normal_polish_veteran.jpg",
   "metallicRoughness": "kt_face_orm_polish_veteran.jpg",
-  "normalScale": 0.8
+  "normalScale": 0.8,
+  "budget": {
+   "normal": "kt_face_normal_polish_veteran_budget.jpg",
+   "metallicRoughness": "kt_face_orm_polish_veteran_budget.jpg"
+  }
  },
  "PhotoEyes": {
   "baseColor": "kt_eye_color_veteran.jpg",
@@ -94,5 +106,6 @@
  "Steel": {
   "occlusion": "ao_body_veteran.jpg",
   "occlusionTexCoord": 1
- }
+ },
+ "budgetNote": "The shipped veteran.glb carries the baseColor maps at full size (they equal the reviewed sources above) but its normal and metallicRoughness maps are the surface-budget cut (#1744 duel cost, scripts/character/texture_budget.py, 2048 -> 1024): `budget.<key>` pins those exact shipped bytes. scripts/veteran-polish-check.mjs accepts a shipped map that equals the reviewed source OR its pinned budget file; any other bytes still fail."
 }

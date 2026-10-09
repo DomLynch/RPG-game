@@ -58,7 +58,8 @@ export type FightSetup = {
 };
 // An overlay is a twist the content does not carry on the encounter itself: a grudge's rolled twist (feuds.md §3.1 `grudge-twist`,
 // whose flee-at params are `{ percent }` only, so no catch window). It is checked like a content flag, catchSeconds optional.
-export type SetupOptions = { overlay?: readonly unknown[] };
+// level: an open-world creature fought at a level other than its form's (Zone 1 spawns are levelled by distance, mobSpecs' spec.level); encounters ignore it.
+export type SetupOptions = { overlay?: readonly unknown[]; level?: number };
 
 const bodyHealth = (body: OpponentId, level: number): number | undefined => {
   const o = OPPONENTS[body];
@@ -95,7 +96,7 @@ export function fightSetup(id: unknown, content: EncounterContent, opts: SetupOp
     base = [...(contentFlags.get(e.id) ?? [])];
   } else if (Object.hasOwn(content.local.creatureLoot, id)) {
     scope = 'open-world';
-    const f = foeOf(id as CharacterId, openWorldForm(content, id as CharacterId), id);
+    const f = foeOf(id as CharacterId, openWorldForm(content, id as CharacterId), id, opts.level);
     if (f) foes = [f];
   } else {
     return fail('unknown-id', 'fight', `${id} is no Region 1 encounter or open-world creature`);

@@ -1,5 +1,5 @@
 // The ?stances= preview must actually APPEAR (live 1d9269c8: the panel mounted only from began(), which the first fight never runs, so ?stances=1 showed nothing).
-// Real page, real arena boot: with the flag the panel and its four buttons are in the DOM from load, before and after the first fight starts, the fourth reads Balanced; without the flag there is no panel.
+// Real page, real arena boot: the panel and its four buttons are in the DOM from load, before and after the first fight starts, the fourth reads Balanced, with or without a flag (stances are ON by default, Dom 2026-10-08); only ?stances=off (the kill switch) has no panel.
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ const browser = await chromium.launch({ headless: true, executablePath: chromium
 const receipt = { url: base.href, cases: [], errors: [] };
 const panelState = (page) => page.evaluate(() => ({ panel: !!document.querySelector('#stance-panel'), buttons: [...document.querySelectorAll('#stance-panel [data-stance]')].map((b) => `${b.dataset.stance}=${b.textContent}`) }));
 try {
-  for (const [search, expectPanel] of [['?stances=1', true], ['?stances=aggressive', true], ['', false]]) {
+  for (const [search, expectPanel] of [['?stances=1', true], ['?stances=aggressive', true], ['', true], ['?stances=off', false]]) {
     const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
     page.on('pageerror', (e) => receipt.errors.push(String(e))); await page.route('**/*sentry.io/**', (r) => r.abort());
     await page.goto(base.href + search);

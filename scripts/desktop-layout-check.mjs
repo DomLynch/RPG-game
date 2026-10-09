@@ -25,7 +25,7 @@ const SCREENS = {
   intro: [...CHROME, '#welcome', '.combat-hud', '#actions'],
   journal: ['#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#nav-arena'],
   hud: [...CHROME, '.combat-hud', '#actions', '#actions > button:visible'],
-  kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#pit-button', '#duel-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
+  kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#duel-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
   sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#replay-banner'],
   // The versus card while the rigs download (Lead 2026-09-28, desktop pass): the phone card as a centred 9:16 column (.versus-frame).
   versus: ['.versus-frame', '#versus-still', '.versus-caption', '#versus-portrait', '.versus-legend small', '.versus-legend p', '.versus-loading'],
@@ -33,7 +33,7 @@ const SCREENS = {
 // Pairs that overlap by design, with why. Everything else that intersects fails.
 const ALLOWED = [
   ['#actions', '#actions > button:visible', 'the buttons sit inside their own box'],
-  ['#actions', '#reset-button', 'Next is in the actions box'], ['#actions', '#pit-button', 'the Pit\'s door is in the actions box, under Next (Web 2026-09-29)'], ['#actions', '#duel-button', 'DUEL is in the actions box with LINK and CLIP (a grid item on a desktop; Web 2026-10-02, fix-forward for run 2fef800d)'], ['#actions', '#share-link', 'SHARE is in the actions box (thumb row)'], ['#actions', '#clip-button', 'CLIP is in the actions box (thumb row)'],
+  ['#actions', '#reset-button', 'Next is in the actions box'], ['#actions', '#duel-button', 'DUEL is in the actions box with LINK and CLIP (a grid item on a desktop; Web 2026-10-02, fix-forward for run 2fef800d)'], ['#actions', '#share-link', 'SHARE is in the actions box (thumb row)'], ['#actions', '#clip-button', 'CLIP is in the actions box (thumb row)'],
   ['#actions', '#spar-change', 'in the actions box'], ['#actions', '#spar-leave', 'in the actions box'],
   ['#loot-panel', '#loot-panel-pieces', 'the tiles are inside the panel'], ['#actions', '#loot-panel-actions', 'the loot actions are in the actions box'], ['#loot-panel-actions', '#loot-decline', 'Leave it is inside the loot actions'],
   ['#journal', '#journal .tab-strip', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible h4', 'inside the dialog'], ['#journal', '#nav-arena', 'inside the dialog'],
@@ -195,11 +195,11 @@ try {
   await skipDraws(page, false);   // the kill still is a painted frame (screen() steps 48 ms first)
   await screen('kill');
   // The win surfaces (Lead 2026-09-28, desktop pass): the fallen legend's medallion beside "You beat <legend>", the take title whole
-  // inside the viewport, and a real click at the centre of SHARE, CLIP, Next and the Pit's door landing on that control.
+  // inside the viewport, and a real click at the centre of SHARE, CLIP and Next landing on that control.
   const win = await page.evaluate(() => {
     const inside = r => r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
     const status = document.querySelector('#combat-status'), title = document.querySelector('#loot-panel-name');
-    const hits = ['duel-button', 'share-link', 'clip-button', 'reset-button', 'pit-button'].map(id => {
+    const hits = ['duel-button', 'share-link', 'clip-button', 'reset-button'].map(id => {
       const r = document.getElementById(id).getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
       return { id, ok: !!at?.closest('#' + id), hit: at ? at.id || at.tagName : null };
     });

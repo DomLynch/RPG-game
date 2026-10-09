@@ -16,6 +16,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
+import { stopWorkers } from './lib/stop-workers.mjs';
 
 const TRUNK = 'origin/codex/01a09a76/task-1', PHASE = 'origin/phase-r', ALWAYS = ['tests/record-version-guard.test.ts'];
 const FALLBACK = /^tests\/(loot|grades|characters|roster|ladder)[^/]*\.test\.ts$/;
@@ -49,4 +50,4 @@ console.log(`quality-stop-targeted: base ${base}; ${changed.size} changed file(s
 const run = (cmd, args) => { const r = spawnSync(cmd, args, { stdio: 'inherit', timeout: 15 * 60_000 }); if (r.status !== 0) { console.error(`quality-stop-targeted: ${cmd} ${args.join(' ')} failed (${r.status})`); process.exit(r.status ?? 1); } };
 run('npx', ['eslint', 'src']);
 run('npm', ['run', 'typecheck:tests']);
-run('node', ['--test', '--test-skip-pattern=\\[slow\\]', ...files]);
+run('node', ['--test', `--test-concurrency=${stopWorkers()}`, '--test-skip-pattern=\\[slow\\]', ...files]);   // capped: QUALITY_STOP_WORKERS, default 2 (scripts/lib/stop-workers.mjs)

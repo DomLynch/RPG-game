@@ -11,7 +11,7 @@ import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
 import { actorPose, initialPractice, attackSpecs } from '../src/combat.ts';
 import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/special-modes.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { SPECIAL_CUE_OF } from '../src/audio/special.ts';
+import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the
 // landing tick; the light turns red (a wash element); the strike bursts off the blade; everything clears. Never hides both fighters.
@@ -198,7 +198,7 @@ test('the sword arm is yawed out through the gather and straight again on the st
 
 // Audio (Dom approved the Centurion cues; audio/special.ts from #1216): the Blood Tithe crowd swell rises from silence and PEAKS 2.0 s into the cue, so it starts with the
 // wind-up and the strike (tick LAND_AT of the 120-tick windup) lands on the peak. Wired on SpecialStarted, cut on SpecialFizzled, silent if the buffer has not loaded.
-import { createFeedback } from '../src/feedback.ts';
+import { createFeedback } from '../src/fight/sound/feedback.ts';
 test('the Tithe swell keeps its strike timing and fires once through the generic preview dispatch', () => {
   const CUE_PEAK = 2.0;   // seconds into tithe.m4a (Audio's note on #1216)
   assert.ok(Math.abs(LAND_AT / 60 - CUE_PEAK) <= 1 / 60, `the strike lands ${(LAND_AT / 60).toFixed(3)} s after SpecialStarted, within a tick of the cue's peak`);

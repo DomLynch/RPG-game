@@ -4,6 +4,7 @@ import { cleanLoot, keepsLoot, recoverPack, type Loot } from './loot.ts';
 export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; pass?: OpponentId[]; arena?: ArenaKey; arenaPass?: ArenaKey[]; dial?: { level: number; losses: number; wins: number }; career?: { victoryMarks: number }; loot?: Loot }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
 export type StoragePort = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'frankendom.fighter.v1';
+export const FIGHTER_KEY = KEY;
 export const cleanName = (name: string) => Array.from(name).filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim().slice(0, 24) || 'Wanderer';
 
 export function loadProfile(storage: StoragePort, createId: () => string): { profile: Profile; returning: boolean } {
