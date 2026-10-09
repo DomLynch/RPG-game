@@ -43,7 +43,7 @@ try {
   await page.locator('#journal-button').tap(); await page.locator('#menu-gear').tap();
   await page.waitForSelector('#journal[open][data-gear="live"]'); await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]');
   await page.waitForTimeout(Number(process.env.RIG_WAIT_MS ?? 8000));   // the rig and loot.glb load on the first open
-  console.log('bad requests', JSON.stringify(bad));
+  console.log('bad requests', JSON.stringify(bad), 'console', JSON.stringify(logs.filter((l) => !/GL Driver/.test(l)).slice(-6)));
   await page.screenshot({ path: path.join(out, '1-server-piece-in-pack.png') });
   await page.locator('#pack li[data-loot="goblin.Helmet"] [data-fit]').tap(); await page.locator('#fitting-wear').tap();
   await page.waitForSelector('#slot-head[data-loot="goblin.Helmet"]'); await page.waitForTimeout(5000);

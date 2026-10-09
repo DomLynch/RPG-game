@@ -14,7 +14,7 @@ export function createZone1GearStage(renderer: THREE.WebGLRenderer) {
   scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.1));   // the room's key and rim come from gear-room.ts; this is the fill the Pit borrows from its arena
   let actor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, pieces: Awaited<ReturnType<typeof loadLoot>> | undefined, worn: readonly string[] = [], tiers: Record<string, Tier> = {}, started = false;
   const dress = () => { if (actor && pieces) actor.wear(pieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => tiers[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit'); };
-  const load = () => { if (started) return; started = true; void Promise.all([loadWarriors(warriorUrl), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; captureException(error); }); };
+  const load = () => { if (started) return; started = true; void Promise.all([loadWarriors(warriorUrl), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; console.warn('the gear screen rig did not load', error); captureException(error); }); };
   const stage: GearStage = {
     scene, camera,
     setArenaVisible() { /* a scene of its own: there is no arena in it to hide */ },
