@@ -30,7 +30,7 @@ try {
     page.on('pageerror', (e) => z.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
-    const target = await page.evaluate(() => window.originsPreview.mobs().mobs.find((m) => m.drawn && m.body)); z.target = target.body;
+    const target = await page.evaluate((pref) => { const l = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); return (pref && l.find((m) => pref.includes(m.body))) || l[0]; }, KILL ? ['wolf', 'boar', 'bear', 'goblin'] : null);   // a kill still wants a creature that dies inside the run z.target = target.body;
     await page.waitForTimeout(4000);
     const at = await page.evaluate((i) => { const m = window.originsPreview.mobs().mobs.find((x) => x.id === i); return [m.x, m.z]; }, target.id);
     await page.evaluate(([x, zz]) => window.originsPreview.place(x, zz - 1.4, 0), at);
