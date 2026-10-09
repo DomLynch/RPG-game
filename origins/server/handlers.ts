@@ -1,6 +1,5 @@
 // The op registry. Each handler gets the account the token proved and a parsed JSON body, and returns the JSON the client sees. Later PRs
 // (inventory, quest journal, talk) plug their ops into `handlers`; nothing here lets a client name an account, a reward or an amount.
-import { creditFromMarks } from '../progression/model.ts';
 import { pitBatch } from './career.ts';
 import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
@@ -22,12 +21,13 @@ export { BadRequest, Conflict };
 
 const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the rest wait for the next open
 
-// Snapshot the account's Pit credit once, then pay every verified Pit win the snapshot did not already count. Returns the fresh snapshot.
+// Snapshot the account once (its marks, recorded; the zone career starts at credit 0: Pit marks do NOT seed zone level, Strategy's ruling 2026-10-09), then pay every verified Pit win the snapshot did not
+// already count. Returns the fresh snapshot.
 export async function openAccount(ctx: Ctx): Promise<store.Snapshot> {
   const { db, account } = ctx;
   let { snap, pending } = await store.openWithPending(db, account, MAX_PENDING);
   if (snap.career === null) {
-    try { await store.snapshot(db, account, snap.marks, creditFromMarks(snap.marks)); }
+    try { await store.snapshot(db, account, snap.marks, 0); }
     catch (e) { if (!(e instanceof DbError && e.code === 'O0002')) throw e; }   // marks moved under us: read them again below
     ({ snap, pending } = await store.openWithPending(db, account, MAX_PENDING));
     if (snap.career === null) throw new DbError('O0002', 'marks moved: open again');
