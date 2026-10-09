@@ -3,6 +3,8 @@
 // and a line in PACKAGES.
 import type { MobRow } from '../mobs/row.ts';
 import type { Look } from '../preview/look.ts';
+import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
+import { ROSTER } from '../../src/roster.ts';
 import zone1 from './zone1/zone.ts';
 import spawns1 from './zone1/spawns.ts';
 import kit1 from './zone1/kit.ts';
@@ -19,6 +21,7 @@ export type Zone = {
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
   looks: Readonly<Record<string, Look>>;
+  mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = {
   '1': { ...zone1, spawns: spawns1, kit: kit1, looks: looks1 },
@@ -44,6 +47,18 @@ export function zoneProblems(z: Zone): string[] {
   for (const [id, l] of Object.entries(z.looks)) {
     for (const hex of [l.fog, l.hemiSky, l.hemiGround, l.sunColor]) if (!HEX.test(hex)) bad.push(`look ${id}: ${hex} is not #rrggbb`);
     if (!(l.fogDensity > 0 && l.fogDensity < 0.1 && l.sunIntensity > 0 && l.exposure > 0.5 && l.exposure < 2.5)) bad.push(`look ${id}: a number is out of range`);
+  }
+  const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1, rgb = (n: number) => Number.isInteger(n) && n >= 0 && n <= 0xffffff;
+  for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
+    if (!Object.hasOwn(ROSTER, l.opponent)) bad.push(`mob look ${id}: ${l.opponent} is not a roster body`);
+    if (!rgb(l.tint)) bad.push(`mob look ${id}: tint is not a 0xrrggbb number`);
+    if (!(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
+    if (!unit(l.dressing.soot) || !unit(l.dressing.burnt)) bad.push(`mob look ${id}: soot/burnt must be 0..1`);
+  }
+  for (const [id, sp] of Object.entries(z.mobLooks?.spread ?? {})) {
+    if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
+    if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
+    if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
   }
   return bad;
 }

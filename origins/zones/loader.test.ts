@@ -81,3 +81,16 @@ test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zon
   assert.ok(specs.every((m) => m.level >= 2 && m.level <= 3), 'at the Zone 2 band');
   assert.equal(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).some((m) => m.zone === 'ash-reach'), false);
 });
+
+test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of range is named', () => {
+  const z = loadZone(), ok = { looks: { 'character:x': { opponent: 'wolf', tint: 0x8a4a32, scale: 1.1, dressing: { soot: .1, burnt: .5 } } }, spread: { 'character:x': { tints: [0x7a4030], scale: .08, soot: .1, burnt: .1 } } };
+  const edit = (f: (m: Mut<NonNullable<Zone['mobLooks']>>) => void) => { const c = clone(z), m = JSON.parse(JSON.stringify(ok)); f(m); c.mobLooks = m; return zoneProblems(c as unknown as Zone).join('|'); };
+  assert.equal(edit(() => {}), '', 'a valid entry passes');
+  assert.match(edit((m) => { m.looks['character:x']!.opponent = 'dragon'; }), /dragon is not a roster body/);
+  assert.match(edit((m) => { m.looks['character:x']!.tint = -1; }), /tint is not a 0xrrggbb number/);
+  assert.match(edit((m) => { m.looks['character:x']!.scale = 9; }), /scale 9 is out of range/);
+  assert.match(edit((m) => { m.looks['character:x']!.dressing.burnt = 2; }), /soot\/burnt must be 0\.\.1/);
+  assert.match(edit((m) => { m.spread['character:y'] = m.spread['character:x']!; }), /spread character:y has no mob look/);
+  assert.match(edit((m) => { m.spread['character:x']!.tints = []; }), /tints must be/);
+  assert.deepEqual(zoneProblems(z), [], 'Zone 1 has no mobLooks and stays valid');
+});
