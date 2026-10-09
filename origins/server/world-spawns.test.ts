@@ -7,7 +7,7 @@ import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { mobBatch } from './mob-rewards.ts';
 import { OPPONENTS, opponentAt } from '../../src/moves.ts';
 import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../../src/duel.ts';
-import { underOpenWorld } from '../combat/open-world.ts';
+import { OPEN_RADIUS } from '../../src/play-radius.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
@@ -53,7 +53,7 @@ test('the floors are bounds from the Pit kit: at least one hit, monotone in heal
   assert.ok(withinReach(spec, { x: 9, z: 0 })); assert.ok(!withinReach(spec, { x: 20, z: 0 }));
 });
 
-// The Auditor's pin (#1880): the duel Zone 1 actually runs (src/duel.ts stepDuel under underOpenWorld, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
+// The Auditor's pin (#1880): the duel Zone 1 actually runs (src/duel.ts stepDuel on a duel with radius OPEN_RADIUS, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
 // than the floors. The attacker's best case: a creature that never moves, guards or swings, and a hero who presses one attack every tick it is legal.
 test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (the open-world duel, best case for the attacker)', () => {
   const kinds = [...new Set([...spawns.values()].map((s) => s.spec.body))];
@@ -63,9 +63,9 @@ test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (th
     let fastest = Infinity;
     for (const action of ['light', 'heavy', 'thrust'] as const) {
       const hero = createFighter({ x: 0, z: -0.8, heading: 0, distance: 0 }, 'ready', 'longsword'), foe = opponentFighter(o, { x: 0, z: 0.8, heading: Math.PI, distance: 0 }, 'ready');
-      let duel: Duel = { tick: 0, fighters: [hero, foe], finish: null, events: [] }, hits = 0;
+      let duel: Duel = { tick: 0, fighters: [hero, foe], finish: null, events: [], radius: OPEN_RADIUS }, hits = 0;
       for (let t = 0; t < 60 * 120 && duel.finish === null && duel.fighters[1].health > 0; t++) {
-        duel = underOpenWorld(() => stepDuel(duel, [{ ...idleIntent(), action }, idleIntent()]));
+        duel = stepDuel(duel, [{ ...idleIntent(), action }, idleIntent()]);
         hits += duel.events.filter((e) => e.actor === 0 && e.target === 1 && (e.type === 'Hit' || e.type === 'GuardBroken')).length;
       }
       if (duel.fighters[1].health > 0) continue;   // this attack alone never finished it (it can't be the fastest)

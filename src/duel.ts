@@ -87,7 +87,7 @@ export type CombatEvent = { tick: number; type: EventType; actor: Side; target?:
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
 // `roll`: the world-mob damage roll (Origins luck ruling, Dom 2026-10-07: +/-10% on every blow in both directions, in a world-mob fight only). Absent = the Pit, PvP and the
 // ladder: today's fight byte for byte. `hits` numbers the fight's blows in the order they resolve, so the draw is a pure function of (seed, hit) and a replay reproduces it.
-export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number }; gambit?: { seed: number; draws: number } };
+export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number }; gambit?: { seed: number; draws: number }; radius?: number };   // radius: the wall this fight is fought inside (RV40); absent = the Pit's live circle (play-radius.ts RADIUS), so a Pit duel is byte for byte what it was
 export { ROLL_BAND, rollPercent, rolledDamage } from './roll.ts';   // the one definition (src/roll.ts), shared with origins/luck/luck.ts
 export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
 // A fight with the Gambit (src/gambit.ts, RV33): the player's side may arm it, and its draws are a pure function of (seed, draw number). Absent = today's fight byte for byte.
@@ -147,7 +147,7 @@ export const withSpecials = (duel: Duel, level: number, aiSkill: SkillId | null,
 export const aim = (from: State, to: State): number => M.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => M.hypot(a.x - b.x, a.z - b.z);
 // At the ring wall with the given direction pointing out of the ring: the wall is behind a step that way.
-export const walled = (body: State, dx: number, dz: number): boolean => M.hypot(body.x, body.z) >= RADIUS - RULES.wall.edge && body.x * dx + body.z * dz > 0;
+export const walled = (body: State, dx: number, dz: number, radius: number = RADIUS): boolean => M.hypot(body.x, body.z) >= radius - RULES.wall.edge && body.x * dx + body.z * dz > 0;
 // Ticks since the current phase began. `age` is the animation clock (a chambered swing rewinds it); `charge` counts the parked ticks,
 // so age + charge is monotonic elapsed time — what perception and reaction delays must read.
 export const elapsed = (f: Fighter): number => f.age + f.charge;
@@ -219,13 +219,13 @@ function beginAttack(f: Fighter, id: MoveId, chained: boolean, foe: State): void
   const beat = f.feintEdge; delete f.feintEdge; delete f.beat; if (beat) f.beat = true;   // a swing begun inside the beat after a trickster's feint is a beating one
 }
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
-  const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
+  const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters, wall = duel.radius ?? RADIUS;   // the wall of THIS fight (RV40): the Pit's live circle unless the duel carries its own (the open world's is out of reach)
   // A committed special windup: the caster stands and tracks the target, whatever the thumb does (no guard, roll, parry or step).
   if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
   const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
   for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }   // a trickster's feint beat runs down (RULES.feintBeat)
-  if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}) };
+  if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}) };
   let gdraws = duel.gambit?.draws ?? 0;
   let hits = duel.roll?.hits ?? 0, lastRoll: number | undefined;   // the world-mob roll: a blow's health loss goes through rolled(); absent roll = the plain number
   const rolled = (base: number): number => { if (!duel.roll) return base; lastRoll = rollPercent(duel.roll.seed, hits++); return rolledDamage(base, lastRoll); };
@@ -250,9 +250,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (action === 'dodge') {
       // Direction locks at the press; without movement, roll away from the opponent. A roll grown out of a backstep pays the difference.
       const moving = M.hypot(intent.move.x, intent.move.z) > .1;
-      next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body).heading : aim(me.body, foe.body) + Math.PI };
+      next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body, 1, wall).heading : aim(me.body, foe.body) + Math.PI };
       next.phase = 'roll'; next.age = 0; spend(i, me.phase === 'backstep' ? R.rollCost - R.backstep.cost : R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
-    } else if (action === 'backstep' && walled(me.body, -M.sin(me.body.heading), -M.cos(me.body.heading))) {
+    } else if (action === 'backstep' && walled(me.body, -M.sin(me.body.heading), -M.cos(me.body.heading), wall)) {
       // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
@@ -321,18 +321,18 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const lunge = movesOf(next)[next.move].stepIn;
       // A parked swing does not keep lunging: the lunge belongs to the wind-up, and the wind-up is paused. The kick's lunge is a stride at
       // everyone's pace: a quick fighter's (the Goblin's 1.2) otherwise out-ran a backstep, so no step back ever cleared his kick (Strategy, 2026-09-25).
-      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: M.sin(next.body.heading) * lunge, z: M.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.move === 'kick' ? 1 : next.speed);
+      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: M.sin(next.body.heading) * lunge, z: M.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.move === 'kick' ? 1 : next.speed, wall);
     } else if (next.phase === 'roll') {
-      next.body = advance(next.body, { x: M.sin(next.body.heading), z: M.cos(next.body.heading), yaw: 0, run: true }, foe, next.speed);
+      next.body = advance(next.body, { x: M.sin(next.body.heading), z: M.cos(next.body.heading), yaw: 0, run: true }, foe, next.speed, wall);
     } else if (next.phase === 'backstep') {
       // Straight back along the facing, still facing the opponent: no turn, no invulnerability, just distance.
-      next.body = { ...advance(next.body, { x: -M.sin(next.body.heading) * R.backstep.speed, z: -M.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe, next.speed), heading: next.body.heading };
+      next.body = { ...advance(next.body, { x: -M.sin(next.body.heading) * R.backstep.speed, z: -M.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe, next.speed, wall), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1) * (next.legWound ? R.attrition.legSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
-      const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed);
+      const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed, wall);
       // Anti-turtling 2 (RULES.retreat): a tick that opens the gap to the opponent by more than `away` — inside the wall band, unless
       // `wallOnly` is off — regenerates no stamina (the sprinting tick's one-tick rest: regen resumes the tick he stops, strafes or advances).
-      if (distance(moved, foe) - distance(next.body, foe) > R.retreat.away && (!R.retreat.wallOnly || M.hypot(moved.x, moved.z) >= RADIUS - R.wall.loiter.band)) next.rest = Math.max(next.rest, 1);
+      if (distance(moved, foe) - distance(next.body, foe) > R.retreat.away && (!R.retreat.wallOnly || M.hypot(moved.x, moved.z) >= wall - R.wall.loiter.band)) next.rest = Math.max(next.rest, 1);
       // Sprinting drains without the action delay: no regeneration on a sprinting tick, and it resumes the tick the sprint stops (an action's
       // regenDelay is for actions; a sprint that reset it every tick starved the bar for a second after every dash).
       if (run && moved.distance > next.body.distance) { next.stamina = Math.max(0, next.stamina - R.sprintCost); next.rest = Math.max(next.rest, 1); if (!next.stamina && !next.exhausted) { next.exhausted = true; events.push({ tick, type: 'StaminaExhausted', actor: i }); } }
@@ -348,7 +348,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const [p, q] = [fighters[0].body, fighters[1].body], dx = q.x - p.x, dz = q.z - p.z, gap = M.hypot(dx, dz);
     if (gap < .85 - 1e-8) {
       const push = (.85 - gap) / 2, ux = gap > 1e-8 ? dx / gap : M.sin(p.heading), uz = gap > 1e-8 ? dz / gap : M.cos(p.heading);
-      const clamp = (x: number, z: number) => { const r = M.hypot(x, z); return r > RADIUS ? { x: x * RADIUS / r, z: z * RADIUS / r } : { x, z }; };
+      const clamp = (x: number, z: number) => { const r = M.hypot(x, z); return r > wall ? { x: x * wall / r, z: z * wall / r } : { x, z }; };
       fighters[0].body = { ...p, ...clamp(p.x - ux * push, p.z - uz * push) }; fighters[1].body = { ...q, ...clamp(q.x + ux * push, q.z + uz * push) };
     }
   }
@@ -368,7 +368,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // Both fighters, so the warden cannot camp the wall either. Event sides: actor = target = the whipped fighter.
   for (const i of [0, 1] as const) {
     const F = fighters[i], L = R.wall.loiter, r = M.hypot(F.body.x, F.body.z);
-    const still = F.health && !duel.finish && r >= RADIUS - L.band && F.phase !== 'attack';
+    const still = F.health && !duel.finish && r >= wall - L.band && F.phase !== 'attack';
     F.loiter = still ? F.loiter + 1 : 0;
     if (!still) F.lashed = false;   // he attacked, left the band or died: the spell is over and the next lash is a first one again
     // The tell. A raise is emitted exactly once per lash, `lead` ticks before it: `raise` before the first, the shorter `raiseAgain` before
@@ -434,9 +434,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         if (location === 'legs') D.legWound = true;
       }
       const away = aim(d.body, a.body) + Math.PI;
-      for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body), heading: D.body.heading };
+      for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };
       // The ring wall: knockback that ends against the wall is a second impact — extra stagger and posture (kicks shove; see stagger()).
-      walledHit = knockback > 0 && D.health > 0 && walled(D.body, M.sin(away), M.cos(away));
+      walledHit = knockback > 0 && D.health > 0 && walled(D.body, M.sin(away), M.cos(away), wall);
       if (!D.health) { finish = finish ? { ...finish, draw: true } : { victim: j, location: location!, move: a.move!, heading: a.body.heading }; events.push({ tick, type: 'Killed', actor: i, target: j, move: a.move!, location: location!, heading: a.body.heading }); }
     };
     // A low blade (the sweep) trips a roll in its first half: the roller is going down into it. The kick has no blade and is rolled as before.
@@ -536,6 +536,6 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       events.push({ tick, type: 'Killed', actor: 0, target: 1, move, location: 'torso', heading: A.body.heading });
     }
   }
-  return { tick, fighters, finish, events, ...(duel.roll ? { roll: { seed: duel.roll.seed, hits } } : {}), ...(duel.gambit ? { gambit: { seed: duel.gambit.seed, draws: gdraws } } : {}) };
+  return { tick, fighters, finish, events, ...(duel.roll ? { roll: { seed: duel.roll.seed, hits } } : {}), ...(duel.gambit ? { gambit: { seed: duel.gambit.seed, draws: gdraws } } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}) };
 }
 

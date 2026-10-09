@@ -1,6 +1,6 @@
 // Zone 1's combat (Dom via Strategy, 2026-10-08: Zone 1 is detached from the Pit, and "copy the Pit, write no rule twice"): continuous and open, no ring, no wall, no fight start or end, no FightRecord, no seed, no replay.
 // Pure and DOM-free: ONE step function over a world of free fighters in the world's own metres. EVERY fight rule - hit, guard, parry, perfect block, posture, roll, stamina, stagger, death, specials, stances - is the Pit's,
-// run through the Pit's own src/duel.ts / ai.ts / sim.ts (no copies; play-radius.ts underOpenWorld removes the ring wall) by the adapter open-fight.ts; this file owns only what the Pit has no word for: who is in whose fight (aggro, the nearest foe, the hold-off ring
+// run through the Pit's own src/duel.ts / ai.ts / sim.ts (no copies; the duel carries its own wall, Duel.radius, out of reach here) by the adapter open-fight.ts; this file owns only what the Pit has no word for: who is in whose fight (aggro, the nearest foe, the hold-off ring
 // for the rest of a pack), the chase to that ring, leash, give-up, heal-home, the creature rows (`creature`, levels from moves.ts opponentAt), player-vs-player rules (the server's pvp flag, the low-level shield, the
 // level band, the `Aggressed` first-strike event) and `minKillSeconds`. Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering, animation and input.
 import { LEVELS, LEVEL_ANCHORS, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
