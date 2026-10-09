@@ -6,6 +6,9 @@ import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { REGISTRY } from './registry.ts';
+import { placesInOrder, type Place } from './place.ts';
+import { resolveZone } from './resolve.ts';
+import type { Spec } from './biomes.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
@@ -16,15 +19,21 @@ export type Zone = {
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
   looks: Readonly<Record<string, Look>>;
+  resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
+  place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
   mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
+/** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
+export const zonePlaces = (): Place[] => placesInOrder(PACKAGES);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
 export function zoneProblems(z: Zone): string[] {
   const bad: string[] = [], ids = new Set<string>();
   if (!z.name.trim()) bad.push('no display name');
+  const { resolved: _resolved, ...own } = z;   // `resolved` is what loadZone adds, not part of the spec
+  bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
@@ -72,5 +81,6 @@ export function loadZone(id: string = pageZoneId()): Zone {
   const hit = loaded.get(id); if (hit) return hit;
   const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
-  loaded.set(id, z); return z;
+  const full = { ...z, resolved: resolveZone(id, z as unknown as Spec).tree };   // z is a package straight from the registry: it has no `resolved` yet
+  loaded.set(id, full); return full;
 }

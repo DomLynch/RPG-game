@@ -22,7 +22,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, PLAY_RADIUS, CAMERA_CLAMP } from '/src/arena.ts';
 import { cameraPose } from '/src/camera.ts';
-import { loadWarriors } from '/src/characters.ts';
+import { loadWarriors } from '/src/fight/characters.ts';
 import { actorPose, initialPractice } from '/src/combat.ts';
 import { OPPONENTS } from '/src/moves.ts';
 import { TARGET, initialState } from '/src/sim.ts';

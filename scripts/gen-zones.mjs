@@ -4,7 +4,7 @@ import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const ZONES_DIR = fileURLToPath(new URL('../origins/zones/', import.meta.url));
-const REQUIRED = ['zone.ts', 'spawns.ts', 'kit.ts', 'look.ts'], OPTIONAL = [['mob-looks.ts', 'mobLooks']];
+const REQUIRED = ['zone.ts', 'spawns.ts', 'kit.ts', 'look.ts'], OPTIONAL = [['mob-looks.ts', 'mobLooks'], ['place.ts', 'place']];
 
 // The zone folders under `dir` (zone1, zone2, ... zone99), by number. A folder missing a required file is an error, never skipped.
 export function zoneFolders(dir = ZONES_DIR) {

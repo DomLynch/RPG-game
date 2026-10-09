@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { WEAPON_CLIPS } from '../src/characters.ts';
+import { WEAPON_CLIPS } from '../src/fight/characters.ts';
 import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
 import { OPPONENTS, PROFILES, WEAPONS, opponentAt, type AiProfile, type Opponent } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';

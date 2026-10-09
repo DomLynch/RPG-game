@@ -17,6 +17,8 @@
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
 import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
+import { placedSpawns, placedWaypoints } from '../zones/place.ts';
+import { zonePlaces } from '../zones/loader.ts';
 
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
@@ -241,9 +243,9 @@ export const REGIONS = [
       'road-gate', 'ash-pits', 'shrine', 'hold-road',
       'landing-shore', 'reed-bank', 'mere-hollow', 'causeway', 'causeway-foot',
       'causeway-end', 'ruin-jetty', 'ruin-gate', 'crypt',
-      'reach-turn', 'reach-gate', 'reach-cairn', 'reach-ruin',
       'hold-gate', 'hold-centre', 'hold-hall', 'hold-forge', 'hold-fence', 'hold-jail',
       'end-gate', 'end-centre', 'end-hall', 'end-healer', 'end-jail',
+      ...placedWaypoints(zonePlaces()),   // each zone folder's own landmarks (zone<N>/place.ts)
     ],
     portals: [{ id: 'to-exchange', at: 'exchange-gate', to: 'region:concord-exchange', toPortal: 'to-frontier' }],
     landmarks: [
@@ -270,9 +272,8 @@ export const REGIONS = [
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
       spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
-      spawn('reach-wolves', 'reach-cairn', null, ['character:ember-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
-      spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
       spawn('pit-goblins', 'watchtower', null, ['character:pit-goblin']),   // the Pit goblin camp by the start path (east road), Zone 1 (Dom 10-09: goblin camp added); the row's size is data (zone1/spawns.ts campSize)
+      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone folder's spawn groups (zone<N>/place.ts), after Region 1's own so their seeds keep
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },

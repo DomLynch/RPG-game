@@ -19,6 +19,8 @@ import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { characterFor } from '../../src/fight/open.ts';
+import { createLateOpen } from './late-open.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -27,13 +29,15 @@ import { campFires } from './camp-fire.ts';
 import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/warm-gate.ts';
+import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
+import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { ME, createWorldCombat } from '../../src/fight/index.ts';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
-import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
@@ -144,7 +148,8 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
+const HERO_WAIT_MS = 45000, warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
+loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -363,12 +368,17 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 // "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
 let zoneReadyAt = -1;
+async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
+  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), () => new Promise<void>((r) => requestAnimationFrame(() => r()))), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  warmedHero.done = true;
+}
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
-  if (!w.kinds.length || w.warmed.length < w.kinds.length || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
+  if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
+  if (!w.kinds.length || !warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]) || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
   zoneReadyAt = Math.round(performance.now());
-  const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed };
+  const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
@@ -407,7 +417,7 @@ if (frontier) {
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
-      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
@@ -442,13 +452,15 @@ function showCareer() {
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
 }
 showCareer();
-// The saved career, once, in the background: the walk and the Pit never wait on it. It is adopted only while no duel has started, so a
-// preview fight is never re-based under the player; otherwise (or on any failure) the in-memory preview career stands, marked offline.
-void AUTH_READY.then(() => fetchOpen(storedToken(storage, Date.now()), { base: writerBase(location.search) })).then((opened) => {
-  if (isOffline(opened)) source = opened;
-  else if (session.fights > 0 || fighting) source = { offline: 'late' };
-  else { session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; playerName = opened.characters[0]?.name ?? playerName; characterId = opened.characters[0]?.id ?? null; play.standAt(careerLine(session.career).level); }
-  showCareer();
+// The saved career, once, in the background: the walk and the Pit never wait on it. A fight is never re-based under the player, so a career that arrives while one is on is held and adopted
+// when it ends (late-open.ts); on any failure the in-memory preview career stands, marked offline. The character id and name carry no fight state and are taken at once.
+const lateOpen = createLateOpen<Opened>((opened) => {
+  session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; play.standAt(careerLine(session.career).level); showCareer();
+}, () => fighting);
+void AUTH_READY.then(() => openedAccount({ storage, search: location.search })).then((opened) => {
+  if (isOffline(opened)) { source = opened; showCareer(); return; }
+  playerName = opened.characters[0]?.name ?? playerName; characterId = opened.characters[0]?.id ?? null;
+  lateOpen.arrive(opened);
 });
 async function startFight(pick?: string): Promise<PitFight | null> {
   if (duelFailed) { location.reload(); return null; }   // a browser keeps a failed import's error for the page's life, so the retry is a fresh page
@@ -490,6 +502,7 @@ function leaveFight() {
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
+  lateOpen.settle();   // a saved career that arrived during the fight is adopted now (late-open.ts)
   if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, { back: zoneExit() }); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
@@ -566,7 +579,7 @@ async function creatureFell(spec: MobSpec) {
   worldToast(`${spec.name} is down.`);
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
-const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), character: () => characterId, zone: pageZoneId, now: () => Date.now(), base: writerBase(location.search) });
+const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 const wc = createWorldCombat({
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
   onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },

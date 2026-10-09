@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CombatEvent } from './duel.ts';
-import { surfaceHit, woundSite } from './gore.ts';
+import { surfaceHit, woundSite } from './fight/gore.ts';
 import { heavyHitBy, registerSignature, type SignatureFrame } from './signature.ts';
 
 // The Pitborn's signature A, Butcher's Wake (docs/briefs/signature-effects.md row 2): his landed heavy drags a thick curved sheet of blood

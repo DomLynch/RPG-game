@@ -13,10 +13,11 @@ import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
 import * as F from '../origins/contracts/fixtures.ts';
-import { creditFromMarks, cumulative } from '../origins/progression/model.ts';
+import { cumulative } from '../origins/progression/model.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
-import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
+import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
+import { openCharacter } from '../src/fight/open.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { zoneAt } from '../origins/presence/zones.ts';
@@ -30,8 +31,8 @@ const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 
 const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env, timeout: 300_000 });
 const psql = sql => run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'], sql).trim();
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', G = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
-const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G };
+const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', G = 'ffffffff-ffff-4fff-8fff-ffffffffffff', H = '99999999-9999-4999-8999-999999999999';
+const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G, tg: H };
 // The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
@@ -58,7 +59,7 @@ try {
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
-    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${D}'),('${E}'),('${G}');`);
+    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${D}'),('${E}'),('${G}'),('${H}');`);
   psql(readdirSync(dir).filter(n => n.endsWith('.sql')).sort().map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${B}','Bran',0,'{"owned":[],"equipped":{}}'),('${D}','Dara',10,'{"owned":[],"equipped":{}}');`);
 
@@ -91,7 +92,7 @@ try {
   eq((await call('open', 'tc')).status, 403, 'on, but not on the allowlist');
 
   // open snapshots the Pit credit once, from the marks the database holds
-  const seed = creditFromMarks(4);
+  const seed = 0;   // Pit marks do not seed zone level (Strategy 2026-10-09): a zone career starts at credit 0
   const o1 = await call('open', 'ta');
   eq([o1.status, o1.json.result.marks, o1.json.result.career.seed_credit, o1.json.result.career.total_credit], [200, 4, seed, seed], 'open: the snapshot');
   psql(`update public.fighter_profiles set victory_marks = 40 where user_id = '${A}';`);
@@ -108,21 +109,22 @@ try {
 
   // Pit import: a win verified after the snapshot pays the legend row once, at the derived level, however many opens race
   const claim = n => psql(`insert into public.loot_claims(user_id, opponent, record, verified, checked_at, fight_hash) values ('${A}', 'knight', 'wrec${n}', true, now() + interval '1 minute', '${n.toString(16).padStart(64, '0')}') returning id;`).split('\n')[0];
+  const career = acct => psql(`select to_jsonb(c)::text from public.origins_career c where account = '${acct}'`), careerBefore = career(A);   // the whole row, every column
   const c1 = claim(1);
   const opens = await Promise.all([call('open', 'ta'), call('open', 'ta'), call('open', 'ta')]);
   eq(opens.map(o => o.status), [200, 200, 200], 'racing opens all answer');
   const total1 = (await call('open', 'ta')).json.result.career.total_credit;
   const [rows, cp] = psql(`select count(*) || '|' || coalesce(sum((payload->>'cp')::bigint), 0) from public.origins_events where account = '${A}' and kind = 'pit'`).split('|');
   eq(rows, '1', 'one pit event however many opens raced');
-  eq([total1, total1 > seed], [seed + Number(cp), true], 'total = seed + the pit event, and the win paid something');
-  eq((await call('open', 'ta')).json.result.career.beaten.length, 1, 'the legend is recorded as beaten');
+  eq([total1, Number(cp), career(A)], [seed, 0, careerBefore], 'a Pit win pays Pit ranks only: the event has cp 0 and the zone career row is byte-unchanged');
+  eq((await call('open', 'ta')).json.result.career.beaten.length, 0, 'no legend is recorded as beaten in the zone career');
   // the same opponent again at the same level pays nothing, but still leaves pending
   const c2 = claim(2);
   const after = (await call('open', 'ta')).json.result.career.total_credit;
   eq([after, psql(`select count(*) from public.origins_events where event_id in ('pit:${c1}', 'pit:${c2}')`)], [total1, '2'], 'a repeat win: cp 0, event written');
   eq(psql(`select count(*) from public.origins_pit_pending('${A}')`), '0', 'nothing left pending');
   // a client cannot name another account: the body is ignored, the token decides
-  eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, creditFromMarks(0), 'the account comes from the token alone');
+  eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, 0, 'the account comes from the token alone');
 
   // consume (a quest hand-in): ore minted into Aldren's pack and bank, burned through the writer, retried, conflicted, raced; conservation at every commit
   const pc = made.json.result.id;
@@ -303,11 +305,12 @@ try {
   eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
-  const seedD = creditFromMarks(10);
-  eq((await call('open', 'td')).json.result.career.seed_credit, seedD, 'Dara: open');
+  const seedD = cumulative(11);   // level 11, the story gate: granted by hand now that Pit marks do not seed zone level (a zone career starts at credit 0)
+  eq((await call('open', 'td')).json.result.career.seed_credit, 0, 'Dara: open (Pit marks seed nothing)');
+  psql(`update public.origins_career set world_credit = ${seedD}, version = version + 1 where account = '${D}'`);
   const dara = (await call('create_character', 'td', { name: 'Dara' })).json.result.id;
   const q = sql => psql(sql.replaceAll('$PC', dara));
-  const credit = () => psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number);
+  const credit = () => { const [w, t] = psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number); return [w - seedD, t]; };   // [credit earned since the grant, total]
   const hello = await call('talk_pick', 'td', { character: dara, npc: NPC, line: 'greet-first' });
   eq([hello.status, hello.json.result.cp], [200, 0], 'talk_pick greet-first');
   eq(q(`select array_to_string(told, ',') || '|' || flags::text from public.origins_talk where character = '$PC'`), `${NPC} greet-first|{"met-orla": true}`, 'the talk row records the once-line and its flag');
@@ -361,9 +364,13 @@ try {
     }
     eq(psql(`select count(*) from public.origins_events`), events, 'no content: nothing written');
   } finally { bare.close(); }
-  // The greybox preview's read (origins/preview/save.ts fetchOpen) against this real writer: the mapped career is the writer's derived total,
+  // The greybox preview's read (origins/preview/save.ts openedAccount) against this real writer: the mapped career is the writer's derived total,
   // the read writes nothing, and every refusal comes back offline instead of throwing.
-  const writer = base.slice(0, -1), events = () => psql(`select count(*) from public.origins_events where account = '${A}'`);
+  const writer = base.slice(0, -1);
+  // the page's open with a fresh page (storage) each time; `token` is the stored sign-in, `to` the writer address a page is pointed at (?writer=, loopback only)
+  const pageStorage = (token) => (token ? { getItem: () => JSON.stringify({ access_token: token, expires_at: Date.now() / 1000 + 3600 }) } : null);
+  const fetchOpen = (token, { base: to }) => openedAccount({ storage: pageStorage(token), search: `?writer=${encodeURIComponent(to)}` });
+  const events = () => psql(`select count(*) from public.origins_events where account = '${A}'`);
   const before = events(), viaPreview = await fetchOpen('ta', { base: writer }), direct = (await call('open', 'ta')).json.result.career;
   eq([viaPreview.career?.credit, careerLine(viaPreview.career).credit, viaPreview.career?.beaten, viaPreview.characters.map(c => c.name)],
     [Number(direct.total_credit), Number(direct.total_credit), direct.beaten, ['Wanderer aaaaaa', 'Aldren']], 'preview: the mapped career is the derived total');
@@ -466,6 +473,11 @@ try {
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
+    // one rule for every door (src/fight/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
+    psql(`insert into public.origins_access(account) values ('${H}');`);
+    const pitId = await openCharacter({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
+    const zoneOpen = await openedAccount({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
+    eq([/^pc:[0-9a-f]{32}$/.test(pitId), zoneOpen.characters.map(c => c.id), chars(H).split(',').length], [true, [pitId], 1], 'open: a fresh account whose first page is the Pit has one character, and the later zone open reuses it');
   }
   // the down script drops exactly what the up created, and the up applies again cleanly after it
   const up = readFileSync(join(dir, '202610070009_origins_character_location.sql'), 'utf8'), down = readFileSync('supabase/down/202610070009_origins_character_location_down.sql', 'utf8');
