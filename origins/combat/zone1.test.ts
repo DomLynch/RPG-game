@@ -266,3 +266,12 @@ test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase 
   assert.equal(get(later.world, 'p').phase, 'dead', 'five seconds later he is still dead'); assert.equal(later.events.filter((e) => e.type === 'Died' && e.id === 'p').length, 0, 'no second Died');
   assert.equal(later.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0, 'nothing keeps hitting the corpse');
 });
+
+test('#1936 c(a): FightStarted is once per creature per engage - a joiner that becomes his foe, or hovers at the edge of the ring, does not fire again', () => {
+  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'boar', 0, 1.6), creature('b', 'boar', 1.4, 1.8), creature('c', 'boar', -1.4, 1.8)]);
+  let aDown = -1;
+  const r = run(w0, 120, (t) => ({ p: aDown < 0 ? { x: 0, z: 0, attack: t % 25 === 0 ? 'light' : null } : { x: -1, z: 0, run: true } }), (w) => { if (aDown < 0 && get(w, 'a').phase === 'dead') aDown = 1; return false; });
+  const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature), died = r.events.filter((e) => e.type === 'Died' && e.id === 'a').length;
+  assert.equal(died, 1, 'he killed one'); assert.equal(started.filter((id) => id === 'a').length, 1); assert.ok(started.filter((id) => id === 'b').length <= 2 && started.filter((id) => id === 'c').length <= 2, `no churn: ${started}`);
+  assert.equal(started.slice(0, 3).sort().join(), 'a,b,c', 'the first three are the pack');
+});

@@ -120,6 +120,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   // 1. Player against player: two attackable players this close fight each other (the Pit's duel with two humans); the pair is kept out to ENGAGE_OUT_M.
   const bouts: { a: Fighter; b: Fighter | null }[] = [], joined = new Map<string, Fighter[]>();
   const prevFoe = (p: Fighter) => world.streams[p.id]?.foe ?? null;
+  const engagedWith = (p: Fighter, id: string): boolean => { const st = world.streams[p.id]; return !!st && (st.foe === id || !!st.joined?.some((j) => j.foe === id)); };   // he was fighting this creature last step, as his foe or as a joiner
   for (const a of players) for (const b of players) {
     if (a.id >= b.id || inFight.has(a.id) || inFight.has(b.id) || !attackable(a, b)) continue;
     const sticky = prevFoe(a) === b.id || prevFoe(b) === a.id;
@@ -128,7 +129,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   // 2. Player against the nearest creature (the Pit's own pack model is a sequence of bouts, src/pack.ts startPack / nextBout: one fights the hero, the rest hold off at the ring until it falls); each creature fights one player.
   // The creature chooses: of the free players in its reach it takes the one with the most threat (nearest on a tie; a foe it already has stays out to ENGAGE_OUT_M); each player then takes the nearest creature that chose him.
   const claimed = new Set<string>(), free = players.filter((p) => !inFight.has(p.id));
-  const reach = (c: Fighter, p: Fighter) => dist(c, p) <= (prevFoe(p) === c.id ? ENGAGE_OUT_M : ENGAGE_M);
+  const reach = (c: Fighter, p: Fighter) => dist(c, p) <= (engagedWith(p, c.id) ? ENGAGE_OUT_M : ENGAGE_M);
   const chose = new Map<string, string>();   // creature id -> player id
   for (const c of creatures) {
     if (!alive(c) || c.returning) continue;
@@ -160,7 +161,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const bout: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt);
     if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
-    if (b && b.side === 'creature' && prev?.foe !== b.id) events.push({ type: 'FightStarted', creature: b.id, player: a.id });
+    if (b && b.side === 'creature' && !engagedWith(a, b.id)) events.push({ type: 'FightStarted', creature: b.id, player: a.id });
     streams[a.id] = r.bout; events.push(...r.events);
     // The creatures that joined him: each its own duel against the same player. His health and posture carry through the world Fighter; his place, stamina, phase and exhaustion are the primary bout's (a roll or a cut is paid and moved once); a joiner's blows hurt him but do not interrupt his swing.
     const keep = { x: a.x, z: a.z, facing: a.facing, stamina: a.stamina, phase: a.phase, t: a.t, exhausted: a.exhausted }, inA = inputs[a.id] ?? IDLE_INPUT, passive: Input = { x: inA.x, z: inA.z, run: inA.run, guard: inA.guard, roll: inA.roll };
@@ -168,7 +169,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     r.bout.joined = [];
     for (const c of joined.get(a.id) ?? []) {
       const had = prevJoined.get(c.id) ?? (prev?.foe === c.id ? prev : undefined), jb = had ?? openBout(a, c);
-      if (!had) events.push({ type: 'FightStarted', creature: c.id, player: a.id });
+      if (!engagedWith(a, c.id)) events.push({ type: 'FightStarted', creature: c.id, player: a.id });
       const jr = stepBout(jb, a, c, passive, IDLE_INPUT, dt); r.bout.joined.push(jr.bout); events.push(...jr.events);
       if (jr.bout.ai) c.brain = carried(jr.bout.ai, jr.bout.duel.tick);
       if (alive(a)) Object.assign(a, keep); else { Object.assign(a, { x: keep.x, z: keep.z, facing: keep.facing }); break; }   // killed by a joiner: he stays dead (Auditor, #1943); the other joiners stop
