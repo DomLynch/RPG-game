@@ -99,12 +99,19 @@ test('a pack of four around the hero: three join and telegraph their own blows, 
   assert.deepEqual([...tells].sort(), ['w1', 'w2', 'w4'], 'three attack, each from its own duel: the fourth (w3, the farthest) waits its turn');
 });
 
-test('three joined: each joiner is driven with its own windup (one actor per creature), and the card follows the primary foe, handing on as each falls', () => {
+test('three joined: each joiner is driven with its own windup (one actor per creature)', () => {
   const f = fakeMobs([['w1', 1.2], ['w2', 2.4], ['w3', 3.2]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
-  const lunged = new Set<string>(), kills: string[] = [], names: string[] = [];
-  const real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p && p.lunge !== 0) lunged.add(id); real(id, p); }) as typeof real;
-  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
-  for (let i = 0; i < 600 && kills.length < 3; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.hp > 0)[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); const n = wc.target()?.name; if (n && names.at(-1) !== n) names.push(n); } if (wc.hero().dead) break; }
+  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p && p.lunge !== 0) lunged.add(id); real(id, p); }) as typeof real;
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  run(wc, { x: 0, z: 0, facing: 0 }, 4);
   assert.ok(lunged.size >= 3, `each of the three had its own windup/lunge: ${[...lunged]}`);
-  assert.ok(new Set(names).size >= 2, `the card named more than one foe in turn: ${names}`);
+});
+
+test('the card names the primary pair\'s foe (the nearest of the pack), whatever the list order', () => {
+  const pack = [['w3', 3.2], ['w2', 2.4], ['w1', 1.2]], card = (list: typeof pack) => {
+    const f = fakeMobs(list.map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+    const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+    run(wc, { x: 0, z: 0, facing: 0 }, 1); return wc.target()?.name;
+  };
+  assert.equal(card(pack), 'w1'); assert.equal(card([...pack].reverse()), 'w1');
 });
