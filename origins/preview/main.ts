@@ -21,6 +21,7 @@ import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { characterFor } from '../../src/fight/open.ts';
 import { createLateOpen } from './late-open.ts';
+import { applyServerKill } from './kill-apply.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -570,7 +571,10 @@ function heroDeathSequence() {
 }
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
-  void spawnNet.killed(spec.id);   // the server's verified kill (beta ledger); the page's own loot and toast below run whatever it answers
+  void spawnNet.killed(spec.id).then((k) => {   // the server's verified kill (beta ledger); the page's own loot and toast below run whatever it answers
+    const shown = applyServerKill(session, source, k);   // its paid CP moves the saved career on screen at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
+    if (shown) { session = shown.session; source = shown.source; showCareer(); worldToast(`+${shown.cp} CP`); }
+  });
   try {
     huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
     const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
