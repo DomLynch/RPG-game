@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { CombatEvent } from '../src/duel.ts';
-import { initialDuel } from '../src/duel.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
+import { initialDuel } from '../src/fight/duel.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { createSignatures, signatureMode } from '../src/signature.ts';
 import { GRASP, SPARK, graspLands } from '../src/signature-witch.ts';
 

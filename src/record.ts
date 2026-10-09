@@ -1,6 +1,6 @@
 // The fight record (beta plan brief 3, owner 2026-09-21): one fight, replayable anywhere. A pure module — no DOM, no renderer — so a
 // browser, a Node gate and a server can all record, encode, decode and (in the next slice) replay the same fight. The duel is
-// deterministic given the warden's seed and the player's Intent per tick (src/duel.ts stepDuel uses no other randomness), so the
+// deterministic given the warden's seed and the player's Intent per tick (src/fight/duel.ts stepDuel uses no other randomness), so the
 // record is exactly that: who fought, which seed, and every intent the player fed the simulation, quantized so that what the live
 // game stepped and what a replay steps are the same bits.
 //
@@ -8,10 +8,10 @@
 // per-tick bytes (stick x, stick z, camera-yaw delta, action, guard side, flags) — gzipped and base64url'd. Columns of mostly
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
-import { roundPose, validatePose, type Action, type DuelPose, type Intent } from './duel.ts';
-import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
+import { roundPose, validatePose, type Action, type DuelPose, type Intent } from './fight/duel.ts';
+import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { OpponentId } from './roster.ts';
-import { FIRST_LATE_NOTICE_VERSION, FIRST_SCALED_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor } from './play-radius.ts';
+import { FIRST_LATE_NOTICE_VERSION, FIRST_SCALED_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor } from './fight/play-radius.ts';
 import { STAB_ON } from './stab-rule.ts';
 import { PICKS, type PickedStance } from './stance.ts';
 

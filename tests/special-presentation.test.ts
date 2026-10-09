@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { initialDuel, withSpecials, type CombatEvent, type Fighter } from '../src/duel.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { initialDuel, withSpecials, type CombatEvent, type Fighter } from '../src/fight/duel.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { createNightfallFx } from '../src/nightfall-fx.ts';
 import { createBossSpecial } from '../src/special-fx-boss.ts';
 import { createSpecialFx } from '../src/special-fx.ts';
@@ -276,7 +276,7 @@ test('every special: a second cast on the reused effect draws the same frames as
   // Some effects run a free-running flutter clock (a `t += dt` the wobble sines read) that a reused effect carries on from its last cast: positions may differ by the
   // wobble's amplitude, never by what is drawn. So: the same objects, and every number within a flutter's reach.
   const sameDrawing = (a: Drawn, b: Drawn): boolean => a.length === b.length && a.every((x, i) => x[0] === b[i]![0] && x.slice(1).every((v, k) => Math.abs((v as number) - (b[i]![k + 1] as number)) <= (k === 5 ? 0.08 : k >= 3 ? 0.5 : 0.3)));
-  const { SKILL_MOVE } = await import('../src/moves.ts');
+  const { SKILL_MOVE } = await import('../src/fight/moves.ts');
   const moves = [...new Set(Object.values(SKILL_MOVE))] as string[];   // each effect's own predicate names the move that is its cast (special-timing.ts is*): try them
   const frames = async (id: string, withFirst: boolean, move: string): Promise<Drawn[]> => {
     const ev = (type: 'SpecialStarted' | 'SpecialLanded', tick: number) => ({ type, actor: 1, tick, move } as unknown as CombatEvent);

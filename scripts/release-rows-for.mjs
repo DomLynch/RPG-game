@@ -37,7 +37,7 @@ export function rowsFor(files) {
 const CORE = ['roster-browser-check', 'record-replay-check', 'finisher-preview:first', 'account-browser-check', 'viewport-check'];
 const AREAS = [
   { paths: ['supabase/**', 'src/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
-  { paths: ['src/ai.ts', 'src/moves.ts', 'src/sim.ts', 'src/record.ts', 'src/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
+  { paths: ['src/fight/ai.ts', 'src/fight/moves.ts', 'src/fight/sim.ts', 'src/record.ts', 'src/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
   { paths: ['src/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
   { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
   { paths: ['src/arena*.ts', 'src/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },

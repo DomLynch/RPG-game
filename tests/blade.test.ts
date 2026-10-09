@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bladeContact, segmentDistance } from '../src/blade.ts';
-import { SWORD, initialPractice, stepPractice, PROFILES, type Intent } from '../src/combat.ts';
-import { createFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { MOVES, RULES } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { SWORD, initialPractice, stepPractice, PROFILES, type Intent } from '../src/fight/combat.ts';
+import { createFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { MOVES, RULES } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 const actor = { x:0,z:0,heading:0,distance:0 };
 test('finite blade distance handles crossing, parallel, endpoints and degenerate segments', () => {
   assert.equal(segmentDistance([-1,1,0],[1,1,0],[0,0,0],[0,2,0]),0);

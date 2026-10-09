@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialDuel, type Duel, type Finish } from '../src/duel.ts';
+import { initialDuel, type Duel, type Finish } from '../src/fight/duel.ts';
 import { noTwist, oneBarHealth, stepTwist, type TwistFlag } from '../src/twist.ts';
 
 const KILL: Finish = { victim: 1, location: 'torso', move: 'light_right', heading: 0 };

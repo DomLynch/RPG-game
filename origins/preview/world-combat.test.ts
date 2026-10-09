@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { MAX_STEPS, ME, createWorldCombat, kindOf } from '../../src/fight/index.ts';
-import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
+import { OPPONENTS, RULES, WEAPONS } from '../../src/fight/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
 import { NAKED } from '../../src/gear-stats.ts';

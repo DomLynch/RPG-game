@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createLegionSpecial } from '../src/special-fx-legion.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { LAND_AT } from '../src/special-timing.ts';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
 // Accepted Stand Fast preview; Combat owns the levels 16-35 class selector.
 const fighters = [{ special: 0 }, { special: 0, skill: 'shove' }] as unknown as readonly [Fighter, Fighter];

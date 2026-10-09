@@ -62,7 +62,7 @@ Do not preserve multiple competing attribute systems, currencies, container form
 - ModernUO's `QuestSystem.cs`, `QuestObjective.cs`, `VirtueSystem.cs` and `ChampionSpawn.cs` demonstrate objectives, independent reputation tracks and staged boss encounters, but are coupled to its entities, UI or persistence.
 - EQEmu `zone/loot.cpp` reads loot tables, probabilities and drop limits through its zone and database types.
 - ClaudeCraft `src/sim/bank.ts` includes inventory, material, catalogue, entitlement and simulation-context dependencies. It is not a standalone bank package.
-- Frankendom `src/duel.ts` explicitly describes a deterministic 60 Hz, two-fighter simulation. `src/gear-stats.ts` resolves gear before simulation and keeps attack/parry/roll timing unchanged.
+- Frankendom `src/fight/duel.ts` explicitly describes a deterministic 60 Hz, two-fighter simulation. `src/gear-stats.ts` resolves gear before simulation and keeps attack/parry/roll timing unchanged.
 
 ## 3. Source acquisition, decoding and extraction
 

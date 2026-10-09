@@ -4,11 +4,11 @@
 // calls frame() once per 60 Hz tick and moves packets; the fake-link test (tests/net-rollback.test.ts) drives two sessions in one process.
 // Snapshots are the Duel objects stepDuel returned: it never writes into its input (tests/net-determinism.test.ts freezes it to prove it).
 // Nothing in the fight imports this file; single-player never reaches it.
-import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../duel.ts';
+import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
 import { quantizeIntent } from '../record.ts';
-import { initialState, TARGET } from '../sim.ts';
-import { setPlayScale } from '../play-radius.ts';
-import type { SkillId, WeaponId } from '../moves.ts';
+import { initialState, TARGET } from '../fight/sim.ts';
+import { setPlayScale } from '../fight/play-radius.ts';
+import type { SkillId, WeaponId } from '../fight/moves.ts';
 
 // delay: the starting input delay, the same on both sides (the first `delay` ticks are idle by agreement). maxDelay: the ceiling the
 // adaptive delay may climb to when the link is slow; past it the session stalls rather than lag further (§3).

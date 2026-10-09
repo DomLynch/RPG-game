@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createTitheLighting, type TitheLight } from './special-lighting.ts';
-import type { CombatEvent, Fighter, Side } from './duel.ts';
+import type { CombatEvent, Fighter, Side } from './fight/duel.ts';
 import { classSpecialFor, type ClassSpecialId } from './class-special-identity.ts';
 import type { OpponentId } from './roster.ts';
 import { bossSpecialId, type BossSpecialId } from './special-identity.ts';

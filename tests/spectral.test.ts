@@ -25,7 +25,7 @@ test('enlarged Wraith strikes stay at human torso height and reset without scale
   const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
   const { Vector3 } = await import('three');
   const { buildWarriors } = await import('../src/fight/characters.ts');
-  const { attackSpecs } = await import('../src/combat.ts');
+  const { attackSpecs } = await import('../src/fight/combat.ts');
   const bytes = readFileSync(new URL('../src/assets/wraith.glb', import.meta.url)), size = bytes.readUInt32LE(12);
   const json = JSON.parse(bytes.subarray(20, 20 + size).toString());
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));

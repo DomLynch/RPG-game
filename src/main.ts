@@ -1,6 +1,6 @@
 import { createInput } from './input.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './moves.ts';
-import type { Fighter } from './duel.ts';
+import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './fight/moves.ts';
+import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './record.ts';
 import { arenaFor } from './arena-themes.ts';
@@ -19,7 +19,7 @@ import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
-import { STEP, wrapAngle } from './sim.ts';
+import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
@@ -28,7 +28,7 @@ import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitK
 import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
-import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts';

@@ -1,8 +1,8 @@
 // The speed table (src/fight/speeds.ts): the relations Dom's rule needs, and consistency with the sim's own movement (a world fight that replays must not assume anything the sim does not do).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advance, initialState, STEP } from '../../src/sim.ts';
-import { OPPONENTS } from '../../src/moves.ts';
+import { advance, initialState, STEP } from '../../src/fight/sim.ts';
+import { OPPONENTS } from '../../src/fight/moves.ts';
 import { COMMIT_RANGE_M, DISENGAGE_M, DISENGAGE_S, ENGAGE_GAP_MAX_M, GIVE_UP_UNSEEN_S, LEASH, OUT_OF_COMBAT_S, SPEEDS, chaseSpeed, leashOf } from '../../src/fight/speeds.ts';
 import { TUNING } from './mobs.ts';
 

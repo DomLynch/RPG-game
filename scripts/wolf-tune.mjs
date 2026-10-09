@@ -1,9 +1,9 @@
 // Fairness probe for a beast profile: the hero's brain (easy / normal) against the wolf and the Goblin, N seeded AI-vs-AI fights each, the warden's wins. Used to tune the wolf's profile NUMBERS
 // toward the Goblin's rates (about 7/24 easy, 4/24 normal) with no new mechanics.   node scripts/wolf-tune.mjs '{"easy":{"accuracy":.7},"normal":{...}}'
-import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, opponentFighter, stepDuel } from '../src/duel.ts';
-import { OPPONENTS, PROFILES } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { createFighter, opponentFighter, stepDuel } from '../src/fight/duel.ts';
+import { OPPONENTS, PROFILES } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 const patch = JSON.parse(process.argv[2] ?? '{}'), seeds = Number(process.argv[3] ?? 24);
 function wins(o, level) {
   let n = 0;

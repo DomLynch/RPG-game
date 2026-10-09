@@ -3,14 +3,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/match.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { idleIntent, roundPose } from '../src/duel.ts';
-import { initialPractice, stepPractice } from '../src/combat.ts';
+import { idleIntent, roundPose } from '../src/fight/duel.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { createRecorder, packRecord, unpackRecord, RECORD_VERSION } from '../src/record.ts';
-import { playScaleFor, setPlayScale, setLateNotice } from '../src/play-radius.ts';
+import { playScaleFor, setPlayScale, setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 
 const mk = () => {

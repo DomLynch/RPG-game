@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fingerprints, stream, FIXTURE, LEVEL_SET, SEEDS, TICKS } from '../scripts/rng-fingerprint.mjs';
 import { NO_PATRON_VERSION, RECORD_VERSION } from '../src/record.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 
 const pinned = JSON.parse(readFileSync(FIXTURE, 'utf8')) as ReturnType<typeof fingerprints>;
 

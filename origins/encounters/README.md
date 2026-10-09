@@ -47,7 +47,7 @@ behaviour comes from `docs/specs/origins/eqemu-loot.md` §5, a clean-room behavi
 - PROPOSED: gear tier `Gladiator`, which reads the zone's `lootTier` 3 as the third rank title (region1 §5, open question 5).
 - PROVISIONAL (from the content): Mere-Mother health 15,000 and Lambton Worm health 40,000 (both tunable), and the rift weekly
   cap of 5 (PROPOSED in living-world §8.4).
-- The health of a Bounty or creature body is the roster body's own health at that level (`src/moves.ts` `opponentAt`). Region 1
+- The health of a Bounty or creature body is the roster body's own health at that level (`src/fight/moves.ts` `opponentAt`). Region 1
   content carries no health for these foes.
 
 ## Checks

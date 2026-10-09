@@ -2,7 +2,7 @@
 // Gate: no scripted strategy wins more than half its fights at normal or more than a third at hard, and none goes untouched.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { OPPONENTS, type Opponent } from '../src/moves.ts';
+import { OPPONENTS, type Opponent } from '../src/fight/moves.ts';
 import { battery } from './strategies.ts';
 import { setStab } from '../src/stab-rule.ts';
 setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an era flag, off in a headless run): the shipped warden is the one these rows judge

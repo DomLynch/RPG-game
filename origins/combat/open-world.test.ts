@@ -1,12 +1,12 @@
-// The open world runs the Pit's own sim (src/duel.ts, ai.ts, sim.ts): the one departure is the wall. A duel carries its own (Duel.radius, RV40); the open world's is OPEN_RADIUS, the Pit's duels carry none and
+// The open world runs the Pit's own sim (src/fight/duel.ts, ai.ts, sim.ts): the one departure is the wall. A duel carries its own (Duel.radius, RV40); the open world's is OPEN_RADIUS, the Pit's duels carry none and
 // read the live circle, so a Pit fight is byte for byte what it was. Replaces the copy-parity tests of the deleted duel-open / ai-open / sim-open.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createFighter, idleIntent, initialDuel, opponentFighter, stepDuel, walled, type Duel } from '../../src/duel.ts';
-import { decide, initialAi } from '../../src/ai.ts';
-import { OPPONENTS, profileAt } from '../../src/moves.ts';
-import { BASE_RADIUS, OPEN_RADIUS, PLAY_SCALE, setPlayScale } from '../../src/play-radius.ts';
-import { RADIUS } from '../../src/sim.ts';
+import { createFighter, idleIntent, initialDuel, opponentFighter, stepDuel, walled, type Duel } from '../../src/fight/duel.ts';
+import { decide, initialAi } from '../../src/fight/ai.ts';
+import { OPPONENTS, profileAt } from '../../src/fight/moves.ts';
+import { BASE_RADIUS, OPEN_RADIUS, PLAY_SCALE, setPlayScale } from '../../src/fight/play-radius.ts';
+import { RADIUS } from '../../src/fight/sim.ts';
 import { creature, newWorld, player, stepCombat } from '../../src/fight/world.ts';
 
 const body = (x: number, z: number, heading: number) => ({ x, z, heading, distance: 0 });

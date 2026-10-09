@@ -10,10 +10,10 @@
 //   3. The challenger starts and repeats `go` (the delay and both kits) until the guest's first duel packet arrives; the guest starts on the
 //      first `go` it hears. Both begin at tick 0 on the same delay: the first `delay` ticks are idle by agreement, so the one-way trip
 //      between the two starts is absorbed like any other late packet.
-import { initialAi } from '../ai.ts';
-import { project, type Practice } from '../combat.ts';
-import type { Intent, Side } from '../duel.ts';
-import { PLAYER_WEAPONS, SKILL_MOVE, type OpponentId } from '../moves.ts';
+import { initialAi } from '../fight/ai.ts';
+import { project, type Practice } from '../fight/combat.ts';
+import type { Intent, Side } from '../fight/duel.ts';
+import { PLAYER_WEAPONS, SKILL_MOVE, type OpponentId } from '../fight/moves.ts';
 import { fromBase64Url, MAX_RECORD_TICKS, packRecord, RECORD_VERSION, toBase64Url, unpackRecord } from '../record.ts';
 import { delayFor, NET, pvpDuel, quantile, RollbackSession, type Kit, type NetMetrics, type NetPacket } from './rollback.ts';
 import { viewAs } from './view.ts';

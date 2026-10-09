@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IMPACT, KICK, KNOCK_SETTLE, ROLL_TUMBLE, impactShove, impactStopMs, impactTier, landedKick } from '../src/hit-impact.ts';
 import { shoveFor } from '../src/camera-kick.ts';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt, type MoveId } from '../src/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt, type MoveId } from '../src/fight/moves.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import type { CombatEvent, Intent } from '../src/duel.ts';
+import type { CombatEvent, Intent } from '../src/fight/duel.ts';
 
 // Hit impact (Dom 2026-09-29): every landed blow adds hit-stop and knocks the camera away from it; full for a heavy, a guard break or a
 // skill, half for the rest; nothing for a block, a parry or a miss; always on, reduced motion included (owner ruling 2026-09-29); presentation only.

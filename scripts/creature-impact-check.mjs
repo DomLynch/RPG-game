@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
-import { initialPractice, stepPractice, OPPONENTS } from '../src/combat.ts';
+import { initialPractice, stepPractice, OPPONENTS } from '../src/fight/combat.ts';
 
 const passive = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const idle = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };

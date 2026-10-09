@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { RULES } from '../src/moves.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
+import { RULES } from '../src/fight/moves.ts';
 import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
-import { actorPose, initialPractice, attackSpecs } from '../src/combat.ts';
+import { actorPose, initialPractice, attackSpecs } from '../src/fight/combat.ts';
 import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/special-modes.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the

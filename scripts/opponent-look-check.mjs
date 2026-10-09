@@ -9,7 +9,7 @@ import { Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootIds, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
 import { kitWorn } from '../src/loot.ts';
-import { OPPONENTS, weaponOf } from '../src/moves.ts';
+import { OPPONENTS, weaponOf } from '../src/fight/moves.ts';
 
 // The set rule's table for the rigs whose look is one fused CreatureBody (tier-looks-runtime.md). OFF must be hidden under a tier look,
 // STAYS must stay visible; the weapon draws stay too. Built rigs hide by a material list and are added here as their first look lands.

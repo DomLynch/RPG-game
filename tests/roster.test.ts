@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { ROSTER, ENCOUNTERS, isOpponentId, supportsFinishers, resolveFinisher } from '../src/roster.ts';
-import { OPPONENTS, weaponOf } from '../src/moves.ts';
+import { OPPONENTS, weaponOf } from '../src/fight/moves.ts';
 import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 

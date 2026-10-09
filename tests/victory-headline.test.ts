@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { headlineFlag, victoryHeadline } from '../src/victory-headline.ts';
-import type { CombatEvent } from '../src/duel.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 
 const ev = (type: CombatEvent['type'], actor: 0 | 1, target: 0 | 1, extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, type, actor, target, ...extra });
 const hitOnMe = ev('Hit', 1, 0), parry = ev('Parried', 0, 1), perfect = ev('Blocked', 0, 1, { perfect: true }), plain = ev('Blocked', 0, 1), brokeHim = ev('PostureBroken', 0, 1);
