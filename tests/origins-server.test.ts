@@ -30,6 +30,7 @@ function script(replies: { open: () => Snapshot[]; pending?: PitClaim[]; snapsho
         else if (fn === 'origins_pit_pending') answers.push(JSON.stringify((replies.pending ?? []).slice(0, Number(vars.n ?? Infinity))));
         else if (fn === 'origins_commit') answers.push(JSON.stringify(replies.commit ? replies.commit(JSON.parse(vars.b)) : []));
         else if (fn === 'origins_create_character') answers.push('pc:abc');
+        else if (fn === 'origins_metal_of') { if (!answers.length) answers.push('absent'); }   // open's bronze read: metals (0004) not installed; its probe and select both name the function, one answer
         else if (fn === 'origins_set_active') continue;   // create_character's second statement: psql prints only the created id (\gset pair)
         else throw Error(`unscripted ${fn}`);
       }
