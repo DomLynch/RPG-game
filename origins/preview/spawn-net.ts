@@ -14,6 +14,8 @@ import type { Offline } from './save.ts';
 export type Engaged = { token: string; instance: string; generation: number; kind: string; level: number; hp: number; expiresAt: string };
 export type Killed = { result: 'killed'; instance: string; respawnAt: string | null; loot: { item: string; quantity: number }[]; cp: number; bronze: number; beta: boolean };
 export const TOUCH_EVERY_MS = 30_000;
+// A killed creature is SPENT this long: a Hit or engage for it arriving after killed() (any event order) opens nothing. The server's shortest respawn is 10 s (migration 0014), so a respawned one is engaged again.
+export const SPENT_MS = 10_000;
 const isOffline = (r: object): r is Offline => 'offline' in r;
 
 const int = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
@@ -41,7 +43,8 @@ export type SpawnTracker = {
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>();
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), spent = new Map<string, number>();
+  const isSpent = (instance: string): boolean => { const at = spent.get(instance); if (at === undefined) return false; if (d.now() - at < SPENT_MS) return true; spent.delete(instance); return false; };
   const touch = (o: Open): void => {
     o.touchedAt = d.now();
     void o.engage.then((e) => (isOffline(e) ? undefined : call('touch', { token: e.token, hits: o.hits }, d.token(), touchedOf, opts)));
@@ -49,7 +52,8 @@ export function spawnTracker(d: Deps): SpawnTracker {
   return {
     engaged(instance) {
       const had = live.get(instance);
-      if (had) return had.engage;   // FightStarted is once per engage, but a re-fire must never open a second token
+      if (had) return had.engage;
+      if (isSpent(instance)) return Promise.resolve<Offline>({ offline: 'spent' });   // the kill's own late events never open a new token   // FightStarted is once per engage, but a re-fire must never open a second token
       const character = d.character();
       const engage = character ? call('engage', { character, instance }, d.token(), engagedOf, opts) : Promise.resolve<Offline>({ offline: 'no-character' });
       live.set(instance, { engage, hits: 0, touchedAt: d.now() });
@@ -58,7 +62,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     },
     hit(instance) {
       const o = live.get(instance);
-      if (!o) return;
+      if (!o || isSpent(instance)) return;
       o.hits++;
       if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
     },
@@ -66,7 +70,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     async killed(instance) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
-      live.delete(instance);
+      live.delete(instance); spent.set(instance, d.now());
       const e = await o.engage;   // a kill can land before the engage answered: report on its token once it has
       if (isOffline(e)) return e;
       return call('kill_report', { token: e.token, hits: o.hits }, d.token(), killedOf, opts);

@@ -10,7 +10,7 @@ import { fakeWhere } from '../presence/fixtures.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, zone1Spawns } from '../server/world-spawns.ts';
-import { onCombatEvent, spawnTracker, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
+import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -149,5 +149,27 @@ test('FightStarted twice for one creature (it left reach and came back) = ONE en
     on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
     await t.engaged(ids[0]!);
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a fresh fight after Evaded engages again (the server returns its still-open token)');
+  } finally { await w.close(); }
+});
+
+test('killed BEFORE the killing Hit is delivered (any event order): the late Hit / FightStarted opens no new token; after SPENT_MS a respawned creature engages again', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base }), on = onCombatEvent(t, 'me');
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    await t.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) on({ type: 'Hit', attacker: 'me', victim: ids[0]! });
+    clock.ms += 60_000;
+    assert.equal(killedOf(await t.killed(ids[0]!))?.result, 'killed');
+    on({ type: 'Hit', attacker: 'me', victim: ids[0]! });   // the killing blow, delivered late
+    on({ type: 'Hit', attacker: ids[0]!, victim: 'me' });
+    on({ type: 'Telegraph', id: ids[0]! });
+    assert.deepEqual(await t.engaged(ids[0]!), { offline: 'spent' });
+    assert.deepEqual(t.open(), [], 'no 4th token held');
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 1, 'no engage request after the kill');
+    clock.ms += SPENT_MS;
+    // past SPENT_MS the page asks again (the server answers by its own respawn clock)
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a respawned creature is engaged again');
   } finally { await w.close(); }
 });
