@@ -6,11 +6,11 @@
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { FLAVORS, JOB_IMAGE, jobCommand } from '../lib/vps-receipts.mjs';
+import { FLAVORS, JOB_IMAGE, SLOW_ROWS, jobCommand } from '../lib/vps-receipts.mjs';
 
 // Rows that hit the 600 s per-row ceiling on cpu-upgrade even alone (Backend's width-1 probe, 2026-10-08), or cannot run in the container at all (13: initdb refuses root).
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
-export const SLOW_ROWS = [5, 7, 9, 13, 16, 21, 28, 34, 36];
+export { SLOW_ROWS };   // the one list lives in scripts/lib/vps-receipts.mjs (the coverage gate reads it too)
 
 export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '') => {
   if (width && (kind !== 'rows' || !/^[1-8]$/.test(width))) throw new Error('width must be 1-8 and only for kind rows');
