@@ -217,5 +217,7 @@ test('#1936 b: a rebuilt fight resumes the creature\'s swing timing (its brain l
   assert.equal(get(fresh, 'c').brain!.wait, 89, 'a creature that never fought starts at the opening wait');
   // a creature that walks home heals and forgets: its next fight starts fresh
   const home = { ...w0, fighters: w0.fighters.map((f) => (f.id === 'c' ? { ...f, returning: true, hunting: false, x: f.homeX + 0.01, z: f.homeZ } : f)), streams: {} };
-  assert.equal(get(run(home, 0.2).world, 'c').brain, undefined, 'evading clears the brain');
+  const after = run(home, 0.2);   // it evades (heals home) and then, with the hero still beside it, starts a NEW fight on a FRESH brain
+  assert.ok(of(after.events, 'Evaded', 'c').length >= 1, 'it evaded');
+  assert.ok(get(after.world, 'c').brain!.habits.ticks < brain0.habits.ticks, 'evading cleared the old brain: the new fight started counting from zero');
 });
