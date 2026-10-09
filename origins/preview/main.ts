@@ -21,7 +21,7 @@ import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { characterFor } from '../../src/fight/open.ts';
 import { createLateOpen } from './late-open.ts';
-import { applyServerKill } from './kill-apply.ts';
+import { applyServerKill, killToast } from './kill-apply.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -571,16 +571,15 @@ function heroDeathSequence() {
 }
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
-  void spawnNet.killed(spec.id).then((k) => {   // the server's verified kill (beta ledger); the page's own loot and toast below run whatever it answers
-    const shown = applyServerKill(session, source, k);   // its paid CP moves the saved career on screen at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
-    if (shown) { session = shown.session; source = shown.source; showCareer(); worldToast(`+${shown.cp} CP`); }
-  });
+  const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
+  let local = `${spec.name} is down.`;
   try {
     huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
     const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
-    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) play.bountyPaid(quest, out.bounty.encounter); worldToast(out.text.replace(/\n+/g, ' ')); return; }
+    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
   } catch (error) { console.warn('the kill could not be settled', error); }
-  worldToast(`${spec.name} is down.`);
+  const k = await answer;   // the toast shows the server's answer when signed in (its numbers, its loot), the page's own only for a guest or offline page, labelled preview
+  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id));
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });

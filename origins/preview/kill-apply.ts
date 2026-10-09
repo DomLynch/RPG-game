@@ -12,3 +12,10 @@ export function applyServerKill<S extends Source>(session: PitSession, source: S
   const credit = (c: CareerState): CareerState => ({ ...c, credit: c.credit + killed.cp });
   return { session: { ...session, career: credit(session.career) }, source: { saved: credit(source.saved) }, cp: killed.cp };
 }
+/** The kill toast. A signed-in kill (a saved career and a server answer) shows only what the server paid ("+20 CP · +3 bronze · Wolf pelt ×2"); a guest or offline page shows the page's own numbers, labelled preview. */
+export function killToast(source: Source, killed: Killed | Offline, local: string, name: (id: string) => string): string {
+  if ('offline' in killed || !('saved' in source)) return `${local} (preview)`;
+  const loot = killed.loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
+  const paid = [...(killed.cp ? [`+${killed.cp} CP`] : []), ...(killed.bronze ? [`+${killed.bronze} bronze`] : []), ...loot];
+  return paid.length ? paid.join(' · ') : 'Down. Nothing paid.';
+}
