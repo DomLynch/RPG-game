@@ -40,13 +40,15 @@ export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0):
 
 const quote = (v: string) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "''").replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
 const nonce = randomBytes(12).toString('hex');   // per process: data a client stored cannot spell the end-of-result line
+// What follows the script. Each statement psql sends is a round trip to the database (about 130 ms from the VPS to Supabase), so nothing is sent that the script does not need: a closing `;` only
+// when the script ends without one (or without a meta-command), and a rollback only when the script opens a transaction (one that stopped half-way on a refusal exits its psql; this covers the rest).
+const tail = (sql: string): string => `${/(;|\\\w+)\s*$/.test(sql) ? '' : ';\n'}${/\b(begin|start\s+transaction)\b/i.test(sql) && !/commit;\s*$/i.test(sql) ? 'rollback;\n' : ''}`;
 const done = (id: number) => `__origins_done_${nonce}_${id}__`;
 
 type Job = { sql: string; vars: Readonly<Record<string, string>>; resolve: (out: string) => void; reject: (e: Error) => void };
 type Worker = { child: ChildProcessWithoutNullStreams; job: Job | null; id: number; out: string; err: string; timer?: NodeJS.Timeout; dead: boolean };
 
-// Each op is: its variables as \set, the script, a trailing `;` (so an unterminated statement still runs, as at the end of `-f -`), a rollback (a script that left a transaction
-// open must not hand it to the next op), the variables unset, then a marker line. The result is everything psql printed before the marker.
+// Each op is: its variables as \set, the script, `tail` (below), the variables unset, then a marker line. The result is everything psql printed before the marker.
 function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db {
   const idle: Worker[] = [], all = new Set<Worker>(), queue: Job[] = [];
   let seq = 0;
@@ -95,7 +97,7 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
       w.job = job; w.id = ++seq; w.out = ''; w.err = ''; hold(w, true);
       w.timer = setTimeout(() => w.child.kill('SIGKILL'), timeoutMs);
       const keys = Object.keys(job.vars);
-      w.child.stdin.write(`${keys.map(k => `\\set ${k} ${quote(job.vars[k])}\n`).join('')}${job.sql}\n;\nrollback;\n${keys.map(k => `\\unset ${k}\n`).join('')}\\echo\n\\echo ${done(w.id)}\n`);
+      w.child.stdin.write(`${keys.map(k => `\\set ${k} ${quote(job.vars[k])}\n`).join('')}${job.sql}\n${tail(job.sql)}${keys.map(k => `\\unset ${k}\n`).join('')}\\echo\n\\echo ${done(w.id)}\n`);
     }
   }
 
