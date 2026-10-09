@@ -170,7 +170,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
       const had = prevJoined.get(c.id) ?? (prev?.foe === c.id ? prev : undefined), jb = had ?? openBout(a, c);
       if (!had) events.push({ type: 'FightStarted', creature: c.id, player: a.id });
       const jr = stepBout(jb, a, c, passive, IDLE_INPUT, dt); r.bout.joined.push(jr.bout); events.push(...jr.events);
-      if (jr.bout.ai) c.brain = jr.bout.ai;
+      if (jr.bout.ai) c.brain = carried(jr.bout.ai, jr.bout.duel.tick);
       Object.assign(a, keep);
       if (alive(c) && Math.hypot(c.x - c.chaseX, c.z - c.chaseZ) > leashOf(c.kind)) { c.hunting = false; c.returning = true; c.phase = 'ready'; }
     }
