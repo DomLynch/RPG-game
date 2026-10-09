@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 14:30 (+04) — J4 SPLIT; app restart pending. READ FIRST, then 14:14 below
+**LIVE = J3 3d4f88542** (my curl). **J4a in flight:** Deploy branch release-j4a @6705d57f9 = #1978 hero engine animations → #1975 → #1987 → #1980 → #1982 (all Auditor PASS on current heads). HF cpu-upgrade unit job 6ac8c01efee2c900701773dd decides; #1980's red quality (run 37911799904, 09:31Z merge ref) ruled stale base, since trunk quality was green at 09:21Z and 10:05Z; push only if zone1.test.ts:238 pvp band + origins-test-stubs pass on the merged tree. Scope: deploy.sh decides (package.json changed); a FULL release runs its CPU rows on the VPS; no HF row jobs without Lead. Writer reinstall after publish (Backend, #1982 gear_* functions).
+**J4b = goblin camp** #1979 @799651b7b → #1981 @0e503ee67 → #1991 @66b97e06c → #1989 @47ba00e39: waits for the Auditor's delta PASSes (the Auditor was cleared mid-check; its next session posts them first). HELD #1984, #1986.
+**Web:** gear stack #1983<#1985<#1988<#1990<#1994 (draft @e27c426ea) rides after J4a + writer reinstall; then A (in-zone gear stage).
+**COO 14:3x:** Dom will restart the Claude app (memory fixes). Lead said: not safe until J4a is published or aborted.
+
 ## 2026-10-09 14:14 (+04) — HANDOFF before /clear (new Claude account session). READ FIRST, then the 09:15 entry below, then memory
 **1. LIVE = Release J3 3d4f88542** (my curl 14:14; /zone1/ index-CmhxIYDT.js; /zone/1/, /zone/2/ all 200). No deploy lock; J4 being assembled by Deploy.
 **2. Live today:** I c60dffa36 (12:20, zone pipeline + /zone/<n>/ alias via provision.sh); J 61d969e98 (12:37, Zone 2 "The Ash Reach" playable, joins up to 3, migration 0016 applied, writer reinstalled); J2 1a6313bc3 (14:00, stab = engine thrust, foe card = primary foe, sign-in 44px, name tags, K0 one sim #1966 + K1 Duel.radius RV40 #1971, Stop-gate 2-worker cap #1968, preview self-publish #1972); J3 3d4f88542 (14:11, Zone 2 engage zoneId #1973/#1974 so Z2 kills record, wolf spread #1976).
