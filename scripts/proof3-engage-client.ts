@@ -27,12 +27,14 @@ for (let k = 0; k < 60 * 120; k++) {
   const input: Input = phase === 'fight' ? { x: 0, z: 0, attack: k % 25 === 0 ? 'light' : null } : { x: 0, z: 0 };
   if (phase === 'run') hero.x -= RUN_MS * DT;
   const r = stepCombat(w, { [ME]: input }, DT); w = r.world;
+  const fell: string[] = [];
   for (const e of r.events as Event[]) {
     if (e.type === 'Hit' && e.attacker === ME) heroHits[e.victim] = (heroHits[e.victim] ?? 0) + 1;
     onEvent(e as never);
-    if (e.type === 'Died' && e.by === ME) { phase = 'run'; log.push(`${(ms / 1000).toFixed(2)}s onKill ${e.id}`); void tracker.killed(e.id); }   // the page's onKill
+    if (e.type === 'Died' && e.by === ME) { phase = 'run'; fell.push(e.id); }
     if (e.type === 'FightStarted' || e.type === 'Died' || e.type === 'Evaded') log.push(`${(ms / 1000).toFixed(2)}s event ${JSON.stringify(e)}`);
   }
+  for (const id of fell) { log.push(`${(ms / 1000).toFixed(2)}s onKill ${id}`); void tracker.killed(id); }   // the page's onKill runs at the end of the fall, after every event of the step (the killing Hit included)
   await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
   if (phase === 'run' && tracker.open().length === 0) break;
 }
