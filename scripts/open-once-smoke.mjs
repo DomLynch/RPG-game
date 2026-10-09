@@ -33,7 +33,7 @@ try {
     const errors = [], opens = [];
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
     await ctx.addInitScript(() => { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: 'smoke-token', expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r', user: { id: 'u' } })); });
-    await ctx.route('**/origins/**', (r) => {
+    await ctx.route((u) => u.pathname.startsWith('/origins/'), (r) => {   // the writer's ops only: /preview/origins/ is the page's own files
       const op = new URL(r.request().url()).pathname.split('/').pop();
       if (op === 'open') { opens.push(r.request().postData()); return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(opened) }); }
       return r.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' });   // anything else the page asks is not this check's business
