@@ -468,7 +468,7 @@ try {
     const first = await call('open', 'te');
     const id1 = first.json.result.characters[0]?.id;
     eq([first.status, first.json.result.characters.map(c => c.name), /^pc:[0-9a-f]{32}$/.test(id1)], [200, ['Wanderer eeeeee'], true], 'open: a new account has one character after its first open, named Wanderer <first 6 of the account id>');
-    eq(psql(`select public.origins_active('${E}')`), id1, 'open: the first character is the active one');
+    eq(psql(`select public.origins_active('${E}'::uuid)`), id1, 'open: the first character is the active one');
     const second = await call('open', 'te');
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
