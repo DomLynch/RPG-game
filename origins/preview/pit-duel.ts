@@ -7,33 +7,34 @@
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
-import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/duel.ts';
-import { creaturesLook } from '../../src/audio/creature.ts';
-import { createFeedback } from '../../src/feedback.ts';
+import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
+import { creaturesLook } from '../../src/fight/sound/creature.ts';
+import { createFeedback } from '../../src/fight/sound/feedback.ts';
 import { createHud } from '../../src/hud.ts';
-import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/combat.ts';
+import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
 import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
 import { Match } from '../../src/match.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/moves.ts';
+import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
 import { bareName } from '../../src/roster.ts';
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
 import { createScene, type WorldMount } from '../../src/scene.ts';
-import { Matrix4 } from 'three';
+import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
-import { STEP, wrapAngle } from '../../src/sim.ts';
+import { STEP, wrapAngle } from '../../src/fight/index.ts';
 import { loadTrial } from '../../src/trial.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { recordWorldFight, worldRecord } from './world-record.ts';
-import type { FightRecord } from '../../src/record.ts';
-import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
+import type { FightRecord } from '../../src/fight/index.ts';
+import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/fight/index.ts';
 import liveStyle from '../../src/style.css?inline';
-import type { Object3D, Quaternion, Vector3 } from 'three';
+import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
+import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 
 export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
@@ -56,7 +57,7 @@ type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; v
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
 const CAMERA_EASE_S = 0.7;   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
-export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number } };
+export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number }; groundY?: number };   // groundY: the walk ground's height at `at` (the hills), so the world lands on the duel's flat sand
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
@@ -115,7 +116,8 @@ function bind(leave: () => void) {
   element('journal-button').addEventListener('click', () => { controls!.clear(); element<HTMLInputElement>('journal-tab-settings').checked = true; journal!.showModal(); });
   element('close-journal').addEventListener('click', () => journal!.close());
   element('nav-arena').addEventListener('click', () => journal!.close());
-  element('nav-pit').addEventListener('click', () => { journal!.close(); leave(); });
+  addLeaveEntry(element('app-nav'), () => journal!.close(), leave, hostBack?.back, hostBack?.text);   // the game's own nav no longer carries The Pit (the Pit room was removed): the Origins duel adds its exit
+  addArenaEntry(element('app-nav'), () => location.assign('/arena/'));   // first in the nav (prepended after the exit): the arena and its 50-level ladder at their stable path
   journal.addEventListener('close', () => { controls!.clear(); accumulator = 0; });
   window.addEventListener('blur', () => controls!.clear());
   document.addEventListener('visibilitychange', () => controls!.clear());
@@ -176,7 +178,7 @@ function placeInWorld(mount: WorldDuel, p: { fighter: { x: number; z: number }; 
   const angle = (x: number, z: number) => Math.atan2(x, z);
   const theta = angle(mount.toward.x - mount.at.x, mount.toward.z - mount.at.z) - angle(p.enemy.x - p.fighter.x, p.enemy.z - p.fighter.z);
   mount.holder.matrixAutoUpdate = false;
-  mount.holder.matrix.copy(new Matrix4().makeTranslation(p.fighter.x, 0, p.fighter.z).multiply(new Matrix4().makeRotationY(-theta)).multiply(new Matrix4().makeTranslation(-mount.at.x, 0, -mount.at.z)));
+  mount.holder.matrix.copy(new Matrix4().makeTranslation(p.fighter.x, 0, p.fighter.z).multiply(new Matrix4().makeRotationY(-theta)).multiply(new Matrix4().makeTranslation(-mount.at.x, -(mount.groundY ?? 0), -mount.at.z)));
   mount.holder.matrixWorldNeedsUpdate = true;
 }
 
@@ -213,7 +215,8 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   if (asked.bar && asked.flags?.some((f) => f.kind === 'one-health-bar')) {   // the preview's sparring state only: the foe starts with the summed pool (nothing in src/ changes)
     match.practice = withBar(match.practice, asked.bar);
   }
-  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) stage!.view.easeCamera(from, CAMERA_EASE_S); }
+  if (mount) { mount.attach(); mounted = mount; placeInWorld(mount, match.practice); const from = mount.cameraFrom?.(); if (from) { const m = mount.holder.matrix; stage!.view.easeCamera({ position: from.position.clone().applyMatrix4(m), quaternion: new Quaternion().setFromRotationMatrix(m).multiply(from.quaternion) }, CAMERA_EASE_S); } stage!.view.setWorldCamera(mount.walkCam ?? null); }   // the walk camera is in WORLD metres, the duel camera in the duel's own: carried through the holder first, or the ease swings through the arena
+  if (!mount) stage!.view.setWorldCamera(null);
   state = previous = match.practice.fighter; accumulator = 0; seen.clear();
   nameOpponent(opponent, asked.level, asked.as); dressed = false;
   controls!.clear(); hud!.invalidate();
@@ -221,7 +224,9 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
 }
 
 /** The walk uses the kit: bind it, switch the game's stylesheet on, and hand back the controls' intent each frame (a press is consumed when read). */
-export function enterWorld(leave: () => void) { world = true; liveLook(true); if (!controls) bind(leave); controls!.clear(); }
+let hostBack: { back: string; text: string } | undefined;   // the zone's own exit (leave-entry.ts exitFace: the full "Back to <zone>" and the short button text), set by enterWorld before the menu binds
+export function enterWorld(leave: () => void, host?: { back: string; text: string }) { world = true; hostBack = host; if (host) element('nav-gear').textContent = 'Gear';   // a zone hosts the sheet: its words, never the Pit's (Lead 2026-10-09)
+  liveLook(true); if (!controls) bind(leave); controls!.clear(); }
 // ROLL and GUARD in the open world are the Pit's own: a private practice (the same sim, the same stamina, the same roll distance and guard rules) is stepped at
 // 60 Hz beside the walk. Its fighter is held at the arena's centre between rolls and its foe frozen 6 m ahead, so only what the sim DOES to the hero comes
 // back: the ground a roll or backstep covers, and the phase (roll / backstep / guard) the page plays the rig's clip for. Attack presses are not sent here:
@@ -267,7 +272,9 @@ function frame(now: number) {
       previous = state;
       const outcome = match.step(() => {
         const i = controls!.intent();
-        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action: i.action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
+        // A world fight starts drawn: the engage press IS the fight, so the sheathed 'Fight' gate never shows. The draw is the fight's own first input (recorded like any other), taken on the first tick.
+        const action = mounted && match!.practice.duel.fighters[0].phase === 'sheathed' ? 'light' : i.action;
+        return { move: { x: i.x, z: i.z, yaw: stage!.view.yaw, run: i.run }, action, guard: i.guard, guardDirection: i.guardDirection ?? undefined, held: i.held, lock: true, cancel: i.cancel };
       });
       const p = match.practice;
       if (!steppedOnce) { steppedOnce = true; hooks?.stepped?.(); }
@@ -303,7 +310,8 @@ function frame(now: number) {
   hud!.update(match.practice, { legend: fight!.as?.name ?? legendName(fight!.opponent, fight!.level), controlsReady: stage.ready, debug: false, opponentId: stage.opponent, next: next ? { name: next } : undefined });   // not practiceOnly: a win here pays the Origins career (the page settles it), so the button names the next legend
   if (fight!.as) {   // a creature, not a legend: no rematch
     const again = element('reset-button'), status = element('combat-status');
-    again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', '');
+    if (stage.mounted) { again.hidden = true; if (match.practice.finish) status.textContent = ''; }   // the wild has no fight end: no button, no win/lose line (main.ts worldEnded)
+    else { again.textContent = 'Back to the fields'; status.textContent = status.textContent!.replace(' Ready for a rematch?', ''); }
   }
   frameId = requestAnimationFrame(frame);
 }

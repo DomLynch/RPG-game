@@ -216,14 +216,14 @@ landed before the suite runs (see the gotcha at the top of this file):
 - Superseded, kept for the trail — this was logged as an open question routed to Combat and Weapons by Lead (2026-09-22): heavy chip
   varies 2.5× across weapons, so the gear layer's value silently depends on which opponent you face.** Heavy `chip` — the
   fraction that passes through an ordinary block — is knife 0.2, estoc 0.25, warhammer 0.3, longsword 0.4, and cleaver, trident
-  and scythe all 0.5 (read from `src/moves.ts`, trunk 3405a95). Brief 19 has RES multiply damage taken *including* chip, so a
+  and scythe all 0.5 (read from `src/fight/moves.ts`, trunk 3405a95). Brief 19 has RES multiply damage taken *including* chip, so a
   player's RES is worth two and a half times more against a trident than against a knife. Nobody designed that interaction.
   It matters for sequencing, not just for tidiness: discovering it after the multiplier seam ships means re-measuring the
   ladder twice. Neither lane can act until its queue clears, so this file is the record.
 - Parked as an observation, not a defect (Lead, 2026-09-22): the cleaver's light attacks are asymmetric — `light_right` 17,
   `light_left` 9 — and it is the only player weapon where the two differ. Possibly deliberate character for a butcher's weapon.
   Note it, don't chase it. It does mean any Attack argument quoting "the cleaver's light" is ambiguous and must say which.
-- Deliverable 5 (the seam in `src/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
+- Deliverable 5 (the seam in `src/fight/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
   Combat's queue: knife approach fix, Executioner profile, Nightborn retune, shield rule. Stats never jumps the four weapons.
 - Format constraint received from Web via Strategy for deliverable 4: the loot card has five 56 px tiles in one row at 375 px
   with no room inside a tile, so the take's delta gets its own line as short signed values per stat (`+3 DEF  +2 POI`), not a
@@ -257,7 +257,7 @@ landed before the suite runs (see the gotcha at the top of this file):
   failed against the module, which is why `tests/gear-stats.test.ts` now pins both forms. A paperdoll rounds it away; a
   1500-tick fight does not, and that is what the arm64/x64 digest rule exists to stop.
 - `src/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a
-  `Loadout` — the four resolved numbers — and never sees a tier, a slot or a table, which keeps `src/duel.ts` free of any
+  `Loadout` — the four resolved numbers — and never sees a tier, a slot or a table, which keeps `src/fight/duel.ts` free of any
   import of `loot.ts` or `grades.ts` that `tests/sim-boundary.test.ts` would refuse.
 - A zero-weight slot and an omitted slot behave identically today and diverge the moment the slot carries something: the
   omission silently under-weights every set while the total quietly stops being 100. Hence `Crest: 0` as an explicit row, with
@@ -270,7 +270,7 @@ landed before the suite runs (see the gotcha at the top of this file):
   - `ESTOC` reach on trunk is the sword's spacing estimate; the measured frontier is sword + 0.30 m = **2.30 m**, and that
     correction lives only on #419, parked at `ad928ec` pending a battery re-measure after Combat's approach fix.
   - Everything else in the weapon tables is current, including the knife's thrust recovery of 20 and the scythe's heel-jab
-    recovery of 30 (both #440). Verified by running `src/moves.ts`, not by reading a brief.
+    recovery of 30 (both #440). Verified by running `src/fight/moves.ts`, not by reading a brief.
 - **Reading a live table faithfully is not the same as being right.** A proposal that quotes trunk verbatim is accurate about
   the file and wrong about the weapons — the same shape as the float-drift test above, where a faithful reading of the wrong
   expression passed. Read the table, then ask the owning lane which entries are known wrong and where the correction lives.

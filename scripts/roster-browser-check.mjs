@@ -2,7 +2,7 @@
 import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import assert from 'node:assert/strict';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
-import { OPPONENTS, PLAYER_WEAPONS, opponentAt } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, opponentAt } from '../src/fight/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
 import { PHONE_LOOKS, rankLookFor } from '../src/rank-look.ts';
 import { levelOf, tierAt } from '../src/grades.ts';

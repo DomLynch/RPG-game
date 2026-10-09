@@ -1,6 +1,6 @@
 // Origins Zone 1 (the Ash Frontier) encounter logic: fight setup, fight outcome, seeded loot, loot into the backpack, world-mob damage
 // rolls. Pure: no DOM, no clock, no storage, no Math.random. Every failure is a contracts Result issue, never a throw. Nothing in src/
-// imports this folder; it reads src/ only for the roster bodies' health (src/moves.ts) and the rank titles, as origins/region1 does.
+// imports this folder; it reads src/ only for the roster bodies' health (src/fight/moves.ts) and the rank titles, as origins/region1 does.
 //
 // Spec: docs/specs/origins/region1-ash-frontier.md §3 (Bounties), §4 (bosses, creatures, boss rules), §5 (loot), §7 (rulings 3, 4, 6,
 // 9, 10). Data: origins/region1 (content.ts + the loader). Loot roll semantics: docs/specs/origins/eqemu-loot.md §5 (clean-room
@@ -14,7 +14,7 @@ import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts'
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../luck/luck.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
-import { OPPONENTS, opponentAt } from '../../src/moves.ts';
+import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
 import { TIERS, type Tier } from '../../src/grades.ts';
 import type { OpponentId } from '../../src/roster.ts';
 import { oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
@@ -58,7 +58,8 @@ export type FightSetup = {
 };
 // An overlay is a twist the content does not carry on the encounter itself: a grudge's rolled twist (feuds.md §3.1 `grudge-twist`,
 // whose flee-at params are `{ percent }` only, so no catch window). It is checked like a content flag, catchSeconds optional.
-export type SetupOptions = { overlay?: readonly unknown[] };
+// level: an open-world creature fought at a level other than its form's (Zone 1 spawns are levelled by distance, mobSpecs' spec.level); encounters ignore it.
+export type SetupOptions = { overlay?: readonly unknown[]; level?: number };
 
 const bodyHealth = (body: OpponentId, level: number): number | undefined => {
   const o = OPPONENTS[body];
@@ -95,7 +96,7 @@ export function fightSetup(id: unknown, content: EncounterContent, opts: SetupOp
     base = [...(contentFlags.get(e.id) ?? [])];
   } else if (Object.hasOwn(content.local.creatureLoot, id)) {
     scope = 'open-world';
-    const f = foeOf(id as CharacterId, openWorldForm(content, id as CharacterId), id);
+    const f = foeOf(id as CharacterId, openWorldForm(content, id as CharacterId), id, opts.level);
     if (f) foes = [f];
   } else {
     return fail('unknown-id', 'fight', `${id} is no Region 1 encounter or open-world creature`);

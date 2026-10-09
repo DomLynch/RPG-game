@@ -310,7 +310,7 @@ async function check() {
       await page.goto(new URL(base + suffix, site.url).href); await ready();
       await page.locator('#versus').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('#arena-select').inputValue(), '', 'retired URL/storage falls back to Ladder');
-      const camera = await page.evaluate(() => { const c = globalThis.__view.pitStage(() => null).camera; return [c.fov, c.near, c.far]; });
+      const camera = await page.evaluate(() => { const c = globalThis.__view.gearStage().camera; return [c.fov, c.near, c.far]; });
       assert.deepEqual(camera, [51, 0.1, 180], 'original camera lens retained');
       receipt.retiredArenas.push({ retired, url: page.url(), camera });
     }

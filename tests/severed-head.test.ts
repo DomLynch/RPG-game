@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Vector3 } from 'three';
-import { launchSeveredHead, stepSeveredHead } from '../src/severed-head.ts';
+import { launchSeveredHead, stepSeveredHead } from '../src/fight/severed-head.ts';
 
 const head = (axisHeading = 0, killHeading = Math.PI / 2, y = 1.6) => {
   const group = new Group(); group.position.set(0, y, 0);

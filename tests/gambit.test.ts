@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mirror, stepDuel, withGambit, type Duel } from '../src/duel.ts';
+import { mirror, stepDuel, withGambit, type Duel } from '../src/fight/duel.ts';
 import { GAMBIT_KILL_FLOOR, GAMBIT_ODDS, gambitMean, gambitUnit, resolveGambit } from '../src/gambit.ts';
 import * as luck from '../origins/luck/luck.ts';
-import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
-import { initialPractice, stepPractice } from '../src/combat.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { liveRecorder } from './lib/live-recorder.ts';

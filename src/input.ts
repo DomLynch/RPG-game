@@ -2,8 +2,8 @@
 // joystick, folded into one intent per tick for the simulation. At most one edge-triggered action per tick plus the held guard level;
 // the simulation owns legality and buffering. Everything the layer touches is injected — the DOM lookup, window, clock, media
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
-import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
-import type { Direction } from './moves.ts';
+import { accepts, type Action, type CombatEvent, type Practice } from './fight/combat.ts';
+import type { Direction } from './fight/moves.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -16,6 +16,7 @@ export type InputEnv = {
   ready: () => boolean;      // assets loaded and graphics up: only then do presses reach the simulation
   practice: () => Practice;
   quiet: () => void;         // feedback.quiet — clearing input also silences pending cues
+  press?: () => void;        // any fight-button press, before it is read: the Coach hands the fight over here (src/coach-ui.ts)
 };
 // The controls' intent for one frame, named apart from the simulation's `Intent` (duel.ts) it is folded into by main.ts: the two
 // shapes differ (stick axes here, a camera-relative move plus lock there) and sharing a name at that seam misled the audit twice.
@@ -96,6 +97,7 @@ export function createInput(env: InputEnv) {
     holders.delete(by);
   }
   function request(next: Action) {
+    if (!paused() && env.ready()) env.press?.();
     if (!paused() && env.ready() && accepts(env.practice(), next)) action = next;
   }
   // Directional-cut flash (Dom 2026-10-07: "an indicator which comes at the same time, not before, but faint"): restart the CSS animation on the chosen edge; it removes itself.

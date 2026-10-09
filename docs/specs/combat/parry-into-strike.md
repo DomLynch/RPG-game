@@ -1,6 +1,6 @@
 # Parry into strike (riposte): what exists, what is missing, what to build (#1507 item 6)
 
-Status: spec, Combat, 2026-10-07. Own design, no donor code (Witcher 3 / Mount & Blade / Kingdom Come are design references only). Facts below were read from `src/duel.ts`, `src/moves.ts`, `src/combat.ts` on trunk plus Characters' #1502 (`openingOf`). Nothing here is built; the sim change waits for Dom's look-test (brief rule 3) and is built by a fresh implementer from this file (Strategy's ruling).
+Status: spec, Combat, 2026-10-07. Own design, no donor code (Witcher 3 / Mount & Blade / Kingdom Come are design references only). Facts below were read from `src/fight/duel.ts`, `src/fight/moves.ts`, `src/fight/combat.ts` on trunk plus Characters' #1502 (`openingOf`). Nothing here is built; the sim change waits for Dom's look-test (brief rule 3) and is built by a fresh implementer from this file (Strategy's ruling).
 
 ## 1. What the sim already does (verified, do not rebuild)
 

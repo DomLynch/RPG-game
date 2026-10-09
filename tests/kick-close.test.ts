@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGapHistory, kickCloseFlag, KICK_CLOSE_GROWTH, KICK_CLOSE_TICKS } from '../src/kick-close.ts';
 import { createHud, type HudView } from '../src/hud.ts';
-import { OPPONENTS, initialPractice, project } from '../src/combat.ts';
+import { OPPONENTS, initialPractice, project } from '../src/fight/combat.ts';
 
 test('?look=kickclose: absent by default, read from the look list', () => {
   assert.equal(kickCloseFlag(''), false);
@@ -72,7 +72,7 @@ test('through the HUD: a foe opening the gap inside 1.5 m un-lights KICK only wi
 });
 
 test('wiring pins: the HUD ANDs the window onto the plain 1.5 m rule only when the flag is on, and main.ts passes the flag', () => {
-  const hud = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8'), main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  const hud = readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8'), main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(hud, /inKickReach = gap <= KICK_LANDS && !\(view\.kickClose && gaps\.retreating\(practice\.duel\.tick, gap\)\)/);
   assert.match(hud, /gaps\.record\(practice\.duel\.tick, gap, practice\.duel\.fighters\[0\]\.phase === 'hurt'\);/);
   assert.match(main, /const KICK_CLOSE = kickCloseFlag\(window\.location\?\.search \?\? ''\)/);

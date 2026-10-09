@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { buildWarriors, readRankLook } from '../src/characters.ts';
+import { buildWarriors, readRankLook } from '../src/fight/characters.ts';
 import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
-import { initialPractice, type Practice } from '../src/combat.ts';
-import { LOADOUT_FROM, OPPONENTS } from '../src/moves.ts';
+import { initialPractice, type Practice } from '../src/fight/combat.ts';
+import { LOADOUT_FROM, OPPONENTS } from '../src/fight/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
@@ -217,9 +217,10 @@ function lodArt(full: Glb, phone: Glb, at: string, shared: Map<string, Buffer>) 
 
 // A resized draw (extras.resized): the desktop draw's mesh (same primitives, attributes, counts and bounds), the desktop material with only its
 // texture indices free (same parameters, same texture slots and texCoords), and each map the desktop map at the same or fewer pixels, never 0.
-// Build-shared maps (../assets/textures/<sha256>): vite.config.mjs emits them from the base rigs, so read them from the rigs the way the build does.
+// Build-shared maps (../assets/textures/<sha256>): vite.config.mjs emits them from the base rigs, so read them from the rigs the way the build does; a map that only a look names
+// (a texture shrink left it held by one rig) ships as a public file named by its sha256 (#1801), so those count too.
 let sharedMaps: Promise<Map<string, Buffer>> | undefined;
-const buildShared = () => sharedMaps ??= (async () => { const shared = new Map<string, Buffer>(); for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; }); return shared; })();
+const buildShared = () => sharedMaps ??= (async () => { const shared = new Map<string, Buffer>(); for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; }); const pub = new URL('../public/assets/textures/', import.meta.url); for (const file of readdirSync(pub)) { const bytes = readFileSync(new URL(file, pub)), sha = createHash('sha256').update(bytes).digest('hex'); assert.equal(file.slice(0, 64), sha, `public/assets/textures/${file} is not named by its sha256`); shared.set(sha, bytes); } return shared; })();
 function assertResized(full: Glb, phone: Glb, name: string, at: string, rebaked: string[], shared: Map<string, Buffer>) {
   assert.ok(!rebaked.includes(name), `${at}: resized ${name} is not also rebaked`);
   const node = (f: Glb) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
@@ -299,7 +300,7 @@ test('rank look stream: the sim is untouched (tick reads a frozen practice and n
   const p = freeze(at(['ready', 'ready'])), before = JSON.stringify(p);
   stream.tick(p); await Promise.resolve(); await Promise.resolve(); stream.tick(p);
   assert.equal(stream.state(), 'on'); assert.equal(JSON.stringify(p), before);
-  for (const file of ['combat.ts', 'duel.ts', 'sim.ts', 'match.ts', 'ai.ts']) assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('rank-look'), `${file} never reads the look`);
+  for (const file of ['fight/combat.ts', 'fight/duel.ts', 'fight/sim.ts', 'match.ts', 'fight/ai.ts']) assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('rank-look'), `${file} never reads the look`);
 });
 
 test('rank look on the Goblin: his own look goes off as a set (carriers too), the look goes on his bones, the kept draws and the knife stay, and the head bake takes only what he shows', async () => {

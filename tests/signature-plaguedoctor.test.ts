@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { SHIPPED, SIGNATURES, pickSignature, createSignatureMarks, type SignatureFrame } from '../src/signature.ts';
 import { ROT, rotSite } from '../src/signature-plaguedoctor.ts';
 

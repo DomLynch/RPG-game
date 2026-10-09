@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Object3D, Texture, Vector3 } from 'three';
-import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/finishers.ts';
+import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/fight/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, hamstrungPick, poseOf, resolveHamstrung } from '../src/hamstrung.ts';
 import { createHamstrungAssets } from '../src/hamstrung-assets.ts';
 import { readFileSync } from 'node:fs';
 import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
-import { cuesFor, type DeathPresentation } from '../src/audio/cues.ts';
-import { createFinisherBlood, finisherBloodSources } from '../src/finisher-blood.ts';
-import type { CombatEvent } from '../src/combat.ts';
-import type { Finish } from '../src/duel.ts';
+import { cuesFor, type DeathPresentation } from '../src/fight/sound/cues.ts';
+import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
+import type { CombatEvent } from '../src/fight/combat.ts';
+import type { Finish } from '../src/fight/duel.ts';
 
 const finish: Finish = { victim: 1, location: 'legs', move: 'light_right', heading: 0, draw: false };
 const swords = ['longsword', 'longsword'] as const;

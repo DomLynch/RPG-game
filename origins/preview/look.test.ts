@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENA_THEMES } from '../../src/arena-themes.ts';
 import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneLook } from './look.ts';
 
 test('ash-pit is Arena 1 exactly (today\'s Pit does not change)', () => {
-  const t = ARENA_THEMES['1'], l = PRESETS['ash-pit']!;
+  const t = { fog: '#c9a47a', fogDensity: 0.02, exposure: 1.3, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2] }, l = PRESETS['ash-pit']!;   // Arena 1's golden hour as pinned literals (src/arena-themes.ts ARENA_1 at the cut; the zone no longer imports it)
   assert.equal(l.fog, t.fog); assert.equal(l.fogDensity, t.fogDensity); assert.equal(l.exposure, t.exposure);
   assert.deepEqual([l.hemiSky, l.hemiGround, l.hemiIntensity], t.hemisphere); assert.deepEqual([l.sunColor, l.sunIntensity], t.sun);
   assert.deepEqual(l.ground, [1, 1, 1]);

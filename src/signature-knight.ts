@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { isHeavy, OPPONENT_SIDE, registerSignature, type SignatureEffect, type SignatureFrame } from './signature.ts';
-import { surfaceHit, woundSite, type WoundHit } from './gore.ts';
-import { weaponOf } from './moves.ts';
-import type { CombatEvent } from './duel.ts';
+import { surfaceHit, woundSite, type WoundHit } from './fight/gore.ts';
+import { weaponOf } from './fight/moves.ts';
+import type { CombatEvent } from './fight/duel.ts';
 
 // The Knight's signature (brief row 7, variant A): the Rivet Burst. A substantial blow landed ON him (a heavy, or any cut past the light
 // cut's 14) pops one or two rivets off the plate where the sim says it struck; the plate shudders, the rivets drop and rattle on the sand,

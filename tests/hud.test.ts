@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/hud.ts';
-import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/combat.ts';
-import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/duel.ts';
+import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/fight/combat.ts';
+import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/fight/duel.ts';
 
 // A minimal DOM: what the HUD writes to (properties, attributes, dataset, style props) is what the assertions read.
 class FakeElement {
@@ -74,7 +74,7 @@ test('update: a readiness or debug change relabels; an unchanged frame writes no
   assert.equal(get('dodge-button').attributes.get('aria-disabled'), 'true');
 });
 
-test('update: a finished fight hides the attacks and shows Rematch, or Next: <name> after a win', () => {
+test('update: a finished fight hides the attacks and shows Rematch, or Next fight after a win', () => {
   const { element, get } = dom(), hud = createHud(element as never);
   const lost: Practice = { ...initialPractice(), playerHealth: 0 };
   hud.update(lost, view());
@@ -82,7 +82,7 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next: <na
   assert.equal(get('reset-button').hidden, false); assert.equal(get('reset-button').textContent, 'Rematch');
   const won: Practice = { ...initialPractice(), health: 0, finish: { victim: 1, location: 'torso', move: 'light_right', heading: 0 } };   // a real MoveId: the HUD reads victim, not the move
   hud.update(won, view({ opponentId: 'veteran', next: { name: 'the Witch' } }));
-  assert.equal(get('reset-button').textContent, 'Next: the Witch', 'a win offers the page\'s own pick (match.ts nextRung)');
+  assert.equal(get('reset-button').textContent, 'Next fight', 'a win with a next rung (match.ts nextRung) offers Next fight, the one primary');
   const fresh = dom(); createHud(fresh.element as never).update(won, view({ opponentId: 'veteran' }));
   assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight): Rematch');
 });
@@ -175,9 +175,9 @@ test('refused presses dim the matching button only for the player, and mark noth
 // 18-tick wind-up, so from a standing foe with his guard up it lands out to ~1.585 m. The light must mean "a kick lands from here":
 // never lit where it whiffs, and not so timid that it hides a landing kick. Measured against the sim itself, every opponent.
 test('KICK lights only where a kick lands on a guard-raised foe, within 0.15 m of the true edge', async () => {
-  const { createFighter, opponentFighter, stepDuel, idleIntent: idleI } = await import('../src/duel.ts');
-  const { OPPONENTS: ALL, PLAYER_WEAPONS } = await import('../src/moves.ts');
-  const { TARGET } = await import('../src/sim.ts');
+  const { createFighter, opponentFighter, stepDuel, idleIntent: idleI } = await import('../src/fight/duel.ts');
+  const { OPPONENTS: ALL, PLAYER_WEAPONS } = await import('../src/fight/moves.ts');
+  const { TARGET } = await import('../src/fight/sim.ts');
   const { KICK_LANDS } = await import('../src/hud.ts');
   const idle = () => ({ ...idleI(), lock: false });
   const guard = (dir: 'left' | 'right') => ({ ...idle(), guard: true, guardDirection: dir, lock: true });

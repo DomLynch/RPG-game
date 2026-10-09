@@ -9,7 +9,7 @@
 >
 > This page is kept as the record of how those decisions were reached.
 
-Stats lane, 2026-09-22, for Dom. Docs only: nothing here is built. Every number in §1 is read out of `src/moves.ts` on trunk
+Stats lane, 2026-09-22, for Dom. Docs only: nothing here is built. Every number in §1 is read out of `src/fight/moves.ts` on trunk
 (3405a95) by running the module, not copied from a brief. Where trunk is known to be stale, it is flagged in the row.
 
 **The three asks, answered up front.**
@@ -23,7 +23,7 @@ Stats lane, 2026-09-22, for Dom. Docs only: nothing here is built. Every number 
 
 ## §1 The live tables
 
-Read from `src/moves.ts` on trunk 3405a95. One tick = 16.67 ms (`src/sim.ts:1`, `STEP = 1/60`). "Speed" is
+Read from `src/fight/moves.ts` on trunk 3405a95. One tick = 16.67 ms (`src/fight/sim.ts:1`, `STEP = 1/60`). "Speed" is
 windup + active + recovery for one swing. Light is `light_right`; heavy is `heavy_overhead`; thrust is `thrust`.
 
 ### One-hand
@@ -103,7 +103,7 @@ Efficiency, which is where a pattern would show if there were one:
 
 The best and worst weapons on both measures are both **one-handed** (cleaver and estoc). Grip is uncorrelated.
 
-**And this is by design, not drift.** `src/moves.ts:189` defines the grip type with the comment: *"DATA ONLY: nothing in the sim
+**And this is by design, not drift.** `src/fight/moves.ts:189` defines the grip type with the comment: *"DATA ONLY: nothing in the sim
 reads it, no reach/timing/damage."* Grip exists to decide which animation clips a weapon uses and whether a shield can be held.
 It has never been a balance axis, and the tables were tuned per weapon against the fairness battery without reference to it.
 
@@ -174,7 +174,7 @@ character-layer stat (DEX) with a documented owner decision against it, not a ge
 This matters because two of the three options assign work to a lane that is not mine.
 
 - A **passive damage multiplier** is a resistance value. That is the gear layer, brief 19, **Stats — mine.**
-- A **guard profile** is combat rules: `GuardProfile` at `src/moves.ts:160` carries `costScale`, `arc`, `window`, `recovery`,
+- A **guard profile** is combat rules: `GuardProfile` at `src/fight/moves.ts:160` carries `costScale`, `arc`, `window`, `recovery`,
   `commits`, `stopsHeavy`, `heavyBreaks`. Those live in Combat's files. **I may propose it; I may not build it.** Deliverable
   5's ordering behind knife → cleaver → estoc → shield still binds either way.
 

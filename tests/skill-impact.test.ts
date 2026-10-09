@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Color, Scene } from 'three';
-import type { CombatEvent } from '../src/duel.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 import { IMPACT, IMPACT_DEFAULT, IMPACT_TINT, createSkillImpact, impactOf, impactPoint } from '../src/skill-impact.ts';
 
 // The shared SKILL-IMPACT kit (Strategy via Lead, 2026-09-26): every skill move ships on it, keyed by its SkillId (move id = skill_<id>).
@@ -59,7 +59,7 @@ test('a landed blow throws a flash and a fan of sparks, which burn out within th
 test('presentation only: the kit is no sim file and no sim file imports it', () => {
   const guard = readFileSync(new URL('./record-version-guard.test.ts', import.meta.url), 'utf8');
   assert.ok(!guard.includes('skill-impact'), 'not in SIM_FILES');
-  for (const file of ['duel.ts', 'moves.ts', 'ai.ts', 'sim.ts', 'record.ts', 'blade.ts', 'roster.ts', 'finishers.ts']) {
+  for (const file of ['fight/duel.ts', 'fight/moves.ts', 'fight/ai.ts', 'fight/sim.ts', 'record.ts', 'blade.ts', 'roster.ts', 'fight/finishers.ts']) {
     assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('skill-impact'), `${file} does not import it`);
   }
 });

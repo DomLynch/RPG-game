@@ -9,9 +9,9 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
-import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent, legal } from '../src/duel.ts';
-import { opponentAt, profileAt } from '../src/moves.ts';
+import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent, legal } from '../src/fight/duel.ts';
+import { opponentAt, profileAt } from '../src/fight/moves.ts';
 import { encodeRecord } from '../src/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 

@@ -2,12 +2,12 @@
 // shipped — `initialDuel()` is still exactly him. The Pitborn is the first creature: relentless, poised, more health, honest openings.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
-import { RADIUS, TARGET, type State } from '../src/sim.ts';
+import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/fight/moves.ts';
+import { RADIUS, TARGET, type State } from '../src/fight/sim.ts';
 import { STRATEGIES, battery, side } from './strategies.ts';
 import { setStab } from '../src/stab-rule.ts';
 setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an era flag, off in a headless run): the shipped warden is the one these rows judge

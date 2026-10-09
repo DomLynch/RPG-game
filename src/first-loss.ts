@@ -21,10 +21,10 @@
 // wound) or, failing that, on a timeout, so every beat fires on every seed whatever the player does. Until the last beat the player is
 // kept above half health, and the foe is always kept above half: the lessons are not punishment. Then a finishing blow ends the player,
 // forced if it has to be, and the fight is a loss. The prompts are the Web lane's: this file only says WHICH lesson, once, on the tick its cue happens.
-import { decide } from './ai.ts';
-import { project, type Practice } from './combat.ts';
-import { distance, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './duel.ts';
-import { RULES, type MoveId } from './moves.ts';
+import { decide } from './fight/ai.ts';
+import { project, type Practice } from './fight/combat.ts';
+import { distance, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './fight/duel.ts';
+import { RULES, type MoveId } from './fight/moves.ts';
 import { SPARRING_DUMMY, disarm } from './sparring.ts';
 
 export const LESSONS = ['stayAfterParry', 'blockEarnsNothing', 'rollSideways', 'woundedStamina', 'tapStepHoldRoll'] as const;

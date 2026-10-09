@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { AnimationMixer, Vector3 } from 'three';
-import { clipFor } from '../src/characters.ts';
+import { clipFor } from '../src/fight/characters.ts';
 import { ROSTER } from '../src/roster.ts';
 
 const digest = b => createHash('sha256').update(b).digest('hex');

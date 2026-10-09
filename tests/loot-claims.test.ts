@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Intent } from '../src/duel.ts';
+import type { Intent } from '../src/fight/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, finaliseClaim, held, outbox, settleOutbox, loadStanding, saveStanding, STANDING_KEY, type Claim, reloadAfter } from '../src/loot-claims.ts';
 

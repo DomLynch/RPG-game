@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createFeedback } from '../src/feedback.ts';
+import { createFeedback } from '../src/fight/sound/feedback.ts';
 
 // The export-clip seam (SCOPE 5): feedback.stream() taps the mixed game audio off master for src/clip.ts's recorder, and
 // feedback.untap() drops the tap when the clip ends. A fake AudioContext records every connect/disconnect, so the test pins
