@@ -24,7 +24,7 @@ const pitOf = (f: Fighter): PitFighter => (f.side === 'creature'
 export function openBout(hero: Fighter, foe: Fighter | null, carry?: PitFighter): Bout {
   const h = carry ?? pitOf(hero), c = foe ? pitOf(foe) : createFighter({ x: hero.x + FAR_M, z: hero.z, heading: 0, distance: 0 }, 'ready', 'longsword', 1, 0, 1e9);
   const o = foe?.side === 'creature' ? OPPONENTS[foe.kind as keyof typeof OPPONENTS] : null;
-  return { foe: foe?.id ?? null, duel: { tick: 0, fighters: [h, c], finish: null, events: [] }, ai: o ? initialAi(seedOf(foe!.id)) : null, profile: o ? profileAt(o, foe!.level) : null };
+  return { foe: foe?.id ?? null, duel: { tick: 0, fighters: [h, c], finish: null, events: [] }, ai: o ? (foe!.brain ?? initialAi(seedOf(foe!.id))) : null, profile: o ? profileAt(o, foe!.level) : null };
 }
 
 const phaseOf = (f: PitFighter): { phase: Phase; t: number } => {

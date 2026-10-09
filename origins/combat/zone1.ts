@@ -9,6 +9,7 @@ import { GAMBIT_ODDS } from '../../src/gambit.ts';
 import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 import { IDLE_INPUT, openBout, stepBout, type Bout } from './open-fight.ts';
+import type { AiState } from './ai-open.ts';
 
 const TICK = 1 / 60;
 const secs = (ticks: number): number => ticks * TICK;
@@ -42,6 +43,7 @@ export type Fighter = {
   special: SpecialName | null; specialIn: number;       // the named special this fighter can cast (moves.ts specialOf), seconds until it is ready; with one, the SKILL button is the special (the Pit has one button)
   skill: SkillId | null;                                // the equipped skill (moves.ts SkillId, the Pit's `equippedSkill(profile.loot)`; null = none): the SKILL button fires its move when no special is set (duel.ts `Fighter.skill`)
   stance?: StanceId;                                    // src/stance.ts: the Pit's table (absent = Balanced)
+  brain?: AiState;                                      // creature only: its Pit brain (wait, decision, habits, rng) kept ON THE CREATURE, so a rebuilt fight (a pack's next bout, a re-engage) resumes its swing timing instead of restarting at the opening wait of 90 ticks (#1936 b)
   pvp: boolean; level: number; shielded: boolean;       // attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
 };
 export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>>; streams: Record<string, Bout> };   // streams: slot-0 player id -> his fight (a Pit duel); aggro[attacker][victim] = when the attacker last struck that player
@@ -79,6 +81,8 @@ export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, 
 export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, special: name, specialIn: secs(RULES.special.first) });
 /** A creature's stance mood: the Pit's own draw (src/stance.ts moodOf: half its home stance, half one of the other three), seeded from the injected `rand` instead of the fight seed. Call once at spawn. */
 export const withMood = (f: Fighter, rand: () => number): Fighter => withStance(f, moodOf(Math.floor(rand() * 4294967296) >>> 0, f.kind));
+/** The brain as the next bout will find it. retreatUntil / disengageUntil are absolute ticks of the bout that wrote them and a rebuilt bout restarts its clock at 0, so they are rebased onto the new clock (Auditor, #1939); lastTravel compared against the old bout's distance, so it restarts. The live bout keeps its own copy. */
+const carried = (ai: AiState, tick: number): AiState => ({ ...ai, retreatUntil: Math.max(0, ai.retreatUntil - tick), disengageUntil: Math.max(0, ai.disengageUntil - tick), lastTravel: 0 });
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
@@ -131,6 +135,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const prev = world.streams[a.id], same = prev && prev.foe === (b?.id ?? null);
     const bout: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt);
+    if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
     streams[a.id] = r.bout; events.push(...r.events);
     if (b && b.side === 'player') for (const e of r.events) {   // player against player: log who struck first (a blow that hit, was blocked, parried or dodged)
       const hit = e.type === 'Hit' ? [e.attacker, e.victim] : e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' ? [e.attacker, e.victim] : null;
@@ -151,7 +156,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const prey = players.sort((a, b) => dist(f, a) - dist(f, b))[0];
     if (f.returning) {   // gave up: walks home at its amble, heals to full on arrival (no event)
       const dx = f.homeX - f.x, dz = f.homeZ - f.z, d = Math.hypot(dx, dz), step = SPEEDS.creature.amble * dt;
-      if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; events.push({ type: 'Evaded', id: f.id }); }
+      if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; f.brain = undefined; events.push({ type: 'Evaded', id: f.id }); }
       else { f.facing = Math.atan2(dx, dz); f.x += (dx / d) * step; f.z += (dz / d) * step; }
     } else if (prey && (f.hunting ? dist(f, prey) <= SIGHT_M || f.unseen < GIVE_UP_UNSEEN_S : dist(f, prey) <= AGGRO_M)) {
       if (!f.hunting) { f.hunting = true; f.chaseX = f.x; f.chaseZ = f.z; f.unseen = 0; }

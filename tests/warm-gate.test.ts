@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { gateWithBound, settleWithin } from './warm-gate.ts';
+import { gateWithBound, settleWithin } from '../src/warm-gate.ts';
 
 test('a gate whose compile never resolves still reveals within the bound, and logs "warmup timeout <archetype> <ms>"', async () => {
   const lines: string[] = [], t0 = Date.now();

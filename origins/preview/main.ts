@@ -26,7 +26,7 @@ import { groundAt, reliefZones } from './frontier-relief.ts';
 import { campFires } from './camp-fire.ts';
 import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
-import { settleWithin } from './warm-gate.ts';
+import { settleWithin } from '../../src/warm-gate.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { createWorldCombat } from './world-combat.ts';
@@ -361,7 +361,7 @@ function planUpload() {
   const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4), queue: (() => void)[] = [];
   for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
   for (const g of geometries) queue.push(() => { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } uploaded.add(g); });
-  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(() => { const holder = new THREE.Group(); holder.add(m.clone()); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed: three 0.186's compileAsync has a disposal race under concurrency (mobs-view pump)
+  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(() => { const holder = new THREE.Group(); holder.add(m.clone()); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
   if (queue.length) queue.push(() => { target.dispose(); proxy.dispose(); }); else { target.dispose(); proxy.dispose(); }
   uploadTotal += queue.length; return queue;
 }
@@ -628,7 +628,7 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
 let warmAt = -Infinity, warmKey = '', warmSince = 0;
 const WARM_M = 14, WARM_DWELL_S = 2;   // a creature this near is the likely next fight: its stage is built now, not at the tap
 function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
-  if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;
+  if (!WORLDFIGHT || WORLDCOMBAT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;   // the Pit duel's stage is only the fallback (?combat=pit): Zone 1's own loop never draws it, so it is not built (GPU work on the walk for nothing)
   warmAt = time;
   const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
