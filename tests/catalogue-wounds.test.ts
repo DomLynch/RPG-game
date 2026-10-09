@@ -9,7 +9,7 @@ import { LOOT_IDS } from '../src/loot.ts';
 import { ROTATION, FINISHER_POSE } from '../src/finishers.ts';
 import { WEAPONS } from '../src/moves.ts';
 import { PICKS } from '../src/stance.ts';
-import { THROATS } from '../src/audio/creature.ts';
+import { THROATS } from '../src/fight/sound/creature.ts';
 import { LOOT_TABLES } from '../origins/region1/content.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
 

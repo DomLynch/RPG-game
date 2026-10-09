@@ -10,6 +10,8 @@ test('the look flag is ?look=creatures only, default silent', () => {
 
 test('every cue sits under the break thud (.55) and has a length; every throat has two formants and a rasp share', () => {
   for (const [cue, s] of Object.entries(CREATURE_CUES)) { assert.ok(s.gain > 0 && s.gain < .55, `${cue} gain ${s.gain}`); assert.ok(s.length > 0 && s.length <= 1.5, `${cue} length`); }
+  for (const beast of ['wolf', 'boar', 'bear']) assert.ok(THROATS[beast], `${beast} has a throat`);
+  assert.ok(THROATS.bear!.f0 < THROATS.wolf!.f0 && THROATS.wolf!.f0 < THROATS.boar!.f0, 'the bear is the deepest beast, the boar the highest');
   for (const [body, t] of Object.entries(THROATS)) { assert.ok(t.f0 > 40 && t.f0 < 400, body); assert.equal(t.formants.length, 2); assert.ok(t.rasp >= 0 && t.rasp <= 1, body); }
 });
 
