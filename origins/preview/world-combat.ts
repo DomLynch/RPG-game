@@ -24,7 +24,7 @@ type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swi
 
 export function createWorldCombat(d: Deps) {
   const mine = () => d.hero?.() ?? { gear: NAKED, level: 1 };
-  let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false, lostMs = 0, hitches = 0, steps = 0;
+  let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'thrust' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false, lostMs = 0, hitches = 0, steps = 0;
   const specs = new Map<string, MobSpec>(), fx = new Map<string, Fx>();
   const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
   const gearOf = () => { const { gear, level } = mine(), p = player(ME, 0, 0, 0, gear, level); return { attack: p.attack, res: p.res, level: p.level, shielded: p.shielded }; };
@@ -43,7 +43,7 @@ export function createWorldCombat(d: Deps) {
   }
   return {
     /** An attack press (STAB / SLASH / a tap on a creature): the cut starts on the next step if he is free. */
-    press(kind: 'light' | 'heavy' | 'kick' = 'light') { pendingAttack = kind; },
+    press(kind: 'light' | 'heavy' | 'thrust' | 'kick' = 'light') { pendingAttack = kind; },
     /** A roll / dodge pressed: the world-axis direction (zero = where he faces). */
     roll(dir: { x: number; z: number }) { pendingRoll = dir; },
     guard(held: boolean) { guardHeld = held; },
