@@ -83,3 +83,20 @@ test('gh that fails once and then answers is retried, not abandoned to the fallb
   assert.equal((r.stderr.match(/gh pr list failed/g) || []).length, 1);
   assert.match(r.stdout, /0 PR\(s\) merged since/);
 });
+
+test('a git failure is reported as a git failure, never as "behind trunk" (Release F 04:21: #1396 was in the tree)', () => {
+  const w = world(); g(w.work, 'checkout', '-q', TRUNK);
+  w.prs.push({ number: 7, title: 'merge commit this clone has never seen', baseRefName: TRUNK, mergeCommit: { oid: 'a'.repeat(40) }, labels: [] }); w.gh();
+  const r = w.run();
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /cannot tell whether merge commit aaaaaaaaa is in this tree \(git exit 128: .*\); this is a git failure, not a verdict/);
+  assert.doesNotMatch(r.stderr, /behind trunk/);
+});
+
+test('a PR whose merge commit really is in the tree still passes (the #1396 shape)', () => {
+  const w = world(); g(w.work, 'checkout', '-q', TRUNK);
+  const merge = w.commit(TRUNK, 'f', 'a trunk commit'); pushAll(w.work);
+  w.prs.push({ number: 8, title: 'in the tree', baseRefName: TRUNK, mergeCommit: { oid: merge }, labels: [] }); w.gh();
+  const r = w.run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+});
