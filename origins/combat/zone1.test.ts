@@ -150,7 +150,7 @@ test('raw Pit events: every Zone 1 event carries the Pit\'s CombatEvent (a Hit k
   assert.equal(hit.pit?.type, 'Hit');
   assert.ok(hit.pit?.location, 'the Pit\'s hit location rides along');
   assert.ok(hit.pit?.weapon, 'and the weapon');
-  assert.ok(r.events.every((e) => e.pit), 'no event without its Pit original');
+  assert.ok(r.events.filter((e) => !['Aggressed', 'FightStarted', 'Evaded'].includes(e.type)).every((e) => e.pit), 'every Pit-sourced event has its original (the loop\'s own Aggressed / FightStarted / Evaded have none)');
   assert.ok(r.events.some((e) => e.type === 'Pit' && e.pit?.action === 'roll'), 'the roll is not dropped');
 });
 
@@ -195,7 +195,7 @@ test('pvp: in the wild a player\'s cut lands on another player on the Pit duel (
   assert.ok(get(world, 'b').health < RULES.health, 'b was hurt');
   assert.deepEqual(of(events, 'Aggressed'), [{ type: 'Aggressed', attacker: 'a', victim: 'b', first: true }]);
   const w = duo(); get(w, 'b').health = 1;
-  assert.deepEqual(of(swing(w).events, 'Died'), [{ type: 'Died', id: 'b', by: 'a' }]);
+  assert.deepEqual(of(swing(w).events, 'Died').map(({ pit, ...e }) => e), [{ type: 'Died', id: 'b', by: 'a' }]);   // the Pit original rides on `pit` (the raw-events test)
 });
 
 test('pvp: a safe-town volume (pvp false on either side) means no fight, no Aggressed', () => {
