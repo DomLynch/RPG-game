@@ -27,7 +27,7 @@ Bone names are per rig, so a bodytype is keyed by what shares a skeleton: `quadr
 | `decal` | `{id, sizeM}` \| null | the mark left on ground or body; null = none |
 | `spray` | number 0..2 | multiple of the Pit's BLOOD particle counts for a man = 1 (replaces the species half of #1967 `amount`) |
 
-**3. creature row** — extends the row Combat keys by `MobRow.id` (e.g. `character:ash-wolf`). New optional `wounds` field:
+**3. creature row** — NOT a separate table (Lead's ruling, 2026-10-09: one catalogue). It is an optional `wounds` field on the character catalogue row (Characters' #1981, `src/fight/catalogue-rows.ts`), keyed by the catalogue `character:` id (e.g. `character:ash-wolf`), the same id `MobRow.id` uses. The roster id is not a key anywhere in this schema:
 | field | type | meaning |
 |---|---|---|
 | `body` | bodytype id | table 1 |
@@ -38,6 +38,9 @@ Bone names are per rig, so a bodytype is keyed by what shares a skeleton: `quadr
 | `tiers` | `{below, decals, drip}[]` | severity by hp fraction, `below` strictly descending (e.g. 0.66, 0.33, 0.1); `decals` = marks on the body at that tier, `drip` = multiple of `bleedRate` |
 | `finishers` | FinisherId[] | unchanged from #1967 (preference order, last = safe fallback) |
 Flee-at stays Expansion's rule (`body-families.md`); `tiers` only changes how it looks.
+
+## Where it lives (Lead's rulings, 2026-10-09)
+`bodytypes` and `species` are data files with the engine in `src/fight/` (next to `catalogue.ts` and `stats.ts`). `wounds` is a field on each catalogue row. Key everywhere = the `character:` id. `rig` (the roster/rig id #1967 uses for its GLB and finisher row) stays only as a field on `wounds` until #1967 is retargeted onto the catalogue.
 
 ## Rules a validator enforces (same pattern as `zoneProblems` / `validateMobRow`)
 `body` and `species` exist; every `Part.parent` exists, no cycles, at least one vital part; `weight` > 0; `tiers.below` in (0,1) and strictly descending; `bleedRate` and `drip` in range; `bleedRate` > 0 with a null `species.blood` is an error; every bone in a bodytype is a skin joint of the GLB of each creature that uses it (the existing #1967 test, per `rig`).
@@ -76,5 +79,6 @@ species.goblin  = { blood: { start: '#5a1410', end: '#1c0604' }, decal: { id: 'b
 ```
 (Goblin: `spray` 0.6 × `size` 1 = #1967's 0.6; wolf: 1 × 0.7 = 0.7; boar: 1 × 1 = 1. Bear would be `size` 1.4.)
 
-## Open for Combat / Characters
-1. Where the bodytype and species tables live (suggest `origins/mobs/wounds.data.ts`) and who owns the validator. 2. #1967 keys by roster id and MobRow by `character:` id; `rig` bridges them, but a single key would be cleaner. 3. Torso `bones: []` means "anywhere not on another part"; confirm the decal anchor then falls to the root bone. 4. `tiers.decals` need a body-mark art path that does not exist yet (the Pit's wound marks are the Pit's; confirm they can be reused on a creature). 5. Hits-by-part weights only matter once the engine picks a part per hit; until K5 lands they are inert data.
+## Open
+1. **Combat:** part `weight` is inert data until the engine picks a part per hit (K5); say how it will pick. 2. **Characters:** where a decal anchors when `Part.bones` is empty (torso), and the wound-mark art for creatures (the Pit's marks are the Pit's; can they be reused?). 3. **Characters:** #1967 sat on closed #1966 and needs retargeting to trunk; re-read the bone names from the GLBs when it lands (the bones above are copied from its old head, not verified).
+Settled by Lead 2026-10-09: tables live in `src/fight/`; `wounds` on the catalogue row; key = `character:` id.
