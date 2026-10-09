@@ -36,7 +36,8 @@ const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
 const SHOP = 'service:frontier-provisioner';
 const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rows: [
-  { item: 'item:grave-iron', price: 4, max: 5, restockSeconds: 60 }, { item: 'item:exchange-ore', price: 1, max: 5, restockSeconds: 60, minLevel: 99 }] };
+  { item: 'item:grave-iron', price: 4, max: 5, restockSeconds: 60 }, { item: 'item:exchange-ore', price: 1, max: 5, restockSeconds: 60, minLevel: 99 },
+  { item: 'item:loot.veteran.Arms', price: 5, max: 1, restockSeconds: 600 }] };
 let checks = 0, started = false, server;
 // Presence as the writer sees it (launch gate X1: the only source of a player's place). Empty = nobody online; `presenceDown` makes every ask throw.
 const presence = {};
@@ -64,7 +65,8 @@ try {
   // The smith: the fixtures' forge, materials only (level 1 costs 5 grave iron and 0 coin; level 2 still prices coin, so it is a 501).
   const defs = new Map([F.exchangeOreDef(), F.recordDef(), F.helmetDef(), F.graveIronDef(), F.oathGauntletsDef(),
     { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } },
-    { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+    { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } },
+    { ...F.helmetDef(), id: 'item:loot.veteran.Arms', slot: 'Arms', name: "The Centurion's vambraces", appearance: { asset: 'loot.glb/veteran.Arms' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
     lookup: id => defs.get(id),
@@ -287,6 +289,12 @@ try {
   eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
   presence[B] = atBank();   // B at the counter too, so the character rule is what refuses
   eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
+  // Shop gear: a single-copy slot-weight piece is minted at the Region's loot tier; a second copy is refused by one-of-each (and by the shelf of 1).
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":4}]$j$::jsonb);`);
+  const gearBuy = await call('shop_buy', 'ta', buy({ op: 'shop:body-0001', item: 'item:loot.veteran.Arms', quantity: 1 }));
+  eq([gearBuy.status, psql(`select tier || ':' || quantity || ':' || (provenance ->> 'kind') from public.origins_items where item = 'item:loot.veteran.Arms' and retired_at is null`), conserved()],
+    [200, 'Gladiator:1:shop', '0'], 'shop: gear is minted at the Region loot tier with shop provenance');
+  eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
   const seedD = creditFromMarks(10);

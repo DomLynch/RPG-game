@@ -73,7 +73,7 @@ test('Region 1 ships a shop (Dom 12:5x: live, not a 501): every list validates a
   for (const [service, list] of content.shops) {
     assert.match(service, /^service:[a-z0-9-]+$/);
     assert.deepEqual(validateShopList(list, (id) => content.lookup(id as never) !== undefined), [], `${service} validates`);
-    for (const row of list.rows) assert.notEqual(content.lookup(row.item as never)?.stack, 1, `${row.item}: stackable only until shop gear sets its tier`);
+    for (const row of list.rows) if (content.lookup(row.item as never)?.stack === 1) assert.equal(row.max >= 1 && row.minLevel !== undefined, true, `${row.item}: a single-copy piece carries a level gate`);
   }
   assert.ok(typeof itemOps(region1).shop_buy === 'function');
 });
