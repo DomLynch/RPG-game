@@ -175,3 +175,28 @@ test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 40
   assert.deepEqual(ok.kills[0]!.b.slice(1), priced(z2wolf.spec.level), `paid exactly what a level-${z2wolf.spec.level} (Zone 2) kill pays`);
   assert.notDeepEqual(ok.kills[0]!.b.slice(1), priced(1), 'not what a level-1 (Zone 1) kill pays');
 });
+
+test('zone keys: a zone is `z<N>:` with N one or more digits and no leading zero (no ceiling); a key that starts like a zone and does not parse is null, never Zone 1', () => {
+  for (const [key, zone] of [['wolves-1', '1'], ['opener-ash-reach-1', '1'], ['zebra-1', '1'], ['z2:wolves-1', '2'], ['z10:x', '10'], ['z700:wolves-1', '700'], ['z1000:wolves-1', '1000'], ['z123456:x', '123456']] as const) assert.equal(zoneOfKey(key), zone, key);
+  for (const key of ['z0:wolves-1', 'z01:wolves-1', 'z2wolves-1', 'z2', 'z:x', 'z1x:y']) assert.equal(zoneOfKey(key), /^z[0-9]/.test(key) ? null : '1', key);
+  assert.equal(zoneOfKey('z0:wolves-1'), null); assert.equal(zoneOfKey('z01:wolves-1'), null); assert.equal(zoneOfKey('z2wolves-1'), null);
+});
+
+test('engage refuses a key that starts like a zone but does not parse (400), instead of reading it as Zone 1', async () => {
+  const ops = worldSpawnOps({ content, spawns }), { db } = stub({});
+  for (const instance of ['z01:wolves-1', 'z0:wolves-1', 'z2wolves-1']) await assert.rejects(async () => ops.engage!(ctx(db), { character: PC, instance }), (e: unknown) => e instanceof BadRequest, instance);
+});
+
+test('kill_report refuses an engage whose stored key has an unparsable zone prefix (409), never prices it as Zone 1', async () => {
+  const bad = { ...open, instance: 'z01:wolves-1' };
+  const { db, kills } = stub({ origins_spawn_engage_get: bad });
+  await assert.rejects(async () => worldSpawnOps({ content, spawns }).kill_report!(ctx(db), { token: TOKEN, hits: 5 }), (e: unknown) => e instanceof Refused && e.status === 409);
+  assert.equal(kills.length, 0, 'nothing was written');
+});
+
+test('the registry obeys the key rule the database column reads (zoneKeyProblems is empty): the writer refuses to start otherwise', async () => {
+  const { zoneKeyProblems } = await import('./world-spawns.ts');
+  const { zoneIds } = await import('../zones/loader.ts');
+  assert.ok(zoneIds().includes('1') && zoneIds().length >= 2, 'the registry has Zone 1 and at least one more');
+  assert.deepEqual(zoneKeyProblems(), []);
+});
