@@ -154,7 +154,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
     log(`kill_report ${token.slice(-6)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);
-    return { result: 'killed', instance: at0.instance, zoneId: at0.zoneId, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
+    return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 
   return { spawn_state: spawnState, engage, touch, kill_report: killReport };
