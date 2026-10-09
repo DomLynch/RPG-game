@@ -305,7 +305,7 @@ try {
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
   const seedD = cumulative(11);   // level 11, the story gate: granted by hand now that Pit marks do not seed zone level (a zone career starts at credit 0)
   eq((await call('open', 'td')).json.result.career.seed_credit, 0, 'Dara: open (Pit marks seed nothing)');
-  psql(`update public.origins_career set world_credit = ${seedD} where account = '${D}'`);
+  psql(`update public.origins_career set world_credit = ${seedD}, version = version + 1 where account = '${D}'`);
   const dara = (await call('create_character', 'td', { name: 'Dara' })).json.result.id;
   const q = sql => psql(sql.replaceAll('$PC', dara));
   const credit = () => { const [w, t] = psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number); return [w - seedD, t]; };   // [credit earned since the grant, total]
