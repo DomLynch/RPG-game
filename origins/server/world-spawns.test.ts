@@ -150,8 +150,8 @@ test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance),
 });
 
 test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 400); a Zone 2 creature is keyed z2: and its kill is priced from ZONE 2\'s rows and level', async () => {
-  const z2 = zoneSpawns(content, '2'), z2wolf = [...z2.values()].find((s) => s.spec.character === 'character:ash-wolf')!;
-  assert.ok(z2wolf, 'Zone 2 has an ash wolf (a placeholder row at its own band)');
+  const z2 = zoneSpawns(content, '2'), z2wolf = [...z2.values()].find((s) => /^character:(ash|ember)-wolf$/.test(s.spec.character))!;   // Zone 2's wolf: ash-wolf (placeholder) until #1953 renames it ember-wolf
+  assert.ok(z2wolf, 'Zone 2 has a wolf (ash- or ember-, at its own band)');
   assert.ok(z2wolf.spec.level >= 2, `Zone 2's wolf is level ${z2wolf.spec.level}, from Zone 2's band, not Zone 1's`);
   assert.ok(z2wolf.spec.id.startsWith('z2:'), 'a Zone 2 spec id already carries its zone'); assert.equal(zoneOfKey(z2wolf.spec.id), '2'); assert.equal(zoneOfKey('wolves-1'), '1');
   const keys: string[] = [];
