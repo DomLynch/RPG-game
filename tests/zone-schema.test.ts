@@ -31,7 +31,7 @@ test('2. A zone written at schemaVersion 1 loads after a later schema version ex
 
 test('3. WIRED REPORT: what takes effect today, and what does not (the unwired count only goes down)', () => {
   const report = wiredReport();
-  console.log(`zone schema: ${report.wired.length} wired fields (${report.wired.join(', ')}); ${report.unwired.length} unwired, by owner: ${JSON.stringify(report.unwired.reduce<Record<string, number>>((m, u) => ({ ...m, [u.owner]: (m[u.owner] ?? 0) + 1 }), {}))}`);
+  console.log(`zone schema: ${FIELDS.length} rows = ${report.wired.length} wired + ${report.unwired.length} unwired; wired fields (${report.wired.join(', ')}); unwired by owner: ${JSON.stringify(report.unwired.reduce<Record<string, number>>((m, u) => ({ ...m, [u.owner]: (m[u.owner] ?? 0) + 1 }), {}))}`);
   for (const w of ['name', 'level', 'spawns', 'kit', 'looks', 'camps']) assert.ok(report.wired.includes(w), `${w} is wired`);
   assert.ok(report.unwired.length > 0 && report.unwired.length <= 70, 'ratchet: wire fields, never add unwired ones without lowering this');
   assert.equal(FIELDS.length, new Set(FIELDS.map((f) => f.path)).size, 'one row per path');
