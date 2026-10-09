@@ -1,19 +1,22 @@
-// The mount of Zone 1's own combat loop (Combat's pure origins/combat/zone1.ts) in the walk: no duel, no ring, no fight start or end (Dom 2026-10-08). The page walks the hero (collisions,
+// The mount of Zone 1's own combat loop (Combat's pure src/fight/world.ts) in the walk: no duel, no ring, no fight start or end (Dom 2026-10-08). The page walks the hero (collisions,
 // relief) and tells this his position; the loop owns hits, creature chase/telegraph/bite/leash. This file: which creatures are in the loop (those that come within the aggro ring, until they are
 // home again), the fixed 1/60 accumulator, and turning the events into what the page shows (a procedural lunge / hit pulse / fall on the creature, bars, the hero's clips, kill and death).
-import { AGGRO_M, creature, duelFor, duelOf, newWorld, pairs, player, stepCombat, type Event, type Fighter, type World } from '../combat/zone1.ts';
-import { NAKED, type Loadout } from '../../src/gear-stats.ts';
-import { OPPONENTS } from '../../src/moves.ts';
-import type { MobSpec } from './mobs.ts';
-import type { MobPick, Mobs } from './mobs-view.ts';
+import { AGGRO_M, creature, duelFor, duelOf, newWorld, pairs, player, stepCombat, type Event, type Fighter, type World } from './world.ts';
+import { NAKED, type Loadout } from '../gear-stats.ts';
+import { OPPONENTS } from '../moves.ts';
+import type { Duel } from '../duel.ts';
 
 export const ME = 'me', STEP = 1 / 60, JOIN_M = AGGRO_M + 3, DROP_M = AGGRO_M + 8, FALL_S = 1.4, PULSE_S = 0.18, MAX_STEPS = 15;   // 15 steps = 0.25 s of catch-up per frame (was 6: any frame over 100 ms silently dropped fight time). No higher: a creature acts inside the catch-up while the page was frozen, and the fastest creature cycle is longer than 15 ticks, so at most ONE swing can land in a frame (tested).
 /** The roster kind a Zone 1 body fights as, or null (it cannot be fought yet: it only wanders). */
 export const kindOf = (body: string): string | null => (Object.prototype.hasOwnProperty.call(OPPONENTS, body) ? body : null);
 
-export type Deps = {
-  mobs: () => Mobs | null;
-  onKill(spec: MobSpec): void;      // the creature has fallen: loot, toast, respawn timer
+/** What the loop needs to know of a creature and of the client that draws them (the page's mob layer fits both structurally; the engine imports nothing from a client). */
+export type FightMob = { id: string; body: string; level: number; name: string };
+export type MobPose = { x: number; z: number; facing: number; moving: boolean; duel?: Duel; fall?: number };
+export type MobsPort<S extends FightMob> = { drive(id: string, pose: MobPose | null): void; within(x: number, z: number, r: number): { spec: S; x: number; z: number; dist: number }[] };
+export type WorldCombatDeps<S extends FightMob = FightMob> = {
+  mobs: () => MobsPort<S> | null;
+  onKill(spec: S): void;      // the creature has fallen: loot, toast, respawn timer
   onHeroDied(): void;               // the 2 s dim and the walk back to town
   onHeroHit(amount: number): void;  // red flash + the Hit clip
   onSwing?(): void;                 // the hero's own cut began (the page poses the hero from heroDuel() with the Pit's actor now; kept for hosts that want the beat)
@@ -23,16 +26,16 @@ export type Deps = {
 };
 type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number };
 
-export function createWorldCombat(d: Deps) {
+export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
   const mine = (): { gear: Loadout; level: number; health?: number } => d.hero?.() ?? { gear: NAKED, level: 1 };
   const body = (x: number, z: number, facing: number): Fighter => { const { gear, level, health } = mine(), p = player(ME, x, z, facing, gear, level); return health ? { ...p, health, maxHealth: health } : p; };
   let world: World = newWorld([body(0, 0, 0)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'thrust' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false, lostMs = 0, hitches = 0, steps = 0;
-  const specs = new Map<string, MobSpec>(), fx = new Map<string, Fx>();
+  const specs = new Map<string, S>(), fx = new Map<string, Fx>();
   const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
   const gearOf = () => { const { gear, level } = mine(), p = player(ME, 0, 0, 0, gear, level); return { attack: p.attack, res: p.res, level: p.level, shielded: p.shielded }; };
   const me = (): Fighter => world.fighters[0]!;
   function release(id: string) { d.mobs()?.drive(id, null); specs.delete(id); fx.delete(id); world = { ...world, fighters: world.fighters.filter((f) => f.id !== id) }; }
-  function join(p: MobPick) {
+  function join(p: { spec: S; x: number; z: number; dist: number }) {
     const kind = kindOf(p.spec.body); if (!kind || specs.has(p.spec.id) || heroDead) return;
     specs.set(p.spec.id, p.spec); world = { ...world, fighters: [...world.fighters, creature(p.spec.id, kind, p.x, p.z, 0, p.spec.level)] };
   }

@@ -10,9 +10,9 @@
 // stepDuel is pure, so no src/ file changes, no record version, no fingerprint move. Its only randomness is its own seeded LCG (the order
 // and the ring's starting angles), a stream separate from every warden's AI seed. Waiting enemies are presentation: their ring places
 // come from here, never from the sim. Every number is PROVISIONAL (spec: "until Combat measures it on the battery"); 60 Hz ticks.
-import type { AiState } from '../../src/ai.ts';
-import type { CombatEvent, Duel, Fighter, Phase } from '../../src/duel.ts';
-import type { MoveId } from '../../src/moves.ts';
+import type { AiState } from '../../src/fight/index.ts';
+import type { CombatEvent, Duel, Fighter, Phase } from '../../src/fight/index.ts';
+import type { MoveId } from '../../src/fight/index.ts';
 
 export const CROWD = {
   breath: 45,          // ticks after the holder falls before the next steps in ("so you can turn")

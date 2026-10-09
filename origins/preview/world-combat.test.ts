@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { MAX_STEPS, ME, createWorldCombat, kindOf } from './world-combat.ts';
+import { MAX_STEPS, ME, createWorldCombat, kindOf } from '../../src/fight/index.ts';
 import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
@@ -57,12 +57,11 @@ test('Evaded: a creature that gave up and is home and healed is released at once
   assert.ok(!wc.debug().some((x) => x.id === 'wolf-1'), 'gone from the world after Evaded');
 });
 
-test('call-site pin: the page reaches combat only through zone1.ts stepCombat (so a lone creature always takes the copied duel/ai, a pack the legacy rows, as zone1.ts routes them)', () => {
+test('call-site pin: the loop (src/fight/world-combat.ts) reaches combat only through the engine world.ts stepCombat, and no page file under origins/preview imports world.ts itself', () => {
   const dir = new URL('.', import.meta.url), src = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
-  const users = src.filter((f) => /from '\.\.\/combat\//.test(readFileSync(new URL(f, dir), 'utf8')));
-  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports origins/combat');
-  const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
-  assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
+  assert.deepEqual(src.filter((f) => /src\/fight\/world\.ts'/.test(readFileSync(new URL(f, dir), 'utf8'))), [], 'the page goes through src/fight/index.ts');
+  const text = readFileSync(new URL('../../src/fight/world-combat.ts', import.meta.url), 'utf8');
+  assert.deepEqual([...text.matchAll(/from '(\.\/world\.ts)'/g)].map((m) => m[1]), ['./world.ts'], 'one door into the world loop');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
 

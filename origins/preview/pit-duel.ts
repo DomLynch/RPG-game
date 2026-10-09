@@ -7,15 +7,15 @@
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
-import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/duel.ts';
-import { creaturesLook } from '../../src/audio/creature.ts';
-import { createFeedback } from '../../src/feedback.ts';
+import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
+import { creaturesLook } from '../../src/fight/sound/creature.ts';
+import { createFeedback } from '../../src/fight/sound/feedback.ts';
 import { createHud } from '../../src/hud.ts';
-import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/combat.ts';
+import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
 import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
 import { Match } from '../../src/match.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/moves.ts';
+import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
 import { bareName } from '../../src/roster.ts';
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
@@ -24,12 +24,12 @@ import { createScene, type WorldMount } from '../../src/scene.ts';
 import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
-import { STEP, wrapAngle } from '../../src/sim.ts';
+import { STEP, wrapAngle } from '../../src/fight/index.ts';
 import { loadTrial } from '../../src/trial.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { recordWorldFight, worldRecord } from './world-record.ts';
-import type { FightRecord } from '../../src/record.ts';
-import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
+import type { FightRecord } from '../../src/fight/index.ts';
+import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/fight/index.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
