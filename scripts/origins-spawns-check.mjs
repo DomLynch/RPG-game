@@ -2,7 +2,7 @@
 // Proves: grants (writer roles only, no table reachable directly); engage creates the spawn and issues a single-use token, re-engaging returns the same token, at most max_open per
 // account; touch extends and is refused after use/expiry; a kill report refuses too fast and over the caps WITHOUT writing, then consumes the token, marks the spawn dead with the
 // respawn clock and applies the batch in ONE transaction (a bad batch rolls everything back); a second report is O0009; the other player's engage on the same creature answers 'dead';
-// a dead spawn refuses engage until its respawn passes, then revives as generation + 1; the beta wipe reverses exactly the ledger's items, bronze and CP and leaves every other
+// a dead spawn refuses engage until its respawn passes, then revives as generation + 1; many-on-one (Proof 3): three tokens open at once, each kill accepted on its own time floor; the beta wipe reverses exactly the ledger's items, bronze and CP and leaves every other
 // row byte-identical, runs once, and no writer role can call it; the down-scripts remove exactly the new objects.
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
@@ -160,6 +160,26 @@ try {
   psql(readFileSync(join(dir, '..', 'down', '202610080015_origins_beta_wipe_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_beta_wipe()') is null)::text`), 'true', 'wipe down: the function is gone');
   psql(readFileSync(join(dir, '202610080015_origins_beta_wipe.sql'), 'utf8'));
+
+  // ---- many-on-one (Proof 3): one account, three creatures at once, each kill server-verified on its own token and its own time floor --------------------
+  const C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  psql(`insert into auth.users values ('${C}'); insert into public.origins_access(account) values ('${C}');`);
+  const pcC = mk(C, 'Cara'), pack = [31, 32, 33].map(tok), packAt = n => `wolves-${n + 11}`;
+  const opened = [];
+  for (const [i, t] of pack.entries()) opened.push(await val(V, ENGAGE(C, pcC, t, packAt(i))));
+  eq(opened.map(e => [e.token, e.instance, e.generation]), pack.map((t, i) => [t, packAt(i), 0]), 'pack: three engages open at once, three distinct tokens');
+  eq(psql(`select count(*) from public.origins_spawn_engages where account = '${C}' and used_at is null`), '3', 'pack: all three are open together');
+  await val(V, ENGAGE(C, pcC, tok(34), 'wolves-14'));
+  eq(await val(V, ENGAGE(C, pcC, tok(35), 'wolves-15')), { refused: 'too-many' }, 'pack: a 5th engage while four are open is refused');
+  backdate(pack[0], 30);
+  eq(await val(V, KILL(C, pack[0], 20_000, 75, EV(pack[0], C, pcC))).then(k => k.result), 'killed', 'pack: the first kill is accepted on its own token');
+  for (const t of pack.slice(1)) eq(await val(V, KILL(C, t, 20_000, 75, EV(t, C, pcC))), { refused: 'too-fast' }, 'pack: each token keeps its OWN time floor (issued just now: too fast)');
+  eq(pack.slice(1).map(used), ['open', 'open'], 'pack: ... and a too-fast report leaves its token open');
+  for (const t of pack.slice(1)) backdate(t, 30);
+  for (const t of pack.slice(1)) eq(await val(V, KILL(C, t, 20_000, 75, EV(t, C, pcC))).then(k => k.result), 'killed', 'pack: the second and third kills are accepted independently');
+  eq([pack.map(used), pack.map(events), pack.map(ledger)], [['killed', 'killed', 'killed'], ['1', '1', '1'], ['unchecked/0/0/0', 'unchecked/0/0/0', 'unchecked/0/0/0']], 'pack: three tokens consumed, three events, three ledger rows');
+  eq(psql(`select string_agg(instance || ':' || alive, ',' order by instance) from public.origins_spawns where instance in ('wolves-11', 'wolves-12', 'wolves-13')`), 'wolves-11:false,wolves-12:false,wolves-13:false', 'pack: all three spawns dead');
+  eq((await val(V, ENGAGE(C, pcC, tok(36), 'wolves-15'))).token, tok(36), 'pack: the kills free their slots (one open left, a new engage is issued)');
 
   // ---- down ----------------------------------------------------------------------------------------------------------------------------------------
   const eventsBefore = psql(`select count(*) from public.origins_events`);
