@@ -7,7 +7,7 @@ import { decide, initialAi } from '../../src/ai.ts';
 import { OPPONENTS, profileAt } from '../../src/moves.ts';
 import { BASE_RADIUS, OPEN_RADIUS, PLAY_SCALE, setPlayScale } from '../../src/play-radius.ts';
 import { RADIUS } from '../../src/sim.ts';
-import { creature, newWorld, player, stepCombat } from './zone1.ts';
+import { creature, newWorld, player, stepCombat } from '../../src/fight/world.ts';
 
 const body = (x: number, z: number, heading: number) => ({ x, z, heading, distance: 0 });
 const fight = (x: number, z: number, radius?: number): Duel => ({ tick: 0, fighters: [createFighter(body(x, z, Math.PI), 'ready'), opponentFighter(OPPONENTS.wolf, body(x, z - 3, 0))], finish: null, events: [], ...(radius !== undefined ? { radius } : {}) });

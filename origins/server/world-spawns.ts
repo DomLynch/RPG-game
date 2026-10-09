@@ -24,7 +24,7 @@ import { mobBatch, respawnMsOf } from './mob-rewards.ts';
 import * as store from './store.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
-// Zone 1 fights on the Pit's own duel (origins/combat/open-fight.ts, #1894): the player is a longsword hero, the creature the Pit's level row (opponentAt). A kill report carries no record, so
+// Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a longsword hero, the creature the Pit's level row (opponentAt). A kill report carries no record, so
 // these are BOUNDS that an honest fight can never break (Auditor, #1880): the biggest blow the longsword's table can deal with every multiplier stacked (a charged heavy, a stop-hit, a blow on a
 // downed back, the gear Attack cap, the top of the damage roll, a landed Gambit), and the fastest a first blow can land. With the Pit kit one blow can exceed a low-level creature's health, so the
 // hit floor is usually 1 and the time floor is the fastest windup: they stop scripted instant reports, not skilled play. The rest of the anti-cheat is the server's spawn state, the single-use

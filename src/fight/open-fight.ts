@@ -2,11 +2,11 @@
 // stepped by the Pit's own `src/duel.ts stepDuel` (the duel carries radius OPEN_RADIUS: no ring wall, the one open-world departure), with the creature brain `src/ai.ts decide` (profileAt rows) when the foe is a creature. This file is the adapter and nothing else: it builds the Pit fighters from the
 // world's Fighters, maps live Input to a Pit Intent, steps the duel at its fixed 60 Hz, and writes the result back into the world's Fighters and Events. The world layer (aggro, chase to the engage ring, leash,
 // give-up, heal-home, the page-driven hero position) stays in zone1.ts. Every departure from the Pit is marked `// open-world:`.
-import { OPPONENTS, RULES, opponentAt, profileAt, type AiProfile } from '../../src/moves.ts';
-import { OPEN_RADIUS } from '../../src/play-radius.ts';
-import { initialAi, decide, type AiState } from '../../src/ai.ts';
-import { createFighter, idleIntent, opponentFighter, stepDuel, timing, type CombatEvent, type Duel, type Fighter as PitFighter, type Intent, type Side } from '../../src/duel.ts';
-import type { Event, Fighter, Input, Phase } from './zone1.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt, type AiProfile } from '../moves.ts';
+import { OPEN_RADIUS } from '../play-radius.ts';
+import { initialAi, decide, type AiState } from '../ai.ts';
+import { createFighter, idleIntent, opponentFighter, stepDuel, timing, type CombatEvent, type Duel, type Fighter as PitFighter, type Intent, type Side } from '../duel.ts';
+import type { Event, Fighter, Input, Phase } from './world.ts';
 
 /** One fight: slot 0 is a player (the "hero" of the Pit's duel); slot 1 is a creature, another player, or nobody (`foe: null`, a dummy far away: the hero alone, swinging, guarding, rolling, regaining stamina). */
 export type Bout = { foe: string | null; duel: Duel; ai: AiState | null; profile: AiProfile | null; joined?: Bout[] };   // joined: the other creatures on this player, each its own duel against him (zone1.ts MAX_ATTACKERS)

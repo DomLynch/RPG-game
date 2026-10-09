@@ -3,14 +3,14 @@
 // run through the Pit's own src/duel.ts / ai.ts / sim.ts (no copies; the duel carries its own wall, Duel.radius, out of reach here) by the adapter open-fight.ts; this file owns only what the Pit has no word for: who is in whose fight (aggro, the nearest foe, the hold-off ring
 // for the rest of a pack), the chase to that ring, leash, give-up, heal-home, the creature rows (`creature`, levels from moves.ts opponentAt), player-vs-player rules (the server's pvp flag, the low-level shield, the
 // level band, the `Aggressed` first-strike event) and `minKillSeconds`. Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering, animation and input.
-import { LEVELS, LEVEL_ANCHORS, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
-import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
-import { GAMBIT_ODDS } from '../../src/gambit.ts';
-import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/stance.ts';
-import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
+import { LEVELS, LEVEL_ANCHORS, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../moves.ts';
+import { CAPS, NAKED, type Loadout } from '../gear-stats.ts';
+import { GAMBIT_ODDS } from '../gambit.ts';
+import { asStance, moodOf, type PickedStance, type StanceId } from '../stance.ts';
+import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from './speeds.ts';
 import { IDLE_INPUT, openBout, stepBout, type Bout } from './open-fight.ts';
-import type { AiState } from '../../src/ai.ts';
-import type { CombatEvent, Duel } from '../../src/duel.ts';
+import type { AiState } from '../ai.ts';
+import type { CombatEvent, Duel } from '../duel.ts';
 
 const TICK = 1 / 60;
 const secs = (ticks: number): number => ticks * TICK;
@@ -96,6 +96,8 @@ export type Pair = { player: string; foe: string; primary: boolean; duel: Duel }
 export const pairs = (world: World): Pair[] => Object.entries(world.streams).flatMap(([player, b]) => [...(b.foe ? [{ player, foe: b.foe, primary: true, duel: b.duel }] : []), ...(b.joined ?? []).flatMap((j) => (j.foe ? [{ player, foe: j.foe, primary: false, duel: j.duel }] : []))]);
 /** A player's own fight as the Pit's duel (his primary Bout, with or without a foe): the page poses his rig from it with the Pit's actorPose. null before his first step. */
 export const duelOf = (world: World, id: string): Duel | null => world.streams[id]?.duel ?? null;
+/** The duel a creature is fighting right now (slot 1 is the creature), or null while it is not in anyone's fight: the page poses its actor from it. */
+export const duelFor = (world: World, creature: string): Duel | null => pairs(world).find((p) => p.foe === creature)?.duel ?? null;
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
