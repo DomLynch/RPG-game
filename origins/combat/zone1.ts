@@ -28,6 +28,7 @@ export const PROTECT_LEVEL = 3, MAX_LEVEL_GAP = 10;
 export const AGGRO_WINDOW_S = 60;                       // a player who hit you in the last minute is not "first" when you hit back
 
 export type Phase = 'ready' | 'guard' | 'roll' | 'windup' | 'active' | 'recover' | 'stagger' | 'dead';
+export type Threat = { threat: number; damage: number; out: number };   // damage the player dealt it; seconds he has been out of its sight (EQEmu oor_count, in seconds)
 export type Fighter = {
   id: string; side: 'player' | 'creature'; kind: string;   // kind: 'player' or a ROSTER id ('wolf', 'boar', 'bear', ...)
   x: number; z: number; facing: number; radius: number;
@@ -44,6 +45,7 @@ export type Fighter = {
   skill: SkillId | null;                                // the equipped skill (moves.ts SkillId, the Pit's `equippedSkill(profile.loot)`; null = none): the SKILL button fires its move when no special is set (duel.ts `Fighter.skill`)
   stance?: StanceId;                                    // src/stance.ts: the Pit's table (absent = Balanced)
   brain?: AiState;                                      // creature only: its Pit brain (wait, decision, habits, rng) kept ON THE CREATURE, so a rebuilt fight (a pack's next bout, a re-engage) resumes its swing timing instead of restarting at the opening wait of 90 ticks (#1936 b)
+  threat?: Record<string, Threat>;                      // creature only: its threat list (EQEmu hate list shape): who has hurt it. Threat picks the player it fights, damage is the credit (loot to the most). Dropped when he is dead, gone or out of sight for the give-up time; cleared on heal-home
   pvp: boolean; level: number; shielded: boolean;       // attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
 };
 export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>>; streams: Record<string, Bout> };   // streams: slot-0 player id -> his fight (a Pit duel); aggro[attacker][victim] = when the attacker last struck that player
@@ -57,6 +59,7 @@ export type Event =
   | { type: 'Parried'; attacker: string; victim: string }         // a guard raised inside the parry window turned the blow aside: the attacker is thrown off (a Staggered follows)
   | { type: 'Staggered'; id: string; ms: number; cause: 'hit' | 'posture' | 'guardBreak' | 'kick' | 'parry' | 'interrupt' }
   | { type: 'Aggressed'; attacker: string; victim: string; first: boolean }   // a player's blow met another player (hit, block, parry or dodge): `first` = the victim had not struck him in the last AGGRO_WINDOW_S. The server's murder rule reads Aggressed(first) then Died(by)
+  | { type: 'FightStarted'; creature: string; player: string }     // a creature took a player as its foe (the pair's fight opened): fired once per engage, never per step; World's hook for the combat music, the hint hide and the log
   | { type: 'Died'; id: string; by: string }
   | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
@@ -105,7 +108,7 @@ function separate(f: Fighter, all: Fighter[]): void {
 /** The next world: who fights whom, then every fight stepped on the Pit's duel; creatures that are not in a fight chase, hold off at the ring, give up or walk home. Never mutates its input. The Pit's brain decides every creature blow, so there is no randomness here. */
 export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>, dt: number): { world: World; events: Event[] } {
   const events: Event[] = [];
-  const fighters = world.fighters.map((f) => ({ ...f })), aggro: World['aggro'] = {}, streams: World['streams'] = {};
+  const fighters = world.fighters.map((f) => ({ ...f, ...(f.threat ? { threat: Object.fromEntries(Object.entries(f.threat).map(([k, v]) => [k, { ...v }])) } : {}) })), aggro: World['aggro'] = {}, streams: World['streams'] = {};
   for (const [a, m] of Object.entries(world.aggro)) aggro[a] = { ...m };
   const players = fighters.filter((f) => f.side === 'player' && alive(f)), creatures = fighters.filter((f) => f.side === 'creature');
   const inFight = new Set<string>();
@@ -122,12 +125,26 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (dist(a, b) <= (sticky ? ENGAGE_OUT_M : ENGAGE_M)) { bouts.push({ a, b }); inFight.add(a.id); inFight.add(b.id); }
   }
   // 2. Player against the nearest creature (the Pit's own pack model is a sequence of bouts, src/pack.ts startPack / nextBout: one fights the hero, the rest hold off at the ring until it falls); each creature fights one player.
-  const claimed = new Set<string>();
+  // The creature chooses: of the free players in its reach it takes the one with the most threat (nearest on a tie; a foe it already has stays out to ENGAGE_OUT_M); each player then takes the nearest creature that chose him.
+  const claimed = new Set<string>(), free = players.filter((p) => !inFight.has(p.id));
+  const reach = (c: Fighter, p: Fighter) => dist(c, p) <= (prevFoe(p) === c.id ? ENGAGE_OUT_M : ENGAGE_M);
+  const chose = new Map<string, string>();   // creature id -> player id
+  for (const c of creatures) {
+    if (!alive(c) || c.returning) continue;
+    const top = free.filter((p) => reach(c, p)).sort((x, y) => (c.threat?.[y.id]?.threat ?? 0) - (c.threat?.[x.id]?.threat ?? 0) || dist(c, x) - dist(c, y))[0];
+    if (top) chose.set(c.id, top.id);
+  }
+  const take = (p: Fighter, only: (c: Fighter) => boolean): Fighter | null => {
+    const near = creatures.filter((c) => alive(c) && !c.returning && !claimed.has(c.id) && only(c)).sort((x, y) => dist(x, p) - dist(y, p));
+    return near.find((c) => c.id === prevFoe(p) && dist(c, p) <= ENGAGE_OUT_M) ?? near.find((c) => reach(c, p)) ?? null;
+  };
+  const foes = new Map<string, Fighter | null>();
+  for (const p of free) { const foe = take(p, (c) => chose.get(c.id) === p.id); if (foe) claimed.add(foe.id); foes.set(p.id, foe); }
+  for (const p of free) if (!foes.get(p.id)) { const foe = take(p, () => true); if (foe) claimed.add(foe.id); foes.set(p.id, foe); }   // a creature whose choice was taken falls back to the nearest free player (the pack model)
   for (const p of players) {
     if (inFight.has(p.id)) continue;
-    const near = creatures.filter((c) => alive(c) && !c.returning && !claimed.has(c.id)).sort((x, y) => dist(x, p) - dist(y, p));
-    const sticky = near.find((c) => c.id === prevFoe(p) && dist(c, p) <= ENGAGE_OUT_M), foe = sticky ?? near.find((c) => dist(c, p) <= ENGAGE_M) ?? null;
-    if (foe) { claimed.add(foe.id); inFight.add(foe.id); if (!foe.hunting) { foe.hunting = true; foe.chaseX = foe.x; foe.chaseZ = foe.z; foe.unseen = 0; } }   // inside the engage ring it is on the prey whether or not its chase had begun
+    const foe = foes.get(p.id) ?? null;
+    if (foe) { inFight.add(foe.id); if (!foe.hunting) { foe.hunting = true; foe.chaseX = foe.x; foe.chaseZ = foe.z; foe.unseen = 0; } }   // inside the engage ring it is on the prey whether or not it saw him
     inFight.add(p.id); bouts.push({ a: p, b: foe });   // 3. no foe in reach: the player is alone in his bout (swings at air, guards, rolls, regains stamina on the Pit's rules)
   }
 
@@ -136,7 +153,9 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const bout: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt);
     if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
+    if (b && b.side === 'creature' && prev?.foe !== b.id) events.push({ type: 'FightStarted', creature: b.id, player: a.id });
     streams[a.id] = r.bout; events.push(...r.events);
+    if (b && b.side === 'creature') for (const e of r.events) if (e.type === 'Hit' && e.attacker === a.id && e.victim === b.id) { const t = ((b.threat ??= {})[a.id] ??= { threat: 0, damage: 0, out: 0 }); t.threat += e.damage; t.damage += e.damage; }   // credit and threat from what actually landed
     if (b && b.side === 'player') for (const e of r.events) {   // player against player: log who struck first (a blow that hit, was blocked, parried or dodged)
       const hit = e.type === 'Hit' ? [e.attacker, e.victim] : e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' ? [e.attacker, e.victim] : null;
       if (!hit) continue;
@@ -151,12 +170,16 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   for (const f of creatures) {
     if (!alive(f) || inFight.has(f.id)) continue;
     f.t += dt; f.phase = 'ready';
+    for (const [id, t] of Object.entries(f.threat ?? {})) {   // forget: the player is dead or gone, or has been out of its sight for the give-up time (EQEmu RemoveStaleEntries, in seconds)
+      const q = players.find((x) => x.id === id);
+      if (!q) delete f.threat![id]; else if (dist(f, q) > SIGHT_M) { t.out += dt; if (t.out >= GIVE_UP_UNSEEN_S) delete f.threat![id]; } else t.out = 0;
+    }
     if (f.exhausted && f.stamina >= RULES.exhaustRecover) f.exhausted = false;
     f.stamina = Math.min(f.maxStamina, f.stamina + RULES.regen * 60 * dt);
     const prey = players.sort((a, b) => dist(f, a) - dist(f, b))[0];
     if (f.returning) {   // gave up: walks home at its amble, heals to full on arrival (no event)
       const dx = f.homeX - f.x, dz = f.homeZ - f.z, d = Math.hypot(dx, dz), step = SPEEDS.creature.amble * dt;
-      if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; f.brain = undefined; events.push({ type: 'Evaded', id: f.id }); }
+      if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; f.brain = undefined; f.threat = undefined; events.push({ type: 'Evaded', id: f.id }); }
       else { f.facing = Math.atan2(dx, dz); f.x += (dx / d) * step; f.z += (dz / d) * step; }
     } else if (prey && (f.hunting ? dist(f, prey) <= SIGHT_M || f.unseen < GIVE_UP_UNSEEN_S : dist(f, prey) <= AGGRO_M)) {
       if (!f.hunting) { f.hunting = true; f.chaseX = f.x; f.chaseZ = f.z; f.unseen = 0; }
