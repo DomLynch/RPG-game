@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { BLOOD, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { BLOOD, makeRng, spawnBlood } from '../src/fight/blood-style.ts';
 import { ARMFEEL, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';

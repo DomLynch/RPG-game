@@ -52,7 +52,7 @@ import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-run
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
-import type { FinisherId } from './finishers.ts';
+import type { FinisherId } from './fight/finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { executionPick, resolveExecution } from './execution.ts';
 

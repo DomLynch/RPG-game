@@ -1,4 +1,4 @@
-import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
+import { FINISHER_POSE, selectFinisher, type FinisherId } from './fight/finishers.ts';
 import type { Finish } from './duel.ts';
 import type { WeaponId } from './moves.ts';
 import { isHeld, ROSTER, type OpponentId } from './roster.ts';

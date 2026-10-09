@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/finishers.ts';
+import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/fight/finishers.ts';
 import type { Finish } from '../src/duel.ts';
 import type { HitLocation } from '../src/blade.ts';
 import type { MoveId, WeaponId } from '../src/moves.ts';
