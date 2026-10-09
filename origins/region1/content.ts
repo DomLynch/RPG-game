@@ -21,6 +21,12 @@ const gear = (id: string, name: string, slot: string, rarity: string, material: 
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
 const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
+// The Pit goblin's own rank-1 pieces (src/loot.ts LOOT.goblin, no new art): `item:loot.<LootId>` is the legacy embedding (contracts/ids.ts), the asset is loot.glb's piece, the name is lootName's.
+const goblinPiece = (slot: string, material: string) => ({
+  kind: 'item-definition', schemaVersion: 1, id: `item:loot.goblin.${slot}`, name: `The Goblin's ${slot.toLowerCase()}`, category: 'gear', rarity: 'common', slot, power: 'slot-weight', material,
+  appearance: { asset: `loot.glb/goblin.${slot}` }, story: 'none', binding: 'none', stack: 1,
+});
+const goblinEntry = (slot: string) => ({ item: `item:loot.goblin.${slot}`, chance: 25, quantity: 1, levelMin: null, levelMax: null });
 const table = (id: string, presentation: 'take-one' | 'collect', rolls: unknown[], currency: { min: number; max: number } | null) => ({
   kind: 'loot-table', schemaVersion: 1, id, presentation, distribution: 'personal', rolls, currency, fallback: null, // crafting is out
 });
@@ -44,6 +50,7 @@ export const ITEMS = [
   gear('item:frontier.thrall-gloves', "Thrall's iron gloves", 'Gloves', 'fine', 'iron'),
   gear('item:frontier.ferryman-boots', "Ferryman's boots", 'Boots', 'fine', 'leather'),
   gear('item:frontier.mere-arms', 'Drowned vambraces', 'Arms', 'fine', 'bronze'),
+  goblinPiece('Helmet', 'iron'), goblinPiece('Body', 'leather'), goblinPiece('Arms', 'iron'), goblinPiece('Greaves', 'iron'), goblinPiece('Boots', 'cloth'), goblinPiece('Gloves', 'leather'),
   gear('item:frontier.mere-shield', "The Mere-Mother's shield", 'Shield', 'relic', 'bone'),
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
@@ -57,6 +64,8 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
+  // The Pit goblin camp's table (Zone 1, Dom's loot/inventory test; Backend 2026-10-09): each of his six armour pieces rolls on its own at 25 %, a level-1 kill may drop gear (levelMin null), bronze 2-6.
+  table('loottable:pit-goblin', 'collect', [independent(100, ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map(goblinEntry))], { min: 2, max: 6 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
   // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
   table('loottable:ash-wolf', 'collect', [
