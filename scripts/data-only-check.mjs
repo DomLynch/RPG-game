@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { classify, legendCitations, legendProblems, moduleValue, onDataPath } from './lib/data-only.mjs';
 
 const REGISTRY = 'origins/zones/registry.ts';
-const sh = (cmd, args, timeout = 300_000) => spawnSync(cmd, args, { encoding: 'utf8', timeout, killSignal: 'SIGKILL' });   // bounded (tests/child-process-bounds.test.ts)
+const sh = (cmd, args, timeoutMs = 300_000) => spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs, killSignal: 'SIGKILL' });   // bounded (tests/child-process-bounds.test.ts)
 
 export function changedFiles(base) {
   const r = sh('git', ['diff', '--name-status', '--no-renames', `${base}...HEAD`], 60_000);
