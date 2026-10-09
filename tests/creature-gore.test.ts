@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { CREATURE_GORE, creatureGore, type CreatureGore } from '../src/creature-gore.ts';
 import { catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ROTATION, type FinisherId } from '../src/finishers.ts';
+import { ROTATION, type FinisherId } from '../src/fight/finishers.ts';
 
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 function joints(path: string): Set<string> {
@@ -46,7 +46,7 @@ test('the bones are the rig\'s own: every named bone is a skin joint of the row\
 });
 
 test('no per-creature code on the finisher path: it names no creature, and a new creature is one row read through creatureGore', () => {
-  for (const f of ['src/finishers.ts', 'src/finisher-blood.ts']) {
+  for (const f of ['src/fight/finishers.ts', 'src/fight/finisher-blood.ts']) {
     const src = readFileSync(root(f), 'utf8').replace(/\/\/.*$/gm, '');
     assert.ok(!/['"`](wolf|boar|bear|goblin)['"`]/.test(src), `${f}: names a creature; put it in a row`);
   }

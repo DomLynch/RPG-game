@@ -4,7 +4,7 @@
 // rule (src/roster.ts) keeps a finisher off a body until a clip is measured on it; a beast falls back to plainDeath when the picked one is not on its row.
 import { CATALOGUE } from './fight/catalogue-rows.ts';
 import type { Cut, Shape } from './fight/catalogue.ts';
-import type { FinisherId } from './finishers.ts';
+import type { FinisherId } from './fight/finishers.ts';
 import { ROSTER } from './roster.ts';
 
 export type { Shape };

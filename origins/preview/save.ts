@@ -1,5 +1,5 @@
-// Origins greybox: the player's REAL saved career, read through the Origins writer's `open` op (origins/server). Read-only by construction:
-// the only request this module can make is POST <writer>/open with an empty body and the signed-in player's Supabase access token. No duel
+// Origins greybox: the player's REAL saved career, read through the Origins writer's `open` op (origins/server) by src/fight/open.ts. Read-only by construction:
+// the only request the page makes here is POST <writer>/open with an empty body and the signed-in player's Supabase access token. No duel
 // result, account, reward or amount ever leaves the page; duel wins in the preview stay in its memory (main.ts) and are marked "(preview)".
 // Any failure (no session, 401/403/404/503, a timeout, the network, a malformed reply) is an answer, never a throw: the page keeps today's
 // in-memory preview career and says so in one line. Pure apart from the injected fetch and timer: no DOM, storage or clock read here.
@@ -9,7 +9,8 @@ import type { CareerState } from '../progression/model.ts';
 import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../patrons/patrons.ts';
 
 export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from '../../src/writer-call.ts';
-import { WRITER_PATH, AUTH_KEY, storedToken } from '../../src/writer-call.ts';
+import { AUTH_KEY, storedToken } from '../../src/writer-call.ts';
+import { openAccount, type OpenDeps } from '../../src/fight/open.ts';
 
 // Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
@@ -52,24 +53,10 @@ export function openedOf(result: unknown): Opened | null {
   return { career, characters, marks: count(r.marks) ? r.marks : 0 };
 }
 
-// One `open`. Never rejects: whatever goes wrong comes back as { offline: reason } within `timeoutMs`, even if the fetch ignores its signal.
-export async function fetchOpen(token: string | null, opts: { base?: string; fetch?: typeof fetch; timeoutMs?: number } = {}): Promise<Opened | Offline> {
-  if (!token) return { offline: 'no-session' };
-  const { base = WRITER_PATH, fetch: doFetch = globalThis.fetch, timeoutMs = 4000 } = opts;
-  const abort = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<Offline>((resolve) => { timer = setTimeout(() => { abort.abort(); resolve({ offline: 'timeout' }); }, timeoutMs); });
-  const ask = (async (): Promise<Opened | Offline> => {
-    try {
-      const res = await doFetch(`${base}/open`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}', signal: abort.signal, credentials: 'omit' });
-      if (res.status !== 200) return { offline: `http-${res.status}` };
-      const json = (await res.json()) as { ok?: unknown; result?: unknown };
-      return (json?.ok === true && openedOf(json.result)) || { offline: 'bad-reply' };
-    } catch (e) {
-      return { offline: e instanceof SyntaxError ? 'bad-reply' : 'network' };   // after an abort, `late` has already answered 'timeout'
-    }
-  })();
-  try { return await Promise.race([ask, late]); } finally { clearTimeout(timer); }
+// The page's one `open` (src/fight/open.ts, shared with the Pit and the gear sheet), mapped to the career the HUD shows. Never rejects: a failure is { offline: reason }.
+export async function openedAccount(d: OpenDeps): Promise<Opened | Offline> {
+  const got = await openAccount(d);
+  return 'offline' in got ? got : openedOf(got.result) ?? { offline: 'bad-reply' };
 }
 
 // The HUD's one save line, and the CP the preview added on top of the saved career (memory only, never sent).
@@ -77,7 +64,9 @@ export async function fetchOpen(token: string | null, opts: { base?: string; fet
 export type Source = { saved: CareerState } | { offline: string };
 export const CHECKING: Source = { offline: 'checking' };
 export const saveLine = (source: Source): string =>
-  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : 'Not signed in: progress isn’t saved';
+  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : SLOW_OFFLINE.test(source.offline) ? 'Couldn’t reach the save server: retrying…' : 'Not signed in: progress isn’t saved';
+/** A signed-in player whose open did not answer (a timeout, the network, a 5xx, a bad reply) is told so, not told they are signed out. */
+const SLOW_OFFLINE = /^(timeout|network|bad-reply|http-5\d\d)$/;
 /** The signed-out line carries a "Sign in" link (Strategy 2026-10-08): the arena's Google sign-in via the account entry, back to Zone 1 afterwards (src/zone1-hop.ts). Not while the read is still answering. */
 export const SIGN_IN_HREF = '/?account=signin&next=zone1';
 export const canSignIn = (source: Source): boolean => !('saved' in source) && (source.offline === 'no-session' || source.offline === 'http-401');   // truly signed out only: a timeout, network, 5xx or bad reply may be a signed-in player (Auditor 2026-10-08)

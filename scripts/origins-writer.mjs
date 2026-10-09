@@ -17,7 +17,7 @@ import { presenceWhere } from '../origins/presence/where.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
-import { worldSpawnOps } from '../origins/server/world-spawns.ts';
+import { worldSpawnOps, zoneKeyProblems } from '../origins/server/world-spawns.ts';
 import { resolveFromRegion1 } from '../origins/server/encounter-setup.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
 import { mobRewards } from '../origins/server/mob-rewards.ts';
@@ -28,6 +28,7 @@ const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw
 
 const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788', ORIGINS_DB_POOL = '4' } = process.env;   // ORIGINS_DB_POOL: persistent psql sessions (0 = one psql per op)
 if (!DATABASE_URL || !SUPABASE_URL || !SUPABASE_ANON_KEY) { console.error('origins-writer: set DATABASE_URL, SUPABASE_URL and SUPABASE_ANON_KEY'); process.exit(1); }
+const zoneProblems = zoneKeyProblems(); if (zoneProblems.length) { console.error(`origins-writer: the zone registry breaks the spawn key rule, not starting:\n  ${zoneProblems.join('\n  ')}`); process.exit(1); }   // a bad new zone folder fails at install, not at the first kill
 const content = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGINS_CONTENT) : null;   // throws on a bad bundle: the writer does not start
 const presenceKey = process.env.PRESENCE_INTERNAL_KEY;
 if (!presenceKey) console.log('origins-writer: PRESENCE_INTERNAL_KEY is not set: no player counts as at the Exchange, every Exchange-only action is refused');

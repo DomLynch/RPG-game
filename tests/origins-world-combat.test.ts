@@ -2,3 +2,4 @@
 import '../origins/combat/zone1.test.ts';
 import '../origins/preview/world-combat.test.ts';
 import '../origins/preview/speeds.test.ts';   // #1871's test: imported here until its own stub lands
+import '../origins/preview/warm-plan.test.ts';   // the player's actor is on every zone's warm-up list
