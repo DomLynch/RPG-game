@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 ~08:15 (+04) — PLAN: three PROOF releases for Zone 1 real-time combat (Optimizer's frame, Dom's ask "what's next, streamlined"). Lead = Lead + Strategy.
+**Live:** Release F fc7d448aa (release.json, Published 07:59:51; 14 min 23 s at width 8; every row + test:all on the Mac, Lead's miss, see memory feedback_unit_receipt_before_full_release_2026-10-09). The writer was reinstalled at fc7d448aa (Backend, closure parity 95/95). Release G (#1934 merged-on-trunk fix, #1927 Metal harness, #1932 Zone 1 as data, #1935 Mere-Mother Lv 4 / 4,000 HP) has all Auditor MERGE PASS and launches on a COMPLETED HF unit receipt; Deploy's bar is 9 min, full, width 8 (12 if quiet).
+**Rule:** no full release without the exact tree's unit receipt, pre-launched before the Auditor's pass (Dom). Receipts are never skipped; a moved tree means a rebuild.
+**Audit:** #1936 (Zone 1 combat vs donor patterns) feeds Proof 1 and Proof 3.
+
+| Proof | Release | Bar (one, measurable) | Components (owner) | Date |
+|---|---|---|---|---|
+| **1. Seamless on a phone** | H | On a real iPhone, walking up to a creature: worst frame gap at engage < 200 ms AND 0 shader compiles / 0 texture uploads after [zone ready]. Mac Metal 18 ms is not the proof. | #1937 catch-up (Combat, ready); per-creature next-swing tick (Combat, #1936 b); warmFight gate + bounded src/scene.ts compileAsync + stale comments (World, #1936); Safari/WebKit run + the #1923 walk question (World); Dom holds the phone for the final check | H ships **Fri 2026-10-09** evening; phone proof **Sat 2026-10-10** |
+| **2. The zone pipeline exists** | I, then I+1 | Zone 2 live on the same runtime, authored as data in ONE day; validator green; under the 300-line hooks budget; Zone 1 golden unchanged | G: #1932 Zone 1 as data. I: `?zone=` addresses + loader moved to origins/zones/loader.ts (World); the Auditor's validator + lint + budget test. Then **World** authors Zone 2 as data | I **Sat 2026-10-10**; Zone 2 day = **Mon 2026-10-12** (World) |
+| **3. Many on one** | after I | Three creatures engage and disengage the player in the open world, no fight-end screen, every kill server-verified and rewarded | A donor read on EQEmu hate lists + rathena mob AI FIRST (Combat); creature-initiated targeting through beginAttack + one fight-started event (Combat, #1936 c); a threat list for N attackers (Combat); writer parity per release (Backend) | **Wed 2026-10-14** |
+
+**Passengers, not leads:** the Mere-Mother at Lv 4, #1933 receipts follow-up, the follower look (World), #1921 bone textures. **Holds:** the core/pit split stays on the weekend (hygiene, not player value) and doesn't displace Proof 1/2 work. No new creature or feature headline rides ahead of the three proofs. Deploy proof G (9-min bar) runs alongside and gates none of them.
+**Remaining validation:** each proof closes only on its bar's receipt (phone numbers, a Zone 2 URL plus the validator, the three-creature clip plus the server kill rows).
+
 ## 2026-10-08 ~22:16 (+04) — HANDOFF (Dom: "save your work, /clear"). READ FIRST. Lead = Lead + Strategy (Dom's words). Model Opus 5.5. Memory: project_handoff_2026-10-08_2216 (lead-catalogue memory dir).
 **LIVE = trunk = 705d52e4 (Release B, Published 22:14:29).** It contains #1880 server spawns (0014+0015 applied at 04a6c5fc6, Auditor POST PASS), #1900 levels, #1892 no RUN, #1845 relief, and docs #1906/#1908/#1913 (zone runtime)/#1914 (donor study). Before it: Release A 27086155 (21:33:41; #1904 SKILL, #1909 slice 3, #1889, #1905).
 **In flight at handoff:**
