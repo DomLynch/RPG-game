@@ -22,8 +22,8 @@ export const walkerAt = (w: Walker, t: number, c: { x: number; z: number }) => {
 };
 /** Frame gaps in ms. `warm` first frames are skipped (shader compile, texture upload); gaps over 1 s are a backgrounded tab, not a frame. */
 export class FrameStats {
-  private gaps: number[] = []; private skipped = 0; worst = 0;
-  constructor(private warm = 60) {}
+  private gaps: number[] = []; private skipped = 0; worst = 0; private warm: number;
+  constructor(warm = 60) { this.warm = warm; }
   add(ms: number) { if (this.skipped < this.warm) { this.skipped++; return; } if (!(ms > 0) || ms > 1000) return; this.gaps.push(ms); if (ms > this.worst) this.worst = ms; }
   get frames() { return this.gaps.length; }
   get fps() { const t = this.gaps.reduce((a, b) => a + b, 0); return t ? (this.gaps.length * 1000) / t : 0; }
