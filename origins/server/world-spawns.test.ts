@@ -7,7 +7,7 @@ import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { mobBatch } from './mob-rewards.ts';
 import { OPPONENTS, opponentAt } from '../../src/moves.ts';
 import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../../src/duel.ts';
-import { underOpenWorld } from '../../src/play-radius.ts';
+import { underOpenWorld } from '../combat/open-world.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';

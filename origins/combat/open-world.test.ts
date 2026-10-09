@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import { createFighter, idleIntent, opponentFighter, stepDuel, walled, type Duel } from '../../src/duel.ts';
 import { decide, initialAi } from '../../src/ai.ts';
 import { OPPONENTS, profileAt } from '../../src/moves.ts';
-import { BASE_RADIUS, OPEN_RADIUS, underOpenWorld } from '../../src/play-radius.ts';
+import { BASE_RADIUS, PLAY_SCALE, setPlayScale } from '../../src/play-radius.ts';
+import { OPEN_RADIUS, underOpenWorld } from './open-world.ts';
 import { RADIUS } from '../../src/sim.ts';
 
 const body = (x: number, z: number, heading: number) => ({ x, z, heading, distance: 0 });
@@ -22,10 +23,11 @@ test('no wall: a fight 100 m from the Pit marks runs and nobody is pulled back t
 });
 
 test('underOpenWorld puts the Pit\'s circle back, even when the step throws, and outside it the Pit\'s wall still clamps', () => {
-  const before = RADIUS;
+  const before = RADIUS, scale = PLAY_SCALE;
   assert.equal(underOpenWorld(() => RADIUS), OPEN_RADIUS);
   assert.throws(() => underOpenWorld(() => { throw new Error('x'); }), /x/);
-  assert.equal(RADIUS, before, 'restored after both');
+  assert.equal(RADIUS, before, 'restored after both'); assert.equal(PLAY_SCALE, scale);
+  setPlayScale(0.36); const small = RADIUS; underOpenWorld(() => 0); assert.equal(RADIUS, small, 'a scaled arena\'s circle comes back exactly'); setPlayScale(scale);
   assert.equal(before, BASE_RADIUS, 'a fresh page has the Pit\'s 8.55 m circle');
   const d = run(fight(100, 100), 120);   // the Pit's own rules: a fighter placed far outside is pulled to the wall
   assert.ok(Math.hypot(d.fighters[0].body.x, d.fighters[0].body.z) < 30, 'the Pit wall clamps outside the open world');
