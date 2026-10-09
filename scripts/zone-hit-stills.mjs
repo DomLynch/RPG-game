@@ -39,7 +39,7 @@ try {
     let first = null, shot = false;
     for (let t = 0; t < 90 && !shot; t++) {
       await page.evaluate(() => window.originsPreview.press('light'));
-      if (PROBE) { for (let k = 0; k < 40 && !shot; k++) { const r = await page.evaluate((i) => { const c = window.originsPreview.combat(), m = window.originsPreview.mobs().mobs.find((x) => x.id === i), p = (c.fxProbe ?? []).find((q) => q.foe === i); return m && p && p.visible ? { sparks: p.at, mob: [m.x, m.z] } : null; }, target.id); if (r) { z.probe = { ...r, dist: +Math.hypot(r.sparks[0] - r.mob[0], r.sparks[2] - r.mob[1]).toFixed(2) }; shot = true; } else await page.waitForTimeout(30); } continue; }
+      if (PROBE) { for (let k = 0; k < 40 && !shot; k++) { const r = await page.evaluate((i) => { const c = window.originsPreview.combat(), m = window.originsPreview.mobs().mobs.find((x) => x.id === i), p = (c.fxProbe ?? []).find((q) => q.foe === i); return m && p && p.visible ? { sparks: p.at, mob: [m.x, m.z], struck: p.struck ?? null } : null; }, target.id); if (r) { z.probe = { ...r, dist: +Math.hypot(r.sparks[0] - r.mob[0], r.sparks[2] - r.mob[1]).toFixed(2), distAtContact: r.struck ? +Math.hypot(r.sparks[0] - r.struck[0], r.sparks[2] - r.struck[1]).toFixed(2) : null }; shot = true; } else await page.waitForTimeout(30); } continue; }
       await page.waitForTimeout(400);
       const h = await hp(); first ??= h;
       if (h !== null && first !== null && h < first) { await page.screenshot({ path: path.join(out, `zone${id}-hit.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); shot = true; }
