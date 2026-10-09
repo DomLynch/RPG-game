@@ -23,6 +23,7 @@ const piece = (where, paperdoll) => ({ id: 'inst:g1', item: 'item:loot.goblin.He
 let ledger = { pieces: [piece('pack', null)], worn: {}, packSize: 8, bankSize: 100 };
 const seen = [];
 const answer = (route) => {
+  if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.fallback();   // the glob also matches the page's own URL (/preview/origins/)
   const op = route.request().url().split('/').at(-1);
   seen.push({ op, auth: route.request().headers().authorization });
   if (op === 'gear_equip') ledger = { pieces: [piece('equipped', 'head')], worn: { head: 'inst:g1' }, packSize: 8, bankSize: 100 };
