@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
+import { loadZone, zoneIds } from '../zones/loader.ts';
 
 // The Pit room was removed from the game (2026-10-08) and took the game's #nav-pit with it; the Origins duel reuses the game's ☰ menu, so it adds its own
 // exit. A duel with no way out is a trapped player (Lead's ruling on PR #1835).
 const fakeNav = () => {
-  const made: { id: string; textContent: string; type: string; listeners: Record<string, () => void>; addEventListener(t: string, f: () => void): void }[] = [], children: unknown[] = [];
-  const doc = { createElement: () => { const b = { id: '', textContent: '', type: '', listeners: {} as Record<string, () => void>, addEventListener(t: string, f: () => void) { this.listeners[t] = f; } }; made.push(b); return b; } };
+  const made: { id: string; textContent: string; type: string; title: string; attrs: Record<string, string>; setAttribute(k: string, v: string): void; listeners: Record<string, () => void>; addEventListener(t: string, f: () => void): void }[] = [], children: unknown[] = [];
+  const doc = { createElement: () => { const b = { id: '', textContent: '', type: '', title: '', attrs: {} as Record<string, string>, setAttribute(k: string, v: string) { this.attrs[k] = v; }, listeners: {} as Record<string, () => void>, addEventListener(t: string, f: () => void) { this.listeners[t] = f; } }; made.push(b); return b; } };
   const nav = { ownerDocument: doc, querySelector: (sel: string) => children.find((c) => sel === `#${(c as { id: string }).id}`) ?? null, prepend: (c: unknown) => { children.unshift(c); } };
   return { nav: nav as unknown as HTMLElement, made, children };
 };
@@ -52,4 +53,18 @@ test('a zone-hosted gear sheet says Gear and Back to <zone>, and shows no Pit or
   const emptyPack = /emptyPack: '([^']*)'/.exec(mount)?.[1] ?? 'Win gear in the arena.';
   assert.doesNotMatch(emptyPack, /pit|arena/i, 'the zone\'s empty rack line');
   assert.match(html, /#duel\.gearing #nav-arena, #duel\.gearing #nav-arena-page \{ display: none !important; \}/, 'the Arena entries stay out of the sheet while it is up');
+});
+
+// Any zone name must fit (700+ zones are coming; Lead 2026-10-09): the exit label ellipsizes inside its column, so it never reaches the tabs or the cog, and the FULL name stays in the
+// accessible name. A node test cannot measure layout; scripts/gear-exit-label-check.mjs does, at 375, with these same two names.
+test('a long zone name: the exit keeps the full name for assistive tech, and the nav columns can shrink and ellipsize', () => {
+  const registry = zoneIds().map((id) => { const z = loadZone(id); return `Back to ${z.name}`; }).sort((a, b) => b.length - a.length)[0]!, fixture = `Back to ${'The Very Long Ash Reaches Of Nowhere '.slice(0, 40).trim()}`;
+  for (const label of [registry, fixture]) {
+    const { nav, made } = fakeNav(), button = addLeaveEntry(nav, () => {}, () => {}, label) as unknown as (typeof made)[number];
+    assert.equal(button.textContent, label); assert.equal(button.attrs['aria-label'], label, 'the accessible name is the whole label'); assert.equal(button.title, label, 'and the tooltip');
+  }
+  assert.ok(fixture.length - 'Back to '.length >= 38, 'the fixture is a ~40-character zone name');
+  const css = readFileSync(new URL('../../src/style.css', import.meta.url), 'utf8');
+  assert.equal((css.match(/#journal \.app-nav \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/g) ?? []).length, 2, 'both nav rules let a column shrink (plain 1fr widens it and pushes Gear under the cog)');
+  assert.match(css, /#journal \.app-nav button \{[^}]*white-space: nowrap; overflow: hidden; text-overflow: ellipsis/, 'the nav buttons ellipsize');
 });

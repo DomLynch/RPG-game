@@ -4,7 +4,7 @@ export function addLeaveEntry(nav: HTMLElement, closeMenu: () => void, leave: ()
   const had = nav.querySelector?.('#nav-pit') as HTMLElement | null;
   if (had) return had;
   const button = nav.ownerDocument.createElement('button');
-  button.type = 'button'; button.id = 'nav-pit'; button.textContent = label;   // the Pit's words by default; a zone passes its own ("Back to <zone name>")
+  button.type = 'button'; button.id = 'nav-pit'; button.textContent = label; button.setAttribute('aria-label', label); button.title = label;   // the CSS ellipsizes a long label; the full name stays in the accessible name and the tooltip   // the Pit's words by default; a zone passes its own ("Back to <zone name>")
   button.addEventListener('click', () => { closeMenu(); leave(); });
   nav.prepend(button);
   return button;
