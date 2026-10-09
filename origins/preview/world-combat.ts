@@ -1,7 +1,7 @@
 // The mount of Zone 1's own combat loop (Combat's pure origins/combat/zone1.ts) in the walk: no duel, no ring, no fight start or end (Dom 2026-10-08). The page walks the hero (collisions,
 // relief) and tells this his position; the loop owns hits, creature chase/telegraph/bite/leash. This file: which creatures are in the loop (those that come within the aggro ring, until they are
 // home again), the fixed 1/60 accumulator, and turning the events into what the page shows (a procedural lunge / hit pulse / fall on the creature, bars, the hero's clips, kill and death).
-import { AGGRO_M, creature, newWorld, player, stepCombat, type Event, type Fighter, type World } from '../combat/zone1.ts';
+import { AGGRO_M, creature, newWorld, pairs, player, stepCombat, type Event, type Fighter, type World } from '../combat/zone1.ts';
 import { NAKED, type Loadout } from '../../src/gear-stats.ts';
 import { OPPONENTS } from '../../src/moves.ts';
 import type { MobSpec } from './mobs.ts';
@@ -19,13 +19,14 @@ export type Deps = {
   onSwing(): void;                  // the hero's own cut began: the Attack clip
   onTelegraph?(id: string, ms: number): void;
   onEvent?(ev: Event): void;       // every combat event, after the page has shown it (the spawn client, spawn-net.ts onCombatEvent)
-  hero?: () => { gear: Loadout; level: number };   // his resolved gear and career level (default: naked, level 1); a creature's level is its spec's
+  hero?: () => { gear: Loadout; level: number; health?: number };   // his resolved gear and career level (default: naked, level 1); health: a test seed for his starting and maximum health; a creature's level is its spec's
 };
 type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number };
 
 export function createWorldCombat(d: Deps) {
-  const mine = () => d.hero?.() ?? { gear: NAKED, level: 1 };
-  let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'thrust' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false, lostMs = 0, hitches = 0, steps = 0;
+  const mine = (): { gear: Loadout; level: number; health?: number } => d.hero?.() ?? { gear: NAKED, level: 1 };
+  const body = (x: number, z: number, facing: number): Fighter => { const { gear, level, health } = mine(), p = player(ME, x, z, facing, gear, level); return health ? { ...p, health, maxHealth: health } : p; };
+  let world: World = newWorld([body(0, 0, 0)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'thrust' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false, lostMs = 0, hitches = 0, steps = 0;
   const specs = new Map<string, MobSpec>(), fx = new Map<string, Fx>();
   const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
   const gearOf = () => { const { gear, level } = mine(), p = player(ME, 0, 0, 0, gear, level); return { attack: p.attack, res: p.res, level: p.level, shielded: p.shielded }; };
@@ -77,10 +78,10 @@ export function createWorldCombat(d: Deps) {
       return { dx: me().x - hero.x, dz: me().z - hero.z };   // a roll's displacement (zero on foot); the page applies it with its own collision
     },
     /** After he died and stood up in town: a fresh body, nothing hunting him. */
-    reset(hero: { x: number; z: number; facing: number }): void { for (const id of [...specs.keys()]) release(id); world = newWorld([player(ME, hero.x, hero.z, hero.facing, mine().gear, mine().level)]); heroDead = false; acc = 0; },
+    reset(hero: { x: number; z: number; facing: number }): void { for (const id of [...specs.keys()]) release(id); world = newWorld([body(hero.x, hero.z, hero.facing)]); heroDead = false; acc = 0; },
     hero: () => { const m = me(); return { health: m.health, max: m.maxHealth, stamina: m.stamina, maxStamina: m.maxStamina, phase: m.phase, facing: m.facing, posture: m.posture, exhausted: m.exhausted, dead: heroDead }; },
     /** The creature he is fighting now (the nearest hunting one), for the target bar. */
-    target: () => { let best: Fighter | null = null; for (const f of world.fighters.slice(1)) if (f.phase !== 'dead' && f.hunting && (!best || Math.hypot(f.x - me().x, f.z - me().z) < Math.hypot(best.x - me().x, best.z - me().z))) best = f; const s = best && specs.get(best.id); return best && s ? { name: s.name, health: best.health, max: best.maxHealth } : null; },
+    target: () => { const pr = pairs(world).find((x) => x.player === ME && x.primary), live = (f: Fighter) => f.phase !== 'dead' && f.hunting; let best: Fighter | null = world.fighters.slice(1).find((f) => f.id === pr?.foe && live(f)) ?? null; if (!best) for (const f of world.fighters.slice(1)) if (live(f) && (!best || Math.hypot(f.x - me().x, f.z - me().z) < Math.hypot(best.x - me().x, best.z - me().z))) best = f; const s = best && specs.get(best.id); return best && s ? { name: s.name, health: best.health, max: best.maxHealth } : null; },   // the card names the primary pair's foe (the Pit's own nearest, S2 pairs()); it moves to the next joiner as each falls
     /** Frame health for the seamless receipt: sim steps run, fight time dropped by the 0.25 s catch-up cap, and how many frames dropped some. */
     stats: () => ({ steps, lostMs: Math.round(lostMs), hitches }),
     inCombat: () => world.fighters.slice(1).some((f) => f.phase !== 'dead' && f.hunting),

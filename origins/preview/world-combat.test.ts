@@ -5,6 +5,7 @@ import { MAX_STEPS, ME, createWorldCombat, kindOf } from './world-combat.ts';
 import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
+import { NAKED } from '../../src/gear-stats.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
@@ -88,4 +89,39 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
   for (let frame = 0; frame < 80; frame++) { hits = 0; wc.update(0.25, { x: 0, z: 0, facing: 0 }); worst = Math.max(worst, hits); total += hits; }
   assert.ok(total >= 1, 'the wolf did land blows');
   assert.ok(worst <= 1, `at most one blow per 0.25 s catch-up frame, saw ${worst}`);
+});
+
+// Proof 3 on the page: joins need no page code of their own, they happen inside stepCombat (#1943) for every creature the loop holds. A pack of four around an idle hero: three attack him (each telegraphs its own blow), the fourth holds off.
+test('a pack of four around the hero: three join and telegraph their own blows, the fourth waits', () => {
+  const f = fakeMobs(['w1', 'w2', 'w3', 'w4'].map((id, i) => ({ spec: { ...spec(id, 'wolf'), level: 1 }, x: Math.sin(i * 1.6) * 4, z: Math.cos(i * 1.6) * 4 })));
+  const tells = new Set<string>(), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: (id) => void tells.add(id) });
+  run(wc, { x: 0, z: 0, facing: 0 }, 3);
+  assert.equal(wc.debug().filter((x) => x.hunting).length, 4, 'all four hunt him');
+  assert.deepEqual([...tells].sort(), ['w1', 'w2', 'w4'], 'three attack, each from its own duel: the fourth (w3, the farthest) waits its turn');
+});
+
+test('three joined: each joiner is driven with its own windup (one actor per creature)', () => {
+  const f = fakeMobs([['w1', 1.2], ['w2', 2.4], ['w3', 3.2]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p && p.lunge !== 0) lunged.add(id); real(id, p); }) as typeof real;
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  run(wc, { x: 0, z: 0, facing: 0 }, 4);
+  assert.ok(lunged.size >= 3, `each of the three had its own windup/lunge: ${[...lunged]}`);
+});
+
+test('the card names the primary pair\'s foe (the nearest of the pack), whatever the list order', () => {
+  const pack = [['w3', 3.2], ['w2', 2.4], ['w1', 1.2]], card = (list: typeof pack) => {
+    const f = fakeMobs(list.map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+    const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+    run(wc, { x: 0, z: 0, facing: 0 }, 1); return wc.target()?.name;
+  };
+  assert.equal(card(pack), 'w1'); assert.equal(card([...pack].reverse()), 'w1');
+});
+
+test('the card hands on: with a hero given the health to outlast two wolves one joiner falls first, and the card then names the next foe', () => {
+  const f = fakeMobs([['w1', 1.2], ['w2', 2.4]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+  const kills: string[] = [], names: string[] = [];
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, hero: () => ({ gear: NAKED, level: 1, health: 2000 }) });
+  for (let i = 0; i < 600 && kills.length < 2; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.hp > 0)[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); const n = wc.target()?.name; if (n && names.at(-1) !== n) names.push(n); } if (wc.hero().dead) break; }
+  console.log('DBG', JSON.stringify({ kills, names, dead: wc.hero().dead }));
+  assert.equal(kills[0], 'w1', 'the nearest fell first'); assert.deepEqual(names.slice(0, 2), ['w1', 'w2'], 'the card named w1, then w2 after it fell');
 });
