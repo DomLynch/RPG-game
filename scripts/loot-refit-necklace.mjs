@@ -4,7 +4,7 @@
 // other loot piece uses). The loot build's sources (artifacts/source archives, animations2) are not in every checkout, so this patches the committed loot.glb in place:
 // the cord is ONE tube of 679 vertices (same topology), rewritten from the same 36-point ring, same radius, same bone; nothing else in the file moves.
 //   node scripts/loot-refit-necklace.mjs            check: rebuilds the ring with the OLD rule and compares it with what is in the file (proves this replays the build), then the new rule's numbers
-//   node scripts/loot-refit-necklace.mjs --write    patch src/assets/loot.glb
+//   node scripts/loot-refit-necklace.mjs --write    patch src/assets/loot.glb, THEN run node scripts/split-loot.mjs (carriers-goblin.glb is its cut) and node scripts/loot-layers.mjs (the journal layers + style.css stamp)
 import fs from 'node:fs';
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
