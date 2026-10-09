@@ -1,5 +1,19 @@
 # Code quality lane (Auditor)
 
+## 2026-10-09 ~06:0x (+04): HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-08k`
+
+**Routing:** Lead = "Frankendom - Lead Dev" (send to the `[e8f341]` row: 3 sessions share the name). COO = "COO Task Enabler". Backend = "Frankendom - Duels & Backend" (`[ed155c]`). HF suites: ONE `hf jobs run` per command (a `for` loop trips the heavy-runs hook), tests tsc = `npx tsc -p tsconfig.tests.json`, echo TSC_*_OK/FAIL. The deploy hook blocks HF launches while a deploy is in flight.
+
+**OWED, in order:**
+1. **PROOF 2 (Release I, Sat 10-10), Lead GO'd the plan:** branch `code-quality/zone-packages-test` @9c2366616 has `tests/zone-packages.test.ts` (WIP, NOT RUN YET). Next: (a) run it (`node --test tests/zone-packages.test.ts` + `npx tsc -p tsconfig.tests.json`), fix what fails; (b) Lead's reuse rule: DELETE the two duplicated tests from `origins/preview/zone-loader.test.ts` ("nothing outside the loader imports a zone package", "a zone data file is pure data") in the same PR; (c) World hasn't answered the loader location yet (`origins/zones/loader.ts` in I; does loader.ts keep `loadZone`/`zoneProblems`?), and the test reads the id from each package's `zone.ts`; (d) HF full suite, open the PR, Lead review. Then the WIP commit message gets rewritten.
+2. **Release G POST:** G is on trunk ab2288cde (#1927 #1932 #1935). After G is live and Backend reinstalls the writer: parity read (content.ts + mob-rewards via the loader).
+3. **#1880 kill ledger:** BLOCKED, `origins_beta_ledger` has 0 rows. Lead pings after Dom's first signed-in kill post-G; check cp = career delta, targetLevel = spawn level, single-use token.
+4. Delete the scratch branches: `code-quality/f-combined-check`, `code-quality/g-combined-check`, `code-quality/g-1935-check`.
+
+**Verdicts since the last handoff (all on their threads):** #1911 @64f9fcc78 · Release D candidate @31137b6a8 (on #1916 + #1920) · #1916 @4b52b34fd (env/image/owner pins, 13/13 probes) · #1920 · #1777 @a8a8e62f3 · #1919 @1a2dcdef9 · F: #1926 #1928 #1929 #1930 #1931 · #1831 delta @80f4a175a · #1927 @409b7f37c · #1932 @b60665e6a · #1935 @38fc5324e (L4, 4000 HP) · #1934 @e19f9ec23 · #1937 @914a714d1 · **0008 + 0011 POST PASS** on #1818 (applied text = file minus begin/commit + "\n", byte-exact md5). Audit issue **#1936** (donor patterns: warmFight builds an unused Pit stage on the default path; no per-fighter swing tick; three 0.186's race is fixed upstream).
+
+**Rules learned:** (1) a stacked test PR passed before a guard tightens must be re-run on the merged tree (#1920 failed 3 on 80bff4ef2). (2) Pin the WHOLE `hf jobs inspect` record (image, args, owner, secrets, env) once a job exits 0 regardless of rows. (3) Prove a data move by loading old and new trees and deep-comparing (#1932).
+
 ## 2026-10-08 ~23:1x (+04): HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-08j`
 
 **Routing:** Lead = "Frankendom - Lead Dev" (Strategy merged in). COO = "COO Task Enabler" (Dom's orders). **HF cost rule:** every `hf jobs run` has `--detach --timeout` (≤40m tests), flavors `cpu-upgrade`/`t4-medium` only, shallow fetch of the FULL sha (`git init; git fetch --depth 1 origin <sha>; checkout FETCH_HEAD`), apt `libjpeg-turbo-progs` for the full suite. Mac and VPS are saturated, so test runs go to HF. Parallel read-only finder agents for big reviews are OK (Dom via COO); I keep the verdict.
