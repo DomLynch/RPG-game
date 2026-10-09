@@ -1,6 +1,6 @@
 // The gear sheet's mannequin (Fitting rail, Strategy 2026-10-01): the player's OWN rig, idle, drawn live in the sheet's stage window, so a
-// stored piece tried on is the real piece on the real body. It borrows the game's renderer, scene and camera through the same seam the
-// Pit uses (scene.ts pitStage: the arena hidden, one frame drawn per call) and hands them back exactly as found. The sheet is a dialog over
+// stored piece tried on is the real piece on the real body. It borrows the game's renderer, scene and camera through the scene's seam
+// (scene.ts gearStage: the arena hidden, one frame drawn per call; it began as the Pit room's seam) and hands them back exactly as found. The sheet is a dialog over
 // the canvas, transparent where the stage is; the camera's view offset slides the rig into that window. Nothing here touches loot, the
 // profile or the fight: main.ts dresses the rig (view.wear) and frame() draws it while the sheet is open. Presentation only.
 import * as THREE from 'three';

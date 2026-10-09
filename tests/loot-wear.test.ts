@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DoubleSide, FrontSide, Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
 import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/loot.ts';
 
 // Parse a shipped GLB in Node: geometry, rig and material names; images are dropped (decoding is the browser's), as tests/characters.test.ts does.

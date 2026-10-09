@@ -1,0 +1,85 @@
+{
+ "origin": "http://127.0.0.1:58006",
+ "errors": [],
+ "stills": [
+  "day-spawn",
+  "day-west",
+  "night-west",
+  "night-spawn"
+ ],
+ "ab": {
+  "on": [
+   {
+    "frames": 479,
+    "median": 16.7,
+    "p95": 17,
+    "max": 17.6
+   },
+   {
+    "frames": 959,
+    "median": 16.7,
+    "p95": 17.1,
+    "max": 17.6
+   },
+   {
+    "frames": 1442,
+    "median": 16.7,
+    "p95": 17.2,
+    "max": 17.6
+   },
+   {
+    "frames": 1923,
+    "median": 16.7,
+    "p95": 17.1,
+    "max": 17.8
+   },
+   {
+    "frames": 2414,
+    "median": 16.7,
+    "p95": 17.1,
+    "max": 17.6
+   }
+  ],
+  "onCalls": 87,
+  "off": [
+   {
+    "frames": 479,
+    "median": 16.7,
+    "p95": 17,
+    "max": 17.6
+   },
+   {
+    "frames": 959,
+    "median": 16.7,
+    "p95": 17.3,
+    "max": 17.7
+   },
+   {
+    "frames": 1439,
+    "median": 16.7,
+    "p95": 17.7,
+    "max": 17.8
+   },
+   {
+    "frames": 1919,
+    "median": 16.7,
+    "p95": 17.7,
+    "max": 17.8
+   },
+   {
+    "frames": 2399,
+    "median": 16.7,
+    "p95": 17.6,
+    "max": 17.8
+   }
+  ],
+  "offCalls": 69
+ },
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+ "summary": {
+  "onMedianMax": 16.7,
+  "offMedianMax": 16.7,
+  "onP95Max": 17.2,
+  "offP95Max": 17.7
+ }
+}

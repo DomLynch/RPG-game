@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { cuesFor } from '../src/audio/cues.ts';
+import { cuesFor } from '../src/fight/sound/cues.ts';
 import type { CombatEvent } from '../src/duel.ts';
 import { defenceFlag, defenceGrade, GRADE_AUDIO, GRADE_LABEL, GRADES, HEAVY_BLOCK } from '../src/defence-grade.ts';
 
@@ -37,7 +37,7 @@ test('sound: off = today\'s cues exactly; on = existing cue names only, a differ
 });
 
 test('the button ring, the caption and the wiring are all behind the flag, and the clarity cues stay', () => {
-  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8'), main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), hud = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8'), main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), hud = readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8');
   for (const g of GRADES) assert.match(css, new RegExp(`#guard-button\\[data-defence=${g}\\] \\{ --defence:`), g); assert.equal(Object.keys(GRADE_LABEL).length, 4);
   assert.match(main, /if \(!quiet && DEFENCE_GRADES\) hud\.defended\(practice\.events\)/); assert.match(main, /if \(!quiet\) hud\.refused\(practice\.clarity\);/, '#1481 refused cue intact');
   assert.match(hud, /refused\(clarity: readonly ClarityEvent\[\]\)/);

@@ -21,7 +21,7 @@ test('every piece of the kit is cut whole from the game', () => {
 });
 
 test('the input, the HUD and the duel glue find every element they bind to', () => {
-  const wanted = new Set([...ids(read('src/input.ts')), ...ids(read('src/hud.ts')), ...ids(read('origins/preview/pit-duel.ts'))]);
+  const wanted = new Set([...ids(read('src/input.ts')), ...ids(read('src/fight/hud.ts')), ...ids(read('origins/preview/pit-duel.ts'))]);
   assert.ok(wanted.size > 25, `${wanted.size} ids read`);
   for (const id of wanted) assert.match(page, new RegExp(`\\sid="${id}"`), `#${id}`);
 });

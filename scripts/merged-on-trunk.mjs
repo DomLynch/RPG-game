@@ -6,8 +6,9 @@
 //   - merged into a side branch still in flight → noted, not failed (stacked PRs are normal)
 //   - patches present on trunk by content (`git cherry`, e.g. re-landed by cherry-pick) → passes; the label `merged-elsewhere` also
 //     closes a PR that was re-done under another number.
-// gh must be authenticated (deploy.sh already depends on it); any lookup failure is a FAIL, never a silent pass.
-import { execFileSync } from 'node:child_process';
+// gh must be authenticated (deploy.sh already depends on it). If gh is down (3 tries, 20 s each) the check falls back, loudly, to git alone: origin/<trunk> must be an ancestor of HEAD (PRs merged into side
+// branches are then NOT checked, and the pass says so). A git failure (missing object, timeout) is reported as a git failure with its reason, never as "behind trunk" and never as a silent pass.
+import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const TRUNK = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1';
@@ -16,17 +17,55 @@ const root = resolve(args.find(a => !a.startsWith('--')) || '.');
 const days = Number((args.find(a => a.startsWith('--days=')) || '--days=3').slice(7)), LIMIT = 500;   // ~100 merges a day on this repo; a deploy runs many times a day
 const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8', timeout: 60_000 }).trim();
 const ok = (...a) => { try { git(...a); return true; } catch { return false; } };
+// "Is a an ancestor of b?" has THREE answers: yes (exit 0), no (exit 1), and "git could not say" (exit 128: object missing; or a timeout). Collapsing the third into "no" made Release F report
+// "not in this tree (behind trunk)" for #1396, whose merge commit IS an ancestor of trunk (2026-10-09 04:21, load 10). Errors are retried once, then reported with git's own words.
+const GIT_TIMEOUT = Number(process.env.MERGED_ON_TRUNK_GIT_TIMEOUT_MS) || 60_000;
+const ancestor = (a, b) => {
+  let why = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = spawnSync('git', ['merge-base', '--is-ancestor', a, b], { cwd: root, encoding: 'utf8', timeout: GIT_TIMEOUT });
+    if (r.status === 0) return { yes: true };
+    if (r.status === 1) return { yes: false };
+    why = r.error ? String(r.error.code || r.error.message) : `git exit ${r.status}: ${String(r.stderr).trim().split('\n')[0]}`;
+  }
+  return { yes: false, error: why };
+};
 const head = git('rev-parse', 'HEAD');
 const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
-const prs = JSON.parse(execFileSync('gh', ['pr', 'list', '--state', 'merged', '--limit', String(LIMIT), '--search', `merged:>=${since}`,
-  '--json', 'number,title,baseRefName,mergeCommit,labels'], { cwd: root, encoding: 'utf8', timeout: 60_000 }));
+// The lookup is a network call: a hung or failing `gh` must not kill the deploy with an uncaught throw (Release F died at 02:42 on spawnSync gh ETIMEDOUT). Three tries with
+// backoff; if gh is still down, fall back to the ONE ancestry fact git can answer by itself after a fresh fetch: trunk's tip is an ancestor of HEAD (every PR merged to trunk is
+// in this tree). The fallback does NOT see the #358 shape (a PR merged into a side branch), so it says so loudly; it never passes a tree that is behind trunk.
+const GH = process.env.MERGED_ON_TRUNK_GH || 'gh', GH_TIMEOUT = Number(process.env.MERGED_ON_TRUNK_GH_TIMEOUT_MS) || 20_000, BACKOFF = Number(process.env.MERGED_ON_TRUNK_BACKOFF_MS) || 2000;
+const sleep = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const listMerged = () => {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return JSON.parse(execFileSync(GH, ['pr', 'list', '--state', 'merged', '--limit', String(LIMIT), '--search', `merged:>=${since}`,
+        '--json', 'number,title,baseRefName,mergeCommit,labels'], { cwd: root, encoding: 'utf8', timeout: GH_TIMEOUT }));
+    } catch (e) { last = e; console.error(`merged-on-trunk: gh pr list failed (try ${attempt + 1}/3): ${String(e.code || e.message).split('\n')[0]}`); if (attempt < 2) sleep(BACKOFF * 2 ** attempt); }
+  }
+  console.error(`merged-on-trunk: gh is unavailable (${String(last?.code || last?.message).split('\n')[0]}); falling back to the git ancestry check`);
+  return null;
+};
+const prs = listMerged();
+if (prs === null) {
+  if (!ok('fetch', '-q', 'origin', TRUNK)) { console.error(`merged-on-trunk FAILED for ${head.slice(0, 7)}: gh is unavailable and \`git fetch origin ${TRUNK}\` failed too; cannot tell whether this tree is behind trunk`); process.exit(1); }
+  const trunkIn = ancestor(`origin/${TRUNK}`, head);
+  if (trunkIn.error) { console.error(`merged-on-trunk FAILED for ${head.slice(0, 7)}: gh is unavailable and git could not compare origin/${TRUNK} with this tree (${trunkIn.error})`); process.exit(1); }
+  if (!trunkIn.yes) { console.error(`merged-on-trunk FAILED for ${head.slice(0, 7)}: gh is unavailable, and origin/${TRUNK} is not an ancestor of this tree (it is behind trunk)`); process.exit(1); }
+  console.log(`merged-on-trunk: gh unavailable; origin/${TRUNK} is in ${head.slice(0, 7)} (git ancestry only: PRs merged into side branches were NOT checked)`);
+  process.exit(0);
+}
 const failures = [];
 if (prs.length >= LIMIT) failures.push(`GitHub returned ${LIMIT} merged PRs since ${since}: the window is truncated, narrow --days`);
 for (const pr of prs) {
   const merge = pr.mergeCommit?.oid, tag = `#${pr.number} (${pr.baseRefName}) ${pr.title}`;
   if (!merge) { failures.push(`${tag}: GitHub reports no merge commit`); continue; }
   if (!ok('cat-file', '-e', merge) && !ok('fetch', '-q', 'origin', merge)) { /* unreachable merge commit: judged by patches below */ }
-  if (ok('merge-base', '--is-ancestor', merge, head)) continue;
+  const inTree = ancestor(merge, head);
+  if (inTree.yes) continue;
+  if (inTree.error) { failures.push(`${tag}: cannot tell whether merge commit ${merge.slice(0, 9)} is in this tree (${inTree.error}); this is a git failure, not a verdict`); continue; }
   if (pr.baseRefName === TRUNK) { failures.push(`${tag}: merged to ${TRUNK} but not in this tree (${head.slice(0, 7)} is behind trunk)`); continue; }
   if (pr.labels?.some(l => l.name === 'merged-elsewhere')) { console.log(`merged-on-trunk: ${tag}: labelled merged-elsewhere`); continue; }
   if (!ok('fetch', '-q', 'origin', `refs/pull/${pr.number}/head:refs/merged-on-trunk/${pr.number}`)) { failures.push(`${tag}: cannot fetch refs/pull/${pr.number}/head`); continue; }

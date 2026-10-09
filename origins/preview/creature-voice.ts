@@ -1,7 +1,7 @@
 // ?look=creatures (src/audio/creature.ts): the Frontier creatures' growl when a "!" fires. The walk page has no audio of its own, so this chunk (loaded only under the flag) builds the game's
 // feedback once, unlocks it on the first tap like the game does, and answers mobs-view.ts's `origins:creature` event. The Pit duel's bite and death cry are pit-duel.ts's, on its own feedback.
-import { createFeedback } from '../../src/feedback.ts';
-import type { CreatureCue } from '../../src/audio/creature.ts';
+import { createFeedback } from '../../src/fight/sound/feedback.ts';
+import type { CreatureCue } from '../../src/fight/sound/creature.ts';
 
 export function listenCreatures(): void {
   const feedback = createFeedback();

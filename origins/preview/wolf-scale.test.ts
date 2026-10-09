@@ -11,3 +11,9 @@ test('the walking Ash Wolf look is WOLF_RENDER_SCALE when that constant exists (
   const { WOLF_RENDER_SCALE } = (await import(file.href)) as { WOLF_RENDER_SCALE: number };
   assert.equal(scale, WOLF_RENDER_SCALE, 'the walking wolf must be drawn at the size the duel draws it');
 });
+
+test('walking == fighting: the walking Cinder Bear look is BEAR_RENDER_SCALE, the size the duel draws it at (src/beast-scale.ts)', async () => {
+  const file = new URL('../../src/beast-scale.ts', import.meta.url), { BEAR_RENDER_SCALE, BEAST_RENDER_SCALE } = (await import(file.href)) as { BEAR_RENDER_SCALE: number; BEAST_RENDER_SCALE: Record<string, number> };
+  assert.equal(MOB_LOOKS['character:cinder-bear']!.scale, BEAR_RENDER_SCALE);
+  assert.equal(MOB_LOOKS['character:cinder-bear']!.scale, BEAST_RENDER_SCALE.bear, 'the by-roster-id table the duel reads agrees');
+});

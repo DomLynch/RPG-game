@@ -251,7 +251,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   else if ((low || shaky) && next.mode === 'retreat' && gap >= 1.9) next.mode = 'circle';
   // The ring wall. A retreat that would put its own back to the wall becomes a circle along it, on the side that leads inward; a player with
   // the wall at their back is pressed straight (no circling: the wall is doing the cutting off).
-  const myBack = walled(self.body, -M.sin(facing), -M.cos(facing)), theirBack = walled(opponent.body, M.sin(facing), M.cos(facing));
+  const myBack = walled(self.body, -M.sin(facing), -M.cos(facing), duel.radius), theirBack = walled(opponent.body, M.sin(facing), M.cos(facing), duel.radius);
   if (next.mode === 'retreat' && myBack) {   // lateral toward the centre
     next.mode = 'circle';
     next.side = (self.body.x * M.cos(facing) - self.body.z * M.sin(facing)) > 0 ? -1 : 1;

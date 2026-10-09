@@ -32,9 +32,9 @@ try {
     if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();
     await page.waitForFunction(() => document.querySelector('#welcome').hidden);
     await page.locator('#journal-button').tap(); await page.waitForTimeout(1500);
-    // the tab bar sits under the header, three tabs, then Stats
+    // the tab bar sits under the header, two tabs, then Stats
     const bar = await page.evaluate(() => { const r = document.getElementById('app-nav').getBoundingClientRect(); return { top: r.top, h: r.height, labels: [...document.querySelectorAll('#app-nav button')].map((b) => b.textContent) }; });
-    assert.deepEqual(bar.labels, ['The Pit', 'Gear & pack', 'Arena']); assert.ok(bar.top > 80 && bar.top < 260, `tab bar under the header (${bar.top})`);
+    assert.deepEqual(bar.labels, ['Gear & pack', 'Arena']); assert.ok(bar.top > 80 && bar.top < 260, `tab bar under the header (${bar.top})`);
     await page.locator('#journal .tab-fighter').tap(); await page.waitForTimeout(500);
     const stats = await page.evaluate(() => ({
       tiles: ['stat-fights', 'stat-wins', 'stat-losses'].map((id) => document.getElementById(id).textContent),
