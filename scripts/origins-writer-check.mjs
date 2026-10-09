@@ -288,14 +288,14 @@ try {
   eq([gated.status, gated.json.code], [422, 'level'], 'shop: the level gate');
   eq([(await call('shop_buy', 'ta', buy({ op: 'shop:x-0001', item: 'item:nothing' }))).status, (await call('shop_buy', 'ta', buy({ op: 'shop:x-0002', shop: 'service:nope' }))).status], [400, 400], 'shop: an item off the list, an unknown shop');
   const race = await Promise.all([call('shop_buy', 'ta', buy({ op: 'shop:race-0001', quantity: 1 })), call('shop_buy', 'ta', buy({ op: 'shop:race-0002', quantity: 1 }))]);
-  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,409', '18:v3', '2', '0'], 'shop: two buys on one balance version: one commits, the other is stale');
-  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-15,"reason":"spend","event_id":"test:shop-drain","expected_version":3}]$j$::jsonb);`);   // down to 3, through the ledger
+  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,200', '14:v4', '3', '0'], 'shop: two buys at once on one account: the serial write queue (#1833) runs them in turn, both commit, bronze moves twice');
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-11,"reason":"spend","event_id":"test:shop-drain","expected_version":4}]$j$::jsonb);`);   // down to 3, through the ledger
   const poor = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0004', quantity: 1 }));
-  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
+  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '3'], 'shop: 3 bronze cannot pay 4');
   presence[B] = atBank();   // B at the counter too, so the character rule is what refuses
   eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
   // Shop gear: a single-copy slot-weight piece is minted at the Region's loot tier; a second copy is refused by one-of-each (and by the shelf of 1).
-  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":4}]$j$::jsonb);`);
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":5}]$j$::jsonb);`);
   const gearBuy = await call('shop_buy', 'ta', buy({ op: 'shop:body-0001', item: 'item:loot.veteran.Arms', quantity: 1 }));
   eq([gearBuy.status, psql(`select tier || ':' || quantity || ':' || (provenance ->> 'kind') from public.origins_items where item = 'item:loot.veteran.Arms' and retired_at is null`), conserved()],
     [200, 'Gladiator:1:shop', '0'], 'shop: gear is minted at the Region loot tier with shop provenance');
@@ -381,7 +381,7 @@ try {
   // retiring a pack row (a whole-stack burn nulls loc_kind) is not an escrow move: 0003's guard compared with '=' and refused it
   const pcId = made.json.result.id, key = 'loot:wc:guard';
   psql(`select public.origins_commit('${A}', $j$${JSON.stringify([{ op: 'mint', item: { id: 'inst:guard-ore', item: 'item:exchange-ore', quantity: 2, mint_key: key,
-    loc: { kind: 'pack', owner: pcId, index: 9 }, provenance: { mintKey: key, at: '2026-10-07T00:00:00Z', wonBy: pcId, kind: 'loot', table: 'loottable:ghoul', encounter: 'encounter:ruin-vigil' } } }])}$j$::jsonb);`);
+    loc: { kind: 'pack', owner: pcId, index: 40 }, provenance: { mintKey: key, at: '2026-10-07T00:00:00Z', wonBy: pcId, kind: 'loot', table: 'loottable:ghoul', encounter: 'encounter:ruin-vigil' } } }])}$j$::jsonb);`);
   psql(`select public.origins_commit('${A}', $j$[{"op":"burn","id":"inst:guard-ore","count":2,"expected_version":1}]$j$::jsonb);`);
   eq(psql(`select retire_reason || ':' || coalesce(loc_kind, 'null') from public.origins_items where id = 'inst:guard-ore'`), 'burn:null', 'escrow guard: a whole-stack burn of a pack row retires it');
 

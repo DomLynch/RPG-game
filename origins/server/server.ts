@@ -9,6 +9,23 @@ import type { WhereFn } from '../presence/where.ts';
 import { internalRoute, type InternalOptions } from './location.ts';
 
 const MAX_BODY = 64 * 1024;
+// One account's writes run ONE AT A TIME in this writer (the serial write queue): two taps of the same account (a double buy, a buy racing a kill's settle)
+// no longer race to the same row version and lose one to a 409; the second reads what the first committed. Per account, not per character: the bronze
+// balance and the career row are the account's, so two characters of one account would still race. Different accounts never wait on each other. The
+// database's version guards stay the backstop (a second writer process, a retry). A queue past QUEUE_MAX waiting requests answers 503 'busy'.
+export const QUEUE_MAX = 16;
+export function serialQueue(): <T>(key: string, run: () => Promise<T>) => Promise<T> {
+  const tails = new Map<string, { tail: Promise<unknown>; waiting: number }>();
+  return (key, run) => {
+    const q = tails.get(key) ?? { tail: Promise.resolve(), waiting: 0 };
+    if (q.waiting >= QUEUE_MAX) return Promise.reject(new Refused(503, 'too many requests in flight for this account', 'busy'));
+    q.waiting++;
+    const result = q.tail.then(run);
+    q.tail = result.then(() => undefined, () => undefined).then(() => { if (--q.waiting === 0 && tails.get(key) === q) tails.delete(key); });
+    tails.set(key, q);
+    return result;
+  };
+}
 const STATUS: Record<string, number> = { O0007: 403, O0008: 409, O0002: 409, O0001: 409, O0009: 409, O0014: 409, '23505': 409 };
 
 // Past the cap the rest of the body is read and dropped (never buffered), then refused: the client still gets its 400 on the open socket.
@@ -24,6 +41,7 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
 // `internal`: the shared key presence presents on the writer's internal routes (origins/server/location.ts, X2 Stage 2). Unset: those routes do not exist.
 export function createWriter({ db, verify, where, handlers = defaults, internal }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions }): Server {
   const inside = internal ? internalRoute(db, internal) : null;
+  const serial = serialQueue();
   return createServer(async (req, res) => {
     const send = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     if (inside && (req.url ?? '').startsWith('/internal/')) return void inside(req, res);
@@ -37,7 +55,7 @@ export function createWriter({ db, verify, where, handlers = defaults, internal 
       const text = await readBody(req);
       if (text) { try { body = JSON.parse(text); } catch { throw new BadRequest('body is not JSON'); } }
       if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadRequest('body must be an object');
-      send(200, { ok: true, result: await handlers[op]({ db, account, where }, body as Record<string, unknown>) });
+      send(200, { ok: true, result: await serial(account, () => handlers[op]!({ db, account, where }, body as Record<string, unknown>)) });
     } catch (e) {
       if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
       if (e instanceof Conflict) return send(409, { ok: false, error: e.message, code: 'op-conflict' });
