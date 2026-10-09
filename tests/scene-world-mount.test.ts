@@ -44,13 +44,3 @@ test('a mounted scene is disposed before the next one is built, without touching
   const stageFor = duel.slice(duel.indexOf('function stageFor'), duel.indexOf('// The holder carries the world'));
   assert.ok(stageFor.indexOf('stage.view.dispose()') > 0 && stageFor.indexOf('stage.view.dispose()') < stageFor.indexOf('stage = null;'), 'the old scene is disposed before stage = null');
 });
-
-// Auditor HIGH (2026-10-07): the next fight against the same body and level reuses the stage, whose scene got the holder once at creation. One holder per page, so every mount hands
-// createScene the holder that is already in the scene.
-test('main.ts hands every world mount the same holder (a reused stage keeps it in its scene)', () => {
-  const main = readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8');
-  const fn = main.slice(main.indexOf('function worldMount('), main.indexOf('async function startMobFight'));
-  assert.doesNotMatch(fn, /new THREE\.Group\(\)/, 'worldMount makes no holder of its own');
-  assert.match(fn, /const holder = worldHolder;/);
-  assert.equal(main.match(/const worldHolder = new THREE\.Group\(\)/g)?.length, 1, 'one holder per page');
-});

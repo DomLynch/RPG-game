@@ -192,12 +192,11 @@ test('a world fight hides only the duel\'s foe: packmates beside the hero and fa
   assert.equal(hiddenInFight('goblin-1', null), false);
 });
 
-test('the world keeps living during a world duel: the walk loop never stops, it keeps ticking the creatures, fires and arena while the duel draws, and the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world; re-pinned from the separate liveWorld tick)', () => {
+test('the world keeps living during a fight: Zone 1\'s fight is the engine loop inside the walk, so the walk loop never stops and never hands the drawing away; creatures keep ticking, and a creature the engine marks engaged stays hidden from the view (K2d: re-pinned from the removed ?worldfight duel mount)', () => {
   const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
-  assert.match(main, /attach\(\) \{[^\n]*mobs\?\.engage\(spec\.id\); duelDrawing = true;/, 'attach hides the foe and hands the drawing to the duel');
-  assert.match(main, /detach\(\) \{[^\n]*mobs\?\.engage\(null\); duelDrawing = false;/, 'detach gives it back');
-  assert.match(main, /if \(duelDrawing\) \{[^\n]*\n\s*mobs\?\.update\(dt, state, cardId\);[^\n]*\n\s*return;/, 'while the duel draws, the walk loop still steps the creatures and does not render');
-  assert.match(main, /if \(!WORLDFIGHT\) renderer\.setAnimationLoop\(null\);/, 'a world fight never stops the loop');
+  assert.doesNotMatch(main, /duelDrawing|worldMount|startMobFight|WORLDFIGHT|WORLDCOMBAT/, 'no second fight path: nothing takes the drawing from the walk');
+  assert.match(main, /mobs\.update\(dt, state, cardId\)/, 'every walk frame steps the creatures');
+  assert.match(main, /wc\.update\(dt,/, 'and the engine loop with them');
   assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
 });
 

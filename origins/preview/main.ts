@@ -28,7 +28,7 @@ import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/warm-gate.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createWorldCombat } from './world-combat.ts';
+import { ME, createWorldCombat } from '../../src/fight/index.ts';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
@@ -249,24 +249,18 @@ function step(dt: number) {
     forward = Math.max(-0.6, Math.min(1, -i.z)) * k; strafe = Math.max(-1, Math.min(1, i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
     if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
-    if (WORLDCOMBAT) {   // Zone 1's own loop owns attacks, guard and roll (Combat's S1/S2); the Pit's worldStep is not used
-      const a = i.action;
-      if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
-      if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
-        const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
-        wc.roll(len > 0.2 ? { x: wx, z: wz } : a === 'backstep' ? { x: -Math.sin(wc.hero().facing), z: -Math.cos(wc.hero().facing) } : { x: 0, z: 0 });
-      }
-      wc.guard(i.guard); const hp = wc.hero().phase; worldPhase = hp === 'roll' ? 'roll' : hp === 'guard' ? 'guard' : 'ready'; facing = wc.hero().facing;
-    } else {
-    if (i.action && STRIKES.has(i.action)) pressEngage();   // an attack press engages; ROLL and GUARD (dodge, backstep, parry) are the walk's own, below
-    const w = duel!.worldStep(dt, heading, i); worldPhase = w.phase; facing = w.facing;   // ROLL / GUARD: the Pit's own sim (pit-duel.ts worldStep), the ground a roll covers comes back as (dx, dz)
-    if (w.dx || w.dz) { const rx = state.x + w.dx, rz = state.z + w.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; }
-    if (worldPhase === 'roll' || worldPhase === 'backstep') { forward = strafe = 0; }   // the roll carries him; the stick does not add to it
+    const a = i.action;
+    if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
+    if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
+      const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
+      wc.roll(len > 0.2 ? { x: wx, z: wz } : a === 'backstep' ? { x: -Math.sin(wc.hero().facing), z: -Math.cos(wc.hero().facing) } : { x: 0, z: 0 });
     }
+    wc.guard(i.guard); const hp = wc.hero().phase; worldPhase = hp === 'roll' ? 'roll' : hp === 'guard' ? 'guard' : 'ready'; facing = wc.hero().facing;
+
   }
   else if (pads.move || pads.look) ({ forward, strafe, turn, pitch, running } = intent(pads.move, pads.look));   // the sticks win while a thumb is down
   if (forward || turn || strafe || pitch) { hint.hidden = true; hintMoved = true; }   // the first-load hint goes once you move (Lead 2026-10-06)
-  if (WORLDCOMBAT) { const ph = wc.hero().phase; if (ph === 'windup' || ph === 'active') forward = strafe = 0; }   // a cut commits him: he stands through it
+  { const ph = wc.hero().phase; if (ph === 'windup' || ph === 'active') forward = strafe = 0; }   // a cut commits him: he stands through it
   heading += turn * TURN * dt;
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
@@ -290,7 +284,7 @@ function step(dt: number) {
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
-  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9; walkCam = { back, up: inPassage ? 2.1 : 2.7 };   // the right stick's up lowers the camera and raises the gaze
+  const inPassage = state.z < -9 && state.z > PASSAGE.to - 1.5 && (!frontier || Math.abs(state.x) < 20), back = inPassage ? 3.4 : 5.2, up = (inPassage ? 2.1 : 2.7) - pitchNow * 0.9;   // the right stick's up lowers the camera and raises the gaze
   const gy = groundY(state.x, state.z);   // the hills lift the camera with the hero
   eye.set(state.x - Math.sin(heading) * back, up + gy, state.z - Math.cos(heading) * back);
   if (camSnap) { camAt.copy(eye); camSnap = false; } else camAt.lerp(eye, 1 - Math.exp(-dt * 4));   // the first frame starts behind the hero, not at the old start easing over (slow phones showed a wall for ~10 s)
@@ -300,11 +294,11 @@ function step(dt: number) {
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
-    mobsAsked = true; if (WORLDFIGHT) preloadFight();   // the fight chunks come early (worldfight is on unless ?worldfight=0|off)
+    mobsAsked = true;
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
-  if (mobs) { mobs.update(dt, state, cardId); if (WORLDCOMBAT) { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } updateBars(); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
+  if (mobs) { mobs.update(dt, state, cardId); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } updateBars(); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -359,7 +353,7 @@ function planUpload() {
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
-  if (!WORLDFIGHT || !mobs || !skyReady) return;
+  if (!mobs || !skyReady) return;
   if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
@@ -378,11 +372,7 @@ function zoneReadyCheck() {
 }
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
-  if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
-    mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
-    return;
-  }
-  step(dt); warmFight(time); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -502,7 +492,7 @@ if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) 
 // A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
 const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
-let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, encDuel: typeof import('./encounter-duel.ts') | null = null, sayTimer = 0;
+let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
 // stalemate shows nothing; the hero's death dims the screen for ~2 s ("You died"), then he stands up in town at full health, everything kept. The Pit keeps its own banner and rules.
@@ -512,26 +502,6 @@ function worldToast(text: string) {
   const t = document.createElement('div'); t.id = 'world-toast'; t.className = 'glass'; t.textContent = text;
   t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:26%;max-width:86vw;z-index:5;padding:8px 14px;text-align:center;font:600 15px/1.35 Georgia,serif;pointer-events:none';
   document.body.append(t); setTimeout(() => t.remove(), 3500);
-}
-function worldEnded(out: { won: boolean; text: string }, end: { result: 'won' | 'lost' }) {
-  const run = fightRun;
-  if (end.result === 'lost') {
-    const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
-    veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
-    document.body.append(veil);
-    setTimeout(() => { veil.remove(); if (fighting && run === fightRun) { state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; camSnap = true; leaveFight(); } }, 2000);
-    return;
-  }
-  if (out.won) worldToast(out.text.replace(/\n+/g, ' '));
-  if (fighting && run === fightRun) leaveFight();
-}
-function showResult(text: string) {
-  document.getElementById('leave')!.hidden = true;   // the end panel's own "Back to the fields" is the one way out
-  document.getElementById('hunt-result')?.remove();
-  const note = document.createElement('div'); note.id = 'hunt-result'; note.className = 'glass'; note.textContent = text;
-  note.style.cssText = 'position:fixed;left:12px;right:12px;top:30%;z-index:5;padding:12px 14px;text-align:center;font:600 17px/1.4 Georgia,serif;pointer-events:none';
-  duelLayer.append(note);
-  if (WORLDFIGHT) { const run = fightRun; setTimeout(() => { if (fighting && run === fightRun) leaveFight(); }, 2600); }   // the banner, then simply walking again: nothing to tap
 }
 canvas.addEventListener('pointerdown', (e) => { taps.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY, far: 0, lx: e.clientX }); });
 canvas.addEventListener('pointermove', (e) => {
@@ -554,23 +524,10 @@ canvas.addEventListener('pointerup', (e) => {
 });
 addEventListener('pointercancel', (e) => taps.delete(e.pointerId));
 function engage(spec: MobSpec, x: number, z: number) {
-  if (WORLDCOMBAT) { if (Math.hypot(x - state.x, z - state.z) > 3.5) say(`${spec.name} is too far off: walk closer, then press an attack.`); else wc.press(); return; }   // Zone 1's own combat: a tap on a creature in reach is a cut
-  if (fighting) { say('A fight is already starting: wait a moment, or tap Back to the fields.'); return; }
-  if (Math.hypot(x - state.x, z - state.z) > REACH) { say(`${spec.name} is too far off: walk closer, then tap.`); return; }
-  void startMobFight(spec);
+  if (Math.hypot(x - state.x, z - state.z) > 3.5) say(`${spec.name} is too far off: walk closer, then press an attack.`); else wc.press();   // Zone 1's own combat: a tap on a creature in reach is a cut
 }
-function pressEngage() {
-  if (WORLDCOMBAT) { wc.press(); return; }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature starts the duel with the nearest one in reach; with none, it says what to do
-  const t = mobs?.nearest(state.x, state.z, REACH);
-  if (t) engage(t.spec, t.x, t.z); else say('Nothing in reach: walk up to a creature, then press STAB, SLASH or HEAVY.');
-}
-// ?worldfight (Dom 2026-10-07: fight where you stand, no ring): the duel runs inside THIS scene. The world is moved into a holder the duel's scene mounts (src/scene.ts WorldMount),
-// the walker and the engaged creature are not drawn (the duel draws its own pair), the other creatures stand frozen and those past 20 m are hidden. On by default; ?worldfight=0 (or =off) is the kill switch
-// and the fight is the Pit's, as it was.
-const WORLDFIGHT = !/[?&]worldfight=(?:0|off)\b/.test(location.search);   // ON by default (Dom 2026-10-08: all switches on); ?worldfight=0 or =off is the emergency kill switch back to the Pit's own fight
-// Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the Pit is on hold; the wild is continuous and open, no fight start/end). Combat's pure src/fight/world.ts decides hits, reach, creature chase /
-// telegraph / bite / leash; world-combat.ts mounts it here. ?combat=pit is the emergency switch back to the Pit duel for a creature (the old path below stays untouched).
-const WORLDCOMBAT = !/[?&]combat=pit\b/.test(location.search);
+function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
+// Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
 const wcBars = document.createElement('div'); wcBars.id = 'wc-bars'; wcBars.hidden = true;
 wcBars.style.cssText = 'position:fixed;left:12px;top:max(12px,env(safe-area-inset-top));z-index:4;width:150px;pointer-events:none;font:600 11px/1.2 Georgia,serif;color:#efe6d2';
 wcBars.innerHTML = '<div id="wc-name" style="min-height:13px;text-shadow:0 1px 2px #000"></div><div style="height:7px;background:rgba(0,0,0,.55);margin:2px 0"><div id="wc-foe" style="height:100%;width:0;background:#b4452e"></div></div><div style="height:9px;background:rgba(0,0,0,.55);margin:6px 0 2px"><div id="wc-hp" style="height:100%;width:100%;background:#5aa05a"></div></div><div style="height:5px;background:rgba(0,0,0,.55)"><div id="wc-st" style="height:100%;width:100%;background:#c9b24a"></div></div>';
@@ -607,67 +564,6 @@ const wc = createWorldCombat({
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
   onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },
 });
-let duelDrawing = false;   // the duel's own frame is drawing this scene (between the mount's attach and detach): the walk loop keeps the world alive but does not draw
-// One holder per page: createScene adds it to its scene once, at creation, and the next fight against the same body and level REUSES that stage, so a new holder per fight would be in no rendered scene (a bare background). detach() resets its matrix.
-const worldHolder = new THREE.Group();
-let walkCam = { back: 5.2, up: 2.7 };   // the walk camera's distance behind the hero and height, as the last frame had them
-function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: number; z: number }) {
-  const holder = worldHolder; let moved: THREE.Object3D[] = [];
-  return {
-    cameraFrom: () => ({ position: camera.position.clone(), quaternion: camera.quaternion.clone() }),   // the walk's camera: the duel's eases from it (scene.ts easeCamera)
-    renderer, canvas, holder, background: scene.background, fog: scene.fog as THREE.Fog | THREE.FogExp2 | null, at, toward, groundY: groundY(at.x, at.z), walkCam: { ...walkCam },
-    attach() { moved = [...scene.children]; holder.add(...moved); hero.visible = false; mobs?.engage(spec.id); duelDrawing = true; duelLayer.classList.add('infight'); document.body.classList.add('infight'); },
-    detach() { if (moved.length) scene.add(...moved); moved = []; holder.matrix.identity(); hero.visible = true; mobs?.engage(null); duelDrawing = false; duelLayer.classList.remove('infight'); document.body.classList.remove('infight'); },
-  };
-}
-// The fight's chunks (the duel, the hunt, the encounter) are fetched when the Frontier's creatures come in, in an idle moment, not at the tap: the first engage no longer waits on three imports (Dom 2026-10-08, seamless combat).
-let warmAt = -Infinity, warmKey = '', warmSince = 0;
-const WARM_M = 14, WARM_DWELL_S = 2;   // a creature this near is the likely next fight: its stage is built now, not at the tap
-function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
-  if (!WORLDFIGHT || WORLDCOMBAT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;   // the Pit duel's stage is only the fallback (?combat=pit): Zone 1's own loop never draws it, so it is not built (GPU work on the walk for nothing)
-  warmAt = time;
-  const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
-  const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
-  const lights: THREE.Object3D[] = []; scene.traverse((o) => { if ((o as THREE.Light).isLight) lights.push(o); });
-  const o = run.value.setup.opponent, key = `${o.body}:${o.level}`;
-  if (key !== warmKey) { warmKey = key; warmSince = time; return; }   // the nearest creature type must hold this long before its stage is built or replaced: a walk past a camp must not churn GPU memory (Auditor M2)
-  if (time - warmSince < WARM_DWELL_S) return;
-  duel.warmStage(duelLayer, o.body, o.level, worldMount(t.spec, { x: state.x, z: state.z }, { x: t.x, z: t.z }), { world: scene, lights, dress: (root) => { const look = mobVariant(t.spec.character, t.spec.id); if (look) dressMob(root, look, false); } });
-}
-function preloadFight() {
-  const idle = (window as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => void }).requestIdleCallback ?? ((fn: () => void) => void setTimeout(fn, 1500));
-  idle(() => { void Promise.all([import('./pit-duel.ts'), import('./hunt.ts'), import('./encounter-duel.ts')]).then(([d, h, e]) => { duel ??= d; huntMod ??= h; encDuel ??= e; hunt ??= h.newHunt(); }).catch((error: unknown) => console.warn('the fight chunks did not preload; the tap loads them', error)); }, { timeout: 4000 });
-}
-let fightRun = 0;   // which fight a banner belongs to
-async function startMobFight(spec: MobSpec) {
-  if (fighting || !frontier) { say(frontier ? 'A fight is already starting.' : 'There is nothing to fight here.'); return; }
-  fighting = true; fightRun++; kit = false; if (!WORLDFIGHT) duelLayer.classList.remove('world');   // claimed first: a second tap while the chunks load does nothing
-  openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
-  duelLayer.hidden = false; journalButton.hidden = allegianceButton.hidden = true; if (!WORLDFIGHT) { canvas.hidden = true; place.textContent = `${spec.name}: a duel`; }   // a world fight keeps the walk's place line: no mode switch
-  if (!WORLDFIGHT) renderer.setAnimationLoop(null);   // ?worldfight never stops the world loop (Dom 2026-10-08): the walk keeps ticking and drawing until the duel takes over the drawing
-  document.getElementById('art-status')!.textContent = 'Loading…';
-  try {   // a chunk that never arrives must not leave `fighting` set for good: 20 s and the catch below hands the hero back
-    await Promise.race([(async () => { duel ??= await import('./pit-duel.ts'); huntMod ??= await import('./hunt.ts'); encDuel ??= await import('./encounter-duel.ts'); hunt ??= huntMod.newHunt(); })(), new Promise((_, no) => setTimeout(() => no(new Error('the fight chunks took over 20 s')), 20000))]);
-  }
-  catch (error) { console.warn('the fight did not load', error); leaveFight(); say('Could not load the fight. Tap the creature to try again.'); return; }
-  const prepared = huntMod.prepare(hunt, spec);
-  if (!prepared.ok) { console.warn('the fight cannot be set up', prepared.issues); leaveFight(); say('This creature cannot be fought yet.'); return; }
-  if (!fighting) return;   // left while the chunks loaded
-  const run = prepared.value, quest = bountyQuestId(frontier.giver);
-  // ?foebar=N (a QA instrument, like ?gfx= and ?dpr=): the foe's health bar for this page, so a browser check can win a real duel quickly. Never set by the game. pit-duel only applies a bar when the setup carries the one-health-bar flag, which a plain creature lacks, so the flag is added here (the QA path only).
-  const bar = QA ? Number(/[?&]foebar=(\d+)/.exec(location.search)?.[1]) || null : null;   // honoured on a local server only: on the live site it would be a cheat once kills persist
-  if (ONLINE && !bar) { await AUTH_READY; online = await beginOnline({ token: storedToken(storage, Date.now()), character: characterId, fight: run.fight, setup: run.setup, base: writerBase(location.search), held: HELD }); if (!fighting) { online?.stop(); online = null; return; } }   // left while the server answered
-  const on = online;   // `online` is cleared when the fight ends; the first-tick mark belongs to this fight
-  void encDuel.startEncounterDuel(duelLayer, bar ? { ...run.setup, bar, combatFlags: [...run.setup.combatFlags, { kind: 'one-health-bar' }] } : run.setup, online?.seed ?? run.seed, (end) => {
-    const wasOnline = online !== null;
-    if (online) { void online.settle(end).then((outcome) => console.info('encounter settle:', outcome)); online = null; }
-    const out = huntMod!.settle(hunt!, spec, run, end, new Date().toISOString(), () => play.bountyOpen(quest), wasOnline);
-    if (out.bounty) play.bountyPaid(quest, out.bounty.encounter);
-    if (out.won) mobs?.fell(spec.id);
-    if (WORLDFIGHT) worldEnded(out, end); else showResult(out.text);
-  }, leaveFight, { name: spec.name, level: spec.level, dress: (root) => { const look = mobVariant(spec.character, spec.id); if (look) dressMob(root, look, false); } }, () => on?.played(), WORLDFIGHT ? worldMount(spec, { x: state.x, z: state.z }, mobs?.find(spec.id) ?? { x: state.x, z: state.z - 4 }) : undefined);   // scale 1: the duel's own scale is the sim's, only the cloth is dressed
-  const leaveButton = document.getElementById('leave')!; leaveButton.textContent = 'Back to the fields';
-}
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
   combat: () => ({ hero: wc.hero(), target: wc.target(), fighters: wc.debug() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
