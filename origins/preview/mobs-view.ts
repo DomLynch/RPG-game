@@ -27,7 +27,6 @@ const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one o
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
 const NEAR = 25;   // m: inside it a creature's mixer ticks every frame
-const TWEEN = 6;   // 1/s: how quickly a walk/idle blend and a turn settle
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
