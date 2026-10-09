@@ -11,7 +11,7 @@ import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdenti
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './fight/characters.ts';
-import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
+import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
@@ -279,7 +279,7 @@ export function createScene(
       void shapes.get(url)!.then((mesh) => { if (warriors === loaded && urls()[who] === url) { actor.reshape(mesh); ((globalThis as { __weaponShapes?: Record<string, string | undefined> }).__weaponShapes ??= {})[who] = mesh ? url : undefined; } });   // the stills and phone check read what went on
     }
   }
-  const shieldsOn = SHIPPING_SHIELDS.has(opponentId) || (typeof location !== 'undefined' && shieldsFlag(location.search)), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
+  const shieldsOn = SHIPPING_SHIELDS.has(opponentId), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
