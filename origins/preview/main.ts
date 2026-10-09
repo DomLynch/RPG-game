@@ -20,6 +20,7 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { characterFor } from '../../src/fight/open.ts';
+import { createLateOpen } from './late-open.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -34,7 +35,7 @@ import { ME, createWorldCombat } from '../../src/fight/index.ts';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
-import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
@@ -443,13 +444,15 @@ function showCareer() {
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
 }
 showCareer();
-// The saved career, once, in the background: the walk and the Pit never wait on it. It is adopted only while no duel has started, so a
-// preview fight is never re-based under the player; otherwise (or on any failure) the in-memory preview career stands, marked offline.
+// The saved career, once, in the background: the walk and the Pit never wait on it. A fight is never re-based under the player, so a career that arrives while one is on is held and adopted
+// when it ends (late-open.ts); on any failure the in-memory preview career stands, marked offline. The character id and name carry no fight state and are taken at once.
+const lateOpen = createLateOpen<Opened>((opened) => {
+  session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; play.standAt(careerLine(session.career).level); showCareer();
+}, () => fighting);
 void AUTH_READY.then(() => openedAccount({ storage, search: location.search })).then((opened) => {
-  if (isOffline(opened)) source = opened;
-  else if (session.fights > 0 || fighting) source = { offline: 'late' };
-  else { session = { career: opened.career, settled: new Set(), fights: 0 }; source = { saved: opened.career }; last = null; playerName = opened.characters[0]?.name ?? playerName; characterId = opened.characters[0]?.id ?? null; play.standAt(careerLine(session.career).level); }
-  showCareer();
+  if (isOffline(opened)) { source = opened; showCareer(); return; }
+  playerName = opened.characters[0]?.name ?? playerName; characterId = opened.characters[0]?.id ?? null;
+  lateOpen.arrive(opened);
 });
 async function startFight(pick?: string): Promise<PitFight | null> {
   if (duelFailed) { location.reload(); return null; }   // a browser keeps a failed import's error for the page's life, so the retry is a fresh page
@@ -491,6 +494,7 @@ function leaveFight() {
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
+  lateOpen.settle();   // a saved career that arrived during the fight is adopted now (late-open.ts)
   if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, { back: zoneExit() }); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
