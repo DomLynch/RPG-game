@@ -136,7 +136,7 @@ test('loot is deterministic: the same table and seed give the same drops; take-o
   for (let seed = 0; seed < 200; seed++) assert.deepEqual(value(rollLoot('loottable:court-thrall', seed, content, { foeLevel: 10 })).items, []);
 });
 
-test('the Pit goblin camp\'s table: only his six armour pieces (the Pit\'s own LootIds), each ~25 % on its own, a level-1 kill may drop gear, bronze 2-6, deterministic', () => {
+test('the Pit goblin camp\'s table: only his six armour pieces (the shared fight engine\'s goblin LootIds), each ~25 % on its own, a level-1 kill may drop gear, bronze 2-6, deterministic', () => {
   const six = ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map((s) => `item:loot.goblin.${s}`), count = new Map<string, number>(), N = 2000;
   for (let seed = 0; seed < N; seed++) {
     const r = value(rollLoot('loottable:pit-goblin', seed, content, { foeLevel: 1 }));

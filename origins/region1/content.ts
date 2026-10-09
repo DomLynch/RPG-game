@@ -21,7 +21,7 @@ const gear = (id: string, name: string, slot: string, rarity: string, material: 
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
 const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
-// The Pit goblin's own rank-1 pieces (src/loot.ts LOOT.goblin, no new art): `item:loot.<LootId>` is the legacy embedding (contracts/ids.ts), the asset is loot.glb's piece, the name is lootName's.
+// The goblin's rank-1 pieces in the shared fight engine (src/loot.ts LOOT.goblin, no new art): `item:loot.<LootId>` is the legacy embedding (contracts/ids.ts), the asset is loot.glb's piece, the name is lootName's.
 const goblinPiece = (slot: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id: `item:loot.goblin.${slot}`, name: `The Goblin's ${slot.toLowerCase()}`, category: 'gear', rarity: 'common', slot, power: 'slot-weight', material,
   appearance: { asset: `loot.glb/goblin.${slot}` }, story: 'none', binding: 'none', stack: 1,
