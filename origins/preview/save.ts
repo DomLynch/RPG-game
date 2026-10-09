@@ -8,26 +8,8 @@ import type { CareerRow } from '../server/store.ts';
 import type { CareerState } from '../progression/model.ts';
 import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../patrons/patrons.ts';
 
-// The one place the writer's address lives: same origin, `/origins/<op>` behind nginx (origins/server/server.ts). Tests may point a page at
-// a loopback writer with ?writer=http://127.0.0.1:<port>/origins; nothing else is accepted, so a link can never send the token elsewhere.
-export const WRITER_PATH = '/origins';
-const LOOPBACK = /^http:\/\/(127\.0\.0\.1|localhost|\[::1\]):\d{1,5}\/[a-z/]*$/;
-export function writerBase(search: string): string {
-  const asked = new URLSearchParams(search).get('writer');
-  return asked && LOOPBACK.test(asked) ? asked.replace(/\/$/, '') : WRITER_PATH;
-}
-
-// The live game's stored Supabase session (src/account.ts storageKey; src/loot-claims.ts AUTH_KEY reads it the same way). The preview is
-// served from the same origin (/preview/origins/), so a player signed in on frankendom.com is signed in here. supabase-js is not loaded in
-// the preview, so nothing refreshes the token: one that is expired (or within a minute of it) counts as no session and nothing is sent.
-export const AUTH_KEY = 'frankendom.auth.v1';
-export function storedToken(storage: { getItem(key: string): string | null } | null, nowMs: number): string | null {
-  try {
-    const stored = JSON.parse(storage?.getItem(AUTH_KEY) ?? 'null') as { access_token?: unknown; expires_at?: unknown } | null;
-    const token = stored?.access_token;
-    return typeof token === 'string' && /^\S{1,4096}$/.test(token) && typeof stored?.expires_at === 'number' && stored.expires_at * 1000 > nowMs + 60_000 ? token : null;
-  } catch { return null; }
-}
+export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from '../../src/writer-call.ts';
+import { WRITER_PATH, AUTH_KEY, storedToken } from '../../src/writer-call.ts';
 
 // Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
@@ -48,7 +30,7 @@ export const authClient = async (env: { url?: string; key?: string }): Promise<A
 
 export type Character = { id: string; name: string };
 export type Opened = { career: CareerState; characters: Character[]; marks: number };
-export type Offline = { offline: string };   // 'no-session' | 'http-<status>' | 'timeout' | 'network' | 'bad-reply'
+import type { Offline } from '../../src/writer-call.ts';
 export const isOffline = (r: Opened | Offline): r is Offline => 'offline' in r;
 
 const count = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
