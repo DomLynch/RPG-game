@@ -15,8 +15,9 @@ hf_state="${HF_WALL_ROWS_STATE:-artifacts/hf-wall-rows/state}"   # the launcher'
 hf_wall_rows_launch() {
   hf_job=""
   command -v hf >/dev/null 2>&1 || { echo 'hf-wall-rows: no hf CLI on this Mac; every row runs on the Mac'; return 0; }
-  hf_job=$(node scripts/hf-wall-rows.mjs launch "$revision") || { hf_job=""; echo 'hf-wall-rows: launch failed; every row runs on the Mac'; return 0; }
-  echo "hf-wall-rows: job $hf_job launched for $revision"
+  hf_job=$(node scripts/hf-wall-rows.mjs launch "$revision" --skip "${placed_skip:-}") || { hf_job=""; echo 'hf-wall-rows: launch failed; every row runs on the Mac'; return 0; }
+  hf_wall_planned=$(node -e 'try{process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).rows.join(","))}catch{}' "$hf_state" || true)
+  echo "hf-wall-rows: job $hf_job launched for $revision (rows ${hf_wall_planned:-none})"
 }
 
 # Waits for the job (bounded: HF_WALL_ROWS_WAIT_MAX_S, inside the deploy ceiling) and appends the trusted rows to trusted_checks.

@@ -20,10 +20,8 @@ vps_receipts_apply() {
   local trust_err; trust_err=$(mktemp)
   vps_trusted=$(node scripts/vps-receipt-trust.mjs "$revision" 2>"$trust_err" || true)
   cat "$trust_err"
-  # Every row must be in a shard or Mac-only (WebKit, real-clock). Unassigned shardable rows would run on a busy Mac for nothing: refuse before any check starts.
-  if grep -q 'UNASSIGNED rows' "$trust_err" && [[ "${DEPLOY_ALLOW_UNASSIGNED:-}" != 1 ]]; then
-    rm -f "$trust_err"; echo "vps-receipts: REFUSED: rows no shard ran (list above). Shard them (scripts/vps-shadow/launch.mjs rows <sha> <flavor> <rows>) or set DEPLOY_ALLOW_UNASSIGNED=1"; exit 1
-  fi
+  # An UNASSIGNED list (above, from vps-receipt-trust.mjs) is information, not a refusal: deploy.sh launches every shardable row itself before the
+  # quality gate (launch.mjs cpu), so a row on it is a CI-trusted, out-of-scope, T4 or failed-launch row, and the Mac runs whatever is not trusted.
   rm -f "$trust_err"
   [[ -n "$vps_trusted" ]] || { echo "0 trusted from VPS receipts; every row not trusted by CI runs here"; return 0; }
   trusted_checks=$(printf '%s' "${trusted_checks:+$trusted_checks,}$vps_trusted" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)

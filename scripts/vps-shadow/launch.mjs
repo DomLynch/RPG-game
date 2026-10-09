@@ -4,9 +4,11 @@
 // Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, jobCommand } from '../lib/vps-receipts.mjs';
+import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, jobCommand } from '../lib/vps-receipts.mjs';
+import { selectWallRows } from '../lib/hf-wall-rows.mjs';
+import { MAC_ONLY, VPS_ROWS } from '../lib/row-placement.mjs';
 
 // Rows that hit the 600 s per-row ceiling on cpu-upgrade even alone (Backend's width-1 probe, 2026-10-08), or cannot run in the container at all (13: initdb refuses root).
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
@@ -23,6 +25,17 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
   const [bash, dashC, script] = jobCommand(kind, sha);
   return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : slow.length ? '35m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), ...(slow.length ? ['-e', `RELEASE_CHECK_CEILING_S=${SLOW_CEILING_S}`] : []), JOB_IMAGE, bash, dashC, script];
 };
+// The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a VPS row, a T4 wall row
+// (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, 4-wide, each under hfArgs' 20m --timeout.
+export const CPU_SHARD = 6;
+export function cpuShards(commands, readSource, skip = []) {
+  const gaps = coverageGaps([], commands, readSource), wall = selectWallRows(commands, readSource);
+  const off = new Set([...skip, ...gaps.macOnly, ...gaps.t4Only, ...SLOW_ROWS, ...VPS_ROWS, ...MAC_ONLY.map(e => e.row), ...wall]);
+  const rows = commands.map((_, i) => i + 1).filter(i => !off.has(i));
+  return Array.from({ length: Math.ceil(rows.length / CPU_SHARD) }, (_, i) => rows.slice(i * CPU_SHARD, (i + 1) * CPU_SHARD));
+}
+// Every job a release starts goes in the ledger scripts/hf-cleanup.mjs reads on deploy.sh's EXIT (id and the job's own --timeout in seconds).
+export const ledger = (id, sha, timeout) => { const dir = process.env.HF_LEDGER_DIR || 'artifacts/hf-jobs'; mkdirSync(dir, { recursive: true }); appendFileSync(`${dir}/${sha}.ledger`, `${id} ${Number(/^(\d+)m$/.exec(timeout || '')?.[1] || 0) * 60}\n`); };
 export const receiptFrom = (logs, kind) => {
   const line = String(logs).split('\n').reverse().find(l => l.startsWith(`RECEIPT ${kind} `));
   try { return line ? JSON.parse(line.slice(`RECEIPT ${kind} `.length)) : null; } catch { return null; }
@@ -31,7 +44,18 @@ export const receiptFrom = (logs, kind) => {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [cmd, a, b, c] = process.argv.slice(2);
   try {
-    if (cmd === 'fetch') {
+    if (cmd === 'cpu') {
+      // node launch.mjs cpu <full sha> <rows NOT to place: CI-trusted and out-of-scope>: prints "id,id;row,row" (the jobs and the rows they carry) or nothing.
+      const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands, read = path => { try { return readFileSync(path, 'utf8'); } catch { return null; } };
+      const ids = [], placed = [];
+      for (const rows of cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger))) {
+        if (process.env.LAUNCH_DRY) { placed.push(...rows); continue; }
+        const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), '4'], { encoding: 'utf8', timeout: 90_000 });
+        const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
+        if (id) { ids.push(id); placed.push(...rows); } else console.error(`launch: no job for CPU rows ${rows.join(',')}; they run on the Mac`);
+      }
+      process.stdout.write(placed.length ? `${ids.join(',')};${placed.join(',')}` : '');
+    } else if (cmd === 'fetch') {
       const logs = spawnSync('hf', ['jobs', 'logs', a], { encoding: 'utf8', timeout: 120_000, maxBuffer: 64 << 20 });
       if (logs.error || logs.status !== 0) throw new Error(`hf jobs logs ${a} failed`);
       const unit = receiptFrom(logs.stdout, 'unit'), rows = receiptFrom(logs.stdout, 'rows'), receipt = unit || rows;
@@ -42,7 +66,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     } else {
       const args = hfArgs(cmd, a, b, c, process.argv[6]);
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
-      else { const r = spawnSync('hf', args, { encoding: 'utf8', timeout: 60_000 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || ''); process.exit(r.status ?? 1); }
+      else {
+        const r = spawnSync('hf', args, { encoding: 'utf8', timeout: 60_000 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
+        const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
+        if (id) ledger(id, a, args[args.indexOf('--timeout') + 1]);
+        process.exit(r.status ?? 1);
+      }
     }
   } catch (e) { console.error(`launch: ${e.message}`); process.exit(2); }
 }
