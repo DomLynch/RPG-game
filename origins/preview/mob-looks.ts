@@ -9,7 +9,7 @@ import { BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE } from '../../s
 import type { WeaponId } from '../../src/moves.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 
-export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number } };
+export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
 
 export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   // The matriarch: the Witch grown huge, mere-green and drowned, long wet rags.
