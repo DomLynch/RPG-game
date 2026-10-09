@@ -51,4 +51,4 @@ try {
     if (name) assert.equal(aria, `Back to ${name}`, 'the full name stays in the accessible label');
   }
   assert.deepEqual(errors, []); console.log(JSON.stringify({ passed: true, rows }));
-} finally { await browser.close(); server.close(); }
+} finally { await browser.close(); server.closeAllConnections(); server.close(); }   // keep-alive sockets would hold a failed run open until they time out
