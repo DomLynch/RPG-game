@@ -27,7 +27,7 @@ function stub(answers: Record<string, unknown>, opts: { absent?: boolean } = {})
   const kills: { m: string; r: string; b: Json[]; g: Json }[] = [];
   const db: Db = { async run(sql, v = {}) {
     if (/origins_spawn_/.test(sql) && opts.absent) return 'absent';
-    const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? sql)   // after the psql guard; the bare call once the probe is cached (store.ts gated)?.[1];
+    const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? sql)?.[1];   // after the psql guard; the bare call once the probe is cached (store.ts gated)
     if (fn === 'origins_spawn_kill') { kills.push({ m: v.m!, r: v.r!, b: JSON.parse(v.b!), g: JSON.parse(v.g!) }); }
     if (fn) { const a = answers[fn]; if (a instanceof Error) throw a; return a === undefined ? 'null' : JSON.stringify(a); }
     if (/origins_metal_of/.test(sql)) return 'absent';
