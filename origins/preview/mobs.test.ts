@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { loadZone } from './zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 

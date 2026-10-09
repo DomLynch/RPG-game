@@ -3,7 +3,7 @@
 // Node names are the kit's contract (public/world/kit/zone1-kit.glb): trees, boulders, scrub and grass tufts.
 import { toWorld } from '../world/derive.ts';
 import { rng, type Dress } from './frontier-dress.ts';
-import { loadZone } from './zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 export type KitNode = string;   // a node name of the zone's kit (origins/zones/zone1/kit.ts, checked by the loader)

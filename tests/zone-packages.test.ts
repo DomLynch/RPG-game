@@ -8,9 +8,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
-import { loadZone, zoneProblems } from '../origins/preview/zone-loader.ts';
+import { loadZone, zoneProblems } from '../origins/zones/loader.ts';
 
-const LOADER = 'origins/preview/zone-loader.ts';   // the ONE module allowed to import a package (moves to origins/zones/loader.ts in Release I: change this line and the import above)
+const LOADER = 'origins/zones/loader.ts';   // the ONE module allowed to import a package
 export const HOOKS_BUDGET = 300;
 const repo = path.resolve(import.meta.dirname, '..');
 

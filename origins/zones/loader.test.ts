@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadZone, zoneProblems, type Zone } from './zone-loader.ts';
-// The import ban and the data-only lint live in tests/zone-packages.test.ts (AST-based, with negative controls).
+import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
 const clone = (z: Zone): Mut<Zone> => JSON.parse(JSON.stringify(z));
@@ -24,4 +23,15 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.kit.url = '/elsewhere.glb'; }), /kit url/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.fog = 'red'; }), /not #rrggbb/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
+});
+
+test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; zoneIds lists every package', () => {
+  assert.deepEqual(zoneIds(), ['1']);
+  assert.equal(zoneFromAddress('/zone1/', ''), '1');
+  assert.equal(zoneFromAddress('/preview/origins/', '?region=1'), '1');
+  assert.equal(zoneFromAddress('/zone/2/', ''), '2');
+  assert.equal(zoneFromAddress('/zone/2', '?zone=3'), '2', 'the path wins');
+  assert.equal(zoneFromAddress('/zone1/', '?zone=2&x=1'), '2');
+  assert.equal(pageZoneId(), '1', 'no page (the server, the tests): Zone 1');
+  assert.throws(() => loadZone(zoneFromAddress('/zone/99/', '')), /no zone 99/);
 });
