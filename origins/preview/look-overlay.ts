@@ -7,13 +7,13 @@ import type { ZoneFields } from './look.ts';
 
 export type Overlay = { fields: Record<string, unknown>; set: string[]; problems: string[] };
 
-const HEX6 = /^[0-9a-f]{6}$/i, HEX3 = /^[0-9a-f]{3}$/i;
+const HEX6 = /^[0-9a-f]{6}$/i;
 // The URL gives text; the field's kind says what it should be. A value that cannot become that kind stays text, so overlayProblem refuses it by the same words as a zone file.
 function coerce(f: Field, raw: string): unknown {
   switch (f.kind) {
     case 'number': return raw.trim() === '' ? raw : Number(raw);
     case 'boolean': return /^(true|1|on)$/i.test(raw) ? true : /^(false|0|off)$/i.test(raw) ? false : raw;
-    case 'color': return HEX6.test(raw) || HEX3.test(raw) ? `#${raw}` : raw;   // '#' is a fragment in a URL: allow it left off
+    case 'color': return HEX6.test(raw) ? `#${raw}` : raw;   // '#' is a fragment in a URL: allow it left off
     case 'list': case 'point': case 'map': case 'terrain':
       try { return JSON.parse(raw); } catch { /* not JSON: a comma list of numbers is the short form for a point or list */ }
       return raw.split(',').every((p) => p.trim() !== '' && Number.isFinite(Number(p))) ? raw.split(',').map(Number) : raw;

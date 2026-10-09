@@ -11,16 +11,16 @@ test('a ?look= value with no "=" is a preset name and is not an overlay', () => 
 });
 
 test('numbers, booleans, colours with or without #, lists and the short comma form are typed by the field, not the URL', () => {
-  const o = parseOverlay('?look=look.fog.density=0.03&look=look.timeOfDay.follow=false&look=look.fog.colour=7a1f1f&look=look.sun.colour=%233060ff&look=look.sun.pos=-10,20,5&look=look.ambient.sky=%23abc');
+  const o = parseOverlay('?look=look.fog.density=0.03&look=look.timeOfDay.follow=false&look=look.fog.colour=7a1f1f&look=look.sun.colour=%233060ff&look=look.sun.pos=-10,20,5');
   assert.deepEqual(o.problems, []);
-  assert.deepEqual(o.fields, { 'look.fog.density': 0.03, 'look.timeOfDay.follow': false, 'look.fog.colour': '#7a1f1f', 'look.sun.colour': '#3060ff', 'look.sun.pos': [-10, 20, 5], 'look.ambient.sky': '#abc' });
+  assert.deepEqual(o.fields, { 'look.fog.density': 0.03, 'look.timeOfDay.follow': false, 'look.fog.colour': '#7a1f1f', 'look.sun.colour': '#3060ff', 'look.sun.pos': [-10, 20, 5] });
   assert.deepEqual(o.set, Object.keys(o.fields));
 });
 
 test('an unknown field or a bad value is refused with the registry\'s words and the rest still apply', () => {
-  const o = parseOverlay('?look=look.fog.densty=0.03&look=look.fog.density=9&look=look.exposure=abc&look=look.exposure=1.6&look=look.timeOfDay.follow=maybe');
+  const o = parseOverlay('?look=look.fog.densty=0.03&look=look.fog.density=9&look=look.exposure=abc&look=look.exposure=1.6&look=look.timeOfDay.follow=maybe&look=look.ambient.sky=%23abc');
   assert.deepEqual(o.fields, { 'look.exposure': 1.6 });
-  assert.equal(o.problems.length, 4);
+  assert.equal(o.problems.length, 5, 'a 3-digit colour is refused too: the schema wants #rrggbb');
   assert.match(o.problems[0]!, /nearest: "look\.fog\.density"/);
   assert.ok(o.problems.every((p) => p.startsWith('?look=')));
 });
