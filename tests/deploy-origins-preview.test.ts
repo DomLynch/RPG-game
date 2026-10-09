@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const deploy = readFileSync(join(process.cwd(), 'scripts', 'deploy.sh'), 'utf8');
@@ -21,4 +22,14 @@ test('a /zone1/ bundle that differs from the built one marks previews not ok, ra
 
 test('DEPLOY_ORIGINS_PREVIEW=off skips the publish', () => {
   assert.match(deploy, /DEPLOY_ORIGINS_PREVIEW:-on\}" != off/);
+});
+
+test('the preview script runs through bash on a clean artifact folder, and an nginx conf drift fails the run loudly (Release I: no exec bit, stale build, /zone/ alias never installed)', () => {
+  assert.match(deploy, /rm -rf artifacts\/origins-preview[^\n]*\n\s*bash scripts\/publish-origins-preview\.sh/);
+  assert.match(deploy, /bash scripts\/provision\.sh --dry-run[\s\S]{0,400}previews_ok=0/);
+});
+
+test('publish-origins-preview.sh is executable in git', () => {
+  const mode = spawnSync('git', ['ls-files', '-s', 'scripts/publish-origins-preview.sh'], { encoding: 'utf8' }).stdout.split(' ')[0];
+  assert.equal(mode, '100755');
 });

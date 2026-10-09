@@ -50,6 +50,10 @@ if [[ $build_status -eq 0 ]]; then
   set +e; RELEASE_CHECKS_SKIP="$skip" RELEASE_CHECKS_SKIP_SOURCE= node scripts/release-checks.mjs 2>&1 | tee "$run/rows.log"; rows_status=${PIPESTATUS[0]}; set -e
   cp artifacts/release-checks/*.log "$run/logs/" 2>/dev/null || true
   cp artifacts/release-checks.json "$run/release-checks.json" 2>/dev/null || true
+  # The job log carries only the per-row verdict lines; a failed row's own output stays in the container. Print its last 50 lines so a FAILED/CEILING row can be diagnosed from `hf jobs logs`.
+  for script in $(grep -E 'FAILED|CEILING' "$run/rows.log" | grep -o 'scripts/[A-Za-z0-9_.-]*\.mjs' | sort -u); do
+    for f in "$run"/logs/*"$(basename "$script" .mjs)"*.log; do [[ -f "$f" ]] && { echo "--- last 50 lines of $(basename "$f") (failed row output) ---"; tail -n 50 "$f"; echo "--- end $(basename "$f") ---"; }; done
+  done
 else
   echo "build failed (exit $build_status); no rows ran" > "$run/rows.log"
 fi
