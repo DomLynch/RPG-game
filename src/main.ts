@@ -57,7 +57,7 @@ import type { FinisherId } from './fight/finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { executionPick, resolveExecution } from './execution.ts';
 
-import { HEAVY_MOVES, createHud } from './hud.ts';
+import { HEAVY_MOVES, createHud } from './fight/hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
