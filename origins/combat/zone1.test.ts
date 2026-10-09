@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
 import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -152,6 +152,17 @@ test('raw Pit events: every Zone 1 event carries the Pit\'s CombatEvent (a Hit k
   assert.ok(hit.pit?.weapon, 'and the weapon');
   assert.ok(r.events.filter((e) => !['Aggressed', 'FightStarted', 'Evaded'].includes(e.type)).every((e) => e.pit), 'every Pit-sourced event has its original (the loop\'s own Aggressed / FightStarted / Evaded have none)');
   assert.ok(r.events.some((e) => e.type === 'Pit' && e.pit?.action === 'roll'), 'the roll is not dropped');
+});
+
+test('pairs: every fight is exposed as the Pit\'s own duel - the nearest foe primary, the joiners after, nothing when alone', () => {
+  assert.deepEqual(pairs(run(newWorld([player('p', 0, 0)]), 1).world), [], 'alone: no pairs');
+  const w = run(newWorld([player('p', 0, 0), creature('c1', 'wolf', 0, 3), creature('c2', 'wolf', 3, 0), creature('c3', 'wolf', -3, 0), creature('c4', 'wolf', 0, -3)]), 3, undefined, (x) => pairs(x).length >= 3).world;
+  const ps = pairs(w);
+  assert.equal(ps.length, 3, 'MAX_ATTACKERS = 3 duels on one player');
+  assert.equal(ps.filter((x) => x.primary).length, 1);
+  assert.equal(new Set(ps.map((x) => x.foe)).size, 3, 'each on its own creature');
+  assert.ok(ps.every((x) => x.player === 'p' && x.duel.fighters.length === 2 && typeof x.duel.fighters[1].phase === 'string'), 'a real Pit duel');
+  const before = JSON.stringify(w); pairs(w); assert.equal(JSON.stringify(w), before, 'reading it changes nothing');
 });
 
 test('creature mood: the Pit\'s moodOf draw - about half the home stance, the rest spread over the other three; same rand = same stance', () => {

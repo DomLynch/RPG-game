@@ -10,7 +10,7 @@ import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/st
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 import { IDLE_INPUT, openBout, stepBout, type Bout } from './open-fight.ts';
 import type { AiState } from './ai-open.ts';
-import type { CombatEvent } from './duel-open.ts';
+import type { CombatEvent, Duel } from './duel-open.ts';
 
 const TICK = 1 / 60;
 const secs = (ticks: number): number => ticks * TICK;
@@ -91,6 +91,9 @@ export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, 
 export const withMood = (f: Fighter, rand: () => number): Fighter => withStance(f, moodOf(Math.floor(rand() * 4294967296) >>> 0, f.kind));
 /** The brain as the next bout will find it. retreatUntil / disengageUntil are absolute ticks of the bout that wrote them and a rebuilt bout restarts its clock at 0, so they are rebased onto the new clock (Auditor, #1939); lastTravel compared against the old bout's distance, so it restarts. The live bout keeps its own copy. */
 const carried = (ai: AiState, tick: number): AiState => ({ ...ai, retreatUntil: Math.max(0, ai.retreatUntil - tick), disengageUntil: Math.max(0, ai.disengageUntil - tick), lastTravel: 0 });
+/** Every fight going on in the world as the Pit's own duel: player id, creature id, the duel (fighters[0] = the player, fighters[1] = the creature, phase / move / body as the Pit has them). A player's nearest foe is `primary`, the creatures that joined him follow. The page drives the Pit's actors, gore and finishers from these. */
+export type Pair = { player: string; foe: string; primary: boolean; duel: Duel };
+export const pairs = (world: World): Pair[] => Object.entries(world.streams).flatMap(([player, b]) => [...(b.foe ? [{ player, foe: b.foe, primary: true, duel: b.duel }] : []), ...(b.joined ?? []).flatMap((j) => (j.foe ? [{ player, foe: j.foe, primary: false, duel: j.duel }] : []))]);
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
