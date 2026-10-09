@@ -2,7 +2,7 @@
 // (origins/world/schema.ts); fog distances come from the zone's `view`; nothing here knows a zone by name. Presentation only: no sim, no save, no camera. 'ash-pit' is
 // Arena 1's theme pinned as literals (look.test.ts), so today's Pit is byte-identical; new looks are new rows. Pure (hex strings and numbers) so it is testable without three.js.
 import type * as THREE from 'three';
-import { loadZone } from './zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 
 export type Look = {
   fog: string; fogDensity: number;   // FogExp2 colour (also the scene background) and its density at the DEFAULT fogFar

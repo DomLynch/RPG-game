@@ -1,12 +1,12 @@
 // The zone loader (zone-runtime step 1, docs/specs/zone-runtime.md): the ONE place that reads a zone's data package (origins/zones/<id>/) and checks it before anything uses it. Callers get a validated Zone
-// and never import origins/zones/** themselves (zone-loader.test.ts fails if they do). Pure: no three.js, no DOM, so the server may read the same rows. Only Zone 1 exists; a second zone is a second package
+// and never import origins/zones/** themselves (loader.test.ts fails if they do). Pure: no three.js, no DOM, so the server may read the same rows. Only Zone 1 exists; a second zone is a second package
 // and a line in PACKAGES.
 import type { MobRow } from '../mobs/row.ts';
-import type { Look } from './look.ts';
-import zone1 from '../zones/zone1/zone.ts';
-import spawns1 from '../zones/zone1/spawns.ts';
-import kit1 from '../zones/zone1/kit.ts';
-import looks1 from '../zones/zone1/look.ts';
+import type { Look } from '../preview/look.ts';
+import zone1 from './zone1/zone.ts';
+import spawns1 from './zone1/spawns.ts';
+import kit1 from './zone1/kit.ts';
+import looks1 from './zone1/look.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
@@ -40,8 +40,17 @@ export function zoneProblems(z: Zone): string[] {
   return bad;
 }
 
+export const zoneIds = (): string[] => Object.keys(PACKAGES);
+
+// Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), else Zone 1 (/zone1/ and every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
+export function zoneFromAddress(pathname: string, search: string): string {
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? '1';
+}
+// The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
+export const pageZoneId = (): string => typeof location === 'undefined' ? '1' : zoneFromAddress(location.pathname, location.search);
+
 const loaded = new Map<string, Zone>();
-export function loadZone(id: string = '1'): Zone {
+export function loadZone(id: string = pageZoneId()): Zone {
   const hit = loaded.get(id); if (hit) return hit;
   const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
