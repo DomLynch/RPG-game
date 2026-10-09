@@ -9,7 +9,7 @@ import type { CareerState } from '../progression/model.ts';
 import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../patrons/patrons.ts';
 
 export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from './writer-call.ts';
-import { WRITER_PATH } from './writer-call.ts';
+import { WRITER_PATH, AUTH_KEY, storedToken } from './writer-call.ts';
 
 // Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
