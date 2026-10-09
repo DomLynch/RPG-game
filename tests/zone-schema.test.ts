@@ -1,7 +1,6 @@
 // The zone schema (A1, docs/specs/origins/zone-schema.md): one field registry, defaults < biome < zone, versioned, unknown fields refused with the nearest known one. The five tests Strategy named.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BIOMES } from '../origins/zones/biomes.ts';
 import { loadZone, zoneIds } from '../origins/zones/loader.ts';
 import { badValue, overlayProblem, resolveSpec, resolveZone, wiredReport, nearest } from '../origins/zones/resolve.ts';
 import { FIELDS, SCHEMA_VERSION, type Field } from '../origins/zones/schema.ts';
@@ -44,7 +43,7 @@ test('4. IDENTITY: Zone 1 and Zone 2 resolve with no problems, keep every view t
     const z = loadZone(id), r = z.resolved as Record<string, unknown>;
     assert.deepEqual(resolveZone(id, folderZone(id)).problems, [], `zone ${id}`);
     assert.equal(r.name, z.name); assert.equal(r.level, z.level); assert.deepEqual(r.looks, z.looks); assert.deepEqual(r.spawns, z.spawns); assert.deepEqual(r.kit, z.kit);
-    assert.equal(((r.look as Record<string, Record<string, unknown>>).weather)!.preset, BIOMES['ash-wastes']!.look && 'dust', 'the biome reaches the zone');
+    assert.equal(((r.look as Record<string, Record<string, unknown>>).weather)!.preset, 'dust', 'the biome reaches the zone');
   }
   assert.equal(resolveZone('999', zone999).problems.length, 0); assert.equal(resolveZone('999', {}).values.name, 'Zone 999', 'a missing name is a placeholder, not an error');
 });

@@ -65,7 +65,7 @@ export function resolveSpec(input: Spec, { fields = FIELDS, biomes = BIOMES, mig
   let spec = input, v = typeof spec.schemaVersion === 'number' ? spec.schemaVersion : 1;
   if (v > version) problems.push(`schemaVersion ${v} is newer than this build (${version})`);
   for (; v < version; v++) { const step = migrations[v]; if (step) spec = step(spec); }   // a version with no step changed no meaning
-  const values: Record<string, unknown> = {}, unknown: string[] = [], known = byPath(fields);
+  const values: Record<string, unknown> = {}, known = byPath(fields);
   for (const f of fields) values[f.path] = f.default;
   const biomeName = typeof spec.biome === 'string' ? spec.biome : DEFAULT_BIOME, biome = biomes[biomeName];
   if (!biome) problems.push(`biome "${biomeName}" is not a preset (${Object.keys(biomes).join(', ')})`);
