@@ -22,6 +22,8 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   'character:court-thrall': { opponent: 'pitborn', tint: 0x8c2f2f, scale: 1, dressing: { soot: .35, burnt: .5 } },
   // Small, quick, iron bits: the Goblin in ash brown, its own knife.
   'character:cinder-scavenger': { opponent: 'goblin', tint: 0x6b5a48, scale: .9, dressing: { soot: .7, burnt: .3 } },
+  // The Zone 1 goblin camp (Lead 2026-10-09, for Dom's loot/inventory test): the engine goblin as he fights, level-1 armour and all, on the generated world body (public/world/goblin.glb, 8k tris, scripts/character/world_body.py from src/assets/goblin.glb): no tint, no soot, native height.
+  'character:pit-goblin': { opponent: 'goblin', tint: 0xffffff, scale: 1, dressing: { soot: 0, burnt: 0 } },
   // The mere's spawn: smaller still, reed green, no soot (it is wet, not burnt).
   'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
   // Starved servant of the ruin: tall for a goblin, grey and ragged.

@@ -23,6 +23,8 @@ const gear = (id: string, name: string, slot: string, rarity: string, material: 
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
 const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
+// The goblin's six armour pieces are generated (origins/inventory/loot-catalogue.ts: item:loot.goblin.<Slot>); only the loot entry lives here.
+const goblinEntry = (slot: string) => ({ item: `item:loot.goblin.${slot}`, chance: 25, quantity: 1, levelMin: null, levelMax: null });
 const table = (id: string, presentation: 'take-one' | 'collect', rolls: unknown[], currency: { min: number; max: number } | null) => ({
   kind: 'loot-table', schemaVersion: 1, id, presentation, distribution: 'personal', rolls, currency, fallback: null, // crafting is out
 });
@@ -59,6 +61,8 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
+  // The Pit goblin camp's table (Zone 1, Dom's loot/inventory test; Backend 2026-10-09): each of his six armour pieces rolls on its own at 25 %, a level-1 kill may drop gear (levelMin null), bronze 2-6.
+  table('loottable:pit-goblin', 'collect', [independent(100, ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map(goblinEntry))], { min: 2, max: 6 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
   // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
   table('loottable:ash-wolf', 'collect', [
@@ -122,6 +126,8 @@ export const FOES = [
     ], 'court-thrall'),
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
     null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'cinder-scavenger'),
+  figure('character:pit-goblin', 'Pit goblin', ORIGINAL, 'A goblin of the Pit in the armour the Pit gave him, camped at the edge of the Frontier where a fighter can find him.',
+    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'pit-goblin'),
   figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
     null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ash-wolf'),
   figure('character:ember-wolf', 'Ember wolf', ORIGINAL, 'Its coat has burned down to the colour of a banked fire, and it hunts the Reach in a pack of two or three.',
@@ -352,6 +358,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:court-thrall': 'elite',
   'character:rift-spawn': 'elite',
   'character:cinder-scavenger': 'mob',
+  'character:pit-goblin': 'mob',
   'character:mere-brood': 'mob',
   'character:ash-wolf': 'mob',
   'character:ember-wolf': 'mob',
@@ -371,6 +378,7 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 // Which encounter each creature table is rolled from in the open world (no encounter: a plain kill).
 export const CREATURE_LOOT: Record<string, string> = {
   'character:cinder-scavenger': 'loottable:cinder-scavenger',
+  'character:pit-goblin': 'loottable:pit-goblin',
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
   'character:ash-wolf': 'loottable:ash-wolf',

@@ -11,9 +11,9 @@ import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
 const clone = (z: Zone): Mut<Zone> => JSON.parse(JSON.stringify(z));
 
-test('Zone 1 loads: level 1, six rows of [1, 2], every opener a row, the kit and looks valid', () => {
+test('Zone 1 loads: level 1, seven rows of [1, 2], every opener a row, the kit and looks valid', () => {
   const z = loadZone();
-  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 6);
+  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 7);
   assert.deepEqual(zoneProblems(z), []);
   assert.equal(loadZone('1'), z, 'cached: the same package');
   assert.throws(() => loadZone('99'), /no zone 99/);
