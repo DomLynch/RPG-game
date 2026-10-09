@@ -49,6 +49,7 @@ test('the gear sheet decides nothing itself: every wear / stow click goes throug
   assert.equal((sheet.match(/\bact\(/g) ?? []).length >= 5, true, 'the rack button, Wear this, Store, and each slot\'s Store go through act');
   assert.doesNotMatch(sheet, /import \{[^}]*\b(wear|unwear|stow|wearFromPack)\b[^}]*\} from '\.\/loot\.ts'/, 'no direct ledger call in the sheet');
   assert.match(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), /createGearSheet\(/, 'the Pit mounts the sheet');
+});
 
 test('inventory.equip: "is not in the backpack" - a banked piece is never offered, so no unequip commits before an equip the server would refuse', () => {
   const v = view([piece('i1', 'goblin.Body', 'equipped', { paperdoll: 'chest' }), piece('i2', 'veteran.Body', 'bank', { index: 3 })], { chest: 'i1' });
