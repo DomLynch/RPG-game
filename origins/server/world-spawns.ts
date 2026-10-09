@@ -57,9 +57,8 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
   return out;
 }
 export const zone1Spawns = (content: EncounterContent): Map<string, Spawn> => zoneSpawns(content, '1');
-// The database's spawn key: Zone 1 ids as they are (live rows); Zone N >= 2 ids are `z<N>:<id>` (migration 202610090016's rule), so two zones never share a creature's life.
-export const spawnKey = (zoneId: string, instance: string): string => (zoneId === '1' ? instance : `z${zoneId}:${instance}`);
-export const keyOf = (key: string): { zoneId: string; instance: string } => { const m = /^z([0-9]{1,3}):(.+)$/.exec(key); return m ? { zoneId: m[1]!, instance: m[2]! } : { zoneId: '1', instance: key }; };
+// The database's spawn key is the spec id as it is: Zone 1 ids are the live rows, Zone N >= 2 ids already carry `z<N>:` (migration 202610090016's rule), so two zones never share a creature's life.
+export const zoneOfKey = (key: string): string => /^z([0-9]{1,3}):/.exec(key)?.[1] ?? '1';
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, INSTANCE = /^[a-z0-9._:-]{1,96}$/;
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
@@ -93,9 +92,9 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
 
   const spawnState: Handler = async ({ db }, body) => {
     const zoneId = zoneOf(body.zoneId), list = [...spawnsOf(zoneId).values()].filter((s) => body.zone === undefined || s.spec.zone === body.zone);
-    const got = await store.spawnState(db, list.map((s) => spawnKey(zoneId, s.spec.id)));
+    const got = await store.spawnState(db, list.map((s) => s.spec.id));
     if (got === null) return absent();
-    const known = new Map(got.spawns.map((s) => [keyOf(s.instance).instance, s]));
+    const known = new Map(got.spawns.map((s) => [s.instance, s]));
     return {
       now: got.now,
       spawns: list.map(({ spec }) => {
@@ -111,7 +110,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     if (typeof instance !== 'string' || !INSTANCE.test(instance)) throw new BadRequest('instance: a spawn id');
     const zoneId = zoneOf(body.zoneId), spawn = spawnsOf(zoneId).get(instance);
     if (!spawn) throw new BadRequest(`instance: not a Zone ${zoneId} spawn`);
-    const got = await store.spawnEngage(db, account, character, randomBytes(24).toString('base64url'), spawnKey(zoneId, instance), spawn.spec.character);
+    const got = await store.spawnEngage(db, account, character, randomBytes(24).toString('base64url'), instance, spawn.spec.character);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
     return { token: got.token, instance, zoneId, generation: got.generation, kind: spawn.spec.character, level: spawn.spec.level, hp: spawn.hp, expiresAt: got.expiresAt };
@@ -129,7 +128,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
     if (open === 'none') throw new Refused(409, 'engage token unknown, used or expired', 'used');
-    const at0 = keyOf(open.instance), spawn = zoneIds().includes(at0.zoneId) ? spawnsOf(at0.zoneId).get(at0.instance) : undefined;   // the token's own zone, read from its database key
+    const zone0 = zoneOfKey(open.instance), spawn = zoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
     // Reach: presence's pose when it has a fresh one inside the Frontier's zones; presence holds only the Concord square today, so an unplaced player is recorded as unchecked.
