@@ -8,7 +8,7 @@ import { Refused } from '../origins/server/errors.ts';
 import { BadRequest, handlers, openAccount, type Ctx, type Handler } from '../origins/server/handlers.ts';
 import { pitBatch } from '../origins/server/career.ts';
 import type { CareerRow, PitClaim, Snapshot } from '../origins/server/store.ts';
-import { creditFromMarks, legendKey, levelOfCredit } from '../origins/progression/model.ts';
+import { legendKey, levelOfCredit } from '../origins/progression/model.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const row = (over: Partial<CareerRow> = {}): CareerRow => ({ seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3, ...over });
@@ -129,11 +129,11 @@ test('pitBatch: a first win is an event plus a career_set at the row\'s version;
   assert.deepEqual([again.reason, again.cp, again.batch.map(o => o.op)], ['already-beaten', 0, ['event']]);
 });
 
-test('openAccount: the first open snapshots once from the marks, a moved-marks refusal re-reads, a lost race is swallowed', async () => {
+test('openAccount: the first open snapshots once (the marks recorded, credit 0: Pit marks do not seed zone level), a moved-marks refusal re-reads, a lost race is swallowed', async () => {
   const first = script({ open: () => [snap(null, 4), snap(row())] });
   await openAccount({ db: first.db, account: A });
   const snaps = first.calls.filter(c => c.fn === 'origins_snapshot');
-  assert.deepEqual(snaps.map(c => [c.vars.m, c.vars.c]), [['4', String(creditFromMarks(4))]]);
+  assert.deepEqual(snaps.map(c => [c.vars.m, c.vars.c]), [['4', '0']]);
   const settled = script({ open: () => [snap(row())] });
   await openAccount({ db: settled.db, account: A });
   assert.equal(settled.calls.filter(c => c.fn === 'origins_snapshot').length, 0, 'a snapshotted account is never snapshotted again');

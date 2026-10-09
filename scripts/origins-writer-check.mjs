@@ -13,7 +13,7 @@ import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
 import * as F from '../origins/contracts/fixtures.ts';
-import { creditFromMarks, cumulative } from '../origins/progression/model.ts';
+import { cumulative } from '../origins/progression/model.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
@@ -91,7 +91,7 @@ try {
   eq((await call('open', 'tc')).status, 403, 'on, but not on the allowlist');
 
   // open snapshots the Pit credit once, from the marks the database holds
-  const seed = creditFromMarks(4);
+  const seed = 0;   // Pit marks do not seed zone level (Strategy 2026-10-09): a zone career starts at credit 0
   const o1 = await call('open', 'ta');
   eq([o1.status, o1.json.result.marks, o1.json.result.career.seed_credit, o1.json.result.career.total_credit], [200, 4, seed, seed], 'open: the snapshot');
   psql(`update public.fighter_profiles set victory_marks = 40 where user_id = '${A}';`);
@@ -122,7 +122,7 @@ try {
   eq([after, psql(`select count(*) from public.origins_events where event_id in ('pit:${c1}', 'pit:${c2}')`)], [total1, '2'], 'a repeat win: cp 0, event written');
   eq(psql(`select count(*) from public.origins_pit_pending('${A}')`), '0', 'nothing left pending');
   // a client cannot name another account: the body is ignored, the token decides
-  eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, creditFromMarks(0), 'the account comes from the token alone');
+  eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, 0, 'the account comes from the token alone');
 
   // consume (a quest hand-in): ore minted into Aldren's pack and bank, burned through the writer, retried, conflicted, raced; conservation at every commit
   const pc = made.json.result.id;
@@ -303,7 +303,7 @@ try {
   eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
-  const seedD = creditFromMarks(10);
+  const seedD = 0;
   eq((await call('open', 'td')).json.result.career.seed_credit, seedD, 'Dara: open');
   const dara = (await call('create_character', 'td', { name: 'Dara' })).json.result.id;
   const q = sql => psql(sql.replaceAll('$PC', dara));
