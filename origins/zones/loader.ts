@@ -34,7 +34,8 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export function zoneProblems(z: Zone): string[] {
   const bad: string[] = [], ids = new Set<string>();
   if (!z.name.trim()) bad.push('no display name');
-  const { resolved: _resolved, fields: _fields, set: _set, ...own } = z;   // `resolved` is what loadZone adds, not part of the spec
+  const own: Record<string, unknown> = { ...z };
+  delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
