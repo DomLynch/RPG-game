@@ -61,7 +61,8 @@ test('every reference resolves: bosses, loot tables, characters, encounters, lan
   refused(withBundle((b) => { rec(b, 'encounter:mere-mother').boss.loot = 'loottable:nope'; }), 'unknown-id', 'encounter:mere-mother.boss.loot');
   refused(withBundle((b) => { rec(b, 'encounter:bounty-toll').boss.character = 'character:nobody'; }), 'unknown-id', 'boss.character');
   refused(withBundle((b) => { rec(b, 'loottable:court-thrall').rolls[0].entries[0].item = 'item:frontier.missing'; }), 'unknown-id', 'loottable:court-thrall');
-  refused(withBundle((b) => { const r = rec(b, 'region:ash-frontier'); r.waypoints = r.waypoints.filter((w: string) => w !== 'end-jail');   // Region 1's own last waypoint (a zone folder's come after it) }), 'missing-field', 'region:ash-frontier.waypoints');
+  // Region 1's own last waypoint goes (a zone folder's come after it):
+  refused(withBundle((b) => { const r = rec(b, 'region:ash-frontier'); r.waypoints = r.waypoints.filter((w: string) => w !== 'end-jail'); }), 'missing-field', 'region:ash-frontier.waypoints');
   refused(withLocal((l) => { (l.towns[2] as Record<string, unknown>).jail = 'nowhere'; }), 'unknown-id', 'town:mere-end.jail');
   refused(withLocal((l) => { l.towns[1]!.ruler.standIn = 'character:nobody'; }), 'unknown-id', 'town:cinder-hold');
   refused(withLocal((l) => { l.bossLoot.pop(); }), 'missing-field', 'encounter:bounty-peg-powler');
