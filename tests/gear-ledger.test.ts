@@ -1,0 +1,32 @@
+// The engine's gear screen over the ONE item ledger (src/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { lootOfView, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/gear-ledger.ts';
+
+const piece = (id: string, lootId: string | null, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
+  ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, ...over });
+const view = (pieces: GearPiece[], worn: Record<string, string> = {}): GearView => ({ pieces, worn, packSize: 8, bankSize: 100 });
+// goblin rank-1 pieces (Strategy 2026-10-09: the first drop): a helmet in the pack, a body worn
+const pack = view([piece('i1', 'goblin.Helmet', 'pack', { index: 1, tier: 'Veteran' }), piece('i2', 'goblin.Body', 'equipped', { paperdoll: 'chest' }), piece('i3', 'dwarf.Greaves', 'pack', { index: 0 }), piece('i4', null, 'pack', { index: 2 })], { chest: 'i2' });
+
+test('a gear_open reply reads into the Loot the sheet draws: owned, the pack in grid order, worn by slot key, the rung as the tier; a non-loot item is not gear on the sheet', () => {
+  const loot = lootOfView(pack);
+  assert.deepEqual([...loot.owned].sort(), ['dwarf.Greaves', 'goblin.Body', 'goblin.Helmet']);
+  assert.deepEqual(loot.pack, ['dwarf.Greaves', 'goblin.Helmet'], 'grid order, not reply order');
+  assert.deepEqual(loot.equipped, { chest: 'goblin.Body' });
+  assert.equal(loot.taken?.['goblin.Helmet' as keyof typeof loot.taken]?.tier, 4, 'Veteran is rung 4');
+});
+test('a reply that is not the documented shape is no reply', () => {
+  assert.equal(viewOf(null), null); assert.equal(viewOf({}), null); assert.equal(viewOf({ pieces: [{ id: 1 }], worn: {}, packSize: 8, bankSize: 1 }), null);
+  assert.deepEqual(viewOf(pack), pack);
+});
+test('wearing: an empty slot is one equip; an occupied slot comes off into the pack first (the server has no silent swap); worn or unknown is nothing', () => {
+  assert.deepEqual(stepsToWear(pack, 'goblin.Helmet'), [{ op: 'gear_equip', id: 'i1' }]);
+  const other = view([piece('i2', 'goblin.Body', 'equipped', { paperdoll: 'chest' }), piece('i6', 'veteran.Body', 'pack')], { chest: 'i2' });
+  assert.deepEqual(stepsToWear(other, 'veteran.Body'), [{ op: 'gear_unequip', id: 'i2' }, { op: 'gear_equip', id: 'i6' }]);
+  assert.deepEqual(stepsToWear(pack, 'nobody.Helmet'), []);
+});
+test('stowing a worn slot is one unequip; an empty slot is nothing', () => {
+  assert.deepEqual(stepsToStow(pack, 'chest'), [{ op: 'gear_unequip', id: 'i2' }]);
+  assert.deepEqual(stepsToStow(pack, 'head'), []);
+});
