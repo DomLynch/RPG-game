@@ -4,7 +4,7 @@
 import type * as THREE from 'three';
 import { createGearSheet } from '../../src/gear-sheet.ts';
 import { loadProfile, saveProfile } from '../../src/profile.ts';
-import { createServerGear } from './gear-server.ts';
+import { createServerGear } from '../../src/gear-server.ts';
 import { createZone1GearStage } from './gear-stage.ts';
 
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string };
