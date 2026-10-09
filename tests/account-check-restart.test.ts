@@ -13,9 +13,9 @@ test('the sign-in merge still ends in a full restart (otherwise this wait is wro
 });
 
 test('the account check reads nothing between the merge sign-in and the restart\'s own load', () => {
-  const go = script.indexOf("await page.goto(`${origin}/?account=return&code=qa-code`)");
+  const goto = "await page.goto(`${origin}/?account=return&code=qa-code`)", go = script.indexOf(goto);
   assert.ok(go > 0, 'the merge sign-in goto');
-  assert.equal(script.indexOf('account=return&code=', go + 1), -1, 'one merge sign-in; a second one needs the same wait');
+  assert.equal(script.indexOf('account=return&code=', go + goto.length), -1, 'one merge sign-in; a second one needs the same wait');
   const counter = script.lastIndexOf("page.on('load'", go);
   assert.ok(counter > 0 && counter < go, 'the load counter is attached before the goto, so the first load is counted');
   const wait = script.indexOf('loads < 2', go);
