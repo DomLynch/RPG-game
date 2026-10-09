@@ -32,17 +32,21 @@ try {
   await page.locator('#journal-button').tap(); await page.locator('#menu-gear').tap();
   await page.waitForSelector('#journal[open][data-gear="live"]'); await page.waitForTimeout(4000);
   const box = (sel) => page.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { l: r.left, r: r.right, t: r.top, b: r.bottom }; }, sel);
-  const hit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
-  for (const name of [null, ...names]) {
+    for (const name of [null, ...names]) {
     if (name) await page.evaluate((n) => { const b = document.getElementById('nav-pit'); b.textContent = n; b.setAttribute('aria-label', n); }, name);
     await page.waitForTimeout(300);
-    const exit = await box('#nav-pit'), gear = await box('#nav-gear'), cog = await box('.tab-settings'), aria = await page.evaluate(() => document.getElementById('nav-pit').getAttribute('aria-label'));
+    const exit = await box('#nav-pit'), gear = await box('#nav-gear'), aria = await page.evaluate(() => document.getElementById('nav-pit').getAttribute('aria-label'));
+    // What is DRAWN, not the padded boxes: the GEAR word, and the Settings tab's icon (26 px, centred) plus its SETTINGS word.
+    const drawn = await page.evaluate(() => {
+      const text = (el) => { const r = document.createRange(); r.selectNodeContents(el); const t = r.getBoundingClientRect(); return { l: t.left, r: t.right, t: t.top, b: t.bottom }; };
+      const tab = document.querySelector('.tab-settings'), box = tab.getBoundingClientRect(), word = text(tab), c = (box.left + box.right) / 2;
+      return { gear: text(document.getElementById('nav-gear')), cog: { l: Math.min(word.l, c - 13), r: Math.max(word.r, c + 13), t: box.top, b: box.bottom } };
+    });
     const clipped = await page.evaluate(() => { const b = document.getElementById('nav-pit'); return b.scrollWidth > b.clientWidth; });
-    rows.push({ name: name ?? '(as shipped)', exit, gear, cog, clipped });
-    await page.screenshot({ path: path.join(out, `exit-${name ? names.indexOf(name) + 1 : 0}.png`) });
+    rows.push({ name: name ?? '(as shipped)', exit, gear, drawn, clipped });
+    await page.screenshot({ path: path.join(out, `exit-${name ? names.indexOf(name) + 1 : 0}.png`) });   // before the asserts: a failing run still leaves its still
     assert.ok(exit.r <= gear.l + 0.5, `${name}: the exit ends at ${exit.r}, the Gear tab starts at ${gear.l}`);
-    const gearText = await page.evaluate(() => { const b = document.getElementById('nav-gear'), r = document.createRange(); r.selectNodeContents(b); const t = r.getBoundingClientRect(); return { l: t.left, r: t.right, t: t.top, b: t.bottom }; });
-    assert.ok(!hit(gearText, cog), `${name}: the GEAR text (${gearText.l}-${gearText.r}) overlaps the Settings cog (${cog.l}-${cog.r})`);
+    assert.ok(drawn.cog.l - drawn.gear.r >= 2, `${name ?? '(as shipped)'}: the GEAR word ends at ${drawn.gear.r.toFixed(1)}, the Settings cog starts at ${drawn.cog.l.toFixed(1)}: they overlap or touch`);
     assert.ok(exit.l >= 0 && gear.r <= 375.5, `${name}: the nav leaves the viewport`);
     if (name) assert.equal(aria, name, 'the full name stays in the accessible label');
   }
