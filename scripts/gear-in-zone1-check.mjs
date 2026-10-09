@@ -34,14 +34,16 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const errors = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
-  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e))); const logs = []; page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') logs.push(m.text().slice(0, 300)); });
+  page.setDefaultTimeout(240000); const bad = []; page.on('response', (r) => { if (r.status() >= 400) bad.push(`${r.status()} ${r.url().slice(-80)}`); }); page.on('requestfailed', (r) => bad.push(`failed ${r.url().slice(-80)}`));
+  page.on('pageerror', (e) => errors.push(String(e))); const logs = []; page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') logs.push(m.text().slice(0, 300)); });
   await page.route('**/origins/*', answer);
   await page.addInitScript((s) => localStorage.setItem('frankendom.auth.v1', s), JSON.stringify({ access_token: 'tok', expires_at: Math.floor(Date.now() / 1000) + 3600 }));
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForSelector('#menu-gear', { state: 'attached', timeout: 90000 }).catch(async (e) => { console.log('NO #menu-gear; url', page.url(), 'ids', JSON.stringify(await page.evaluate(() => ({ chips: [...document.querySelectorAll('.chips button')].map((b) => b.id), duel: document.getElementById('duel')?.className, hasJournal: !!document.getElementById('journal'), mobileSound: !!document.getElementById('mobile-sound') }))), 'page errors', JSON.stringify(errors), 'console', JSON.stringify(logs.filter((l) => !/GL Driver/.test(l)).slice(-6))); throw e; });
   await page.locator('#journal-button').tap(); await page.locator('#menu-gear').tap();
   await page.waitForSelector('#journal[open][data-gear="live"]'); await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]');
-  await page.waitForTimeout(8000);   // the rig and loot.glb load on the first open
+  await page.waitForTimeout(Number(process.env.RIG_WAIT_MS ?? 8000));   // the rig and loot.glb load on the first open
+  console.log('bad requests', JSON.stringify(bad));
   await page.screenshot({ path: path.join(out, '1-server-piece-in-pack.png') });
   await page.locator('#pack li[data-loot="goblin.Helmet"] [data-fit]').tap(); await page.locator('#fitting-wear').tap();
   await page.waitForSelector('#slot-head[data-loot="goblin.Helmet"]'); await page.waitForTimeout(5000);
