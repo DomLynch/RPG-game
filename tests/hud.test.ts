@@ -74,7 +74,7 @@ test('update: a readiness or debug change relabels; an unchanged frame writes no
   assert.equal(get('dodge-button').attributes.get('aria-disabled'), 'true');
 });
 
-test('update: a finished fight hides the attacks and shows Rematch, or Next: <name> after a win', () => {
+test('update: a finished fight hides the attacks and shows Rematch, or Next fight after a win', () => {
   const { element, get } = dom(), hud = createHud(element as never);
   const lost: Practice = { ...initialPractice(), playerHealth: 0 };
   hud.update(lost, view());
@@ -82,7 +82,7 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next: <na
   assert.equal(get('reset-button').hidden, false); assert.equal(get('reset-button').textContent, 'Rematch');
   const won: Practice = { ...initialPractice(), health: 0, finish: { victim: 1, location: 'torso', move: 'light_right', heading: 0 } };   // a real MoveId: the HUD reads victim, not the move
   hud.update(won, view({ opponentId: 'veteran', next: { name: 'the Witch' } }));
-  assert.equal(get('reset-button').textContent, 'Next: the Witch', 'a win offers the page\'s own pick (match.ts nextRung)');
+  assert.equal(get('reset-button').textContent, 'Next fight', 'a win with a next rung (match.ts nextRung) offers Next fight, the one primary');
   const fresh = dom(); createHud(fresh.element as never).update(won, view({ opponentId: 'veteran' }));
   assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight): Rematch');
 });

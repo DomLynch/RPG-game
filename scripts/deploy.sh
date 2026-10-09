@@ -11,6 +11,7 @@ printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
+source scripts/lib/deploy-vps.sh
 trap 'rm -f "$DEPLOY_LOCK"; hf_wall_rows_cancel; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
@@ -51,7 +52,13 @@ if [[ -z "$ci_green" ]]; then
   fi
 fi
 deploy_step "quality gate"
-if [[ -n "$ci_green" ]]; then
+vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: DEPLOY_VPS_RECEIPTS=on and a tree-bound unit-suite receipt
+if [[ "$vps_unit" == ok ]]; then
+  echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
+  npm run typecheck:tests
+  npm run test:bot   # not in quality:deploy; the receipt covers test:all only
+  npm run quality:deploy
+elif [[ -n "$ci_green" ]]; then
   echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
 elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
@@ -74,6 +81,7 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
+vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree (DEPLOY_VPS_RECEIPTS=on)
 hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 # Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
@@ -126,11 +134,45 @@ if test -L current; then ln -sfn "$(readlink current)" previous; fi
 # A tab opened on the outgoing release still lazy-loads its hashed chunks (/assets/ is try_files =404): hard-link the outgoing
 # release's recent assets (built within 2 days, so history does not pile up) into the new one, never overwriting a file (2026-10-07).
 if test -d current/assets; then (cd current/assets && find . -type f -mtime -2 -exec cp -al --update=none --parents {} "$1/assets/" \;); fi
+# Carry /preview/ (look-test and Origins previews, published outside any release) into the new release BEFORE the switch: otherwise every
+# preview URL 404s (2026-10-07, 09a81037 went live without /preview/). Fails loudly, so the switch never happens without them.
+# carry-previews begin
+carry_previews() {
+  [ -d current/preview ] || return 0
+  [ -e "$1/preview" ] || cp -al current/preview "$1/preview"
+  [ -d "$1/preview" ] || { echo "carry-previews: $1/preview missing after the carry" >&2; return 1; }
+  echo "previews carried: $(find "$1/preview" -mindepth 1 -maxdepth 1 | wc -l | tr -d " ") folders"
+}
+# carry-previews end
+carry_previews "$1"
 ln -sfn "$1" next
 mv -Tf next current
 REMOTE
 cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
 cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
+# The previews are published outside a release and carried by carry_previews: a switch that left them 404 must not pass silently. Only
+# RECORD it here: exiting now would skip the verifier install below and leave verify-daily and verify-loot on the outgoing sim. The
+# failure is raised at the very end of the script, after the release is fully installed.
+previews_ok=1
+# deploy.sh only carries /preview/ forward, so /zone1/ stayed on an old build for eight releases (A to H). Publish the origins preview from
+# this revision now (the checkout is the live revision after the cmp checks above), then require that /zone1/ serves the bundle just built.
+# Same rule as above: record the failure, raise it at the end, never skip the verifier install.
+if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
+  rm -rf artifacts/origins-preview   # a leftover build must never satisfy the bundle compare below (Release I: the publish step failed and a stale build "matched")
+  bash scripts/publish-origins-preview.sh || previews_ok=0
+  built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
+  live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+  if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
+    echo "origins preview: /zone1/ serves '${live_bundle:-none}', this revision built '${built_bundle:-none}'" >&2
+    previews_ok=0
+  else
+    echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
+  fi
+fi
+# The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
+nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
+if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
+curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
@@ -166,11 +208,15 @@ else
 fi
 REMOTE
 printf '\nPublished %s\n' "$revision"
-# Keep DEPLOY_PRUNE_KEEP releases on the VPS (default 5, Dom 2026-09-28; "off" skips), current and previous always among them; a failure leaves the release live.
-prune_keep="${DEPLOY_PRUNE_KEEP:-5}"
+# Keep DEPLOY_PRUNE_KEEP releases on the VPS (default 3, Dom 2026-10-08, was 5 since 2026-09-28; "off" skips), current and previous always among them; a failure leaves the release live.
+prune_keep="${DEPLOY_PRUNE_KEEP:-3}"
 if [[ "$prune_keep" =~ ^[0-9]+$ ]]; then
   ssh "${ssh_options[@]}" "$host" bash -s -- /var/www/frankendom "$prune_keep" < scripts/lib/prune-releases.sh \
     || echo "prune: failed (exit $?), release $revision is live; releases/ left as is"
 else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
+fi
+if [[ "$previews_ok" != 1 ]]; then
+  echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
+  exit 1
 fi

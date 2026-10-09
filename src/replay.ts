@@ -7,6 +7,7 @@ import { initialPractice, stepPractice, type Practice } from './combat.ts';
 import { LEVELS, OPPONENTS, opponentAt, profileAt } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
 import { underRecord } from './detmath.ts';
+import { groupLayer, withIncoming } from './pack.ts';
 import { skillOf } from './loot.ts';
 import { specialOf, type SkillId, type SpecialName } from './moves.ts';
 
@@ -19,18 +20,20 @@ export const MAX_SHARE_CHARS = 4096;   // a guest's link carries the record itse
 export type Verification = { ok: true; practice: Practice } | { ok: false; reason: string; practice: Practice | null };
 
 // Steps the record headless and checks that the fight finished on its last recorded tick with the recorded outcome.
-export function verifyRecord(record: FightRecord): Verification {
-  return underRecord(record, () => verifyUnder(record));   // the record's version picks the sim's math (detmath.ts), here and in every replay
+export function verifyRecord(record: FightRecord, onTick?: (practice: Practice) => void): Verification {   // onTick: called after every stepped tick (src/group-verify.ts reads the damage each stream dealt)
+  return underRecord(record, () => verifyUnder(record, onTick));   // the record's version picks the sim's math (detmath.ts), here and in every replay
 }
-function verifyUnder(record: FightRecord): Verification {
+function verifyUnder(record: FightRecord, onTick?: (practice: Practice) => void): Verification {
   const opponent = OPPONENTS[record.opponent], profile = opponent && Number.isInteger(record.level) && record.level >= 1 && record.level <= LEVELS ? profileAt(opponent, record.level) : undefined;   // the warden at the record's level, exactly as main.ts steps it
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
+  const group = record.group;   // RV39: one stream of a shared-health group replays ALONE from the incoming damage and held spans its own record carries (src/pack.ts)
   let practice: Practice;
   try {   // a record this build cannot step (a weapon the hero rig has no blade table for, a rule that throws) is a refusal, not a crash
-    practice = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
+    practice = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances, record.pose);
     for (let i = 0; i < record.intents.length; i++) {
       if (practice.finish) return { ok: false, reason: `the fight ended at tick ${practice.duel.tick}, before the record's last tick ${record.ticks}`, practice };
-      practice = stepPractice(practice, record.intents[i], profile);
+      practice = group ? stepPractice(withIncoming(practice, group, i + 1), record.intents[i], profile, groupLayer(group, i + 1)) : stepPractice(practice, record.intents[i], profile);
+      onTick?.(practice);
     }
   } catch (error) {
     return { ok: false, reason: `this build cannot step the record: ${error instanceof Error ? error.message : String(error)}`, practice: null };

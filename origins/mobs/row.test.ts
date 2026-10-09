@@ -1,4 +1,4 @@
-// Mob rows (row.ts), the Frontier's rows (frontier-rows.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
+// Mob rows (row.ts), the Frontier's rows (zones/zone1/spawns.ts via zones/loader.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
 // its code; the shipped rows are valid and agree with the content they sit beside; populateZone is deterministic and stays inside the zone's band.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -6,9 +6,12 @@ import { generateZone, type Template } from '../world/generate.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
 import { mobLook } from '../preview/mob-looks.ts';
 import { CREATURE_LOOT } from '../region1/content.ts';
-import { FRONTIER_ROWS } from './frontier-rows.ts';
+import { loadZone } from '../zones/loader.ts';
+const FRONTIER_ROWS = loadZone().spawns.rows;
 import { populateZone } from './populate.ts';
-import { BOSS_CAMP_MAX, CAMP_MAX, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
+import { styleOpponent } from './styles.ts';
+import { WILDLIFE_ROWS } from './wildlife-rows.ts';
+import { BOSS_CAMP_MAX, CAMP_MAX, rungWeights, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
 
 const registry = frontierPlan().data.registry;
 const ctx: RowContext = { look: mobLook, lootTables: new Set(registry.lootTables.keys()) };
@@ -16,9 +19,16 @@ const cited = { kind: 'folklore', work: 'A cited collection', locator: 'ch. 3' }
 const good: MobRow = { ...FRONTIER_ROWS[0]!, source: cited };
 const codes = (row: MobRow, c: RowContext = ctx) => validateMobRow(row, c).map((i) => i.code);
 
-test('the three shipped kinds are valid rows (their sources are pending, which the hand data may carry)', () => {
+test('the six shipped kinds are valid rows with a complete citation, eligible for the generator (legends-rule)', () => {
   assert.deepEqual(validateRows(FRONTIER_ROWS, ctx), []);
-  assert.equal(FRONTIER_ROWS.length, 3);
+  assert.deepEqual(validateRows(FRONTIER_ROWS, { ...ctx, generated: true }), [], 'a cited row is generated');
+  assert.equal(FRONTIER_ROWS.length, 6);
+  for (const r of FRONTIER_ROWS) {
+    assert.ok(!('pending' in r.source) && !('legendId' in r.source), `${r.id}: a full citation, not a placeholder`);
+    const s = r.source as { kind: string; work: string; author?: string; year?: number; scripture?: boolean };
+    assert.ok(s.work && s.author && s.year !== undefined && !s.scripture, `${r.id}: names work, author and year, never scripture`);
+  }
+  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore', 'folklore', 'literature', 'folklore']);
 });
 
 test('the shipped rows agree with the content: loot is the creature\'s own table, the look exists, the band holds the character\'s level', () => {
@@ -50,9 +60,10 @@ test('each rule has a failing row that yields exactly its code', () => {
   assert.deepEqual(validateRows([good, good], ctx).map((i) => i.code), ['dup-id']);
 });
 
+const pendingRow = (r: MobRow): MobRow => ({ ...r, source: { pending: 'to cite' } });
 test('a pending source is allowed in hand data and refused by the generator; later rows need no look or source', () => {
-  assert.deepEqual(codes(FRONTIER_ROWS[0]!), []);
-  assert.deepEqual(codes(FRONTIER_ROWS[0]!, { ...ctx, generated: true }), ['no-source']);
+  assert.deepEqual(codes(pendingRow(FRONTIER_ROWS[0]!)), []);
+  assert.deepEqual(codes(pendingRow(FRONTIER_ROWS[0]!), { ...ctx, generated: true }), ['no-source']);
   assert.deepEqual(codes({ ...good, id: 'character:later', source: undefined as never, later: true }), []);
 });
 
@@ -76,7 +87,7 @@ const WILDS: Template = {
   vary: { 'zoneSize.width': [80, 230], 'zoneSize.depth': [80, 230], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
   jitter: 0.05,
 };
-const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited }));
+const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited, level: [11, 13] as const }));   // the generator tests run on WILDS zones (levels 11-13); the shipped Zone 1 bands are 1-2 (Dom 2026-10-08), so these fixtures carry the zone's own band
 
 test('populateZone: deterministic, inside the zone, band met, count within one camp of the budget, never the boss anchor', () => {
   for (let seed = 1; seed <= 60; seed++) {
@@ -104,12 +115,65 @@ test('populateZone: pending-source rows are rejected by name, a safe zone gets n
   assert.equal(populateZone(zone.value, cited3, 7, ctx).camps.length, 0);
   const open = generateZone(WILDS, 7);
   assert.ok(open.ok);
-  const refused = populateZone(open.value, FRONTIER_ROWS, 7, ctx);
+  const refused = populateZone(open.value, FRONTIER_ROWS.map(pendingRow), 7, ctx);
   assert.equal(refused.camps.length, 0);
   assert.deepEqual(refused.rejected.map((r) => r.row), FRONTIER_ROWS.map((r) => r.id));
   assert.ok(refused.rejected.every((r) => r.issues.some((i) => i.code === 'no-source')));
   const none = populateZone(open.value, cited3, 7, ctx, () => false);
   assert.equal(none.camps.length, 0, 'no standable ground, no creatures');
+});
+
+// ---- tier rungs (ladder + rung) ----
+
+const rung = (id: string, n: number, level: [number, number], ladder = 'goblin'): MobRow => ({ ...good, id, ladder, rung: n, level });
+const lad = [rung('character:cinder-scavenger', 1, [11, 12]), rung('character:ruin-ghoul', 2, [12, 14]), rung('character:mere-brood', 3, [14, 16])];
+
+test('ladder rules: each has a failing set that yields exactly its code', () => {
+  const rc = (rows: MobRow[]) => validateRows(rows, ctx).map((i) => i.code);
+  assert.deepEqual(rc(lad), []);
+  assert.deepEqual(codes({ ...good, ladder: 'goblin' }), ['rung-ladder'], 'a ladder with no rung');
+  assert.deepEqual(codes({ ...good, rung: 2 }), ['rung-ladder'], 'a rung with no ladder');
+  assert.deepEqual(codes({ ...good, ladder: 'goblin', rung: 0 }), ['rung-ladder']);
+  assert.deepEqual(rc([lad[0]!, { ...lad[1]!, rung: 1 }]), ['dup-rung']);
+  assert.deepEqual(rc([lad[0]!, rung('character:ruin-ghoul', 2, [9, 10])]), ['rung-order'], 'rung 2 below rung 1');
+  assert.deepEqual(rc([lad[0]!, rung('character:mere-mother', 2, [13, 14])]), ['ladder-body'], 'a witch on a goblin ladder');
+});
+
+test('rungWeights: the zone window picks the home rung; a row with no ladder keeps its weight', () => {
+  const w = (lo: number, hi: number) => rungWeights(lad, { levelMin: lo, levelMax: hi });
+  assert.deepEqual(w(11, 12), [10, 10 / 3, 0], 'rung 3 is outside a 11..12 zone');
+  assert.deepEqual(w(15, 16), [0, 0, 10 * 2 / 3], 'only the top rung sits in 15..16');
+  assert.deepEqual(rungWeights(FRONTIER_ROWS, { levelMin: 11, levelMax: 13 }), FRONTIER_ROWS.map((r) => r.weight ?? 10), 'Zone 1 rows have no ladder: unchanged');
+});
+
+// ---- rarity: uncommon curve, rares that take over a placeholder's camp ----
+
+const common = { ...FRONTIER_ROWS[0]!, source: cited, level: [11, 13] as const }, rare: MobRow = { ...FRONTIER_ROWS[1]!, source: cited, rarity: 'rare', replaces: common.id, chance: 0.2, level: [11, 13] };
+
+test('rarity rules: each failing row yields exactly its code', () => {
+  const rc = (rows: MobRow[]) => validateRows(rows, ctx).map((i) => i.code);
+  assert.deepEqual(rc([common, rare]), []);
+  assert.deepEqual(codes({ ...good, rarity: 'mythic' as never }), ['rarity-field']);
+  assert.deepEqual(codes({ ...rare, replaces: undefined }), ['rarity-field'], 'a rare names its placeholder');
+  assert.deepEqual(codes({ ...good, replaces: 'character:x' }), ['rarity-field'], 'only a rare replaces');
+  assert.deepEqual(codes({ ...rare, chance: 0.9 }), ['rarity-field']);
+  assert.deepEqual(codes({ ...good, chance: 0.1 }), ['rarity-field'], 'only a rare has a chance');
+  assert.deepEqual(rc([rare]), ['rare-placeholder'], 'its placeholder is not in the set');
+  assert.deepEqual(rc([common, { ...rare, replaces: rare.id }]), ['rare-placeholder'], 'not itself');
+  assert.deepEqual(rungWeights([common, { ...common, id: 'character:ruin-ghoul', rarity: 'uncommon' }, rare], { levelMin: 11, levelMax: 13 }), [10, 3, 0], 'uncommon is x0.3, a rare is never drawn');
+});
+
+test('populateZone: a rare takes some placeholder camps, never stands alone, and a zone with no rare draws as before', () => {
+  let rares = 0, camps = 0;
+  for (let seed = 1; seed <= 60; seed++) {
+    const zone = generateZone(WILDS, seed);
+    assert.ok(zone.ok);
+    const withRare = populateZone(zone.value, [common, rare], seed, ctx), again = populateZone(zone.value, [common, rare], seed, ctx);
+    assert.deepEqual(withRare, again, 'seeded');
+    for (const c of withRare.camps) { camps++; if (c.row === rare.id) rares++; else assert.equal(c.row, common.id); }
+    assert.equal(populateZone(zone.value, [rare], seed, ctx).camps.length, 0, 'a rare alone makes nothing');
+  }
+  assert.ok(rares > 0 && rares < camps * 0.5, `${rares} rare camps of ${camps}: some, not most (chance 0.2)`);
 });
 
 test('populateZone: a band that misses the zone is skipped quietly, a malformed band is rejected by name', () => {
@@ -119,4 +183,23 @@ test('populateZone: a band that misses the zone is skipped quietly, a malformed 
   const r = populateZone(zone.value, [cited3[0]!, far, broken], 7, ctx);
   assert.deepEqual(r.rejected.map((x) => [x.row, x.issues.map((i) => i.code)]), [['character:mere-brood', ['level-band']]]);
   assert.ok(r.camps.every((c) => c.row === cited3[0]!.id), 'only the eligible kind is placed');
+});
+
+// ---- the wildlife batch (held as `later`) ----
+test('wildlife rows are valid held rows: no look, source or loot table needed, never generated', () => {
+  assert.deepEqual(validateRows(WILDLIFE_ROWS, ctx), []);
+  assert.ok(WILDLIFE_ROWS.every((r) => r.later && styleOpponent(r.role) !== undefined), 'every one is later, with a real MobStyle');
+  assert.ok(WILDLIFE_ROWS.every((r) => r.role === 'beast'), 'the quadruped family are beasts (they flee at low health)');
+  for (let seed = 1; seed <= 20; seed++) {
+    const zone = generateZone(WILDS, seed);
+    assert.ok(zone.ok);
+    const out = populateZone(zone.value, [...cited3, ...WILDLIFE_ROWS], seed, ctx);
+    assert.ok(out.camps.every((c) => !WILDLIFE_ROWS.some((w) => w.id === c.row)), 'a later row is never placed');
+  }
+});
+
+test('respawnSeconds: inside 30..300 s, else respawn-range', () => {
+  assert.deepEqual(codes({ ...good, respawnSeconds: 75 }), []);
+  assert.deepEqual(codes({ ...good, respawnSeconds: 10 }), ['respawn-range'], 'under half a minute');
+  assert.deepEqual(codes({ ...good, respawnSeconds: 900 }), ['respawn-range'], 'a typo-sized wait');
 });

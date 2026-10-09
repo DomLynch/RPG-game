@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { GATE_CAM, SETTLE, TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
+import { SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall } from '../src/camera.ts';
+import { createHash } from 'node:crypto';
+import { OPPONENTS } from '../src/moves.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
@@ -350,36 +352,6 @@ test('lock camera for a short opponent: a finish eases the lift and shoulder ste
   }
 });
 
-// docs/pit-design.md §9 (D2): after a win's loot pick the camera leaves the tour for the walk to the gate, one continuous move.
-test('rig: the walk to the gate leaves the tour in one continuous move no faster than the tour, ends behind him looking down the line to the gate, and turns the stick toward it', () => {
-  const { camera, rig, state, enemy } = rigAt(3, 4), plain = finish({ finisher: null, posed: false }), gate = { x: 0, z: -11.7 };
-  rig.update(1 / 60, state, enemy, true, null);
-  let tourMax = 0, last = camera.position.clone();
-  const frame = (s = state) => { rig.update(1 / 60, s, enemy, true, plain); const step = camera.position.distanceTo(last); last = camera.position.clone(); return step; };
-  for (let i = 0; i < (SETTLE.min + TOUR.afterSettle + TOUR.blendIn + 6) * 60; i++) { const step = frame(); if (rig.touring) tourMax = Math.max(tourMax, step); }
-  assert.ok(rig.touring && tourMax > 0, 'the tour is running before the walk');
-  rig.gate(gate);
-  let gateMax = 0;
-  for (let i = 0; i < (TOUR.blendIn + 2) * 60; i++) gateMax = Math.max(gateMax, frame());
-  assert.ok(!rig.touring && rig.gating, 'the tour gives way to the gate');
-  assert.ok(gateMax <= tourMax * 1.5 + 1e-3, `no frame jumps: the gate move's fastest frame ${gateMax.toFixed(4)} m vs the tour's ${tourMax.toFixed(4)} m`);
-  const flat = (v: { x: number; z: number }) => new Vector3(v.x, 0, v.z);
-  const behind = flat(camera.position).sub(flat(state)), toGate = flat(gate).sub(flat(state));
-  assert.ok(Math.abs(behind.length() - GATE_CAM.back) < 0.05, `the eye stands GATE_CAM.back behind him (${behind.length().toFixed(3)} m)`);
-  assert.ok(behind.normalize().dot(toGate.clone().normalize()) < -0.99, 'on the far side of him from the gate');
-  const look = camera.getWorldDirection(new Vector3()); look.y = 0;
-  assert.ok(look.normalize().dot(toGate.normalize()) > 0.99, 'looking down the line to the gate');
-  const stickUp = { x: -Math.sin(rig.yaw), z: -Math.cos(rig.yaw) };   // sim.ts advance with the stick at (0, −1)
-  assert.ok(stickUp.x * toGate.x + stickUp.z * toGate.z > 0.99, 'the stick pushed up walks him toward the gate');
-  // He walks: the camera follows him down the line, still without a jump.
-  let walkMax = 0;
-  for (let i = 0; i < 180; i++) { const s = { ...state, x: state.x * (1 - i / 180), z: state.z + (gate.z + 2 - state.z) * (i / 180) }; walkMax = Math.max(walkMax, frame(s)); }
-  assert.ok(walkMax < 0.1, `following him, the camera moves less than 0.1 m a frame (${walkMax.toFixed(3)})`);
-  // The next fight clears the walk (main.ts began: no finish).
-  rig.update(1 / 60, state, enemy, true, null);
-  assert.ok(!rig.gating, 'no finish, no walk');
-});
-
 test('the lock camera is the original framing (Dom 2026-10-05): back max(4.2, d*0.62+2.8), height max(3.2, d*1.3)', () => {
   for (const d of [0.8, 1.5, 2.4, 4, 6.5, 9]) {
     const target = { x: 0, z: 0 }, state = { ...initialState(), x: 0, z: d }, yaw = 0;   // player d metres in front of the target, camera straight behind
@@ -398,4 +370,32 @@ test('in a smaller arena the lock looks 0.896 m nearer the camera at 0.36, and t
   setPlayScale(1);
   assert.ok(Math.abs(small.lookZ - full.lookZ - 0.896) < 1e-9 && small.lookX === full.lookX);
   assert.deepEqual(cameraPose(state, 0, 0.5, true), full);
+});
+
+// Foe-height framing (Combat, 2026-10-07; the Ash Wolf hid behind the hero's head at bite range, the Wraith's head and scythe left the top of the lock frame). Presentation only:
+// the table below is the ONLY place a foe's look-height differs from the sim's scale, and every pose for a foe at or under a man's height is trunk's, byte for byte.
+test('only the wolf (low) and the wraith (tall) have a framing of their own; every other foe is framed exactly as before', () => {
+  assert.deepEqual(Object.keys(FRAMING_LOW), ['wolf']); assert.deepEqual(Object.keys(FRAMING_TALL), ['wraith']);
+  for (const id of Object.keys(OPPONENTS)) {
+    if (!(id in FRAMING_LOW)) assert.equal(framingLow(id), 0, `${id} gets no low framing`);
+    if (!(id in FRAMING_TALL)) assert.equal(framingTall(id), 0, `${id} gets no tall framing`);
+  }
+});
+
+test('the lock pose for a foe at or under a man is exactly what it was (a pinned grid of 5 scales x lock/orbit x yaw x positions)', () => {
+  const h = createHash('sha256');
+  for (const scale of [0.45, 0.6, 0.78, 0.9, 1]) for (const locked of [true, false]) for (let yaw = -3; yaw <= 3; yaw += 0.5) for (let px = -6; px <= 6; px += 3) for (let pz = -6; pz <= 6; pz += 3) for (const ex of [0, 2.5, -4]) {
+    const p = cameraPose({ ...initialState(), x: px, z: pz }, yaw, 0.45, locked, { x: ex, z: ex * 0.5 + 1 }, scale);
+    h.update(JSON.stringify([scale, locked, yaw, px, pz, ex, p.x, p.y, p.z, p.lookX, p.lookZ]));
+  }
+  assert.equal(h.digest('hex'), '85f386948499c9921d6f94863121a83ad0333210f65ae2908fe1fb11d6f56490', 'a pose for a man or a shorter foe moved: this must stay trunk\'s (re-pin only with the reason in the PR)');
+});
+
+test('a tall foe is framed from further back and higher; an orbit camera and a man are untouched', () => {
+  const state = { ...initialState(), x: 0, z: 0 }, foe = { x: 0, z: -2.2 };
+  const man = cameraPose(state, 0, 0.45, true, foe, 1), tall = cameraPose(state, 0, 0.45, true, foe, 1, framingTall('wraith'));
+  assert.ok(tall.z > man.z && tall.y > man.y, 'backed off and up');
+  assert.deepEqual(cameraPose(state, 0, 0.45, false, foe, 1, framingTall('wraith'), framingLow('wolf')), cameraPose(state, 0, 0.45, false, foe, 1), 'the orbit camera ignores foe height');
+  const low = cameraPose(state, 0, 0.45, true, foe, 1, 0, framingLow('wolf'));
+  assert.ok(low.y > man.y && Math.abs(low.x - man.x) > 0.5, 'a low foe: the lock steps over the shoulder and lifts');
 });

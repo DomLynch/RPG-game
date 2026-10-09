@@ -5,7 +5,9 @@
 //   scale    the body's height multiplier on top of the roster's own (1 = the roster body as it is)
 //   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/moves.ts); absent = the body's own
 //   dressing the Ash Frontier on him: soot = dark ash worked into the cloth and low on the body, 0..1; burnt = scorched, ragged cloth edges, 0..1
+import { BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE } from '../../src/beast-scale.ts';
 import type { WeaponId } from '../../src/moves.ts';
+import { loadZone, type Zone } from '../zones/loader.ts';
 
 export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
 
@@ -24,13 +26,19 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
   // Starved servant of the ruin: tall for a goblin, grey and ragged.
   'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
+  // The Ash Wolf (preview only, ?wolf): the wolf rig's own body, ash grey and sooted, at twice its size (Dom, 2026-10-07 23:08: "very small").
+  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: WOLF_RENDER_SCALE, dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (src/beast-scale.ts)
+  // The Cinder Bear: the bear rig's own body, soot-dark brown, at the duel's scale (src/beast-scale.ts BEAR_RENDER_SCALE: walking == fighting).
+  'character:cinder-bear': { opponent: 'bear', tint: 0x6f655a, scale: BEAR_RENDER_SCALE, dressing: { soot: .5, burnt: .1 } },
+  // The Ash Boar: the boar rig's own body, earth brown with ash, at the duel's scale (src/beast-scale.ts BOAR_RENDER_SCALE via sizeBeast): walking == fighting.
+  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, scale: BOAR_RENDER_SCALE, dressing: { soot: .35, burnt: 0 } },
   // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
   'character:lambton-worm': { opponent: 'minotaur', tint: 0x5a4a3a, scale: 1.2, dressing: { soot: .8, burnt: .4 }, later: true },
   'character:rift-spawn': { opponent: 'goblin', tint: 0x7a5f8c, scale: 1, dressing: { soot: .2, burnt: .1 }, later: true },
 };
 
 /** The look for a character id, or null for a figure with no entry (a friendly NPC): the caller draws the roster body as it is. */
-export const mobLook = (id: string): MobLook | null => MOB_LOOKS[id] ?? null;
+export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => zone.mobLooks?.looks[id] ?? MOB_LOOKS[id] ?? null;   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
@@ -46,18 +54,18 @@ export const VARIANTS = 8;
 const memo = new Map<string, MobLook>();
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 /** Variant `v` (0..VARIANTS-1) of a kind: the same object every call, so the cloth-clone cache is one entry per (kind, v), at most VARIANTS a kind. */
-export function variantLook(id: string, v: number): MobLook | null {
-  const base = mobLook(id), spread = MOB_SPREAD[id];
+export function variantLook(id: string, v: number, zone: Zone = loadZone()): MobLook | null {
+  const base = mobLook(id, zone), spread = zone.mobLooks?.spread[id] ?? MOB_SPREAD[id];
   if (!base || !spread || v % VARIANTS === 0) return base;
   v = ((v % VARIANTS) + VARIANTS) % VARIANTS;
-  const key = `${id}#${v}`, known = memo.get(key); if (known) return known;
+  const key = `${zone.id}:${id}#${v}`, known = memo.get(key); if (known) return known;
   const pool = [base.tint, ...spread.tints], unit = (n: number) => ((v * n) % VARIANTS) / (VARIANTS - 1) * 2 - 1;   // -1..1, a different walk per field
   const look: MobLook = { ...base, tint: pool[v % pool.length]!, scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
     dressing: { soot: clamp01(base.dressing.soot + unit(5) * spread.soot), burnt: clamp01(base.dressing.burnt + unit(7) * spread.burnt) } };
   memo.set(key, look); return look;
 }
 /** The look one creature wears: its kind's variant picked by a stable hash of the creature's own id (FNV-1a), so it is the same on the map and in its duel. */
-export function mobVariant(id: string, creature: string): MobLook | null {
+export function mobVariant(id: string, creature: string, zone: Zone = loadZone()): MobLook | null {
   let h = 2166136261; for (const c of `${id}|${creature}`) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-  return variantLook(id, h % VARIANTS);
+  return variantLook(id, h % VARIANTS, zone);
 }

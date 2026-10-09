@@ -1,0 +1,3 @@
+// Zone 1 (zone-runtime step 1): the zone's own facts. `level` is the zone number = its base level (Dom 2026-10-08: Zone N = level N); the common creatures are [level, level+1], the named rares level+2.
+const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[] } = { id: '1', level: 1, name: 'The Cinder Fields', names: { 'east-road': 'The East Road', 'ferry-landing': 'The Grey Ferry', 'cinder-fields': 'The Cinder Fields', 'black-mere': 'The Black Mere', 'blood-ruin': 'The Blood Ruin', 'cinder-hold': 'Cinder Hold', 'mere-end': 'Mere End' }, world: ['east-road', 'ferry-landing', 'cinder-fields', 'black-mere', 'blood-ruin', 'cinder-hold', 'mere-end'] };
+export default zone;

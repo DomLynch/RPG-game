@@ -172,12 +172,13 @@ export const RULES = {
   dodgeAttackWindow: 2,   // a light started this soon after an evade (or from a backstep's tail) uses its chained timing
   // perfectBlock: a block in the first ticks of a held guard costs perfectBlockCost of the normal price.
   // breakCost: a broken guard loses this much stamina (not all of it): from a full bar the defender keeps one roll to escape the follow-up.
-  parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, breakCost: 60, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: true,   // owner 2026-09-20: five sides on the Guard button (duel.ts covers()); null = straight = thrust
+  feintBeat: 10, parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, breakCost: 60, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: true,   // owner 2026-09-20: five sides on the Guard button (duel.ts covers()); null = straight = thrust
   // Special Moves (Dom 2026-09-29 via Strategy / Lead; Combat): the SKILL slot's rule when a fighter carries `specialShare` (duel.ts withSpecials).
   // A committed windup (2 s at 60 Hz: no guard, roll or parry, blows land normally; damage taken during it adds up and at `interruptAt` of his max health the cast is cut (no strike, no recovery, `interruptCooldown` instead of `cooldown`; docs/specs/combat/interruptible-windups.md)), then an unblockable, undodgeable
   // hit for `damage` of the target's max health (`bossDamage` for an opponent from level `bossFrom`: career.ts level = 1 + wins, five
   // sub-ranks a title, so rank 8 begins at 36). Cast inside `reach`; the cooldown re-arms `cooldown` ticks after the RELEASE; first available `first` ticks in; after a release the caster starts no attack for `recovery` ticks (the presentation's 45; defence and movement stay his). Final numbers: Dom 2026-10-01, docs/briefs/specials/boss-special-balance-2026-10-01.md. One row,
   // so a ruling is a one-line change; PvP reads the same `damage`.
+  gambit: { stagger: 40 },   // RV33: the ticks a failed Gambit's thrower is staggered (src/gambit.ts: about 1 in 2 lands for 2x; the stagger is what makes it slightly worse than a heavy)
   special: { windup: 120, cooldown: 1200, first: 1200, recovery: 45, reach: 3, damage: .2, bossDamage: .25, bossFrom: 36, interruptAt: .1, interruptCooldown: 480 },
   skillCooldown: 900,   // the equipped skill's cooldown (15 s): spent at commitment, so a whiff, a block, a parry and a stuffed windup all spend it; ticks down like parryCooldown (duel.ts)
   regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedStun: 36,   // RV29 (3B): a heavy-class blow or a kick landing on an exhausted fighter stuns `exhaustedStun` ticks (.6 s) longer; the existing hurt pose, no ground state
@@ -255,7 +256,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'gladius' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'gladius' | 'scythe' | 'maul' | 'reaper' | 'warhammer' | 'bite';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Grip = 'one-hand' | 'two-hand';   // how many hands the weapon needs. DATA ONLY: nothing in the sim reads it, no reach/timing/damage
 // depends on it, and no fairness row moves with it. The Veteran shield's stow logic reads it (a two-hander stows the shield to the back, a
@@ -541,7 +542,11 @@ const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
 };
 const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
 const REAPER: Weapon = { ...ESTOC, id: 'reaper', grip: 'two-hand', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' || id.startsWith('skill_') ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, gladius: GLADIUS, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
+// The wolf's bite (Combat, 2026-10-07): the knife's table (a short, quick weapon: 14-tick slash, 12-tick stab, a long heavy) on the wolf rig's ONE attack clip, 'Bite'. Every path id names it and the
+// timings differ, so a light bite, a lunge (the thrust) and a maul (the heavy) are told apart by how long the head draws back, not by a different clip. Blade paths are baked from the jaw bone (blade-manifest).
+const BITE_PATHS: Record<PathId, PathSpec> = Object.fromEntries(Object.entries(KNIFE_PATHS).map(([id, spec]) => [id, { ...spec, clip: 'Bite' }])) as unknown as Record<PathId, PathSpec>;
+const BITE: Weapon = { ...KNIFE, id: 'bite', paths: BITE_PATHS, material: 'wood', fight: { thrustShare: .5, close: .9 } };   // material 'wood': a dull thud, not the knife's iron (the audio lane may add a 'bone')
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, gladius: GLADIUS, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER, bite: BITE };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 // The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
 // (tests/blade-rig.test.ts pins both). The weapons lane appends here when a new equip file ships.
@@ -656,6 +661,31 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .3, aggression: .7, pressure: .5, discipline: 30, lapse: .4, feint: .15, guard: 0, disengage: .4, circle: .5, step: .6, interrupt: .3, kick: .4, dash: .6, read: .35 },
     normal: { reaction: 11, accuracy: .7, parry: 0, dodge: .4, aggression: .85, pressure: .6, discipline: 20, lapse: .2, feint: .3, guard: 0, disengage: .6, circle: .8, step: .8, interrupt: .6, kick: .6, dash: 1, read: .5, stab: .6 },
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .65, discipline: 15, lapse: .08, feint: .4, guard: 0, disengage: .7, circle: 1, step: .8, interrupt: .8, kick: .7, dash: 1, read: .65, stab: 1 },
+  } },
+  // The Ash Wolf (Combat, 2026-10-07): the Goblin's hit-and-run on four legs. Smaller capsule (.8: at .62 the hero's brain could not hit the low body and won 24 of 24; .8 puts the easy and normal rows on the Goblin's own rates, 7 and 4 of 24), the fastest body in the roster
+  // (speed 1.45, regen 1.4), little health (90) and no poise: it dies in a few clean cuts and punishes a slow one. Never guards, never kicks, never feints: it lunges (the thrust, with
+  // `dash` closing the gap), bites (the light), mauls (the heavy, rare), circles and hops out after a landed bite (`disengage`) and evades by backstep, not roll (`step`). The rest is the twist
+  // layer's flee-at in the world (a beast flees under 30%); in the Pit it fights to the end.
+  wolf: { scale: .8, health: 90, poise: 0, regen: 1.4, speed: 1.45, profiles: {
+    easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .3, aggression: .7, pressure: .6, discipline: 25, lapse: .4, feint: 0, guard: 0, disengage: .5, circle: .6, step: .7, interrupt: .3, kick: 0, dash: .6, read: .35 },
+    normal: { reaction: 11, accuracy: .55, parry: 0, dodge: .4, aggression: .85, pressure: .65, discipline: 20, lapse: .3, feint: 0, guard: 0, disengage: .7, circle: .9, step: .8, interrupt: .6, kick: 0, dash: 1, read: .5, stab: .7 },
+    hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .7, discipline: 15, lapse: .08, feint: 0, guard: 0, disengage: .8, circle: 1, step: .8, interrupt: .8, kick: 0, dash: 1, read: .65, stab: 1 },
+  } },
+  // The Tusked Boar (Combat, 2026-10-08, Dom: a boar in Zone 1): the wolf's rig family (the same seven-clip quadruped, the `bite` weapon, the wolf's capsule .8 and jaw bake), but a charger, not a
+  // hit-and-runner: more health (140) and a little poise, slower than the wolf (speed 1.2), no hop-out after a landed gore (`disengage` 0) and little circling, so it rushes in (`dash` 1) and keeps coming.
+  // Same moveset as the wolf's to begin with (a charge-and-gore of its own is a later row); profile NUMBERS only, tuned to the Goblin's rates (scripts/wolf-tune.mjs boar).
+  boar: { scale: .8, health: 140, poise: 4, regen: 1, speed: 1.2, profiles: {
+    easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .1, aggression: .75, pressure: .65, discipline: 25, lapse: .4, feint: 0, guard: 0, disengage: 0, circle: .15, step: .3, interrupt: .2, kick: 0, dash: .8, read: .3 },
+    normal: { reaction: 11, accuracy: .55, parry: 0, dodge: .15, aggression: .9, pressure: .7, discipline: 20, lapse: .3, feint: 0, guard: 0, disengage: 0, circle: .2, step: .4, interrupt: .4, kick: 0, dash: 1, read: .4, stab: .5 },
+    hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .2, aggression: 1, pressure: .75, discipline: 15, lapse: .08, feint: 0, guard: 0, disengage: 0, circle: .25, step: .4, interrupt: .6, kick: 0, dash: 1, read: .55, stab: .8 },
+  } },
+  // The Cinder Bear (Combat, 2026-10-08, Dom: bears after the boar): the boar's pattern on Characters' bear export (src/assets/bear.glb, #1781): the same seven-clip quadruped, the `bite` weapon, the wolf's capsule .8
+  // and jaw bake. The heavy of the beasts: 220 health, poise 10, the slowest body (speed .95), a hard hitter that rushes and keeps coming (no hop-out, almost no circling), reading late (reaction 14 normal).
+  // Wolf moveset to begin with (a maul of its own is a later row); profile NUMBERS only, tuned to the Goblin's rates (FOE=bear node scripts/wolf-tune.mjs).
+  bear: { scale: .8, health: 220, poise: 10, regen: .8, speed: .95, profiles: {
+    easy: { reaction: 22, accuracy: .55, parry: 0, dodge: 0, aggression: .65, pressure: .6, discipline: 28, lapse: .4, feint: 0, guard: 0, disengage: 0, circle: .05, step: .1, interrupt: .1, kick: 0, dash: .6, read: .25 },
+    normal: { reaction: 14, accuracy: .6, parry: 0, dodge: .05, aggression: .8, pressure: .7, discipline: 22, lapse: .3, feint: 0, guard: 0, disengage: 0, circle: .1, step: .15, interrupt: .25, kick: 0, dash: .9, read: .35, stab: .4 },
+    hard: { reaction: 10, accuracy: .9, parry: 0, dodge: .1, aggression: .95, pressure: .75, discipline: 16, lapse: .08, feint: 0, guard: 0, disengage: 0, circle: .15, step: .2, interrupt: .45, kick: 0, dash: 1, read: .5, stab: .7 },
   } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
   // health and poise. His arc is the scythe's (reap 1.40–2.10 m, a dead band inside 1.4 m, the shaft guard). He carries the

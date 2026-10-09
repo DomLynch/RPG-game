@@ -1,11 +1,11 @@
 import type { ClarityEvent, CombatEvent } from './combat.ts';
 import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
 import { MANIFEST, type CueName } from './audio/manifest.ts';
-import { loadGate, playGate } from './audio/gate.ts';
 import { loadSprite } from './audio/sprite.ts';
-import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
+import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 import { createBreath, type Breath } from './audio/breath.ts';
 import { sayPowerWord } from './audio/power-word.ts';
+import { voiceCreature, type CreatureCue } from './audio/creature.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
@@ -16,7 +16,6 @@ import type { Feel } from './armfeel.ts';
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
 // synth fallback; a buffer skips loading. Absent in the game.
 type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
-export const GATE_RETRY_MS = 800;   // the winch's second fetch, after a failed first
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
 let breathing = false;   // the breathing layer's one switch: OFF until Dom signs the sound off (2026-10-06, he had just rejected a synth voice). His OK is flipping this to true; until then only ?look=fatigue-preview turns it on (breathing(on) below).
@@ -50,7 +49,6 @@ export function createFeedback(host?: FeedbackHost) {
   let breath: Breath | undefined, room: ConvolverNode | undefined;   // graded fatigue breathing (audio/breath.ts): built on first use, its own seeded rolls so it never shifts the cue variants
   let defenceGrades = false, wordBus: GainNode | undefined;   // wordBus: ?look=powerwords' chant (audio/power-word.ts), ducked under every landing blow
   let armfeel: Feel | undefined, armfeelLive = 0;   // ?look=armfeel (audio/armfeel-sound.ts): extra body and transient layers on a landed blow; absent = the game's own sound
-  let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
   // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
   const specialWanted = new Set<SpecialCue>(), specialBuffers = new Map<SpecialCue, AudioBuffer | null>();
   const specialHeard: ({ stop(): void } | null)[] = [null, null];
@@ -165,22 +163,10 @@ export function createFeedback(host?: FeedbackHost) {
       wordBus ??= (() => { const g = context!.createGain(); g.gain.value = 1; g.connect(bus!); return g; })();
       sayPowerWord(context, wordBus, noise, word, caster, now(), gain);
     },
-    // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
-    // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
-    // A failed fetch (a dropped connection) is tried once more after GATE_RETRY_MS, and again at the next Pit open: the page is not silent for good.
-    warmGate() {
-      if (!context || gateLoading || gateBuffer) return;
-      gateLoading = true;
-      const ctx = context, attempt = (retries: number): Promise<void> => loadGate(ctx).catch(() => null).then((buffer) => {
-        if (buffer) { gateBuffer = buffer; return; }
-        if (retries > 0) return new Promise<void>((r) => setTimeout(r, GATE_RETRY_MS)).then(() => attempt(retries - 1));
-        gateLoading = false;
-      });
-      void attempt(1);
+    creature(body: string, cue: CreatureCue) {   // ?look=creatures (audio/creature.ts): a Frontier creature's growl, bite or death cry, synthesised on the combat bus; absent = silent as shipped
+      if (!context || !bus || !noise || !live() || quieted || !enabled) return;
+      voiceCreature(context, bus, noise, body, cue, now());
     },
-    gate(): { stop(): void } | undefined { return enabled && !quieted && context && live() && gateBuffer ? playGate(context, gateBuffer, arenaOutput) : undefined; },
-    // The crowd through the Pit's walls (audio/arena.ts through): one cue, muffled and quiet; silent when sound is off, quiet or the bank has not decoded.
-    crowd(cue: CrowdCue): { stop(): void } | undefined { if (!enabled || quieted || !context || !live()) return undefined; arenaAudio ??= createArenaAudio(context, arenaOutput, now); return arenaAudio.through(cue); },
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else { stopSources(); specialCut(); } return enabled; },
     // A special's cue: `want` asks for it to be fetched (once the first tap has made the context); `special` starts it now at `gain`, silent if it has not loaded;
     // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.

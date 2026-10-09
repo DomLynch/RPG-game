@@ -162,12 +162,6 @@ export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2',
 export const ARENA_ROTATION: readonly ArenaKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 export const isRotationArena = (k: unknown): k is ArenaKey => ARENA_ROTATION.includes(k as ArenaKey);
 export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(5, Math.ceil(rung / 2))) as 1 | 2 | 3 | 4 | 5;
-// True when a theme's sand maps are Arena 1's own (the plain gravelled sand: no clay or flags laid over it, no tint, the same seed). The glow Pit's yard
-// is always that sand, whatever arena the fight was in (scene.ts pitStage arenaMaterials).
-export const hasArena1Sand = (look: TextureLook): boolean => {
-  const one = ARENA_THEMES['1'].textures;
-  return look.floor === one.floor && look.sandSeed === one.sandSeed && look.sand.every((v, i) => v === one.sand[i]);
-};
 export function arenaFor(opponent: OpponentId, override?: string): ArenaTheme {
   if (override && override in ARENA_THEMES) return ARENA_THEMES[override as ArenaKey];
   const rung = LADDER.findIndex(o => o.id === opponent) + 1;   // 0 for a held or unknown id: Arena 1

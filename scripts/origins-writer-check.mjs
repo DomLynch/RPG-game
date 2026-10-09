@@ -14,7 +14,8 @@ import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
 import * as F from '../origins/contracts/fixtures.ts';
 import { creditFromMarks, cumulative } from '../origins/progression/model.ts';
-import { smithContent } from '../origins/server/upgrade.ts';
+import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
+import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
@@ -32,7 +33,17 @@ const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-b
 const TOKENS = { ta: A, tb: B, tc: C, td: D };
 // The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
+// The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
+const SHOP = 'service:frontier-provisioner';
+const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rows: [
+  { item: 'item:grave-iron', price: 4, max: 5, restockSeconds: 60 }, { item: 'item:exchange-ore', price: 1, max: 5, restockSeconds: 60, minLevel: 99 },
+  { item: 'item:loot.veteran.Arms', price: 5, max: 1, restockSeconds: 600 }] };
 let checks = 0, started = false, server;
+// Presence as the writer sees it (launch gate X1: the only source of a player's place). Empty = nobody online; `presenceDown` makes every ask throw.
+const presence = {};
+let presenceDown = false;
+const where = account => fakeWhere(presence, presenceDown)(account);
+const atBank = (ageMs = 0) => standingAt(...landmarkAt('exchange', 'bank'), ageMs), inPitYard = () => standingAt(...landmarkAt('pit-yard', 'centre'));
 const eq = (got, want, what) => { checks++; if (JSON.stringify(got) !== JSON.stringify(want)) throw Error(`${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`); };
 
 try {
@@ -54,11 +65,14 @@ try {
   // The smith: the fixtures' forge, materials only (level 1 costs 5 grave iron and 0 coin; level 2 still prices coin, so it is a 501).
   const defs = new Map([F.exchangeOreDef(), F.recordDef(), F.helmetDef(), F.graveIronDef(), F.oathGauntletsDef(),
     { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } },
-    { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+    { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } },
+    { ...F.helmetDef(), id: 'item:loot.veteran.Arms', slot: 'Arms', name: "The Centurion's vambraces", appearance: { asset: 'loot.glb/veteran.Arms' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
-  server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, handlers: { ...withContent({
+  server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
     lookup: id => defs.get(id),
     smith: smithContent(F.blacksmith(), { ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 0, materials: [{ item: 'item:grave-iron', quantity: 5 }] }, { level: 2, rarity: 'common', coin: 250, materials: [] }] }),
+
+    shops: new Map([[SHOP, SHOP_LIST]]), counters: new Map([[SHOP, { zone: 'exchange', at: 'bank' }]]),
   }), ...storyOps(readStoryContent(join(root, 'content.json'))) } });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/origins/`;
@@ -178,7 +192,11 @@ try {
   const secondPiece = over => smithAsk({ op: 'smith:body-wc:l1', instance: 'inst:body-wc', materials: ['inst:iron-c'], ...over });
   const away = await call('apply_upgrade', 'ta', secondPiece());
   eq([away.status, /Concord Exchange/.test(away.json.error)], [400, true], 'upgrade: bank iron is refused away from the Exchange');
-  const smithRace = await Promise.all([call('apply_upgrade', 'ta', secondPiece({ place: 'exchange' })), call('apply_upgrade', 'ta', secondPiece({ place: 'exchange' }))]);
+  presence[A] = inPitYard();   // X1 (a): the body claims the Exchange, presence has Aldren in the Pit yard
+  const forgedMats = await call('apply_upgrade', 'ta', secondPiece({ place: 'exchange' }));
+  eq([forgedMats.status, /the bank opens only at the Concord Exchange/.test(forgedMats.json.error), irons(), upgrades(), conserved()], [400, true, 'inst:iron-b:8:v2,inst:iron-c:20:v1,inst:iron-d:6:v1', '1', '0'], 'X1: bank iron with a forged place is refused, nothing changed');
+  presence[A] = atBank();   // X1 (b): presence has Aldren freshly at the bank; the body names no place
+  const smithRace = await Promise.all([call('apply_upgrade', 'ta', secondPiece()), call('apply_upgrade', 'ta', secondPiece())]);
   eq([smithRace.map(r => r.status), smithRace.map(r => r.json.result?.replayed).sort()], [[200, 200], [false, true]], 'upgrade race: one upgrade, one replay');
   eq([psql(`select upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:body-wc'`), irons(), upgrades(), conserved()],
     ['1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade race: upgraded and burned once, at the Exchange, conserved');
@@ -188,10 +206,22 @@ try {
   ])}$j$::jsonb);`);
   const greavesRow = () => psql(`select loc_kind || ':' || upgrade_level || ':v' || version || ':' || jsonb_array_length(history) from public.origins_items where id = 'inst:greaves-wc'`);
   const bankedPiece = over => smithAsk({ op: 'smith:greaves-wc:l1', instance: 'inst:greaves-wc', materials: ['inst:iron-d'], ...over });
+  presence[A] = inPitYard();
   const bankedAway = await call('apply_upgrade', 'ta', bankedPiece());
   eq([bankedAway.status, /bank, which opens only at the Concord Exchange/.test(bankedAway.json.error)], [400, true], 'upgrade: a banked piece is refused away from the Exchange');
-  eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:0:v1:0', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade: the banked refusal changed nothing');
-  const bankedAt = await call('apply_upgrade', 'ta', bankedPiece({ place: 'exchange' }));
+  // X1 (a) and (c): a forged place with presence in the Pit yard, stale at the bank, offline, and presence down are each refused
+  const refusedAt = [];
+  for (const [label, set] of [['forged place, in the Pit yard', () => { presence[A] = inPitYard(); }], ['stale at the bank', () => { presence[A] = atBank(PRESENCE_FRESH_MS + 1); }],
+    ['offline', () => { delete presence[A]; }], ['presence down', () => { presence[A] = atBank(); presenceDown = true; }]]) {
+    set();
+    const res = await call('apply_upgrade', 'ta', bankedPiece({ place: 'exchange' }));
+    refusedAt.push([label, res.status, /bank, which opens only at the Concord Exchange/.test(res.json.error)]);
+    presenceDown = false;
+  }
+  eq(refusedAt.map(r => r.slice(1)), [[400, true], [400, true], [400, true], [400, true]], `X1: a banked piece with place exchange in the body is refused (${refusedAt.map(r => r[0]).join('; ')})`);
+  eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:0:v1:0', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:6:v1', '2', '0'], 'upgrade: the banked refusals changed nothing');
+  presence[A] = atBank();
+  const bankedAt = await call('apply_upgrade', 'ta', bankedPiece());
   eq([bankedAt.status, bankedAt.json.result?.replayed, bankedAt.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-d', 5]]], 'upgrade: a banked piece is upgraded at the Exchange');
   eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the banked piece stays in the bank at level 1, pack iron burned, conserved');
   // a story-critical piece (the fixtures' Oath Gauntlets, bound quest-reward gear): the smith may upgrade it (Strategy, 2026-10-07) and it keeps its story
@@ -210,7 +240,9 @@ try {
   const oathSelf = await call('apply_upgrade', 'ta', oathAsk({ op: 'smith:oath-wc:self', materials: ['inst:oath-wc', 'inst:iron-b'] }));
   eq([oathSelf.status, /piece being upgraded; it cannot also be spent/.test(oathSelf.json.error)], [400, true], 'upgrade: the piece is never its own material');
   eq([oathRow(), irons(), upgrades(), conserved()], [oathFresh, 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the story refusals changed nothing');
+  presenceDown = true;   // X1 (c): a pack piece paid with pack iron needs no Exchange, so presence being down does not stop it
   const oathUp = await call('apply_upgrade', 'ta', oathAsk());
+  presenceDown = false;
   eq([oathUp.status, oathUp.json.result?.replayed, oathUp.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-b', 5]]], 'upgrade: the story piece is upgraded for 5 iron');
   eq([oathRow(), irons(), upgrades(), conserved()], [`item:stolen-name-gauntlets|${pc}|pack:0|true|1:v2|upgrade|live`, 'inst:iron-b:3:v3,inst:iron-c:15:v2,inst:iron-d:1:v2', '4', '0'],
     'upgrade: the story piece keeps item, binding, place and provenance, is level 1, still live; history gained only the upgrade entry');
@@ -220,6 +252,49 @@ try {
   eq([oathBurn.status, oathBurn.json.result?.burn.lines.map(l => [l.instance, l.quantity]), oathRow(), conserved()],
     [200, [['inst:oath-wc', 1]], `item:stolen-name-gauntlets|${pc}|-|true|1:v3|upgrade|burn`, '0'], 'consume: its quest step burns the upgraded story piece (retired), conserved');
 
+
+  // shop_buy (Town plan A2): bronze for items in ONE batch (event + versioned spend + mint); the server prices it; retry, conflict, stale list, funds, stock,
+  // level and a race. A starts with 30 bronze (an award row, as a verified kill pays it).
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":30,"reason":"award","event_id":"test:shop-seed"}]$j$::jsonb);`);
+  const bronze = () => psql(`select bronze || ':v' || version from public.origins_metal where account = '${A}'`);
+  const shopEvents = () => psql(`select count(*) from public.origins_events where kind = 'metal' and payload ? 'shop' and account = '${A}'`);
+  const bought = () => psql(`select coalesce(string_agg(quantity::text || ':' || (provenance ->> 'kind') || ':' || (provenance ->> 'shop'), ',' order by id), '') from public.origins_items where item = 'item:grave-iron' and provenance ->> 'kind' = 'shop' and retired_at is null`);
+  const buy = over => ({ character: pc, op: 'shop:iron-0001', shop: SHOP, item: 'item:grave-iron', quantity: 2, revision: 2, ...over });
+  // The buyer must stand at the shop's counter (presence, never the body): away in the Pit yard, offline, stale, or presence down = 422 'away', nothing written.
+  for (const [label, set] of [['in the Pit yard', () => { presence[A] = inPitYard(); }], ['offline', () => { delete presence[A]; }],
+    ['stale at the counter', () => { presence[A] = atBank(PRESENCE_FRESH_MS + 1000); }], ['presence down', () => { presence[A] = atBank(); presenceDown = true; }]]) {
+    set();
+    const away = await call('shop_buy', 'ta', buy({ op: 'shop:away-0001', place: 'exchange' }));
+    presenceDown = false;
+    eq([away.status, away.json.code, bronze(), shopEvents()], [422, 'away', '30:v1', '0'], `shop: ${label} is refused as away, nothing written`);
+  }
+  presence[A] = atBank();   // at the counter
+  const s1 = await call('shop_buy', 'ta', buy({ price: 0, cost: 0, stock: 99 }));
+  eq([s1.status, s1.json.result?.cost, s1.json.result?.replayed, bronze(), shopEvents(), bought(), conserved()],
+    [200, 8, false, '22:v2', '1', `2:shop:${SHOP}`, '0'], 'shop: 2 iron for 8 bronze priced from the list (body price/cost/stock ignored), one event, minted with shop provenance');
+  eq(psql(`select payload -> 'stock' ->> 'count' from public.origins_events where kind = 'metal' and payload ? 'shop' and account = '${A}'`), '3', 'shop: the event carries the shelf after the buy');
+  const s2 = await call('shop_buy', 'ta', buy());
+  eq([s2.status, s2.json.result?.replayed, s2.json.result?.cost, bronze(), shopEvents(), bought()], [200, true, 8, '22:v2', '1', `2:shop:${SHOP}`], 'shop: an identical retry answers the stored receipt and writes nothing');
+  eq((await call('shop_buy', 'ta', buy({ quantity: 1 }))).status, 409, 'shop: the same op id for a different buy is a 409');
+  eq((await call('shop_buy', 'ta', buy({ op: 'shop:iron-0002', revision: 1 }))).status, 409, 'shop: a stale list revision is a 409');
+  const noStock = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0003', quantity: 4 }));
+  eq([noStock.status, noStock.json.code], [422, 'stock'], 'shop: 3 left on the shelf, 4 refused');
+  const gated = await call('shop_buy', 'ta', buy({ op: 'shop:ore-0001', item: 'item:exchange-ore', quantity: 1 }));
+  eq([gated.status, gated.json.code], [422, 'level'], 'shop: the level gate');
+  eq([(await call('shop_buy', 'ta', buy({ op: 'shop:x-0001', item: 'item:nothing' }))).status, (await call('shop_buy', 'ta', buy({ op: 'shop:x-0002', shop: 'service:nope' }))).status], [400, 400], 'shop: an item off the list, an unknown shop');
+  const race = await Promise.all([call('shop_buy', 'ta', buy({ op: 'shop:race-0001', quantity: 1 })), call('shop_buy', 'ta', buy({ op: 'shop:race-0002', quantity: 1 }))]);
+  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,409', '18:v3', '2', '0'], 'shop: two buys on one balance version: one commits, the other is stale');
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-15,"reason":"spend","event_id":"test:shop-drain","expected_version":3}]$j$::jsonb);`);   // down to 3, through the ledger
+  const poor = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0004', quantity: 1 }));
+  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
+  presence[B] = atBank();   // B at the counter too, so the character rule is what refuses
+  eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
+  // Shop gear: a single-copy slot-weight piece is minted at the Region's loot tier; a second copy is refused by one-of-each (and by the shelf of 1).
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":4}]$j$::jsonb);`);
+  const gearBuy = await call('shop_buy', 'ta', buy({ op: 'shop:body-0001', item: 'item:loot.veteran.Arms', quantity: 1 }));
+  eq([gearBuy.status, psql(`select tier || ':' || quantity || ':' || (provenance ->> 'kind') from public.origins_items where item = 'item:loot.veteran.Arms' and retired_at is null`), conserved()],
+    [200, 'Gladiator:1:shop', '0'], 'shop: gear is minted at the Region loot tier with shop provenance');
+  eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
   const seedD = creditFromMarks(10);
@@ -270,7 +345,7 @@ try {
   const finished = await call('quest_advance', 'td', { character: dara, quest: EQ, stage: 'done', choice: 'thanks' });
   eq([finished.status, finished.json.result.status, finished.json.result.cp > fetchCp], [200, 'finished', true], 'the other branch finishes and pays the chapter');
   // a writer started without content answers 503 for both ops and writes nothing
-  const bare = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null });
+  const bare = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, where });
   await new Promise(r => bare.listen(0, '127.0.0.1', r));
   try {
     const events = psql(`select count(*) from public.origins_events`);
@@ -295,7 +370,7 @@ try {
   psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
   eq(psql(`select count(*) from public.origins_access where account = '${A}'`), '1', 'A is still on the allowlist');
   const flagOff = await fetchOpen('ta', { base: writer });
-  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Offline preview: progress is not saved'], 'preview: flag off + access row -> 403 -> the offline line');
+  eq([flagOff, saveLine(flagOff)], [{ offline: 'http-403' }, 'Not signed in: progress isn’t saved'], 'preview: flag off + access row -> 403 -> the offline line');
   psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
   eq(isOffline(await fetchOpen('ta', { base: writer })), false, 'preview: flag back on -> the saved career again');
   // retiring a pack row (a whole-stack burn nulls loc_kind) is not an escrow move: 0003's guard compared with '=' and refused it

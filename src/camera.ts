@@ -9,6 +9,17 @@ import type { FinisherId } from './finishers.ts';
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 
 const AIM_PER_SHRINK = 1.4;   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36)
+// How tall each foe LOOKS against a man's, for the camera only. The sim's `scale` (moves.ts OPPONENTS[id].scale) is a hitbox/rate number and stays put (it is in the record's
+// SIM_FILES); a foe whose body is not a man's by that number says so here. The Ash Wolf is ~.8 m at the back (the sim says .8 for its rates): behind the hero's head at bite range
+// without this. The Wraith is a tall rig whose head and scythe tip left the top of the lock frame. Every other foe is absent: the sim scale it always had.
+export const FRAMING_LOW: Readonly<Record<string, number>> = { wolf: 1 };   // a low quadruped (units of the LOW_* terms): the lock steps over the hero's shoulder and lifts at every gap, because the short-foe rule below only reacts to a MAN being hidden at this gap and the wolf is still behind the hero's head
+export const FRAMING_TALL: Readonly<Record<string, number>> = { wraith: 0.35 };   // looks taller (a man's height 1 + this) and carries a long weapon: the lock backs off and up (the sim scale of foes above a man, 1.03-1.36, frames as a man and stays so)
+export const framingLow = (id: string): number => FRAMING_LOW[id] ?? 0;
+export const framingTall = (id: string): number => FRAMING_TALL[id] ?? 0;
+const LOW_SIDE = 0.5,   // metres beside the hero's spine that the lock camera's line to a low foe passes, per unit of FRAMING_LOW (the hero's shoulders are ~.25 either side)
+  LOW_LIFT = 0.8,   // metres the lock camera rises for it
+  TALL_BACK = 2.4,   // metres the lock camera backs off, per unit of foe height above a man's, so his head and weapon tip stay in the frame
+  TALL_LIFT = 1.6;   // ...and rises
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
   SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
   SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
@@ -19,13 +30,16 @@ export function cameraPose(
   locked: boolean,
   target: { x: number; z: number } = TARGET,
   targetScale = 1,   // the opponent's standing height against a man's (moves.ts OPPONENTS[id].scale)
+  targetTall = 0,   // a foe that looks taller than a man (framingTall): units of extra height; 0 for every foe but the Wraith
+  targetLow = 0,   // a low quadruped (framingLow): 0 for every foe but the Ash Wolf
 ) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
-  const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);   // the original lock (Dom 2026-10-05 chose it over the 10-03 flatter one: HUD over sand, not the painting)
+  const low = locked ? targetLow : 0, tall = locked ? targetTall : 0;   // a foe that looks tall (the Wraith): back off and up; nothing for any other foe
+  const back = (locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch)) + tall * TALL_BACK;   // the original lock (Dom 2026-10-05 chose it over the 10-03 flatter one: HUD over sand, not the painting)
   let x = state.x + Math.sin(yaw) * back,
     z = state.z + Math.cos(yaw) * back,
-    y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
+    y = (locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch)) + tall * TALL_LIFT;
   // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's back at close range. Where a man at this gap would be
   // hidden below the player's shoulders, step the lock camera over the player's left shoulder so the line to him passes
   // SIDE_CLEAR per unit of missing height beside the player's spine; nothing for a man or a bigger one, nothing once in the clear.
@@ -36,12 +50,18 @@ export function cameraPose(
     x -= Math.cos(yaw) * side;
     z += Math.sin(yaw) * side;
   }
+  if (low) {   // a low foe: the line from the camera to him passes LOW_SIDE beside the spine at any gap (camera offset = that x (back + gap) / gap)
+    const side = LOW_SIDE * low * (back + gap) / gap;
+    x -= Math.cos(yaw) * side;
+    z += Math.sin(yaw) * side;
+  }
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
   const radius = Math.hypot(x, z);
   if (radius > 11.5) {
     x *= 11.5 / radius;
     z *= 11.5 / radius;
   }
+  y += low * LOW_LIFT;
   // ...and lift it until the same share of him clears the shoulders as would of a man at this gap.
   if (short) {
     const near = Math.abs(Math.sin(yaw) * (x - state.x) + Math.cos(yaw) * (z - state.z)) || back;   // distance behind the player
@@ -153,17 +173,10 @@ export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25
 // records the finish age at first latch — the arena cam starts TOUR.afterSettle seconds later, and moving again itself does
 // not unsettle the latch. The HUD reads `settled`, `touring` and `finishAge`.
 export const SETTLE = { min: 1.5, still: 0.4, speed: 0.02 } as const;   // seconds, seconds, metres per second
-// The walk to the gate (docs/pit-design.md §9, D2): after a win's loot pick the camera leaves the tour for a pose behind the winner looking
-// down the line to the gate, and follows him there. One slow move from wherever it stands, TOUR.blendIn long on the tour's own ease, never a
-// cut. `back`/`height`: the eye behind and above him; `ahead`/`lookY`: the look, that far along his line to the gate (never past it), so he
-// stands low in the frame with the gate above him. The rig's yaw follows the line, so the stick's up walks him toward the gate.
-export const GATE_CAM = { back: 3.4, height: 2.1, ahead: 5, lookY: 1.3, near: 0.5 } as const;   // metres
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
   let shortFade = 1; // share of the short-opponent lock terms (cameraPose targetScale) in use: 1 in the fight, easing to 0 once a finish begins
   let finishAge = 0, tourStopped = false, tourAngle: number | null = null, tourBegan: number | null = null;   // the stop-on-touch, the orbit angle it started from, and the finish age it started at (captured once — settledAt can still move after the tour is already running, on a slow reveal past TOUR.delay, and must not restart it)
-  let gatePoint: { x: number; z: number } | null = null, gateBegan: number | null = null;   // the gate walk's target and the finish age it began at
-  const gateFrom = new THREE.Vector3(), gateLookFrom = new THREE.Vector3();   // where the camera stood and looked when it began: the blend starts there
   let stillFor = 0, settled = false, settledAt: number | null = null;   // how long the drawn camera has been (nearly) motionless, the settle latch, and the finish age it latched at
   const lastDrawn = new THREE.Vector3();
   const desired = new THREE.Vector3(),
@@ -209,14 +222,6 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     stopTour() {
       tourStopped = true;
     },
-    // The winner walks to the gate (null: back to the kill screen's camera). The point is the gate on the arena floor (arena.ts LAYOUT).
-    gate(point: { x: number; z: number } | null) {
-      gatePoint = point;
-      if (!point) gateBegan = null;
-    },
-    get gating() {
-      return gateBegan !== null;
-    },
     get touring() {
       return tourAngle !== null;
     },
@@ -240,9 +245,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     // `drop`, easing in and back out over `seconds`.
     tilt(angle: number, seconds: number, right = 0, drop = 0) { tiltAngle = angle; tiltFor = seconds; tiltAge = 0; swayRight = right; swayDrop = drop; },
     // Place the camera for this frame: lock or orbit framing, the finisher push-in, the side-view reveal, then the settle and the kick.
-    update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1) {
+    update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1, enemyTall = 0, enemyLow = 0) {
       const blend = 1 - Math.exp(-dt * 8);
-      if (locked && !gatePoint) {   // the gate walk steers the yaw itself
+      if (locked) {
         const lockYaw = Math.atan2(state.x - enemy.x, state.z - enemy.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
@@ -250,7 +255,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       // ease out over SHORT_FADE once it begins, so the kill settles on the same frame as for a man (release row 25).
       shortFade = finish ? Math.max(0, shortFade - dt / SHORT_FADE) : 1;
       const shortShare = shortFade * shortFade * (3 - 2 * shortFade);   // smoothstep: no kink where the ease starts or ends
-      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy, 1 - (1 - enemyScale) * shortShare);
+      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy, 1 - (1 - enemyScale) * shortShare, enemyTall * shortShare, enemyLow * shortShare);
       look.set(cameraTarget.lookX, locked ? 0.8 : 1, cameraTarget.lookZ);
       desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
       // The authorized slow push-in over the death window (finishers & gore 2026-09-17): a dolly toward the fallen, never a cut,
@@ -298,11 +303,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         (finisher === 'runThrough' ||
           finisher === 'splitCrown' ||
           finisher === 'opened' ||
-          finisher === 'hamstrung')
+          finisher === 'hamstrung' ||
+          finisher === 'execution')
       ) {
-        // Hamstrung opens early (both blows land low, inside the first 0.64 of the clock) and takes Opened's raised three-quarter view.
+        // Hamstrung opens early (both blows land low, inside the first 0.64 of the clock) and takes Opened's raised three-quarter view; Execution takes the same one.
         const t = THREE.MathUtils.clamp(
-            finisher === 'hamstrung'
+            finisher === 'hamstrung' || finisher === 'execution'
               ? (finish.clock - 0.01) / 0.2
               : finisher === 'opened'
                 ? (finish.clock - 0.04) / (finish.big ? 0.6 : 0.4)
@@ -315,7 +321,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
           state,
           enemy,
           camera.aspect,
-          finisher === 'hamstrung' ? 'opened' : finisher,
+          finisher === 'hamstrung' || finisher === 'execution' ? 'opened' : finisher,
           finish.big ? 1.5 : 1,
           finish.reach ?? 0,
         );
@@ -332,9 +338,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       // is drawn, so tourStart reads the latch as of the previous frame — a harmless one-frame lag). A slow settle can still
       // fire after the fallback (TOUR.delay) tour has already started, moving tourStart later — a running tour keeps going
       // regardless (Lead review, 2026-09-22: recomputing the start mid-tour reset tourAngle and produced a visible jump).
-      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; tourBegan = null; stillFor = 0; settled = false; settledAt = null; gatePoint = null; gateBegan = null; }
+      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; tourBegan = null; stillFor = 0; settled = false; settledAt = null; }
       const tourStart = settled && settledAt !== null ? settledAt + TOUR.afterSettle : TOUR.delay;
-      if (finish && !finish.draw && !still && !tourStopped && !gatePoint && (tourAngle !== null || finishAge > tourStart)) {
+      if (finish && !finish.draw && !still && !tourStopped && (tourAngle !== null || finishAge > tourStart)) {
         tourBegan ??= finishAge;   // captured once, the frame the tour actually starts — never moves even if tourStart later does
         const t = finishAge - tourBegan, fallen = finish.victim === 1 ? enemy : state, low = finish.victim === 0;
         const focusX = finish.head ? (fallen.x + finish.head.x) / 2 : fallen.x, focusZ = finish.head ? (fallen.z + finish.head.z) / 2 : fallen.z;
@@ -347,17 +353,6 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.lerp(tour, blendIn);
         look.lerp(lookTarget.set(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
-      if (finish && gatePoint) {
-        if (gateBegan === null) { gateBegan = finishAge; gateFrom.copy(camera.position); gateLookFrom.copy(aim); }
-        const tx = gatePoint.x - state.x, tz = gatePoint.z - state.z, left = Math.hypot(tx, tz);
-        if (left > GATE_CAM.near) yaw = Math.atan2(-tx, -tz);   // at the gate itself the line has no direction: hold the last one
-        const ahead = Math.min(GATE_CAM.ahead, left), eye = eyeTarget.set(state.x + Math.sin(yaw) * GATE_CAM.back, GATE_CAM.height, state.z + Math.cos(yaw) * GATE_CAM.back);
-        const r = Math.hypot(eye.x, eye.z);
-        if (r > 11.5) { eye.x *= 11.5 / r; eye.z *= 11.5 / r; }
-        const s = Math.min(1, (finishAge - gateBegan) / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
-        desired.copy(gateFrom).lerp(eye, blendIn);
-        look.copy(gateLookFrom).lerp(lookTarget.set(state.x - Math.sin(yaw) * ahead, GATE_CAM.lookY, state.z - Math.cos(yaw) * ahead), blendIn);
-      }
       if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
         const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;
         desired.set(enemy.x + Math.sin(facing) * 4.4, 1.6, enemy.z + Math.cos(facing) * 4.4); look.set(enemy.x, 0.95, enemy.z);

@@ -6,13 +6,16 @@ import { consumeHandler } from './consume.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Content } from './holdings.ts';
+import type { WhereFn } from '../presence/where.ts';
 import { questAdvance } from './quest-advance.ts';
 import type { StoryContent } from './story.ts';
 import * as store from './store.ts';
 import { talkPick } from './talk-pick.ts';
+import { shopBuyHandler } from './shop-buy.ts';
 import { upgradeHandler } from './upgrade.ts';
 
-export type Ctx = { db: Db; account: string };
+// `where` asks presence where the account stands (X1: the only source of a player's place); a handler without it treats the player as nowhere.
+export type Ctx = { db: Db; account: string; where?: WhereFn };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
 export { BadRequest, Conflict };
 
@@ -67,4 +70,4 @@ export const storyOps = (content: StoryContent | null): Record<string, Handler> 
 export const handlers: Record<string, Handler> = { open, create_character: createCharacter, ...storyOps(null) };
 
 // The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
-export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items) });
+export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items), shop_buy: shopBuyHandler(items, items.shops ?? new Map()) });

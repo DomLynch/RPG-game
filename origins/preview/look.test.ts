@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENA_THEMES } from '../../src/arena-themes.ts';
 import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneLook } from './look.ts';
 
 test('ash-pit is Arena 1 exactly (today\'s Pit does not change)', () => {
-  const t = ARENA_THEMES['1'], l = PRESETS['ash-pit']!;
+  const t = { fog: '#c9a47a', fogDensity: 0.02, exposure: 1.3, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2] }, l = PRESETS['ash-pit']!;   // Arena 1's golden hour as pinned literals (src/arena-themes.ts ARENA_1 at the cut; the zone no longer imports it)
   assert.equal(l.fog, t.fog); assert.equal(l.fogDensity, t.fogDensity); assert.equal(l.exposure, t.exposure);
   assert.deepEqual([l.hemiSky, l.hemiGround, l.hemiIntensity], t.hemisphere); assert.deepEqual([l.sunColor, l.sunIntensity], t.sun);
   assert.deepEqual(l.ground, [1, 1, 1]);
@@ -52,4 +51,11 @@ test('zone1 keeps the arena\'s sky and exposure, darkens the ground below the ma
   assert.ok(z.ground[0] < z.stone![0] && z.ground[1] < z.stone![1] && z.ground[2] < z.stone![2], 'ground below stone on every channel');
   assert.ok(z.fogDensity < p.fogDensity);
   blendLook(p, z, 0.5).stone!.forEach((v, i) => assert.ok(Math.abs(v - (1 + z.stone![i]!) / 2) < 1e-9));
+});
+
+test('frontier-duel lifts the cinder ground and bounce and softens the key, and leaves the fog alone', () => {
+  const d = PRESETS['frontier-duel']!, c = PRESETS['cinder-haze']!;
+  d.ground.forEach((v, i) => assert.ok(Math.abs(v - c.ground[i]! * 1.15) < 1e-9));
+  assert.equal(d.hemiGround, '#6a5238'); assert.ok(Math.abs(d.sunIntensity - c.sunIntensity * 0.9) < 1e-9);
+  assert.equal(d.fog, c.fog); assert.equal(d.fogDensity, c.fogDensity); assert.equal(d.exposure, c.exposure);
 });

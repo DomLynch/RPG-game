@@ -58,6 +58,26 @@ export const LOOT_TABLES = [
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
+  // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
+  table('loottable:ash-wolf', 'collect', [
+    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 3, max: 10 }),
+  // The Ember Wolf's table (Backend ruled 2026-10-09: Ash Wolf items, bronze x1.1).
+  table('loottable:ember-wolf', 'collect', [
+    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 4, max: 11 }),
+  // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
+  table('loottable:cinder-bear', 'collect', [
+    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 2, max: 8 }),
+  // The Ash Boar's table (Backend 2026-10-08): a lone uncommon beast, level 13-14, a little richer than a scavenger camp's single kill; Frontier gear only.
+  table('loottable:ash-boar', 'collect', [
+    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 3), gearEntry('item:frontier.watch-greaves', 3)]),
+  ], { min: 5, max: 15 }),
   table('loottable:mere-brood', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 30, quantity: 1, levelMin: null, levelMax: null }])], null),
   table('loottable:court-thrall', 'take-one', [weighted(25, [
     gearEntry('item:frontier.thrall-gloves', 50), gearEntry('item:frontier.ferryman-boots', 30), gearEntry('item:frontier.watch-greaves', 20),
@@ -86,24 +106,32 @@ export const FACTIONS = [
 export const FOES = [
   figure('character:mere-mother', "Grendel's Mother", 'Beowulf (Old English poem, Cotton Vitellius A.xv)',
     'In the old poem she came up out of a haunted mere to avenge her son and was cut down in her own hall beneath the water. The Fracture set her mere on the Ash Frontier, and she drowns every boat put on it.',
-    null, [{ id: 'public', opponent: 'witch', level: 15, encounter: 'encounter:mere-mother' }], 'mere-mother'),
+    null, [{ id: 'public', opponent: 'witch', level: 4, encounter: 'encounter:mere-mother' }], 'mere-mother'),
   figure('character:hrungnir', 'Hrungnir', 'Snorri Sturluson, Prose Edda, Skaldskaparmal, c. 1220',
     'A giant of stone with a heart of stone. Here he stands on the displaced shrine in the Cinder Fields and takes any challenge put to him.',
-    null, [{ id: 'bounty', opponent: 'knight', level: 13, encounter: 'encounter:bounty-hrungnir' }], 'hrungnir'),
+    null, [{ id: 'bounty', opponent: 'knight', level: 3, encounter: 'encounter:bounty-hrungnir' }], 'hrungnir'),
   figure('character:peg-powler', 'Peg Powler', 'Tees folklore; W. Henderson, Notes on the Folk-Lore of the Northern Counties, 1866',
     'The green-haired hag of the river, who drags the careless under. In the Black Mere she keeps to the reeds and runs when the fight turns.',
-    null, [{ id: 'bounty', opponent: 'witch', level: 14, encounter: 'encounter:bounty-peg-powler' }], 'peg-powler'),
+    null, [{ id: 'bounty', opponent: 'witch', level: 3, encounter: 'encounter:bounty-peg-powler' }], 'peg-powler'),
   figure('character:court-thrall', 'Court thrall', ORIGINAL, 'A bonded fighter of the Blood Court, sent out along the Charnel Road to take tolls in its name.',
     'faction:blood-court', [
-      { id: 'l12', opponent: 'pitborn', level: 12, encounter: 'encounter:bounty-toll' },
+      { id: 'l12', opponent: 'pitborn', level: 3, encounter: 'encounter:bounty-toll' },
       { id: 'l13', opponent: 'pitborn', level: 13, encounter: null },
     ], 'court-thrall'),
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
-    null, [{ id: 'mob', opponent: 'goblin', level: 11, encounter: null }], 'cinder-scavenger'),
+    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'cinder-scavenger'),
+  figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
+    null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ash-wolf'),
+  figure('character:ember-wolf', 'Ember wolf', ORIGINAL, 'Its coat has burned down to the colour of a banked fire, and it hunts the Reach in a pack of two or three.',
+    null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ember-wolf'),
+  figure('character:cinder-bear', 'Cinder bear', ORIGINAL, 'Heavy and soot-matted, it came down off the burnt moor when the herds went and takes what it finds.',
+    null, [{ id: 'mob', opponent: 'bear', level: 1, encounter: null }], 'cinder-bear'),
+  figure('character:ash-boar', 'Ash boar', ORIGINAL, 'Tusked and ash-streaked, it roots the verge of the hold road for what the Fracture left in the ground.',
+    null, [{ id: 'mob', opponent: 'boar', level: 1, encounter: null }], 'ash-boar'),
   figure('character:mere-brood', 'Mere brood', ORIGINAL, "One of the mere's spawn, out of the reeds and hungry.",
-    null, [{ id: 'mob', opponent: 'goblin', level: 12, encounter: 'encounter:mere-mother' }], 'mere-brood'),
+    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: 'encounter:mere-mother' }], 'mere-brood'),
   figure('character:ruin-ghoul', 'Ruin ghoul', ORIGINAL, 'A starved servant of the Blood Court ruin.',
-    'faction:blood-court', [{ id: 'mob', opponent: 'goblin', level: 11, encounter: null }], 'ruin-ghoul'),
+    'faction:blood-court', [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'ruin-ghoul'),
   // PLACEHOLDER body: the worm fights on the held `minotaur` duel form until it has its own model (Strategy, 2026-10-07).
   figure('character:lambton-worm', 'The Lambton Worm', 'County Durham folklore; R. Surtees, History of Durham, vol. 2, 1820',
     'The worm a young heir threw down a well grew until it wrapped a hill. Where the sky splits over the Frontier, it comes up through the rift.',
@@ -135,7 +163,10 @@ export const TOWNSFOLK = [
   figure('character:fence-cinder', 'The Hold Fence', ORIGINAL, 'Trades from the shrine road, where the warden does not look.', null,
     [{ id: 'duel', opponent: 'executioner', level: 12, encounter: null }], 'fence'),
   figure('character:healer-mere', 'The Mere End Healer', ORIGINAL, 'Draws mere-water out of drowned lungs, most days.', null,
-    [{ id: 'duel', opponent: 'plaguedoctor', level: 13, encounter: null }], 'healer'),
+    [{ id: 'duel', opponent: 'plaguedoctor', level: 13, encounter: null }], 'healer'),  // The Exchange's working NPCs (Town plan A1, NPC rows in origins/region1/npcs.ts). PROPOSED (Backend) names; no duel form: they are not grudge rivals.
+  figure('character:banker-exchange', 'Cassa the Banker', ORIGINAL, 'Holds the Exchange vault, day and night; a night teller takes the counter while she sleeps.', 'faction:concord', [], 'banker'),
+  figure('character:provisioner-exchange', 'Dunmore the Provisioner', ORIGINAL, 'Sells grave iron by the piece to anyone the smith will serve.', 'faction:concord', [], 'provisioner'),
+  figure('character:innkeeper-exchange', 'Brisa of the Last Lamp', ORIGINAL, 'Keeps the only lamp in the square that never goes out.', 'faction:concord', [], 'innkeeper'),
 ];
 
 // The encounters (region1 §4; living-world §8). Bounties are solo, no decay, restart 0. The contract needs at least one stage before the
@@ -153,12 +184,12 @@ export const ENCOUNTERS = [
   {
     kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:mere-mother', name: 'The Mere-Mother Rises', region: 'region:ash-frontier', scope: 'public',
     stages: [{ id: 'guard', killsToAdvance: 1, population: 1, roster: [{ character: 'character:mere-brood', weight: 1 }], loot: null }],
-    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 15, health: 15_000 },   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
+    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 4, health: 4_000 },   // Zone 1's boss is the zone level + 3 (Dom 2026-10-08: Zone N = level N, boss N+3); health = the boss fixture's 1,000 a level (Lead ruling on Combat's bound for a Lv 4 player: ~3.3 min of perfect hits, 7-11 min realistic; 15,000 was 25-40 min); a boss battery may re-set it   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
     decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 3600, rewards: { minContributionPercent: 10 },
   },
-  solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 13),
-  solo('encounter:bounty-toll', 'The Toll at the Milestone', { id: 'first-thrall', character: 'character:court-thrall' }, 'character:court-thrall', 12),
-  solo('encounter:bounty-peg-powler', 'Peg Powler of the Reeds', { id: DUMMY_STAGE, character: 'character:peg-powler' }, 'character:peg-powler', 14),
+  solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 3),
+  solo('encounter:bounty-toll', 'The Toll at the Milestone', { id: 'first-thrall', character: 'character:court-thrall' }, 'character:court-thrall', 3),
+  solo('encounter:bounty-peg-powler', 'Peg Powler of the Reeds', { id: DUMMY_STAGE, character: 'character:peg-powler' }, 'character:peg-powler', 3),
   // The rift (living-world §8.3): one or two guardian duels per player, then the shared bar. Level = band top 15 + levelOver 2.
   // Health PROPOSED. It decays like any public event; the rift itself closes at the scheduler's openSeconds.
   {
@@ -202,6 +233,7 @@ export const REGIONS = [
       'road-gate', 'ash-pits', 'shrine', 'hold-road',
       'landing-shore', 'reed-bank', 'mere-hollow', 'causeway', 'causeway-foot',
       'causeway-end', 'ruin-jetty', 'ruin-gate', 'crypt',
+      'reach-turn', 'reach-gate', 'reach-cairn', 'reach-ruin',
       'hold-gate', 'hold-centre', 'hold-hall', 'hold-forge', 'hold-fence', 'hold-jail',
       'end-gate', 'end-centre', 'end-hall', 'end-healer', 'end-jail',
     ],
@@ -218,6 +250,7 @@ export const REGIONS = [
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
       spawn('scavengers', 'ash-pits', null, ['character:cinder-scavenger']),
+      spawn('wolves', 'hold-road', null, ['character:ash-wolf']),   // inert until a preview adds the wolf's mob row (origins/preview/mobs.ts previewRows ?wolf)
       spawn('brood', 'reed-bank', null, ['character:mere-brood']),
       spawn('ghouls', 'causeway-end', null, ['character:ruin-ghoul']),
       spawn('hold-ruler', 'hold-hall', null, ['character:warden-brannoc']),
@@ -227,6 +260,10 @@ export const REGIONS = [
       spawn('end-ruler', 'end-hall', null, ['character:reeve-osk']),
       spawn('end-steward', 'end-hall', null, ['character:steward-mere']),
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
+      spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
+      spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
+      spawn('reach-wolves', 'reach-cairn', null, ['character:ember-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
+      spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
@@ -314,6 +351,10 @@ export const KILL_ROWS: Record<string, string> = {
   'character:rift-spawn': 'elite',
   'character:cinder-scavenger': 'mob',
   'character:mere-brood': 'mob',
+  'character:ash-wolf': 'mob',
+  'character:ember-wolf': 'mob',
+  'character:cinder-bear': 'mob',
+  'character:ash-boar': 'mob',
   'character:ruin-ghoul': 'mob',
 };
 export const PROPOSED_ROWS = ['rift-boss'] as const; // living-world §8.4: weight 150, once false, rested, party each
@@ -330,6 +371,10 @@ export const CREATURE_LOOT: Record<string, string> = {
   'character:cinder-scavenger': 'loottable:cinder-scavenger',
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
+  'character:ash-wolf': 'loottable:ash-wolf',
+  'character:ember-wolf': 'loottable:ember-wolf',
+  'character:cinder-bear': 'loottable:cinder-bear',
+  'character:ash-boar': 'loottable:ash-boar',
   'character:court-thrall': 'loottable:court-thrall',
 };
 

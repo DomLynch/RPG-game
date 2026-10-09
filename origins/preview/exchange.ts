@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { ArenaMaterials } from '../../src/arena.ts';
+import type { ZoneMaterials } from './zone-scenery.ts';
 import { exchangeAnchors, exchangePlan, FORGE_HALF, KERB_INSET, STONE_RADIUS, type Piece, type Plan, type Shape, type Tint } from './exchange-plan.ts';
 
 // Greybox of the walk out (Origins look prototype, not the build): the passage behind the Pit's gate, the Concord Exchange plaza and the
@@ -30,7 +30,7 @@ function piece(geometry: THREE.BufferGeometry, x: number, y: number, z: number, 
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(color, 3));
   return g;
 }
-function geometryOf(s: Shape): THREE.BufferGeometry {
+export function geometryOf(s: Shape): THREE.BufferGeometry {
   switch (s[0]) {
     case 'box': return new THREE.BoxGeometry(s[1], s[2], s[3]);
     case 'cylinder': return new THREE.CylinderGeometry(s[1], s[2], s[3], s[4]);
@@ -57,7 +57,7 @@ function inscription(text: string): THREE.MeshStandardMaterial {
 
 // Every piece of a plan, merged into one mesh per layer (stone, iron, dark, coal) named `<prefix>-<layer>`, added to the group.
 // `own` gives the stone and paving layers materials of their own (the Exchange's clones, so a look can tint them without touching the arena's).
-export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ArenaMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}): void {
+export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}): void {
   const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], paving: [], iron: [], soot: [], coal: [] };
   for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot));
   const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {
@@ -71,7 +71,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Aren
 
 export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
 
-export function buildExchange(scene: THREE.Scene, m: ArenaMaterials, plan: Plan = exchangePlan(A)): Exchange {
+export function buildExchange(scene: THREE.Scene, m: ZoneMaterials, plan: Plan = exchangePlan(A)): Exchange {
   const group = new THREE.Group(); group.name = 'concord-exchange'; scene.add(group);
 
   const awnings: THREE.Mesh[] = [];

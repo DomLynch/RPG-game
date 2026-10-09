@@ -1,5 +1,4 @@
 import { createInput } from './input.ts';
-import { walk, walkerFrom, type Walker } from './post-walk.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -20,8 +19,8 @@ import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
-import { PLAY_SCALE, STEP, wrapAngle } from './sim.ts';
-import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
+import { STEP, wrapAngle } from './sim.ts';
+import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
@@ -32,6 +31,9 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } fro
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
+import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts';
+import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
+import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
@@ -43,18 +45,14 @@ import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
-import { RISE_MS } from './gate-rise.ts';
-import { atGateLine, disposePit, doorHidden, loadPit, loadSkulls, openPit, prefetchPit, type Pit, type SkullsModule, type Champion, type Kills, type PitRecord, type Stage } from './pit-coordinator.ts';
-import { LAYOUT } from './arena.ts';
-import { pitGlowFrom, pitLookFrom, pitOpenLook, pitStoneFrom, skullsDemoFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
-import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
+import { executionPick, resolveExecution } from './execution.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { getTouchOwner, type TouchTarget } from './touch-router.ts';
@@ -65,6 +63,7 @@ import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
 import { underRecord } from './detmath.ts';
 import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
+import { lockPageZoom } from './zoom-guard.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
@@ -73,28 +72,12 @@ const canvas = element<HTMLCanvasElement>('world');
 if ((new URLSearchParams(window.location?.search ?? '').get('look') ?? '').split(',').includes('kick52')) document.documentElement.classList.add('look-kick52');   // ?look=kick52: the KICK button at 52 px (style.css); absent = today's 44 px
 const setTier = () => { document.documentElement.dataset.tier = layoutTier(window.innerWidth, window.innerHeight); };
 setTier(); window.addEventListener('resize', setTier); window.addEventListener('orientationchange', setTier);
-// Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
-// tests/input.test.ts). iOS Safari ignores the viewport meta in the browser, so the pinch gesture itself is blocked here.
-for (const type of ['gesturestart', 'gesturechange', 'gestureend'])
-  document.addEventListener(type, (event) => event.preventDefault());
-// Not enough on its own: with the camera free, a second finger landing while the first orbits the arena still zoomed the
-// whole page on iPhone (owner, 2026-09-21). Refuse every two-finger move at the document, non-passive, so the pinch never
-// starts. A single finger keeps every tap, drag and stick move: only moves with two or more touches are refused.
-document.addEventListener('touchmove', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
-document.addEventListener('touchstart', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });   // a pinch whose first move slips through can still start Safari's zoom: refuse the second finger at touchstart too
-// A double tap still zoomed the whole fight ~2x on iPhone (owner, 2026-09-26 22:47, on/near an attack button): iOS Safari does not
-// honour user-scalable=no or touch-action for its double-tap zoom. On the fight surface only (the arena canvas, the page under the
-// see-through HUD, the stick and the action cluster) the second single-finger touchend within 350 ms is refused: those controls act on
-// pointerdown, so nothing is lost. Everything click-driven keeps both taps: the journal and its Options, the header, Next, camera and
-// recenter, SHARE/CLIP and the Sparring pair (.share-button), and the loot panel's buttons (Lead, 2026-09-26).
+// Page zoom is locked: pinch, two-finger moves and the double tap on the fight surface (zoom-guard.ts, shared with the Origins preview).
+// The double tap is refused on the fight surface only (the arena canvas, the page under the see-through HUD, the stick and the action
+// cluster); everything click-driven keeps both taps: the journal and its Options, the header, Next, camera and recenter, SHARE/CLIP and
+// the Sparring pair (.share-button), and the loot panel's buttons (Lead, 2026-09-26).
 const DOUBLE_TAP_SURFACE = '#world, #joystick, #actions', CLICK_DRIVEN = '.share-button, #reset-button, #camera-button, #recenter-button, .loot-panel-actions, #loot-undo, .loot-panel';
-let lastTouchEnd = -Infinity;
-document.addEventListener('touchend', (event) => {
-  const target = event.target instanceof Element ? event.target : null;
-  const fight = target === document.body || target === document.documentElement || (!!target?.closest(DOUBLE_TAP_SURFACE) && !target.closest(CLICK_DRIVEN));
-  if (event.touches.length === 0 && event.timeStamp - lastTouchEnd < 350 && fight) event.preventDefault();
-  lastTouchEnd = event.timeStamp;
-}, { passive: false });
+lockPageZoom(document, { surface: DOUBLE_TAP_SURFACE, clickDriven: CLICK_DRIVEN });
 const feedback = createFeedback();
 if (powerWordsLook(window.location?.search ?? '')) window.addEventListener('frankendom:powerword', (e) => { const d = (e as CustomEvent<{ word: string; opponent: string }>).detail; feedback.powerWord(d.word, d.opponent, POWER_WORD_LOOK_GAIN); });   // ?look=powerwords (power-word.ts); absent = the event has no listener
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
@@ -255,11 +238,12 @@ if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try
 // ?dpr= (quality.ts DPR_OVERRIDE, read before this line runs) is the same: this page load only, gone from the address at once. dprOverride is
 // the same value read here, before the strip: the readout tags it, and it turns off the frame-time auto-drop below for this load.
 const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(location.search);
+// Play goes to Zone 1 (src/zone1-hop.ts): a returning player on a plain `/`; a storage that cannot be read stays on the arena.
+if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: location.search, pathname: location.pathname, hasFighter: localStorage.getItem(FIGHTER_KEY) !== null, lessonDone: localStorage.getItem(LESSON_DONE_KEY) === '1' }); if (to) location.replace(to); } catch { /* blocked storage: stay */ } }
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
-// One rack row: the piece's name, who it was taken from, and Wear/Worn on the journal's own wear path. The journal's rack and the Pit's
-// rack (src/pit/sheet.ts, through the Stage) draw the same rows.
+// One rack row: the piece's name, who it was taken from, and Wear/Worn on the journal's own wear path.
 function rackRow(id: LootId): HTMLLIElement {
   const loot = profile.loot ?? emptyLoot(), worn = wornIds();
   const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
@@ -368,17 +352,13 @@ for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).
 });
 // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
 function enterGear() {
-  if (pit && !gear) {   // over the Pit: the hero standing in the room is the mannequin (pit.ts fitting); the room's own frame keeps drawing
-    pit.fitting(element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
-  }
-  if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
-  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+  if (gear || typeof view.gearStage !== 'function') return;
+  try { gear = enterGearRoom(view.gearStage(), element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
   catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
 }
 function leaveGear() {
   fitId = fitKey = null;
   if (gear) { gear.leave(); gear = undefined; }
-  pit?.fitting(null);
   delete journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
   view.wear(wornIds(), wornTiers()); renderFitting();
 }
@@ -465,15 +445,15 @@ opponentSelect.value = opponent.id;
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung — plus Plain death as the
-// no-finisher control. Execution has no clip yet and would silently play the plain Death, which reads as a bug in a test menu.
-// Add it back the day its clip ships. Hamstrung plays on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS); any other body keeps what he played.
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung, Execution — plus Plain death as the
+// no-finisher control. Hamstrung and Execution play on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS, src/execution.ts EXECUTION_VICTIMS); any other body keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
   ['opened', 'Opened'],
   ['hamstrung', 'Hamstrung'],
+  ['execution', 'Execution'],
   ['plainDeath', 'Plain death'],
 ];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
@@ -547,6 +527,8 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
+if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -557,7 +539,7 @@ const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent
 // versus card prints for it (tierAt(kit.level - 1); Dom 2026-09-29: level 6 named Bedivere but wore the gold Origin Knight); else the rung
 // he is met at. Only the look: a take still records metAt, and a Dev level off the dial never takes anything (#917).
 const shownTier = (met: Tier = metAt): Tier => lookTier ?? (match.mode === 'sparring' ? tierAt(match.level - 1) : kit.level !== undefined ? tierAt(kit.level - 1) : met);
-// The Next button names who the next page meets: that opponent's legend at the level the next page boots at (kit.level ?? rankLevel,
+// The Next fight button (hud.ts) shows when there is a next rung; `name` is who the next page meets: that opponent's legend at the level the next page boots at (kit.level ?? rankLevel,
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
@@ -646,25 +628,6 @@ const testTools = element('test-tools'), debugShown = () => debug && !testTools.
 // decapitation land" — the panel used to open on the Killed event, over the ceremony). This holds the win's health-left until
 // view.finishPhase().complete latches in updateHud; null = nothing pending. Page timing, not match state: began() clears it with the panel.
 let pendingLoot: number | null = null;
-// The Pit's switch and door (declared before updateHud first reads them; the wiring is by showPitLook below).
-const pitLook = pitLookFrom(window.location?.search ?? '');
-const pitButton = element<HTMLButtonElement>('pit-button');
-// The walk to the gate after a win (docs/pit-design.md §9, D2): once the loot pick is over the stick walks the winner (post-walk.ts), not
-// the fight; null until then and again from the next fight (began). What the gate does when he reaches it is the Pit's.
-let walker: Walker | null = null;
-// D2 (docs/pit-design.md §9): the gate opens on foot. `gateAuto`: a tap or the shortcut walks him the last metres; `gateHold`: he stands at
-// the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
-let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
-const lootActions = element('loot-panel-actions');
-// The gate's light (gate-light.ts). gateLit: up since this document's first paint (src/gate-light-boot.js), down at the arena's first frame.
-// gateLeaving: up on this page from the gate's press until the reload; the frames drawn between the Pit closing and the reload (the reset
-// settles a take first) must NOT take it down, or the flag goes with it and the fresh page starts black (pit-exit-check caught this).
-let gateLeaving = false;
-let gateLit = typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('gate-light');
-const dropGateLight = () => { if (!gateLit) return; gateLit = false; clearGateLight(document.documentElement, () => sessionStorage); };
-let nextRungWarmed = false;   // the next fighter's files are fetched once per page, from the Pit (prefetchNextRung)
-let pitLooking: Promise<void> | undefined;   // the `?look=pit` room opening (showPitLook); the debug handle's ready() waits on it
-let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
 // Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
 // neither exists, and 49 tests failed on it.
@@ -850,20 +813,6 @@ function updateHud() {
   // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
   // budgets its layout against; nothing here reads it. The panel's own geometry is untouched — this is timing only.
   if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
-  // The Pit's door, on a career kill screen only (never a replay, a viewer page, sparring or the look test).
-  const finish = match.practice.finish, door = !!finish && !match.replay && !match.stalled && match.mode === 'career' && !pitLook;
-  // While he walks, the door hides as soon as the stick moves him and returns after 3 s still (Strategy). Decided HERE, the one place
-  // that sets hidden: the frame loop used to set it too, and this line, run later in the same frame, put the door straight back.
-  pitButton.hidden = !door || (walker !== null && doorHidden(lastMoveAt, performance.now()));
-  // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
-  if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
-    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); feedback.warmGate(); document.documentElement.classList.toggle('walking', true);
-  }
-  if (door) {
-    const label = pitOpening ? 'Opening the gate…' : finish.victim === 1 && !finish.draw ? 'Enter the Pit' : 'Recover';
-    if (pitButton.textContent !== label) pitButton.textContent = label;
-    pitButton.setAttribute('aria-disabled', String(pitOpening));
-  }
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -936,7 +885,6 @@ element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringPa
 function openJournal() {
   clearInput();
   renderScorecard(); renderLoot();
-  syncPitNav();
   journal.showModal();
   enterGear();
 }
@@ -946,21 +894,11 @@ element('mobile-name').addEventListener('click', () => {
   element('name-button').click();
 });
 element('close-journal').addEventListener('click', () => journal.close());
-// The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
-// the kill-screen door today (openGate), so it is live while that door is up and dimmed otherwise (a tap says "Win a fight to open the gate"); no screen of its own was invented.
-function syncPitNav() {   // the Pit door is live only while the kill-screen door is up (pitButton); Stats' foot button says where it will go
-  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
-  element('stats-return').textContent = pitButton.hidden ? 'Back to the arena' : 'Return to the Pit';
-}
+// The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight.
 element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
 element('stats-gear-view').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; journal.scrollTop = 0; });
-element('stats-return').addEventListener('click', () => element(pitButton.hidden ? 'nav-arena' : 'nav-pit').click());
+element('stats-return').addEventListener('click', () => element('nav-arena').click());
 element('nav-arena').addEventListener('click', () => journal.close());
-let navNoteTimer: ReturnType<typeof setTimeout> | undefined;
-element('nav-pit').addEventListener('click', () => {
-  if (pitButton.hidden) { const note = element('nav-note'); note.hidden = false; clearTimeout(navNoteTimer); navNoteTimer = setTimeout(() => { note.hidden = true; }, 2000); return; }   // dimmed: say why, once, for 2 s
-  journal.close(); openGate(true);
-});
 journal.addEventListener('close', clearInput);
 journal.addEventListener('close', leaveGear);
 window.addEventListener('resize', () => gear?.fit());
@@ -969,6 +907,14 @@ window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
 const paused = () => invalidSparringPreview || !assetsReady || graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
+// The Coach (TOP10 row 8): ON as a feature, `?coach=off` is the kill switch; the toggle is saved per device. One tag is both the live "Coached" button and the win marker.
+const coach = createCoachSession(storage, (detail: CoachEvent) => { window.dispatchEvent(new CustomEvent('frankendom:coach', { detail })); paintCoach(); }, coachKilled(location.search));
+function paintCoach(): void {
+  const tag = element('coach-tag'), chip = element('mobile-coach');
+  chip.hidden = coachKilled(location.search); chip.setAttribute('aria-pressed', String(coach.pref)); chip.textContent = coach.pref ? 'Coach on' : 'Coach off';
+  tag.hidden = !coach.on && !(coach.coached && match.practice.finish && match.practice.finish.victim === 1);
+  tag.dataset.live = String(coach.on); tag.textContent = coach.on ? 'Coached · tap' : 'Coached win';
+}
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
@@ -977,6 +923,7 @@ const controls = createInput({
   ready: () => assetsReady,
   practice: () => match.practice,
   quiet: () => feedback.quiet(),
+  press: () => { if (coach.on) coach.set(false, match.practice.duel.tick, 'tap'); },   // any fight button hands the fight over BEFORE that tick reads its input (src/coach-ui.ts)
 });
 // This fight's claim (loot-claims.ts): its encoded record, written to the outbox at the kill, and settled once by the player's last word
 // on the loot (a take once the Undo line is gone, Leave it, nothing to offer) or by leaving the fight. Share waits on the post, at most
@@ -1002,23 +949,30 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted && session
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
+// The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
+let stancePanel: StancePanel | null = null;
+// Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
+function showStances() {
+  if (!stanceAsk || typeof document === 'undefined' || !document.body) return;
+  stancePanel ??= mountStancePanel(document.body, (p) => { match.stancePref = p; nextFight(); }, document);
+  if (match.stances) stancePanel.show(match.stances, match.seed, opponent.id);
+}
 function began() {
-  nameOpponent();   // a rematch or a new rung can move the legend
+  nameOpponent();
+  coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();
+  showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  if (walker) { walker = null; view.walkToGate(false); view.raiseGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
-  gateAuto = gateHold = crossed = false; lastMoveAt = null; document.documentElement.classList.toggle('gate-fade', false);
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
 function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
   if (shown) { opponentSelect.value = opponent.id; showDifficulty(); }   // CHANGE opens the tab on the fight just fought, whatever pick was left unstarted
 }
-// The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
-// press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
+// The next-fight command: the kill screen's Next fight / Rematch button runs it.
 function nextFight(): void {
-  if (match.mode === 'lesson') { location.assign(`${location.pathname}?fight=1`); return; }   // the first loss is over: a non-empty search fails firstLossDue, so even where storage cannot write (blocked site data, a full quota) this never reloads into the lesson again; nothing reads the key, and LESSON_DONE_KEY keeps the next plain visit out of it
+  if (match.mode === 'lesson') { location.assign(zone1AfterLesson() ?? `${location.pathname}?fight=1`); return; }   // the first loss is over: a non-empty search fails firstLossDue, so even where storage cannot write (blocked site data, a full quota) this never reloads into the lesson again; nothing reads the key, and LESSON_DONE_KEY keeps the next plain visit out of it
   if (invalidSparringPreview) { element<HTMLInputElement>('journal-tab-arena').checked = true; journal.showModal(); return; }
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -1084,7 +1038,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? record.seed : undefined, record.stances));   // the level's body, as match.startClip replays it (on the record's math); the Gambit and the stance pick like src/replay.ts, or a stances clip would re-sim a different fight
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; clearPvpHold(); accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
@@ -1397,166 +1351,7 @@ versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(
 }
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
-// The Pit (docs/pit-design.md, src/pit-coordinator.ts): after a career fight the kill screen offers Enter the Pit (a win) or Recover (a
-// defeat). `pit` is the one switch frame() reads: while it is set the Pit draws the frame and nothing of the fight runs. `?look=pit` is the
-// look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
-const pitLoot = () => profile.loot ?? emptyLoot();
-// The skull wall's kills and the record board (src/pit/skulls.ts, loaded with the Pit's chunk): the last known data, refreshed from Supabase on each
-// Pit visit; the `&skulls=demo` look never touches the network. skullsNow / recordNow are undefined until the module is in.
-let skullMod: SkullsModule | null = null, feed: ReturnType<SkullsModule['createFeed']> | null = null, championCache: Champion[] | null = null;   // set by a fetch; until one has answered the fallback is recomputed from the loot each time, so a fresh win shows
-function pitSkulls() {
-  const demo = skullsDemoFrom(window.location?.search ?? '');
-  void loadSkulls().then((m) => { skullMod = m; }, () => undefined);
-  // The legend's own name for a kill (legends.ts), else the opponent's class name; this file may read legends.ts, src/pit/ may not.
-  const nameOf = (id: string, rank: number | null): string => { try { return isLegendOpponent(id) ? (rank ? legendAt(id, rank).name : ROSTER[id].name) : (isOpponentId(id) ? ROSTER[id].name : id); } catch { return id; } };
-  const theFeed = (m: SkullsModule) => feed ??= m.createFeed({ db: () => session.db, userId: () => session.userId, loot: pitLoot, marks: careerMarks, nameOf });
-  return {
-    skullsNow: (): Kills | undefined => (!skullMod ? undefined : demo ? skullMod.demoKills(nameOf) : theFeed(skullMod).killsNow()),
-    skulls: async (): Promise<Kills> => {
-      const m = skullMod ??= await loadSkulls();
-      return demo ? m.demoKills(nameOf) : theFeed(m).kills();
-    },
-    recordNow: (): PitRecord | undefined => (!skullMod ? undefined : demo ? skullMod.demoRecord() : theFeed(skullMod).recordNow()),
-    record: async (): Promise<PitRecord> => {
-      const m = skullMod ??= await loadSkulls();
-      return demo ? m.demoRecord() : theFeed(m).record();
-    },
-    championsNow: (): Champion[] | undefined => (!skullMod ? undefined : demo ? skullMod.demoChampions() : (championCache ?? [])),
-    champions: async (): Promise<Champion[]> => {
-      const m = skullMod ??= await loadSkulls();
-      if (demo) return m.demoChampions();
-      championCache = await m.fetchChampions(session.db);
-      return championCache;
-    },
-  };
-}
-function pitStage(): Stage {
-  const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
-  return {
-    ...view.pitStage(pitLoot),
-    ...(look ? { look } : {}),
-    ...pitOpenLook(window.location?.search ?? ''),   // the cage by default (look-flag.ts)
-    ...pitSkulls(),
-    pieceName: (id) => { try { return pieceName(id as LootId); } catch { return id; } },
-    readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
-    readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
-    readTap: () => { const tap = pitTap; pitTap = null; return tap; },
-    gateSound: () => feedback.gate(),
-    crowdSound: (cue) => feedback.crowd(cue),
-    openJournal: () => { if (journal.open) return; element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal(); },   // the rack: the loadout sheet, on Gear & pack
-    rackRows: (ids) => (ids ?? pitLoot().owned).map(rackRow),
-    trophyLine: (id) => {
-      const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
-      const name = pieceName(id);
-      return legend ? `${name[0]!.toUpperCase()}${name.slice(1)} · taken from ${legend.name}, rank ${taken!.tier}` : `${name[0]!.toUpperCase()}${name.slice(1)}`;
-    },
-    // The gate is the kill screen's own Next / Rematch: leave the Pit, then run the next-fight command (it settles a take, reloads for a
-    // new rung or rematches here). Its label is the one the kill screen showed.
-    // After a win the press loads the next fighter's page: this page fades to the gate's light first and the fresh one starts on it
-    // (gate-light.ts), so no black shows between them. Any other press (a rematch in place), or a store that refuses the flag: as before.
-    gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => {
-      const leave = () => { closePit(); nextFight(); };
-      if (gateLeaving) return;   // the light is already up: one press, one reload
-      if (!match.nextRung() || !armGateLight(document.documentElement, () => sessionStorage)) return leave();
-      gateLeaving = true;
-      setTimeout(leave, GATE_LIGHT_IN_MS);
-      // a reload that never came does not leave him in the light
-      setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
-    } }),
-    // The skull wall's card for a slot key `<opponent>-<rank>` (legends.ts): the legend, its source and story, the portrait the kill
-    // screen shows, and whether this fighter has beaten it (loot.defeats, Backend #1156; absent = unbeaten).
-    legend: (key) => {
-      const at = key.lastIndexOf('-'), id = key.slice(0, at), rank = Number(key.slice(at + 1));
-      if (!isLegendOpponent(id) || !Number.isInteger(rank) || rank < 1 || rank > 10) return null;
-      const l = legendAt(id, rank), beaten = ((pitLoot() as Loot & { defeats?: string[] }).defeats ?? []).includes(key);
-      return { name: l.name, opponent: ROSTER[id].name, rank, source: l.source, backstory: l.backstory, portrait: `legends/${key}.webp`, beaten };
-    },
-  };
-}
-// While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low
-// priority, so the fresh page behind the gate finds them there. Bytes only; nothing is decoded here.
-function prefetchNextRung() {
-  const next = match.nextRung();
-  if (!next || nextRungWarmed) return;
-  nextRungWarmed = true;
-  void prefetchFiles(view.rungFiles(next.id, shownTier(tierAt(careerMarks()))));
-}
-function closePit() {
-  pit?.leave(); pit = undefined;
-  delete document.body.dataset.pit;
-  canvas.focus();
-}
-// `?look=pit-glow` (the Pit look test, Dom 2026-10-04: "1 room I can move around"): the page opens straight into the walkable Pit, no fight first.
-function walkPitGlow() {
-  if (pitLook || pit || !pitGlowFrom(window.location.search) || document.body.dataset.pit) return;
-  void openPit(pitStage(), 'win').then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }, (error: unknown) => captureException(error, { tags: { pit: 'glow' } }));
-}
-function showPitLook() {
-  if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
-  document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}), ...pitOpenLook(window.location.search), ...(skullsDemoFrom(window.location.search) ? pitSkulls() : {}) };   // Web's stone look test
-  const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
-  pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
-    delete document.body.dataset.pit;
-    captureException(error, { tags: { pit: 'look' } });
-  });
-}
-// Honest loading (docs/pit-design.md §4): the chunk was prefetched at the kill; a tap before it lands says so on the button and the kill
-// screen stays live. A failure says so where the share status sits and changes nothing; the next tap tries again.
-// Opening the gate (docs/pit-design.md §9). On foot after a win: the chunk first (he holds at the line, the button says so), then a fade
-// to black while he keeps walking, then the room, where he arrives at the pace he had. `auto`: a tap on the gate or the shortcut walks him
-// the last metres himself. A defeat's Recover, and a win before the walk starts, open as before: no walk, no fade.
-const GATE_FADE_MS = 1000;
-function openGate(auto: boolean) {
-  const finish = match.practice.finish;
-  if (pit || pitOpening || !finish) return;
-  if (clip) endClip(false);
-  pitOpening = true; say(null); updateHud();
-  const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
-  const entry = finish.victim === 1 && !finish.draw ? 'win' : 'defeat', onFoot = !!walker && entry === 'win';
-  if (onFoot) { gateAuto = auto; gateHold = !auto; }
-  const winch = onFoot ? (view.raiseGate(true), feedback.gate()) : undefined;   // the bars rise on the winch; the fade waits for them, the chunk or both, whichever is later
-  const barsUp = onFoot ? new Promise<void>((done) => setTimeout(done, RISE_MS)) : undefined;
-  const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.toggle('gate-fade', true); setTimeout(done, GATE_FADE_MS); });
-  feedback.warmGate();   // the gate winch's file, fetched as the Pit opens (the context exists: he has played)
-  Promise.all([loadPit(), barsUp]).then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
-    if (!opened) return;
-    pit = opened; document.body.dataset.pit = 'on';
-    void opened.ready.then(prefetchNextRung, () => undefined);   // once the room has what it needs, never ahead of it
-    if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }
-    document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
-  }, (error: unknown) => {
-    if (op === pitOp) say('The Pit could not open, fight on.');
-    view.raiseGate(false);
-    document.documentElement.classList.toggle('gate-fade', false);
-    captureException(error, { tags: { pit: 'open' } });
-  }).finally(() => { winch?.stop(); pitOpening = false; gateAuto = gateHold = false; updateHud(); });
-}
-pitButton.addEventListener('click', () => openGate(true));
-// A tap on the gate itself while he walks (a tap, not a drag): the gate's mouth on screen, within a thumb of it.
-let tapX = 0, tapY = 0;
-canvas.addEventListener('pointerdown', (event) => { tapX = event.clientX; tapY = event.clientY; });
-canvas.addEventListener('pointerup', (event) => {
-  if (!walker || pit || Math.hypot(event.clientX - tapX, event.clientY - tapY) > 8) return;
-  const at = view.project([Math.sin(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE, 1.3, Math.cos(LAYOUT.gate) * LAYOUT.wall.inner * PLAY_SCALE]);   // the gate comes inward with the arena (play-radius.ts)
-  if (at && Math.hypot(at[0] - event.clientX, at[1] - event.clientY) < 70) openGate(true);
-});
-window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });
-// ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
-// memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
 if (debug) Object.defineProperty(globalThis, '__lessonShow', { configurable: true, value: onLesson });   // the lesson stills fire a beat by hand (first-loss.ts owns __lesson)
-if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
-  // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
-  // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
-  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; await opened.extras; } }),
-  close: closePit,
-  // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
-  ready: async () => { await pitLooking; await pit?.ready; await pit?.extras; },
-  // The browser tap test: the same function a landed tap runs for that pick id (pit.ts choose), false with no Pit open; sheet() is the bottom sheet's visible text.
-  tap: (id: string) => pit?.pick(id) ?? false,
-  sheet: () => { const el = document.getElementById('pit-ui'); return el && !el.hidden ? el.innerText : ''; },
-  memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
-} });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
 // His rig carries one loadout per page (scene.ts: the Centurion's gladius + scutum from Legionary). A level that moves it, a rematch's rung
 // or a Dev level pick (row 22, 2026-09-28: a live pick to 46 fought the gladius with the trident drawn), reloads, as a weapon pick does.
@@ -1573,7 +1368,6 @@ try {
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
       if (kind === 'ready') view?.startStandoff();
-      if (kind === 'ready') { showPitLook(); walkPitGlow(); }
     },
     opponent.id,
     arenaPick,   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
@@ -1598,6 +1392,8 @@ try {
   };
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
+  showStances();   // ?stances=: the panel is on the page from load, before any fight starts
+coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();   // the first fight of a page load never runs began(): arm the Coach (and paint the chip) here too
   if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -1687,6 +1483,8 @@ canvas.addEventListener('webglcontextrestored', () => {
   updateHud();
   frameId = requestAnimationFrame(frame);
 });
+element('mobile-coach').addEventListener('click', () => coach.set(!coach.pref, match.practice.duel.tick, 'menu'));   // the menu chip: Coach plays or not, from the next tick
+element('coach-tag').addEventListener('click', () => { if (coach.on) coach.set(false, match.practice.duel.tick, 'tag'); });   // the live tag is also the way back to your own hands
 for (const id of ['camera-button', 'mobile-camera'])
   element(id).addEventListener('click', () => {
     locked = !locked;
@@ -1710,29 +1508,16 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.focus();
   view.stopTour();   // after the kill the arena cam drifts on its own; a touch on the arena hands the camera back
   orbitId = event.pointerId;
-  orbitX = pressX = event.clientX;
-  orbitY = pressY = event.clientY;
+  orbitX = event.clientX;
+  orbitY = event.clientY;
   canvas.setPointerCapture(orbitId);
 });
-// While the Pit shows, the same drag turns the Pit's camera instead (Stage.readLook, drained once a frame): the arena's yaw stays put.
-// A press that never became a drag (under TAP_PX from where it landed) and lifts on the canvas is a tap for the Pit's picker
-// (Stage.readTap, in NDC, drained once a frame); the fight has no use for one.
-const pitDrag = { dx: 0, dy: 0 }, TAP_PX = 8;
-let pressX = 0, pressY = 0, pitTap: { x: number; y: number } | null = null;
 canvas.addEventListener('pointermove', (event) => {
-  if (orbitId === event.pointerId && pit) {
-    pitDrag.dx += event.clientX - orbitX; pitDrag.dy += event.clientY - orbitY;
-    orbitX = event.clientX; orbitY = event.clientY;
-  } else if (orbitId === event.pointerId && !locked && !paused()) {
+  if (orbitId === event.pointerId && !locked && !paused()) {
     view.orbit(event.clientX - orbitX, event.clientY - orbitY);
     orbitX = event.clientX;
     orbitY = event.clientY;
   }
-});
-canvas.addEventListener('pointerup', (event) => {
-  if (event.pointerId !== orbitId || !pit || Math.hypot(event.clientX - pressX, event.clientY - pressY) >= TAP_PX) return;
-  const rect = canvas.getBoundingClientRect();
-  pitTap = { x: ((event.clientX - rect.left) / rect.width) * 2 - 1, y: 1 - ((event.clientY - rect.top) / rect.height) * 2 };
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
   canvas.addEventListener(name, (event) => {
@@ -1803,10 +1588,7 @@ function frame(now: number) {
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
-  // The Pit shows: it draws the frame, and nothing of the fight runs (no sim step, no fight render, no effect update that could un-hide
-  // what the Pit hid). Lead 2026-09-29.
   if (gear) { gear.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
-  if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }
   if (!paused()) {
     controls.promoteDodge(now);
     const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture
@@ -1821,10 +1603,10 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp' && match.mode !== 'lesson' && match.mode !== 'tutorial') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
-      const result = match.step(() => {
+      const result = match.step(() => coach.pick(match.practice.duel, () => {
         const intent = controls.intent();
         return {
-          move: walker ? { x: 0, z: 0, yaw: view.yaw, run: false } : { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },   // the walk's stick is the walker's, never the fight's
+          move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
           action: intent.action,
           guard: intent.guard,
           guardDirection: intent.guardDirection ?? undefined,
@@ -1832,7 +1614,7 @@ function frame(now: number) {
           lock: locked,
           cancel: intent.cancel,
         };
-      });
+      }));
       if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
       if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
@@ -1848,20 +1630,27 @@ function frame(now: number) {
         );
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
       const deathWeapons = [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const;
-      const deathPick = hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
+      const deathPick = executionPick(hamstrungPick(finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId), view.hamstrungInstalled()), view.executionInstalled());   // the scene's own answer: an uninstalled Hamstrung is a plain death for the cues too
       const deathAudio =
         practice.finish && practice.events.some((e) => e.type === 'Killed')
           ? {
               finish: practice.finish,
               weapons: deathWeapons,
               override:
-                resolveHamstrung(
+                resolveExecution(
                   opponent.id,
                   practice.finish,
                   deathWeapons,
                   deathPick,
                   view.previousFinisher(),
-                  resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick, view.previousFinisher()),
+                  resolveHamstrung(
+                    opponent.id,
+                    practice.finish,
+                    deathWeapons,
+                    deathPick,
+                    view.previousFinisher(),
+                    resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick === 'execution' ? null : deathPick, view.previousFinisher()),
+                  ),
                 ) ?? 'plainDeath',
               gore: true,
             }
@@ -1908,6 +1697,7 @@ function frame(now: number) {
         onTick(pvpHold, { state, practice, rollbacks: match.pvp?.rollbacks ?? 0 }, pvpHold.shown ? 0 : stopFor(practice.events), match.frameEvents.length);
       }
       if (result === 'ended') {
+        if (coach.coached && match.recorder) { coach.end(practice.duel.tick); { const built = match.recorder.meta.build; match.recorder.meta.build = coach.build(built.replace(/ kit:\S+$/, ''), /kit:(\S+)$/.exec(built)?.[1] ?? null); } } else coach.end(practice.duel.tick);
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (!match.replay) setTimeout(sendBeacon, 0);   // the perf beacon, off the frame (a watched replay is not a fight)
@@ -1935,7 +1725,6 @@ function frame(now: number) {
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           renderFightRank();
-          if (match.mode === 'career') prefetchPit();   // the Pit's chunk, at idle; nothing is built until the player taps
           // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
           // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
           if (ended.rewarded && ended.won) { pendingLoot = Math.max(0, Math.round(practice.playerHealth)); persist(); }   // offered once the finisher has finished playing (updateHud)
@@ -1960,12 +1749,6 @@ function frame(now: number) {
     accumulator = 0;
     previous = state;
   }
-  if (walker && !paused()) {
-    const intent = gateHold ? { x: 0, z: 0 } : gateAuto ? { x: 0, z: -1 } : controls.intent();   // held at the line; walked the last metres; or the stick
-    walker = walk(walker, intent, view.yaw, dt);
-    if (walker.speed > 0.05) lastMoveAt = now;   // the door's hide/return reads this in updateHud (doorHidden)
-    if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
-  }
   const alpha = accumulator / step();
   const drawn = match.mode === 'pvp' ? onFrame(pvpHold, elapsed * 1000, match.frameEvents, (v) => stopFor(v.practice.events), (v) => v.practice.events, (v) => v.rollbacks !== (match.pvp?.rollbacks ?? 0)) : { shown: null, events: match.frameEvents, held: false };
   const pvpShown = drawn.shown, shownEvents = drawn.events, held = drawn.held;   // behind the sim: the snapshot is drawn, not the live tick
@@ -1976,7 +1759,7 @@ function frame(now: number) {
   }
   try {
     view.render(
-      pvpShown ? pvpShown.state : walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
+      pvpShown ? pvpShown.state : {
         ...state,
         x: previous.x + (state.x - previous.x) * alpha,
         z: previous.z + (state.z - previous.z) * alpha,
@@ -1991,7 +1774,6 @@ function frame(now: number) {
       match.specialIdentity,
     );
     match.frameEvents = [];
-    if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
     clipFrame(now);
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.
