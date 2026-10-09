@@ -265,6 +265,7 @@ test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase 
   const later = run(r.world, 5, () => ({ p: STILL }));
   assert.equal(get(later.world, 'p').phase, 'dead', 'five seconds later he is still dead'); assert.equal(later.events.filter((e) => e.type === 'Died' && e.id === 'p').length, 0, 'no second Died');
   assert.equal(later.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0, 'nothing keeps hitting the corpse');
+});
 
 test('#1936 c(b): disengage - the player runs from three creatures; the fight just stops (no end event), each loses him, gives up or hits its leash, walks home, heals and says Evaded once; no bout is left', () => {
   const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
