@@ -67,6 +67,13 @@ export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input:
   return { mint, receipt };
 }
 
+// mintOp carries a pack/bank index only; a piece minted straight onto the paperdoll also needs its slot (origins_items: equipped = owner + slot, no index).
+const mintLegacy = (inst: ItemInstance): store.Json => {
+  const m = mintOp(inst, true) as { op: string; item: { loc: Record<string, unknown> } };
+  if (inst.location.kind === 'equipped') m.item.loc = { kind: 'equipped', owner: inst.location.owner, slot: inst.location.slot };
+  return m as unknown as store.Json;
+};
+
 export function gearImportHandler(content: Content): Handler {
   const lookup = content.lookup;
   return async ({ db, account }, body) => {
@@ -82,7 +89,7 @@ export function gearImportHandler(content: Content): Handler {
     const eventId = `gear-import:${character}:${createHash('sha256').update(mint.map((m) => m.provenance.mintKey).join(',')).digest('hex').slice(0, 16)}`;
     const batch: store.Json[] = [
       { op: 'event', event_id: eventId, kind: 'mint', account, character, payload: { receipt } },
-      ...mint.map((m) => mintOp(m, true)),
+      ...mint.map(mintLegacy),
     ];
     try { await store.commit(db, account, batch); }
     catch (e) {
