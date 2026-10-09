@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BANDS, bandOf, commonOf, conBand, creatureInfo, groupOf } from './info.ts';
-import { loadZone } from '../preview/zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 const FRONTIER_ROWS = loadZone().spawns.rows;
 import { falloffPermille } from '../progression/model.ts';
 import { cardLines, nearestNoticing } from '../preview/creature-card.ts';

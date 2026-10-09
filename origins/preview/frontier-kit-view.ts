@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { Kit, KitPlacement } from './frontier-kit.ts';
-import { loadZone } from './zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 
 export const KIT_URL = loadZone().kit.url;   // public/world: served by URL, never bundled
 const NO_SHADOW = /^(bush_|tuft_)/;

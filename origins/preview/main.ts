@@ -1,3 +1,4 @@
+import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -18,7 +19,7 @@ import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
-import { loadZone } from './zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
