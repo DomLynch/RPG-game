@@ -31,12 +31,16 @@ export function lootOfView(v: GearView): Loot {
   for (const p of held) { const level = p.tier ? TIERS.indexOf(p.tier as (typeof TIERS)[number]) + 1 : 0; if (level > 0) taken[p.lootId as LootId] = { tier: level } as Provenance; }   // only the rung is real; the sheet's provenance line reads what exists
   return { owned: held.map((p) => p.lootId as LootId), equipped, pack, taken };
 }
-const instanceOf = (v: GearView, lootId: LootId): GearPiece | undefined => v.pieces.find((p) => p.lootId === lootId);
-// Wear a piece: the slot's occupant (if any, and not the piece itself) comes off into the pack first, then the piece goes on. [] when it is already worn or unknown.
+// The copy that can be put on: the server equips only from the pack (inventory.equip: "is not in the backpack"), so a duplicate lootId resolves to its PACK instance, never a worn or banked one.
+const packedOf = (v: GearView, lootId: LootId): GearPiece | undefined => v.pieces.find((p) => p.lootId === lootId && p.where === 'pack');
+// Wear a piece: the slot's occupant (if any) comes off into the pack first, then the piece goes on. [] when the piece is not in the pack (worn, banked or unknown: the server refuses
+// equip from anywhere else), and [] when a swap has no free pack cell for the occupant (inventory.unequip needs one; the sheet keeps its "Pack full" line). Backend has no swap op; if one
+// lands, the full-pack case becomes one call.
 export function stepsToWear(v: GearView, lootId: LootId): Step[] {
-  const piece = instanceOf(v, lootId);
-  if (!piece || piece.where === 'equipped') return [];
+  const piece = packedOf(v, lootId);
+  if (!piece) return [];
   const occupant = v.worn[paperdollOf(slotOf(lootId))];
+  if (occupant && v.pieces.filter((p) => p.where === 'pack').length >= v.packSize) return [];
   return [...(occupant ? [{ op: 'gear_unequip' as const, id: occupant }] : []), { op: 'gear_equip', id: piece.id }];
 }
 // Take a worn slot's piece off into the pack. [] for an empty slot.
