@@ -879,7 +879,7 @@ if (LOOT) {
 // his level-1 kit like the Witch's and the Knight's other pieces, with outward winding and no UV seams. The Plague Doctor's coat and the
 // hauberk are `over`, so taking one never undresses him. Loot build only: each fighter's own body still wears its scan.
 if (LOOT) {
-  const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn()), up = new T.Vector3(0, 0, 1);
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn()), outerGrid = grid, up = new T.Vector3(0, 0, 1);
   const forward = at('ball_l').sub(at('foot_l')).setY(0).normalize();
   // Drop the QUADS (ringHull's triangles come in pairs) whose centre lies in a band along a hull's axis and toward `forward`: a face
   // opening, an eye slit, a coat's front. Whole quads, so the edge follows the rings instead of a sawtooth of half-quads.
@@ -896,7 +896,8 @@ if (LOOT) {
   // rings would otherwise pinch in), a flat-ish top, an eye slit and two ridge bands.
   lootOf = 'knight'; lootSlot = 'Helmet';
   {
-    const head = at('Head'), axis = new T.Vector3(0, 1, -.1).normalize(), crown = surfaceAlong(grid, head, axis);
+    // Over the PLAYER the fit grid must have his head: body + level 1 alone have none, so the helm was sized to nothing and floated above the skull (gear-fit 2026-10-09).
+    const grid = LOOT ? triGrid(await heroGeometries()) : outerGrid, head = at('Head'), axis = new T.Vector3(0, 1, -.1).normalize(), crown = surfaceAlong(grid, head, axis);
     if (!crown) throw new Error('knight helm: no crown above the Head joint');
     const top = head.clone().addScaledVector(axis, crown), slit = [.5, .56];
     const helm = ringHull(grid, head, top, { stations: [-.45, -.3, -.15, 0, .15, .3, .42, slit[0], slit[1], .66, .78, .88, .95, .985, .995], azimuths: 24, gap: .022, cap: true, up });   // .985/.995: the cap's fan cut a chord through the crown (the Witch's hood)
