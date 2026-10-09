@@ -611,7 +611,7 @@ export function createScene(
         scene.remove(...borrowed); for (const light of borrowed) (light as THREE.Light).dispose?.();
       }
     },
-    warmWorld(root: THREE.Object3D) { return settleWithin('warm-world', renderer.compileAsync(root, camera, scene), COMPILE_BOUND_MS).then(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
+    warmWorld(root: THREE.Object3D) { return settleWithin('warm-root', renderer.compileAsync(root, camera, scene), COMPILE_BOUND_MS).then(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
     setWorldCamera(cam: { back: number; up: number } | null) { worldCam = cam; },   // world fights: keep the walk camera's distance and height (only the aim eases to the lock); null = the duel's own framing
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
       ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };
