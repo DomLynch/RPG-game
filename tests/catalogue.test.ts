@@ -8,7 +8,13 @@ import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { LEVELS, statsAt, opponentAt, OPPONENTS } from '../src/fight/stats.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 import { LOOT, LOOT_IDS } from '../src/loot.ts';
-import { ROTATION } from '../src/finishers.ts';
+import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/finishers.ts';
+import { WEAPONS } from '../src/moves.ts';
+import { PICKS, homePick } from '../src/stance.ts';
+import { THROATS } from '../src/audio/creature.ts';
+import { beastRenderScale } from '../src/beast-scale.ts';
+import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';
+import { LADDER } from '../src/ladder.ts';
 import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
@@ -17,6 +23,7 @@ import { LOOT_TABLES } from '../origins/region1/content.ts';
 const known = {
   roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
+  weapons: new Set(Object.keys(WEAPONS)), stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)),
 };
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
@@ -67,6 +74,13 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { r.blood = { start: 'red', end: '#000000', amount: 1 }; }), 'blood');
   assert.equal(edit((r) => { r.loot = { table: 'loottable:nothing' }; }), 'loot');
   assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'legend');
+  assert.equal(edit((r) => { r.render = { scale: 0 }; }), 'render');
+  assert.equal(edit((r) => { r.weapon = 'lightsaber'; }), 'weapon');
+  assert.equal(edit((r) => { (r as { home: string }).home = 'berserk'; }), 'home');
+  assert.equal(edit((r) => { r.voice = 'dragon'; }), 'voice');
+  assert.equal(edit((r) => { r.look = { ...r.look, levels: [3, 2] }; }), 'look');
+  assert.equal(edit((r) => { r.ladder = { order: 2, hold: true }; }), 'ladder');
+  assert.equal(edit((r) => { r.finisher.timing = r.finisher.timing.slice(1); }), 'timing');
 });
 
 test('the rows say what the files say: tri counts, clips, cut bones, the armour set, the loot table', () => {
@@ -94,4 +108,22 @@ test('the engine reads a row by id with no per-character code: a new character i
   assert.equal(catalogueRow('dragon'), null);
   const second = { ...goblin(), id: 'knight', name: 'the Knight' };
   assert.ok(!catalogueProblems(second as CatalogueRow, known).some((p) => p.code === 'id' || p.code === 'asset'), 'a second row needs only data');
+});
+
+test('the new fields are what their sources say: render scale, weapon, home stance, voice, rank looks, finisher timing, ladder order', () => {
+  for (const row of CATALOGUE) {
+    const id = row.id as OpponentId;
+    assert.equal(row.render.scale, beastRenderScale(id), `${id}: render scale`);
+    assert.equal(row.weapon, ROSTER[id].weapon, `${id}: weapon`);
+    assert.equal(row.home, homePick(id), `${id}: home stance`);
+    assert.equal(row.voice, THROATS[ROSTER[id].body] ? ROSTER[id].body : null, `${id}: voice`);
+    assert.deepEqual(row.look.levels, SHIPPING_LOOKS[id] ?? [], `${id}: rank looks`);
+    assert.equal(row.look.phone, PHONE_LOOKS.has(id), `${id}: phone looks`);
+    const at = LADDER.findIndex((o) => o.id === id);
+    assert.deepEqual(row.ladder, { order: at < 0 ? null : at + 1, hold: at < 0 }, `${id}: ladder`);
+    assert.deepEqual(row.finisher.timing.map((t) => [t.id, t.pose, t.seconds, t.measured]), row.finisher.finishers.map((f) => [f, FINISHER_POSE[f] ?? null, finisherSeconds(f).seconds, finisherSeconds(f).measured]), `${id}: finisher timing`);
+  }
+  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2, 1.8, 2.2], 'the beasts draw at the size they are met walking');
+  assert.equal(catalogueRow('goblin')!.home, 'trickster'); assert.equal(catalogueRow('executioner')!.home, 'aggressive'); assert.equal(catalogueRow('shieldmaiden')!.home, 'defensive');
+  assert.deepEqual(CATALOGUE.filter((r) => r.ladder.order !== null).map((r) => r.ladder.order), LADDER.map((_, i) => i + 1).slice(0, LADDER.length), 'the ladder is 1..n with no gaps');
 });
