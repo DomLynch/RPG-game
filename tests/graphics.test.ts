@@ -67,6 +67,8 @@ import * as tutorialUi from '../src/tutorial-ui.ts';
 import * as match from '../src/match.ts';
 import * as stancePanel from '../src/stance-panel.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
+import * as gearLedger from '../src/gear-ledger.ts';
+import * as gearServer from '../src/gear-server.ts';
 import * as coachUi from '../src/coach-ui.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
@@ -75,7 +77,8 @@ import * as legends from '../src/legends.ts';
 // Every `./x.ts` main.ts requires that no test registered in `modules` (boot below): a stub of `{}`, so an import that main.ts reads at
 // boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
 const unstubbed = new Set<string>();
-const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const transpile = (file: string) => ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const code = transpile('../src/main.ts'), gearSheetCode = transpile('../src/gear-sheet.ts');   // main.ts imports the gear sheet's wiring: it runs in the same fake page as main, so its document is the fake one
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
@@ -115,6 +118,8 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   } };
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './stance-panel.ts': stancePanel, './coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./execution.ts'] = execution; modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
+  modules['./gear-server.ts'] = gearServer;   // a signed-in character's gear is the server's ledger (no session in the harness: it stays local)
+  modules['./gear-ledger.ts'] = gearLedger;   // the gear sheet's pure ledger half (gear-sheet.ts imports it)
   modules['./zone1-hop.ts'] = zone1Hop;   // Play -> Zone 1 (off until World's default is live: the harness stays on the arena)
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./chunk-recover.ts'] = chunkRecoverModule;   // the stale-chunk bar (its install is guarded: the harness window has no real listeners)
@@ -142,6 +147,9 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   };
   Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
+  const gearSheetExports: Record<string, unknown> = {};
+  runInNewContext(gearSheetCode, { require: context.require, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
+  modules['./gear-sheet.ts'] = gearSheetExports;
   runInNewContext(code, context);   // main.ts's globalThis is this object:
   element('welcome').hidden = true;
   return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
