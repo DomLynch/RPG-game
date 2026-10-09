@@ -22,7 +22,13 @@ if ! { hw "${line%% | chrome=*}" && hw "${line##* | }"; }; then say "BLOCKER sof
 if [[ "${BLENDER:-0}" == "1" ]]; then
   # Official 5.2.2 (what Characters use), Cycles on the T4: OptiX when the driver exposes it, else CUDA. The helper aborts if no GPU device is usable.
   apt-get install -y -qq xz-utils libxi6 libxkbcommon0 libsm6 libxfixes3 libxrender1 libgl1 libxxf86vm1 libxext6 >/dev/null 2>&1
-  curl -fsSL -o /tmp/dcc.tar.xz https://download.blender.org/release/Blender5.2/blender-5.2.2-linux-x64.tar.xz && tar -xf /tmp/dcc.tar.xz -C /opt && ln -sf /opt/blender-5.2.2-linux-x64/blender /usr/local/bin/blender
+  # download.blender.org answered 403 to the HF job once (rate limit): try the mirrors, and pin the tarball's sha256 (from download.blender.org/release/Blender5.2/blender-5.2.2.sha256).
+  want=84098912789dc450e95697c4184fb8a90acbe5111c2ba4aede3fecb57806a168
+  for url in https://download.blender.org/release/Blender5.2 https://mirror.clarkson.edu/blender/release/Blender5.2 https://ftp.nluug.nl/pub/graphics/blender/release/Blender5.2 https://mirrors.dotsrc.org/blender/blender-release/Blender5.2; do
+    curl -fsSL -m 600 -o /tmp/dcc.tar.xz "$url/blender-5.2.2-linux-x64.tar.xz" || { echo "download from $url failed"; continue; }
+    [[ "$(sha256sum /tmp/dcc.tar.xz | cut -d' ' -f1)" == "$want" ]] && { tar -xf /tmp/dcc.tar.xz -C /opt && ln -sf /opt/blender-5.2.2-linux-x64/blender /usr/local/bin/blender; break; }
+    echo "sha256 mismatch from $url"
+  done
   mkdir -p /usr/local/share/gpu-run && echo "$CYCLES_B64" | base64 -d > /usr/local/share/gpu-run/cycles_gpu.py
   command -v blender >/dev/null || { say "BLOCKER blender did not install"; say "COST seconds=$(( $(date +%s) - t0 ))"; exit 13; }
   say "BLENDER $(blender --version 2>&1 | head -1)"
