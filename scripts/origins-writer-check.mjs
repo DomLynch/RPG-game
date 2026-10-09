@@ -30,8 +30,8 @@ const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 
 const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env, timeout: 300_000 });
 const psql = sql => run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'], sql).trim();
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', F = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
-const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: F };
+const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', G = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G };
 // The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
@@ -463,7 +463,7 @@ try {
 
   // The first open makes the account's first character (Lead's ruling 2026-10-09): no page code creates one, so a signed-in player had none and nothing could persist.
   {
-    psql(`insert into public.origins_access(account) values ('${E}'),('${F}');`);
+    psql(`insert into public.origins_access(account) values ('${E}'),('${G}');`);
     const chars = acct => psql(`select coalesce(string_agg(id || '=' || name, ',' order by created_at), '') from public.origins_characters where account = '${acct}'`);
     const first = await call('open', 'te');
     const id1 = first.json.result.characters[0]?.id;
@@ -472,7 +472,7 @@ try {
     const second = await call('open', 'te');
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
-    eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(F).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
+    eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
   }
   // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
   const pre = await call('create_character', 'tb', { name: 'Brin' });
