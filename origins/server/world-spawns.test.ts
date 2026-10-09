@@ -174,7 +174,3 @@ test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 40
   assert.deepEqual(ok.kills[0]!.b.slice(1), priced(z2wolf.spec.level), `paid exactly what a level-${z2wolf.spec.level} (Zone 2) kill pays`);
   assert.notDeepEqual(ok.kills[0]!.b.slice(1), priced(1), 'not what a level-1 (Zone 1) kill pays');
 });
-  const z2b = mobBatch({ account: UID, character: PC, token: TOKEN, fight: z2wolf.fight, seed: 7, enemy: 'x', level: z2wolf.spec.level, twist: null }, { career: row(), inventory: emptyPack(), metal: null }, content, 'T', { level: z2wolf.spec.level });
-  assert.equal(killed.cp, z2b.summary.cp, 'paid at Zone 2\'s level');
-  if (z1.summary.cp !== z2b.summary.cp) assert.notEqual(killed.cp, z1.summary.cp, 'not at a Zone 1 level');
-});
