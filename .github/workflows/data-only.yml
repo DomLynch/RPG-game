@@ -1,0 +1,42 @@
+# Data-only PRs (Dom via Lead 2026-10-09): a PR that touches ONLY content data (scripts/lib/data-only.mjs DATA_PATHS, proven pure data, the zone
+# schema clean, no new legend) gets the `data-only` label, and the merge rule reads "an Auditor PASS OR the data-only label on the CURRENT head, plus
+# green CI". Every push re-runs this, so one non-data file drops the label on the next push. scripts/data-only-check.mjs exits 0 = data-only
+# (label on), 1 = a normal PR (label off, the Auditor reviews it), 2 = data-path files with bad data (label off and this job fails).
+name: data-only
+on:
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+    types: [opened, synchronize, reopened]
+concurrency:
+  group: data-only-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: classify and label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          set +e
+          node scripts/data-only-check.mjs "$BASE"; rc=$?
+          set -e
+          if [ "$FORK" = true ]; then echo "fork PR: no label (the Auditor reviews it)"; [ $rc -ne 2 ]; exit; fi
+          gh label create data-only --color 0e8a16 --description "Only content data; schema-checked; skips the Auditor" --force >/dev/null
+          if [ $rc -eq 0 ]; then gh pr edit "$PR" --add-label data-only; else gh pr edit "$PR" --remove-label data-only || true; fi
+          [ $rc -ne 2 ]
