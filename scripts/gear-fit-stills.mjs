@@ -16,7 +16,7 @@ try {
   const ids = await page.evaluate(() => window.__fit.ids), report = [];
   for (const id of ids) {
     const r = await page.evaluate((i) => { const x = window.__fit.wear(i); window.__fit.shoot(); return x; }, id); report.push(r);
-    if (stills && id.startsWith(stills)) await page.screenshot({ path: `${out}/${id}.png` });
+    if (stills && (stills === 'all' || id.startsWith(stills))) await page.screenshot({ path: `${out}/${id}.png` });
   }
   await page.evaluate(() => window.__fit.clear());
   await fs.writeFile(`${out}/fit.json`, JSON.stringify({ bodyHeight: await page.evaluate(() => window.__fit.bodyHeight), errors, report }, null, 1));
