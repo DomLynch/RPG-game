@@ -30,17 +30,17 @@ test('every Region 1 encounter and open-world creature sets up from the data, as
   for (const id of [...ids, ...Object.keys(content.local.creatureLoot)]) {
     const s = value(fightSetup(id, content));
     assert.equal(s.kind, 'world-mob', id);
-    assert.ok(s.foes.length >= 1 && s.bar > 0 && s.opponent.level >= 11, id);
+    assert.ok(s.foes.length >= 1 && s.bar > 0 && s.opponent.level >= 1, id);   // Zone 1's creatures are level 1 now (Dom 2026-10-08; was 11+)
     assert.equal(s.seedKey, `origins:${id}`);
   }
   const peg = value(fightSetup('encounter:bounty-peg-powler', content));
-  assert.deepEqual([peg.opponent.character, peg.opponent.body, peg.opponent.level, peg.foes.length], ['character:peg-powler', 'witch', 14, 1], 'the dummy challenge stage is not a second foe');
+  assert.deepEqual([peg.opponent.character, peg.opponent.body, peg.opponent.level, peg.foes.length], ['character:peg-powler', 'witch', 3, 1], 'the dummy challenge stage is not a second foe');
   assert.deepEqual(peg.combatFlags, [{ kind: 'flee-at', percent: 30, catchSeconds: 15 }]);
   const hr = value(fightSetup('encounter:bounty-hrungnir', content));
   assert.deepEqual(hr.flags, [{ kind: 'hazard', hazard: 'embers', stillSeconds: 2 }]);
   assert.deepEqual(hr.combatFlags, [], 'the hazard is an Origins flag Combat v1 does not read');
   const mother = value(fightSetup('encounter:mere-mother', content));
-  assert.deepEqual([mother.scope, mother.foes[0]!.character, mother.bar], ['public', 'character:mere-brood', 15_000], 'the content boss health (PROVISIONAL), one brood guardian first');
+  assert.deepEqual([mother.scope, mother.foes[0]!.character, mother.bar], ['public', 'character:mere-brood', 4_000], 'the content boss health (PROVISIONAL), one brood guardian first');
 });
 
 test('an unknown or malformed id is a typed error, never a throw', () => {
@@ -56,10 +56,10 @@ test('an unknown or malformed id is a typed error, never a throw', () => {
 
 test('the Toll: two court thralls on one health bar, summed by the oneBarHealth rule', () => {
   const s = value(fightSetup('encounter:bounty-toll', content));
-  assert.deepEqual(s.foes.map((f) => [f.character, f.body, f.level, f.health]), [['character:court-thrall', 'pitborn', 12, 190], ['character:court-thrall', 'pitborn', 12, 190]]);
+  assert.deepEqual(s.foes.map((f) => [f.character, f.body, f.level, f.health]), [['character:court-thrall', 'pitborn', 3, 156], ['character:court-thrall', 'pitborn', 3, 156]]);   // the named rares are the zone level + 2 = 3 (Dom 2026-10-08; were 12 / 190 health)
   assert.deepEqual(s.combatFlags, [{ kind: 'one-health-bar' }]);
-  assert.equal(s.bar, 380);
-  assert.equal(s.opponent.health, 380);
+  assert.equal(s.bar, 312);
+  assert.equal(s.opponent.health, 312);
   assert.equal(s.bar, oneBarHealth(s.combatFlags, s.foes.map((f) => f.health)));
   assert.equal(oneBarHealth([], [190, 190]), 190, 'without the flag: the first foe\'s own bar');
 });
@@ -134,6 +134,20 @@ test('loot is deterministic: the same table and seed give the same drops; take-o
   assert.notEqual(fightSeed(key, PC, 0), fightSeed(key, PC, 1));
   // the level gate: gear entries need a level-11 foe
   for (let seed = 0; seed < 200; seed++) assert.deepEqual(value(rollLoot('loottable:court-thrall', seed, content, { foeLevel: 10 })).items, []);
+});
+
+test('the Pit goblin camp\'s table: only his six armour pieces (the Pit\'s own LootIds), each ~25 % on its own, a level-1 kill may drop gear, bronze 2-6, deterministic', () => {
+  const six = ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map((s) => `item:loot.goblin.${s}`), count = new Map<string, number>(), N = 2000;
+  for (let seed = 0; seed < N; seed++) {
+    const r = value(rollLoot('loottable:pit-goblin', seed, content, { foeLevel: 1 }));
+    assert.deepEqual(value(rollLoot('loottable:pit-goblin', seed, content, { foeLevel: 1 })), r, 'deterministic');
+    assert.ok(r.metal >= 2 && r.metal <= 6, `bronze ${r.metal}`);
+    for (const d of r.items) { assert.ok(six.includes(d.item), `${d.item} is one of his six`); assert.equal(d.quantity, 1); count.set(d.item, (count.get(d.item) ?? 0) + 1); }
+  }
+  for (const id of six) { const f = (count.get(id) ?? 0) / N; assert.ok(f > 0.2 && f < 0.3, `${id} dropped ${(f * 100).toFixed(1)} %`); }
+  const lookup = lookupOf(content);
+  for (const id of six) { const d = lookup(id as ItemId)!; assert.ok(d, `${id} is a registered item`); assert.equal(d.category, 'gear'); assert.equal(d.slot, id.split('.').pop()); }
+  assert.equal(lookup('item:loot.goblin.Helmet' as ItemId)!.name, "The Goblin's helmet");
 });
 
 test('no weapon drops in Region 1 (ruling 6): no table can award a weapon, over many seeds', () => {

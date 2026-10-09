@@ -1,4 +1,4 @@
-// The Pit seam's hide (src/stage-hide.ts, scene.ts setArenaVisible): hide → show puts every scene child back exactly as it was.
+// The gear seam's hide (src/stage-hide.ts, scene.ts gearStage setArenaVisible): hide → show puts every scene child back exactly as it was.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

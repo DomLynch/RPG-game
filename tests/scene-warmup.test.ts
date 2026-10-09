@@ -24,7 +24,8 @@ test('scene.ts compiles every shader before it reports ready, in the rig load ca
 // Like a lost draw (main.ts), the warm-up swallows an error only when the context is lost, and uploads no map on a lost context.
 test('the rank look warm-up survives a lost WebGL context and rethrows anything else', () => {
   const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
-  assert.match(scene, /try \{ await renderer\.compileAsync\(warm, camera, scene\); \} catch \(error\) \{ if \(!lost\(\)\) throw error; \}/);
+  assert.match(scene, /const compiled = renderer\.compileAsync\(warm, camera, scene\)\.then\(\(\) => null, \(error: unknown\) => error\);/);
+  assert.match(scene, /if \(await settleWithin\('scene-look', compiled, COMPILE_BOUND_MS\)\) \{ const error = await compiled; if \(error && !lost\(\)\) throw error; \}/);
   assert.match(scene, /const lost = \(\) => renderer\.getContext\(\)\.isContextLost\(\);/);
   assert.match(scene, /if \(!lost\(\)\) renderer\.initTexture\(map\);/);
 });

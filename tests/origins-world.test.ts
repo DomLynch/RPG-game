@@ -3,3 +3,4 @@ import '../origins/world/concord.test.ts';
 import '../origins/world/generate.test.ts';
 import '../origins/world/resolve.test.ts';
 import '../origins/world/zone-rules.test.ts';
+import '../origins/world/relief.test.ts';   // Zone 1 quality step 1: the ground's relief (pure, seeded)

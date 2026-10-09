@@ -3,23 +3,26 @@ import { test } from 'node:test';
 import { initialPractice, stepPractice } from '../../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/moves.ts';
 import { createRecorder, type FightRecord } from '../../src/record.ts';
+import { liveRecorder } from '../../tests/lib/live-recorder.ts';
 import { recordSpecials } from '../../src/replay.ts';
 import { noTwist, stepTwist, type TwistFlag } from '../../src/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
+import { kitBuild } from '../mobs/kit-version.ts';
+import { PICKS, type PickedStance } from '../../src/stance.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
 const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32; };
-type Spec = { enemy: 'knight' | 'veteran'; level: number; seed: number; bar?: number; flags?: TwistFlag[]; layer?: MobStyle };
+type Spec = { enemy: 'knight' | 'veteran'; level: number; seed: number; bar?: number; flags?: TwistFlag[]; layer?: MobStyle; stances?: PickedStance };
 
 // The client side, as the preview host plays it (pit-duel.ts): initialPractice, withBar, then per tick the quantized intent, stepPractice and stepTwist; recorded by the Pit's recorder.
 function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; twist: string | null } {
   const { enemy, level, seed } = spec, flags = spec.flags ?? [], opponent = OPPONENTS[enemy], profile = profileAt(opponent, level), rand = lcg(intentSeed);
   const specials = liveSpecials(level);
-  const rec = createRecorder({ build: 'test', opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}) });
-  let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }));
+  const rec = (spec.stances ? liveRecorder : createRecorder)({ build: kitBuild('test'), opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}), ...(spec.stances ? { stances: spec.stances } : {}) });
+  let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }), undefined, spec.stances);
   if (spec.bar && flags.some((f) => f.kind === 'one-health-bar')) p = withBar(p, spec.bar);
   const layer = spec.layer ? mobLayer(spec.layer) : undefined;
   let twist = noTwist(), outcome: 'killed' | 'died' | 'draw' | 'abandoned' = 'abandoned';
@@ -100,4 +103,27 @@ test('the special-move phase rule covers every level and agrees with the Veteran
   const on = Array.from({ length: LEVELS }, (_, i) => liveSpecials(i + 1));
   assert.equal(on[0], false); assert.equal(on[LEVELS - 1], true); assert.equal(liveSpecials(0), false); assert.equal(liveSpecials(LEVELS + 1), false);
   assert.equal(on.indexOf(true), 15, 'level 16 is the first with specials (tests/match-specials-boundary.test.ts)');
+});
+
+test('kit mismatch: a record played on another mob kit is refused as a kit mismatch (not judged, not a loss); no layer, no check', () => {
+  const spec: Spec = { enemy: 'knight', level: 6, seed: 731, layer: 'brute' }, { record } = finished(spec);
+  assert.equal(verifyEncounter(record, params(spec)).ok, true, 'the tag this build writes is the tag it checks');
+  const other = verifyEncounter({ ...record, build: 'test kit:zzz' }, params(spec));
+  assert.ok(!other.ok && other.kitMismatch === true && /kit mismatch.*zzz/.test(other.reason), JSON.stringify(other));
+  const untagged = verifyEncounter({ ...record, build: 'origins-preview' }, params(spec));
+  assert.ok(!untagged.ok && untagged.kitMismatch === true && /\(untagged\)/.test(untagged.reason), JSON.stringify(untagged));
+  const plain: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record: bare } = finished(plain);
+  assert.equal(verifyEncounter({ ...bare, build: 'whatever' }, params(plain)).ok, true, 'a fight with no mob layer has no kit to disagree about');
+});
+
+// Stances ON for all (TOP10 row 7): a world fight played with a stance pick (RV34, src/record.ts) replays with that pick, as src/replay.ts does, and is paid like any other.
+// A stance record is a LIVE-era record (createRecorder refuses one in an older era), so it is recorded with tests/lib/live-recorder.ts, which sets this build's live
+// circle, late notice and stab globally: kept LAST in this file so no earlier test sees those globals.
+test('a stances record verifies with its pick (v34), win or loss, for every pick', () => {
+  for (const pick of PICKS) {
+    const spec: Spec = { enemy: 'knight', level: 6, seed: 731, stances: pick }, { record } = finished(spec), v = verifyEncounter(record, params(spec));
+    assert.equal(record.stances, pick);
+    assert.equal(v.ok, true, v.ok ? '' : `${pick}: ${v.reason}`);
+    if (v.ok) assert.equal(v.result, record.outcome === 'killed' ? 'won' : 'lost');
+  }
 });

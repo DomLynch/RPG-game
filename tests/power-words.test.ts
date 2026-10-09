@@ -37,7 +37,7 @@ test('?look=powerwords is a look test: absent = silent', () => {
 });
 
 test('the chant: a syllable per vowel group, onset and coda kept', async () => {
-  const { syllables } = await import('../src/audio/power-word.ts');
+  const { syllables } = await import('../src/fight/sound/power-word.ts');
   assert.deepEqual(syllables('Ashvael'), [{ onset: '', vowels: 'a', coda: '' }, { onset: 'shv', vowels: 'ae', coda: 'l' }]);
   for (const w of Object.values(POWER_WORDS).flat()) assert.ok(syllables(w).length >= 2, w);
 });

@@ -42,7 +42,7 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 - **Hazard: module-level mutable sim state.** Three era flags plus the math table are globals: `PLAY_SCALE`/`RADIUS` and `LATE_NOTICE` (`src/play-radius.ts`), `STAB_ON` (`src/stab-rule.ts:6`, off by default when headless) and the detmath `table` (`src/detmath.ts`). They are set only through three doors: **live fights** through `match.ts` begin, which sets the circle, `setLateNotice(true)` and `setStab(true)` (`src/match.ts:112`); **replays** through `detmath.underRecord`, which wraps `underPlayScale` and `underStab` by the record's version (`src/detmath.ts:107-109`); and **PvP** through `pvpDuel`, which calls `setPlayScale(1)` (`src/net/rollback.ts`). Any new caller that steps a duel or a Practice (an Origins arena, server tooling) must enter through one of these doors. Otherwise it fights in the wrong circle, with no late notice and no Goblin stab, while still stamping the current record version.
 - **Gear is not an input today.** `Loadout` is not consumed by `stepDuel`. The only `src/` importer of `gear-stats.ts` is a comment in `src/net/rollback.ts:18-21`, which says "pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel".
 
-> **Which rank scale?** Specs and proposals that touch rank must name their scale: **tier** (1–10, the title: Recruit … Origin) or **career level** (1 to the cap: 46 today, 50 after Dom's 2026-10-05 ruling). Gladiator is tier 3 = career level 11.
+> **Which rank scale?** Specs and proposals that touch rank must name their scale: **tier** (1–10, the title: Recruit … Origin) or **career level** (1 to the cap: 50, `MAX_LEVEL` at `src/career.ts:9`, live since RV27 per Dom's 2026-10-05 ruling). Gladiator is tier 3 = career level 11.
 
 ### 2.2 `src/net/rollback.ts`: live PvP rollback
 
@@ -68,17 +68,16 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 | 7 | Master I–V | 31–35 | 30–34 |
 | 8 | Primus I–V | 36–40 | 35–39 |
 | 9 | Invictus I–V | 41–45 | 40–44 |
-| 10 | Origin (no numeral) | 46 | 45+ |
+| 10 | Origin I–V | 46–50 | 45–49 |
 
 **How a rank is computed:**
 
-- `level = levelOf(marks) = min(46, 1 + floor(max(0, marks)))`. A non-finite value counts as 0 (`src/career.ts:25-27`, `MAX_LEVEL = 46` at `:9`).
+- `level = levelOf(marks) = min(MAX_LEVEL, 1 + wins(marks))`, with `MAX_LEVEL = 50` (`src/career.ts:9`; the ladder was 46 before RV27, `OLD_MAX_LEVEL = 46` is kept only to judge old records). A non-finite value counts as 0.
 - `rankFor(marks)` (`src/career.ts:48-53`):
-  - At level 46 the rank is `Origin`.
-  - Otherwise the title is `TITLES[floor((level-1)/5)]`, the numeral is `I..V[(level-1) % 5]`, and the label is `"<Title> <Numeral>"`.
+  - The title is `TITLES[floor((level-1)/5)]`, the numeral is `I..V[(level-1) % 5]`, and the label is `"<Title> <Numeral>"`, for every level 1–50: levels 46–50 are `Origin I` … `Origin V` (no special case for the top).
 - Each sub-rank takes one win. Marks only ever increase (`awardMark`, `:19-23`), so a rank never demotes (`:3-7`).
 
-Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITLES[2]`, and as a tier it is `grades.levelOf('Gladiator') = 3` (`src/grades.ts:18`). As a *career level*, though, Gladiator I is level 11 (10 wins). Origins docs must say which scale they mean: tier 1–10 or level 1–46.
+Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITLES[2]`, and as a tier it is `grades.levelOf('Gladiator') = 3` (`src/grades.ts:18`). As a *career level*, though, Gladiator I is level 11 (10 wins). Origins docs must say which scale they mean: tier 1–10 or level 1–50.
 
 **Which marks the rank shows:** `shownMarks(server, profile, pending)`. This is the server figure plus pending claims when the server has a figure, otherwise the device count (`src/career.ts:17`).
 
@@ -97,8 +96,8 @@ Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITL
 - **Opponent combat stats** (`src/moves.ts`):
   - `RULES.health = 150` for a man (`:167`).
   - The `Opponent` shape is `{ weapon, rig, scale, health, poise, profiles{easy,normal,hard}, guard?, regen?, speed? }` (`:568`). The per-archetype rows are in `ARCHETYPES` (`:570`), and `OPPONENTS` is derived from the roster (`:677`).
-- **The 46-level difficulty ladder:**
-  - `LEVELS = 46` (`:689`). Anchors are `{novice 1, easy 6, normal 18, hard 46}` (`:709`). AI knobs are blended linearly between anchors by `profileAt` (`:754`).
+- **The 50-level difficulty ladder** (line numbers below are from the 46-level revision except where stated; re-check before quoting):
+  - `LEVELS = 50` (`src/moves.ts:712`; 46 anchored the hard table, 47–50 are Origin II–V, the tail past hard). Anchors are still `{novice 1, easy 6, normal 18, hard 46}` (`:735`). AI knobs are blended linearly between anchors by `profileAt` (`:754`).
   - Body scaling: `NOVICE_BODY = {poise 0, health .7}` up to L6 (`:716`), `POISE_FULL_AT` (`:720`), and `opponentAt` (`:728`).
   - Level-gated loadouts: the Centurion carries the gladius and scutum from L6 (`LOADOUT_FROM`, `:726`).
   - Named specials on levels 36/41/46 (`SPECIAL_SETS`/`specialOf`, `:693-709`).

@@ -61,9 +61,9 @@ export const BOTS = {
   rollonly: (s) => start(s) ?? roll(s, 14) ?? offense(s, 40),
 };
 
-export function fight(bot, id, level, seed, cap = 7200) {
+export function fight(bot, id, level, seed, cap = 7200, stance = undefined) {   // stance: the player's pick (the foe's mood is the seed's draw), undefined = no stances
   const profile = profileAt(OPPONENTS[id], level);
-  let s = initialPractice(seed, opponentAt(OPPONENTS[id], level));
+  let s = initialPractice(seed, opponentAt(OPPONENTS[id], level), 'longsword', null, undefined, undefined, stance);
   let t = 0;
   while (t < cap && s.playerHealth > 0 && s.health > 0) { s = stepPractice(s, bot(s), profile); t++; }
   return { won: s.health <= 0 && s.playerHealth > 0, lost: s.playerHealth <= 0 && s.health > 0, ticks: t, hp: s.playerHealth };

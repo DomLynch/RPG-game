@@ -5,6 +5,8 @@ or memory disagrees with this file, this file wins and the older line is stale. 
 *Rewrite 2026-10-02: the 09-25 stack-ranked list is replaced by the status table below; items Dom added since (duels, the Pit,
 the 30 boss specials, class specials, menu, gear screen) are now in it.*
 
+**2026-10-08 (+04, `date`), Dom: FRANKENDOM IS AN MMO and always has been.** Beta = ONE always-on shared world for thousands of players. The duel Pit is the starting zone and stays a prominent feature; around it is the open world with open PvP (flag on/off) and NPCs/creatures that are each hostile or not (a simple flag). The world is server-run and never stops or freezes for a fight; any number of hostiles can join (cap 7 attackers, 3–4 biting at once). Space-sharded: one server per zone (~200 players), layers only for crowded towns; creatures far from every player update about once a second. The ladder is 50 levels (Origin I–V).
+
 **2026-10-07 08:1x (+04, `date`), Dom: BETA INCLUDES ORIGINS ZONE 1** (Region 1: the Pit gate, the Concord Exchange with bank, smith and player trade, Ash Frontier towns and Bounties), in addition to the duel game and live duels below. Its launch gates are docs/specs/origins/launch-gates.md (trade, writer route, Exchange-only X1/X2, flag GO, one-shard S1-S4, patrons P1-P5). Also IN beta (Dom, no freeze): stances (incl. AI home stance = mood), the Gambit, luck (±10% rolls vs Zone 1 mobs only) and Coach mode, as approved 2026-10-07 in #1513. The table below predates this line; Zone 1 is the open beta item.
 
 ## Beta = the base game plus live duels (Dom 2026-09-25, duels added 2026-10-01)
@@ -45,12 +47,12 @@ Nothing that changes fight numbers through gear or parts ships before Origin.
   No figures of living religions (Yama → Ereshkigal, Azrael → Arawn). Data `src/legends.ts` (Character Main); the table is in GAME_SPEC.md; the Web lane puts it on the site.
 - **Finishers**: Plain + Split Crown + Decapitation + Run Through + Opened. No new finishers. Real dripping blood every fight.
 - **Career** (Dom 2026-09-27 09:2x, via Strategy; *replaces the 3-then-5 marks rule and Origin at 205*): **one win = one sub-rank**.
-  Level = 1 + wins, capped at 46: levels 1–5 Recruit I–V, 6–10 Legionary, 11–15 Gladiator, 16–20 Veteran, 21–25 Champion, 26–30 Praetorian,
-  31–35 Master, 36–40 Primus, 41–45 Invictus, 46 Origin. Origin at 46 wins is the END of the beta ladder by design; the endgame (modes,
-  features) starts there, and until it ships the ladder keeps running at level 46 with wins still counting. Losses never demote. Rank
+  Level = 1 + wins, capped at 50 (Dom 2026-10-05: Origin I–V, was a single Origin at 46): levels 1–5 Recruit I–V, 6–10 Legionary, 11–15 Gladiator, 16–20 Veteran, 21–25 Champion, 26–30 Praetorian,
+  31–35 Master, 36–40 Primus, 41–45 Invictus, 46–50 Origin I–V. Origin V (level 50, 49 wins) is the END of the beta ladder by design; the endgame (modes,
+  features) starts there, and until it ships the ladder keeps running at level 50 with wins still counting. Losses never demote. Rank
   grants identity, not power. Coach mode counts fully: one ladder, no exhibition variant.
-- **Difficulty = the level** (same ruling): every opponent fights at the player's level 1–46 regardless of who he is; level 1 is below
-  today's Easy (a first-timer tapping attack wins fight 1), today's Hard at 45–46. Opponent character stays in the shape of his tables.
+- **Difficulty = the level** (same ruling): every opponent fights at the player's level 1–50 regardless of who he is; level 1 is below
+  today's Easy (a first-timer tapping attack wins fight 1), today's Hard at 46, the tail past hard at 47–50 (Origin II–V). Opponent character stays in the shape of his tables.
   The Options Difficulty picker no longer applies to the ladder (sparring and dev only). Calibration of levels 1–3 = Dom's friends, not the battery.
 - **Opponent order** (same ruling): fight 1 is always the Centurion. Then a random pick from the opponents not yet beaten in the current
   pass; a loss is a rematch with the same one. All ten beaten = new pass, all ten back, Centurion not forced.
@@ -63,7 +65,7 @@ Nothing that changes fight numbers through gear or parts ships before Origin.
   and the weapon carry change. **All opponent tier kit**: generated on the /hero-set route (GPT-image + Kontext + TRELLIS at max) and
   fitted on each opponent's existing rig, no face or rig changes, helms cover from tier 2 up. Scope = "silhouette first, material
   second, colour third": THREE silhouettes per opponent (low / mid / high), materials and colours change between them — 30 sets,
-  not 100. Sets lanes: Armour + Hero Look. Order: after the 46-level ladder is live; the Centurion bronze first as the proof (a
+  not 100. Sets lanes: Armour + Hero Look. Order: after the 50-level ladder is live; the Centurion bronze first as the proof (a
   cut-and-fit, no generation); the tier table for the other nine to Strategy before any generation spend. (Replaces: the legionary
   as a hero body, 2026-09-27 morning preview, now closed.)
   2026-09-26 (Dom picked take screen E2, via Strategy): (1) the take screen shows **no stats**: stat numbers are Origin season 1,

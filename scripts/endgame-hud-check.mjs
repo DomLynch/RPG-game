@@ -7,13 +7,19 @@
 // own content is scripts/autopsy-browser-check.mjs's job; this check is purely about geometry, and it is the same DOM/CSS for a
 // win (drop + Wear/Store) as for a death (autopsy), so one path — the reliable, deterministic one — proves both.
 import { chromium } from 'playwright';
-import { harnessClock } from './lib/harness-clock.mjs';
+import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { shareFaults } from './lib/thumb-row.mjs';
 
-const T0 = Date.now(); const lap = (step) => process.stderr.write(`[endgame-hud ${((Date.now() - T0) / 1000).toFixed(1)}s] ${step}\n`);   // per-step timestamps: a hang names its step (Lead 2026-10-07, two silent timeouts)
+const T0 = Date.now(); let lastStep = 'start';
+const lap = (step) => { lastStep = step; process.stderr.write(`[endgame-hud ${((Date.now() - T0) / 1000).toFixed(1)}s] ${step}\n`); };   // per-step timestamps: a hang names its step (Lead 2026-10-07, two silent timeouts)
+// A hard real-time limit per wait: a stalled step fails naming itself, instead of the harness being killed silently by the job cap. The
+// clock-stepped waits are the slow ones on a GPU-less VPS: every stepped frame is a software-GL draw (~0.5 s), so a 100 s fight is ~50 min
+// drawn. The draws are skipped (skipDraws: same sim, DOM and timers) except around a screenshot.
+const STEP_MS = Number(process.env.HUD_STEP_MS || 240000);
+const guard = (what, p, ms = STEP_MS) => { let t; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error(`endgame-hud-check: ${what} still waiting ${ms / 1000} s of real time after step "${lastStep}"`)), ms); })]).finally(() => clearTimeout(t)); };
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
@@ -32,7 +38,10 @@ try {
   { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
   await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   lap('welcome hidden');
-  const { run, until } = await harnessClock(page);
+  const { run, until: stepped } = await harnessClock(page);
+  const until = (pred, budget, arg) => guard(`wait for ${String(pred).replace(/\s+/g, ' ').slice(6, 90)}`, stepped(pred, budget, arg));
+  await skipDraws(page, true);
+  const shoot = async (file) => { await skipDraws(page, false); await run(48); await page.screenshot({ path: file }); await skipDraws(page, true); };
   await run(200);
   await page.evaluate(() => { window.__finish = null; window.addEventListener('frankendom:combat', e => { const k = e.detail.events.find(x => x.type === 'Killed'); if (k) window.__finish = k; }); });
   await page.getByRole('button', { name: 'Fight', exact: true }).tap();
@@ -66,7 +75,7 @@ try {
     const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
     const visible = (el) => el && !el.hidden && getComputedStyle(el).display !== 'none' && getComputedStyle(el).opacity !== '0' && el.getBoundingClientRect().width > 0;
     const pick = (ids) => Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]).filter(([, el]) => visible(el)).map(([id, el]) => [id, box(el)]));
-    return { fallen, topBand: pick(['combat-status', 'fight-rank', 'loot-panel']), cluster: pick(['reset-button', 'pit-button', 'duel-button', 'share-link', 'clip-button', 'loot-decline']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
+    return { fallen, topBand: pick(['combat-status', 'fight-rank', 'loot-panel']), cluster: pick(['reset-button', 'duel-button', 'share-link', 'clip-button', 'loot-decline']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
   });
   receipt.fallenRect = sample.fallen; receipt.topBand = sample.topBand; receipt.cluster = sample.cluster; receipt.actionsBox = sample.actions;
   assert.ok(receipt.fallenRect, 'the fallen body has a screen rect after settle');
@@ -76,19 +85,16 @@ try {
   const overlaps = Object.entries(sample.topBand).filter(([, r]) => intersects(r, sample.fallen)).map(([id]) => id);
   // SHARE and CLIP (C1, Dom 2026-09-25; one tap, Dom 2026-09-28) are drawn left of Next, above the joystick, by design: they may leave
   // the #actions box, but only into the thumb row's band (top at or below Next's top minus 60 px), and never over Next or the joystick.
-  const PAIR = ['duel-button', 'share-link', 'clip-button', 'pit-button'];   // the Pit's door (Web 2026-09-29) sits under SHARE + CLIP, by the same rule
-  // The move pad hides while the Pit's door shows (style.css, Web 2026-09-29): a hidden pad is no obstacle (thumb-row.mjs skips null),
-  // and the rule itself is pinned below rather than silenced.
+  const PAIR = ['duel-button', 'share-link', 'clip-button'];
+  // A hidden pad is no obstacle (thumb-row.mjs skips null); the pad hid while the Pit's door showed until the Pit room was removed (2026-10-08), so it is now measured.
   const pad = await page.evaluate(() => { const el = document.getElementById('joystick'), r = el.getBoundingClientRect(); return { visibility: getComputedStyle(el).visibility, rect: { x: r.x, y: r.y, w: r.width, h: r.height } }; });
   const joystick = pad.visibility === 'hidden' ? null : pad.rect;
   receipt.joystickVisibility = pad.visibility;
   assert.ok(sample.cluster['duel-button'] && sample.cluster['share-link'], 'DUEL and LINK show on the end screen with no extra tap');
-  assert.ok(sample.cluster['pit-button'], 'the Pit\'s door (Enter the Pit / Recover) shows on a career end screen');
-  if (sample.cluster['pit-button']) assert.equal(pad.visibility, 'hidden', 'the joystick hides while the Pit door shows');
   const ROW = ['duel-button', 'share-link', 'clip-button'];   // re-pinned 2026-10-02: the row left the thumb band for the sand above the fighters (shareFaults row)
   const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick, { row: ROW.includes(id) }).map((f) => `${id} ${f}`));
   receipt.shareFaults = faults;
-  assert.equal(faults.length, 0, `SHARE, CLIP and the Pit's door stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], pit: sample.cluster['pit-button'], next: sample.cluster['reset-button'], joystick })}`);
+  assert.equal(faults.length, 0, `SHARE and CLIP stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], next: sample.cluster['reset-button'], joystick })}`);
   const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && id !== 'reset-button' && !inside(r, sample.actions)).map(([id]) => id);
   receipt.overlaps = overlaps; receipt.floating = floating;
   assert.ok(Object.keys(sample.topBand).length > 0, 'the top band shows at least the status line');
@@ -98,7 +104,7 @@ try {
   assert.ok(!joystick || !intersects(sample.cluster['reset-button'], joystick), `Next stays clear of the joystick: ${JSON.stringify({ next: sample.cluster['reset-button'], joystick })}`);
   assert.equal(floating.length, 0, `cluster buttons stay inside the #actions box; floating: ${floating.join(', ')}`);
   lap('geometry assertions done');
-  await page.screenshot({ path: `${out}/gate-settle.png` });
+  await shoot(`${out}/gate-settle.png`);
   // The take-one offer (#loot-panel-actions) and Next must never overlap: with the offer up the player taps Next to move on, and release rows 16, 21
   // and 25 timed out on 2026-10-07 because Take sat over it (Web, #1685 follow-up). Open the offer the way loot-panel.ts does and hit-test Next's centre.
   const offer = await page.evaluate(() => {
@@ -116,9 +122,9 @@ try {
   // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
   const pointerEvents = await page.evaluate(() => {
     document.documentElement.classList.add('endgame-fade');
-    const faded = ['reset-button', 'pit-button', 'duel-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const faded = ['reset-button', 'duel-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     document.documentElement.classList.remove('endgame-fade');
-    const restored = ['reset-button', 'pit-button', 'duel-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const restored = ['reset-button', 'duel-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     return { faded, restored };
   });
   receipt.pointerEvents = pointerEvents;
@@ -144,7 +150,7 @@ try {
   assert.equal(window1.opacity, '1', `Rematch/Next is fully visible before the tour (opacity ${window1.opacity})`);
   assert.ok(window1.hitIsRematch, `a tap at Rematch's centre lands on Rematch, not on ${window1.hit}`);
   lap('rematch-before-tour assertions done');
-  await page.screenshot({ path: `${out}/rematch-live-before-tour.png` });
+  await shoot(`${out}/rematch-live-before-tour.png`);
   // (2) Product: the tour hands the camera back on a touch ANYWHERE, not only on the canvas — a thumb landing where Rematch was
   // hits the inert #actions box during the tour. Wait for the tour, tap that box, and the HUD must be back within its 250 ms fade.
   await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.touring; }, 9000);
@@ -157,7 +163,7 @@ try {
   receipt.handedBack = handedBack;
   assert.ok(!handedBack.touring && handedBack.pointerEvents === 'auto', `a touch off the canvas stops the tour and wakes the HUD: ${JSON.stringify(handedBack)}`);
   lap('handed-back assertions done');
-  await page.screenshot({ path: `${out}/hud-back-after-tour-touch.png` });
+  await shoot(`${out}/hud-back-after-tour-touch.png`);
   await page.locator('#reset-button').tap();   // and now the real tap goes through (Playwright would throw if anything intercepted it)
   receipt.passed = true;
 } catch (error) {

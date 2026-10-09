@@ -346,7 +346,7 @@ NPC's door until no player is Hunted in the network.
 | | Value |
 |---|---|
 | Who | **Ascapart**, the giant of *Bevis of Hampton* (legend, §12), on the `knight` body at a large scale |
-| Level | **the ladder top** (`MAX_LEVEL`: 46 today, 50 after the cap ruling). Only a capped player meets him at even level; anyone lower fights uphill and the falloff caps the CP |
+| Level | **the ladder top** (`MAX_LEVEL` = 50, Origin V). Only a capped player meets him at even level; anyone lower fights uphill and the falloff caps the CP |
 | Fight | one duel; twist `one-health-bar` (his two phases share one bar); inner-ring guard damage does **not** apply to him. Every attack is telegraphed and can be rolled, parried or blocked (the hard rule) |
 | Reward (first win only) | CP: the `world-boss` row, once per player (`world-boss:character:bouncer-ascapart`). Loot: a unique piece, *Ascapart's collar* (Crest cosmetic, relic, `quest-reward`-style provenance via the boss table, first win only). Metal: **1,000 bronze** (`BOUNCER_PURSE_BRONZE`) |
 | Notoriety cost | **+400 in every network town** (`NOTORIETY_BOUNCER_BEATEN`, spread at 100%) |

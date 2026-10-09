@@ -1,7 +1,7 @@
 // Release row: a brand-new visitor's first minute. No other row covers it (roster/account seed a fighter first), and the scripted first loss
 // (src/first-loss.ts, prompts in src/lessons.ts, the one-time trigger in main.ts) changes what every new player meets.
 //   1. a fresh profile opens `/` and the lesson starts: nothing recorded, nothing awarded, the one-time flag stored;
-//   2. the scripted fight plays out, "Fight for real" lands on `?fight=1`, and a normal fight starts (not the lesson);
+//   2. the scripted fight plays out, "Fight for real" leaves for Zone 1 (/zone1/, #1861), and the arena's `?fight=1` is a normal fight (not the lesson);
 //   3. a second plain visit (flag stored, still no fights) is not the lesson;
 //   4. no page errors anywhere.
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) while the fight plays out, and frames are not painted (skipDraws) because the
@@ -56,12 +56,16 @@ try {
   const navigated = page.waitForEvent('framenavigated', { timeout: 60000 });
   await page.evaluate(() => document.getElementById('reset-button').click());
   await navigated;
+  // #1861 (Dom, 2026-10-08: "Zone 1 IS the game"): the end of the lesson now goes to Zone 1 (src/zone1-hop.ts zone1AfterLesson), not `?fight=1`.
+  assert.equal(new URL(page.url()).pathname, '/zone1/', '"Fight for real" leaves the lesson for Zone 1');
+  // The arena's own real fight is still reached at `?fight=1` (the share-free fight link), so keep its checks: load it as the old button did.
+  await page.goto(`${origin}/?fight=1`);
   // The reload boots under the paused fake clock: boot is promise-driven, so poll on real time, not on page time.
   let booted = false;
   for (let i = 0; i < 240 && !booted; i++) { booted = await page.evaluate(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false); if (!booted) await sleep(500); }
   assert.ok(booted, 'the page after "Fight for real" boots to a fight');
   const real = await page.evaluate(() => ({ search: location.search, lesson: typeof globalThis.__lesson, dataLesson: document.documentElement.dataset.lesson ?? null }));
-  assert.equal(real.search, '?fight=1', '"Fight for real" lands on ?fight=1');
+  assert.equal(real.search, '?fight=1', 'the arena fight link is ?fight=1');
   assert.equal(real.lesson, 'undefined', 'the real fight is not the lesson');
   assert.equal(real.dataLesson, null, 'no lesson beat is showing');
   await run(200); await page.keyboard.press('KeyF'); await run(300);

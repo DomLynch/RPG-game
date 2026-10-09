@@ -43,7 +43,7 @@
 // built for another rig simply does not fit), over the table.
 import type { Practice } from './combat.ts';
 import type { Phase } from './duel.ts';
-import type { FinisherId } from './finishers.ts';
+import type { FinisherId } from './fight/finishers.ts';
 
 const FLAG = /^\/looks\/[A-Za-z0-9_@.-]+\.glb$/;
 export function rankLookFlag(search: string): string | undefined {

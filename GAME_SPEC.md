@@ -1,5 +1,7 @@
 # Frankendom: Origins
 
+**What Frankendom is (Dom, 2026-10-08, standing):** an MMO, and always has been. ONE always-on shared world for thousands of players, server-run, that never stops or freezes for a fight. The duel Pit is the starting zone and stays a headline feature; around it is the open world with open PvP (flag on/off) and NPCs/creatures that are each hostile or not (a flag). The ladder is 50 levels (Origin I–V). Details: docs/SCOPE.md.
+
 ## Account recovery slice — owner-authorized 2026-09-19
 Optional Google sign-in and Supabase account saves live inside Field Journal on mobile and desktop. Guest practice
 starts without login or a network dependency. First slice saves fighter name and selected encounter explicitly;
@@ -66,18 +68,17 @@ this a progression launch. The physical-device and external uncoached-player gat
 real online PvP or recoverable identity claim follows from this scope decision alone.
 
 ## Fighter progression ladder — owner-locked 2026-09-18 (revised 2026-09-19)
-The fighter climbs 10 plain, street-recognizable titles. Tiers 1–9 carry sub-ranks **I–V**; **Origin is singular — no
-I–V** (46 rungs total). Low to high:
+The fighter climbs 10 plain, street-recognizable titles. All 10 tiers carry sub-ranks **I–V**, Origin included (Origin I–V, Dom 2026-10-05; **50 rungs total**). Low to high:
 **Recruit** → **Legionary** → **Gladiator** (earning the plain name is a beat) → **Veteran** → **Champion** →
 **Praetorian** → **Master** → **Primus** → **Invictus** (the unconquered) → **Origin** (rank 10 carries the game's name).
 Owner note: "Veteran" intentionally reinstated over "Centurion" per review feedback, accepting the shared word with the
 first ladder opponent (player rank vs opponent name — if it ever confuses in the HUD, the cheap fix is renaming the opponent).
 
 **Victory marks, no demotion — this is a career rank, not a skill rating.** Revised 2026-09-27 (Dom via Strategy): **one win
-per sub-rank everywhere; level = 1 + wins, capped at 46** (levels 1–5 Recruit I–V, 6–10 Legionary, … 41–45 Invictus, 46 Origin at
-45 wins). The HUD bar keeps its look (`<Title> <numeral>`, five segments, the next title on the right): a win lights one whole
+per sub-rank everywhere; level = 1 + wins, capped at 50** (levels 1–5 Recruit I–V, 6–10 Legionary, … 41–45 Invictus, 46–50 Origin I–V; Origin I at
+45 wins, Origin V at 49). The HUD bar keeps its look (`<Title> <numeral>`, five segments, the next title on the right): a win lights one whole
 segment, the fifth win is the next title at I with an empty bar. Losses never remove marks or demote; existing marks carried over
-as they were. Origin at 46 is the END of the beta ladder by design: the endgame (modes, features) starts there.
+as they were. Origin V (level 50) is the END of the beta ladder by design: the endgame (modes, features) starts there.
 **Difficulty is the level, whatever the opponent** (Combat's moves.ts profileAt: level 1 below the old easy, the old normal at 18,
 the old hard at 46; each opponent's character — the orc's chains, the Witch's sweep and hop, the Goblin never guarding — keeps its
 shape at every level; at levels 1–5 his body is scaled too — no poise, 70% health at level 1, his full body by level 6 — the new player's
@@ -92,6 +93,13 @@ forced; passes run on their own clock, not aligned to titles). (Was, 2026-09-19:
 placement (e.g. `Invictus IV — career rank` beside `#327 / 1842 MMR — competitive rank`). A beginner must never be punished
 twice for one lost fight. Ranked power still cannot depend on grind or purchases (Product defaults); rank is identity and
 matchmaking context, never stats.
+
+## Launch scene, starting level and zone levels — owner direction 2026-10-08 (Dom via Strategy; recorded by Lead; build 2026-10-09, NOT built yet)
+- **A new hero starts at level 1.** Today the Zone 1 preview starts a new or offline player at `START_LEVEL = 16` (`origins/preview/play.ts`); a signed-in player gets the saved career. That constant goes away for new heroes. The Auditor checked (2026-10-08): `START_LEVEL` is read only by the Zone 1 preview (`play.ts:47`, `main.ts:355`), nothing under `src/` reads it, so the Pit's gates are not driven by it.
+- **The Pit is the launch scene.** A new player's first game is ONE fight in the Pit. When it ends the gate opens to the town and Zone 1. Players may stay in the Pit ladder as before. The Pit and its ladder (see Fighter progression ladder above) are unchanged; only the entry point changes. The Pit stays one prominent building in the one shared world.
+- **Zone N has level N creatures and NPCs** (Zone 1 = L1 ... Zone 50 = L50, the Origin cap; Dom's final rule, 2026-10-08 20:0x). Inside a zone: near town = the zone's level, at the zone's edge = zone level +1, and named rare creatures only = zone level +2. Zone 1 is L1 near the spawn, L2 at the edge, L3 for a named rare. Bosses and legends are unruled (Strategy recommended zone level +3, solo-beatable with gear; open for Dom). The distance rule is measured from the Zone 1 spawn point until the bank town is placed; then it is one constant.
+- **Endgame starts at Zone 50**, with the other ~650 zones. Strategy's recommendation, open for Dom: a second progress axis past level 50 (EverQuest-style "legend ranks"), named rares and world bosses per zone, deeper gear tiers, the Pit legends ladder, and outlaw/PvP.
+- **Server pricing note.** A kill is priced at the spawn's level (`#1880` fixes it from the encounter form's level), so a level-1 creature pays level-1 rewards. This holds once #1900's encounter forms are also L1; on today's trunk the forms are L11-14 and would overpay without #1880.
 
 ## Your fighter: Origins
 Players are human fighters with an Origin. In v1 an Origin is a visual and equipment family on the shared skeleton, not a separate species: it sets starting silhouette, armour family, weapon family and idle/salute style. It changes how you look and what you start with, not how strong you are.

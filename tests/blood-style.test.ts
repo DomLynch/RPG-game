@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { newParticle, type Feel } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
-import { BLOOD, bloodCount, bloodGrow, foeBurstPull, makeRng, spawnBlood } from '../src/blood-style.ts';
+import { BLOOD, bloodCount, bloodGrow, foeBurstPull, makeRng, spawnBlood } from '../src/fight/blood-style.ts';
 
 // The one blood: Dom's b4 (thin spray + a few drops, stretched into strands, darker red). These pin its numbers.
 const batch = (kill: boolean, feel: Feel, seed = 2) => { const rnd = makeRng(seed); return Array.from({ length: bloodCount(feel, kill) }, (_, i) => { const p = newParticle(); spawnBlood(p, i, 0, 1, 0, 0, 1, kill, feel, rnd); return p; }); };

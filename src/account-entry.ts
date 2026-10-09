@@ -1,6 +1,7 @@
 // Guest startup never waits for an account request or downloads the account SDK.
 import { api } from './api.ts';
 import { autoReload } from './chunk-recover.ts';
+import { rememberZone1 } from './zone1-hop.ts';
 // main.ts hides the welcome card whenever a fight is on screen (paused() reads !welcome.hidden): only with the card up may a stale chunk reload the page by itself.
 const fightOn = () => document.getElementById('welcome')?.hidden === true;
 const safeStorage = () => { try { return sessionStorage; } catch { return null; } };
@@ -23,7 +24,11 @@ if (api) {
   };
   document.getElementById('journal-button')!.addEventListener('click', () => { void start(true); });
   retry.addEventListener('click', () => { if (stale) location.reload(); else if (!started) void start(true); });
-  if (new URL(location.href).searchParams.get('account') === 'return') {
+  if (new URL(location.href).searchParams.get('account') === 'signin') {   // Zone 1's "Sign in" link: open the journal where the Google button is
+    rememberZone1(location.search, safeStorage());
+    history.replaceState(null, '', '/');
+    document.getElementById('journal-button')!.click();
+  } else if (new URL(location.href).searchParams.get('account') === 'return') {
     document.getElementById('journal-button')!.click();
   }
   // A device that has signed in before mounts the account once the page is idle, so its wins are claimed (loot-claims.ts) and the

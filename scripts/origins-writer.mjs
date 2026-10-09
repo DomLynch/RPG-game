@@ -4,6 +4,7 @@
 // the writer's only source of a player's place (launch gate X1). Without the key every player counts as away from the Exchange, so every Exchange-only rule refuses.
 // consume and apply_upgrade (the item ops) are served from Region 1's own content (origins/server/content-ops.ts): consume always; apply_upgrade answers 501 "no smith in this content" until Region 1 authors a smith service + its cost table. Region 1 content that does not load is logged and those two ops are absent.
 // ORIGINS_ENCOUNTERS=1 (turns on encounter_start/touch/settle, world creature fights: migration 202610080002 + Region 1 content must load; unset, the three ops answer 503 "encounter verify not installed"),
+// ORIGINS_REWARDS=1 (needs ORIGINS_ENCOUNTERS=1; a verified kill then also pays its CP and loot in the settle's one transaction, origins/server/mob-rewards.ts; unset, fights are RECORDED only and pay nothing),
 // ORIGINS_WRITER_INTERNAL_KEY (optional: turns on the internal saved-location routes presence calls, key + loopback; unset, those routes do not exist).
 import process from 'node:process';
 import console from 'node:console';
@@ -16,13 +17,20 @@ import { presenceWhere } from '../origins/presence/where.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
+import { worldSpawnOps, zoneKeyProblems } from '../origins/server/world-spawns.ts';
 import { resolveFromRegion1 } from '../origins/server/encounter-setup.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
+import { mobRewards } from '../origins/server/mob-rewards.ts';
+// The kill's pay (CP + loot) from Region 1's content; the flag already requires that content to load (resolveFromRegion1 throws otherwise).
+// Zone 1 world spawns (202610080014): ON unless ORIGINS_SPAWNS=0 (the kill switch); without the migration every op answers 503.
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value }; };
+const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 
-const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788' } = process.env;
+const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788', ORIGINS_DB_POOL = '4' } = process.env;   // ORIGINS_DB_POOL: persistent psql sessions (0 = one psql per op)
 if (!DATABASE_URL || !SUPABASE_URL || !SUPABASE_ANON_KEY) { console.error('origins-writer: set DATABASE_URL, SUPABASE_URL and SUPABASE_ANON_KEY'); process.exit(1); }
+const zoneProblems = zoneKeyProblems(); if (zoneProblems.length) { console.error(`origins-writer: the zone registry breaks the spawn key rule, not starting:\n  ${zoneProblems.join('\n  ')}`); process.exit(1); }   // a bad new zone folder fails at install, not at the first kill
 const content = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGINS_CONTENT) : null;   // throws on a bad bundle: the writer does not start
 const presenceKey = process.env.PRESENCE_INTERNAL_KEY;
 if (!presenceKey) console.log('origins-writer: PRESENCE_INTERNAL_KEY is not set: no player counts as at the Exchange, every Exchange-only action is refused');
 const where = presenceKey ? presenceWhere(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : async () => ({ online: false });
-createWriter({ db: psqlDb(DATABASE_URL), verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY } : undefined }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+createWriter({ db: psqlDb(DATABASE_URL, 'psql', 30_000, Number(ORIGINS_DB_POOL)), verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : spawnDeps()), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY } : undefined }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));

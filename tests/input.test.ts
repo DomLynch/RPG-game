@@ -42,7 +42,7 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /user-scalable\s*=\s*no/);
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
-  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/zoom-guard.ts', import.meta.url), 'utf8');   // the guard lives in zoom-guard.ts, main.ts calls it with its fight surface
   assert.match(main, /gesturestart/);
   assert.match(main, /addEventListener\('touchstart'[^\n]*touches\.length > 1[^\n]*preventDefault/, 'the second finger is refused at touchstart, not only touchmove');
   // iOS Safari zooms the page into any focused form control whose font is under 16px and leaves it zoomed after the control
@@ -66,6 +66,8 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   // A double tap on/near an attack button zoomed the page ~2x on iPhone (owner, 2026-09-26): the second quick touchend is refused at the document.
   assert.match(main, /addEventListener\('touchend', \(event\) => \{[^]*?timeStamp - lastTouchEnd < 350[^]*?event\.preventDefault\(\)[^]*?\}, \{ passive: false \}\)/);
   assert.match(main, /DOUBLE_TAP_SURFACE = '#world, #joystick, #actions'/, 'the refusal is scoped to the fight surface, so click-driven controls keep both taps (Lead, 2026-09-26)');
+  // The Origins preview zoomed on Dom's iPhone (2026-10-07): it had no guard. Every entry calls the one helper.
+  for (const entry of ['../src/main.ts', '../origins/preview/main.ts']) assert.match(readFileSync(new URL(entry, import.meta.url), 'utf8'), /\blockPageZoom\(document, \{ surface: /, `${entry} locks page zoom`);
 });
 
 test('the journal test tools ship hidden behind the admins roster; the Sparring tab holds the overrides and ships hidden', () => {
@@ -89,7 +91,7 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<div class="actions" id="actions" data-gestures="cluster">/);
   assert.doesNotMatch(html, /controls-mode|strike circle|guard ring/);
-  for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
+  for (const file of ['main.ts', 'input.ts', 'fight/hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
 });
 
 test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): every combat button carries the same five marks; all rest at the same faint weight; one lights only while pressed — Slash the next cut (data-next), Stab the ring, Heavy up, Kick down, Guard the held side (aria-pressed + data-side)', () => {
@@ -268,5 +270,5 @@ test('the cut flash fires only for a taken side cut, at the press, on ::before, 
   assert.equal(flash.length, 2, 'one rule per side, on ::before'); for (const r of flash) assert.match(r.body, /animation:\s*cut-flash 2[0-5]\dms/, '~200-250 ms');
   assert.match(css, /@keyframes cut-flash\{\s*from\{\s*opacity: \.[1-6]/, 'faint: starts at 60% or less');
   assert.deepEqual(rules.filter((r) => /#attack-button\[data-flash[^\]]*\][^,]*::after/.test(r.selector)).map((r) => r.selector), [], 'the flash never styles the label (::after)');
-  assert.ok(!/data-flash/.test(readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8')), 'hud.ts (which writes the label) never touches the flash');
+  assert.ok(!/data-flash/.test(readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8')), 'hud.ts (which writes the label) never touches the flash');
 });

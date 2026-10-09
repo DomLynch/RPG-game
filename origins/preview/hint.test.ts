@@ -18,3 +18,4 @@ test('the health and stamina bars sit under the hint and creature card, never ov
   assert.match(main, /setProperty\('--hud-bottom'/, 'main.ts measures the HUD stack');
   assert.match(html, /#duel\.world \.combat-hud \{ top: max\([^;]*var\(--hud-bottom/, 'the bars start below that measure');
 });
+

@@ -34,8 +34,10 @@ test('rejoin: guarded like /internal/where: no key configured is a 404, a wrong 
 });
 
 test('rejoin: a connected account is dropped and placed again at the located spot, on the same socket with a fresh hello; one presence, not two', async () => {
-  const { p, base } = await start(async a => (a === acct(1) ? { x: 5000, z: 6000 } : null));
+  let switched = false;   // the first join has no saved place (a fresh join also asks locate); the switched-to character has one
+  const { p, base } = await start(async a => (switched && a === acct(1) ? { x: 5000, z: 6000 } : null));
   const where = presenceWhere(base, KEY), { ws, hellos } = await connect(p.port());
+  switched = true;
   try {
     const before = await where(acct(1));
     assert.ok(before.online && !(before.placed && before.x === 5000), 'it does not start at the saved spot');

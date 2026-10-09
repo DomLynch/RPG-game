@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { DUEL_CUES, loadDuel } from '../src/audio/duel.ts';
+import { DUEL_CUES, loadDuel } from '../src/fight/sound/duel.ts';
 
 const dir = new URL('../src/assets/duel-audio/', import.meta.url);
 test('each duel lobby cue ships in both formats, tiny, and the set stays inside its budget', () => {

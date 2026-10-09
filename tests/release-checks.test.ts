@@ -273,21 +273,19 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
   const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
   for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
-    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : [])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/input.ts' ? [] : ['next-fight-black-check'])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
-  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check'].sort());
+  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
-  // The PIT EXIT row (2026-09-30, no black frame across the next-rung reload) joined the same three rules (main.ts + index.html's,
-  // style.css's and src/** for src/gate-light.ts), plus its own rule last.
-  assert.deepEqual(rowsFor('src/gate-light.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check'].sort());
-  assert.deepEqual(rowsFor('scripts/pit-exit-check.mjs'), ['pit-exit-check']);
+  // The PIT EXIT row (2026-09-30, no black frame across the next-rung reload) was removed 2026-10-08 with the Pit room it tested (gate light, exit button):
+  // its script, its triggers and its row are gone, never kept for a deleted script. Rows after it renumbered (first-loss 51 -> 50, stance-panel 52 -> 51).
   // The FIRST LOSS row (2026-10-06, Lead): a brand-new visitor's first minute. It joined the page rule (main.ts, index.html) and has a rule ahead of src/**
   // for src/lessons*.ts and src/first-loss*.ts that carries src/**'s rows too (so it never steals them); its own script runs only itself.
   assert.deepEqual(rowsFor('scripts/first-loss-browser-check.mjs'), ['first-loss-browser-check']);
-  for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check', 'first-loss-browser-check'].sort(), file);
+  for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'first-loss-browser-check'].sort(), file);
   assert.ok(!rowsFor('src/hud.ts').includes('first-loss-browser-check'), 'other src files do not run the first-loss row');
 });
 
@@ -351,17 +349,19 @@ esac
   assert.doesNotMatch(r.stderr, /runs\/11|runs\/13/);
 });
 
+// Every row the gate has (51 since the Pit exit row 50 was removed with the Pit room, 2026-10-08; 52 with row 52 next-fight-black-check, the guard for Dom's 2 s black-frame report, Lead ruling 2026-10-08): 'all rows' is read, never a literal.
+const ROWS: number = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8')).release_commands.length;
 test('deploy scope: a release runs about 5 rows for what it changed, none for docs, and a changed check script runs its own rows', () => {
   // Dom 2026-10-05: "get the 50 checks down to 5"; the full 50 still run once every 24 h (deploy.sh --full-age).
   const pick = (...files: string[]) => execFileSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-  const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return 51 - skip.size; };
-  assert.equal(kept('src/main.ts'), 7, 'any code change: the five core rows plus the first-loss row and the Stage picker row (main.ts is in both triggers)');
-  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the Pit adds pit-exit-check');
+  const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return ROWS - skip.size; };
+  assert.equal(kept('src/main.ts'), 8, 'any code change: the five core rows plus the first-loss row, the Stage picker row and the next-fight black row (the page the reload loads; the Pit exit guard covered it; Auditor 2026-10-08)');
+  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the kills-board data module triggers no row of its own (the Pit exit row was removed with the room)');
   assert.equal(kept('src/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
   assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
   for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])
-    assert.equal(kept('src/main.ts', file), 51, `${file} changes the build or the gate (with no base to compare): every row (Auditor B1 on #1381)`);
+    assert.equal(kept('src/main.ts', file), ROWS, `${file} changes the build or the gate (with no base to compare): every row (Auditor B1 on #1381)`);
   assert.equal(kept('src/lessons.ts'), 6, 'the first-loss row joins the core five for the lesson files');
   assert.equal(kept('src/first-loss.ts'), 6);
   assert.equal(kept('scripts/first-loss-browser-check.mjs'), 6, 'a changed check script runs its own row');
@@ -370,29 +370,28 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   assert.equal(kept('src/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
 });
 
-test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the two rows that boot to a fight', () => {
-  // a2cf3529 (2026-10-06): #1420 fixed row 51 in src/first-frame.ts + src/scene.ts, yet the picker left 50 and 51 out of scope.
+test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the first-loss row, the row that boots to a fight from an empty profile', () => {
+  // a2cf3529 (2026-10-06): #1420 fixed the first-loss row in src/first-frame.ts + src/scene.ts, yet the picker left it out of scope (row 51 then, 50 since the Pit exit row went).
   const picked = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' }).stderr;
   for (const file of ['src/first-frame.ts', 'src/scene.ts']) {
-    assert.match(picked(file), /\b50 pit-exit-check\b/, `${file} runs row 50 pit-exit-check`);
-    assert.match(picked(file), /\b51 first-loss-browser-check\b/, `${file} runs row 51 first-loss-browser-check`);
+    assert.match(picked(file), /\b50 first-loss-browser-check\b/, `${file} runs row 50 first-loss-browser-check`);
   }
   assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+  for (const file of ['src/first-frame.ts', 'src/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
+  assert.deepEqual(JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', 'scripts/next-fight-black-check.mjs'], { encoding: 'utf8' })).map((r: { name: string }) => r.name), ['next-fight-black-check'], 'a changed check script runs its own row');
 });
 
 test('deploy scope: a public asset runs the rows of its folder, never all 51; the Stage picker row follows the arena, sparring and main files', () => {
   // Lead 2026-10-06: every arena or versus .webp ran all 51 rows (15-21 min), and row 44 had no mapping, so 17ab81e9 skipped it.
   const pick = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' });
-  const kept = (...files: string[]) => 51 - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
+  const kept = (...files: string[]) => ROWS - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
   const picked = (...files: string[]) => pick(...files).stderr;
   assert.equal(kept('public/versus/goblin.webp'), 5, 'a versus card: the core five only');
   assert.equal(kept('public/licenses/OFL.txt'), 5, 'a licence file: the core five only');
-  assert.ok(kept('public/arena/3/floor.webp') < 51, 'an arena texture is not a full run');
+  assert.ok(kept('public/arena/3/floor.webp') < ROWS, 'an arena texture is not a full run');
   assert.match(picked('public/arena/3/floor.webp'), /\b8 arena-preview\b/, 'an arena texture runs the arena preview');
   assert.match(picked('public/arena/3/floor.webp'), /\b44 sparring-browser-check\b/, 'and the Stage picker row');
-  assert.match(picked('public/pit/gate.glb'), /\b50 pit-exit-check\b/, 'a Pit asset runs the Pit exit row');
-  assert.equal(kept('public/pit/gate.glb'), 6);
-  assert.equal(kept('public/weapons/estoc.glb'), 51, 'any other public folder (GLBs many rows load) still runs every row');
+  assert.equal(kept('public/weapons/estoc.glb'), ROWS, 'any other public folder (GLBs many rows load) still runs every row');
   for (const file of ['src/arena-themes.ts', 'src/arena.ts', 'src/sparring.ts', 'src/stage-hide.ts', 'src/main.ts'])
     assert.match(picked(file), /\b44 sparring-browser-check\b/, `${file} runs row 44, the Stage picker`);
   assert.doesNotMatch(picked('src/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
@@ -402,24 +401,24 @@ test('deploy scope: a changed .quality-gate.json runs only the rows it adds or c
   // Lead 2026-10-06: a row-list edit ran all 51 rows. The row diff is fed in directly (deployRowsFor's second argument), so the test
   // does not depend on the runner's git history: CI's shallow clone cannot `git show` an old trunk revision, and every row is then right.
   const pick = (base: string | null, ...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', ...(base ? ['--base', base] : [])], { input: files.join('\n'), encoding: 'utf8' });
-  const kept = (r: ReturnType<typeof pick>) => 51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
-  assert.equal(kept(pick(null, '.quality-gate.json')), 51, 'no base: every row');
-  assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), 51, 'an unreadable base: every row');
+  const kept = (r: ReturnType<typeof pick>) => ROWS - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
+  assert.equal(kept(pick(null, '.quality-gate.json')), ROWS, 'no base: every row');
+  assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), ROWS, 'an unreadable base: every row');
   const { deployRowsFor, rows } = await import('../scripts/release-rows-for.mjs');
   const live: string[][] = rows.map((r: { argv: string }) => JSON.parse(r.argv) as string[]);
   const names = (picked: { index: number; name: string }[]) => picked.map(r => `${r.index} ${r.name}`);
   assert.equal(deployRowsFor(['.quality-gate.json'], live).length, 5, 'identical lists: the core five only');
-  const added = names(deployRowsFor(['.quality-gate.json'], live.filter((_, i) => i !== 50)));
-  assert.ok(added.includes('51 first-loss-browser-check'), `a row the live gate lacks runs: ${added}`);
+  const added = names(deployRowsFor(['.quality-gate.json'], live.filter((_, i) => i !== 49)));
+  assert.ok(added.includes('50 first-loss-browser-check'), `a row the live gate lacks runs: ${added}`);
   assert.ok(!added.includes('44 sparring-browser-check') && added.length === 6, `rows unchanged since the base do not: ${added}`);
   const edited = live.map((command, i) => (i === 43 ? [...command, '--changed'] : command));
   assert.ok(names(deployRowsFor(['.quality-gate.json'], edited)).includes('44 sparring-browser-check'), 'a row whose argv changed runs');
-  assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, 51, 'no previous list: every row');
+  assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, ROWS, 'no previous list: every row');
 });
 
 test('deploy scope: a --base of HEAD (the same row list) runs the core five only', { skip: noGit }, () => {
   const r = spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', '--base', 'HEAD'], { input: '.quality-gate.json', encoding: 'utf8' });
-  assert.equal(51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size, 5, 'the same row list as the base: the core five only');
+  assert.equal(ROWS - new Set(r.stdout.trim().split(',').filter(Boolean)).size, 5, 'the same row list as the base: the core five only');
 });
 
 test('the unit gate ignores the deploy shell\'s own DEPLOY_* exports: a ci-trust-run still stamps a run of every row', () => {

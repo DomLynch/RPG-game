@@ -35,7 +35,7 @@ test('the lesson is due once: a plain page, nothing stored, no fight yet', () =>
 test('"Fight for real" is a full page load, so the lesson kit, weapon and level never carry into the real fight; the notice lists every port', async () => {
   const { readFileSync } = await import('node:fs');
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), notice = readFileSync(new URL('../public/licenses/world-of-claudecraft.txt', import.meta.url), 'utf8');
-  assert.match(main, /if \(match\.mode === 'lesson'\) \{ location\.assign\(`\$\{location\.pathname\}\?fight=1`\); return; \}/, 'a reload, not a Match restore (startLesson sets weapon/skill/level and nothing restores them), and to a non-empty search so a page that cannot store the flag never reloads into the lesson');
+  assert.match(main, /if \(match\.mode === 'lesson'\) \{ location\.assign\(zone1AfterLesson\(\) \?\? `\$\{location\.pathname\}\?fight=1`\); return; \}/, '(re-pinned for Play -> Zone 1: the lesson\'s end goes to Zone 1 when ZONE1_IS_DEFAULT is on, and is the old ?fight=1 reload while it is off) a reload, not a Match restore (startLesson sets weapon/skill/level and nothing restores them), and to a non-empty search so a page that cannot store the flag never reloads into the lesson');
   for (const file of ['src/net/backoff.ts', 'src/net/reconnect-policy.ts', 'src/first-loss.ts', 'src/lessons.ts', 'src/touch-router.ts', 'src/layout-tier.ts']) assert.ok(notice.includes(file), `${file} is listed`);
   assert.ok(!notice.includes('render-budget'), 'Dom scrapped the render budget (Lead 2026-10-06): the notice lists only ports that ship');
   assert.match(notice, /MIT License/); assert.match(notice, /f46f30f/);

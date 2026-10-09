@@ -19,6 +19,11 @@ def read(p):
     return json.loads(r[20 : 20 + n]), r[28 + n :]
 
 
+def source_of(d, index):
+    t = d["textures"][index]
+    return t["source"] if "source" in t else next(v["source"] for v in t.get("extensions", {}).values() if "source" in v)   # EXT_texture_webp
+
+
 def slots(d):
     out = {}
     for m in d["materials"]:
@@ -26,11 +31,11 @@ def slots(d):
         for slot, t in (("map", pbr.get("baseColorTexture")), ("mr", pbr.get("metallicRoughnessTexture")), ("normal", m.get("normalTexture")),
                         ("occ", m.get("occlusionTexture")), ("emis", m.get("emissiveTexture"))):
             if t:
-                out.setdefault(d["textures"][t["index"]]["source"], f'{m.get("name", "?")}.{slot}')
+                out.setdefault(source_of(d, t["index"]), f'{m.get("name", "?")}.{slot}')
         for ext, v in m.get("extensions", {}).items():
             for k, t in v.items():
                 if isinstance(t, dict) and "index" in t:
-                    out.setdefault(d["textures"][t["index"]]["source"], f'{m.get("name", "?")}.{ext.replace("KHR_materials_", "")}.{k}')
+                    out.setdefault(source_of(d, t["index"]), f'{m.get("name", "?")}.{ext.replace("KHR_materials_", "")}.{k}')
     return out
 
 
@@ -57,6 +62,8 @@ def main(src, dst, policy):
             buf = io.BytesIO()
             if im.get("mimeType") == "image/png":
                 img.save(buf, "PNG", optimize=True)
+            elif im.get("mimeType") == "image/webp":
+                img.save(buf, "WEBP", quality=90, method=6)
             else:
                 img.convert("RGB").save(buf, "JPEG", quality=90, optimize=True)
             new[i] = buf.getvalue()
@@ -65,6 +72,19 @@ def main(src, dst, policy):
         after += nw * nh * 4 / 1048576
         print(f'{names.get(i, "?"):34} {w}x{h} -> {nw}x{nh}')
     imageviews = {im["bufferView"]: i for i, im in enumerate(d["images"])}
+    if "EXT_meshopt_compression" in d.get("extensionsUsed", []):
+        # Meshopt views carry their own offsets (extension + fallback buffer): repacking would break them. Keep every byte in place,
+        # zero the replaced images (they gzip to nothing) and append the new ones.
+        out = bytearray(b)
+        for i, data in new.items():
+            v = views[d["images"][i]["bufferView"]]
+            o = v.get("byteOffset", 0)
+            out[o : o + v["byteLength"]] = b"\0" * v["byteLength"]
+            out += b"\0" * (-len(out) % 4)
+            v["byteOffset"], v["byteLength"] = len(out), len(data)
+            out += data
+        d["buffers"][0]["byteLength"] = len(out)
+        return write(d, out, src, dst, before, after)
     out = bytearray()
     for vi, v in enumerate(views):
         data = new[imageviews[vi]] if vi in imageviews and imageviews[vi] in new else bytes(b[v.get("byteOffset", 0) : v.get("byteOffset", 0) + v["byteLength"]])
@@ -72,6 +92,10 @@ def main(src, dst, policy):
         v["byteOffset"], v["byteLength"] = len(out), len(data)
         out += data
     d["buffers"] = [{"byteLength": len(out)}]
+    write(d, out, src, dst, before, after)
+
+
+def write(d, out, src, dst, before, after):
     j = json.dumps(d, separators=(",", ":")).encode()
     j += b" " * (-len(j) % 4)
     out += b"\0" * (-len(out) % 4)

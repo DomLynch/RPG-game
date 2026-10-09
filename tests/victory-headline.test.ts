@@ -42,7 +42,7 @@ test('the line is read from events only: it never touches the log it is given', 
 
 test('the HUD splices the headline before the rematch prompt of a win and leaves every other line alone (wiring pin)', async () => {
   const { readFileSync } = await import('node:fs');
-  const hud = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  const hud = readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8');
   assert.match(hud, /view\.headline \? practiceHint\(practice, foe, view\.legend\)\.replace\(' Ready for a rematch\?'/);
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /const HEADLINE = headlineFlag\(window\.location\?\.search \?\? ''\)/);

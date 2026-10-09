@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
 import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, RETIRED_LOOT, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
-import { WEAPON_CLIPS } from '../src/characters.ts';
+import { WEAPON_CLIPS } from '../src/fight/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 import { awardFor } from '../src/awards.ts';

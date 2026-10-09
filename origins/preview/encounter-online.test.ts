@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { STEP } from '../../src/sim.ts';
-import { beginOnline, onlineWanted, RETRY_AFTER_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
+import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, finishedFight, playFight } from '../server/encounter-fixtures.ts';
@@ -33,7 +33,7 @@ test('signed out or no character: null, and not one request is made (the offline
   assert.deepEqual(s.calls, []);
 });
 
-test('the flag off (503), no session (401), a second open fight (409) and a network failure all play offline', async () => {
+test('the flag off (503), no session (401), a second open fight (409, with no remembered token) and a network failure all play offline', async () => {
   for (const status of [503, 401, 409, 403]) assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: server(() => reply(status, { ok: false })).f }), null, String(status));
   assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: (async () => { throw new TypeError('down'); }) as unknown as typeof fetch }), null);
 });
@@ -114,4 +114,59 @@ test('round trip against the real writer: the page plays the server seed, settle
     const again = (await beginOnline({ token: 'tok', character: CHAR, fight: 'encounter:knight', setup: { opponent: { body: 'knight', level: 6 } } as never, base, every: (() => 1) as never, clear: (() => {}) as never }))!;
     assert.ok(again, 'the next fight can start once the first is settled');
   } finally { await new Promise<void>((ok2) => writer.close(() => ok2())); }
+});
+
+test('a stale settle (503, code stale) is retried with the same backoff and then settles; it is NOT read as "already settled" (the 409 answer)', async () => {
+  const waits: number[] = [];
+  const s = server((op, n) => (op === 'encounter_settle' ? (n === 1 ? reply(503, { ok: false, error: 'stale: settle again', code: 'stale' }) : ok(op)) : ok(op)));
+  const on = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, wait: async (ms: number) => { waits.push(ms); }, every: (() => 1) as never, clear: (() => {}) as never });
+  assert.equal(await on!.settle({ result: 'won', record }), 'settled');
+  assert.deepEqual(s.calls, ['encounter_start', 'encounter_settle', 'encounter_settle']);
+  assert.deepEqual(waits, [RETRY_AFTER_MS[0]]);
+});
+
+test('a 409 on start with a remembered open token resumes it: touch (not start) answers, the same seed is played, and the token is remembered', async () => {
+  let held: HeldFight | null = { token: 'H'.repeat(32), played: false };
+  const s = server((op) => (op === 'encounter_start' ? reply(409, { ok: false }) : reply(200, { ok: true, result: { ...run, token: held!.token, seed: 777 } })));
+  const on = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, held: { get: () => held, set: (t) => { held = t; } }, every: (() => 1) as never, clear: (() => {}) as never });
+  assert.equal(on?.seed, 777);
+  assert.deepEqual(s.calls, ['encounter_start', 'encounter_touch']);
+  assert.deepEqual(s.bodies[1], { token: 'H'.repeat(32), tick: 0 });
+  assert.deepEqual(held, { token: 'H'.repeat(32), played: false });
+  assert.equal(await on!.settle({ result: 'won', record: null }), 'no-record');
+  assert.equal(held, null, 'a settled fight forgets its token');
+});
+
+test('a 409 with nothing remembered, or a remembered token the server no longer holds, still plays offline (and a dead token is forgotten)', async () => {
+  const none = server(() => reply(409, { ok: false }));
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: none.f, held: { get: () => null, set: () => assert.fail('nothing to store') } }), null);
+  assert.deepEqual(none.calls, ['encounter_start'], 'no token, no touch');
+  let held: HeldFight | null = { token: 'D'.repeat(32), played: false };
+  const dead = server(() => reply(409, { ok: false }));
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: dead.f, held: { get: () => held, set: (t) => { held = t; } } }), null);
+  assert.deepEqual(dead.calls, ['encounter_start', 'encounter_touch']);
+  assert.equal(held, null);
+});
+
+test('a 409 whose remembered token has been played (lastTick > 0) is NOT resumed: the token is forgotten and the page plays offline (a loser must not replay the same seed)', async () => {
+  let held: HeldFight | null = { token: 'P'.repeat(32), played: false };
+  const s = server((op) => (op === 'encounter_start' ? reply(409, { ok: false }) : reply(200, { ok: true, result: { ...run, token: held!.token, lastTick: 90 } })));
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: s.f, held: { get: () => held, set: (t) => { held = t; } } }), null);
+  assert.deepEqual(s.calls, ['encounter_start', 'encounter_touch']);
+  assert.equal(held, null, 'forgotten, so no later 409 can resume it either');
+});
+
+test('a 409 whose remembered token was played at tick 1 is forgotten and plays offline even though the server says lastTick 0 (the under-30 s edge; no touch is sent)', async () => {
+  let held: HeldFight | null = null;
+  const first = server(ok), on = await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: first.f, held: { get: () => held, set: (t) => { held = t; } }, every: (() => 1) as never, clear: (() => {}) as never });
+  assert.deepEqual(held, { token: run.token, played: false }, 'remembered when the fight opens');
+  on!.played();
+  assert.deepEqual(held, { token: run.token, played: true }, 'marked when its first tick runs');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(first.calls, ['encounter_start', 'encounter_touch'], 'the server is told the fight began');
+  assert.deepEqual(first.bodies[1], { token: run.token, tick: 1 });
+  const again = server((op) => (op === 'encounter_start' ? reply(409, { ok: false }) : reply(200, { ok: true, result: { ...run, lastTick: 0 } })));
+  assert.equal(await beginOnline({ token: 'tok', character: CHAR, fight: 'wolf', setup, fetch: again.f, held: { get: () => held, set: (t) => { held = t; } } }), null);
+  assert.deepEqual(again.calls, ['encounter_start'], 'no touch for a played token');
+  assert.equal(held, null);
 });

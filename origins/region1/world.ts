@@ -11,6 +11,8 @@
 // greybox pins still hold.
 import { CONCORD, CONCORD_REGION } from '../world/concord.ts';
 import { merge, type WorldData } from '../world/resolve.ts';
+import { applyZones } from '../zones/place.ts';
+import { zonePlaces } from '../zones/loader.ts';
 
 export const EXCHANGE_REGION = CONCORD_REGION; // 'region:concord-exchange'
 export const FRONTIER_REGION = 'region:ash-frontier';
@@ -56,7 +58,7 @@ const FRONTIER = {
     density: { npcs: 0.05, props: 0.4, creatures: 0.25 },
     spawns: { respawnSeconds: 300 },
     ambience: { weather: 'dust', sound: 'wind' }, // the look preset is set zone by zone (frontier-haze)
-    terrain: { biome: 'ash-waste', ground: 'ash' },
+    terrain: { biome: 'ash-waste', ground: 'ash', relief: 1.5, hillScale: 40 }, // gentle hills in the open ground (origins/world/relief.ts); every building, prop and road keeps a flat pad
   },
   zones: {
     'east-road': {
@@ -179,4 +181,7 @@ const FRONTIER = {
   },
 };
 
-export const REGION1_WORLD = merge(CONCORD, { regions: { [EXCHANGE_REGION]: EXCHANGE_LAYER, [FRONTIER_REGION]: FRONTIER } }) as WorldData;
+// Every zone folder's place (origins/zones/zone<N>/place.ts) is added here: this file names no zone beyond Region 1's own.
+const FRONTIER_PLACED = { ...FRONTIER, zones: applyZones(FRONTIER.zones as never, zonePlaces()) };
+
+export const REGION1_WORLD = merge(CONCORD, { regions: { [EXCHANGE_REGION]: EXCHANGE_LAYER, [FRONTIER_REGION]: FRONTIER_PLACED } }) as WorldData;

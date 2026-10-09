@@ -8,7 +8,7 @@ import { RULES, WEAPONS } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
 import { swingProgress } from '../src/blade.ts';
 import { createFighter, idleIntent, stepDuel, type Duel } from '../src/duel.ts';
-import { clipFor, ROLES } from '../src/characters.ts';
+import { clipFor, ROLES } from '../src/fight/characters.ts';
 
 async function rig(family: string) {
   const bytes = readFileSync(new URL(`../src/assets/${family}.glb`, import.meta.url)), n = bytes.readUInt32LE(12);
