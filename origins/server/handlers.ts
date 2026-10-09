@@ -44,6 +44,24 @@ export async function openAccount(ctx: Ctx): Promise<store.Snapshot> {
   return snap;
 }
 
+// The first open of an account makes its first character (Lead's ruling 2026-10-09, #1837's follow-up): no page code creates one, so without this a signed-in player had characterId null and
+// no kill, loot, bronze or gear could persist (prod had 0 characters). Idempotent: an account with a character is returned as it is. The name is `Wanderer <first 6 of the account id>`; on a
+// unique-name clash (a racing open made it first) the account is re-read, and only if it still has none is the name retried with 8 and then the full id, so this can never fail the open.
+// create_character makes the new one active. The serial write queue (#1833) runs one account's opens in turn; the clash handling is the backstop when it does not.
+export async function withFirstCharacter(ctx: Ctx, snap: store.Snapshot): Promise<store.Snapshot> {
+  if (snap.characters.length > 0) return snap;
+  const id = ctx.account.replace(/-/g, '');
+  for (const n of [6, 8, id.length]) {
+    try { await store.createActiveCharacter(ctx.db, ctx.account, `Wanderer ${id.slice(0, n)}`); break; }
+    catch (e) {
+      if (!(e instanceof DbError && e.code === '23505')) throw e;
+      const again = await store.open(ctx.db, ctx.account);
+      if (again.characters.length > 0) return again;
+    }
+  }
+  return store.open(ctx.db, ctx.account);
+}
+
 // The active character (X2 Stage 2, Lead's ruling: ONE per account, set in the writer). `open {character}` makes one of the account's own characters the
 // active one before the snapshot; open without it leaves the active character as it was. create_character makes the new character active. Presence keys by
 // account and never sees a character id: the writer maps account -> active character when it stores and serves the saved location (location.ts).
@@ -56,7 +74,7 @@ const open: Handler = async (ctx, body) => {
     if (!set) throw new BadRequest('character: not one of this account\'s characters');
   }
   // The bronze balance rides on open (save end to end: a reload shows the bronze a kill paid). null = the metals read (0004) is not installed.
-  const [snap, metal] = [await openAccount(ctx), await store.metalOf(ctx.db, ctx.account)];
+  const [snap, metal] = [await withFirstCharacter(ctx, await openAccount(ctx)), await store.metalOf(ctx.db, ctx.account)];
   return { ...snap, bronze: metal === 'absent' ? null : (metal?.bronze ?? 0) };
 };
 
