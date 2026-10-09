@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, EXCHANGE_BEATS, scriptExchange } from '../src/audio/exchange.ts';
-import { cuesFor, nextVariant, seeded, type DeathPresentation } from '../src/audio/cues.ts';
+import { cuesFor, nextVariant, seeded, type DeathPresentation } from '../src/fight/sound/cues.ts';
 import { MANIFEST, SPRITE_SECONDS } from '../src/audio/manifest.ts';
 import { RULES } from '../src/moves.ts';
 import { spriteFormats } from '../src/audio/sprite.ts';
-import { createFeedback, VOICES } from '../src/feedback.ts';
-import { armfeelLayers } from '../src/audio/armfeel-sound.ts';
+import { createFeedback, VOICES } from '../src/fight/sound/feedback.ts';
+import { armfeelLayers } from '../src/fight/sound/armfeel-sound.ts';
 import type { CombatEvent } from '../src/combat.ts';
 
 // The scripted exchange is the fixed ruler every audio iteration is measured with: same beats, same order, same ticks.

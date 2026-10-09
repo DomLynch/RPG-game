@@ -35,11 +35,11 @@ import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts'
 import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
-import { createFeedback } from './feedback.ts';
-import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { createFeedback } from './fight/sound/feedback.ts';
+import { SPECIAL_CUE_OF } from './fight/sound/special.ts';
 import { announcePowerWord, powerWordsLook } from './power-words.ts';
-import { POWER_WORD_LOOK_GAIN } from './audio/power-word.ts';
-import { breathLook } from './audio/breath.ts';
+import { POWER_WORD_LOOK_GAIN } from './fight/sound/power-word.ts';
+import { breathLook } from './fight/sound/breath.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';

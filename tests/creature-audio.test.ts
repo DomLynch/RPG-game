@@ -1,7 +1,7 @@
 // Frontier creature voices (src/audio/creature.ts, ?look=creatures): the pure tables and the look flag. The rendered levels are pinned by scripts/audio-preview.mjs --check.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CREATURE_CUES, THROATS, creaturesLook, levelAt, pitchAt, voiceCreature } from '../src/audio/creature.ts';
+import { CREATURE_CUES, THROATS, creaturesLook, levelAt, pitchAt, voiceCreature } from '../src/fight/sound/creature.ts';
 
 test('the look flag is ?look=creatures only, default silent', () => {
   assert.equal(creaturesLook(''), false); assert.equal(creaturesLook('?region=1'), false); assert.equal(creaturesLook('?look=powerwords'), false);
