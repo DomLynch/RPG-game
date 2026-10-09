@@ -28,7 +28,7 @@ export function lootOfView(v: GearView): Loot {
   for (const [key, id] of Object.entries(v.worn)) { const lootId = idOf.get(id); if (lootId) equipped[key as Paperdoll] = lootId; }
   const pack = held.filter((p) => p.where === 'pack').sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((p) => p.lootId as LootId);
   const taken: Loot['taken'] = {};
-  for (const p of held) { const level = p.tier ? TIERS.indexOf(p.tier as (typeof TIERS)[number]) + 1 : 0; if (level > 0) taken[p.lootId as LootId] = { tier: level } as Provenance;   // only the rung is real; the sheet's provenance line reads what exists }
+  for (const p of held) { const level = p.tier ? TIERS.indexOf(p.tier as (typeof TIERS)[number]) + 1 : 0; if (level > 0) taken[p.lootId as LootId] = { tier: level } as Provenance; }   // only the rung is real; the sheet's provenance line reads what exists
   return { owned: held.map((p) => p.lootId as LootId), equipped, pack, taken };
 }
 const instanceOf = (v: GearView, lootId: LootId): GearPiece | undefined => v.pieces.find((p) => p.lootId === lootId);
