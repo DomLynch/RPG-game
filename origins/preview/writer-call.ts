@@ -21,7 +21,7 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
 }
 
 export type Offline = { offline: string };   // 'no-session' | 'http-<status>' | 'timeout' | 'network' | 'bad-reply'
-type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
+export type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
 // One op. Never rejects: whatever goes wrong comes back as { offline: reason } within `timeoutMs`, even if the fetch ignores its signal.
 export async function call<T>(op: string, body: object, token: string | null, read: (result: unknown) => T | null, opts: Opts): Promise<T | Offline> {
   if (!token) return { offline: 'no-session' };
