@@ -94,6 +94,8 @@ const carried = (ai: AiState, tick: number): AiState => ({ ...ai, retreatUntil: 
 /** Every fight going on in the world as the Pit's own duel: player id, creature id, the duel (fighters[0] = the player, fighters[1] = the creature, phase / move / body as the Pit has them). A player's nearest foe is `primary`, the creatures that joined him follow. The page drives the Pit's actors, gore and finishers from these. */
 export type Pair = { player: string; foe: string; primary: boolean; duel: Duel };
 export const pairs = (world: World): Pair[] => Object.entries(world.streams).flatMap(([player, b]) => [...(b.foe ? [{ player, foe: b.foe, primary: true, duel: b.duel }] : []), ...(b.joined ?? []).flatMap((j) => (j.foe ? [{ player, foe: j.foe, primary: false, duel: j.duel }] : []))]);
+/** A player's own fight as the Pit's duel (his primary Bout, with or without a foe): the page poses his rig from it with the Pit's actorPose. null before his first step. */
+export const duelOf = (world: World, id: string): Duel | null => world.streams[id]?.duel ?? null;
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
