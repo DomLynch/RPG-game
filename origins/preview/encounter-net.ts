@@ -27,7 +27,7 @@ export function settledOf(r: unknown): Settled | null {
 }
 
 // One op. Never rejects: whatever goes wrong comes back as { offline: reason } within `timeoutMs`, even if the fetch ignores its signal.
-async function call<T>(op: string, body: object, token: string | null, read: (result: unknown) => T | null, opts: Opts): Promise<T | Offline> {
+export async function call<T>(op: string, body: object, token: string | null, read: (result: unknown) => T | null, opts: Opts): Promise<T | Offline> {
   if (!token) return { offline: 'no-session' };
   const { base = WRITER_PATH, fetch: doFetch = globalThis.fetch, timeoutMs = 4000 } = opts;
   const abort = new AbortController();

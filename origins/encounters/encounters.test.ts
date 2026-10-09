@@ -40,7 +40,7 @@ test('every Region 1 encounter and open-world creature sets up from the data, as
   assert.deepEqual(hr.flags, [{ kind: 'hazard', hazard: 'embers', stillSeconds: 2 }]);
   assert.deepEqual(hr.combatFlags, [], 'the hazard is an Origins flag Combat v1 does not read');
   const mother = value(fightSetup('encounter:mere-mother', content));
-  assert.deepEqual([mother.scope, mother.foes[0]!.character, mother.bar], ['public', 'character:mere-brood', 15_000], 'the content boss health (PROVISIONAL), one brood guardian first');
+  assert.deepEqual([mother.scope, mother.foes[0]!.character, mother.bar], ['public', 'character:mere-brood', 4_000], 'the content boss health (PROVISIONAL), one brood guardian first');
 });
 
 test('an unknown or malformed id is a typed error, never a throw', () => {
