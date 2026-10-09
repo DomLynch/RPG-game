@@ -76,6 +76,7 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
       finish(w, new DbError(m?.[1] ?? 'psql', m?.[2] ?? (w.err.trim().slice(0, 200) || `psql exit ${status}`)));
     });
     child.stdin.on('error', () => { /* the close handler reports it */ });
+    child.unref(); for (const io of [child.stdin, child.stdout, child.stderr]) (io as unknown as { unref(): void }).unref();   // idle sessions never keep the process alive; a running op's timeout timer does
     all.add(w);
     return w;
   };
