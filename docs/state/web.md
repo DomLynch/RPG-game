@@ -1,3 +1,10 @@
+## 2026-10-09 20:45 (+04) — HANDOFF before /clear. READ FIRST (memory: project_web_handoff_clear_2026-10-09b, feedback_web_lessons_2026-10-09b)
+
+**MERGED today (gh, trunk 1e34dd31d = batch N):** #2001 (the engine's gear screen in Zone 1, carrying the whole stack #1983 < #1985 < #1988 < #1990 < #1994; #1983 + #2001 merged 13:35:18Z; I closed #1985/#1988/#1990/#1994 as merged-via-#2001), #2008 (K10 step 1: `src/hud.ts` moved to `src/fight/hud.ts`; Pit `dist/` identical), #2032 (K7: the gear stage takes the hero url from the page instead of importing warrior.glb; Auditor HOLD for a second 5.6 MB hero file fixed at 1bff63103).
+**OPEN:** #2026 `web/k10-no-shim` @91e12ffee (delete the src/hud.ts re-export shim; trunk 1e34dd31d merged in; tsc/typecheck:tests/eslint 0, Pit dist identical (737 files), Pit smoke 0 errors; **test:all result pending on the VPS, `/tmp/r-a.out`**; then a delta PASS from the Auditor). #2034 `web/exit-label-clamp` @c077f30fd (gear sheet exit label "‹ CINDER FIELDS" + ellipsis clamp so a long zone name never covers GEAR or the cog; browser check fails on trunk, passes on head; fresh Auditor PASS needed on c077f30fd, PASS was at c580ea695). Both ride batch O.
+**Not mine yet:** review the hunt.ts part of Backend's `backend/show-server-kill` (server numbers on the kill screen) when asked; the Auditor's non-blocking note on #2001 (re-read the device profile in gear-mount open()); K10 step 2 paused for Combat's P1/P2 (I sent Combat the HUD input note).
+**Rules learned:** see feedback_web_lessons_2026-10-09b (asset urls vs the optimized-glb plugin, dist/ diff as "Pit unchanged" proof, measure drawn text, capture queue/HF/hook limits).
+
 ## 2026-10-09 15:20 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-10-08 22:15 entry below, then memory (project_web_gear_stack_2026-10-09, feedback_web_gear_lessons_2026-10-09)
 
 **LIVE:** release.json `3d4f8854` by my curl at 15:14. Deploy runs releases; I never merge to trunk. **MERGED today (gh, 15:14):** #1970 Sign in 44 px tap target (Auditor PASS), #1902 name-tag clamp (trunk merged in, Auditor PASS @759e32704).
