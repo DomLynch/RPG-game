@@ -221,3 +221,11 @@ test('#1936 b: a rebuilt fight resumes the creature\'s swing timing (its brain l
   assert.ok(of(after.events, 'Evaded', 'c').length >= 1, 'it evaded');
   assert.ok(get(after.world, 'c').brain!.habits.ticks < brain0.habits.ticks, 'evading cleared the old brain: the new fight started counting from zero');
 });
+
+test('#1936 b (Auditor HOLD): a brain carried out of a LONG bout is rebased - hit late (tick > 500), rebuild, and the creature swings within ~2 s instead of retreating for the length of the old fight', () => {
+  const w0 = newWorld([boost(player('p', 0, 0)), boost(creature('c', 'wolf', 0, 1.3))]);
+  const long = run(w0, 20, (t) => ({ p: t % 90 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));   // 1200 ticks of hits taken
+  assert.ok(long.world.streams.p!.duel.tick > 500, 'a long bout'); assert.ok(of(long.events, 'Hit', 'p').length > 0, 'the creature was hit');
+  const after = run({ ...long.world, streams: {} }, 2);   // re-engage: the stream is rebuilt, the player stands still
+  assert.ok(of(after.events, 'Telegraph', 'c').length > 0, 'the creature swings within 2 s of the rebuild (not 0 swings while an old retreatUntil counts down)');
+});

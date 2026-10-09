@@ -81,6 +81,8 @@ export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, 
 export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, special: name, specialIn: secs(RULES.special.first) });
 /** A creature's stance mood: the Pit's own draw (src/stance.ts moodOf: half its home stance, half one of the other three), seeded from the injected `rand` instead of the fight seed. Call once at spawn. */
 export const withMood = (f: Fighter, rand: () => number): Fighter => withStance(f, moodOf(Math.floor(rand() * 4294967296) >>> 0, f.kind));
+/** The brain as the next bout will find it. retreatUntil / disengageUntil are absolute ticks of the bout that wrote them and a rebuilt bout restarts its clock at 0, so they are rebased onto the new clock (Auditor, #1939); lastTravel compared against the old bout's distance, so it restarts. The live bout keeps its own copy. */
+const carried = (ai: AiState, tick: number): AiState => ({ ...ai, retreatUntil: Math.max(0, ai.retreatUntil - tick), disengageUntil: Math.max(0, ai.disengageUntil - tick), lastTravel: 0 });
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
@@ -133,7 +135,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const prev = world.streams[a.id], same = prev && prev.foe === (b?.id ?? null);
     const bout: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt);
-    if (b && b.side === 'creature' && r.bout.ai) b.brain = r.bout.ai;   // the brain lives on the creature, not in the fight
+    if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
     streams[a.id] = r.bout; events.push(...r.events);
     if (b && b.side === 'player') for (const e of r.events) {   // player against player: log who struck first (a blow that hit, was blocked, parried or dodged)
       const hit = e.type === 'Hit' ? [e.attacker, e.victim] : e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' ? [e.attacker, e.victim] : null;
