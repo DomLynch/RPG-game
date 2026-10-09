@@ -60,6 +60,7 @@ export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
   clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void;   // before the draw: a name tag under the HUD slides down the view to just below it
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
+  rig(id: string): { anchor: THREE.Object3D; boneWorld(name: string): THREE.Vector3 | null } | null;   // the creature's actor rig, for the engine's contact effects (wound marks, blade blood); null while it has no actor
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
   nearest(x: number, z: number, within: number): MobPick | null;
   within(x: number, z: number, r: number): MobPick[];   // every drawn creature inside r metres
@@ -229,6 +230,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     },
     within(x, z, r) { const out: MobPick[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }); } return out; },
     drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else driven.delete(i); },
+    rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
     warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (WORLD_URLS[k] ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever

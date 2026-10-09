@@ -576,7 +576,7 @@ async function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
-const zoneFx = createZoneFx({ scene, camera });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
+const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const wc = createWorldCombat({
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
   onHeroHit: () => meters.flash(),
