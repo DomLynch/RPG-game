@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto';
 import { TITLES } from '../../src/career.ts';
 import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/loot.ts';
-import { accountIdFromAuthUid, itemIdFromLegacyLoot, type CharacterInstanceId } from '../contracts/ids.ts';
+import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
 import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../contracts/items.ts';
 import { firstFree, openInventory, type Inventory } from '../inventory/inventory.ts';
 import { Refused } from './errors.ts';
