@@ -1,0 +1,46 @@
+// Data-only PRs (scripts/lib/data-only.mjs): which files may skip the Auditor, and the proof that a zone module is data, not code.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { classify, dataProblems, onDataPath } from '../scripts/lib/data-only.mjs';
+
+const zoneFiles = readdirSync('origins/zones', { withFileTypes: true }).filter(d => d.isDirectory() && /^zone\d+$/.test(d.name))
+  .flatMap(d => ['zone', 'spawns', 'kit', 'look'].map(f => `origins/zones/${d.name}/${f}.ts`));
+
+test('every zone module on trunk is pure data, and the loot table is JSON', () => {
+  assert.ok(zoneFiles.length >= 8, 'zone1 and zone2 at least');
+  for (const f of [...zoneFiles, 'src/assets/source/loot/loot.json']) {
+    assert.ok(onDataPath(f), f);
+    assert.deepEqual(dataProblems(f, readFileSync(f, 'utf8')), [], f);
+  }
+});
+
+test('the path list is strict: engine code, loaders, biomes, catalogue rows, legends and tests are never data', () => {
+  for (const f of ['origins/zones/loader.ts', 'origins/zones/biomes.ts', 'origins/zones/zone1/place.ts', 'origins/zones/zone1/zone.test.ts', 'src/fight/catalogue-rows.ts',
+    'docs/research/legends-fame.md', 'src/loot.ts', 'origins/zones/zone1/zone.ts.bak', 'origins/zones/zone1/../loader.ts']) assert.equal(onDataPath(f), false, f);
+});
+
+test('anything that runs is not data (mutation cases: a call, a value import, an outside identifier, ${}, a function, a spread, a second statement)', () => {
+  const ok = "import type { MobRow } from '../../mobs/row.ts';\nconst spawns: { rows: MobRow[] } = { rows: [{ id: 'character:wolf', level: 1, n: -2, on: true, at: null }] };\nexport default spawns;\n";
+  assert.deepEqual(dataProblems('origins/zones/zone9/spawns.ts', ok), []);
+  const bad: Record<string, string> = {
+    call: ok.replace("'character:wolf'", "String(1)"),
+    valueImport: ok.replace('import type { MobRow }', 'import { MobRow }'),
+    identifier: ok.replace("'character:wolf'", 'process.env.X'),
+    template: ok.replace("'character:wolf'", '`a${1}`'),
+    fn: ok.replace("on: true", 'on: () => true'),
+    spread: ok.replace("{ id:", '{ ...{}, id:'),
+    extra: ok + 'console.log(1);\n',
+    computedKey: ok.replace('level: 1', "['lev' + 'el']: 1"),
+    noExport: ok.replace('export default spawns;\n', ''),
+  };
+  for (const [why, text] of Object.entries(bad)) assert.notDeepEqual(dataProblems('origins/zones/zone9/spawns.ts', text), [], why);
+});
+
+test('a PR is data-only only when EVERY file is on the list and pure data: a zone row alone passes, a zone row plus one .ts is blocked', () => {
+  const read = (f: string) => readFileSync(f, 'utf8');
+  assert.equal(classify([{ file: 'origins/zones/zone1/spawns.ts', status: 'modified' }], read).dataOnly, true);
+  const mixed = classify([{ file: 'origins/zones/zone1/spawns.ts', status: 'modified' }, { file: 'origins/zones/loader.ts', status: 'modified' }], read);
+  assert.equal(mixed.dataOnly, false); assert.match(mixed.problems.join(), /loader\.ts is not on the data-only path list/);
+  assert.equal(classify([], read).dataOnly, false, 'an empty PR is not data-only');
+});
