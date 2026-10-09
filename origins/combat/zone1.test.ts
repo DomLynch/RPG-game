@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
-import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
+import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
