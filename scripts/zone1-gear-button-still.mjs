@@ -23,7 +23,7 @@ try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForSelector('#menu-gear', { state: 'attached', timeout: 240000 });
-  await page.evaluate(() => document.getElementById('journal').showModal());
+  await page.locator('#journal-button').tap();   // the ☰
   await page.waitForTimeout(1500);
   console.log(JSON.stringify(await page.evaluate(() => { const r = document.getElementById('menu-gear').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), visible: r.width > 0 }; })));
   await page.screenshot({ path: path.join(out, 'zone1-menu-gear.png'), timeout: 240000 });
