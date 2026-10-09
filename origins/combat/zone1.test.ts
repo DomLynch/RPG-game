@@ -271,8 +271,7 @@ test('#1936 c(b): disengage - the player runs from three creatures; the fight ju
   const fight = run(w0, 1);
   assert.equal(fight.world.streams.p!.joined!.length, 2, 'three on him'); for (const id of ['a', 'b', 'c']) get(fight.world, id).health -= 20;
   // he runs away at the run speed and keeps going: past the sight ring the unseen clock runs, past the leash they turn back
-  const gone = run(fight.world, 60, (t, w) => ({ p: { x: 1, z: 0, run: true } }), (w) => ['a', 'b', 'c'].every((id) => { const c = get(w, id); return !c.hunting && !c.returning && c.health === c.maxHealth; }));
-  const p = get(fight.world, 'p'); void p;
+  const gone = run(fight.world, 60, () => ({ p: { x: 1, z: 0, run: true } }), (w) => ['a', 'b', 'c'].every((id) => { const c = get(w, id); return !c.hunting && !c.returning && c.health === c.maxHealth; }));
   for (const id of ['a', 'b', 'c']) { const c = get(gone.world, id); assert.equal(c.health, c.maxHealth, `${id} healed home`); assert.ok(!c.hunting && !c.returning, `${id} is idle at home`); assert.equal(of(gone.events, 'Evaded', id).length, 1, `${id}: one Evaded`); assert.equal(c.threat, undefined, `${id}: threat cleared`); }
   assert.equal(gone.events.filter((e) => e.type === 'Died').length, 0, 'nobody died: no end of fight');
   assert.equal(gone.world.streams.p!.foe, null, 'his bout is the alone-bout again'); assert.ok(!gone.world.streams.p!.joined?.length);
