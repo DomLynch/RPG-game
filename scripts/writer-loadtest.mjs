@@ -1,7 +1,7 @@
 // S1 load test, the writer half (docs/specs/origins/launch-gates.md S1; Lead's shape: 10 ops/s sustained plus a 30-op burst). The REAL Origins writer (origins/server: HTTP -> handlers -> psql
 // as the frankendom_origins role -> the real migrations) on a disposable socket-only PostgreSQL cluster, in the harness of scripts/origins-writer-check.mjs. Only Supabase Auth is faked (a token
 // table) and the writer's DATABASE_URL / SUPABASE_* are never read, so it touches nothing real: no production, no Supabase, no paid call.
-//   node scripts/writer-loadtest.mjs [--rate=10] [--seconds=30] [--burst=30] [--accounts=200] [--warmup=3]      (PG_BIN=/usr/lib/postgresql/16/bin on the VPS, run as the postgres user)
+//   node scripts/writer-loadtest.mjs [--rate=10] [--seconds=30] [--burst=30] [--accounts=200] [--warmup=3] [--pool=4]      (PG_BIN=/usr/lib/postgresql/16/bin on the VPS, run as the postgres user)
 // Load shape: an OPEN loop (arrivals on a fixed clock, never waiting for the previous answer, so a slow writer shows as a growing latency and not as a lower rate), spread uniformly over --accounts
 // accounts, 70% `open` and 30% `open {character}` (choose the active character, then the snapshot: the two ops every session starts with). Then, after the sustained phase drains, a BURST of
 // --burst ops fired in the same instant. Reported per phase: ops, status counts, latency p50/p95/p99/max (ms), the psql processes spawned per op (every op is a psql process: the cost behind
@@ -21,7 +21,7 @@ import { handlers } from '../origins/server/handlers.ts';
 /* global fetch, performance */
 
 const arg = (name, fallback) => { const hit = process.argv.find(a => a.startsWith(`--${name}=`)); return hit ? Number(hit.split('=')[1]) : fallback; };
-const RATE = arg('rate', 10), SECONDS = arg('seconds', 30), BURST = arg('burst', 30), ACCOUNTS = arg('accounts', 200), WARMUP = arg('warmup', 3);
+const RATE = arg('rate', 10), SECONDS = arg('seconds', 30), BURST = arg('burst', 30), ACCOUNTS = arg('accounts', 200), WARMUP = arg('warmup', 3), POOL = arg('pool', 4);   // POOL: persistent psql sessions, as the production writer (ORIGINS_DB_POOL, default 4); --pool=0 is one psql per op
 const dir = 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-loadtest-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -52,8 +52,8 @@ try {
     insert into public.origins_access(account) select id from unnest(array[${ids.map(i => `'${i}'::uuid`).join(',')}]) id;
     insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) select id, 'P' || row_number() over (), (row_number() over ()) % 12, '{"owned":[],"equipped":{}}'::jsonb from unnest(array[${ids.map(i => `'${i}'::uuid`).join(',')}]) id;`);
 
-  const real = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'));
-  let spawns = 0;
+  const real = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'), 30_000, POOL);
+  let spawns = 0;   // psql SCRIPTS run (one per db.run); with --pool>0 these reuse sessions, so the number is scripts, not processes
   const db = { run: (sql, vars) => { spawns++; return real.run(sql, vars); } };
   server = createWriter({ db, verify: async t => { const i = /^t(\d+)$/.exec(t)?.[1]; return i ? ids[Number(i)] ?? null : null; }, handlers });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
