@@ -46,3 +46,27 @@ test('the engine\'s gear screen is mounted in Zone 1 and in the Pit through the 
   assert.match(zone1, /mountGear\(/); assert.match(zone1, /menu-gear/);
   assert.doesNotMatch(pit + zone1, /arena\/\?gear=1|gearHop|openGearFromZone1|TEMPORARY: deleted in the last A PR/, 'the temporary Gear hop is deleted');
 });
+
+test('no loss: the server view is SHOWN from a shadow and never written into the device profile, so a later persist of the profile (a decline, a take) saves the device\'s own ledger untouched', async () => {
+  const real = { loot: { owned: ['knight.Helmet'], equipped: { head: 'knight.Helmet' }, skill: 'pommel' } as unknown as Loot }, before = JSON.stringify(real);
+  const g = createServerGear({ storage: storage(true), search: '', now: () => NOW, fetch: writer([], { open: [opened], gear_open: [dropped] }), getLoot: () => real.loot, show: (l) => { g.profileFor(real).loot = l; } });
+  assert.equal(g.profileFor(real), real, 'before the server answers the sheet reads the device profile');
+  assert.equal(await g.refresh(), true);
+  assert.notEqual(g.profileFor(real), real); assert.deepEqual(g.profileFor(real).loot?.owned, ['goblin.Helmet'], 'the sheet shows the server\'s pieces');
+  assert.equal(JSON.stringify(real), before, 'the device profile is byte-identical: persisting it loses and adds nothing');
+});
+test('signed in with the answer still on its way, a tap is swallowed (the device ledger must not change behind the server\'s); once the writer has failed to answer it falls back to the device', async () => {
+  let release!: (v: unknown) => void; const slow = new Promise((r) => { release = r; });
+  const g = createServerGear({ storage: storage(true), search: '', now: () => NOW, fetch: (async () => { await slow; return { status: 503, json: async () => ({}) }; }) as never, getLoot: () => undefined, show: () => {} });
+  const pending = g.refresh();
+  assert.equal(g.act({ kind: 'stow', key: 'head' }), true, 'handled (ignored) while loading');
+  release(1); assert.equal(await pending, false);
+  assert.equal(g.act({ kind: 'stow', key: 'head' }), false, 'the writer never answered: the device ledger takes it');
+});
+
+test('a signed-in player with NO character yet (open answers an empty list, Backend\'s first-character fix is not live): the device ledger is kept and nothing is lost', async () => {
+  const seen: string[] = [];
+  const g = createServerGear({ storage: storage(true), search: '', now: () => NOW, fetch: writer(seen, { open: [{ career: { totalCredit: 0 }, characters: [], marks: 0 }] }), getLoot: () => undefined, show: () => assert.fail('shows nothing: there is no server ledger') });
+  assert.equal(await g.refresh(), false); assert.deepEqual(seen, ['open'], 'no gear_open without a character');
+  assert.equal(g.act({ kind: 'stow', key: 'head' }), false, 'the device ledger decides'); const real = { loot: undefined }; assert.equal(g.profileFor(real), real);
+});

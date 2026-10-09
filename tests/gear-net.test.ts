@@ -33,3 +33,15 @@ test('a refusal (422) stops the op and re-reads what the server holds; a malform
   const bad = await runOp('tok', 'c1', start, { kind: 'stow', key: 'chest' }, { fetch: writer([{ nope: 1 }, start], []) });
   assert.equal(bad.refused, true); assert.equal(isOffline(await openGear('tok', 'c1', { fetch: (() => { throw new Error('down'); }) as never })), true);
 });
+
+test('a swap whose equip is refused (the rank check): the occupant is put back before the re-read, so the slot is never left empty', async () => {
+  const seen: Seen[] = [];
+  const out = await runOp('tok', 'c1', start, { kind: 'wear', id: 'veteran.Body' as never }, { fetch: writer([view([piece('i1', 'goblin.Body', 'pack'), piece('i2', 'veteran.Body', 'pack')], {}), 422, start, start], seen) });
+  assert.deepEqual(seen.map((s) => [s.op, s.body.id]), [['gear_unequip', 'i1'], ['gear_equip', 'i2'], ['gear_equip', 'i1'], ['gear_open', undefined]]);
+  assert.deepEqual(out, { view: start, refused: true });
+});
+test('a refusal of the FIRST step has nothing to put back: just the re-read', async () => {
+  const seen: Seen[] = [];
+  await runOp('tok', 'c1', start, { kind: 'wear', id: 'veteran.Body' as never }, { fetch: writer([422, start], seen) });
+  assert.deepEqual(seen.map((s) => s.op), ['gear_unequip', 'gear_open']);
+});

@@ -3,9 +3,7 @@
 // A guest keeps the device's own profile ledger, exactly as the Pit does.
 import type * as THREE from 'three';
 import { createGearSheet } from '../../src/gear-sheet.ts';
-import { wornIdsOf, wornTiersOf } from '../../src/gear-ledger.ts';
 import { loadProfile, saveProfile } from '../../src/profile.ts';
-import { ownedName } from '../../src/loot.ts';
 import { createServerGear } from './gear-server.ts';
 import { createZone1GearStage } from './gear-stage.ts';
 
@@ -15,9 +13,8 @@ export function mountGear(d: Deps) {
   const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
-    element, journal: d.menu, canvas: d.renderer.domElement, profile: () => profile, persist: () => { saveProfile(d.storage, profile); },
+    element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
     view: () => ({ wear: zone.wear, gearStage: () => zone.stage }), weapon: () => 'longsword', act: (op) => server?.act(op) ?? false,
-    pieceName: (id) => ownedName(id, profile.loot?.taken?.[id]?.tier), wornIds: () => wornIdsOf(profile.loot), wornTiers: () => wornTiersOf(profile.loot),
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
   const leave = () => { sheet.leaveGear(); d.layer.classList.remove('gearing'); };
