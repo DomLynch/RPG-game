@@ -44,6 +44,15 @@ test('the job is the wall rows\' own setup (guard, build) cut at its ROWS sectio
   assert.ok(readFileSync('scripts/hf-wall-rows/job.sh', 'utf8').includes('say "ROWS'), 'the wall-row job still has the seam');
 });
 
+test('the Chromium wrapper drops every software-GL arg, including a value in its own argument, and keeps the rest in order', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gpu-wrap-')), bin = join(dir, 'chrome'), line = readFileSync('scripts/gpu-run/job-tail.sh', 'utf8').split('\n').find(l => l.startsWith("  printf '#!/bin/sh"))!.trim();
+  writeFileSync(`${bin}.real`, '#!/bin/sh\nprintf "%s|" "$@"\n'); chmodSync(`${bin}.real`, 0o755);
+  assert.equal(spawnSync('bash', ['-c', line.replace(/; chmod 755 "\$bin"$/, '') + '; chmod 755 "$bin"'], { env: { ...process.env, bin, chosen: '--gpu-a --gpu-b' } }).status, 0);
+  const out = (...args: string[]) => spawnSync(bin, args, { encoding: 'utf8' }).stdout;
+  assert.equal(out('--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--keep', 'x y', '--use-gl', 'swiftshader', '--use-angle', 'swiftshader', '--disable-gpu', '--end'), '--gpu-a|--gpu-b|--keep|x y|--end|');
+  assert.equal(out('--use-gl'), '--gpu-a|--gpu-b|', 'a trailing bare flag is dropped without eating anything');
+});
+
 test('the job log parser reads the renderer, blocker, exit, seconds and the artifacts blob', () => {
   const log = ['=== HEAD aaaa TREE bbbb ===', '=== RENDERER shell=T | chrome=T ===', '=== RUN ===', 'hello', '=== EXIT 3 ===', '=== ARTIFACTS BEGIN bytes=6 ===', 'YWJj', 'ZGVm', '=== ARTIFACTS END ===', '=== COST seconds=95 ==='].join('\n');
   const p = parseJobLog(log);

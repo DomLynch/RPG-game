@@ -4,7 +4,7 @@
 # command can never fall back to software unseen.
 for bin in "$PLAYWRIGHT_BROWSERS_PATH"/chromium-*/chrome-linux*/chrome "$PLAYWRIGHT_BROWSERS_PATH"/chromium_headless_shell-*/chrome-*/headless_shell "$PLAYWRIGHT_BROWSERS_PATH"/chromium_headless_shell-*/chrome-*/chrome-headless-shell; do
   [[ -e "$bin.real" ]] || continue
-  printf '#!/bin/sh\nn=$#\nwhile [ "$n" -gt 0 ]; do a="$1"; shift; case "$a" in --use-angle=*|--use-gl=*|--use-gl|--enable-unsafe-swiftshader|--disable-gpu|--disable-gpu-compositing|--disable-gpu-rasterization|--disable-vulkan-surface) ;; *) set -- "$@" "$a";; esac; n=$((n-1)); done\nexec "%s.real" %s "$@"\n' "$bin" "$chosen" > "$bin"; chmod 755 "$bin"
+  printf '#!/bin/sh\nn=$#\nwhile [ "$n" -gt 0 ]; do a="$1"; shift; case "$a" in --use-angle=*|--use-gl=*|--enable-unsafe-swiftshader|--disable-gpu|--disable-gpu-compositing|--disable-gpu-rasterization|--disable-vulkan-surface) ;; --use-gl|--use-angle) if [ "$n" -gt 1 ]; then shift; n=$((n-1)); fi;; *) set -- "$@" "$a";; esac; n=$((n-1)); done\nexec "%s.real" %s "$@"\n' "$bin" "$chosen" > "$bin"; chmod 755 "$bin"
 done
 cat > .gl-probe2.mjs <<'PROBE'
 import { chromium } from 'playwright';
@@ -30,7 +30,7 @@ if [[ "${BLENDER:-0}" == "1" ]]; then
     echo "sha256 mismatch from $url"
   done
   mkdir -p /usr/local/share/gpu-run && echo "$CYCLES_B64" | base64 -d > /usr/local/share/gpu-run/cycles_gpu.py
-  command -v blender >/dev/null || { say "BLOCKER blender did not install"; say "COST seconds=$(( $(date +%s) - t0 ))"; exit 13; }
+  command -v blender >/dev/null || { say "BLOCKER blender did not install"; say "COST seconds=$(( $(date +%s) - t0 ))"; exit 12; }
   say "BLENDER $(blender --version 2>&1 | head -1)"
 fi
 
