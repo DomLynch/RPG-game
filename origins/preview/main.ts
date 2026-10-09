@@ -15,6 +15,7 @@ import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
+import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
@@ -370,8 +371,10 @@ function zoneReadyCheck() {
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
 }
+let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+  const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
   step(dt); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
@@ -395,7 +398,7 @@ const duelLayer = document.getElementById('duel')!, career = document.getElement
 if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then((m) => {
-    duel = m; m.enterWorld(leaveFight); kit = true; releaseSticks(); document.body.classList.add('kit');
+    duel = m; m.enterWorld(leaveFight, { back: zoneExit() }); kit = true; releaseSticks(); document.body.classList.add('kit');
     hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
@@ -403,6 +406,9 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
+      // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
+      if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
       pick.addEventListener('click', () => { menu.close(); openPanel('allegiance'); });
@@ -478,12 +484,13 @@ function settleFight(finish: Finished) {
   const after = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins);
   return { next: after?.legend && duel ? duel.legendName(after.opponent, after.level) : undefined };
 }
+const zoneExit = () => { const z = loadZone(); return `Back to ${z.name}`; };   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
-  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
+  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, { back: zoneExit() }); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
 if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
