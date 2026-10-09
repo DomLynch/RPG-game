@@ -43,3 +43,17 @@ test('while the card is up the creature\'s own name label is hidden (no overlap 
   assert.match(read('main.ts'), /mobs\.update\(dt, state, cardId\)[\s\S]*cardId = creatureCard\.update\(/, 'main hands the card\'s creature to the view');
   assert.match(read('mobs-view.ts'), /v\.label\.visible = s\.id !== hideLabel/, 'the view hides that creature\'s label only');
 });
+
+test('#1936 c(a): a pack of three joined on one player - the card names one creature at a time (the nearest), moves to the next as each falls, and stays three short lines at 375', async () => {
+  const hero = { x: 0, z: 0 }, pack = [{ id: 'a', x: 0, z: 2, mode: 'aggro' }, { id: 'b', x: 0, z: 3, mode: 'aggro' }, { id: 'c', x: 0, z: 4, mode: 'aggro' }];
+  const order: string[] = []; let seen = pack;
+  while (seen.length) { order.push(nearestNoticing(seen, hero)!.id); seen = seen.filter((m) => m.id !== order.at(-1)); }
+  assert.deepEqual(order, ['a', 'b', 'c'], 'one card at a time, the nearest first; each fall hands it to the next');
+  assert.equal(nearestNoticing([...pack].reverse(), hero)?.id, 'a', 'the card follows distance, not list order');
+  const lines = cardLines(creatureInfo({ name: 'Cinder scavenger', level: 12 }, FRONTIER_ROWS[0], 16, FRONTIER_ROWS));
+  assert.equal(lines.length, 3); for (const l of lines) assert.ok(l.length <= 32, `a card line fits a 375-wide card: "${l}"`);
+  // the view draws one tag per kind (the nearest of that name), so three of one kind show one tag, and the card's own creature shows none
+  const { readFileSync } = await import('node:fs'), view = readFileSync(new URL('../preview/mobs-view.ts', import.meta.url), 'utf8');
+  assert.match(view, /nearestOf\.get\(s\.name\) === i/, 'one tag per kind of creature');
+  assert.match(view, /v\.label\.visible = s\.id !== hideLabel/, 'the card\'s creature draws no tag');
+});
