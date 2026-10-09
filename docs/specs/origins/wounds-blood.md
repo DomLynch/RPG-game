@@ -43,7 +43,7 @@ Flee-at stays Expansion's rule (`body-families.md`); `tiers` only changes how it
 `body` and `species` exist; every `Part.parent` exists, no cycles, at least one vital part; `weight` > 0; `tiers.below` in (0,1) and strictly descending; `bleedRate` and `drip` in range; `bleedRate` > 0 with a null `species.blood` is an error; every bone in a bodytype is a skin joint of the GLB of each creature that uses it (the existing #1967 test, per `rig`).
 
 ## Mapping from #1967
-`shape` → pick the bodytype; `glb` → stays on the rig (looked up via `rig`); `cut.head`/`cut.neck` → parts `head` and `neck` (`bones`, `cuttable`, vital); `cut.limbs[id]` → one part per limb id (`foreL`… `legR`), not vital; `blood.start/end` → `species.blood`; `blood.amount` → `species.spray` × creature `size` (goblin 0.6 = `spray` 1 × 0.6 would be wrong; pick `spray` 0.6, `size` 1; keep the product equal so the Pit's blood is unchanged); `finishers` → unchanged.
+`shape` → pick the bodytype; `glb` → stays on the rig (looked up via `rig`); `cut.head`/`cut.neck` → parts `head` and `neck` (`bones`, `cuttable`, vital); `cut.limbs[id]` → one part per limb id (`foreL`… `legR`), not vital; `blood.start/end` → `species.blood`; `blood.amount` → `species.spray` × the creature's `size`, chosen so the product equals #1967's `amount` (the Pit's blood stays as Characters set it); `finishers` → unchanged.
 
 ## Example rows (bones are #1967's; numbers are a starting point for Dom's eye at 375 wide)
 ```
