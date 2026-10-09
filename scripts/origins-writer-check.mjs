@@ -303,11 +303,12 @@ try {
   eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
-  const seedD = 0;
-  eq((await call('open', 'td')).json.result.career.seed_credit, seedD, 'Dara: open');
+  const seedD = cumulative(11);   // level 11, the story gate: granted by hand now that Pit marks do not seed zone level (a zone career starts at credit 0)
+  eq((await call('open', 'td')).json.result.career.seed_credit, 0, 'Dara: open (Pit marks seed nothing)');
+  psql(`update public.origins_career set world_credit = ${seedD} where account = '${D}'`);
   const dara = (await call('create_character', 'td', { name: 'Dara' })).json.result.id;
   const q = sql => psql(sql.replaceAll('$PC', dara));
-  const credit = () => psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number);
+  const credit = () => { const [w, t] = psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number); return [w - seedD, t]; };   // [credit earned since the grant, total]
   const hello = await call('talk_pick', 'td', { character: dara, npc: NPC, line: 'greet-first' });
   eq([hello.status, hello.json.result.cp], [200, 0], 'talk_pick greet-first');
   eq(q(`select array_to_string(told, ',') || '|' || flags::text from public.origins_talk where character = '$PC'`), `${NPC} greet-first|{"met-orla": true}`, 'the talk row records the once-line and its flag');
