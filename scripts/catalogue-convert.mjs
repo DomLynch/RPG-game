@@ -22,6 +22,13 @@ const WORLD_MAX = 8200;
 // Blood (Characters 2026-10-09, a starting point for Dom's eye at 375 wide; the Pit's own BLOOD is #690f0d -> #200504): beasts darker, the goblin small. The Skeleton is bloodless (roster blood: false).
 const BEAST_BLOOD = { start: '#5a0b0a', end: '#1c0403' };
 const BLOOD = { wolf: { ...BEAST_BLOOD, amount: 0.7 }, boar: { ...BEAST_BLOOD, amount: 1 }, bear: { ...BEAST_BLOOD, amount: 1.4 }, goblin: { start: '#5a1410', end: '#1c0604', amount: 0.6 } };
+// Wounds (K5, World's #2000 schema; numbers are a starting point for Dom's eye at 375): the Zone 1 beasts. size x the beast species' spray (1) = the blood amount above; tiers by hp fraction.
+const WOUNDS = {
+  wolf: { size: 0.7, bleedRate: 0.4, tiers: [{ below: 0.5, decals: 1, drip: 0.6 }, { below: 0.2, decals: 2, drip: 1.2 }] },
+  boar: { size: 1, bleedRate: 0.6, tiers: [{ below: 0.6, decals: 1, drip: 0.6 }, { below: 0.25, decals: 3, drip: 1.4 }] },
+  bear: { size: 1.4, bleedRate: 0.5, tiers: [{ below: 0.55, decals: 1, drip: 0.6 }, { below: 0.22, decals: 3, drip: 1.3 }] },
+};
+const TORSO_BONE = 'spine2';   // the mid-spine joint the quadruped skeletons share: a decal on the trunk anchors here
 const MAN_BLOOD = { start: '#690f0d', end: '#200504', amount: 1 };
 const BEASTS = new Set(['wolf', 'boar', 'bear']);
 const ALL = [...ROTATION, 'quietOne'];   // a roster row with no `finishers` list allows every finisher (roster.ts supportsFinishers); the rotation ends in plainDeath as the safe fallback
@@ -59,6 +66,7 @@ const rows = Object.entries(ROSTER).map(([id, r]) => {
     voice: THROATS[r.body] ? r.body : null,
     look: { levels: [...(SHIPPING_LOOKS[id] ?? [])], phone: PHONE_LOOKS.has(id), tint: !!LEGENDS[id] && (LOOT[id] ?? []).length > 0 },
     ladder: { order: LADDER.some((o) => o.id === id) ? LADDER.findIndex((o) => o.id === id) + 1 : null, hold: !LADDER.some((o) => o.id === id) },
+    wounds: WOUNDS[id] ? { body: 'quadruped', species: 'beast', ...WOUNDS[id] } : null,
     loot: { table: id === 'goblin' ? 'loottable:pit-goblin' : null },
     legend: LEGENDS[id] ? null : (CREATURE_CITATION[id] ?? { pending: 'no citation yet (held roster character)' }),
     ranks: LEGENDS[id] ? LEGENDS[id].map((l) => ({ name: l.name, source: l.source, backstory: l.backstory })) : [],
@@ -79,4 +87,23 @@ export const CATALOGUE: readonly CatalogueRow[] = ${ts(rows)};
 export const catalogueRow = (id: string): CatalogueRow | null => CATALOGUE.find((r) => r.id === id) ?? null;
 `;
 fs.writeFileSync('src/fight/catalogue-rows.ts', out);
+// The bodytype and species tables the wounds rows read (src/fight/body-tables.ts). The quadruped parts are built from the beasts' own skin joints (the cut bones above, read from the GLBs); every
+// beast that uses the table must have the same bones and the trunk joint, or this refuses.
+const beasts = rows.filter((r) => r.wounds), cut0 = beasts[0].finisher.cut;
+for (const r of beasts) if (JSON.stringify(r.finisher.cut) !== JSON.stringify(cut0) || !glb(r.engine.asset).joints.has(TORSO_BONE)) throw new Error(`${r.id}: does not share the quadruped skeleton`);
+const parts = [
+  { id: 'head', bones: cut0.head, vital: true, weight: 2, cuttable: true, parent: 'neck' },
+  { id: 'neck', bones: cut0.neck, vital: true, weight: 1, cuttable: true, parent: 'torso' },
+  { id: 'torso', bones: [TORSO_BONE], vital: true, weight: 5, cuttable: false },
+  ...Object.entries(cut0.limbs).map(([id, bones]) => ({ id, bones, vital: false, weight: 1, cuttable: true, parent: 'torso' })),
+];
+const tables = `// The bodytype and species tables a catalogue row's \`wounds\` reads (World's #2000 schema, K5): what can be hurt on a body family, and how a species bleeds. GENERATED once by
+// scripts/catalogue-convert.mjs (the bone names are the skin joints of the GLBs, read, not typed); this file is the source of truth from here on. A new body family is one entry, a new
+// creature is a \`wounds\` row. The trunk is the root part; a head hangs from the neck and the neck from the trunk, so severing the neck takes the head. Data only: no engine reads it yet.
+import type { Bodytype, Species } from './catalogue.ts';
+
+export const BODYTYPES: Readonly<Record<string, Bodytype>> = { quadruped: ${ts({ parts }, '')} };
+export const SPECIES: Readonly<Record<string, Species>> = { beast: ${ts({ blood: BEAST_BLOOD, decal: { id: 'blood-splat', sizeM: 0.5 }, spray: 1 })} };
+`;
+fs.writeFileSync('src/fight/body-tables.ts', tables);
 console.log(rows.length, 'rows;', rows.reduce((n, r) => n + r.ranks.length, 0), 'ranks; world assets:', rows.filter((r) => r.world).map((r) => r.id).join(','), '; no cut bones:', rows.filter((r) => !r.finisher.cut).map((r) => r.id).join(',') || 'none');
