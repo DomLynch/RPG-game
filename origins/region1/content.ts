@@ -16,16 +16,14 @@
 // Numbers marked PROVISIONAL are the specs' own provisional values; PROPOSED marks anything this file had to choose (names of
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
+import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
+
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
 const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
-// The Pit goblin's own rank-1 pieces (src/loot.ts LOOT.goblin, no new art): `item:loot.<LootId>` is the legacy embedding (contracts/ids.ts), the asset is loot.glb's piece, the name is lootName's.
-const goblinPiece = (slot: string, material: string) => ({
-  kind: 'item-definition', schemaVersion: 1, id: `item:loot.goblin.${slot}`, name: `The Goblin's ${slot.toLowerCase()}`, category: 'gear', rarity: 'common', slot, power: 'slot-weight', material,
-  appearance: { asset: `loot.glb/goblin.${slot}` }, story: 'none', binding: 'none', stack: 1,
-});
+// The goblin's six armour pieces are generated (origins/inventory/loot-catalogue.ts: item:loot.goblin.<Slot>); only the loot entry lives here.
 const goblinEntry = (slot: string) => ({ item: `item:loot.goblin.${slot}`, chance: 25, quantity: 1, levelMin: null, levelMax: null });
 const table = (id: string, presentation: 'take-one' | 'collect', rolls: unknown[], currency: { min: number; max: number } | null) => ({
   kind: 'loot-table', schemaVersion: 1, id, presentation, distribution: 'personal', rolls, currency, fallback: null, // crafting is out
@@ -50,7 +48,6 @@ export const ITEMS = [
   gear('item:frontier.thrall-gloves', "Thrall's iron gloves", 'Gloves', 'fine', 'iron'),
   gear('item:frontier.ferryman-boots', "Ferryman's boots", 'Boots', 'fine', 'leather'),
   gear('item:frontier.mere-arms', 'Drowned vambraces', 'Arms', 'fine', 'bronze'),
-  goblinPiece('Helmet', 'iron'), goblinPiece('Body', 'leather'), goblinPiece('Arms', 'iron'), goblinPiece('Greaves', 'iron'), goblinPiece('Boots', 'cloth'), goblinPiece('Gloves', 'leather'),
   gear('item:frontier.mere-shield', "The Mere-Mother's shield", 'Shield', 'relic', 'bone'),
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
@@ -280,7 +277,7 @@ export const REGIONS = [
   },
 ];
 
-export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
+export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
 
 // ---- 2. kinds the contracts do not have yet --------------------------------------------------------------------------------------
 
