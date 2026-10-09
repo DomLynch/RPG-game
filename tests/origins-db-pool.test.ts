@@ -13,6 +13,7 @@ import type { Handler } from '../origins/server/handlers.ts';
 const dir = mkdtempSync(join(tmpdir(), 'origins-pool-'));
 const log = join(dir, 'log');
 const fake = join(dir, 'psql');
+const linesFile = join(dir, 'lines');
 writeFileSync(log, '');
 writeFileSync(fake, `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -22,7 +23,7 @@ const lines = []; let busy = false;
 const run = async () => {
   if (busy) return; busy = true;
   while (lines.length) {
-    const l = lines.shift(); let m;
+    const l = lines.shift(); let m; fs.appendFileSync(${JSON.stringify(linesFile)}, l + '\\n');
     if ((m = /^\\\\set (\\w+) '(.*)'$/.exec(l))) vars[m[1]] = m[2];
     else if (/^\\\\unset /.test(l)) delete vars[l.slice(7)];
     else if (l === 'select pid;') out(String(process.pid));
@@ -100,4 +101,13 @@ test('#1833 holds with 4 sessions: one account\'s writes never interleave, other
   const firstEndA = rows.findIndex((r) => r[0] === 'end' && r[1] === 'acct-a');
   assert.ok(rows.slice(0, firstEndA).some((r) => r[0] === 'start' && r[1] !== 'acct-a'), 'another account starts while acct-a runs');
   assert.ok(new Set(rows.map((r) => r[2])).size > 1, 'more than one pooled session did the work');
+});
+
+test('nothing is sent that the script does not need: no empty statement, no rollback unless the script opens a transaction', async () => {
+  const db = pooled(1);
+  const sent = async (sql: string) => { writeFileSync(linesFile, ''); await db.run(sql); return readFileSync(linesFile, 'utf8').trim().split('\n'); };
+  assert.deepEqual((await sent('select pid;')).filter((l) => !l.startsWith('\\echo')), ['select pid;'], 'one statement and the marker: no empty statement, no rollback');
+  assert.ok((await sent('select pid')).includes(';'), 'an unterminated statement still gets its semicolon');
+  assert.ok((await sent('begin;\nselect pid;')).includes('rollback;'), 'a script that opens a transaction is rolled back');
+  assert.ok(!(await sent('begin;\nselect pid;\ncommit;')).includes('rollback;'), 'one that commits is not');
 });
