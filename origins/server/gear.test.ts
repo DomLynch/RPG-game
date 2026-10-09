@@ -13,7 +13,7 @@ const lookup = lookupOf(loaded.value), UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a
 const prov = (n: number, lootId: string) => ({ kind: 'arena-award', at: '2026-10-06T12:00:00Z', claimId: n, lootId, wonBy: PC, fromLegend: 'goblin-3', atRank: 'Recruit' });
 const row = (n: number, lootId: string, loc: Record<string, unknown>) => ({
   id: `inst:t-${n}`, item: `item:loot.${lootId}`, version: 2, quantity: 1, tier: 'Recruit', upgrade_level: 0, loc_kind: loc.kind, loc_owner: PC, loc_index: loc.index ?? null, loc_slot: loc.slot ?? null,
-  bound_to: null, mint_key: `claim:${n}`, provenance: prov(n, lootId), history: [],
+  bound_to: null, mint_key: `claim:${n}0000`, provenance: prov(n, lootId), history: [],
 });
 const career = { seed_credit: 0, world_credit: 0, total_credit: 0, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 1 };
 function stub(items: unknown[], opts: { stale?: boolean } = {}) {
