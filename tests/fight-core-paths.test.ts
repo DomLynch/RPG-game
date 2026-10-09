@@ -1,10 +1,10 @@
-// The six core modules live in src/fight (C1). The old flat paths stay gone: no src/<name>.ts, and no source, test, script or origins file names one as a module specifier.
+// The core modules live in src/fight (C1: duel, ai, sim, moves, combat, play-radius; C2: record, replay, gear-stats, gambit, stance, twist). The old flat paths stay gone: no src/<name>.ts, and no source, test, script or origins file names one as a module specifier.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 
-const CORE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius'];
+const CORE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'replay', 'gear-stats', 'gambit', 'stance', 'twist'];
 const ROOTS = ['src', 'tests', 'scripts', 'origins'];
 const SKIP = new Set(['node_modules', 'dist', 'artifacts', 'assets', 'public']);
 

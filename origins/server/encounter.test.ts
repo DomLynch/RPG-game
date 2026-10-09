@@ -5,7 +5,7 @@ import { BadRequest, Conflict, Refused } from './errors.ts';
 import { encounterOps, fightOfToken, poseOfToken, POSED_FIGHT_MAX, tokenFor } from './encounter.ts';
 import { issuePose, MARK_GAP, MIN_GAP, poseBounds } from './encounter-pose.ts';
 import { verifyEncounter } from './encounter-verify.ts';
-import { decodeRecord } from '../../src/record.ts';
+import { decodeRecord } from '../../src/fight/record.ts';
 import { roundPose, type DuelPose } from '../../src/fight/duel.ts';
 import { ACCOUNT, CHAR, fakeDb, RESOLVED, deps, fight } from './encounter-fixtures.ts';
 

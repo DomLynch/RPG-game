@@ -5,7 +5,7 @@
 // Snapshots are the Duel objects stepDuel returned: it never writes into its input (tests/net-determinism.test.ts freezes it to prove it).
 // Nothing in the fight imports this file; single-player never reaches it.
 import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
-import { quantizeIntent } from '../record.ts';
+import { quantizeIntent } from '../fight/record.ts';
 import { initialState, TARGET } from '../fight/sim.ts';
 import { setPlayScale } from '../fight/play-radius.ts';
 import type { SkillId, WeaponId } from '../fight/moves.ts';

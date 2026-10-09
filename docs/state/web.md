@@ -548,12 +548,12 @@ Still to do: a real fight, the kill screen and the journal at 375×812.
 - #521 (tap-to-take, Undo, gold skin) merged earlier and is live.
 
 **Open.**
-- Deliverable 4 (paperdoll ATK/RES) — see the Open list below; check whether `src/gear-stats.ts` and tiered LootIds are on trunk now.
+- Deliverable 4 (paperdoll ATK/RES) — see the Open list below; check whether `src/fight/gear-stats.ts` and tiered LootIds are on trunk now.
 - Hold between `complete` and the loot panel: none until Dom names a value (one predicate must gate both the hush and the offer).
 - Auditer's grade-C journal fixes: still behind the phone pass.
 
 **Gotchas (new today).**
-- (j) `src/record.ts` is in `tests/record-version-guard.test.ts` SIM_FILES: ANY edit there reads as a sim change. Display helpers
+- (j) `src/fight/record.ts` is in `tests/record-version-guard.test.ts` SIM_FILES: ANY edit there reads as a sim change. Display helpers
   over the record go in their own module (`src/record-header.ts`). Never bump RECORD_VERSION or re-pin the digest for a non-sim edit.
 - (k) `tests/graphics.test.ts` boots main.ts with `runInNewContext` and a hand-written `modules` map: a NEW module main.ts imports
   must be added there, or the page gets `{}` and fails silently (console output from the page is not visible either).

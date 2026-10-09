@@ -4,7 +4,7 @@
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { opponentFighter, stepDuel, withStances } from '../src/fight/duel.ts';
 import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
-import { PICKS, STANCES, asStance } from '../src/stance.ts';
+import { PICKS, STANCES, asStance } from '../src/fight/stance.ts';
 import { arena } from '../tests/strategies.ts';
 
 for (const [id, deltas] of Object.entries(JSON.parse(process.env.STANCE_TUNE ?? '{}'))) Object.assign(STANCES[id], deltas);

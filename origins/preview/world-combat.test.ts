@@ -5,7 +5,7 @@ import { MAX_STEPS, ME, createWorldCombat, kindOf } from '../../src/fight/index.
 import { OPPONENTS, RULES, WEAPONS } from '../../src/fight/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
-import { NAKED } from '../../src/gear-stats.ts';
+import { NAKED } from '../../src/fight/gear-stats.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {

@@ -507,7 +507,7 @@ Shieldmaiden hem/boots + Knight sabatons + greave, 0a65782f, draft) → #716 (Mu
 → #706 → #728 (replaces #666; f399fecb on #705) → #708 → #736 (Plague Doctor coat A, draft, after #709) → #727 (charge-glow delete, merge-tree clean) → #726 (loot-merge A).
 **Done today (verified by me).** The 23:33 #722 run FAILED (load 60–110, 900 s row timeouts; nothing published). Rerun on GO at 08:43: 99fac109 live 08:47 (served css 10×
 touch-action:none, 2× pan-y). 3f8e5e1c live 08:58 (bundle index-Co2O-S-8.js carries `playerWeapon`, new in #713). #707 CLOSED + label `parked`, branch 9ddf6801 kept.
-Brief 19 on trunk: src/gear-stats.ts is imported only by its test, no SIM_FILES import, so no fight number changes. Arenas: FIVE were already live (f42e64fe), so item 6 is MET
+Brief 19 on trunk: src/fight/gear-stats.ts is imported only by its test, no SIM_FILES import, so no fight number changes. Arenas: FIVE were already live (f42e64fe), so item 6 is MET
 (the SCOPE line fixed); World's five-arena sheet is evidence/world-five-arenas @ 3069535e (sent to Dom). SKILL #719 still PASSED (c5308154); out of draft, merges only with the first real move.
 **Open.** Dom: share-button pick A/B/C (evidence/share-mockups @ 462c390e; Lead leans B); an Android tester; re-auth of the reviewer hook (OAuth expired; every lane's Stop fails 3×).
 Web: Share fight is hidden after non-career fights (main.ts:925 needs ended.record); Web checks a career kill before PR 1. Per-fight OG = post-beta (Strategy).
@@ -652,8 +652,8 @@ Play now. It is neither blank nor a wrong fight.
 
 **Rulings since noon:**
 - **`anticipate` spec CORRECTED (Combat caught it; Lead verified): step 3 below is WRONG.** A grade merged into the profile outside
-  SIM breaks replay: `src/replay.ts:16` rebuilds the warden from `OPPONENTS[opponent].profiles[record.profile]`, and the record
-  carries only `profile u8` (`src/record.ts:81`), so the fight would replay ungraded and diverge (in `verify-daily` too). **Ruled:
+  SIM breaks replay: `src/fight/replay.ts:16` rebuilds the warden from `OPPONENTS[opponent].profiles[record.profile]`, and the record
+  carries only `profile u8` (`src/fight/record.ts:81`), so the fight would replay ungraded and diverge (in `verify-daily` too). **Ruled:
   the value lives on the Executioner's own per-level profiles in `moves.ts`** (`{ ...PROFILES.normal, anticipate: X }`), with
   `ai.ts:114` as specced. There is no record change and no `grades.ts` involvement. It rides Publish B's bump to 7.
 - **Retired-replay page: NO DATE (Lead).** The record header has none, and `fight_records.created_at` is server-only by
@@ -673,7 +673,7 @@ Play now. It is neither blank nor a wrong fight.
 - **The send cap:** a send to a `local_…` id goes through Desktop session messaging and stops after 10 per user message (a
   mid-turn user message does not reset it). A send to a ListAgents row as `"<exact name> [ref]"`, or a reply to a `uds:` from, is
   NOT capped. A PR comment is not a message: #524's HOLD was a comment, and Deploy merged it.
-- **SIM_FILES:** any helper put in `src/record.ts` trips record-version-guard as a sim change. Web's header peek lives in
+- **SIM_FILES:** any helper put in `src/fight/record.ts` trips record-version-guard as a sim change. Web's header peek lives in
   `src/record-header.ts` for that reason.
 - **Quality gate timeout:** `quality:stop` overran the 300 s Stop budget on the loaded box; #541 raises it to 420 (the hook's max).
 
@@ -694,7 +694,7 @@ receipt goes to Deploy as "publish" or the defect.
 **#488 revert, recorded on the PR (comment 5789709301):** TS2741 — #478 added `Shield` to `ARMOUR_SLOTS`, widening `LootSlot`, and
 #488's `SLOT_WEIGHT: Record<LootSlot, number>` had no `Shield` key. Re-lands as a NEW PR with `Shield: 0` as a tested decision
 (Brief 19 Addendum C item 3: the shield is the guard profile only). **#514 goes after that re-land** — it depends on
-`src/gear-stats.ts`, which the revert deleted, whatever GitHub's MERGEABLE says. Then Stats' PR A v2 (#503 is superseded, not
+`src/fight/gear-stats.ts`, which the revert deleted, whatever GitHub's MERGEABLE says. Then Stats' PR A v2 (#503 is superseded, not
 rebased), then #515 knife on top.
 
 ### Spec for Combat — per-grade `anticipate` (Brief 14), for the cleaver row
@@ -789,7 +789,7 @@ Until then the tier stays client data, flagged as such. **Making marks authorita
 ranking question, so it goes to STRATEGY to rule.** #514 was closed and reopened to trigger `quality`; READY follows when green.
 
 ### RULED (Lead, format/sequencing), ~07:25Z: PR B binds the ACCOUNT into the record, as an OPAQUE token
-**Backend found it:** fight records carry no account binding (`src/record.ts` has no user field), and `fight_records` are public by
+**Backend found it:** fight records carry no account binding (`src/fight/record.ts` has no user field), and `fight_records` are public by
 id. Once loot is server-authoritative, **B can fetch A's shared kill and claim A's loot.** Backend's interim guard: a global unique
 on the record hash, with the client posting its claim BEFORE it offers Share (first claimer wins).
 **Ruling: the real fix goes in PR B, in Window 1.** PR B already defines the v6 byte layout, and a binding added later means a bump
@@ -1038,7 +1038,7 @@ the rejected design, a RES weight on the shield, which would reinstate Dom's wit
 Origin armour cap). Local gate: `tsc` clean, `quality:stop` 493 / 491 pass / 0 fail / 2 skipped, including the
 `gear-stats.test.ts:169` grid rerun. #514 re-opens on top of it.
 **Stats PR A v2** (`a0c6458`): not a PR yet. Its gate had 1 failure, `tests/release-checks.test.ts:73`, a 2 s process-group timing
-test, on a branch touching only `src/record.ts` + two record tests. That reads as load, but it stays red until it passes on a
+test, on a branch touching only `src/fight/record.ts` + two record tests. That reads as load, but it stays red until it passes on a
 quiet box. Stats is not opening the PR before then, which is right.
 **A one-deployer-rule gap, self-reported by Stats:** their background retry loop ran two gates at 05:57-06:01Z DURING the
 `2d614dc` deploy. The loop polled for the lock in its own logs, but **the lock is enforced by the session hook, which a background

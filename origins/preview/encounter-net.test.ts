@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import { fromBase64Url, packRecord, unpackRecord } from '../../src/record.ts';
+import { fromBase64Url, packRecord, unpackRecord } from '../../src/fight/record.ts';
 import { isOffline } from './save.ts';
 import { fightOf, settledOf, settleFight, startFight, touchFight } from './encounter-net.ts';
 import { createWriter } from '../server/server.ts';

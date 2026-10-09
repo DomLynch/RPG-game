@@ -6,7 +6,7 @@
 //     so the client's fight, the record (v38) and the server's re-simulation start from the same bits.
 // The issued pose rides in the token (encounter.ts tokenFor): the database holds the token, so settle reads the server's own pose back and a client cannot change it.
 import { roundPose, type DuelPose } from '../../src/fight/duel.ts';
-import { FIRST_POSE_VERSION } from '../../src/record.ts';
+import { FIRST_POSE_VERSION } from '../../src/fight/record.ts';
 import { BASE_RADIUS, BODY_RADIUS, playScaleFor, WALL_INNER } from '../../src/fight/play-radius.ts';
 import { BadRequest } from './errors.ts';
 

@@ -10,7 +10,7 @@ import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from 
 import { OPPONENTS, PROFILES, WEAPONS, opponentAt, type AiProfile, type Opponent } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { TARGET } from '../src/fight/sim.ts';
-import { noTwist, stepTwist } from '../src/twist.ts';
+import { noTwist, stepTwist } from '../src/fight/twist.ts';
 
 const wolf = OPPONENTS.wolf;
 

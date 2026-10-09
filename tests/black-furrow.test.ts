@@ -13,7 +13,7 @@ import { SPECIAL_TESTS, type SpecialTest } from '../src/special-look.ts';
 import { specialCueFor } from '../src/sparring-special-runtime.ts';
 import { resolveSparringPreview, sparringSpecialOptions } from '../src/sparring-specials.ts';
 import { createSpecialPresentation, disposeSpecialGroup } from '../src/special-presentation.ts';
-import { createRecorder } from '../src/record.ts';
+import { createRecorder } from '../src/fight/record.ts';
 import { crowdWave } from '../src/arena.ts';
 
 const id = 'blackfurrow' as SpecialTest;

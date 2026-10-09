@@ -13,7 +13,7 @@ import { decide, initialAi, type AiState } from '../src/fight/ai.ts';
 import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/fight/duel.ts';
 import { PROFILES, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
-import { quantizeIntent } from '../src/record.ts';
+import { quantizeIntent } from '../src/fight/record.ts';
 
 const kit = (fight: number) => {
   const w = PLAYER_WEAPONS;

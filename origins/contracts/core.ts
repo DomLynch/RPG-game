@@ -109,7 +109,7 @@ export function readOptionalString(issues: Issues, obj: Obj, key: string, path: 
 }
 
 // Integers only. Every number in these contracts is a count, an index, a percentage or a version, and a float in any of those is a bug
-// upstream (the gear multipliers are derived by src/gear-stats.ts, never stored here).
+// upstream (the gear multipliers are derived by src/fight/gear-stats.ts, never stored here).
 export function readInt(issues: Issues, obj: Obj, key: string, path: string, min: number, max: number): number | undefined {
   if (missing(issues, obj, key, path)) return undefined;
   return checkInt(issues, obj[key], join(path, key), min, max);
