@@ -2,6 +2,7 @@
 // contracts' registry (loadContent), reads the kinds the contracts do not have yet (towns, Bounties, twist flags, rifts, boss loot
 // rules), and checks every cross-reference between the three. No clock, no randomness, no DOM; every failure is a Result issue with a
 // path, never a throw. Nothing in src/ imports this module.
+import { LOOT_ITEM_IDS } from '../inventory/loot-catalogue.ts';
 import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoolean, readEnum, readInt, readObject, readString, readText, type Obj, type Result } from '../contracts/core.ts';
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../contracts/ids.ts';
 import { loadContent, type Registry } from '../contracts/registry.ts';
@@ -127,9 +128,9 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   // A region-definition spawn may stand only in a zone where creatures may fight: never a town's foe inside a town.
   const townZones = new Set(local.towns.map((t) => `${t.region}/${t.zone}`));
 
-  // 5. No weapon drops in Region 1 (ruled): no item a table can award, and no item defined here, is a weapon. The one exception is the legacy loot catalogue (`item:loot.<LootId>`, origins/inventory/loot-catalogue.ts): the engine's ledger owns weapon pieces, so the server must be able to hold them; no table can award one (the next loop).
+  // 5. No weapon drops in Region 1 (ruled): no item a table can award, and no item defined here, is a weapon. The one exception is the legacy loot catalogue (the generated `item:loot.<LootId>` ids, origins/inventory/loot-catalogue.ts LOOT_ITEM_IDS: an id that merely starts with the prefix is NOT exempt): the engine's ledger owns weapon pieces, so the server must be able to hold them; no table can award one (the next loop).
   const weapon = (item: ItemId) => (WEAPON_SLOTS as readonly string[]).includes(registry.items.get(item)?.slot ?? '');
-  for (const def of registry.items.values()) if (weapon(def.id) && !def.id.startsWith('item:loot.')) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1`);
+  for (const def of registry.items.values()) if (weapon(def.id) && !LOOT_ITEM_IDS.has(def.id)) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1`);
   for (const t of registry.lootTables.values()) t.rolls.forEach((roll, i) => roll.entries.forEach((e, j) => {
     if (weapon(e.item)) issues.add('content-rule', `${t.id}.rolls[${i}].entries[${j}].item`, `${e.item} is a weapon: no weapon drops in Region 1`);
   }));
