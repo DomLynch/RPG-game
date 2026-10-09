@@ -3,21 +3,15 @@
 // Node names are the kit's contract (public/world/kit/zone1-kit.glb): trees, boulders, scrub and grass tufts.
 import { toWorld } from '../world/derive.ts';
 import { rng, type Dress } from './frontier-dress.ts';
+import { loadZone } from './zone-loader.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
-export const KIT_NODES = ['boulder_a', 'boulder_b', 'boulder_c', 'bush_scrub_a', 'bush_scrub_b', 'tree_dead_a', 'tree_dead_b', 'tree_dead_c', 'tuft_a', 'tuft_b'] as const;
-export type KitNode = (typeof KIT_NODES)[number];
-export type KitPlacement = { node: KitNode | (typeof LANDMARK_NODES)[number]; x: number; z: number; rotY: number; scale: number };
-export const LANDMARK_NODES = ['landmark_camp', 'landmark_ruin_arch', 'landmark_stone_circle', 'landmark_grove'] as const;
+export type KitNode = string;   // a node name of the zone's kit (origins/zones/zone1/kit.ts, checked by the loader)
+export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
 export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
+const { kinds: KIND, landmarks: LANDMARK_NODES } = loadZone().kit;   // the zone's kit data, through the loader
 const LANDMARK_R = 3.5;   // footprint of a landmark, for the first-view margin and its solid
 
-const KIND: { nodes: readonly KitNode[]; per: number; r: number; solid: number; scale: [number, number] }[] = [   // per: placements per 1000 m2 of zone
-  { nodes: ['tree_dead_a', 'tree_dead_b', 'tree_dead_c'], per: 3, r: 1.2, solid: 0.6, scale: [0.9, 1.35] },
-  { nodes: ['boulder_a', 'boulder_b', 'boulder_c'], per: 4, r: 1.4, solid: 1, scale: [0.8, 1.4] },
-  { nodes: ['bush_scrub_a', 'bush_scrub_b'], per: 8, r: 0.9, solid: 0, scale: [0.8, 1.3] },
-  { nodes: ['tuft_a', 'tuft_b'], per: 14, r: 0.4, solid: 0, scale: [0.8, 1.5] },
-];
 
 const segDist = (px: number, pz: number, ax: number, az: number, bx: number, bz: number) => {
   const dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1)));

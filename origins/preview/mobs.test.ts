@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { ZONE_LEVEL } from '../mobs/frontier-rows.ts';
+import { loadZone } from './zone-loader.ts';
+const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
@@ -30,7 +31,7 @@ test('each creature carries the body, level and encounter its character record n
   assert.deepEqual([row('character:cinder-scavenger').body, row('character:mere-brood').body, row('character:ruin-ghoul').body], ['goblin', 'goblin', 'goblin']);
   assert.deepEqual([row('character:hrungnir').body, row('character:peg-powler').body, row('character:mere-mother').body, row('character:court-thrall').body], ['knight', 'witch', 'witch', 'pitborn']);
   assert.equal(row('character:hrungnir').encounter, 'encounter:bounty-hrungnir');
-  assert.equal(row('character:mere-mother').level, 15, 'the public world boss keeps its record level (15,000 health, boss-battery tunable) until Dom rules; the bounty bosses are the named rares at the zone level + 2');
+  assert.equal(row('character:mere-mother').level, ZONE_LEVEL + 3, 'the public world boss is the zone level + 3 (4,000 health, the 1,000-a-level rule; boss-battery tunable); the bounty bosses are the named rares at the zone level + 2');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
   assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));

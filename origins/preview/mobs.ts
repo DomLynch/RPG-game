@@ -8,7 +8,8 @@
 import { SPEEDS } from './speeds.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
-import { FRONTIER_OPENERS, FRONTIER_ROWS, ZONE_LEVEL } from '../mobs/frontier-rows.ts';
+import { loadZone } from './zone-loader.ts';
+const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zones/zone1/spawns.ts), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
@@ -20,7 +21,7 @@ export type MobSpec = {
 export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
-// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/mobs/frontier-rows.ts. Named creatures keep these:
+// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zones/zone1/spawns.ts. Named creatures keep these:
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
@@ -57,7 +58,7 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-// The Ash Wolf is a live row (frontier-rows.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
+// The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
 export const previewRows = (_search: string): readonly MobRow[] => FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
