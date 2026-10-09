@@ -59,7 +59,7 @@ test('a landed blow throws a flash and a fan of sparks, which burn out within th
 test('presentation only: the kit is no sim file and no sim file imports it', () => {
   const guard = readFileSync(new URL('./record-version-guard.test.ts', import.meta.url), 'utf8');
   assert.ok(!guard.includes('skill-impact'), 'not in SIM_FILES');
-  for (const file of ['duel.ts', 'moves.ts', 'ai.ts', 'sim.ts', 'record.ts', 'blade.ts', 'roster.ts', 'fight/finishers.ts']) {
+  for (const file of ['fight/duel.ts', 'fight/moves.ts', 'fight/ai.ts', 'fight/sim.ts', 'record.ts', 'blade.ts', 'roster.ts', 'fight/finishers.ts']) {
     assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('skill-impact'), `${file} does not import it`);
   }
 });
