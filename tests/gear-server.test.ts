@@ -43,3 +43,20 @@ test('Zone 1\'s menu Gear button is the temporary page hop to the engine\'s gear
   assert.match(zone1, /TEMPORARY: deleted in the last A PR \(Strategy 10-09\)[^\n]*\n[^\n]*menu-gear[^\n]*location\.assign\('\/arena\/\?gear=1'\)/);
   assert.match(pit, /TEMPORARY: deleted in the last A PR \(Strategy 10-09\)/); assert.match(pit, /back\.addEventListener\('click', \(\) => location\.assign\('\/zone1\/'\)\)/);
 });
+
+test('no loss: the server view is SHOWN from a shadow and never written into the device profile, so a later persist of the profile (a decline, a take) saves the device\'s own ledger untouched', async () => {
+  const real = { loot: { owned: ['knight.Helmet'], equipped: { head: 'knight.Helmet' }, skill: 'pommel' } as unknown as Loot }, before = JSON.stringify(real);
+  const g = createServerGear({ storage: storage(true), search: '', now: () => NOW, fetch: writer([], { open: [opened], gear_open: [dropped] }), getLoot: () => real.loot, show: (l) => { g.profileFor(real).loot = l; } });
+  assert.equal(g.profileFor(real), real, 'before the server answers the sheet reads the device profile');
+  assert.equal(await g.refresh(), true);
+  assert.notEqual(g.profileFor(real), real); assert.deepEqual(g.profileFor(real).loot?.owned, ['goblin.Helmet'], 'the sheet shows the server\'s pieces');
+  assert.equal(JSON.stringify(real), before, 'the device profile is byte-identical: persisting it loses and adds nothing');
+});
+test('signed in with the answer still on its way, a tap is swallowed (the device ledger must not change behind the server\'s); once the writer has failed to answer it falls back to the device', async () => {
+  let release!: (v: unknown) => void; const slow = new Promise((r) => { release = r; });
+  const g = createServerGear({ storage: storage(true), search: '', now: () => NOW, fetch: (async () => { await slow; return { status: 503, json: async () => ({}) }; }) as never, getLoot: () => undefined, show: () => {} });
+  const pending = g.refresh();
+  assert.equal(g.act({ kind: 'stow', key: 'head' }), true, 'handled (ignored) while loading');
+  release(1); assert.equal(await pending, false);
+  assert.equal(g.act({ kind: 'stow', key: 'head' }), false, 'the writer never answered: the device ledger takes it');
+});
