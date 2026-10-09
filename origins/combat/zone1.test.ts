@@ -1,11 +1,11 @@
-// Zone 1's combat (origins/combat/zone1.ts): every fight rule is the Pit's, run through the Pit's own duel / ai / sim (no copies; the one departure, no ring wall, is open-world.test.ts), so these tests pin the
+// Zone 1's combat (src/fight/world.ts): every fight rule is the Pit's, run through the Pit's own duel / ai / sim (no copies; the one departure, no ring wall, is open-world.test.ts), so these tests pin the
 // WORLD layer and the adapter: who fights whom, the chase to the hold ring, the leash and heal-home, a pack taking turns, gear / levels / stances / specials / skill reaching the duel, and the player-vs-player rules.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
-import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../../src/fight/speeds.ts';
+import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from '../../src/fight/world.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
