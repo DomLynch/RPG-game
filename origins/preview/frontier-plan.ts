@@ -13,6 +13,7 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
+import { loadZone } from '../zones/loader.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
@@ -25,6 +26,7 @@ export type ZonePlan = {
 export type Sign = { at: At; lines: string[]; back: boolean }; // back: this sign is the way back to the Exchange
 export type Giver = { character: CharacterId; name: string; at: At; bounty: Bounty; foe: string; where: string };
 export type Frontier = {
+  zone: string;   // the zone package this plan is for (frontierPlan's zoneId)
   zones: ZonePlan[];
   road: { from: Point & { z: number }; to: { x: number; z: number }; width: number; facing: number; inward: number }; // the west road, world metres
   signs: Sign[];
@@ -36,7 +38,7 @@ export type Frontier = {
 export const ZONE_NAMES: Record<string, string> = {
   'pit-yard': 'The Pit', exchange: 'The Concord Exchange', 'exchange-quarter': 'The Exchange Quarter',
   'east-road': 'The East Road', 'ferry-landing': 'The Grey Ferry', 'cinder-fields': 'The Cinder Fields', 'black-mere': 'The Black Mere',
-  'blood-ruin': 'The Blood Ruin', 'cinder-hold': 'Cinder Hold', 'mere-end': 'Mere End',
+  'blood-ruin': 'The Blood Ruin', 'ash-reach': 'The Ash Reach', 'cinder-hold': 'Cinder Hold', 'mere-end': 'Mere End',
 };
 export const FRONTIER = 'region:ash-frontier' as RegionId;   // the branded id: compare against this, never the plain literal (TS2367)
 const EXCHANGE = CONCORD_REGION as RegionId;
@@ -56,7 +58,9 @@ function zonePlan(region: RegionId, zone: string, p: Params, mount: Mount, town:
     links: Object.values(p.connections).map((c) => ({ here: c.here, to: c.to, kind: c.kind })), town };
 }
 
-export function frontierPlan(flat = false): Frontier {   // flat: the hills off (?relief=0), every zone's relief 0 so the plan is the flat greybox again
+// flat: the hills off (?relief=0), every zone's relief 0 so the plan is the flat greybox again. zoneId: which zone package's world zones the page walks (zone.world); the Frontier is laid out whole so every zone keeps
+// its place, then only that zone's own are kept, with their links, signs and creatures (mobSpecs skips a spawn whose landmark is not in the plan). Zone 1 is the whole of what it was.
+export function frontierPlan(flat = false, zoneId: string = '1'): Frontier {
   const loaded = loadRegion1();
   if (!loaded.ok) throw new Error(`Region 1 does not load: ${JSON.stringify(loaded.issues)}`);
   const data = loaded.value, mounts = concordMounts();
@@ -87,14 +91,23 @@ export function frontierPlan(flat = false): Frontier {   // flat: the hills off 
       placed.set(c.to, next); queue.push(next);
     }
   }
-  zones.push(...placed.values());
+  const owned = new Set(loadZone(zoneId).world), kept = [...placed.values()].filter((q) => owned.has(q.zone));
+  // A link this page does not walk leaves nothing behind: its landmark (the post and collider it would draw) goes too, unless a kept link or a spawn stands on it.
+  const spawnAt = new Set(data.registry.regions.get(FRONTIER)!.spawns.map((s) => s.at));
+  for (const q of kept) {
+    q.links = q.links.filter((l) => owned.has(l.to));
+    const used = new Set(q.links.map((l) => l.here));
+    for (const c of Object.values(frZones.get(q.zone)!.connections)) if (!owned.has(c.to) && !used.has(c.here) && !spawnAt.has(c.here)) delete q.landmarks[c.here];
+  }
+  zones.push(...kept);
 
   // Signposts: one at every link a walker can reach, naming where it goes; the two ends of the west road name the crossing.
-  const signs: Sign[] = [
+  const signs: Sign[] = owned.has(firstZone) ? [
     { at: gate, lines: ['West: the Ash Frontier', ZONE_NAMES[firstZone]!], back: false },
     { at: first.landmarks[back.at]!, lines: ['East: the Concord Exchange'], back: true },
-  ];
-  for (const z of placed.values()) for (const c of Object.values(frZones.get(z.zone)!.connections)) {
+  ] : [];
+  for (const z of kept) for (const c of Object.values(frZones.get(z.zone)!.connections)) {
+    if (!owned.has(c.to)) continue;
     const at = z.landmarks[c.here]!, to = ZONE_NAMES[c.to] ?? c.to;
     signs.push({ at, lines: [c.kind === 'portal' ? `${to} (the night boat: not in this slice)` : to], back: false });
   }
@@ -111,7 +124,7 @@ export function frontierPlan(flat = false): Frontier {   // flat: the hills off 
     at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, 4.5), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
   };
   if (flat) for (const z of zones) z.relief = { ...z.relief, relief: 0 };
-  return { zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
+  return { zone: zoneId, zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
 }
 // A spot `metres` from a building toward the town centre, facing the centre: where its keeper stands.
 function standBefore(building: At, centre: { x: number; z: number }, metres: number): At {

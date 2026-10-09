@@ -22,7 +22,7 @@ test('each zone carries its look preset: ash-pit at the Pit gate, exchange-dusk 
   assert.deepEqual(presets, {
     'pit-yard': 'ash-pit', exchange: 'exchange-dusk', 'exchange-quarter': 'exchange-dusk',
     'east-road': 'frontier-haze', 'ferry-landing': 'frontier-haze', 'cinder-fields': 'frontier-haze', 'black-mere': 'frontier-haze',
-    'blood-ruin': 'frontier-haze', 'cinder-hold': 'frontier-haze', 'mere-end': 'frontier-haze',
+    'blood-ruin': 'frontier-haze', 'cinder-hold': 'frontier-haze', 'mere-end': 'frontier-haze', 'ash-reach': 'frontier-haze',
   });
 });
 
