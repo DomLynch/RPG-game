@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
-import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
+import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -228,4 +228,29 @@ test('#1936 b (Auditor HOLD): a brain carried out of a LONG bout is rebased - hi
   assert.ok(long.world.streams.p!.duel.tick > 500, 'a long bout'); assert.ok(of(long.events, 'Hit', 'p').length > 0, 'the creature was hit');
   const after = run({ ...long.world, streams: {} }, 2);   // re-engage: the stream is rebuilt, the player stands still
   assert.ok(of(after.events, 'Telegraph', 'c').length > 0, 'the creature swings within 2 s of the rebuild (not 0 swings while an old retreatUntil counts down)');
+});
+
+test('#1936 c: the creature chooses by threat - of two players in reach it fights the one that hurt it, not the nearer; with no threat it takes the nearer', () => {
+  const mk = (threat?: Fighter['threat']) => { const c = creature('c', 'wolf', 0, 0); if (threat) c.threat = threat; return newWorld([player('a', 3.5, 0), player('b', 0, 2), c]); };
+  const none = run(mk(), 1 / 60, () => ({ a: STILL, b: STILL })).world;
+  assert.equal(none.streams.b!.foe, 'c', 'no threat: the nearer player (b) is the foe'); assert.equal(none.streams.a!.foe, null);
+  const hurt = run(mk({ a: { threat: 50, damage: 50, out: 0 } }), 1 / 60, () => ({ a: STILL, b: STILL })).world;
+  assert.equal(hurt.streams.a!.foe, 'c', 'threat on a: the creature fights a'); assert.equal(hurt.streams.b!.foe, null);
+});
+
+test('#1936 c: FightStarted fires once per engage (not per step), and the damage the hero lands is the creature\'s threat and credit', () => {
+  const w = newWorld([boost(player('p', 0, 0)), creature('c', 'wolf', 0, 1.3)]);
+  const r = run(w, 3, (t) => ({ p: t % 30 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));
+  assert.equal(r.events.filter((e) => e.type === 'FightStarted').length, 1);
+  assert.deepEqual(r.events.find((e) => e.type === 'FightStarted'), { type: 'FightStarted', creature: 'c', player: 'p' });
+  const dealt = r.events.reduce((n, e) => n + (e.type === 'Hit' && e.attacker === 'p' ? e.damage : 0), 0);
+  assert.ok(dealt > 0, 'the hero landed a blow'); assert.equal(get(r.world, 'c').threat!.p!.damage, dealt); assert.equal(get(r.world, 'c').threat!.p!.threat, dealt);
+});
+
+test('#1936 c: threat is forgotten when the player is out of sight for the give-up time, and when the creature walks home', () => {
+  const c = creature('c', 'wolf', 0, 0); c.threat = { p: { threat: 9, damage: 9, out: 0 } };
+  const far = run(newWorld([player('p', SIGHT_M + 5, 0), c]), 1, () => ({ p: STILL })).world;
+  assert.ok(get(far, 'c').threat!.p, 'out of sight for 1 s: still on the list');
+  const gone = run(far, GIVE_UP_UNSEEN_S + 1, () => ({ p: STILL })).world;
+  assert.equal(get(gone, 'c').threat?.p, undefined, 'out of sight past the give-up time: forgotten');
 });
