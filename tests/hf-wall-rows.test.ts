@@ -96,18 +96,14 @@ esac`, { mode: 0o755 });
   assert.equal(readFileSync(join(dir, 'cancelled'), 'utf8').trim(), 'cancelled');
 });
 
-test('deploy-hf.sh: off leaves the trusted list and source untouched; shadow tables but trusts nothing; on appends the rows the T4 proved', () => {
+test('deploy-hf.sh: always on (no switch): it appends the rows the T4 proved, and an old HF_WALL_ROWS value changes nothing', () => {
   const dir = mkdtempSync(join(tmpdir(), 'deploy-hf-'));
   // A fake `node` on PATH: launch prints a job id, collect prints "1,3"; a fake `hf` so `command -v hf` succeeds.
   writeFileSync(join(dir, 'node'), '#!/bin/bash\ncase "$2" in launch) echo jobX;; collect) echo -n "1,3";; table) echo "table for $HF_WALL_ROWS";; esac\n', { mode: 0o755 });
   writeFileSync(join(dir, 'hf'), '#!/bin/bash\n', { mode: 0o755 });
   const tree = 'a'.repeat(40); writeFileSync(join(dir, 'state.json'), JSON.stringify({ tree, trusted: [1, 3] }));
   const sh = (mode: string) => execFileSync('bash', ['-c', `exec 2>&1; source scripts/lib/deploy-hf.sh; revision=x; trusted_checks="7"; trust_source="CI"; hf_wall_rows_launch; hf_wall_rows_apply; echo "job=$hf_job checks=$trusted_checks source=$trust_source"; hf_wall_rows_table`], { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, HF_WALL_ROWS: mode, HF_WALL_ROWS_STATE: join(dir, 'state') } });
-  assert.match(sh(''), /off \(HF_WALL_ROWS=0\)[\s\S]*job= checks=7 source=CI\n$/);
-  assert.match(sh('shadow'), /shadow run — the T4 vouches for \[1,3\]; the Mac runs every row anyway\njob=jobX checks=7 source=CI\ntable for shadow/);
-  assert.match(sh('on'), new RegExp(`job=jobX checks=7,1,3 source=CI \\+ T4 job jobX \\(rows 1,3; receipt tree=${tree}\\)\\ntable for on`));
-  // Fail safe (Lead 2026-09-30): only the exact strings `on` and `shadow` enable the T4; a typo or a truthy-looking value is off, named in the log.
-  for (const bad of ['shaddow', '1', 'true', 'ON']) assert.match(sh(bad), new RegExp(`hf-wall-rows: HF_WALL_ROWS=${bad} is not on, shadow or 0: treated as off[\\s\\S]*job= checks=7 source=CI\\n$`), bad);
+  for (const old of ['', '0', 'shadow', 'on']) assert.match(sh(old), new RegExp(`job=jobX checks=7,1,3 source=CI \\+ T4 job jobX \\(rows 1,3; receipt tree=${tree}\\)\\ntable for ${old}`), `HF_WALL_ROWS=${old || '(unset)'}`);
 });
 
 test('collect\'s wait is capped inside the deploy ceiling: min(25 min, ceiling − elapsed − 20 min for the Mac), floor 0 (Deploy\'s review of #1194)', () => {
@@ -142,7 +138,7 @@ test('deploy-hf.sh: the Published line carries the receipt tree, CI+T4 rows are 
   const dir = mkdtempSync(join(tmpdir(), 'deploy-hf2-')), tree = 'f'.repeat(40);
   writeFileSync(join(dir, 'node'), '#!/bin/bash\ncase "$2" in launch) echo jobX;; collect) echo -n "1,3";; table) :;; esac\n', { mode: 0o755 });
   writeFileSync(join(dir, 'hf'), `#!/bin/bash\n[ "$1 $2" = "jobs cancel" ] && echo "$3" >> "${dir}/cancelled"; exit 0\n`, { mode: 0o755 });
-  const env = { ...process.env, PATH: `${dir}:${process.env.PATH}`, HF_WALL_ROWS: 'on', HF_WALL_ROWS_STATE: join(dir, 'state') };
+  const env = { ...process.env, PATH: `${dir}:${process.env.PATH}`, HF_WALL_ROWS_STATE: join(dir, 'state') };
   const sh = (script: string) => execFileSync('bash', ['-c', `exec 2>&1; source scripts/lib/deploy-hf.sh; revision=x; ${script}`], { encoding: 'utf8', env });
   writeFileSync(join(dir, 'state.json'), JSON.stringify({ tree, trusted: [1, 3] }));
   assert.match(sh('trusted_checks="7,1"; trust_source="CI"; hf_wall_rows_launch; hf_wall_rows_apply; echo "checks=$trusted_checks source=$trust_source"'),

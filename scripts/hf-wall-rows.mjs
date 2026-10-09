@@ -1,5 +1,5 @@
 // The T4 wall-row box, the I/O half (scripts/lib/hf-wall-rows.mjs is the rules). Sourced into the release by scripts/lib/deploy-hf.sh:
-//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3]   starts ONE hf job (t4-medium, 4-wide) for the wall rows; prints the job id
+//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3] [--skip 2,5]   starts ONE hf job (t4-medium, 4-wide) for the wall rows; prints the job id
 //   node scripts/hf-wall-rows.mjs collect                           waits for it, prints the trusted rows "1,3" (empty = trust nothing)
 //   node scripts/hf-wall-rows.mjs table                             the side-by-side after the Mac's rows (artifacts/release-checks.json)
 // The job clones the public repo at the sha and prints its own `git rev-parse HEAD` + tree, so a receipt binds to what it built, not to
@@ -15,6 +15,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { costLine, parseJobLog, selectWallRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
+import { ledger } from './vps-shadow/launch.mjs';
+import { MAC_ONLY } from './lib/row-placement.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || 'hf';
@@ -29,11 +31,14 @@ const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', time
 const sleep = s => { if (s > 0) spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }); };
 const PUBLIC_KEYS = ['VITE_SENTRY_DSN', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY'];
 
-function launch(sha, rowsArg) {
+function launch(sha, rowsArg, skipArg) {
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('launch needs a full 40-hex revision');
   const gate = JSON.parse(readFileSync(join(root, '.quality-gate.json'), 'utf8')), commands = gate.release_commands;
-  const rows = rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
-    : selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } });
+  // deploy.sh: the CI-trusted and out-of-scope rows (no box needs to run them) and the Mac-only list, which wins over the wall timing: rows 4 and 22 are
+  // wall rows whose scripts launch WebKit (selectWallRows reads the command only), and Linux WebKit is not Mac Safari.
+  const skipRows = [...String(skipArg || '').split(',').map(Number), ...(rowsArg ? [] : MAC_ONLY.map(entry => entry.row))];
+  const rows = (rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
+    : selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } })).filter(n => !skipRows.includes(n));
   if (!rows.length) throw new Error('no wall rows to run');
   const skip = commands.map((_, i) => i + 1).filter(i => !rows.includes(i));
   const job = readFileSync(join(root, 'scripts', 'hf-wall-rows', 'job.sh'));
@@ -49,6 +54,7 @@ function launch(sha, rowsArg) {
   if (secrets) rmSync(dirname(secrets), { recursive: true, force: true });
   const id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
   if (result.status !== 0 || !id) throw new Error(`hf jobs run failed: ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`);
+  ledger(id, sha, timeout);   // scripts/hf-cleanup.mjs cancels it on deploy.sh's EXIT if it is still running and counts its cost
   mkdirSync(dirname(state), { recursive: true });
   rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this job's (deploy-hf.sh's cancel checks for it)
   writeFileSync(state, JSON.stringify({ jobId: id, sha, rows, flavor, width, launchedAt: Date.now() }) + '\n');
@@ -113,10 +119,10 @@ function table() {
 
 try {
   const [command, ...rest] = process.argv.slice(2);
-  if (command === 'launch') launch(rest[0], rest.includes('--rows') ? rest[rest.indexOf('--rows') + 1] : undefined);
+  if (command === 'launch') launch(rest[0], rest.includes('--rows') ? rest[rest.indexOf('--rows') + 1] : undefined, rest.includes('--skip') ? rest[rest.indexOf('--skip') + 1] : undefined);
   else if (command === 'collect') collect();
   else if (command === 'table') table();
-  else throw new Error('usage: hf-wall-rows.mjs launch <sha> [--rows 1,3] | collect | table');
+  else throw new Error('usage: hf-wall-rows.mjs launch <sha> [--rows 1,3] [--skip 2,5] | collect | table');
 } catch (error) {
   say(`${error.message}`);
   process.exit(1);
