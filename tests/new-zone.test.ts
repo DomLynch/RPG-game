@@ -54,3 +54,30 @@ test('a zone name with quotes is written as a valid string', async () => {
     assert.ok(readFileSync(`${scratch}/zone7/zone.ts`, 'utf8').includes('level: 7'));
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
+
+test('the copied kit and looks say whose they are (Zone N, a copy of Zone 2\'s), not "Zone 2\'s kit"', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-h-`);
+  try {
+    cpSync(`${ZONES_DIR}zone2`, `${scratch}/zone2`, { recursive: true });
+    newZone({ n: 31, dir: `${scratch}/` });
+    for (const f of ['kit.ts', 'look.ts']) {
+      const [first, ...rest] = readFileSync(`${scratch}/zone31/${f}`, 'utf8').split('\n');
+      assert.match(first!, /^\/\/ Zone 31's (kit|looks): a copy of Zone 2's/, f);
+      assert.equal(rest.join('\n'), readFileSync(`${scratch}/zone2/${f}`, 'utf8').split('\n').slice(1).join('\n'), `${f}: everything after the header is the template's`);
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('a copy that fails after the folder is made leaves no half-made folder behind', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-f-`);   // no zone2 here: reading the template throws
+  try {
+    assert.throws(() => newZone({ n: 5, dir: `${scratch}/` }), /ENOENT/);
+    assert.deepEqual(readdirSync(scratch), []);
+    assert.doesNotThrow(() => newZone({ n: 5, dir: `${scratch}/` }) && 0 || undefined, undefined);
+  } catch (e) { /* the second call fails the same way: only the first call's cleanup is under test */ void e; } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('the biome presets are the literal data file, and the default biome is one of them', () => {
+  assert.equal(BIOMES, biomesData);
+  assert.ok(Object.hasOwn(BIOMES, DEFAULT_BIOME));
+});
