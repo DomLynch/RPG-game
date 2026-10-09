@@ -2,9 +2,9 @@
 //  - a KIT is one to three rows of "throw THIS existing attack when THIS holds, at most once per COOLDOWN" (a deterministic trigger and a cooldown, no chance), which makes a kind recognisable
 //    and caps how often the hero meets its worst move;
 //  - a MODE is a small DELTA on the warden's own AiProfile numbers (shy, bold, ambusher): the fight-side half of Expansion's `mode` preset (the world half, aggro ring and leash, is theirs).
-import { profileAt, OPPONENTS, type AiProfile } from '../../src/fight/index.ts';
+import { profileAt, OPPONENTS, type AiProfile } from '../../src/moves.ts';
 import { initialKit, kitIntent, type ChainRow, type KitRow } from '../../src/mobkit.ts';
-import type { Duel, Intent } from '../../src/fight/index.ts';
+import type { Duel, Intent } from '../../src/duel.ts';
 import { MOB_STYLE, type MobStyle } from './styles.ts';
 
 export const KITS: Readonly<Record<MobStyle, readonly KitRow[]>> = {
