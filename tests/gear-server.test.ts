@@ -37,9 +37,12 @@ test('a guest, or a writer that does not answer, keeps the local ledger: refresh
   assert.equal(await down.refresh(), false); assert.equal(down.act({ kind: 'stow', key: 'head' }), false);
 });
 
-test('Zone 1\'s menu Gear button is the temporary page hop to the engine\'s gear screen, marked for deletion in the last A PR (Strategy 2026-10-09), and the Pit lands it on Profile with a way back', async () => {
+test('the engine\'s gear screen is mounted in Zone 1 and in the Pit through the ONE sheet: neither page carries its own wear / stow logic, and the temporary page hop is gone (Strategy 2026-10-09)', async () => {
   const { readFileSync } = await import('node:fs');
-  const zone1 = readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8'), pit = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
-  assert.match(zone1, /TEMPORARY: deleted in the last A PR \(Strategy 10-09\)[^\n]*\n[^\n]*menu-gear[^\n]*location\.assign\('\/arena\/\?gear=1'\)/);
-  assert.match(pit, /TEMPORARY: deleted in the last A PR \(Strategy 10-09\)/); assert.match(pit, /back\.addEventListener\('click', \(\) => location\.assign\('\/zone1\/'\)\)/);
+  const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const pit = read('src/main.ts'), zone = read('origins/preview/gear-mount.ts'), zone1 = read('origins/preview/main.ts');
+  assert.match(pit, /createGearSheet\(/); assert.match(zone, /createGearSheet\(/, 'Zone 1 mounts the same sheet function the Pit does');
+  for (const [name, src] of [['src/main.ts', pit], ['gear-mount.ts', zone]] as const) assert.doesNotMatch(src, /\b(wearFromPack|unwear|stow)\(/, `${name} makes no equip decision of its own`);
+  assert.match(zone1, /mountGear\(/); assert.match(zone1, /menu-gear/);
+  assert.doesNotMatch(pit + zone1, /arena\/\?gear=1|gearHop|openGearFromZone1|TEMPORARY: deleted in the last A PR/, 'the temporary Gear hop is deleted');
 });

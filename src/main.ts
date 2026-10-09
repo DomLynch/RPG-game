@@ -46,7 +46,7 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { createGearSheet, lootThumb } from './gear-sheet.ts';
-import type { GearOp } from './gear-ledger.ts';
+import { wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
 import { createServerGear } from '../origins/preview/gear-server.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
@@ -216,9 +216,9 @@ function offerLoot(healthLeft: number) {
 // fight's "You beat <legend>" line names.
 const pieceName = (id: LootId) => ownedName(id, profile.loot?.taken?.[id]?.tier);
 const takeName = (id: LootId) => { const legend = legendNow(); return legend ? lootName(id, legend.name) : ownedName(id); };
-const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
+const wornIds = (): LootId[] => wornIdsOf(profile.loot);
 // The rung each worn piece was taken at (Provenance.tier, a level 1..10), which its finish shows (rank-tint.ts); a piece without one shows Recruit.
-const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatMap((id) => { const level = profile.loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));
+const wornTiers = (): Record<string, Tier> => wornTiersOf(profile.loot);
 // The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
@@ -771,16 +771,6 @@ function openJournal() {
   void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
-// TEMPORARY: deleted in the last A PR (Strategy 10-09). Zone 1's Gear button lands here (/arena/?gear=1): the engine's gear screen opens on the Profile tab with a Back to Zone 1 link.
-// The walk's position is not kept (Zone 1 starts at its spawn on every load), so Back lands at the zone start.
-const gearHop = /[?&]gear=1(?:&|$)/.test(location.search); let gearHopDone = false;
-function openGearFromZone1() {
-  if (!gearHop || gearHopDone) return; gearHopDone = true;
-  try { history.replaceState(history.state, '', `${location.pathname}${location.search.replace(/([?&])gear=1(&|$)/, (_m, a, b) => (b ? a : '')).replace(/[?&]$/, '')}${location.hash}`); } catch { /* no history API: the flag stays in the address */ }
-  element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal();
-  const back = document.createElement('button'); back.id = 'gear-back'; back.type = 'button'; back.textContent = 'Back to Zone 1';
-  back.addEventListener('click', () => location.assign('/zone1/')); element('app-nav').append(back);   // the sticky tab bar: in view on every tab
-}
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
@@ -1260,7 +1250,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
-      if (kind === 'ready') { view?.startStandoff(); if (gearHop) setTimeout(openGearFromZone1, 0); }   // after `view` is assigned
+      if (kind === 'ready') view?.startStandoff();
     },
     opponent.id,
     arenaPick,   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged

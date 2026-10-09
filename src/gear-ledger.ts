@@ -1,7 +1,7 @@
 // The engine's gear screen reads the ONE item ledger (origins/inventory, Backend's gear_open / gear_equip / gear_unequip, #1982) instead of a local copy:
 // this file is the pure half. It reads a gear_open reply into the Loot shape the gear sheet already draws (so the sheet changes nothing), and turns a wear /
 // stow into the server calls that make it (the server has no silent swap: a slot's occupant is unequipped first, to the pack). No network, DOM or clock.
-import { TIERS } from './grades.ts';
+import { TIERS, type Tier } from './grades.ts';
 import { paperdollOf, slotOf, stow, unwear, wear, wearFromPack, type Loot, type LootId, type Paperdoll, type Provenance } from './loot.ts';
 
 export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number };
@@ -48,3 +48,7 @@ export type GearOp = { kind: 'wear'; id: LootId } | { kind: 'wearFromPack'; id: 
 export const applyLocal = (loot: Loot, op: GearOp): Loot => (op.kind === 'wear' ? wear(loot, op.id) : op.kind === 'wearFromPack' ? wearFromPack(loot, op.id) : op.kind === 'unwear' ? unwear(loot, op.key) : stow(loot, op.key));
 // The server has one way to take a piece off (into the pack), so Wear's swap and Wear-from-pack are the same calls, and Take off and Store are the same call.
 export const stepsFor = (v: GearView, op: GearOp): Step[] => (op.kind === 'wear' || op.kind === 'wearFromPack' ? stepsToWear(v, op.id) : stepsToStow(v, op.key));
+
+// What the rig wears, and at which rung (a piece's take tier; none reads Recruit): the same answer for the Pit's profile and for the ledger a zone shows.
+export const wornIdsOf = (loot: Loot | undefined): LootId[] => Object.values(loot?.equipped ?? {}) as LootId[];
+export const wornTiersOf = (loot: Loot | undefined): Record<string, Tier> => Object.fromEntries(wornIdsOf(loot).flatMap((id) => { const level = loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));

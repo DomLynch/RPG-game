@@ -17,6 +17,7 @@ import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
+import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
@@ -385,8 +386,10 @@ function zoneReadyCheck() {
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
 }
+let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+  const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
   if (duelDrawing) {   // ?worldfight: the duel draws this scene (it holds it in its holder); the world behind it stays alive: creatures wander and animate, fires burn
     mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
@@ -421,8 +424,9 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
-      // TEMPORARY: deleted in the last A PR (Strategy 10-09). Gear is the engine's own screen at /arena/ (src/gear-sheet.ts) until the sheet is mounted here; Back to Zone 1 returns to the zone start.
-      const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => location.assign('/arena/?gear=1')); chips.append(gearEntry);
+      // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search }); } catch { /* storage blocked: no gear screen, the rest of the ☰ stays */ }
+      if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
       pick.addEventListener('click', () => { menu.close(); openPanel('allegiance'); });

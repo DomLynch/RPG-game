@@ -51,8 +51,8 @@
     /* The game's menu in a preview: the career, the account and the fighter's gear are the game's, not this page's, so the menu keeps
        Settings (Sound, How to fight) and the app nav's Arena and The Pit (= Leave the Pit). The camera is the game's locked one, always:
        its lock and recenter controls are not offered. */
-    #duel .fighter, #duel #account, #duel .tab-profile, #duel .tab-fighter, #duel .tab-arena, #duel .pane-profile, #duel .pane-fighter, #duel .pane-arena, #duel #test-tools,
-    #duel #nav-gear, #duel #nav-note, #duel #mobile-camera, #duel #camera-button, #duel #recenter-button { display: none !important; }
+    #duel .fighter, #duel #account, #duel .tab-fighter, #duel .tab-arena, #duel .pane-fighter, #duel .pane-arena, #duel #test-tools,
+    #duel #nav-note, #duel #mobile-camera, #duel #camera-button, #duel #recenter-button, #duel:not(.gearing) .tab-profile, #duel:not(.gearing) .pane-profile, #duel:not(.gearing) #nav-gear { display: none !important; }   /* the gear screen (gear-mount.ts) shows the Profile pane while the layer is `gearing` */
     /* World mode (?region=1): the Pit's own kit is the walk's controls. The layer lets the walk's canvas through; only the stick, the buttons and the ☰ take a touch. */
     #duel.world { background: none; pointer-events: none; }
     #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave, #duel.world #journal { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit); #journal: the ☰ menu is a child of the layer, so it inherited none and its buttons (Leave the Pit, Arena, ✕) took no tap either (found by the leave-exit check, PR #1835) */
