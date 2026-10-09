@@ -45,8 +45,8 @@ export const FLAVORS = ['cpu-upgrade', 't4-medium'];
 export const jobCommand = (kind, sha) => ['bash', '-c', `set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q origin ${sha}; git checkout -q --detach ${sha}; export SHADOW_HOME=/work SHADOW_JOB_KIND=${kind}; exec bash scripts/vps-shadow/run-${kind}.sh ${sha}`];
 // The job's whole environment is part of what it ran: the canonical command with NODE_OPTIONS=--require, BASH_ENV or npm_config_* injected could print its own RECEIPT.
 // So the env keys are a closed set with strict values, and the job carries no secrets.
-const ENV_RULES = { SHA: (v, sha) => v === sha, ROWS_ONLY: v => /^\d+(,\d+)*$/.test(v), RELEASE_CHECK_CONCURRENCY: v => /^[1-8]$/.test(v) };
-const ENV_ALLOWED = { rows: ['SHA', 'ROWS_ONLY', 'RELEASE_CHECK_CONCURRENCY'], unit: ['SHA'] };
+const ENV_RULES = { SHA: (v, sha) => v === sha, ROWS_ONLY: v => /^\d+(,\d+)*$/.test(v), RELEASE_CHECK_CONCURRENCY: v => /^[1-8]$/.test(v), RELEASE_CHECK_CEILING_S: v => /^[1-9]\d{2,3}$/.test(v) };
+const ENV_ALLOWED = { rows: ['SHA', 'ROWS_ONLY', 'RELEASE_CHECK_CONCURRENCY', 'RELEASE_CHECK_CEILING_S'], unit: ['SHA'] };
 export const jobEnvOk = (env, sha, kind) => !!env && typeof env === 'object' && Object.keys(env).every(k => (ENV_ALLOWED[kind] || []).includes(k) && typeof env[k] === 'string' && ENV_RULES[k](env[k], sha)) && env.SHA === sha;
 // Everything `hf jobs inspect` reports about how the job ran is pinned: image, no arguments, the account that owns it, no Space, no secrets (the field is present and empty
 // in a real inspect, so absent is refused), the closed env above and the canonical command.
@@ -86,7 +86,8 @@ export const unitReceiptOk = (receipt, tree, ownSums, jobs = {}, trees = {}) =>
   !!receipt && trees?.[receipt.sha] === tree && receipt.kind === 'vps-unit-suite' && fullHex(tree) && receipt.tree === tree && jobVerified(jobs?.[receipt.job], receipt.job, receipt.sha, 'unit')
   && receipt.exit === 0 && receipt.fail === 0 && Number.isInteger(receipt.pass) && receipt.pass > 0 && boundToTree(receipt, ownSums);
 
-// Rows that take too long on a Hugging Face job to shard (#1933: launch.mjs refuses them on every flavor); they run on the Mac and are never "unassigned".
+// Rows that take too long to share a Hugging Face job (#1933): launch.mjs runs each ALONE on cpu-upgrade, width 1, row ceiling 1500 s, job timeout 35m (SLOW_CEILING_S); never "unassigned".
+export const SLOW_CEILING_S = 1500;
 export const SLOW_ROWS = [5, 7, 9, 13, 16, 21, 28, 34, 36];
 // Shard coverage for a release: every row must be run by some shard or be one no Hugging Face job can vouch for. `macOnly` = rows even the T4 may not vouch for
 // (WebKit, real-clock resume, a missing script): they always run on the Mac. `t4Only` = wall-clock rows only the T4 can vouch for. `unassigned` = rows no shard ran

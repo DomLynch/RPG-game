@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { NEVER_ON_HF, SLOW_ROWS, coverageGaps, jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+import { NEVER_ON_HF, SLOW_ROWS, coverageGaps, jobCommand, jobEnvOk, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
@@ -213,12 +213,25 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
 });
 
-test('launch.mjs refuses the slow rows on every flavor (a shard with one loses everything to the job timeout; the t4-medium trial of 5/7/16 hit the ceiling too)', () => {
+test('launch.mjs runs a slow row alone: one row per job, width 1, cpu-upgrade, ceiling 1500 s and a 35m job timeout; it refuses them in a shared shard or on t4-medium', () => {
   assert.deepEqual(SLOW_ROWS, [5, 7, 9, 13, 16, 21, 28, 34, 36]);
-  for (const row of SLOW_ROWS) assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', `30,${row}`), /slow rows/, `row ${row}`);
-  assert.ok(hfArgs('rows', sha, 'cpu-upgrade', '30,31,33').includes('ROWS_ONLY=30,31,33'));
-  assert.throws(() => hfArgs('rows', sha, 't4-medium', '5,7,16'), /slow rows/, 't4-medium does not rescue them either');
+  for (const row of SLOW_ROWS) {
+    const args = hfArgs('rows', sha, 'cpu-upgrade', String(row), '1');
+    assert.ok(args.includes('RELEASE_CHECK_CEILING_S=1500') && args.includes('35m') && args.includes(`ROWS_ONLY=${row}`), `row ${row}`);
+    assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', `30,${row}`, '1'), /one row per job/, `row ${row} shared`);
+    assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', String(row), '4'), /one row per job/, `row ${row} wide`);
+    assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', String(row)), /one row per job/, `row ${row} no width`);
+  }
+  assert.throws(() => hfArgs('rows', sha, 't4-medium', '5', '1'), /one row per job/, 't4-medium does not rescue them either');
+  const plain = hfArgs('rows', sha, 'cpu-upgrade', '30,31,33');
+  assert.ok(plain.includes('ROWS_ONLY=30,31,33') && plain.includes('20m') && !plain.some(a => String(a).startsWith('RELEASE_CHECK_CEILING_S')), 'other rows keep the 20m job and the default ceiling');
   assert.equal(hfArgs('rows', sha).includes('node:22'), true, 'the image is JOB_IMAGE');
+});
+
+test('the verifier accepts a slow-row job env (RELEASE_CHECK_CEILING_S 100-9999 digits only) and refuses a free-form one', () => {
+  assert.equal(jobEnvOk({ SHA: sha, ROWS_ONLY: '5', RELEASE_CHECK_CONCURRENCY: '1', RELEASE_CHECK_CEILING_S: '1500' }, sha, 'rows'), true);
+  assert.equal(jobEnvOk({ SHA: sha, RELEASE_CHECK_CEILING_S: '1500;x' }, sha, 'rows'), false);
+  assert.equal(jobEnvOk({ SHA: sha, RELEASE_CHECK_CEILING_S: '1500' }, sha, 'unit'), false);
 });
 
 test('the runners show their evidence in the job log: rows tee the per-row lines (keeping the release-checks exit code), the unit runner prints the failing tests', () => {
