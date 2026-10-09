@@ -33,11 +33,11 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const errors = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
-  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e)));
+  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e))); const logs = []; page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') logs.push(m.text().slice(0, 300)); });
   await page.route('**/origins/*', answer);
   await page.addInitScript((s) => localStorage.setItem('frankendom.auth.v1', s), JSON.stringify({ access_token: 'tok', expires_at: Math.floor(Date.now() / 1000) + 3600 }));
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1`, { waitUntil: 'load' });
-  await page.waitForSelector('#menu-gear', { state: 'attached' });
+  await page.waitForSelector('#menu-gear', { state: 'attached', timeout: 90000 }).catch((e) => { console.log('NO #menu-gear; page errors', JSON.stringify(errors), 'console', JSON.stringify(logs.filter((l) => !/GL Driver/.test(l)).slice(-6))); throw e; });
   await page.locator('#journal-button').tap(); await page.locator('#menu-gear').tap();
   await page.waitForSelector('#journal[open][data-gear="live"]'); await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]');
   await page.waitForTimeout(8000);   // the rig and loot.glb load on the first open
