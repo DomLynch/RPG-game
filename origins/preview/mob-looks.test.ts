@@ -28,7 +28,7 @@ test('ranges: scale, dressing and tint are sane; a friendly figure has no look',
 });
 
 test('figures that share a body differ in tint and in height', () => {
-  const share = (body: string) => Object.entries(MOB_LOOKS).filter(([, l]) => l.opponent === body && !l.later);
+  const share = (body: string) => Object.entries(MOB_LOOKS).filter(([, l]) => l.opponent === body && !l.later && !l.body);   // a look on the Pit's own body (body: 'pit') is a different model, not a re-dressed one
   for (const body of ['witch', 'goblin']) {
     const group = share(body);
     assert.ok(group.length >= 2, body);
