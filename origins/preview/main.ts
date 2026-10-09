@@ -139,7 +139,7 @@ const orla = new THREE.Mesh(new THREE.CapsuleGeometry(T.orla.radius, T.orla.leng
 orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.castShadow = true;
 const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(T.orePile.radius, 0), arena.materials.stone); ore.scale.y = 0.5;
 ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow = true; scene.add(orla, ore);
-let attackAct: THREE.AnimationAction | undefined, attackT = 0;
+let swingNow: THREE.AnimationAction | undefined, attackAct: THREE.AnimationAction | undefined, swingActs: Record<string, THREE.AnimationAction | undefined> = {}, attackT = 0;
 let mixer: THREE.AnimationMixer | undefined, gait: THREE.AnimationAction[] = [], rollAct: THREE.AnimationAction | undefined, guardAct: THREE.AnimationAction | undefined;   // the clips in gaitWeights() order: Idle, Walk, Jog, Run
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then((gltf) => {
   gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
@@ -147,7 +147,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(ASSETS.hero!).then(
   mixer = new THREE.AnimationMixer(gltf.scene);
   const clip = (name: string) => { const c = THREE.AnimationClip.findByName(gltf.animations, name); return c ? mixer!.clipAction(c) : undefined; };
   gait = ['Idle', 'Walk', 'Jog', 'Run'].map(clip).filter((a): a is THREE.AnimationAction => !!a);
-  attackAct = clip('Attack'); rollAct = clip('Roll'); guardAct = clip('Guard');   // the Pit's own clips on the same rig: ROLL and GUARD in the walk
+  attackAct = clip('Attack'); swingActs = { heavy: clip('Heavy'), kick: clip('Kick') }; rollAct = clip('Roll'); guardAct = clip('Guard');   // the Pit's own clips on the same rig: ROLL and GUARD in the walk
   gait.forEach((a, i) => { a.play(); a.setEffectiveWeight(i === 0 ? 1 : 0); });
   hero.remove(body, cap); hero.add(gltf.scene);
 }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
@@ -293,7 +293,7 @@ function step(dt: number) {
       prevPose = worldPhase;
     }
     const attacking = attackT > 0; attackT = Math.max(0, attackT - dt);
-    rollAct?.setEffectiveWeight(rolling ? 1 : 0); guardAct?.setEffectiveWeight(guarding ? 1 : 0); attackAct?.setEffectiveWeight(attacking ? 1 : 0);
+    rollAct?.setEffectiveWeight(rolling ? 1 : 0); guardAct?.setEffectiveWeight(guarding ? 1 : 0); attackAct?.setEffectiveWeight(attacking && swingNow === attackAct ? 1 : 0); for (const a of Object.values(swingActs)) a?.setEffectiveWeight(attacking && swingNow === a ? 1 : 0);
     gait.forEach((a, i) => { a.setEffectiveWeight(rolling || guarding || attacking ? 0 : w[i]!); if (i) a.timeScale = forward < 0 ? -1 : 1; }); mixer.update(dt);
   }
   // Follow camera: behind and above; tighter and lower in the passage so it stays under the vault.
@@ -609,7 +609,7 @@ async function creatureFell(spec: MobSpec) {
 const wc = createWorldCombat({
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence,
   onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },
-  onSwing: () => { attackT = 0.7; if (attackAct) { attackAct.reset().setLoop(THREE.LoopOnce, 1); attackAct.clampWhenFinished = false; attackAct.play(); } },
+  onSwing: (move) => { const act = swingActs[move.startsWith('heavy') ? 'heavy' : move] ?? attackAct; swingNow = act; attackT = act === attackAct ? 0.7 : act?.getClip().duration ?? 0.7; if (act) { act.reset().setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = false; act.play(); } },   // the Pit's clip per move: Heavy, Kick, else the cut (the rig has no thrust clip)
 });
 let duelDrawing = false;   // the duel's own frame is drawing this scene (between the mount's attach and detach): the walk loop keeps the world alive but does not draw
 // One holder per page: createScene adds it to its scene once, at creation, and the next fight against the same body and level REUSES that stage, so a new holder per fight would be in no rendered scene (a bare background). detach() resets its matrix.

@@ -89,3 +89,13 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
   assert.ok(total >= 1, 'the wolf did land blows');
   assert.ok(worst <= 1, `at most one blow per 0.25 s catch-up frame, saw ${worst}`);
 });
+
+test('the hero\'s own blow reaches onSwing by its Pit move name, so the page can play Heavy / Kick instead of the cut', () => {
+  const moves = (kind: 'light' | 'heavy' | 'thrust' | 'kick') => {
+    const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const seen: string[] = [];
+    const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: (m) => void seen.push(m) });
+    wc.press(kind); for (let t = 0; t < 1; t += 1 / 30) wc.update(1 / 30, { x: 0, z: 0, facing: 0 });
+    return seen[0];
+  };
+  assert.match(moves('heavy')!, /^heavy/); assert.equal(moves('kick'), 'kick'); assert.equal(moves('thrust'), 'thrust'); assert.match(moves('light')!, /^light/);
+});
