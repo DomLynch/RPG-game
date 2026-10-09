@@ -272,6 +272,7 @@ export const REGIONS = [
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('reach-wolves', 'reach-cairn', null, ['character:ember-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
       spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
+      spawn('pit-goblins', 'watchtower', null, ['character:pit-goblin']),   // the Pit goblin camp by the start path (east road), Zone 1 (Dom 10-09: goblin camp added); the row's size is data (zone1/spawns.ts campSize)
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
