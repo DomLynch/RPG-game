@@ -20,7 +20,7 @@ const KNOWN: readonly string[] = [
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(join(dir, e.name)) : e.name.endsWith('.ts') && !e.name.endsWith('.test.ts') ? [join(dir, e.name)] : []);
 const violations = (): string[] => files('origins').flatMap((file) => [...new Set([...readFileSync(file, 'utf8').matchAll(IMPORT)].map((m) => m[1]!)
-  .filter((s) => /(^|\/)src\/[^/]+$/.test(s))
+  .filter((s) => /(^|\/)src\/(fight\/)?[^/]+$/.test(s))
   .map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
   .filter((name) => (FLOW as readonly string[]).includes(name)))].map((name) => `${file} -> src/${name}.ts`)).sort();
 
@@ -42,22 +42,38 @@ const ENGINE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record',
 const ENGINE_DEBT: readonly string[] = [
   'origins/contracts/economy.ts -> src/gear-stats.ts',
   'origins/contracts/items.ts -> src/gear-stats.ts',
+  'origins/encounters/encounters.ts -> src/moves.ts',
   'origins/encounters/encounters.ts -> src/twist.ts',
   'origins/luck/luck.ts -> src/gambit.ts',
+  'origins/mobs/kits.ts -> src/duel.ts',
+  'origins/mobs/kits.ts -> src/moves.ts',
+  'origins/server/encounter-fixtures.ts -> src/combat.ts',
+  'origins/server/encounter-fixtures.ts -> src/duel.ts',
+  'origins/server/encounter-fixtures.ts -> src/moves.ts',
+  'origins/server/encounter-fixtures.ts -> src/play-radius.ts',
   'origins/server/encounter-fixtures.ts -> src/record.ts',
   'origins/server/encounter-fixtures.ts -> src/replay.ts',
+  'origins/server/encounter-pose.ts -> src/duel.ts',
+  'origins/server/encounter-pose.ts -> src/play-radius.ts',
   'origins/server/encounter-pose.ts -> src/record.ts',
+  'origins/server/encounter-verify.ts -> src/combat.ts',
+  'origins/server/encounter-verify.ts -> src/duel.ts',
+  'origins/server/encounter-verify.ts -> src/moves.ts',
   'origins/server/encounter-verify.ts -> src/record.ts',
   'origins/server/encounter-verify.ts -> src/replay.ts',
+  'origins/server/encounter-verify.ts -> src/sim.ts',
   'origins/server/encounter-verify.ts -> src/twist.ts',
+  'origins/server/encounter.ts -> src/duel.ts',
   'origins/server/encounter.ts -> src/record.ts',
   'origins/server/encounter.ts -> src/twist.ts',
   'origins/server/mob-rewards.ts -> src/twist.ts',
   'origins/server/world-spawns.ts -> src/gambit.ts',
   'origins/server/world-spawns.ts -> src/gear-stats.ts',
+  'origins/server/world-spawns.ts -> src/moves.ts',
+  'origins/shared/with-bar.ts -> src/combat.ts',
 ];
 const direct = (): string[] => files('origins').flatMap((file) => [...new Set([...readFileSync(file, 'utf8').matchAll(IMPORT)].map((m) => m[1]!)
-  .filter((s) => /(^|\/)src\/[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
+  .filter((s) => /(^|\/)src\/(fight\/)?[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
   .filter((name) => ENGINE.includes(name)))].map((name) => `${file} -> src/${name}.ts`)).sort();
 
 test('origins/ reaches the fight engine only through src/fight/index.ts, except the named server debt', () => {
