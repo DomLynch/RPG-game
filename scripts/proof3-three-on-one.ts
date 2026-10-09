@@ -3,21 +3,21 @@
 // Run: node scripts/proof3-three-on-one.ts
 import { MAX_ATTACKERS, creature, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from '../origins/combat/zone1.ts';
 
-const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
+const RUN_MS = 5.2, DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const boost = (f: Fighter): Fighter => { f.health = f.maxHealth = 1e6; return f; };
 let w: World = newWorld([boost(player('hero', 0, 0, 0, undefined, 10)), creature('boar-1', 'boar', 0, 1.6), creature('boar-2', 'boar', 1.4, 1.8), creature('boar-3', 'boar', -1.4, 1.8)]);
 const log: { t: number; e: Event }[] = [], frames: { label: string; w: World }[] = [];
 let killedAt = -1, phase: 'fight' | 'run' = 'fight';
 for (let k = 0; k < 60 * 120; k++) {
-  const t = k * DT, hero = w.fighters.find((f) => f.id === 'hero')!;
-  const input: Input = phase === 'fight' ? { x: 0, z: 0, attack: k % 25 === 0 ? 'light' : null } : { x: -1, z: 0, run: true };
+  const hero = w.fighters.find((f) => f.id === 'hero')!, t = k * DT;
+  const input: Input = phase === 'fight' ? { x: 0, z: 0, attack: k % 25 === 0 ? 'light' : null } : STILL;   // the PAGE walks the hero (zone1.ts header): once he runs, the script moves him at the sim's run speed, 5.2 m/s
+  if (phase === 'run') hero.x -= RUN_MS * DT;
   if (k === 60) frames.push({ label: `t=${t.toFixed(1)}s three on him`, w });
   const r = stepCombat(w, { hero: input }, DT); w = r.world;
   for (const e of r.events) if (['FightStarted', 'Died', 'Evaded'].includes(e.type)) log.push({ t: +t.toFixed(2), e });
   if (killedAt < 0 && r.events.some((e) => e.type === 'Died' && e.by === 'hero')) { killedAt = k; phase = 'run'; frames.push({ label: `t=${t.toFixed(1)}s one down, he runs`, w }); }
   if (killedAt >= 0 && k === killedAt + 60 * 3) frames.push({ label: `t=${t.toFixed(1)}s running`, w });
   if (killedAt >= 0 && w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead').every((f) => !f.hunting && !f.returning && f.health === f.maxHealth && Math.hypot(f.x - f.homeX, f.z - f.homeZ) < 0.2)) { frames.push({ label: `t=${t.toFixed(1)}s both home`, w }); break; }
-  void hero;
 }
 const count = (type: string) => log.filter((l) => l.e.type === type).length;
 console.log(`MAX_ATTACKERS=${MAX_ATTACKERS}`);
