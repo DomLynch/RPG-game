@@ -112,7 +112,7 @@ test('a pack of four around the hero: three join and telegraph their own blows, 
 
 test('three joined: each joiner is driven with its own windup (one actor per creature)', () => {
   const f = fakeMobs([['w1', 1.2], ['w2', 2.4], ['w3', 3.2]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
-  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p && p.lunge !== 0) lunged.add(id); real(id, p); }) as typeof real;
+  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p?.duel?.fighters[1].phase === 'attack') lunged.add(id); real(id, p); }) as typeof real;
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   run(wc, { x: 0, z: 0, facing: 0 }, 4);
   assert.ok(lunged.size >= 3, `each of the three had its own windup/lunge: ${[...lunged]}`);
