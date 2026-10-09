@@ -43,26 +43,30 @@ export type SpawnTracker = {
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), spent = new Map<string, number>();
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), spent = new Map<string, number>(), retried = new Set<string>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
   const isSpent = (instance: string): boolean => { const at = spent.get(instance); if (at === undefined) return false; if (d.now() - at < SPENT_MS) return true; spent.delete(instance); return false; };
   const touch = (o: Open): void => {
     o.touchedAt = d.now();
     void o.engage.then((e) => (isOffline(e) ? undefined : call('touch', { token: e.token, hits: o.hits }, d.token(), touchedOf, opts)));
   };
+  const open = (instance: string): Promise<Engaged | Offline> => {
+    const had = live.get(instance);
+    if (had) return had.engage;
+    if (isSpent(instance)) return Promise.resolve<Offline>({ offline: 'spent' });   // the kill's own late events never open a new token   // FightStarted is once per engage, but a re-fire must never open a second token
+    const character = d.character();
+    const engage = character ? call('engage', { character, instance }, d.token(), engagedOf, opts) : Promise.resolve<Offline>({ offline: 'no-character' });
+    live.set(instance, { engage, hits: 0, touchedAt: d.now() });
+    void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
+    return engage;
+  };
   return {
-    engaged(instance) {
-      const had = live.get(instance);
-      if (had) return had.engage;
-      if (isSpent(instance)) return Promise.resolve<Offline>({ offline: 'spent' });   // the kill's own late events never open a new token   // FightStarted is once per engage, but a re-fire must never open a second token
-      const character = d.character();
-      const engage = character ? call('engage', { character, instance }, d.token(), engagedOf, opts) : Promise.resolve<Offline>({ offline: 'no-character' });
-      live.set(instance, { engage, hits: 0, touchedAt: d.now() });
-      void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
-      return engage;
-    },
+    engaged(instance) { retried.delete(instance); return open(instance); },   // a FightStarted (re)start asks afresh
     hit(instance) {
+      if (isSpent(instance)) return;
+      // FightStarted is once per engage, so a refused / offline engage (a blip, a 429) is never asked again by the event; the player's own blow lands on it (a real fight), so ask ONCE more, then give up for this fight.
+      if (!live.has(instance) && !retried.has(instance)) { retried.add(instance); void open(instance); }
       const o = live.get(instance);
-      if (!o || isSpent(instance)) return;
+      if (!o) return;
       o.hits++;
       if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
     },
@@ -70,12 +74,12 @@ export function spawnTracker(d: Deps): SpawnTracker {
     async killed(instance) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
-      live.delete(instance); spent.set(instance, d.now());
+      live.delete(instance); retried.delete(instance); spent.set(instance, d.now());
       const e = await o.engage;   // a kill can land before the engage answered: report on its token once it has
       if (isOffline(e)) return e;
       return call('kill_report', { token: e.token, hits: o.hits }, d.token(), killedOf, opts);
     },
-    evaded(instance) { live.delete(instance); },
+    evaded(instance) { live.delete(instance); retried.delete(instance); },
     open: () => [...live.keys()],
   };
 }

@@ -183,3 +183,33 @@ test('the page frame drives the tracker: main.ts calls spawnNet.tick() in the sa
   assert.match(frame!, /spawnNet\.tick\(\)/, 'the same frame ticks the engage client');
   assert.match(main, /onEvent: onCombatEvent\(spawnNet, ME\)/, 'combat events reach the tracker');
 });
+
+test('a refused/offline engage is asked ONCE more on the player\'s own blow (Auditor\'s MEDIUM, #1960); a second refusal is not hammered; Evaded or a new FightStarted asks afresh; a kill still prices on the retried token', async () => {
+  let n = 0, refuse = 2;
+  const eng = { token: 'T'.repeat(24), instance: 'wolves-1', generation: 0, kind: 'character:ash-wolf', level: 1, hp: 40, expiresAt: '2026-10-09T10:02:00Z' };
+  const stub = (async (url: string) => {
+    if (String(url).endsWith('/engage')) { n++; return n <= refuse ? new Response('{}', { status: 429 }) : new Response(JSON.stringify({ ok: true, result: eng }), { status: 200 }); }
+    return new Response(JSON.stringify({ ok: true, result: { expiresAt: 'E' } }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => 1_000, fetch: stub, base: 'http://x' }), on = onCombatEvent(t, 'me');
+  on({ type: 'FightStarted', creature: 'wolves-1', player: 'me' });
+  await t.engaged('wolves-1'); await new Promise((r) => setImmediate(r));
+  assert.deepEqual([n, t.open()], [1, []], 'the first engage was refused: nothing held');
+  on({ type: 'Hit', attacker: 'me', victim: 'wolves-1' });   // my blow: ask once more (refused again)
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual([n, t.open()], [2, []], 'one retry, refused again');
+  on({ type: 'Hit', attacker: 'me', victim: 'wolves-1' }); on({ type: 'Hit', attacker: 'me', victim: 'wolves-1' });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(n, 2, 'not asked again on every blow');
+  on({ type: 'FightStarted', creature: 'wolves-1', player: 'me' });   // a fresh fight asks afresh (answered now)
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual([n, t.open()], [3, ['wolves-1']]);
+  // a creature whose first engage fails once is paid after one blow: the retry holds the token and counts that blow
+  refuse = n + 1;
+  on({ type: 'FightStarted', creature: 'wolves-2', player: 'me' });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual([t.open().includes('wolves-2')], [false]);
+  on({ type: 'Hit', attacker: 'me', victim: 'wolves-2' });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.ok(t.open().includes('wolves-2'), 'the retried engage holds a token');
+});
