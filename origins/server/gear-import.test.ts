@@ -71,15 +71,17 @@ test('unknown LootIds are skipped and reported, never fatal; a worn slot already
   const w = world();
   const helm = ALL.filter((id) => slotOf(id) === 'Helmet');
   const r1 = await run(w.db, { owned: ['nobody.Helmet', 'goblin.Spoon', ...helm.slice(0, 1)], equipped: { head: helm[0] } });
-  assert.deepEqual(r1.skipped.map((s) => s.lootId).sort(), ['goblin.Spoon', 'nobody.Helmet']);
+  assert.deepEqual(r1.skipped.map((s) => s.lootId).sort(), ['goblin.Spoon', 'nobody.Helmet']);   // not LootIds: nothing to mint
   assert.deepEqual(r1.worn, [helm[0]]);
   const r2 = await run(w.db, { owned: [], equipped: { head: helm[1] } });   // the head is taken now
-  assert.deepEqual([r2.imported, r2.worn], [[helm[1]], []]);
+  assert.deepEqual([r2.imported, r2.worn, r2.unworn.map((u) => u.lootId)], [[helm[1]], [], [helm[1]]]);   // head taken: owned, so pack, and said so
   const v = await view(w.db);
   assert.equal(v.pieces.find((p) => p.lootId === helm[1])!.where, 'pack');
   assert.equal(v.pieces.find((p) => p.lootId === helm[0])!.where, 'equipped');
-  const bad = await run(w.db, { owned: [], equipped: { head: ALL.find((id) => slotOf(id) === 'Gloves') } });
-  assert.equal(bad.skipped.length, 1, 'a Gloves piece cannot be on the head');
+  const gloves = ALL.find((id) => slotOf(id) === 'Gloves')!;
+  const bad = await run(w.db, { owned: [], equipped: { head: gloves, tail: ALL.find((id) => slotOf(id) === 'Boots') } });
+  assert.deepEqual([bad.imported.length, bad.skipped.length, bad.worn.length, bad.unworn.length], [2, 0, 0, 2], 'a worn piece the slot cannot take is NOT dropped: it falls back to the pack, reported as unworn');
+  assert.ok((await view(w.db)).pieces.some((p) => p.lootId === gloves && p.where === 'pack'));
 });
 
 test('malformed bodies are 400s and nothing is minted; the rung a piece was taken at is recorded (tier + legend), absent means Recruit', async () => {
