@@ -1,38 +1,31 @@
 // The zone loader (zone-runtime step 1, docs/specs/zone-runtime.md): the ONE place that reads a zone's data package (origins/zones/<id>/) and checks it before anything uses it. Callers get a validated Zone
 // and never import origins/zones/** themselves (loader.test.ts fails if they do). Pure: no three.js, no DOM, so the server may read the same rows. Only Zone 1 exists; a second zone is a second package
-// and a line in PACKAGES.
+// and nothing else: registry.ts is generated from the origins/zones/zone<N>/ folders (scripts/gen-zones.mjs).
 import type { MobRow } from '../mobs/row.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/roster.ts';
-import zone1 from './zone1/zone.ts';
-import spawns1 from './zone1/spawns.ts';
-import kit1 from './zone1/kit.ts';
-import looks1 from './zone1/look.ts';
-import zone2 from './zone2/zone.ts';
-import spawns2 from './zone2/spawns.ts';
-import kit2 from './zone2/kit.ts';
-import looks2 from './zone2/look.ts';
-import mobLooks2 from './zone2/mob-looks.ts';
+import { REGISTRY } from './registry.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
   id: string; level: number;
+  name: string;               // the zone's display name: the tab title and the HUD read it (Zone 1 = the Cinder Fields it opens in)
+  names: Readonly<Record<string, string>>;   // display names of its world zones, by world-zone id (zone.world)
   world: readonly string[];   // the world-data zones (origins/region1/world.ts) this zone's page walks
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
   looks: Readonly<Record<string, Look>>;
   mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
-const PACKAGES: Record<string, Zone> = {
-  '1': { ...zone1, spawns: spawns1, kit: kit1, looks: looks1 },
-  '2': { ...zone2, spawns: spawns2, kit: kit2, looks: looks2, mobLooks: mobLooks2 },
-};
+const PACKAGES: Record<string, Zone> = REGISTRY;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
 export function zoneProblems(z: Zone): string[] {
   const bad: string[] = [], ids = new Set<string>();
+  if (!z.name.trim()) bad.push('no display name');
+  for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
     if (r.level[0] !== z.level || r.level[1] !== z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${z.level}-${z.level + 1}`);
@@ -65,6 +58,7 @@ export function zoneProblems(z: Zone): string[] {
 }
 
 export const zoneIds = (): string[] => Object.keys(PACKAGES);
+export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
 
 // Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), else Zone 1 (/zone1/ and every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {

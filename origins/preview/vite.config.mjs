@@ -4,6 +4,8 @@ import { fileURLToPath, URL, URLSearchParams } from 'node:url';
 import { basename } from 'node:path';
 import { optimizeGlb } from '../../scripts/optimize-glb.mjs';
 import { liveKit } from './live-kit.mjs';
+import { ZONES_DIR, registrySource } from '../../scripts/gen-zones.mjs';
+import { writeFile } from 'node:fs/promises';
 
 // Origins look prototype (Expansion lane, 2026-10-06): its own page, its own build, never part of the game's build.
 // npx vite build --config origins/preview/vite.config.mjs  → artifacts/origins-preview/, served at /preview/origins/.
@@ -17,6 +19,9 @@ export default defineConfig({
   server: { fs: { allow: [repo] } },
   build: { outDir: `${repo}artifacts/origins-preview`, emptyOutDir: true, chunkSizeWarningLimit: 2000 },
   plugins: [{
+    name: 'zone-registry',   // a build never ships a stale registry: the zone folders are the source
+    async buildStart() { await writeFile(`${ZONES_DIR}registry.ts`, registrySource()); },
+  }, {
     name: 'live-fight-kit',
     async transformIndexHtml(html) { return liveKit(await readFile(`${repo}index.html`, 'utf8'), html); },
   }, {
