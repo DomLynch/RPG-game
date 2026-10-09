@@ -1,8 +1,9 @@
-// Every creature has a complete gore row, the rows match the rigs on disk, and the finisher path has no per-creature code: a new creature is one row (src/creature-gore.ts).
+// Every creature has a complete gore row, the rows match the rigs on disk, and the finisher path has no per-creature code: a new creature is one catalogue row (src/fight/catalogue-rows.ts), which src/creature-gore.ts reads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CREATURE_GORE, creatureGore, type CreatureGore } from '../src/creature-gore.ts';
+import { catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { ROSTER } from '../src/roster.ts';
 import { ROTATION, type FinisherId } from '../src/fight/finishers.ts';
 
@@ -20,10 +21,10 @@ test('every creature in the roster has a gore row, and no row is for a non-roste
   for (const id of Object.keys(CREATURE_GORE)) assert.ok(id in ROSTER, `${id} is a roster id`);
 });
 
-test('a row is complete: shape, a head and a neck to cut, limbs, a blood colour and amount, finishers from the Pit set ending in plainDeath', () => {
+test('a row is complete: shape, a head, a neck and an upper spine to cut, limbs, a blood colour and amount, finishers from the Pit set ending in plainDeath', () => {
   for (const [id, row] of Object.entries(CREATURE_GORE) as [string, CreatureGore][]) {
     assert.ok(row.shape === 'quadruped' || row.shape === 'biped', `${id}: shape`);
-    assert.ok(row.cut.head.length && row.cut.neck.length, `${id}: a usable head and neck bone`);
+    assert.ok(row.cut.head.length && row.cut.neck.length && row.cut.spine.length, `${id}: a usable head, neck and upper-spine bone`);
     assert.ok(Object.keys(row.cut.limbs).length >= 4 && Object.values(row.cut.limbs).every((b) => b.length), `${id}: four limbs`);
     assert.ok(HEX.test(row.blood.start) && HEX.test(row.blood.end), `${id}: blood colours are #rrggbb`);
     assert.ok(row.blood.amount > 0 && row.blood.amount <= 2, `${id}: blood amount in (0, 2]`);
@@ -36,7 +37,10 @@ test('a row is complete: shape, a head and a neck to cut, limbs, a blood colour 
 test('the bones are the rig\'s own: every named bone is a skin joint of the row\'s GLB, and the roster body agrees', () => {
   for (const [id, row] of Object.entries(CREATURE_GORE) as [string, CreatureGore][]) {
     const have = joints(row.glb);
-    for (const bone of [...row.cut.head, ...row.cut.neck, ...Object.values(row.cut.limbs).flat()]) assert.ok(have.has(bone), `${id}: ${bone} is not a joint of ${row.glb}`);
+    const bones = [...row.cut.head, ...row.cut.neck, ...row.cut.spine, ...Object.values(row.cut.limbs).flat()];
+    for (const bone of bones) assert.ok(have.has(bone), `${id}: ${bone} is not a joint of ${row.glb}`);
+    const world = catalogueRow(id)?.world;   // the LOD a zone draws is a different file: it carries the same bones
+    if (world) { const wj = joints(world.asset); for (const bone of bones) assert.ok(wj.has(bone), `${id}: ${bone} is not a joint of ${world.asset}`); }
     assert.ok(row.glb.includes(ROSTER[id as keyof typeof ROSTER].body), `${id}: the GLB is the roster body`);
   }
 });
@@ -47,5 +51,6 @@ test('no per-creature code on the finisher path: it names no creature, and a new
     assert.ok(!/['"`](wolf|boar|bear|goblin)['"`]/.test(src), `${f}: names a creature; put it in a row`);
   }
   assert.equal(creatureGore('boar'), CREATURE_GORE.boar, 'a known id reads its row');
+  assert.deepEqual(CREATURE_GORE.boar!.cut, catalogueRow('boar')!.finisher.cut, 'the cut bones are the catalogue row\'s own, not a copy');
   assert.equal(creatureGore('dragon'), null, 'an id with no row is null, not a crash');
 });
