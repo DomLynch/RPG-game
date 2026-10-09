@@ -255,3 +255,14 @@ test('#1936 c: threat is forgotten when the player is out of sight for the give-
   const gone = run(far, GIVE_UP_UNSEEN_S + 1, () => ({ p: STILL })).world;
   assert.equal(get(gone, 'c').threat?.p, undefined, 'out of sight past the give-up time: forgotten');
 });
+
+test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase dead, no further fight, one Died', () => {
+  const p = player('p', 0, 0); p.health = p.maxHealth = 40;   // a few wolf bites
+  const w0 = newWorld([p, creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
+  const r = run(w0, 40, () => ({ p: STILL }), (w) => of([], 'Died').length === 0 && get(w, 'p').phase === 'dead');
+  const killers = r.events.filter((e) => e.type === 'Died' && e.id === 'p').map((e) => (e as { by: string }).by);
+  assert.equal(killers.length, 1, 'he died once'); assert.equal(get(r.world, 'p').phase, 'dead');
+  const later = run(r.world, 5, () => ({ p: STILL }));
+  assert.equal(get(later.world, 'p').phase, 'dead', 'five seconds later he is still dead'); assert.equal(later.events.filter((e) => e.type === 'Died' && e.id === 'p').length, 0, 'no second Died');
+  assert.equal(later.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0, 'nothing keeps hitting the corpse');
+});

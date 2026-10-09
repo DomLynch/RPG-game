@@ -171,7 +171,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
       if (!had) events.push({ type: 'FightStarted', creature: c.id, player: a.id });
       const jr = stepBout(jb, a, c, passive, IDLE_INPUT, dt); r.bout.joined.push(jr.bout); events.push(...jr.events);
       if (jr.bout.ai) c.brain = carried(jr.bout.ai, jr.bout.duel.tick);
-      Object.assign(a, keep);
+      if (alive(a)) Object.assign(a, keep); else { Object.assign(a, { x: keep.x, z: keep.z, facing: keep.facing }); break; }   // killed by a joiner: he stays dead (Auditor, #1943); the other joiners stop
       if (alive(c) && Math.hypot(c.x - c.chaseX, c.z - c.chaseZ) > leashOf(c.kind)) { c.hunting = false; c.returning = true; c.phase = 'ready'; }
     }
     if (b && b.side === 'creature') for (const e of r.events) if (e.type === 'Hit' && e.attacker === a.id && e.victim === b.id) { const t = ((b.threat ??= {})[a.id] ??= { threat: 0, damage: 0, out: 0 }); t.threat += e.damage; t.damage += e.damage; }   // credit and threat from what actually landed
