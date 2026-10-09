@@ -16,6 +16,8 @@
 // Numbers marked PROVISIONAL are the specs' own provisional values; PROPOSED marks anything this file had to choose (names of
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
+import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
+
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
@@ -280,7 +282,7 @@ export const REGIONS = [
   },
 ];
 
-export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
+export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
 
 // ---- 2. kinds the contracts do not have yet --------------------------------------------------------------------------------------
 
