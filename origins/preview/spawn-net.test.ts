@@ -72,7 +72,7 @@ test('three creatures on one player: three engages (three tokens), three kill re
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 3);
     assert.ok(!('offline' in await t.engaged(ids[3]!)), 'a 4th creature fits the cap');
     assert.deepEqual(await t.engaged(ids[4]!), { offline: 'http-429' }, 'a 5th engage while four are open is refused (too-many)');
-    t.evaded(ids[4]!);
+    assert.ok(!t.open().includes(ids[4]!), 'a refused engage holds nothing');
     clock.ms += 60_000;   // past every creature's time-to-kill floor
     for (const id of pack) for (let i = 0; i < minHits(spawns.get(id)!.hp) + 2; i++) t.hit(id);
     const killed = [];

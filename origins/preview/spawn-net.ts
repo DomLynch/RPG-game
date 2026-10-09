@@ -53,6 +53,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
       const character = d.character();
       const engage = character ? call('engage', { character, instance }, d.token(), engagedOf, opts) : Promise.resolve<Offline>({ offline: 'no-character' });
       live.set(instance, { engage, hits: 0, touchedAt: d.now() });
+      void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
       return engage;
     },
     hit(instance) {
