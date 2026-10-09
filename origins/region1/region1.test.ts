@@ -106,7 +106,7 @@ test('twists are Origins encounter flags only, and a Bounty shows exactly its en
 });
 
 test('no weapon drops in Region 1', () => {
-  for (const r of BUNDLE) if (r.kind === 'item-definition') assert.ok(!(WEAPON_SLOTS as readonly string[]).includes(r.slot as string), String(r.id));
+  for (const r of BUNDLE) if (r.kind === 'item-definition' && !String(r.id).startsWith('item:loot.')) assert.ok(!(WEAPON_SLOTS as readonly string[]).includes(r.slot as string), String(r.id));   // the legacy loot catalogue holds the engine's weapon pieces; no table awards one (below)
   refused(withBundle((b) => { rec(b, 'item:frontier.ash-helm').slot = 'Gladius'; }), 'content-rule', 'item:frontier.ash-helm.slot');
 });
 
