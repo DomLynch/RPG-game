@@ -63,6 +63,11 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 10 }),
+  // The Ember Wolf's table (Backend ruled 2026-10-09: Ash Wolf items, bronze x1.1).
+  table('loottable:ember-wolf', 'collect', [
+    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
+    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
+  ], { min: 4, max: 11 }),
   // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
   table('loottable:cinder-bear', 'collect', [
     independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
@@ -117,6 +122,8 @@ export const FOES = [
     null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'cinder-scavenger'),
   figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
     null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ash-wolf'),
+  figure('character:ember-wolf', 'Ember wolf', ORIGINAL, 'Its coat has burned down to the colour of a banked fire, and it hunts the Reach in a pack of two or three.',
+    null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ember-wolf'),
   figure('character:cinder-bear', 'Cinder bear', ORIGINAL, 'Heavy and soot-matted, it came down off the burnt moor when the herds went and takes what it finds.',
     null, [{ id: 'mob', opponent: 'bear', level: 1, encounter: null }], 'cinder-bear'),
   figure('character:ash-boar', 'Ash boar', ORIGINAL, 'Tusked and ash-streaked, it roots the verge of the hold road for what the Fracture left in the ground.',
@@ -255,7 +262,7 @@ export const REGIONS = [
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
       spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
-      spawn('reach-wolves', 'reach-cairn', null, ['character:ash-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
+      spawn('reach-wolves', 'reach-cairn', null, ['character:ember-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
       spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
@@ -345,6 +352,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:cinder-scavenger': 'mob',
   'character:mere-brood': 'mob',
   'character:ash-wolf': 'mob',
+  'character:ember-wolf': 'mob',
   'character:cinder-bear': 'mob',
   'character:ash-boar': 'mob',
   'character:ruin-ghoul': 'mob',
@@ -364,6 +372,7 @@ export const CREATURE_LOOT: Record<string, string> = {
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
   'character:ash-wolf': 'loottable:ash-wolf',
+  'character:ember-wolf': 'loottable:ember-wolf',
   'character:cinder-bear': 'loottable:cinder-bear',
   'character:ash-boar': 'loottable:ash-boar',
   'character:court-thrall': 'loottable:court-thrall',
