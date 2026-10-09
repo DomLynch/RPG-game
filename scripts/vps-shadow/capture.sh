@@ -115,6 +115,7 @@ fi
 # The spill: one HF job in Deploy's runner image, its log streamed here, cancelled after hf_quiet seconds of silence. Prints one spill.log line.
 run_on_hf() {
   local waited=$1 load_seen=$2 sha cmd script out id t0 stage="UNKNOWN" seen=0 quiet_since n logs status=1 why=""
+  shift 2   # the rest is the job
   sha=$(git rev-parse HEAD); cmd=$(printf '%q ' "$@")
   script="set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q --depth 1 origin $sha; git checkout -q --detach $sha; npm ci --no-audit --no-fund >/dev/null; echo \"capture-spill: \$(git rev-parse HEAD) $cmd\"; exec $cmd"
   out=$("$hf" jobs run --flavor cpu-upgrade --timeout "$hf_timeout" --detach node:22 bash -c "$script" 2>&1) || true
