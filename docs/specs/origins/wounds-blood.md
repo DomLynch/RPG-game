@@ -4,6 +4,9 @@ For Combat to implement against. No code here. Goal: ~700 zones, zero per-creatu
 
 **Donor:** Cataclysm-DDA (CC BY-SA 3.0, SHAPE ONLY, nothing copied): `data/json/body_parts.json` (a part table per body: connected_to, is_vital, hit_size, hit_difficulty), `bodytype` string on a monster, `bleed_rate` on the monster plus the species row naming the blood (`src/mtype.cpp get_bleed_type`). Veloren (GPL-3) keeps this in Rust per species: shape confirms, not used. OpenBOR (BSD): no wound model, nothing to take. Read from /mnt/frankendom-donors on the VPS.
 
+## Engine code this drives (Lead, 2026-10-09)
+The Pit already draws blood and gore for goblins and men. `src/gore.ts`, `blood-edge.ts`, `blood-style.ts`, `finisher-blood.ts`, `finishers.ts` and `severed-head.ts` move into `src/fight/` in K5, and this schema only feeds them per creature: **no new renderer**. Humanoid rows (goblin, men) MUST reproduce today's Pit look exactly, so the Pit golden is unchanged: the `humanoid` species is today's `BLOOD` (`blood-style.ts`: start `#690f0d`, end `#200504`, hit 15 / kill 25 particles) with `spray` 1 and `size` 1, and the goblin does NOT take #1967's guessed `#5a1410` / 0.6. The new value is the wolf, boar and bear rows (the beast numbers below are #1967's starting point for Dom's eye).
+
 ## What exists (Characters' #1967, `src/creature-gore.ts`, stacked on #1966; check its head at merge)
 One `CREATURE_GORE` row per roster id (`wolf`, `boar`, `bear`, `goblin`): `shape`, `glb`, `cut {head, neck, limbs}` (bone names), `blood {start, end, amount}`, `finishers`. It works, but body, blood and finishers are fused in one row, so a second goblin-shaped creature copies the bones. This schema splits it into three tables and keeps its test (the test re-reads each GLB's skin joints, so a renamed bone fails in CI, not in a cut).
 
@@ -20,7 +23,7 @@ One `CREATURE_GORE` row per roster id (`wolf`, `boar`, `bear`, `goblin`): `shape
 | `Part.cuttable` | boolean | a finisher may sever here (#1967 `cut.head/neck/limbs`) |
 Bone names are per rig, so a bodytype is keyed by what shares a skeleton: `quadruped` is wolf, boar and bear (they share `BEAST_BONES` today); `biped-small` is the goblin rig.
 
-**2. `species`** — how it bleeds. Key = species id (`beast`, `goblin`, `undead`, `construct`).
+**2. `species`** — how it bleeds. Key = species id (`humanoid`, `beast`, `undead`, `construct`).
 | field | type | meaning |
 |---|---|---|
 | `blood` | `{start, end}` \| null | colour over a drop's life (#1967 `blood.start/end`); null = no blood (stone, bone, spirit) |
@@ -46,7 +49,7 @@ Flee-at stays Expansion's rule (`body-families.md`); `tiers` only changes how it
 `body` and `species` exist; every `Part.parent` exists, no cycles, at least one vital part; `weight` > 0; `tiers.below` in (0,1) and strictly descending; `bleedRate` and `drip` in range; `bleedRate` > 0 with a null `species.blood` is an error; every bone in a bodytype is a skin joint of the GLB of each creature that uses it (the existing #1967 test, per `rig`).
 
 ## Mapping from #1967
-`shape` → pick the bodytype; `glb` → stays on the rig (looked up via `rig`); `cut.head`/`cut.neck` → parts `head` and `neck` (`bones`, `cuttable`, vital); `cut.limbs[id]` → one part per limb id (`foreL`… `legR`), not vital; `blood.start/end` → `species.blood`; `blood.amount` → `species.spray` × the creature's `size`, chosen so the product equals #1967's `amount` (the Pit's blood stays as Characters set it); `finishers` → unchanged.
+`shape` → pick the bodytype; `glb` → stays on the rig (looked up via `rig`); `cut.head`/`cut.neck` → parts `head` and `neck` (`bones`, `cuttable`, vital); `cut.limbs[id]` → one part per limb id (`foreL`… `legR`), not vital; `blood.start/end` → `species.blood`; `blood.amount` → `species.spray` × the creature's `size`, chosen so the product equals #1967's `amount` for the beasts; for humanoids (the goblin) the Pit's current values win over #1967's guess (see the top section); `finishers` → unchanged.
 
 ## Example rows (bones are #1967's; numbers are a starting point for Dom's eye at 375 wide)
 ```
@@ -67,9 +70,9 @@ bodytypes['biped-small'] = { parts: [
   { id: 'legL', bones: ['thigh_l'], vital: false, weight: 1, cuttable: true, parent: 'torso' },
   { id: 'legR', bones: ['thigh_r'], vital: false, weight: 1, cuttable: true, parent: 'torso' } ] }
 species.beast   = { blood: { start: '#5a0b0a', end: '#1c0403' }, decal: { id: 'blood-splat', sizeM: 0.5 }, spray: 1 }
-species.goblin  = { blood: { start: '#5a1410', end: '#1c0604' }, decal: { id: 'blood-splat', sizeM: 0.35 }, spray: 0.6 }
+species.humanoid = { blood: { start: '#690f0d', end: '#200504' }, decal: { id: 'blood-splat', sizeM: 0.35 }, spray: 1 }   // = today's Pit BLOOD, unchanged
 
-'character:cinder-scavenger' (goblin): wounds { body: 'biped-small', species: 'goblin', rig: 'goblin', size: 1, bleedRate: 0.5,
+'character:cinder-scavenger' (goblin): wounds { body: 'biped-small', species: 'humanoid', rig: 'goblin', size: 1, bleedRate: 0.5,
    tiers: [{ below: 0.66, decals: 1, drip: 0.5 }, { below: 0.33, decals: 2, drip: 1 }, { below: 0.1, decals: 3, drip: 2 }],
    finishers: ['splitCrown','decapitation','runThrough','opened','plainDeath'] }
 'character:ash-wolf' (wolf): wounds { body: 'quadruped', species: 'beast', rig: 'wolf', size: 0.7, bleedRate: 0.4,
@@ -77,7 +80,7 @@ species.goblin  = { blood: { start: '#5a1410', end: '#1c0604' }, decal: { id: 'b
 'character:ash-boar' (boar): wounds { body: 'quadruped', species: 'beast', rig: 'boar', size: 1, bleedRate: 0.6,
    tiers: [{ below: 0.6, decals: 1, drip: 0.6 }, { below: 0.25, decals: 3, drip: 1.4 }], finishers: ['decapitation','plainDeath'] }
 ```
-(Goblin: `spray` 0.6 × `size` 1 = #1967's 0.6; wolf: 1 × 0.7 = 0.7; boar: 1 × 1 = 1. Bear would be `size` 1.4.)
+(Goblin: `spray` 1 × `size` 1 = what the Pit draws today, NOT #1967's 0.6; wolf: 1 × 0.7 = 0.7; boar: 1 × 1 = 1. Bear would be `size` 1.4.)
 
 ## Open
 1. **Combat:** part `weight` is inert data until the engine picks a part per hit (K5); say how it will pick. 2. **Characters:** where a decal anchors when `Part.bones` is empty (torso), and the wound-mark art for creatures (the Pit's marks are the Pit's; can they be reused?). 3. **Characters:** #1967 sat on closed #1966 and needs retargeting to trunk; re-read the bone names from the GLBs when it lands (the bones above are copied from its old head, not verified).
