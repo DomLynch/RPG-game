@@ -3,6 +3,20 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-09 (+04, Mac clock) — HANDOFF #26 (new account restart): #1948 Zone 1 golden fixed, #1953 merged with it, #1952/#1958/#1954/#1957 reviewed, #1959 hero clips (draft)
+
+### Now (verify with `gh pr view`)
+- **#1948** `world/zone2-world` @696815a2c: Auditor HOLD (@0f1a019df) fixed. `frontierPlan` drops the landmark of a link the page does not walk (unless a kept link or a spawn stands on it); Zone 1 `frontierBuild` = 170 pieces / 57 solids, hashes acc9e948fd235ae5 / 70bce4a238048f1c, equal on the base 5eee9e6 (before the fix 171/58). Test `Zone 1 world is pinned` in origins/zones/loader.test.ts. VPS clean clone: 173/173 + tests tsc. Auditor re-review asked on the PR.
+- **#1953** `char/ember-wolf` @cc068c9c6: merged the #1948 fix (not a rebase: its history holds merges of older #1948 heads); VPS 175/175 + tsc.
+- **Reviews posted:** #1952 page side (F1: `spawnNet.tick()` never called, a long no-hit fight lets the 120 s token lapse, Backend's to fix; F2 glued comment); #1958 PASS (test-only); #1954 World OK to merge (Auditor's receipts, not re-run); #1957 stab: mechanics PASS, F1 the hero plays `Attack` for every move.
+- **#1959** (draft, base combat/zone1-stab) `world/hero-clips` @566a01239: `onSwing(move)`, main.ts plays warrior.glb `Heavy` / `Kick`, else `Attack` (no thrust clip on the rig: ask Characters). VPS world-combat 10/10 + both tsc. NOT done: 375 stills per move, browser run.
+- **Blocker:** VPS root disk 298/301 G, 0 free (checked twice 10-09); stills/captures blocked until pruned. COO told.
+- **Next:** 375 stills for #1957/#1959 when the disk allows; seamless row on /zone/2/ after J; mount/engage items from handoff #25 (S3 loadout/level, Frontier frame, session-report cherry-pick) were not touched today.
+
+### Gotchas
+- VPS clean clone for checks: /opt/frankendom-shadow/work/world-z2fix (remote set to https://github.com/DomLynch/RPG-game; `git fetch origin <branch>; checkout --detach FETCH_HEAD`; node_modules symlink to work/bn-trunk). The /opt repo's own origin points at itself.
+- Heavy runs are hook-blocked on the Mac (a whole command is refused, including its edits): do edits first, run on the VPS.
+
 ## 2026-10-08 ~18:20 (+04, Mac clock) — HANDOFF #25: Zone 1 is detached from the Pit; World mounted Combat's open-world combat loop (draft #1875, receipts green on both engines); Handoff #24 (seamless, wolves, boar) lives on origin/world/state-1008 @5aacefe13
 
 ### Now (verify every state with `gh pr view`, none of this is a promise)
