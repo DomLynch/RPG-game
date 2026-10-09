@@ -18,6 +18,7 @@ export type Deps = {
   onHeroHit(amount: number): void;  // red flash + the Hit clip
   onSwing(): void;                  // the hero's own cut began: the Attack clip
   onTelegraph?(id: string, ms: number): void;
+  onEvent?(ev: Event): void;       // every combat event, after the page has shown it (the spawn client, spawn-net.ts onCombatEvent)
   hero?: () => { gear: Loadout; level: number };   // his resolved gear and career level (default: naked, level 1); a creature's level is its spec's
 };
 type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number };
@@ -57,7 +58,7 @@ export function createWorldCombat(d: Deps) {
         acc -= STEP; steps++;
         const m = me(); if (first) world = { ...world, fighters: [{ ...m, ...gearOf(), x: hero.x, z: hero.z, facing: m.phase === 'roll' ? m.facing : hero.facing }, ...world.fighters.slice(1)] }; first = false;
         const r = stepCombat(world, { [ME]: { x: 0, z: 0, attack: heroDead ? null : pendingAttack, guard: guardHeld && !heroDead, roll: heroDead ? null : pendingRoll } }, STEP); pendingAttack = null; pendingRoll = null;
-        world = r.world; for (const ev of r.events) handle(ev);
+        world = r.world; for (const ev of r.events) { handle(ev); d.onEvent?.(ev); }
       }
       pendingAttack = null; pendingRoll = null;
       for (const f of world.fighters.slice(1)) {
@@ -79,7 +80,7 @@ export function createWorldCombat(d: Deps) {
     reset(hero: { x: number; z: number; facing: number }): void { for (const id of [...specs.keys()]) release(id); world = newWorld([player(ME, hero.x, hero.z, hero.facing, mine().gear, mine().level)]); heroDead = false; acc = 0; },
     hero: () => { const m = me(); return { health: m.health, max: m.maxHealth, stamina: m.stamina, maxStamina: m.maxStamina, phase: m.phase, facing: m.facing, posture: m.posture, exhausted: m.exhausted, dead: heroDead }; },
     /** The creature he is fighting now (the nearest hunting one), for the target bar. */
-    target: () => { let best: Fighter | null = null; for (const f of world.fighters.slice(1)) if (f.phase !== 'dead' && f.hunting && (!best || Math.hypot(f.x - me().x, f.z - me().z) < Math.hypot(best.x - me().x, best.z - me().z))) best = f; const s = best && specs.get(best.id); return best && s ? { name: s.name, health: best.health, max: best.maxHealth } : null; },
+    target: () => { const pr = pairs(world).find((x) => x.player === ME && x.primary), live = (f: Fighter) => f.phase !== 'dead' && f.hunting; let best: Fighter | null = world.fighters.slice(1).find((f) => f.id === pr?.foe && live(f)) ?? null; if (!best) for (const f of world.fighters.slice(1)) if (live(f) && (!best || Math.hypot(f.x - me().x, f.z - me().z) < Math.hypot(best.x - me().x, best.z - me().z))) best = f; const s = best && specs.get(best.id); return best && s ? { name: s.name, health: best.health, max: best.maxHealth } : null; },   // the card names the primary pair's foe (the Pit's own nearest, S2 pairs()); it moves to the next joiner as each falls
     /** Frame health for the seamless receipt: sim steps run, fight time dropped by the 0.25 s catch-up cap, and how many frames dropped some. */
     stats: () => ({ steps, lostMs: Math.round(lostMs), hitches }),
     inCombat: () => world.fighters.slice(1).some((f) => f.phase !== 'dead' && f.hunting),

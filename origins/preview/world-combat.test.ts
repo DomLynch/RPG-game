@@ -89,3 +89,22 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
   assert.ok(total >= 1, 'the wolf did land blows');
   assert.ok(worst <= 1, `at most one blow per 0.25 s catch-up frame, saw ${worst}`);
 });
+
+// Proof 3 on the page: joins need no page code of their own, they happen inside stepCombat (#1943) for every creature the loop holds. A pack of four around an idle hero: three attack him (each telegraphs its own blow), the fourth holds off.
+test('a pack of four around the hero: three join and telegraph their own blows, the fourth waits', () => {
+  const f = fakeMobs(['w1', 'w2', 'w3', 'w4'].map((id, i) => ({ spec: { ...spec(id, 'wolf'), level: 1 }, x: Math.sin(i * 1.6) * 4, z: Math.cos(i * 1.6) * 4 })));
+  const tells = new Set<string>(), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: (id) => void tells.add(id) });
+  run(wc, { x: 0, z: 0, facing: 0 }, 3);
+  assert.equal(wc.debug().filter((x) => x.hunting).length, 4, 'all four hunt him');
+  assert.deepEqual([...tells].sort(), ['w1', 'w2', 'w4'], 'three attack, each from its own duel: the fourth (w3, the farthest) waits its turn');
+});
+
+test('three joined: each joiner is driven with its own windup (one actor per creature), and the card follows the primary foe, handing on as each falls', () => {
+  const f = fakeMobs([['w1', 1.2], ['w2', 2.4], ['w3', 3.2]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+  const lunged = new Set<string>(), kills: string[] = [], names: string[] = [];
+  const real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p && p.lunge !== 0) lunged.add(id); real(id, p); }) as typeof real;
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  for (let i = 0; i < 600 && kills.length < 3; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.hp > 0)[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); const n = wc.target()?.name; if (n && names.at(-1) !== n) names.push(n); } if (wc.hero().dead) break; }
+  assert.ok(lunged.size >= 3, `each of the three had its own windup/lunge: ${[...lunged]}`);
+  assert.ok(new Set(names).size >= 2, `the card named more than one foe in turn: ${names}`);
+});
