@@ -20,9 +20,9 @@ test('the Frontier is populated from the data: scavengers on the Cinder Fields, 
   assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
   assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
-  assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
+  assert.deepEqual(byZone('east-road').map((s) => s.character).sort(), ['character:court-thrall', 'character:pit-goblin', 'character:pit-goblin'], 'the court thrall, and the Pit goblin camp of two at the watchtower by the start path (goblin camp added, Dom 10-09)');
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 22);
+  assert.equal(SPECS.length, 24, '22 + the two Pit goblins');
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -175,7 +175,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '22 creatures; levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
 test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {
@@ -192,12 +192,11 @@ test('a world fight hides only the duel\'s foe: packmates beside the hero and fa
   assert.equal(hiddenInFight('goblin-1', null), false);
 });
 
-test('the world keeps living during a world duel: the walk loop never stops, it keeps ticking the creatures, fires and arena while the duel draws, and the foe\'s world body stays hidden (Dom, 2026-10-08: one always-on world; re-pinned from the separate liveWorld tick)', () => {
+test('the world keeps living during a fight: Zone 1\'s fight is the engine loop inside the walk, so the walk loop never stops and never hands the drawing away; creatures keep ticking, and a creature the engine marks engaged stays hidden from the view (K2d: re-pinned from the removed ?worldfight duel mount)', () => {
   const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
-  assert.match(main, /attach\(\) \{[^\n]*mobs\?\.engage\(spec\.id\); duelDrawing = true;/, 'attach hides the foe and hands the drawing to the duel');
-  assert.match(main, /detach\(\) \{[^\n]*mobs\?\.engage\(null\); duelDrawing = false;/, 'detach gives it back');
-  assert.match(main, /if \(duelDrawing\) \{[^\n]*\n\s*mobs\?\.update\(dt, state, cardId\);[^\n]*\n\s*return;/, 'while the duel draws, the walk loop still steps the creatures and does not render');
-  assert.match(main, /if \(!WORLDFIGHT\) renderer\.setAnimationLoop\(null\);/, 'a world fight never stops the loop');
+  assert.doesNotMatch(main, /duelDrawing|worldMount|startMobFight|WORLDFIGHT|WORLDCOMBAT/, 'no second fight path: nothing takes the drawing from the walk');
+  assert.match(main, /mobs\.update\(dt, state, cardId\)/, 'every walk frame steps the creatures');
+  assert.match(main, /wc\.update\(dt,/, 'and the engine loop with them');
   assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
 });
 

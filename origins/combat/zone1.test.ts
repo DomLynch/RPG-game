@@ -1,11 +1,11 @@
-// Zone 1's combat (origins/combat/zone1.ts): every fight rule is the Pit's, run through the Pit's own duel / ai / sim (no copies; the one departure, no ring wall, is open-world.test.ts), so these tests pin the
+// Zone 1's combat (src/fight/world.ts): every fight rule is the Pit's, run through the Pit's own duel / ai / sim (no copies; the one departure, no ring wall, is open-world.test.ts), so these tests pin the
 // WORLD layer and the adapter: who fights whom, the chase to the hold ring, the leash and heal-home, a pack taking turns, gear / levels / stances / specials / skill reaching the duel, and the player-vs-player rules.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
-import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../../src/fight/speeds.ts';
+import { AGGRO_M, ENGAGE_M, duelFor, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from '../../src/fight/world.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -319,4 +319,13 @@ test('#1936 c(a): FightStarted is once per creature per engage - a joiner that b
   const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature), died = r.events.filter((e) => e.type === 'Died' && e.id === 'a').length;
   assert.equal(died, 1, 'he killed one'); assert.equal(started.filter((id) => id === 'a').length, 1); assert.ok(started.filter((id) => id === 'b').length <= 2 && started.filter((id) => id === 'c').length <= 2, `no churn: ${started}`);
   assert.equal(started.slice(0, 3).sort().join(), 'a,b,c', 'the first three are the pack');
+});
+
+test('duelFor: the duel a creature is in when it is a primary or joined foe, null when it is not (wandering, or not in the world)', () => {
+  const w = run(newWorld([player('p', 0, 0), creature('c1', 'wolf', 0, 3), creature('far', 'wolf', 0, 60)]), 3, undefined, (x) => pairs(x).length >= 1).world;
+  const d = duelFor(w, 'c1');
+  assert.ok(d, 'the engaged wolf has its duel');
+  assert.equal(d, pairs(w).find((p) => p.foe === 'c1')!.duel, 'it is the pair\'s own duel');
+  assert.equal(duelFor(w, 'far'), null, 'a creature that is not on him has none');
+  assert.equal(duelFor(w, 'nobody'), null, 'an id not in the world has none');
 });

@@ -30,7 +30,8 @@ const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 
 const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env, timeout: 300_000 });
 const psql = sql => run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'], sql).trim();
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-const TOKENS = { ta: A, tb: B, tc: C, td: D };
+const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', G = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G };
 // The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
@@ -57,7 +58,7 @@ try {
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
-    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${D}');`);
+    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${D}'),('${E}'),('${G}');`);
   psql(readdirSync(dir).filter(n => n.endsWith('.sql')).sort().map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${B}','Bran',0,'{"owned":[],"equipped":{}}'),('${D}','Dara',10,'{"owned":[],"equipped":{}}');`);
 
@@ -102,7 +103,7 @@ try {
   eq([made.status, /^pc:[0-9a-f]{32}$/.test(made.json.result.id)], [200, true], 'create_character');
   eq((await call('create_character', 'ta', { name: 'Aldren' })).status, 409, 'a second Aldren');
   for (const name of ['', ' x', 'x'.repeat(33), 'a\nb', 7, undefined]) eq((await call('create_character', 'ta', { name })).status, 400, `bad name ${JSON.stringify(name)}`);
-  eq((await call('open', 'ta')).json.result.characters.map(c => c.name), ['Aldren'], 'the character is in the snapshot');
+  eq((await call('open', 'ta')).json.result.characters.map(c => c.name), ['Wanderer aaaaaa', 'Aldren'], 'the first open made the first character (Wanderer <6>); Aldren is the second');
   eq((await call('create_character', 'tb', { name: 'Aldren' })).status, 200, 'names are per account');
 
   // Pit import: a win verified after the snapshot pays the legend row once, at the derived level, however many opens race
@@ -125,6 +126,11 @@ try {
 
   // consume (a quest hand-in): ore minted into Aldren's pack and bank, burned through the writer, retried, conflicted, raced; conservation at every commit
   const pc = made.json.result.id;
+  // open carries the bronze balance (save end to end: a reload shows what a kill paid): 0 before any award, the balance after one.
+  // open carries the bronze balance (save end to end: a reload shows what a kill paid). Dara (D) has no metal row: 0, then the balance after an award.
+  eq((await call('open', 'td')).json.result.bronze, 0, 'open: bronze 0 before any award');
+  psql(`select public.origins_commit('${D}', $j$[{"op":"metal","account":"${D}","delta_bronze":7,"reason":"award","event_id":"test:open-bronze"}]$j$::jsonb);`);
+  eq((await call('open', 'td')).json.result.bronze, 7, 'open: the bronze balance after an award');
   const mint = (id, item, quantity, kind, index, key, provenance, extra = {}) => ({ op: 'mint', item: { id, item, quantity, mint_key: key, loc: { kind, owner: pc, index }, ...extra, provenance: { mintKey: key, at: '2026-10-06T12:00:00Z', wonBy: pc, ...provenance } } });
   const loot = { kind: 'loot', table: 'loottable:ghoul', encounter: 'encounter:ruin-vigil' };
   psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
@@ -283,14 +289,14 @@ try {
   eq([gated.status, gated.json.code], [422, 'level'], 'shop: the level gate');
   eq([(await call('shop_buy', 'ta', buy({ op: 'shop:x-0001', item: 'item:nothing' }))).status, (await call('shop_buy', 'ta', buy({ op: 'shop:x-0002', shop: 'service:nope' }))).status], [400, 400], 'shop: an item off the list, an unknown shop');
   const race = await Promise.all([call('shop_buy', 'ta', buy({ op: 'shop:race-0001', quantity: 1 })), call('shop_buy', 'ta', buy({ op: 'shop:race-0002', quantity: 1 }))]);
-  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,409', '18:v3', '2', '0'], 'shop: two buys on one balance version: one commits, the other is stale');
-  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-15,"reason":"spend","event_id":"test:shop-drain","expected_version":3}]$j$::jsonb);`);   // down to 3, through the ledger
+  eq([race.map(r => r.status).sort().join(), bronze(), shopEvents(), conserved()], ['200,200', '14:v4', '3', '0'], 'shop: two buys at once on one account: the serial write queue (#1833) runs them in turn, both commit, bronze moves twice');
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":-11,"reason":"spend","event_id":"test:shop-drain","expected_version":4}]$j$::jsonb);`);   // down to 3, through the ledger
   const poor = await call('shop_buy', 'ta', buy({ op: 'shop:iron-0004', quantity: 1 }));
-  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '2'], 'shop: 3 bronze cannot pay 4');
+  eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '3'], 'shop: 3 bronze cannot pay 4');
   presence[B] = atBank();   // B at the counter too, so the character rule is what refuses
   eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
   // Shop gear: a single-copy slot-weight piece is minted at the Region's loot tier; a second copy is refused by one-of-each (and by the shelf of 1).
-  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":4}]$j$::jsonb);`);
+  psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":5}]$j$::jsonb);`);
   const gearBuy = await call('shop_buy', 'ta', buy({ op: 'shop:body-0001', item: 'item:loot.veteran.Arms', quantity: 1 }));
   eq([gearBuy.status, psql(`select tier || ':' || quantity || ':' || (provenance ->> 'kind') from public.origins_items where item = 'item:loot.veteran.Arms' and retired_at is null`), conserved()],
     [200, 'Gladiator:1:shop', '0'], 'shop: gear is minted at the Region loot tier with shop provenance');
@@ -360,7 +366,7 @@ try {
   const writer = base.slice(0, -1), events = () => psql(`select count(*) from public.origins_events where account = '${A}'`);
   const before = events(), viaPreview = await fetchOpen('ta', { base: writer }), direct = (await call('open', 'ta')).json.result.career;
   eq([viaPreview.career?.credit, careerLine(viaPreview.career).credit, viaPreview.career?.beaten, viaPreview.characters.map(c => c.name)],
-    [Number(direct.total_credit), Number(direct.total_credit), direct.beaten, ['Aldren']], 'preview: the mapped career is the derived total');
+    [Number(direct.total_credit), Number(direct.total_credit), direct.beaten, ['Wanderer aaaaaa', 'Aldren']], 'preview: the mapped career is the derived total');
   eq(events(), before, 'preview: open wrote nothing');
   eq(await fetchOpen('nobody', { base: writer }), { offline: 'http-401' }, 'preview: a token Auth refuses -> offline');
   eq(await fetchOpen('tc', { base: writer }), { offline: 'http-403' }, 'preview: not on the allowlist -> offline');
@@ -376,7 +382,7 @@ try {
   // retiring a pack row (a whole-stack burn nulls loc_kind) is not an escrow move: 0003's guard compared with '=' and refused it
   const pcId = made.json.result.id, key = 'loot:wc:guard';
   psql(`select public.origins_commit('${A}', $j$${JSON.stringify([{ op: 'mint', item: { id: 'inst:guard-ore', item: 'item:exchange-ore', quantity: 2, mint_key: key,
-    loc: { kind: 'pack', owner: pcId, index: 9 }, provenance: { mintKey: key, at: '2026-10-07T00:00:00Z', wonBy: pcId, kind: 'loot', table: 'loottable:ghoul', encounter: 'encounter:ruin-vigil' } } }])}$j$::jsonb);`);
+    loc: { kind: 'pack', owner: pcId, index: 40 }, provenance: { mintKey: key, at: '2026-10-07T00:00:00Z', wonBy: pcId, kind: 'loot', table: 'loottable:ghoul', encounter: 'encounter:ruin-vigil' } } }])}$j$::jsonb);`);
   psql(`select public.origins_commit('${A}', $j$[{"op":"burn","id":"inst:guard-ore","count":2,"expected_version":1}]$j$::jsonb);`);
   eq(psql(`select retire_reason || ':' || coalesce(loc_kind, 'null') from public.origins_items where id = 'inst:guard-ore'`), 'burn:null', 'escrow guard: a whole-stack burn of a pack row retires it');
 
@@ -448,12 +454,26 @@ try {
     psql(`select public.origins_purge_account('${D}');`);
     eq([activeOf(D), locRow(dara), locRow(daraTwo)], ['none', 'none', 'none'], 'purge: active character and saved locations gone');
   } finally { locWriter.close(); }
+  // The first open makes the account's first character (Lead's ruling 2026-10-09; runs while 0009 is applied, before its down-script below): no page code creates one, so a signed-in player had none and nothing could persist.
+  {
+    psql(`insert into public.origins_access(account) values ('${E}'),('${G}');`);
+    const chars = acct => psql(`select coalesce(string_agg(id || '=' || name, ',' order by created_at), '') from public.origins_characters where account = '${acct}'`);
+    const first = await call('open', 'te');
+    const id1 = first.json.result.characters[0]?.id;
+    eq([first.status, first.json.result.characters.map(c => c.name), /^pc:[0-9a-f]{32}$/.test(id1)], [200, ['Wanderer eeeeee'], true], 'open: a new account has one character after its first open, named Wanderer <first 6 of the account id>');
+    eq(psql(`select coalesce(public.origins_active('${E}'::uuid), 'none')`), id1, 'open: the first character is the ACTIVE one (create_character makes it active; 0009 is applied here)');
+    const second = await call('open', 'te');
+    eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
+    const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
+    eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
+  }
   // the down script drops exactly what the up created, and the up applies again cleanly after it
   const up = readFileSync(join(dir, '202610070009_origins_character_location.sql'), 'utf8'), down = readFileSync('supabase/down/202610070009_origins_character_location_down.sql', 'utf8');
   const objects = () => psql(`select (select count(*) from pg_class where relname in ('origins_character_location', 'origins_active_character')) || '|' || (select count(*) from pg_proc where proname in ('origins_set_active', 'origins_save_location', 'origins_saved_location', 'origins_active'))`);
   eq(objects(), '2|4', 'the migration\'s two tables and four functions');
   psql(down);
   eq(objects(), '0|0', 'down: all gone');
+
   // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
   const pre = await call('create_character', 'tb', { name: 'Brin' });
   eq(pre.status, 200, 'without 0009: create_character still creates');
