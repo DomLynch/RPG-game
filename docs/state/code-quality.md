@@ -1,5 +1,14 @@
 # Code quality lane (Auditor)
 
+## 2026-10-09 ~10:3x (+04): HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-09b`
+
+**NEXT, in order:** (1) **#1951 @2bdcb2e70 + #1952 @667240ff9** (Backend spawn client + page wiring): code read OK, VPS test run owed (spawn-net.test.ts + tests/origins-* + both tscs), then post. (2) **#1955 @28ebd9cf2** (server zoneId, stacked on #1948): not read yet.
+**Open HOLDs:** #1947 @3d214597e (SLOW_ROWS from #1933 always UNASSIGNED → every launch refused; Deploy); #1948 @0f1a019df (Zone 1 gains a landmark post + collider at reach-turn; World). Re-review on new heads.
+**Mine:** #1944 zone-packages test (Lead PASS @3c6edf76b, merges first; World rebases #1941 after). #1954 seamless-row proposal for World (advisory row).
+**Still owed:** Release G POST parity (after Backend reinstalls the writer); #1880 kill ledger (after the first signed-in kill).
+**Verdicts today (all on their threads):** #1939 (merged) · #1943 @e933a1067 · #1940 @7e36c5964 · #1946 @a476edd79 · #1938 · #1933 · #1937 · #1941 · #1942 · #1945 · #1949 · #1950 (code; PRE later) · #1953 @1ba089438 · #1893 (green seamless needed).
+**Rules learned:** (1) a name-only test can't prove "byte-identical": diff the serialized plan/build as sorted sets (#1948). (2) Absolute tick fields in carried state must be rebased onto the new bout's clock (#1939). (3) A restore after a sub-step must not undo a death (#1943). (4) Two PRs in one release can each pass alone and refuse together: check the release set (#1933 × #1947).
+
 ## 2026-10-09 ~06:0x (+04): HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-08k`
 
 **Routing:** Lead = "Frankendom - Lead Dev" (send to the `[e8f341]` row: 3 sessions share the name). COO = "COO Task Enabler". Backend = "Frankendom - Duels & Backend" (`[ed155c]`). HF suites: ONE `hf jobs run` per command (a `for` loop trips the heavy-runs hook), tests tsc = `npx tsc -p tsconfig.tests.json`, echo TSC_*_OK/FAIL. The deploy hook blocks HF launches while a deploy is in flight.
