@@ -46,7 +46,10 @@ if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
     printf '#!/bin/sh\nexec "%s.real" --use-angle=vulkan --enable-features=Vulkan --ignore-gpu-blocklist --disable-vulkan-surface "$@"\n' "$chrome" > "$chrome"; chmod +x "$chrome"
   fi
   echo "GPU: $(nvidia-smi -L | head -1)"
-  node --input-type=module -e 'import { chromium } from "playwright"; const b = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }); const p = await b.newPage(); console.log("RENDERER: " + await p.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); const e = g && g.getExtension("WEBGL_debug_renderer_info"); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : "no webgl"; })); await b.close();' || echo "RENDERER: probe failed"
+  renderer=$(node --input-type=module -e 'import { chromium } from "playwright"; const b = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }); const p = await b.newPage(); console.log(await p.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); const e = g && g.getExtension("WEBGL_debug_renderer_info"); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : "no webgl"; })); await b.close();' 2>&1 | tail -1)
+  echo "RENDERER: $renderer"
+  # On a GPU box a row that would run on SwiftShader fails loudly instead of silently running on the CPU and calling it a T4 result.
+  [[ "$renderer" == *NVIDIA* ]] || { echo "RENDERER GUARD: expected an NVIDIA renderer on this GPU box, got '$renderer'"; exit 4; }
 fi
 # The three public VITE_ keys live on the VPS only; a fresh HF container has none, so the build runs without them (rows that need them fail loudly, they are never silently green).
 [[ -f "$home/env.production.local" ]] && install -m 600 "$home/env.production.local" .env.production.local
