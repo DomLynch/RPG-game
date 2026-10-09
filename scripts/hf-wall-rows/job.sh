@@ -41,16 +41,19 @@ su pwuser -c "cd $work/repo && npm ci --no-audit --no-fund >/tmp/npm-ci.log 2>&1
 say "PROBE WebGL"
 cat > .gl-probe.mjs <<'EOF'
 import { chromium } from 'playwright';
-const b = await chromium.launch({ headless: true }), p = await b.newPage();
-console.log(await p.evaluate(() => { const c = document.createElement('canvas'), g = c.getContext('webgl2') || c.getContext('webgl'); if (!g) return 'NO WEBGL CONTEXT'; const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); }));
-await b.close();
+// Both binaries the rows launch: the headless shell (chromium.launch({ headless: true })) and the full Chromium (scripts/lib/harness.mjs
+// and most rows pass executablePath: chromium.executablePath()). A shell-only probe said NVIDIA while the rows drew in SwiftShader.
+const renderer = async (options) => { const b = await chromium.launch({ headless: true, ...options }), p = await b.newPage();
+  try { return await p.evaluate(() => { const c = document.createElement('canvas'), g = c.getContext('webgl2') || c.getContext('webgl'); if (!g) return 'NO WEBGL CONTEXT'; const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); }); } finally { await b.close(); } };
+console.log(`shell=${await renderer({})} | chrome=${await renderer({ executablePath: chromium.executablePath() })}`);
 EOF
 chown pwuser .gl-probe.mjs
 probe() { su pwuser -c "cd $work/repo && PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH timeout 90 node .gl-probe.mjs" 2>&1 | head -1; }
 chosen=""
-for flags in "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=vulkan --enable-features=Vulkan" "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=gl-egl" "--ignore-gpu-blocklist --enable-gpu --use-gl=egl"; do
+for flags in "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=vulkan --enable-features=Vulkan --disable-vulkan-surface" "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=gl-egl" "--ignore-gpu-blocklist --enable-gpu --use-gl=egl"; do
   wrap "$flags"; renderer=$(probe); echo "[$flags] -> $renderer"
-  if echo "$renderer" | grep -qiE 'nvidia|tesla|geforce|rtx| t4|l4|a10' && ! echo "$renderer" | grep -qiE 'swiftshader|llvmpipe|software'; then chosen="$flags"; break; fi
+  hardware() { echo "$1" | grep -qiE 'nvidia|tesla|geforce|rtx| t4|l4|a10' && ! echo "$1" | grep -qiE 'swiftshader|llvmpipe|software|no webgl'; }
+  if hardware "${renderer%% | chrome=*}" && hardware "${renderer##* | }"; then chosen="$flags"; break; fi   # both binaries, not either
 done
 rm -f .gl-probe.mjs
 [[ -n "$chosen" ]] || { say "BLOCKER no hardware WebGL (every flag set rendered in software)"; say "COST seconds=$(( $(date +%s) - t0 ))"; exit 11; }
