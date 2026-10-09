@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { MAX_STEPS, ME, createWorldCombat, kindOf } from './world-combat.ts';
-import { OPPONENTS, WEAPONS } from '../../src/moves.ts';
+import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
 
@@ -82,6 +82,7 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
     const cycles = Object.values(weapon.moves).filter((m) => m.damage > 0).map((m) => { const t = m.chained ?? m; return t.windup + t.active + t.recovery; });
     assert.ok(Math.min(...cycles) > MAX_STEPS, `${o.id}: fastest cycle ${Math.min(...cycles)} ticks must exceed ${MAX_STEPS}`);
   }
+  assert.ok(RULES.special.windup + RULES.special.recovery > MAX_STEPS, 'a cast (windup + recovery, 165 ticks) cannot land twice in a catch-up frame either');
   const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 1.2 }]); let hits = 0, worst = 0, total = 0;
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => void hits++, onSwing: () => {} });
   for (let frame = 0; frame < 80; frame++) { hits = 0; wc.update(0.25, { x: 0, z: 0, facing: 0 }); worst = Math.max(worst, hits); total += hits; }
