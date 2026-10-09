@@ -21,6 +21,7 @@ const STUBS: Record<string, string> = {
   npm: 'echo "$*" > "$STUB/npm-ran"; exit "${NPM_EXIT:-0}"',
   ssh: 'shift; exec bash -c "$1"',   // "host" then the remote command line: run it here
   capture: 'exec bash "$CAPTURE_SCRIPT" "$@"',
+  gh: 'echo "$*" >> "$STUB/gh-calls"; [[ -z "${GH_STUB_MISSING:-}" ]] || { echo "HTTP 422: No commit found" >&2; exit 1; }; echo ok',
   hf: `echo "$*" >> "$STUB/hf-calls"
 case "$1 $2" in
   "auth whoami") exit "\${HF_STUB_AUTH:-0}" ;;
@@ -42,7 +43,7 @@ async function capture(args: string[], load: string, env: Record<string, string>
   let out: string, code = 0;
   try {
     const r = await run('bash', viaMac ? [mac, '--host', 'vps', '--dir', repo, ...args] : [script, ...args], { cwd: repo, timeout: 30000, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
-      CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
+      CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
     out = r.stdout + r.stderr;
   } catch (e) { const x = e as { code: number; stdout: string; stderr: string }; code = x.code; out = x.stdout + x.stderr; }
   const read = (f: string) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8') : '');
@@ -121,4 +122,32 @@ test('a spilled job with no new output for the quiet spell is cancelled and logg
   assert.match(failed.out, /HF launch failed \(Error: no quota\)/); assert.match(failed.out, /goes back to the VPS queue/);
   assert.equal(failed.code, 0, failed.out); assert.equal(failed.ran.trim(), 'test', 'it ran on the VPS once the load cleared');
   assert.equal(failed.spill.trim().split('\n').length, 1, 'only the HANDED line: nothing ran on HF'); assert.match(failed.out, /prio 2/);
+});
+
+test('a sha GitHub does not have is never launched (it would end in an HF ERROR): the job goes back to the VPS queue', { skip }, async () => {
+  const r = await capture(['--hf-ok', 't', 'npm', 'test'], '1.00 20.00 20.00', { GH_STUB_MISSING: '1' }, undefined, 2500, true);
+  assert.match(r.out, /is not on GitHub \(push it to spill\); t's job goes back to the VPS queue/);
+  assert.doesNotMatch(r.hf, /jobs run/); assert.equal(r.code, 0, r.out); assert.equal(r.ran.trim(), 'test', 'it ran on the VPS once the load cleared');
+});
+
+test('Ctrl-C on the wrapper cancels the HF job it started and logs it (exit 130)', { skip }, async () => {
+  const { spawn } = await import('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'capture-int-')), stub = join(dir, 'bin'), home = join(dir, 'home'), repo = join(dir, 'repo');
+  execFileSync('mkdir', ['-p', stub, home, repo], { timeout: 5000 });
+  for (const [name, body] of Object.entries(STUBS)) { writeFileSync(join(stub, name), `#!/bin/bash\n${body}\n`); chmodSync(join(stub, name), 0o755); }
+  const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { timeout: 10000, stdio: 'ignore' });
+  git('init', '-q'); writeFileSync(join(repo, 'a.txt'), 'a\n'); git('add', '.'); git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'a');
+  const loadavg = join(dir, 'loadavg'); writeFileSync(loadavg, '1.00 20.00 20.00 1/100 1\n');
+  const child = spawn('bash', [mac, '--host', 'vps', '--dir', repo, '--hf-ok', 't', 'npm', 'test'], { cwd: repo, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
+    CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1',
+    CAPTURE_HF_POLL_S: '0.2', CAPTURE_HF_QUIET_S: '600', HF_STUB_QUIET: '1' } });
+  let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
+  const code = await new Promise<number | null>((resolve) => {
+    const poll = setInterval(() => { if (/runs on Hugging Face job job123/.test(out)) { clearInterval(poll); child.kill('SIGINT'); } }, 100);
+    setTimeout(() => { clearInterval(poll); child.kill('SIGKILL'); }, 20000);
+    child.on('close', (c) => resolve(c));
+  });
+  const calls = readFileSync(join(dir, 'hf-calls'), 'utf8'), spill = readFileSync(join(home, 'capture.spill.log'), 'utf8');
+  assert.equal(code, 130, out); assert.match(calls, /^jobs cancel job123$/m);
+  assert.match(spill, / hf_job=job123 stage=CANCELED interrupted /); assert.match(out, /interrupted: the HF job was cancelled/);
 });

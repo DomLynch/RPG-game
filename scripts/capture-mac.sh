@@ -9,7 +9,7 @@
 # (at the back, without --hf-ok). Bash 3.2 (macOS) safe.
 set -uo pipefail
 host="${CAPTURE_HOST:-frankvps}"; ssh_cmd="${CAPTURE_SSH:-ssh}"; dir=""
-hf="${CAPTURE_HF:-hf}"; hf_quiet="${CAPTURE_HF_QUIET_S:-600}"; hf_poll="${CAPTURE_HF_POLL_S:-20}"; hf_timeout="${CAPTURE_HF_TIMEOUT:-40m}"; hf_rate="${CAPTURE_HF_RATE_PER_H:-0.03}"
+gh="${CAPTURE_GH:-gh}"; hf="${CAPTURE_HF:-hf}"; hf_quiet="${CAPTURE_HF_QUIET_S:-600}"; hf_poll="${CAPTURE_HF_POLL_S:-20}"; hf_timeout="${CAPTURE_HF_TIMEOUT:-40m}"; hf_rate="${CAPTURE_HF_RATE_PER_H:-0.03}"
 opts=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,27 +41,37 @@ while IFS= read -r -d '' a; do job+=("$a"); done < <(printf '%s' "$(field args)"
 cmd=$(printf '%q ' "${job[@]}")
 
 script="set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q --depth 1 origin $sha; git checkout -q --detach $sha; npm ci --no-audit --no-fund >/dev/null; echo \"capture-spill: \$(git rev-parse HEAD) $cmd\"; exec $cmd"
-launch=$("$hf" jobs run --flavor cpu-upgrade --timeout "$hf_timeout" --detach node:22 bash -c "$script" 2>&1) || true
-id=$(sed -n 's/.*Job started with ID: \([^[:space:]]*\).*/\1/p' <<<"$launch" | head -n 1)
-if [[ -z "$id" ]]; then
-  echo "capture-mac: the HF launch failed ($(head -c 200 <<<"$launch")); $lane's job goes back to the VPS queue" >&2
-  back=(); for a in ${opts[@]+"${opts[@]}"}; do [[ "$a" == --hf-ok ]] || back+=("$a"); done   # keep --prio, drop --hf-ok: it cannot spill twice
+requeue() {   # back to the VPS queue at the back: keep --prio, drop --hf-ok (it cannot spill twice)
+  echo "capture-mac: $1; $lane's job goes back to the VPS queue" >&2
+  local back=() a; for a in ${opts[@]+"${opts[@]}"}; do [[ "$a" == --hf-ok ]] || back+=("$a"); done
   status=0; remote ${back[@]+"${back[@]}"} "$lane" "${job[@]}" || status=$?
   exit $status
-fi
+}
+# The HF box fetches the sha from GitHub: a commit that only exists on the VPS would end in an HF ERROR (Lead, #2018). Ask GitHub first.
+"$gh" api "repos/DomLynch/RPG-game/commits/$sha" --jq .sha >/dev/null 2>&1 || requeue "$sha is not on GitHub (push it to spill)"
+launch=$("$hf" jobs run --flavor cpu-upgrade --timeout "$hf_timeout" --detach node:22 bash -c "$script" 2>&1) || true
+id=$(sed -n 's/.*Job started with ID: \([^[:space:]]*\).*/\1/p' <<<"$launch" | head -n 1)
+[[ -n "$id" ]] || requeue "the HF launch failed ($(head -c 200 <<<"$launch"))"
+# Ctrl-C or a kill of this wrapper cancels the HF job it started (Lead, #2018) and logs it like a quiet cancel.
+cancelled() { "$hf" jobs cancel "$id" >/dev/null 2>&1 || true; t_end=1; }
+trap cancelled INT TERM
 echo "capture-mac: $lane runs on Hugging Face job $id (cpu-upgrade): $cmd"
 t0=$(date +%s); quiet_since=$t0; seen=0; stage="UNKNOWN"; why=""; status=1
-while :; do
-  sleep "$hf_poll"
+t_end=0
+while (( ! t_end )); do
+  sleep "$hf_poll" || true
+  (( t_end )) && break
   logs=$("$hf" jobs logs "$id" 2>/dev/null || true); n=$(printf '%s' "$logs" | grep -c '' || true)
   if (( n > seen )); then printf '%s\n' "$logs" | tail -n +"$((seen + 1))"; seen=$n; quiet_since=$(date +%s); fi
   stage=$("$hf" jobs inspect "$id" 2>/dev/null | sed -n 's/.*"stage": *"\([A-Z_]*\)".*/\1/p' | head -n 1)
   case "$stage" in COMPLETED) status=0; break ;; ERROR|CANCELED|CANCELLED|DELETED) break ;; esac
   if (( $(date +%s) - quiet_since >= hf_quiet )); then why=" quiet_cancel=${hf_quiet}s"; "$hf" jobs cancel "$id" >/dev/null 2>&1 || true; stage="CANCELED"; break; fi
 done
+if (( t_end )); then stage="CANCELED"; why=" interrupted"; status=130; fi   # whatever the last poll said, an interrupt is a cancel
 secs=$(( $(date +%s) - t0 ))
 line=$(printf '%s lane=%s hf_job=%s stage=%s%s run_s=%s cost_usd=%s sha=%s cmd=%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$lane" "$id" "${stage:-UNKNOWN}" "$why" "$secs" \
   "$(awk -v s="$secs" -v r="$hf_rate" 'BEGIN { printf "%.4f", s * r / 3600 }')" "$sha" "$cmd")
 printf '%s\n' "$line" | "$ssh_cmd" "$host" "cat >> $(printf '%q' "$log")" || echo "capture-mac: could not append to $host:$log: $line" >&2
-echo "capture-mac: Hugging Face job $id ended ${stage:-UNKNOWN}${why:+ (no output for ${hf_quiet}s)} after ${secs}s"
+note=""; [[ "$why" == *quiet* ]] && note=" (no output for ${hf_quiet}s)"; [[ "$why" == *interrupted* ]] && note=" (interrupted: the HF job was cancelled)"
+echo "capture-mac: Hugging Face job $id ended ${stage:-UNKNOWN}$note after ${secs}s"
 exit $status
