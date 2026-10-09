@@ -38,9 +38,9 @@ export function judge(counts, debt = DEBT) {
 }
 
 function main() {
-  const run = spawnSync('npx', ['tsc', '-p', 'tsconfig.origins.json', '--pretty', 'false'], { encoding: 'utf8' });
-  const output = `${run.stdout}${run.stderr}`;
-  if (run.status !== 0 && !/error TS\d+:/.test(output)) { console.error(output); process.exit(1); }   // tsc failed without a type error (config, crash)
+  const run = spawnSync('npx', ['tsc', '-p', 'tsconfig.origins.json', '--pretty', 'false'], { encoding: 'utf8', timeout: 300_000, killSignal: 'SIGKILL' });   // ~20 s on the VPS; a hung tsc fails, never passes
+  const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
+  if (run.error || (run.status !== 0 && !/error TS\d+:/.test(output))) { console.error(run.error?.message ?? '', output); process.exit(1); }   // a timeout, a crash or a config error: no verdict
   const { over, stale } = judge(countErrors(output));
   for (const line of over) console.error(`NEW  ${line}`);
   for (const line of stale) console.error(`DOWN ${line}`);
