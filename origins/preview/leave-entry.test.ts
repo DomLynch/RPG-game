@@ -58,12 +58,12 @@ test('a zone-hosted gear sheet says Gear and Back to <zone>, and shows no Pit or
 // Any zone name must fit (700+ zones are coming; Lead 2026-10-09): the exit label ellipsizes inside its column, so it never reaches the tabs or the cog, and the FULL name stays in the
 // accessible name. A node test cannot measure layout; scripts/gear-exit-label-check.mjs does, at 375, with these same two names.
 test('a long zone name: the exit keeps the full name for assistive tech, and the nav columns can shrink and ellipsize', () => {
-  const registry = zoneIds().map((id) => { const z = loadZone(id); return `Back to ${z.name}`; }).sort((a, b) => b.length - a.length)[0]!, fixture = `Back to ${'The Very Long Ash Reaches Of Nowhere '.slice(0, 40).trim()}`;
+  const registry = zoneIds().map((id) => { const z = loadZone(id); return `Back to ${z.name}`; }).sort((a, b) => b.length - a.length)[0]!, fixture = `Back to ${'Zone Of The Long Ash Reaches Of Nowhere!'}`;
   for (const label of [registry, fixture]) {
     const { nav, made } = fakeNav(), button = addLeaveEntry(nav, () => {}, () => {}, label) as unknown as (typeof made)[number];
     assert.equal(button.textContent, label); assert.equal(button.attrs['aria-label'], label, 'the accessible name is the whole label'); assert.equal(button.title, label, 'and the tooltip');
   }
-  assert.ok(fixture.length - 'Back to '.length >= 38, 'the fixture is a ~40-character zone name');
+  assert.equal(fixture.length - 'Back to '.length, 40, 'the fixture is a 40-character zone name');
   const css = readFileSync(new URL('../../src/style.css', import.meta.url), 'utf8');
   assert.equal((css.match(/#journal \.app-nav \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/g) ?? []).length, 2, 'both nav rules let a column shrink (plain 1fr widens it and pushes Gear under the cog)');
   assert.match(css, /#journal \.app-nav button \{[^}]*white-space: nowrap; overflow: hidden; text-overflow: ellipsis/, 'the nav buttons ellipsize');

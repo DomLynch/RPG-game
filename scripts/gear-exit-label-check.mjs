@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const [dist, out, ...given] = process.argv.slice(2), root = process.cwd();
-const names = given.length ? given : ['Back to The Concord Exchange Quarter', 'Back to The Very Long Ash Reaches Of Nowhere'];
+const names = given.length ? given : ['Back to The Concord Exchange Quarter', 'Back to Zone Of The Long Ash Reaches Of Nowhere!'];
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
