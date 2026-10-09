@@ -34,3 +34,45 @@ test('the flow check sees static, re-export and dynamic imports', () => {
   const src = "import { a } from '../../src/arena.ts';\nexport { b } from '../../src/match.ts';\nconst c = await import('../../src/ladder.ts');\nimport '../../src/trial.ts';\n";
   assert.deepEqual([...src.matchAll(IMPORT)].map((m) => m[1]), ['../../src/arena.ts', '../../src/match.ts', '../../src/ladder.ts', '../../src/trial.ts']);
 });
+
+// K2c (Lead + Strategy, 2026-10-09): Zone 1 and every browser client reach the fight through ONE door, src/fight/index.ts. A non-test file under origins/ may not import an engine module
+// (duel, ai, sim, moves, combat, play-radius, record, gear-stats, gambit, stance, twist, replay) directly. The server and contract files below run in node without the renderer the index pulls in
+// (three.js); they are named debt, owner Duels & Backend (origins/server, origins/contracts, origins/luck), and a listed import that goes away must be deleted from the list.
+const ENGINE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'gear-stats', 'gambit', 'stance', 'twist', 'replay'];
+const ENGINE_DEBT: readonly string[] = [
+  'origins/contracts/economy.ts -> src/gear-stats.ts',
+  'origins/contracts/items.ts -> src/gear-stats.ts',
+  'origins/luck/luck.ts -> src/gambit.ts',
+  'origins/server/encounter-fixtures.ts -> src/combat.ts',
+  'origins/server/encounter-fixtures.ts -> src/duel.ts',
+  'origins/server/encounter-fixtures.ts -> src/moves.ts',
+  'origins/server/encounter-fixtures.ts -> src/play-radius.ts',
+  'origins/server/encounter-fixtures.ts -> src/record.ts',
+  'origins/server/encounter-fixtures.ts -> src/replay.ts',
+  'origins/server/encounter-pose.ts -> src/duel.ts',
+  'origins/server/encounter-pose.ts -> src/play-radius.ts',
+  'origins/server/encounter-pose.ts -> src/record.ts',
+  'origins/server/encounter-verify.ts -> src/combat.ts',
+  'origins/server/encounter-verify.ts -> src/duel.ts',
+  'origins/server/encounter-verify.ts -> src/moves.ts',
+  'origins/server/encounter-verify.ts -> src/record.ts',
+  'origins/server/encounter-verify.ts -> src/replay.ts',
+  'origins/server/encounter-verify.ts -> src/sim.ts',
+  'origins/server/encounter-verify.ts -> src/twist.ts',
+  'origins/server/encounter.ts -> src/duel.ts',
+  'origins/server/encounter.ts -> src/record.ts',
+  'origins/server/encounter.ts -> src/twist.ts',
+  'origins/server/mob-rewards.ts -> src/twist.ts',
+  'origins/server/world-spawns.ts -> src/gambit.ts',
+  'origins/server/world-spawns.ts -> src/gear-stats.ts',
+  'origins/server/world-spawns.ts -> src/moves.ts',
+];
+const direct = (): string[] => files('origins').flatMap((file) => [...new Set([...readFileSync(file, 'utf8').matchAll(IMPORT)].map((m) => m[1]!)
+  .filter((s) => /(^|\/)src\/[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
+  .filter((name) => ENGINE.includes(name)))].map((name) => `${file} -> src/${name}.ts`)).sort();
+
+test('origins/ reaches the fight engine only through src/fight/index.ts, except the named server debt', () => {
+  const now = direct();
+  assert.deepEqual(now.filter((v) => !ENGINE_DEBT.includes(v)), [], 'import the engine from src/fight/index.ts, not from its modules');
+  assert.deepEqual(ENGINE_DEBT.filter((v) => !now.includes(v)), [], 'a listed import is gone: delete it from ENGINE_DEBT so it cannot come back');
+});

@@ -6,7 +6,7 @@
 // `end.record` with `settleFight` when `done` fires. A fight that ends by a twist with both standing records as 'abandoned' (pit-duel), which is what the verifier expects.
 // Same contract as save.ts: no DOM, storage or clock here; any failure (no session, 4xx/5xx, a timeout, the network, a malformed reply) is an answer ({ offline }), never a throw. The preview
 // then plays on its local seed and nothing is settled, exactly as today.
-import { encodeRecord, type FightRecord } from '../../src/record.ts';
+import { encodeRecord, type FightRecord } from '../../src/fight/index.ts';
 import { WRITER_PATH, type Offline } from './save.ts';
 
 export type Fight = { token: string; seed: number; enemy: string; level: number; bar: number | null; flags: unknown[]; layer: string | null; startTick: number; lastTick: number; graceS: number; expiresAt: string };

@@ -2,10 +2,10 @@
 // Bounty). The duel is the Pit's own (pit-duel.ts, loaded on demand); an encounter adds its twist flags (src/twist.ts, read each tick) and
 // reports the two fields resolveFight reads: `result` and `twistOutcome`. Preview only: the sim and the record are untouched.
 import type { Finished } from '../pit/pit.ts';
-import type { TwistOutcome } from '../../src/twist.ts';
+import type { TwistOutcome } from '../../src/fight/index.ts';
 import type { FightSetup } from '../encounters/encounters.ts';
 import { styleOf } from '../mobs/styles.ts';
-import type { FightRecord } from '../../src/record.ts';
+import type { FightRecord } from '../../src/fight/index.ts';
 import type { Shown, WorldDuel } from './pit-duel.ts';
 
 export type EncounterEnd = { result: 'won' | 'lost'; twistOutcome: TwistOutcome | null; record?: FightRecord | null };   // record: the fight's FightRecord, for the settle post (nothing posts it yet)
