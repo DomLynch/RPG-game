@@ -62,6 +62,8 @@ import './signature-nightborn.ts';   // Nightborn A: Blood Recall
 import './signature-goblin.ts';   // Goblin A: Hooked Wound
 import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
+import { settleWithin } from './warm-gate.ts';
+const COMPILE_BOUND_MS = 6000;   // a compile (warm-up only) that has not settled by then is given up on: a lost context never settles it, and the walk must not wait
 const SIDES = [0, 1] as const;   // the two fighters, for the per-frame loops: one shared tuple, not a new array every frame (armfeel is on for everyone now)
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
@@ -321,7 +323,8 @@ export function createScene(
     // A context lost meanwhile (Sentry FRANKENDOM-3: createShader returns null, shaderSource throws) skips the warm-up, as a lost draw does
     // (main.ts): the look still swaps in, and three recompiles and re-uploads on the first frame after the context is restored.
     const lost = () => renderer.getContext().isContextLost();
-    try { await renderer.compileAsync(warm, camera, scene); } catch (error) { if (!lost()) throw error; }
+    const compiled = renderer.compileAsync(warm, camera, scene).then(() => null, (error: unknown) => error);   // an error is captured, a compile that never settles (a lost context) is given up on after the bound
+    if (await settleWithin('scene-look', compiled, COMPILE_BOUND_MS)) { const error = await compiled; if (error && !lost()) throw error; }
     // One map per frame: uploading them all in one task was a 59–111 ms long task right before the swap (goblin-l3-6269f661, row 4).
     // The look is ready a frame after the last, so the swap never shares a frame with an upload.
     const maps = new Set<THREE.Texture>(); warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) maps.add(v); });
@@ -601,14 +604,14 @@ export function createScene(
     async warmOwn(lights: THREE.Object3D[]) {
       const borrowed = lights.map((light) => light.clone()); scene.add(...borrowed);
       try {
-        await renderer.compileAsync(scene, camera);
+        await settleWithin('warm-own', renderer.compileAsync(scene, camera), COMPILE_BOUND_MS);
         const target = new THREE.WebGLRenderTarget(4, 4), before = renderer.getRenderTarget();
         try { renderer.setRenderTarget(target); renderer.render(scene, camera); } finally { renderer.setRenderTarget(before); target.dispose(); }
       } catch { /* a failed warm only means the first frame compiles, as before */ } finally {
         scene.remove(...borrowed); for (const light of borrowed) (light as THREE.Light).dispose?.();
       }
     },
-    warmWorld(root: THREE.Object3D) { return renderer.compileAsync(root, camera, scene).catch(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
+    warmWorld(root: THREE.Object3D) { return settleWithin('warm-root', renderer.compileAsync(root, camera, scene), COMPILE_BOUND_MS).then(() => {}); },   // world fights: compile the page's world materials as THEY will be drawn here (this scene's environment and fog), before the engage, so the first duel frame does not compile them
     setWorldCamera(cam: { back: number; up: number } | null) { worldCam = cam; },   // world fights: keep the walk camera's distance and height (only the aim eases to the lock); null = the duel's own framing
     easeCamera(from: { position: THREE.Vector3; quaternion: THREE.Quaternion }, seconds: number) {   // start the duel's camera at `from` and ease to its own framing over `seconds` (a reduced-motion viewer gets the cut)
       ease = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { pos: from.position.clone(), quat: from.quaternion.clone(), age: 0, dur: seconds };

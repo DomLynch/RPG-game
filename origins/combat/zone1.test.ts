@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
-import { LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
+import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -74,19 +74,20 @@ test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the c
   assert.ok(LEASH.wolf < LEASH.default, 'the wolf gives up sooner');
 });
 
-test('a pack: the nearest creature fights the hero on the duel and the other holds off at the ring (no blow, no overlap) until it falls; then the next engages at once', () => {
-  const w0 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w0, 'p'));
-  let w = w0, aDown = -1, bBeforeA = false, bEngaged = false; const counts: Record<string, number> = { a: 0, b: 0 };
-  for (let t = 0; t < 60 * 60; t++) {
-    const r = stepCombat(w, { p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = r.world;
-    for (const e of r.events) { if (e.type === 'Telegraph' && (e.id === 'a' || e.id === 'b')) { counts[e.id]!++; if (e.id === 'b' && aDown < 0) bBeforeA = true; } if (e.type === 'Died' && e.id === 'a') aDown = t; }
-    if (aDown >= 0 && w.streams.p?.foe === 'b') bEngaged = true;
-    if (get(w, 'b').phase === 'dead') break;
-  }
-  assert.ok(counts.a! > 0, 'the nearest attacks');
-  assert.ok(!bBeforeA, 'the other holds off while the first is alive');
-  assert.ok(aDown >= 0 && bEngaged, 'when the first falls the second engages on the duel');
-  assert.ok(HOLD_M < ENGAGE_M);
+test('#1936 c(a): a pack joins - the nearest fights on his lock-on, the others join on their own duel and hit him too; a fourth holds off at the ring; each engage is one FightStarted; when the foe falls the next takes his lock-on', () => {
+  const w0 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]); boost(get(w0, 'p'));
+  const r = run(w0, 8, (t) => ({ p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));
+  const hitters = new Set(r.events.filter((e) => e.type === 'Hit' && e.victim === 'p').map((e) => (e as { attacker: string }).attacker));
+  assert.ok(hitters.has('a') && hitters.has('b') && hitters.has('c'), `three creatures hit him: ${[...hitters]}`);
+  const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature);
+  assert.equal(new Set(started).size, started.length, 'one FightStarted per creature per engage'); assert.ok(started.includes('a') && started.includes('b') && started.includes('c'));
+  const w1 = run(newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]), 1 / 60).world;
+  assert.equal(get(w1, 'd').phase, 'ready', 'the fourth is held off at the ring: no windup'); assert.ok(!w1.streams.p!.joined!.some((j) => j.foe === 'd') && w1.streams.p!.joined!.length === 2);
+  // the primary falls: a joiner takes his lock-on at once
+  const w2 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w2, 'p'));
+  let w = w2, aDown = -1, bFoe = false;
+  for (let t = 0; t < 60 * 60; t++) { const q = stepCombat(w, { p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = q.world; if (q.events.some((e) => e.type === 'Died' && e.id === 'a')) aDown = t; if (aDown >= 0 && w.streams.p?.foe === 'b') bFoe = true; if (get(w, 'b').phase === 'dead') break; }
+  assert.ok(aDown >= 0 && bFoe, 'when the first falls the second is his foe'); assert.ok(HOLD_M < ENGAGE_M);
 });
 
 test('gear: Attack scales what the hero deals, RES what he takes (the numbers the Pit reports); naked is the Pit number', () => {
@@ -205,4 +206,83 @@ test('pvp one-way band: a level-20 player CAN attack a level-40 player, and the 
   const up = swing(w, 'a', 1.2).world, down = swing(duo({ aLevel: 40, bLevel: 20 }), 'a', 1.2).world;
   assert.ok(get(up, 'b').health < RULES.health, 'the lower attacks up');
   assert.equal(get(down, 'b').health, RULES.health, 'the higher cannot attack down');
+});
+
+test('#1936 b: a rebuilt fight resumes the creature\'s swing timing (its brain lives on the creature) instead of restarting at the 90-tick opening wait', () => {
+  const w0 = run(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.3)]), 0.5).world;   // 30 ticks in: the wait has been counting down
+  const brain0 = get(w0, 'c').brain!; assert.ok(brain0, 'the creature carries its brain after a fight step'); assert.ok(brain0.wait < 90, `wait counting down, got ${brain0.wait}`);
+  const rebuilt = run({ ...w0, streams: {} }, 1 / 60).world;   // streams cleared = the fight is rebuilt (a pack's next bout, a re-engage)
+  const resumed = get(rebuilt, 'c').brain!.wait;
+  assert.ok(resumed <= brain0.wait && resumed >= brain0.wait - 1, `resumed at ${resumed}, was ${brain0.wait}: not reset to 89`);
+  const fresh = run(newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.3)]), 1 / 60).world;
+  assert.equal(get(fresh, 'c').brain!.wait, 89, 'a creature that never fought starts at the opening wait');
+  // a creature that walks home heals and forgets: its next fight starts fresh
+  const home = { ...w0, fighters: w0.fighters.map((f) => (f.id === 'c' ? { ...f, returning: true, hunting: false, x: f.homeX + 0.01, z: f.homeZ } : f)), streams: {} };
+  const after = run(home, 0.2);   // it evades (heals home) and then, with the hero still beside it, starts a NEW fight on a FRESH brain
+  assert.ok(of(after.events, 'Evaded', 'c').length >= 1, 'it evaded');
+  assert.ok(get(after.world, 'c').brain!.habits.ticks < brain0.habits.ticks, 'evading cleared the old brain: the new fight started counting from zero');
+});
+
+test('#1936 b (Auditor HOLD): a brain carried out of a LONG bout is rebased - hit late (tick > 500), rebuild, and the creature swings within ~2 s instead of retreating for the length of the old fight', () => {
+  const w0 = newWorld([boost(player('p', 0, 0)), boost(creature('c', 'wolf', 0, 1.3))]);
+  const long = run(w0, 20, (t) => ({ p: t % 90 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));   // 1200 ticks of hits taken
+  assert.ok(long.world.streams.p!.duel.tick > 500, 'a long bout'); assert.ok(of(long.events, 'Hit', 'p').length > 0, 'the creature was hit');
+  const after = run({ ...long.world, streams: {} }, 2);   // re-engage: the stream is rebuilt, the player stands still
+  assert.ok(of(after.events, 'Telegraph', 'c').length > 0, 'the creature swings within 2 s of the rebuild (not 0 swings while an old retreatUntil counts down)');
+});
+
+test('#1936 c: the creature chooses by threat - of two players in reach it fights the one that hurt it, not the nearer; with no threat it takes the nearer', () => {
+  const mk = (threat?: Fighter['threat']) => { const c = creature('c', 'wolf', 0, 0); if (threat) c.threat = threat; return newWorld([player('a', 3.5, 0), player('b', 0, 2), c]); };
+  const none = run(mk(), 1 / 60, () => ({ a: STILL, b: STILL })).world;
+  assert.equal(none.streams.b!.foe, 'c', 'no threat: the nearer player (b) is the foe'); assert.equal(none.streams.a!.foe, null);
+  const hurt = run(mk({ a: { threat: 50, damage: 50, out: 0 } }), 1 / 60, () => ({ a: STILL, b: STILL })).world;
+  assert.equal(hurt.streams.a!.foe, 'c', 'threat on a: the creature fights a'); assert.equal(hurt.streams.b!.foe, null);
+});
+
+test('#1936 c: FightStarted fires once per engage (not per step), and the damage the hero lands is the creature\'s threat and credit', () => {
+  const w = newWorld([boost(player('p', 0, 0)), creature('c', 'wolf', 0, 1.3)]);
+  const r = run(w, 3, (t) => ({ p: t % 30 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));
+  assert.equal(r.events.filter((e) => e.type === 'FightStarted').length, 1);
+  assert.deepEqual(r.events.find((e) => e.type === 'FightStarted'), { type: 'FightStarted', creature: 'c', player: 'p' });
+  const dealt = r.events.reduce((n, e) => n + (e.type === 'Hit' && e.attacker === 'p' ? e.damage : 0), 0);
+  assert.ok(dealt > 0, 'the hero landed a blow'); assert.equal(get(r.world, 'c').threat!.p!.damage, dealt); assert.equal(get(r.world, 'c').threat!.p!.threat, dealt);
+});
+
+test('#1936 c: threat is forgotten when the player is out of sight for the give-up time, and when the creature walks home', () => {
+  const c = creature('c', 'wolf', 0, 0); c.threat = { p: { threat: 9, damage: 9, out: 0 } };
+  const far = run(newWorld([player('p', SIGHT_M + 5, 0), c]), 1, () => ({ p: STILL })).world;
+  assert.ok(get(far, 'c').threat!.p, 'out of sight for 1 s: still on the list');
+  const gone = run(far, GIVE_UP_UNSEEN_S + 1, () => ({ p: STILL })).world;
+  assert.equal(get(gone, 'c').threat?.p, undefined, 'out of sight past the give-up time: forgotten');
+});
+
+test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase dead, no further fight, one Died', () => {
+  const p = player('p', 0, 0); p.health = p.maxHealth = 40;   // a few wolf bites
+  const w0 = newWorld([p, creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
+  const r = run(w0, 40, () => ({ p: STILL }), (w) => of([], 'Died').length === 0 && get(w, 'p').phase === 'dead');
+  const killers = r.events.filter((e) => e.type === 'Died' && e.id === 'p').map((e) => (e as { by: string }).by);
+  assert.equal(killers.length, 1, 'he died once'); assert.equal(get(r.world, 'p').phase, 'dead');
+  const later = run(r.world, 5, () => ({ p: STILL }));
+  assert.equal(get(later.world, 'p').phase, 'dead', 'five seconds later he is still dead'); assert.equal(later.events.filter((e) => e.type === 'Died' && e.id === 'p').length, 0, 'no second Died');
+  assert.equal(later.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0, 'nothing keeps hitting the corpse');
+});
+
+test('#1936 c(b): disengage - the player runs from three creatures; the fight just stops (no end event), each loses him, gives up or hits its leash, walks home, heals and says Evaded once; no bout is left', () => {
+  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
+  const fight = run(w0, 1);
+  assert.equal(fight.world.streams.p!.joined!.length, 2, 'three on him'); for (const id of ['a', 'b', 'c']) get(fight.world, id).health -= 20;
+  // he runs away at the run speed and keeps going: past the sight ring the unseen clock runs, past the leash they turn back
+  const gone = run(fight.world, 60, () => ({ p: { x: 1, z: 0, run: true } }), (w) => ['a', 'b', 'c'].every((id) => { const c = get(w, id); return !c.hunting && !c.returning && c.health === c.maxHealth; }));
+  for (const id of ['a', 'b', 'c']) { const c = get(gone.world, id); assert.equal(c.health, c.maxHealth, `${id} healed home`); assert.ok(!c.hunting && !c.returning, `${id} is idle at home`); assert.equal(of(gone.events, 'Evaded', id).length, 1, `${id}: one Evaded`); assert.equal(c.threat, undefined, `${id}: threat cleared`); }
+  assert.equal(gone.events.filter((e) => e.type === 'Died').length, 0, 'nobody died: no end of fight');
+  assert.equal(gone.world.streams.p!.foe, null, 'his bout is the alone-bout again'); assert.ok(!gone.world.streams.p!.joined?.length);
+});
+
+test('#1936 c(a): FightStarted is once per creature per engage - a joiner that becomes his foe, or hovers at the edge of the ring, does not fire again', () => {
+  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'boar', 0, 1.6), creature('b', 'boar', 1.4, 1.8), creature('c', 'boar', -1.4, 1.8)]);
+  let aDown = -1;
+  const r = run(w0, 120, (t) => ({ p: aDown < 0 ? { x: 0, z: 0, attack: t % 25 === 0 ? 'light' : null } : { x: -1, z: 0, run: true } }), (w) => { if (aDown < 0 && get(w, 'a').phase === 'dead') aDown = 1; return false; });
+  const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature), died = r.events.filter((e) => e.type === 'Died' && e.id === 'a').length;
+  assert.equal(died, 1, 'he killed one'); assert.equal(started.filter((id) => id === 'a').length, 1); assert.ok(started.filter((id) => id === 'b').length <= 2 && started.filter((id) => id === 'c').length <= 2, `no churn: ${started}`);
+  assert.equal(started.slice(0, 3).sort().join(), 'a,b,c', 'the first three are the pack');
 });

@@ -46,7 +46,8 @@ if [[ $build_status -eq 0 ]]; then
   # The exact Mac invocation (deploy.sh), with nothing trusted: every row runs here.
   # ROWS_ONLY="31,33" (a shard): every other row is skipped, so this receipt vouches for those rows only.
   skip=""; if [[ -n "${ROWS_ONLY:-}" ]]; then skip=$(ROWS_ONLY="$ROWS_ONLY" node -e 'const n = JSON.parse(require("fs").readFileSync(".quality-gate.json", "utf8")).release_commands.length, only = new Set(process.env.ROWS_ONLY.split(",").map(Number)); console.log(Array.from({ length: n }, (_, i) => i + 1).filter(i => !only.has(i)).join(","))'); fi
-  RELEASE_CHECKS_SKIP="$skip" RELEASE_CHECKS_SKIP_SOURCE= node scripts/release-checks.mjs > "$run/rows.log" 2>&1 || rows_status=$?
+  # tee: the per-row "Release check N/M ..." lines also reach the job log, so a job that hits its --timeout still shows what finished (the file inside the container is lost with it).
+  set +e; RELEASE_CHECKS_SKIP="$skip" RELEASE_CHECKS_SKIP_SOURCE= node scripts/release-checks.mjs 2>&1 | tee "$run/rows.log"; rows_status=${PIPESTATUS[0]}; set -e
   cp artifacts/release-checks/*.log "$run/logs/" 2>/dev/null || true
   cp artifacts/release-checks.json "$run/release-checks.json" 2>/dev/null || true
 else

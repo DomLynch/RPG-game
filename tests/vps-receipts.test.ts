@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+import { SLOW_ROWS, coverageGaps, jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
@@ -211,4 +211,41 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));
   assert.ok(!/vps-shadow-rows\.sh/.test(lib), 'the old ssh fetch is gone');
   assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
+});
+
+test('launch.mjs refuses the slow rows on every flavor (a shard with one loses everything to the job timeout; the t4-medium trial of 5/7/16 hit the ceiling too)', () => {
+  assert.deepEqual(SLOW_ROWS, [5, 7, 9, 13, 16, 21, 28, 34, 36]);
+  for (const row of SLOW_ROWS) assert.throws(() => hfArgs('rows', sha, 'cpu-upgrade', `30,${row}`), /slow rows/, `row ${row}`);
+  assert.ok(hfArgs('rows', sha, 'cpu-upgrade', '30,31,33').includes('ROWS_ONLY=30,31,33'));
+  assert.throws(() => hfArgs('rows', sha, 't4-medium', '5,7,16'), /slow rows/, 't4-medium does not rescue them either');
+  assert.equal(hfArgs('rows', sha).includes('node:22'), true, 'the image is JOB_IMAGE');
+});
+
+test('the runners show their evidence in the job log: rows tee the per-row lines (keeping the release-checks exit code), the unit runner prints the failing tests', () => {
+  const rowsSh = readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), unitSh = readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8');
+  assert.match(rowsSh, /release-checks\.mjs 2>&1 \| tee "\$run\/rows\.log"; rows_status=\$\{PIPESTATUS\[0\]\}/);
+  assert.match(unitSh, /grep -E '\^not ok' "\$run\/unit\.log" \| grep -v '# TODO' \| head -20/);
+});
+
+test('coverage: a shardable row no shard ran is UNASSIGNED; WebKit and real-clock rows are Mac-only and never unassigned (Release G left 15 behind)', () => {
+  const full = coverageGaps([receipt()], commands, source);
+  assert.deepEqual(full.unassigned, []);
+  assert.ok(full.macOnly.length > 0 && full.macOnly.every((i: number) => !full.t4Only.includes(i)));
+  const skipped = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === 2 ? 'trusted' : 'pass', exit: 0 })) });
+  assert.deepEqual(coverageGaps([skipped], commands, source).unassigned, full.macOnly.includes(2) ? [] : [2]);
+  assert.equal(coverageGaps([], commands, source).unassigned.length, commands.length - full.macOnly.length - full.slow.length);
+});
+
+test('the launch waits for a RUNNING shard job and refuses unassigned rows', () => {
+  const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
+  assert.match(lib, /RUNNING\|STARTING\|PENDING\|SCHEDULING/);
+  assert.match(lib, /grep -q 'UNASSIGNED rows'/);
+  assert.match(lib, /DEPLOY_ALLOW_UNASSIGNED/);
+});
+
+test('coverage: SLOW_ROWS are never shardable, so they are never UNASSIGNED (#1933 refuses to shard them; Release H would exit 1 otherwise)', () => {
+  const none = coverageGaps([], commands, source);
+  for (const row of SLOW_ROWS) assert.ok(!none.unassigned.includes(row), `row ${row}`);
+  assert.deepEqual(none.slow, SLOW_ROWS.filter((i: number) => !none.macOnly.includes(i)));
+  assert.equal(none.unassigned.length + none.macOnly.length + none.slow.length, commands.length);
 });

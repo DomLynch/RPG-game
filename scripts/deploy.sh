@@ -154,6 +154,20 @@ cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com
 # RECORD it here: exiting now would skip the verifier install below and leave verify-daily and verify-loot on the outgoing sim. The
 # failure is raised at the very end of the script, after the release is fully installed.
 previews_ok=1
+# deploy.sh only carries /preview/ forward, so /zone1/ stayed on an old build for eight releases (A to H). Publish the origins preview from
+# this revision now (the checkout is the live revision after the cmp checks above), then require that /zone1/ serves the bundle just built.
+# Same rule as above: record the failure, raise it at the end, never skip the verifier install.
+if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
+  scripts/publish-origins-preview.sh || previews_ok=0
+  built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
+  live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
+  if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
+    echo "origins preview: /zone1/ serves '${live_bundle:-none}', this revision built '${built_bundle:-none}'" >&2
+    previews_ok=0
+  else
+    echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
+  fi
+fi
 curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
@@ -199,6 +213,6 @@ else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
 fi
 if [[ "$previews_ok" != 1 ]]; then
-  echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200" >&2
+  echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1
 fi

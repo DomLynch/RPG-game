@@ -13,7 +13,7 @@ lock_now=$(sha256sum package-lock.json | cut -c1-64)
 [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" == "$lock_now" ]] || { npm ci --no-audit --no-fund > "$run/unit-npm-ci.log" 2>&1 || { echo "npm ci failed"; exit 4; }; echo "$lock_now" > "$home/.lock-installed"; }
 t0=$(date +%s); npm run test:all > "$run/unit.log" 2>&1; rc=$?
 [[ "$(git rev-parse HEAD^{tree})" == "$want_tree" && -z "$(git status --porcelain)" ]] || { echo "tree changed or dirty at end; no receipt"; exit 5; }
-[[ $rc -eq 0 ]] || { echo "unit suite failed (exit $rc); no receipt"; exit "$rc"; }
+[[ $rc -eq 0 ]] || { grep -E '^not ok' "$run/unit.log" | grep -v '# TODO' | head -20; echo "unit suite failed (exit $rc); no receipt"; exit "$rc"; }   # the failing tests name themselves in `hf jobs logs`
 node -e '
 const fs = require("fs"), c = require("crypto"), log = fs.readFileSync(process.argv[1], "utf8");
 const n = k => Number((new RegExp("^# " + k + " (\\d+)", "m").exec(log) || [])[1] ?? -1);

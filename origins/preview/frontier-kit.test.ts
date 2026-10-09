@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { frontierDress } from './frontier-dress.ts';
 import { frontierKit } from './frontier-kit.ts';
-import { loadZone } from './zone-loader.ts';
+import { loadZone } from '../zones/loader.ts';
 const { nodes: KIT_NODES, landmarks: LANDMARK_NODES } = loadZone().kit;
 import { frontierBuild, frontierPlan, inFirstView, inZone, onRoad } from './frontier-plan.ts';
 

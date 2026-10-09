@@ -8,7 +8,7 @@ import { createFighter, idleIntent, opponentFighter, stepDuel, timing, type Comb
 import type { Event, Fighter, Input, Phase } from './zone1.ts';
 
 /** One fight: slot 0 is a player (the "hero" of the Pit's duel); slot 1 is a creature, another player, or nobody (`foe: null`, a dummy far away: the hero alone, swinging, guarding, rolling, regaining stamina). */
-export type Bout = { foe: string | null; duel: Duel; ai: AiState | null; profile: AiProfile | null };
+export type Bout = { foe: string | null; duel: Duel; ai: AiState | null; profile: AiProfile | null; joined?: Bout[] };   // joined: the other creatures on this player, each its own duel against him (zone1.ts MAX_ATTACKERS)
 // open-world: the open world has no guard-side thumb: a held guard covers the blow from the front (RULES.directionalGuard off), the Pit's other rules stand.
 const OPEN_RULES = { ...RULES, directionalGuard: false } as unknown as typeof RULES;
 const TICK = 1 / 60, FAR_M = 1000;
@@ -24,7 +24,7 @@ const pitOf = (f: Fighter): PitFighter => (f.side === 'creature'
 export function openBout(hero: Fighter, foe: Fighter | null, carry?: PitFighter): Bout {
   const h = carry ?? pitOf(hero), c = foe ? pitOf(foe) : createFighter({ x: hero.x + FAR_M, z: hero.z, heading: 0, distance: 0 }, 'ready', 'longsword', 1, 0, 1e9);
   const o = foe?.side === 'creature' ? OPPONENTS[foe.kind as keyof typeof OPPONENTS] : null;
-  return { foe: foe?.id ?? null, duel: { tick: 0, fighters: [h, c], finish: null, events: [] }, ai: o ? initialAi(seedOf(foe!.id)) : null, profile: o ? profileAt(o, foe!.level) : null };
+  return { foe: foe?.id ?? null, duel: { tick: 0, fighters: [h, c], finish: null, events: [] }, ai: o ? (foe!.brain ?? initialAi(seedOf(foe!.id))) : null, profile: o ? profileAt(o, foe!.level) : null };
 }
 
 const phaseOf = (f: PitFighter): { phase: Phase; t: number } => {

@@ -70,7 +70,7 @@ Donors read: Veloren, ModernUO, EQEmu, AzerothCore, 2004Scape-Server (LostCityRS
 - **Enter:** `Creature::setAttackedCreature` (`creature.cpp:719-738`) sets the pointer, adds a follower and forces a path update. Players: `Game::playerSetAttackedCreature` (`game.cpp:3232-3260`). Monsters: `selectTarget` (`monster.cpp:669-695`). "In a fight" is a condition, not an object. The client's `Game::attack` (`opentibiabr-otclient/src/client/game.cpp:977-998`) only sends the target id.
 - **Tick:** `checkCreatures` (`game.cpp:3863-3878`) buckets 100 ms, each creature thought once a second (`creature.h:57-58`); `onAttacking` (`creature.cpp:155-166`); players swing when `OTSYS_TIME() - lastAttack >= getAttackSpeed()` (`player.cpp:3400-3445`) and reschedule themselves; monsters `attackTicks += interval` and per-spell cooldowns (`monster.cpp:823-870`, `:891`).
 - **Aggro to first hit (monster):** `onCreatureEnter` (`monster.cpp:416`) -> `onCreatureFound` (`:395`) -> `onThink` (`:743`) -> `searchTarget` (`:498`) -> `selectTarget` -> `setAttackedCreature` -> `checkCreatureAttack` (`game.cpp:3834`) -> `onAttacking` -> `Monster::doAttacking` -> cast.
-- **Take:** target pointer plus a per-entity next-swing time that reschedules itself. **Not:** the 1 s think and 100 ms bucket round-robin (too coarse for 30 Hz).
+- **Take:** target pointer plus a per-entity next-swing time that reschedules itself. **Not:** the 1 s think and 100 ms bucket round-robin (too coarse for 60 Hz).
 
 ## Where we are (trunk 27086155d)
 
@@ -84,7 +84,7 @@ Donors read: Veloren, ModernUO, EQEmu, AzerothCore, 2004Scape-Server (LostCityRS
 3. **Aggro and swing are separate clocks.** The AI picks a target at its own rate; the swing gate runs every tick (ModernUO, EQEmu, rathena). Out of range, re-poll cheaply rather than start a swing (AzerothCore 100 ms).
 4. **One entry point for "I am now attacking X"** that validates, sets the target and notifies (ModernUO `Combatant` setter, AzerothCore `Unit::Attack`), shared by players and creatures.
 5. **Pre-load and pre-upload before the creature can be attacked** (Veloren builds the model on a background pool when first seen and skips drawing until ready; Ryzom preloads shapes and streams by radius). For us: load the creature mesh, skeleton, animations and every material and shader variant combat can touch when it enters the streaming radius (well outside aggro), and draw one throwaway frame of each hit / impact effect at load. The measured 450 ms to 1.1 s gaps are the first draw of something not yet uploaded; this is the fix shape, to be confirmed by the Metal trace.
-6. **Do not copy:** a heap object per swing (Ryzom, OpenDAoC `WeaponAction`; pool or reuse if it ever shows up in a profile), millisecond-delta timers (we are 30 Hz tick counts), coarse think intervals (forgottenserver), and the aura / threat / leash machinery.
+6. **Do not copy:** a heap object per swing (Ryzom, OpenDAoC `WeaponAction`; pool or reuse if it ever shows up in a profile), millisecond-delta timers (we are 60 Hz tick counts), coarse think intervals (forgottenserver), and the aura / threat / leash machinery.
 
 The Pit duel engine stays as it is: the open-fight adapter already runs it without a ring, and the spike (Lead's decision 6) tests whether the Pit scene can be entered without the start and finish pieces.
 
