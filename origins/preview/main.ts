@@ -416,7 +416,7 @@ const duelLayer = document.getElementById('duel')!, career = document.getElement
 if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then((m) => {
-    duel = m; m.enterWorld(leaveFight, { back: `Back to ${frontier!.name}` }); kit = true; releaseSticks(); document.body.classList.add('kit');
+    duel = m; m.enterWorld(leaveFight, { back: zoneExit() }); kit = true; releaseSticks(); document.body.classList.add('kit');
     hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
@@ -502,12 +502,13 @@ function settleFight(finish: Finished) {
   const after = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins);
   return { next: after?.legend && duel ? duel.legendName(after.opponent, after.level) : undefined };
 }
+const zoneExit = () => { const z = loadZone(); return `Back to ${z.name ?? `Zone ${z.id}`}`; };   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
-  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, { back: `Back to ${frontier.name}` }); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
+  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, { back: zoneExit() }); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
 if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)

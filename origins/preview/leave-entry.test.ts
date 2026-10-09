@@ -47,7 +47,8 @@ test('a zone-hosted gear sheet says Gear and Back to <zone>, and shows no Pit or
   assert.equal(exit.textContent, 'Back to Zone 1'); assert.equal(exit.id, 'nav-pit', 'same entry, the zone\'s words');
   const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8'), duel = read('./pit-duel.ts'), main = read('./main.ts'), mount = read('./gear-mount.ts'), html = read('./index.html');
   assert.match(duel, /element\('nav-gear'\)\.textContent = 'Gear'/, 'the tab reads Gear in a zone');
-  assert.match(main, /enterWorld\(leaveFight, \{ back: `Back to \$\{frontier!\.name\}` \}\)/); assert.match(main, /duel\.enterWorld\(leaveFight, \{ back: `Back to \$\{frontier\.name\}` \}\)/);
+  assert.match(main, /m\.enterWorld\(leaveFight, \{ back: zoneExit\(\) \}\)/); assert.match(main, /duel\.enterWorld\(leaveFight, \{ back: zoneExit\(\) \}\)/);
+  assert.match(main, /`Back to \$\{z\.name \?\? `Zone \$\{z\.id\}`\}`/, 'the zone\'s own name field, else Zone <id>');
   const emptyPack = /emptyPack: '([^']*)'/.exec(mount)?.[1] ?? 'Win gear in the arena.';
   assert.doesNotMatch(emptyPack, /pit|arena/i, 'the zone\'s empty rack line');
   assert.match(html, /#duel\.gearing #nav-arena, #duel\.gearing #nav-arena-page \{ display: none !important; \}/, 'the Arena entries stay out of the sheet while it is up');

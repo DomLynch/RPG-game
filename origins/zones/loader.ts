@@ -18,6 +18,7 @@ import mobLooks2 from './zone2/mob-looks.ts';
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
   id: string; level: number;
+  name?: string;   // what the page's exit calls the zone ("Back to <name>"); absent: "Zone <id>"
   world: readonly string[];   // the world-data zones (origins/region1/world.ts) this zone's page walks
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
