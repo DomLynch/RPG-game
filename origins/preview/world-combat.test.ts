@@ -60,7 +60,7 @@ test('Evaded: a creature that gave up and is home and healed is released at once
 test('call-site pin: the page reaches combat only through the engine world.ts stepCombat (so a lone creature always takes the copied duel/ai, a pack the legacy rows, as zone1.ts routes them)', () => {
   const dir = new URL('.', import.meta.url), src = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
   const users = src.filter((f) => /from '\.\.\/\.\.\/src\/fight\/world\.ts'/.test(readFileSync(new URL(f, dir), 'utf8')));
-  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports the engine's world.ts');
+  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports the engine world.ts');
   const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
   assert.deepEqual([...text.matchAll(/from '(\.\.\/\.\.\/src\/fight\/[^']+)'/g)].map((m) => m[1]), ['../../src/fight/world.ts'], 'and only the engine world.ts');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
