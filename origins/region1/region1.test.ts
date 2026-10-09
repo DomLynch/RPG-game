@@ -137,7 +137,8 @@ test('rifts: five sites, none in a town or safe zone', () => {
   }
 });
 
-test('the weapon exemption is the generated id set, not the item:loot. prefix: a weapon that merely wears the prefix is refused', () => {
-  refused(withBundle((b) => { b.push({ ...(clone(rec(b, 'item:frontier.ash-helm'))), id: 'item:loot.fake.Gladius', slot: 'Gladius', appearance: { asset: 'loot.glb/fake.Gladius' } }); }), 'content-rule', 'item:loot.fake.Gladius.slot');
+test('the weapon exemption is the generated id set, not the item:loot. prefix: a weapon that merely wears the prefix is refused (the contracts) and is not in the set', () => {
+  refused(withBundle((b) => { b.push({ ...(clone(rec(b, 'item:frontier.ash-helm'))), id: 'item:loot.fake.Gladius', slot: 'Gladius', appearance: { asset: 'loot.glb/fake.Gladius' } }); }), 'legacy-unknown', '].id');   // the contracts already refuse an item:loot.* id that is no LootId; the exemption set below is the second wall
+  assert.ok(!LOOT_ITEM_IDS.has('item:loot.fake.Gladius'));
   assert.ok(LOOT_ITEM_IDS.has('item:loot.goblin.Knife'), 'the engine\'s own weapon pieces stay exempt');
 });
