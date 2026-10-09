@@ -46,7 +46,7 @@ test('one decision point: a local op is exactly the ledger function it names; a 
 });
 test('the gear sheet decides nothing itself: every wear / stow click goes through its one `act`, and the sheet imports no ledger function that could bypass it', () => {
   const sheet = readFileSync(new URL('../src/gear-sheet.ts', import.meta.url), 'utf8');
-  assert.equal((sheet.match(/\bact\(/g) ?? []).length >= 5, true, 'the rack button, Wear this, Store, and each slot\'s Store go through act');
+  assert.equal((sheet.match(/\bact\(\{ kind:|\bact\(isWorn/g) ?? []).length >= 4, true, 'the rack button, Wear this, Store, and each slot\'s Store go through act'); assert.match(sheet, /d\.act\?\.\(op\)/, 'a signed-in character\'s op goes to the server first');
   assert.doesNotMatch(sheet, /import \{[^}]*\b(wear|unwear|stow|wearFromPack)\b[^}]*\} from '\.\/loot\.ts'/, 'no direct ledger call in the sheet');
   assert.match(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), /createGearSheet\(/, 'the Pit mounts the sheet');
 });
