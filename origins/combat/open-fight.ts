@@ -1,9 +1,9 @@
 // Zone 1 fights on the Pit's own duel (Dom, 2026-10-08: copy the Pit, write no rule twice). EVERY fight in Zone 1 - a lone hero swinging at air, a hero against a creature, two players - is one `Bout`: a Pit `Duel`
-// stepped by the Pit's own `src/duel.ts stepDuel` (under underOpenWorld: no ring wall, the one open-world departure), with the creature brain `src/ai.ts decide` (profileAt rows) when the foe is a creature. This file is the adapter and nothing else: it builds the Pit fighters from the
+// stepped by the Pit's own `src/duel.ts stepDuel` (the duel carries radius OPEN_RADIUS: no ring wall, the one open-world departure), with the creature brain `src/ai.ts decide` (profileAt rows) when the foe is a creature. This file is the adapter and nothing else: it builds the Pit fighters from the
 // world's Fighters, maps live Input to a Pit Intent, steps the duel at its fixed 60 Hz, and writes the result back into the world's Fighters and Events. The world layer (aggro, chase to the engage ring, leash,
 // give-up, heal-home, the page-driven hero position) stays in zone1.ts. Every departure from the Pit is marked `// open-world:`.
 import { OPPONENTS, RULES, opponentAt, profileAt, type AiProfile } from '../../src/moves.ts';
-import { underOpenWorld } from './open-world.ts';
+import { OPEN_RADIUS } from '../../src/play-radius.ts';
 import { initialAi, decide, type AiState } from '../../src/ai.ts';
 import { createFighter, idleIntent, opponentFighter, stepDuel, timing, type CombatEvent, type Duel, type Fighter as PitFighter, type Intent, type Side } from '../../src/duel.ts';
 import type { Event, Fighter, Input, Phase } from './zone1.ts';
@@ -25,7 +25,7 @@ const pitOf = (f: Fighter): PitFighter => (f.side === 'creature'
 export function openBout(hero: Fighter, foe: Fighter | null, carry?: PitFighter): Bout {
   const h = carry ?? pitOf(hero), c = foe ? pitOf(foe) : createFighter({ x: hero.x + FAR_M, z: hero.z, heading: 0, distance: 0 }, 'ready', 'longsword', 1, 0, 1e9);
   const o = foe?.side === 'creature' ? OPPONENTS[foe.kind as keyof typeof OPPONENTS] : null;
-  return { foe: foe?.id ?? null, duel: { tick: 0, fighters: [h, c], finish: null, events: [] }, ai: o ? (foe!.brain ?? initialAi(seedOf(foe!.id))) : null, profile: o ? profileAt(o, foe!.level) : null };
+  return { foe: foe?.id ?? null, duel: { tick: 0, fighters: [h, c], finish: null, events: [], radius: OPEN_RADIUS }, ai: o ? (foe!.brain ?? initialAi(seedOf(foe!.id))) : null, profile: o ? profileAt(o, foe!.level) : null };
 }
 
 const phaseOf = (f: PitFighter): { phase: Phase; t: number } => {
@@ -66,8 +66,7 @@ function intentOf(input: Input, guarding: boolean, lock: boolean): Intent {
 }
 
 /** One world step of a bout: `ticks` Pit ticks (60 Hz). `a` is slot 0 (a player), `b` slot 1 (a creature or a player; undefined when alone). Writes the result into `a` and `b` (the caller's copies) and returns the events. */
-export const stepBout = (s: Bout, a: Fighter, b: Fighter | undefined, inputA: Input, inputB: Input, dt: number): { bout: Bout; events: Event[] } => underOpenWorld(() => stepBoutIn(s, a, b, inputA, inputB, dt));   // the Pit's sim with no wall
-function stepBoutIn(s: Bout, a: Fighter, b: Fighter | undefined, inputA: Input, inputB: Input, dt: number): { bout: Bout; events: Event[] } {
+export function stepBout(s: Bout, a: Fighter, b: Fighter | undefined, inputA: Input, inputB: Input, dt: number): { bout: Bout; events: Event[] } {
   let duel = s.duel, ai = s.ai, guardA = a.phase === 'guard', guardB = b?.phase === 'guard';
   const out: Event[] = [], ticks = Math.max(1, Math.round(dt / TICK));
   const aMul = b ? b.attack * a.res : a.res, bMul = b ? a.attack * b.res : 1;   // open-world: damage a takes = base x the attacker's Attack x its own RES; scaling its pool by the inverse leaves the Pit's duel untouched

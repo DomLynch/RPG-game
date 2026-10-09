@@ -3,6 +3,7 @@
 // circle it was fought in: below FIRST_SCALED_VERSION every fight is the old 8.55 m, so no shared link replays a different fight (detmath.ts
 // underRecord, match.ts). A leaf of the simulation (no imports): the live value is set when a fight begins and read by the sim, the
 // camera clamp and the scene.
+export const OPEN_RADIUS = 1e9;   // the open world's wall (RV40: Duel.radius): out of reach, so nothing clamps, loiters or is shoved at it
 export const WALL_INNER = 11.7, BODY_RADIUS = 0.425;   // the wall's inner face (arena.ts LAYOUT.wall.inner, pinned by tests/play-radius.test.ts) and half the fighters' 0.85 m spacing (sim.ts)
 export const BASE_RADIUS = 8.55, ARENA_ONE_SCALE = 0.36, FIRST_SCALED_VERSION = 23;
 export const ARENA_ONE: readonly string[] = ['veteran', 'pitborn'];   // the ladder's first band only; any other or unknown id keeps the old circle (fails closed)
