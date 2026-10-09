@@ -37,12 +37,16 @@ test('the flow check sees static, re-export and dynamic imports', () => {
 
 // K2c (Lead + Strategy, 2026-10-09): Zone 1 and every browser client reach the fight through ONE door, src/fight/index.ts. A non-test file under origins/ may not import an engine module
 // (duel, ai, sim, moves, combat, play-radius, record, gear-stats, gambit, stance, twist, replay) directly. The server and contract files below run in node without the renderer the index pulls in
-// (three.js); they are named debt, owner Duels & Backend (origins/server, origins/contracts, origins/luck), and a listed import that goes away must be deleted from the list.
+// (three.js); they are named debt, owner Duels & Backend (origins/server, origins/contracts, origins/luck) plus the three modules those server files import (mobs/kits.ts, encounters/encounters.ts, shared/with-bar.ts: the kit tag is pinned by tests/kit-version.test.ts and must not move), and a listed import that goes away must be deleted from the list.
 const ENGINE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'gear-stats', 'gambit', 'stance', 'twist', 'replay'];
 const ENGINE_DEBT: readonly string[] = [
   'origins/contracts/economy.ts -> src/gear-stats.ts',
   'origins/contracts/items.ts -> src/gear-stats.ts',
+  'origins/encounters/encounters.ts -> src/moves.ts',
+  'origins/encounters/encounters.ts -> src/twist.ts',
   'origins/luck/luck.ts -> src/gambit.ts',
+  'origins/mobs/kits.ts -> src/duel.ts',
+  'origins/mobs/kits.ts -> src/moves.ts',
   'origins/server/encounter-fixtures.ts -> src/combat.ts',
   'origins/server/encounter-fixtures.ts -> src/duel.ts',
   'origins/server/encounter-fixtures.ts -> src/moves.ts',
@@ -66,6 +70,7 @@ const ENGINE_DEBT: readonly string[] = [
   'origins/server/world-spawns.ts -> src/gambit.ts',
   'origins/server/world-spawns.ts -> src/gear-stats.ts',
   'origins/server/world-spawns.ts -> src/moves.ts',
+  'origins/shared/with-bar.ts -> src/combat.ts',
 ];
 const direct = (): string[] => files('origins').flatMap((file) => [...new Set([...readFileSync(file, 'utf8').matchAll(IMPORT)].map((m) => m[1]!)
   .filter((s) => /(^|\/)src\/[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
