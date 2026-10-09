@@ -24,6 +24,7 @@ export function countErrors(output) {
 }
 
 /** What is wrong against the pins: errors over a pin (or unpinned), and pins above today's count (lower them). Empty = pass. */
+/** @param {Record<string, Record<string, number>>} counts @param {Record<string, {owner: string, codes: Record<string, number>}>} [debt] @param {string} [where] */
 export function judge(counts, debt = DEBT, where = 'scripts/origins-tsc.mjs') {   // where: the script whose DEBT holds the pins (scripts/origins-lint.mjs reuses this judge)
   const over = [], stale = [];
   for (const [file, codes] of Object.entries(counts)) for (const [code, n] of Object.entries(codes)) {
