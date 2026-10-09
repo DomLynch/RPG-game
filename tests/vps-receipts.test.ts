@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
-import { SLOW_ROWS, hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
+import { SLOW_ROWS, coverageGaps, jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -225,4 +225,27 @@ test('the runners show their evidence in the job log: rows tee the per-row lines
   const rowsSh = readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8'), unitSh = readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8');
   assert.match(rowsSh, /release-checks\.mjs 2>&1 \| tee "\$run\/rows\.log"; rows_status=\$\{PIPESTATUS\[0\]\}/);
   assert.match(unitSh, /grep -E '\^not ok' "\$run\/unit\.log" \| grep -v '# TODO' \| head -20/);
+});
+
+test('coverage: a shardable row no shard ran is UNASSIGNED; WebKit and real-clock rows are Mac-only and never unassigned (Release G left 15 behind)', () => {
+  const full = coverageGaps([receipt()], commands, source);
+  assert.deepEqual(full.unassigned, []);
+  assert.ok(full.macOnly.length > 0 && full.macOnly.every((i: number) => !full.t4Only.includes(i)));
+  const skipped = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === 2 ? 'trusted' : 'pass', exit: 0 })) });
+  assert.deepEqual(coverageGaps([skipped], commands, source).unassigned, full.macOnly.includes(2) ? [] : [2]);
+  assert.equal(coverageGaps([], commands, source).unassigned.length, commands.length - full.macOnly.length - full.slow.length);
+});
+
+test('the launch waits for a RUNNING shard job and refuses unassigned rows', () => {
+  const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
+  assert.match(lib, /RUNNING\|STARTING\|PENDING\|SCHEDULING/);
+  assert.match(lib, /grep -q 'UNASSIGNED rows'/);
+  assert.match(lib, /DEPLOY_ALLOW_UNASSIGNED/);
+});
+
+test('coverage: SLOW_ROWS are never shardable, so they are never UNASSIGNED (#1933 refuses to shard them; Release H would exit 1 otherwise)', () => {
+  const none = coverageGaps([], commands, source);
+  for (const row of SLOW_ROWS) assert.ok(!none.unassigned.includes(row), `row ${row}`);
+  assert.deepEqual(none.slow, SLOW_ROWS.filter((i: number) => !none.macOnly.includes(i)));
+  assert.equal(none.unassigned.length + none.macOnly.length + none.slow.length, commands.length);
 });
