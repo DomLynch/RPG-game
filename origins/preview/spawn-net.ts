@@ -75,3 +75,16 @@ export function spawnTracker(d: Deps): SpawnTracker {
     open: () => [...live.keys()],
   };
 }
+
+// The page's combat events -> the tracker (main.ts passes this as world-combat's onEvent). Engage on Combat's FightStarted (#1943) once it is on trunk; until then on the creature's first move
+// on him (its tell or swing) or the first blow either way, so a creature that only wanders past is never engaged (engages are capped at 4 open). The kill is reported at onKill (the fall's end).
+type CombatEvent = { type: string; id?: string; attacker?: string; victim?: string; creature?: string; player?: string };
+export function onCombatEvent(t: SpawnTracker, me: string): (ev: CombatEvent) => void {
+  return (ev) => {
+    if (ev.type === 'FightStarted') { if (ev.player === me && ev.creature) void t.engaged(ev.creature); }
+    else if ((ev.type === 'Telegraph' || ev.type === 'Swing') && ev.id && ev.id !== me) void t.engaged(ev.id);
+    else if (ev.type === 'Hit' && ev.attacker === me && ev.victim) { void t.engaged(ev.victim); t.hit(ev.victim); }
+    else if (ev.type === 'Hit' && ev.victim === me && ev.attacker) void t.engaged(ev.attacker);
+    else if (ev.type === 'Evaded' && ev.id) t.evaded(ev.id);
+  };
+}

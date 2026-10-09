@@ -18,6 +18,7 @@ export type Deps = {
   onHeroHit(amount: number): void;  // red flash + the Hit clip
   onSwing(): void;                  // the hero's own cut began: the Attack clip
   onTelegraph?(id: string, ms: number): void;
+  onEvent?(ev: Event): void;       // every combat event, after the page has shown it (the spawn client, spawn-net.ts onCombatEvent)
   hero?: () => { gear: Loadout; level: number };   // his resolved gear and career level (default: naked, level 1); a creature's level is its spec's
 };
 type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swingT: number };
@@ -56,7 +57,7 @@ export function createWorldCombat(d: Deps) {
         acc -= STEP;
         const m = me(); if (first) world = { ...world, fighters: [{ ...m, ...gearOf(), x: hero.x, z: hero.z, facing: m.phase === 'roll' ? m.facing : hero.facing }, ...world.fighters.slice(1)] }; first = false;
         const r = stepCombat(world, { [ME]: { x: 0, z: 0, attack: heroDead ? null : pendingAttack, guard: guardHeld && !heroDead, roll: heroDead ? null : pendingRoll } }, STEP); pendingAttack = null; pendingRoll = null;
-        world = r.world; for (const ev of r.events) handle(ev);
+        world = r.world; for (const ev of r.events) { handle(ev); d.onEvent?.(ev); }
       }
       pendingAttack = null; pendingRoll = null;
       for (const f of world.fighters.slice(1)) {

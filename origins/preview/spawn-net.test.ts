@@ -10,7 +10,7 @@ import { fakeWhere } from '../presence/fixtures.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, zone1Spawns } from '../server/world-spawns.ts';
-import { spawnTracker, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
+import { onCombatEvent, spawnTracker, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -118,4 +118,19 @@ test('touch: a hit touches the token at most every TOUCH_EVERY_MS; tick touches 
     assert.deepEqual(await none.engaged(ids[1]!), { offline: 'no-character' });
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 1);
   } finally { await w.close(); }
+});
+
+test('onCombatEvent: FightStarted (or, until #1943, the creature\'s first move / the first blow) engages once; his hits count per creature; a wander-past or another player\'s event engages nothing; Evaded drops', () => {
+  const log: string[] = [];
+  const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [] };
+  const on = onCombatEvent(t, 'me');
+  on({ type: 'FightStarted', creature: 'wolves-1', player: 'me' });
+  on({ type: 'FightStarted', creature: 'wolves-9', player: 'someone-else' });
+  on({ type: 'Telegraph', id: 'wolves-2' });
+  on({ type: 'Telegraph', id: 'me' });
+  on({ type: 'Hit', attacker: 'me', victim: 'wolves-3' });
+  on({ type: 'Hit', attacker: 'wolves-4', victim: 'me' });
+  on({ type: 'Blocked', attacker: 'me', victim: 'wolves-5' });
+  on({ type: 'Evaded', id: 'wolves-2' });
+  assert.deepEqual(log, ['engage wolves-1', 'engage wolves-2', 'engage wolves-3', 'hit wolves-3', 'engage wolves-4', 'evade wolves-2']);
 });

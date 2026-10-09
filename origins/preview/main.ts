@@ -29,9 +29,10 @@ import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from './warm-gate.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { createWorldCombat } from './world-combat.ts';
+import { ME, createWorldCombat } from './world-combat.ts';
 import { NAKED } from '../../src/gear-stats.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
+import { onCombatEvent, spawnTracker } from './spawn-net.ts';
 import { CHECKING, authClient, ensureFreshSession, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -599,6 +600,7 @@ function heroDeathSequence() {
 }
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
+  void spawnNet.killed(spec.id);   // the server's verified kill (beta ledger); the page's own loot and toast below run whatever it answers
   try {
     huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
     const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
@@ -606,8 +608,10 @@ async function creatureFell(spec: MobSpec) {
   } catch (error) { console.warn('the kill could not be settled', error); }
   worldToast(`${spec.name} is down.`);
 }
+// Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
+const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), character: () => characterId, now: () => Date.now(), base: writerBase(location.search) });
 const wc = createWorldCombat({
-  mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence,
+  mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
   onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },
   onSwing: () => { attackT = 0.7; if (attackAct) { attackAct.reset().setLoop(THREE.LoopOnce, 1); attackAct.clampWhenFinished = false; attackAct.play(); } },
 });
