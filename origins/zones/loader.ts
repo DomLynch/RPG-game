@@ -35,7 +35,7 @@ export function zoneProblems(z: Zone): string[] {
   const bad: string[] = [], ids = new Set<string>();
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
-    if (r.level[0] !== z.level || r.level[1] !== z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${z.level}-${z.level + 1}`);
+    if (r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${z.level}-${z.level + 1}`);
   }
   for (const [zoneId, rowId] of Object.entries(z.spawns.openers)) if (!ids.has(rowId)) bad.push(`opener for ${zoneId} names ${rowId}, which is not a row`);
   const nodes = new Set(z.kit.nodes), landmarks = new Set(z.kit.landmarks);
