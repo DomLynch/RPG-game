@@ -8,8 +8,8 @@
 import { SPEEDS } from './speeds.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
-import { FRONTIER_OPENERS, FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
-import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
+import { loadZone } from './zone-loader.ts';
+const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zones/zone1/spawns.ts), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
@@ -21,7 +21,7 @@ export type MobSpec = {
 export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
-// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/mobs/frontier-rows.ts. Named creatures keep these:
+// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zones/zone1/spawns.ts. Named creatures keep these:
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
@@ -58,9 +58,8 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-// ?wolf (Dom: the Zone 1 preview with the Ash Wolf): the wildlife batch's wolf row with `later` lifted, added to the zone's rows for this page only. The registry's
-// `wolves` spawn is inert without it, so the live game and the golden placement are untouched.
-export const previewRows = (search: string): readonly MobRow[] => /[?&]wolf\b/.test(search) ? [...FRONTIER_ROWS, ...WILDLIFE_ROWS.filter((r) => r.id === 'character:ash-wolf').map((r) => ({ ...r, later: undefined }))] : FRONTIER_ROWS;
+// The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
+export const previewRows = (_search: string): readonly MobRow[] => FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
@@ -96,7 +95,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? 11) : row!.level[0] + (i % (row!.level[1] - row!.level[0] + 1)),
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
@@ -114,8 +113,17 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     if (!spot) continue;
     out.push({ id: `opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
-  return out;
+  return levelByDistance(f, b, out, rows);
 }
+// Risk = reward by depth (Dom 2026-10-08): a common creature is its zone's level near the hero's spawn (Zone 1 = L1) and one more at the zone's edge, a
+// row's band [N, N+1] ramped by the distance of its home from the spawn; the named rares are N+2. The origin is the Zone 1 spawn (spawnAmong) until the bank
+// town is placed: then it is this one function to change. Rewards and loot already follow the resulting spec.level.
+export const LEVEL_NEAR_M = 30, LEVEL_FAR_M = 150, NAMED_LEVEL = ZONE_LEVEL + 2;
+export const levelAt = (d: number, band: readonly [number, number]): number => band[0] + Math.round(Math.max(0, Math.min(1, (d - LEVEL_NEAR_M) / (LEVEL_FAR_M - LEVEL_NEAR_M))) * (band[1] - band[0]));
+const levelByDistance = (f: Frontier, b: Build, specs: MobSpec[], rows: readonly MobRow[]): MobSpec[] => {
+  const origin = spawnAmong(f, b, specs);
+  return origin ? specs.map((s) => { const row = s.named ? undefined : rows.find((r) => r.id === s.character); return row ? { ...s, level: levelAt(Math.hypot(s.home.x - origin.x, s.home.z - origin.z), row.level) } : s; }) : specs;
+};
 // Which world bodies a zone spawns (the bodies the phone downloads for it): the unique `body` of its specs, sorted. check-budget reads this, so a world body
 // counts against a zone's set only once a row spawns it there (Dom/Lead 2026-10-08: the WORLD budget is per zone, not one global cap).
 export const zoneBodies = (specs: readonly MobSpec[]): Record<string, string[]> => {

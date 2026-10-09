@@ -10,7 +10,7 @@ import * as store from './store.ts';
 import type { ShopList } from '../shops/shop.ts';
 
 // `smith`: the forge's service definition and cost table, parsed by the contracts (smithContent in upgrade.ts). Absent = no smith in this content.
-export type Content = { lookup: Lookup; smith?: { service: ServiceDefinition; costs: UpgradeCostTable }; shops?: ReadonlyMap<string, ShopList> };   // shops: service id -> list (Town plan A2)
+export type Content = { lookup: Lookup; smith?: { service: ServiceDefinition; costs: UpgradeCostTable }; shops?: ReadonlyMap<string, ShopList>; counters?: ReadonlyMap<string, { zone: string; at: string }> };   // counters: shop service id -> its vendor's landmark   // shops: service id -> list (Town plan A2)
 type Row = store.Json & { id: string; loc_kind: string | null; loc_owner: string | null; mint_key: string; provenance: store.Json };
 
 // The stored row as an ItemInstance. A split child keeps its parent's provenance in the database but carries its own mint key (parent::s<v>),

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="robots" content="noindex">
-  <title>Origins — the walk out (greybox)</title>
+  <title>Frankendom — The Cinder Fields</title>
   <style>
     /* Theme tokens: the one source of every colour, font, size, spacing and radius below. A look pass changes these, not the rules. */
     :root {
@@ -61,6 +61,7 @@
     #duel.world #mobile-camera { display: revert !important; }
     #duel.world header .brand { visibility: hidden; }   /* the FRANKENDOM / ORIGINS wordmark drew over the status lines in a field duel at desktop width; visibility, not display, so the ☰ stays put (Web, #1732) */
     #duel.world.infight #opponent-name, #duel.world.infight #target-health, #duel.world.infight #target-posture, #duel.world.infight #combat-status { display: revert !important; }   /* no #leave: a world fight ends on its own banner, nothing to tap (seamless S1) */   /* ?worldfight: the duel's own bars over the world */
+    body.infight #hud { visibility: hidden; }   /* the foe card (name + bars) draws at the top-left of a world fight, over the zone header: hide the header's text; visibility keeps its height, so --hud-bottom and the player's bars stay where they were (Deploy's live Metal stills, 2026-10-08) */
     body.infight #hint, body.infight #creature-card { display: none; }   /* ?worldfight: at fight-camera distance they covered the foe from head to waist; the duel's own name line stays */
     body.kit #move-stick, body.kit #look-stick { display: none; }
     body.kit #walk-journal, body.kit #allegiance { display: none; }   /* the main screen is the combat HUD and the ☰ only: Journal is a button in the ☰'s Settings */
@@ -69,7 +70,7 @@
 <body>
   <canvas id="view"></canvas>
   <div id="hud"><span id="place">The Pit</span><small id="career"></small><small id="save"></small><small class="walk-only">Greybox preview · not the game</small>
-    <div id="hint" class="glass">Left thumb walks (push to the edge to run), right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
+    <div id="hint" class="glass">Left thumb walks. Push to the edge to run. Right thumb looks around. Through the gate, the bank is straight ahead and the blacksmith on your left.</div>
     <div id="creature-card" class="glass" hidden></div></div>
   <div id="move-stick" class="stick"><i></i></div><div id="look-stick" class="stick"><i></i></div>
   <button id="prompt" class="glass" hidden></button>

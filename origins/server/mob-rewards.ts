@@ -10,7 +10,7 @@ import type { CharacterInstanceId, EncounterId } from '../contracts/ids.ts';
 import type { ItemInstance } from '../contracts/items.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
-import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { loadZone } from '../preview/zone-loader.ts';
 import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { award } from '../progression/model.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
@@ -26,10 +26,12 @@ export type Paid = { batch: Json[]; summary: { cp: number; cpReason: string; dro
 const CAP_REACHED = Number.MAX_SAFE_INTEGER;   // no "wins today / rolls this week" read yet: the cap counts as reached, so nothing is paid past it
 
 // Pure: the server's own state in, the batch lines out. `at` is the server time (ISO). Nothing here reads the client's body.
-export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string): Paid {
+// `fought` (world spawns only, world-spawns.ts): the open-world creature was fought at the server's own spawn level, so it is priced there; without it the
+// fight must match its form's level exactly (the encounter-settle guard: never pay a fight the run does not describe).
+export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventory: Inventory; metal?: MetalRow | null | 'absent' }, content: EncounterContent, at: string, fought?: { level: number }): Paid {
   const none = (why: string): Paid => ({ batch: [], summary: { cp: 0, cpReason: why, drops: [], bronze: 0, lootRefused: null, unpaid: [] } });
   if (!kill.fight) return none('no-fight-id');   // a token issued before the fight id was carried: the event only, as before
-  const setup = fightSetup(kill.fight, content);
+  const setup = fightSetup(kill.fight, content, fought ? { level: fought.level } : {});
   if (!setup.ok || setup.value.opponent.body !== kill.enemy || setup.value.opponent.level !== kill.level) return none('fight-mismatch');   // never pay a fight the run does not describe
   const target = setup.value.opponent.character, killRow = content.local.killRows[target] ?? null;
   const career = state.career ? careerState(state.career) : null;
@@ -103,7 +105,7 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // last PAID kill of the fight, from the `enc:<token>` events the settle commits with its rewards), so a writer restart forgets nothing, only committed kills count, and a
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = 300_000;
-const ROW_RESPAWN = new Map([...FRONTIER_ROWS, ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
+const ROW_RESPAWN = new Map([...loadZone().spawns.rows, ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
 export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
   const setup = fightSetup(fight, content);
   return (setup.ok ? rows.get(setup.value.opponent.character) : undefined) ?? RESPAWN_MS;

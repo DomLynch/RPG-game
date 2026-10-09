@@ -22,9 +22,9 @@ const kill = (fight: string, seed: number, over: Partial<Kill> = {}): Kill => {
 };
 // The open-world creatures with a loot table (the Zone 1 hunt's ordinary kills), and a seed whose roll drops something for each.
 const creatures = Object.keys(content.local.creatureLoot).filter((id) => fightSetup(id, content).ok);
-const droppingSeed = (fight: string, min = 1): number => {
+const droppingSeed = (fight: string, min = 1, foeLevel?: number): number => {
   const s = fightSetup(fight, content); if (!s.ok) throw new Error(fight);
-  for (let seed = 1; seed < 5000; seed++) { const r = rollLoot(content.local.creatureLoot[fight], seed, content, { foeLevel: s.value.opponent.level }); if (r.ok && r.value.items.length >= min) return seed; }
+  for (let seed = 1; seed < 5000; seed++) { const r = rollLoot(content.local.creatureLoot[fight], seed, content, { foeLevel: foeLevel ?? s.value.opponent.level }); if (r.ok && r.value.items.length >= min) return seed; }
   throw new Error(`no seed under 5000 drops ${min}+ items for ${fight}`);
 };
 
@@ -60,10 +60,15 @@ test('nothing is paid without a fight id, for a run the fight does not describe,
 });
 
 test('a full pack mints nothing (all or nothing, as the page says) but the kill still pays its CP; no career row pays no CP but still mints', () => {
-  const fight = creatures[0]!, seed = droppingSeed(fight), two = droppingSeed(fight, 2);
-  const full = mobBatch(kill(fight, two), { career: row(), inventory: pack(1) }, content, AT);   // two drops, one slot: the second does not fit, so neither is minted
-  assert.equal(full.batch.filter((l) => l.op === 'mint').length, 0); assert.ok(full.summary.lootRefused);
-  assert.equal(full.batch.filter((l) => l.op === 'career_set').length, 1);
+  const fight = creatures[0]!, seed = droppingSeed(fight);
+  // Zone 1's creatures are level 1 (Dom 2026-10-08) and a level-1 roll drops one item at most; the two-drop / one-slot case needs a higher one, so the fight's mob form is lifted to level 11 for the two-drop part and restored.
+  const form = content.region.registry.characters.get(fight as never)!.encounterForms.find((f) => f.id === 'mob')! as { level: number | null }, was = form.level;
+  form.level = 11;
+  try {
+    const two = droppingSeed(fight, 2), full = mobBatch(kill(fight, two), { career: row(), inventory: pack(1) }, content, AT);   // two drops, one slot: the second does not fit, so neither is minted
+    assert.equal(full.batch.filter((l) => l.op === 'mint').length, 0); assert.ok(full.summary.lootRefused);
+    assert.equal(full.batch.filter((l) => l.op === 'career_set').length, 1);
+  } finally { form.level = was; }
   const noCareer = mobBatch(kill(fight, seed), { career: null, inventory: pack() }, content, AT);
   assert.equal(noCareer.batch.filter((l) => l.op === 'career_set').length, 0); assert.equal(noCareer.summary.cpReason, 'no-career');
   assert.ok(noCareer.batch.some((l) => l.op === 'mint'));
