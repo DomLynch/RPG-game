@@ -18,6 +18,7 @@ export const PLAYER_RADIUS = 0.425;                    // half the sim's 0.85 m 
 export const AGGRO_M = 9;                              // a creature that is hunting a player notices him inside this ring (World's mob layer decides who is in the world at all)
 export const SIGHT_M = 14;                              // a hunting creature keeps the player in sight inside this ring (hysteresis over AGGRO_M); past it the unseen clock runs
 export const ENGAGE_M = 4, ENGAGE_OUT_M = 6;           // the nearest foe this close fights him on the Pit's duel; it stays there out to ENGAGE_OUT_M. Chase before that, leash and give-up after, are the world layer
+export const MAX_ATTACKERS = 3;                         // creatures on one player at once (Dom: three on one): the nearest fights him on his lock-on, the rest join on their own duel against him; a fourth holds off at the ring
 export const HOLD_M = ENGAGE_M * 0.95;                  // every creature closes to just inside the engage ring and waits there: the one that is engaged fights, the rest of a pack hold off until a slot frees
 /** Creature levels (Dom: copy the Pit): a creature of level L has the Pit's own level body (moves.ts `opponentAt`: health and poise by level) and, in a fight, the Pit's level brain (`profileAt`). No Zone 1 scaling of our own. */
 export const MAX_LEVEL = LEVELS;
@@ -117,7 +118,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   for (const p of players) if (p.shielded && inputs[p.id]?.attack && players.some((q) => q !== p && q.pvp && p.pvp && dist(p, q) <= ENGAGE_M)) p.shielded = false;
 
   // 1. Player against player: two attackable players this close fight each other (the Pit's duel with two humans); the pair is kept out to ENGAGE_OUT_M.
-  const bouts: { a: Fighter; b: Fighter | null }[] = [];
+  const bouts: { a: Fighter; b: Fighter | null }[] = [], joined = new Map<string, Fighter[]>();
   const prevFoe = (p: Fighter) => world.streams[p.id]?.foe ?? null;
   for (const a of players) for (const b of players) {
     if (a.id >= b.id || inFight.has(a.id) || inFight.has(b.id) || !attackable(a, b)) continue;
@@ -141,9 +142,15 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   const foes = new Map<string, Fighter | null>();
   for (const p of free) { const foe = take(p, (c) => chose.get(c.id) === p.id); if (foe) claimed.add(foe.id); foes.set(p.id, foe); }
   for (const p of free) if (!foes.get(p.id)) { const foe = take(p, () => true); if (foe) claimed.add(foe.id); foes.set(p.id, foe); }   // a creature whose choice was taken falls back to the nearest free player (the pack model)
+  const joiners = new Map<string, Fighter[]>();   // the rest of the creatures that chose a player: they join him (the player's own blows go to his foe; theirs land on him through their own duel)
+  for (const c of creatures) {
+    const pid = chose.get(c.id); if (!pid || claimed.has(c.id) || !alive(c) || c.returning) continue;
+    const list = joiners.get(pid) ?? []; list.push(c); joiners.set(pid, list);
+  }
   for (const p of players) {
     if (inFight.has(p.id)) continue;
     const foe = foes.get(p.id) ?? null;
+    if (foe) for (const c of (joiners.get(p.id) ?? []).sort((x, y) => (y.threat?.[p.id]?.threat ?? 0) - (x.threat?.[p.id]?.threat ?? 0) || dist(x, p) - dist(y, p)).slice(0, MAX_ATTACKERS - 1)) { joined.set(p.id, [...(joined.get(p.id) ?? []), c]); inFight.add(c.id); if (!c.hunting) { c.hunting = true; c.chaseX = c.x; c.chaseZ = c.z; c.unseen = 0; } }
     if (foe) { inFight.add(foe.id); if (!foe.hunting) { foe.hunting = true; foe.chaseX = foe.x; foe.chaseZ = foe.z; foe.unseen = 0; } }   // inside the engage ring it is on the prey whether or not it saw him
     inFight.add(p.id); bouts.push({ a: p, b: foe });   // 3. no foe in reach: the player is alone in his bout (swings at air, guards, rolls, regains stamina on the Pit's rules)
   }
@@ -155,6 +162,18 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
     if (b && b.side === 'creature' && prev?.foe !== b.id) events.push({ type: 'FightStarted', creature: b.id, player: a.id });
     streams[a.id] = r.bout; events.push(...r.events);
+    // The creatures that joined him: each its own duel against the same player. His health and posture carry through the world Fighter; his place, stamina, phase and exhaustion are the primary bout's (a roll or a cut is paid and moved once); a joiner's blows hurt him but do not interrupt his swing.
+    const keep = { x: a.x, z: a.z, facing: a.facing, stamina: a.stamina, phase: a.phase, t: a.t, exhausted: a.exhausted }, inA = inputs[a.id] ?? IDLE_INPUT, passive: Input = { x: inA.x, z: inA.z, run: inA.run, guard: inA.guard, roll: inA.roll };
+    const prevJoined = new Map((prev?.joined ?? []).map((j) => [j.foe, j]));
+    r.bout.joined = [];
+    for (const c of joined.get(a.id) ?? []) {
+      const had = prevJoined.get(c.id) ?? (prev?.foe === c.id ? prev : undefined), jb = had ?? openBout(a, c);
+      if (!had) events.push({ type: 'FightStarted', creature: c.id, player: a.id });
+      const jr = stepBout(jb, a, c, passive, IDLE_INPUT, dt); r.bout.joined.push(jr.bout); events.push(...jr.events);
+      if (jr.bout.ai) c.brain = jr.bout.ai;
+      Object.assign(a, keep);
+      if (alive(c) && Math.hypot(c.x - c.chaseX, c.z - c.chaseZ) > leashOf(c.kind)) { c.hunting = false; c.returning = true; c.phase = 'ready'; }
+    }
     if (b && b.side === 'creature') for (const e of r.events) if (e.type === 'Hit' && e.attacker === a.id && e.victim === b.id) { const t = ((b.threat ??= {})[a.id] ??= { threat: 0, damage: 0, out: 0 }); t.threat += e.damage; t.damage += e.damage; }   // credit and threat from what actually landed
     if (b && b.side === 'player') for (const e of r.events) {   // player against player: log who struck first (a blow that hit, was blocked, parried or dodged)
       const hit = e.type === 'Hit' ? [e.attacker, e.victim] : e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' ? [e.attacker, e.victim] : null;
