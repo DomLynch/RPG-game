@@ -261,7 +261,6 @@ export const REGIONS = [
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
       spawn('scavengers', 'ash-pits', null, ['character:cinder-scavenger']),
-      spawn('pit-goblins', 'watchtower', null, ['character:pit-goblin']),   // the Pit goblin camp by the start path (east road), Zone 1 (Dom 10-09: goblin camp added); the row's size is data (zone1/spawns.ts campSize)
       spawn('wolves', 'hold-road', null, ['character:ash-wolf']),   // inert until a preview adds the wolf's mob row (origins/preview/mobs.ts previewRows ?wolf)
       spawn('brood', 'reed-bank', null, ['character:mere-brood']),
       spawn('ghouls', 'causeway-end', null, ['character:ruin-ghoul']),
@@ -276,6 +275,7 @@ export const REGIONS = [
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('reach-wolves', 'reach-cairn', null, ['character:ember-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
       spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
+      spawn('pit-goblins', 'watchtower', null, ['character:pit-goblin']),   // the Pit goblin camp by the start path (east road), Zone 1 (Dom 10-09: goblin camp added); the row's size is data (zone1/spawns.ts campSize)
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
