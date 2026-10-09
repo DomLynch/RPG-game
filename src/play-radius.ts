@@ -13,6 +13,10 @@ export let PLAY_SCALE = 1;
 export let RADIUS = BASE_RADIUS;
 // `k` is the arena's drawn size. In the full arena the circle is the old 8.55 m; in a smaller one the wall is the boundary: fighters stop AT its inner face (Dom 2026-10-06), so the floor out to the wall is fought on.
 export function setPlayScale(k: number): void { PLAY_SCALE = k; RADIUS = k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS; }
+// The open world (Zone 1) has no wall: it runs THIS sim, the Pit's, with the circle pushed out of reach for the span of a step and the Pit's own value put back after. The sim
+// reads RADIUS live (sim.ts advance, duel.ts walled / loiter / retreat / knockback), so nothing else is copied or threaded; a record or a Pit fight never runs inside it.
+export const OPEN_RADIUS = 1e9;
+export function underOpenWorld<T>(run: () => T): T { const outer = RADIUS; RADIUS = OPEN_RADIUS; try { return run(); } finally { RADIUS = outer; } }
 // A record's fight: its circle for the run, the live one put back after (detmath.ts underRecord).
 export function underPlayScale<T>(opponent: string, version: number, run: () => T): T {
   const outer = PLAY_SCALE, outerNotice = LATE_NOTICE; setPlayScale(playScaleFor(opponent, version)); LATE_NOTICE = version >= FIRST_LATE_NOTICE_VERSION;
