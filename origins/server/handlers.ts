@@ -55,7 +55,9 @@ const open: Handler = async (ctx, body) => {
     if (set === 'absent') throw new Refused(503, 'character: choosing a character is not installed yet');   // 0009 not applied: the writer is up, the table is not
     if (!set) throw new BadRequest('character: not one of this account\'s characters');
   }
-  return openAccount(ctx);
+  // The bronze balance rides on open (save end to end: a reload shows the bronze a kill paid). null = the metals read (0004) is not installed.
+  const [snap, metal] = [await openAccount(ctx), await store.metalOf(ctx.db, ctx.account)];
+  return { ...snap, bronze: metal === 'absent' ? null : (metal?.bronze ?? 0) };
 };
 
 const createCharacter: Handler = async (ctx, body) => {

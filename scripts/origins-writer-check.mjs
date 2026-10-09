@@ -125,6 +125,11 @@ try {
 
   // consume (a quest hand-in): ore minted into Aldren's pack and bank, burned through the writer, retried, conflicted, raced; conservation at every commit
   const pc = made.json.result.id;
+  // open carries the bronze balance (save end to end: a reload shows what a kill paid): 0 before any award, the balance after one.
+  // open carries the bronze balance (save end to end: a reload shows what a kill paid). Dara (D) has no metal row: 0, then the balance after an award.
+  eq((await call('open', 'td')).json.result.bronze, 0, 'open: bronze 0 before any award');
+  psql(`select public.origins_commit('${D}', $j$[{"op":"metal","account":"${D}","delta_bronze":7,"reason":"award","event_id":"test:open-bronze"}]$j$::jsonb);`);
+  eq((await call('open', 'td')).json.result.bronze, 7, 'open: the bronze balance after an award');
   const mint = (id, item, quantity, kind, index, key, provenance, extra = {}) => ({ op: 'mint', item: { id, item, quantity, mint_key: key, loc: { kind, owner: pc, index }, ...extra, provenance: { mintKey: key, at: '2026-10-06T12:00:00Z', wonBy: pc, ...provenance } } });
   const loot = { kind: 'loot', table: 'loottable:ghoul', encounter: 'encounter:ruin-vigil' };
   psql(`select public.origins_commit('${A}', $j$${JSON.stringify([
