@@ -16,14 +16,16 @@ export const MAC_ONLY = [
 // Rows the CPU receipt rules keep off a CPU box (vps-receipts.mjs SLOW_ROWS; row 13's initdb refuses root) that the T4 job runs instead, as pwuser
 // with #2044's GPU flags. Measured 2026-10-09 on tree ebee1959e, each row alone (width 1), seconds; the fastest box wins, and the T4 won every row
 // (the old "slow on T4" trial, job 6ac7f57e, rendered in SwiftShader and is void). mac_s = the row's last Mac time in the deploy logs.
-// t4: jobs 6ac93783/6ac93785/6ac93786 (row 13: 6ac93a4b, after job.sh installs postgresql); cpu: cpu-upgrade width 1, one job per row; vps: capture, 3-wide.
+// t4: jobs 6ac93783/6ac93785/6ac93786 (row 13: 6ac93a4b, after job.sh installs postgresql); cpu: cpu-upgrade width 1, one job per row (row 13 cannot: initdb
+// refuses root; rows 5 and 34 still running at 35 min, they hit the 1500 s ceiling before); vps: capture, 3-wide, as frankrows (600 = hit the 600 s row ceiling at load 41;
+// row 9's 474 is the 4-wide run; the run was stopped once the T4 had won every row). null = not measured on that box.
 export const T4_JOBS = 4;   // the T4 leg runs as this many parallel t4-medium jobs, 4-wide each (Dom 2026-10-09: "max out the GPU, it's cheap"; Lead: ~2-3 min instead of ~9)
 export const ON_T4 = [
-  { row: 5, t4_s: 90, cpu_s: null, vps_s: null, mac_s: 167 }, { row: 7, t4_s: 23, cpu_s: null, vps_s: null, mac_s: 67 },
+  { row: 5, t4_s: 90, cpu_s: null, vps_s: 600, mac_s: 167 }, { row: 7, t4_s: 23, cpu_s: 689, vps_s: 600, mac_s: 67 },
   { row: 9, t4_s: 21, cpu_s: 369, vps_s: 474, mac_s: 222 }, { row: 13, t4_s: 4, cpu_s: null, vps_s: null, mac_s: 16 },
-  { row: 16, t4_s: 53, cpu_s: null, vps_s: null, mac_s: 182 }, { row: 21, t4_s: 53, cpu_s: null, vps_s: null, mac_s: 61 },
-  { row: 28, t4_s: 55, cpu_s: null, vps_s: null, mac_s: 66 }, { row: 34, t4_s: 86, cpu_s: null, vps_s: null, mac_s: 158 },
-  { row: 36, t4_s: 34, cpu_s: null, vps_s: null, mac_s: 52 },
+  { row: 16, t4_s: 53, cpu_s: 814, vps_s: null, mac_s: 182 }, { row: 21, t4_s: 53, cpu_s: 784, vps_s: null, mac_s: 61 },
+  { row: 28, t4_s: 55, cpu_s: 787, vps_s: null, mac_s: 66 }, { row: 34, t4_s: 86, cpu_s: null, vps_s: null, mac_s: 158 },
+  { row: 36, t4_s: 34, cpu_s: 697, vps_s: null, mac_s: 52 },
 ];
 // The first log line of a release: how every row is being handled. ci = trusted from CI, hf = trusted from an HF receipt, vps = trusted from the
 // VPS, mac = rows running on the Mac. Over the limit the refusal text names the rows that are not on the Mac list.
