@@ -1,0 +1,13 @@
+0.00s event {"type":"FightStarted","creature":"boar-1","player":"hero"}
+0.00s event {"type":"FightStarted","creature":"boar-2","player":"hero"}
+0.00s event {"type":"FightStarted","creature":"boar-3","player":"hero"}
+43.67s event {"type":"Died","id":"boar-1","by":"hero"}
+43.67s onKill boar-1
+83.47s event {"type":"Evaded","id":"boar-2"}
+84.13s event {"type":"Evaded","id":"boar-3"}
+0.00s POST engage {"character":"char-1","instance":"boar-1"}
+0.00s POST engage {"character":"char-1","instance":"boar-2"}
+0.00s POST engage {"character":"char-1","instance":"boar-3"}
+32.83s POST touch {"token":"tok-boar-1","hits":9}
+43.67s POST kill_report {"token":"tok-boar-1","hits":10}
+SUMMARY engage=3 kill_report=1 (token tok-boar-1, hits 10; boar-1 landed 10 blows, total on all creatures 10) drops(Evaded)=2 open-tokens-left=0
