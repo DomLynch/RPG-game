@@ -267,6 +267,17 @@ test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase 
   assert.equal(later.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0, 'nothing keeps hitting the corpse');
 });
 
+test('#1936 c(b): disengage - the player runs from three creatures; the fight just stops (no end event), each loses him, gives up or hits its leash, walks home, heals and says Evaded once; no bout is left', () => {
+  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
+  const fight = run(w0, 1);
+  assert.equal(fight.world.streams.p!.joined!.length, 2, 'three on him'); for (const id of ['a', 'b', 'c']) get(fight.world, id).health -= 20;
+  // he runs away at the run speed and keeps going: past the sight ring the unseen clock runs, past the leash they turn back
+  const gone = run(fight.world, 60, () => ({ p: { x: 1, z: 0, run: true } }), (w) => ['a', 'b', 'c'].every((id) => { const c = get(w, id); return !c.hunting && !c.returning && c.health === c.maxHealth; }));
+  for (const id of ['a', 'b', 'c']) { const c = get(gone.world, id); assert.equal(c.health, c.maxHealth, `${id} healed home`); assert.ok(!c.hunting && !c.returning, `${id} is idle at home`); assert.equal(of(gone.events, 'Evaded', id).length, 1, `${id}: one Evaded`); assert.equal(c.threat, undefined, `${id}: threat cleared`); }
+  assert.equal(gone.events.filter((e) => e.type === 'Died').length, 0, 'nobody died: no end of fight');
+  assert.equal(gone.world.streams.p!.foe, null, 'his bout is the alone-bout again'); assert.ok(!gone.world.streams.p!.joined?.length);
+});
+
 test('#1936 c(a): FightStarted is once per creature per engage - a joiner that becomes his foe, or hovers at the edge of the ring, does not fire again', () => {
   const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'boar', 0, 1.6), creature('b', 'boar', 1.4, 1.8), creature('c', 'boar', -1.4, 1.8)]);
   let aDown = -1;
