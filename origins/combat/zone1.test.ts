@@ -74,19 +74,20 @@ test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the c
   assert.ok(LEASH.wolf < LEASH.default, 'the wolf gives up sooner');
 });
 
-test('a pack: the nearest creature fights the hero on the duel and the other holds off at the ring (no blow, no overlap) until it falls; then the next engages at once', () => {
-  const w0 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w0, 'p'));
-  let w = w0, aDown = -1, bBeforeA = false, bEngaged = false; const counts: Record<string, number> = { a: 0, b: 0 };
-  for (let t = 0; t < 60 * 60; t++) {
-    const r = stepCombat(w, { p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = r.world;
-    for (const e of r.events) { if (e.type === 'Telegraph' && (e.id === 'a' || e.id === 'b')) { counts[e.id]!++; if (e.id === 'b' && aDown < 0) bBeforeA = true; } if (e.type === 'Died' && e.id === 'a') aDown = t; }
-    if (aDown >= 0 && w.streams.p?.foe === 'b') bEngaged = true;
-    if (get(w, 'b').phase === 'dead') break;
-  }
-  assert.ok(counts.a! > 0, 'the nearest attacks');
-  assert.ok(!bBeforeA, 'the other holds off while the first is alive');
-  assert.ok(aDown >= 0 && bEngaged, 'when the first falls the second engages on the duel');
-  assert.ok(HOLD_M < ENGAGE_M);
+test('#1936 c(a): a pack joins - the nearest fights on his lock-on, the others join on their own duel and hit him too; a fourth holds off at the ring; each engage is one FightStarted; when the foe falls the next takes his lock-on', () => {
+  const w0 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]); boost(get(w0, 'p'));
+  const r = run(w0, 8, (t) => ({ p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));
+  const hitters = new Set(r.events.filter((e) => e.type === 'Hit' && e.victim === 'p').map((e) => (e as { attacker: string }).attacker));
+  assert.ok(hitters.has('a') && hitters.has('b') && hitters.has('c'), `three creatures hit him: ${[...hitters]}`);
+  const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature);
+  assert.equal(new Set(started).size, started.length, 'one FightStarted per creature per engage'); assert.ok(started.includes('a') && started.includes('b') && started.includes('c'));
+  const w1 = run(newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]), 1 / 60).world;
+  assert.equal(get(w1, 'd').phase, 'ready', 'the fourth is held off at the ring: no windup'); assert.ok(!w1.streams.p!.joined!.some((j) => j.foe === 'd') && w1.streams.p!.joined!.length === 2);
+  // the primary falls: a joiner takes his lock-on at once
+  const w2 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w2, 'p'));
+  let w = w2, aDown = -1, bFoe = false;
+  for (let t = 0; t < 60 * 60; t++) { const q = stepCombat(w, { p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = q.world; if (q.events.some((e) => e.type === 'Died' && e.id === 'a')) aDown = t; if (aDown >= 0 && w.streams.p?.foe === 'b') bFoe = true; if (get(w, 'b').phase === 'dead') break; }
+  assert.ok(aDown >= 0 && bFoe, 'when the first falls the second is his foe'); assert.ok(HOLD_M < ENGAGE_M);
 });
 
 test('gear: Attack scales what the hero deals, RES what he takes (the numbers the Pit reports); naked is the Pit number', () => {
@@ -253,4 +254,24 @@ test('#1936 c: threat is forgotten when the player is out of sight for the give-
   assert.ok(get(far, 'c').threat!.p, 'out of sight for 1 s: still on the list');
   const gone = run(far, GIVE_UP_UNSEEN_S + 1, () => ({ p: STILL })).world;
   assert.equal(get(gone, 'c').threat?.p, undefined, 'out of sight past the give-up time: forgotten');
+});
+
+test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase dead, no further fight, one Died', () => {
+  const p = player('p', 0, 0); p.health = p.maxHealth = 40;   // a few wolf bites
+  const w0 = newWorld([p, creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
+  const r = run(w0, 40, () => ({ p: STILL }), (w) => of([], 'Died').length === 0 && get(w, 'p').phase === 'dead');
+  const killers = r.events.filter((e) => e.type === 'Died' && e.id === 'p').map((e) => (e as { by: string }).by);
+  assert.equal(killers.length, 1, 'he died once'); assert.equal(get(r.world, 'p').phase, 'dead');
+  const later = run(r.world, 5, () => ({ p: STILL }));
+  assert.equal(get(later.world, 'p').phase, 'dead', 'five seconds later he is still dead'); assert.equal(later.events.filter((e) => e.type === 'Died' && e.id === 'p').length, 0, 'no second Died');
+  assert.equal(later.events.filter((e) => e.type === 'Hit' && e.victim === 'p').length, 0, 'nothing keeps hitting the corpse');
+});
+
+test('#1936 c(a): FightStarted is once per creature per engage - a joiner that becomes his foe, or hovers at the edge of the ring, does not fire again', () => {
+  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'boar', 0, 1.6), creature('b', 'boar', 1.4, 1.8), creature('c', 'boar', -1.4, 1.8)]);
+  let aDown = -1;
+  const r = run(w0, 120, (t) => ({ p: aDown < 0 ? { x: 0, z: 0, attack: t % 25 === 0 ? 'light' : null } : { x: -1, z: 0, run: true } }), (w) => { if (aDown < 0 && get(w, 'a').phase === 'dead') aDown = 1; return false; });
+  const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature), died = r.events.filter((e) => e.type === 'Died' && e.id === 'a').length;
+  assert.equal(died, 1, 'he killed one'); assert.equal(started.filter((id) => id === 'a').length, 1); assert.ok(started.filter((id) => id === 'b').length <= 2 && started.filter((id) => id === 'c').length <= 2, `no churn: ${started}`);
+  assert.equal(started.slice(0, 3).sort().join(), 'a,b,c', 'the first three are the pack');
 });
