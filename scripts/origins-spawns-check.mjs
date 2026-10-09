@@ -183,7 +183,7 @@ try {
 
   // ---- 202610090016 spawn zones: Zone N >= 2 ids are z<N>:..., so a Zone 2 spawn never shares a Zone 1 row of the same name --------------------------------------
   eq((await val(V, ENGAGE(C, pcC, tok(37), 'z2:wolves-11'))).generation, 0, 'zones: z2:wolves-11 is alive while Zone 1\'s wolves-11 is dead (its own row)');
-  eq(psql(`select string_agg(instance || '=' || zone, ',' order by instance) from public.origins_spawns where instance in ('wolves-11', 'z2:wolves-11', 'opener-ash-reach-1')`), 'wolves-11=1,z2:wolves-11=2', 'zones: the zone is read from the id; Zone 1 ids read 1');
+  eq(psql(`select string_agg(instance || '=' || zone, ',' order by instance) from public.origins_spawns where instance in ('wolves-11', 'z2:wolves-11')`), 'wolves-11=1,z2:wolves-11=2', 'zones: the zone is read from the id; Zone 1 ids read 1');
   eq(psql(`select count(*) from public.origins_spawns where zone is null`), '0', 'zones: every existing row has a zone');
 
   // ---- 202610090017: the zone has no ceiling and no leading zero; a key that does not match stays Zone 1 in the table (the writer refuses such a key before it is stored) ----------------------

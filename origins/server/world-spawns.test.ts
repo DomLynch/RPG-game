@@ -194,21 +194,9 @@ test('kill_report refuses an engage whose stored key has an unparsable zone pref
   assert.equal(kills.length, 0, 'nothing was written');
 });
 
-test('the registry obeys the key rule the database column reads: ids are numbers without a leading zero, Zone 1 keys are bare, Zone N keys carry z<N>:, no key is shared', async () => {
+test('the registry obeys the key rule the database column reads (zoneKeyProblems is empty): the writer refuses to start otherwise', async () => {
+  const { zoneKeyProblems } = await import('./world-spawns.ts');
   const { zoneIds } = await import('../zones/loader.ts');
-  const { mobSpecs } = await import('../preview/mobs.ts');
-  const { frontierBuild, frontierPlan } = await import('../preview/frontier-plan.ts');
-  const { loadZone } = await import('../zones/loader.ts');
-  const seen = new Map<string, string>();
   assert.ok(zoneIds().includes('1') && zoneIds().length >= 2, 'the registry has Zone 1 and at least one more');
-  for (const id of zoneIds()) {
-    assert.match(id, /^[1-9][0-9]*$/, `zone id ${id}`);
-    const f = frontierPlan(false, id);
-    for (const spec of mobSpecs(f, frontierBuild(f), loadZone(id).spawns.rows)) {
-      assert.equal(zoneOfKey(spec.id), id, `${spec.id} reads as zone ${id}`);
-      if (id === '1') assert.ok(!/^z[0-9]/.test(spec.id), `${spec.id}: Zone 1 keys are bare`); else assert.ok(spec.id.startsWith(`z${id}:`), `${spec.id}: Zone ${id} keys carry z${id}:`);
-      assert.match(spec.id, /^[a-z0-9._:-]{1,96}$/, `${spec.id} fits the table's key check`);
-      assert.ok(!seen.has(spec.id), `${spec.id} is in zone ${seen.get(spec.id)} too`); seen.set(spec.id, id);
-    }
-  }
+  assert.deepEqual(zoneKeyProblems(), []);
 });

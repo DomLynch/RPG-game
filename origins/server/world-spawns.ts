@@ -62,6 +62,24 @@ export const zone1Spawns = (content: EncounterContent): Map<string, Spawn> => zo
 // and the caller refuses it, so a malformed zone key is never stored or priced as Zone 1.
 export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z([1-9][0-9]*):/.exec(key)?.[1] ?? null : '1';
 
+// The rule the database column and the writer both read, checked on every registered zone (origins/zones/zone<N>/): ids are numbers without a leading zero, Zone 1 keys are bare, Zone N keys carry
+// `z<N>:`, every key fits the table's key check, and no key is in two zones. The writer refuses to start on a problem (scripts/origins-writer.mjs), so a bad new zone folder fails at install.
+export function zoneKeyProblems(): string[] {
+  const problems: string[] = [], seen = new Map<string, string>();
+  for (const id of zoneIds()) {
+    if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
+    const f = frontierPlan(false, id);
+    for (const spec of mobSpecs(f, frontierBuild(f), loadZone(id).spawns.rows)) {
+      if (zoneOfKey(spec.id) !== id) problems.push(`${spec.id} reads as zone ${zoneOfKey(spec.id)}, not ${id}`);
+      else if (id === '1' ? /^z[0-9]/.test(spec.id) : !spec.id.startsWith(`z${id}:`)) problems.push(`${spec.id}: ${id === '1' ? 'a Zone 1 key must be bare' : `a Zone ${id} key must start z${id}:`}`);
+      if (!/^[a-z0-9._:-]{1,96}$/.test(spec.id)) problems.push(`${spec.id} does not fit the table's key check`);
+      if (seen.has(spec.id)) problems.push(`${spec.id} is in zone ${seen.get(spec.id)} and zone ${id}`);
+      seen.set(spec.id, id);
+    }
+  }
+  return problems;
+}
+
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, INSTANCE = /^[a-z0-9._:-]{1,96}$/;
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
 const hitsOf = (v: unknown, need: boolean): number | undefined => {
