@@ -146,7 +146,7 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
-const warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
+const HERO_WAIT_MS = 45000, warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
 loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
@@ -373,6 +373,7 @@ async function warmHero(anchor: THREE.Object3D) {   // the player's own programs
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
+  if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
   if (!w.kinds.length || !warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]) || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
