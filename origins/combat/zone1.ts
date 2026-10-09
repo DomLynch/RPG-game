@@ -10,6 +10,7 @@ import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/st
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 import { IDLE_INPUT, openBout, stepBout, type Bout } from './open-fight.ts';
 import type { AiState } from './ai-open.ts';
+import type { CombatEvent } from './duel-open.ts';
 
 const TICK = 1 / 60;
 const secs = (ticks: number): number => ticks * TICK;
@@ -51,7 +52,9 @@ export type Fighter = {
 };
 export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>>; streams: Record<string, Bout> };   // streams: slot-0 player id -> his fight (a Pit duel); aggro[attacker][victim] = when the attacker last struck that player
 export type Input = { x: number; z: number; special?: boolean; skill?: boolean; run?: boolean; attack?: 'light' | 'heavy' | 'thrust' | 'kick' | null; guard?: boolean; roll?: { x: number; z: number } | null };   // world-axis move, a held run, a cut / kick / roll / special pressed this step, a held guard
-export type Event =
+/** The Pit's own CombatEvent behind a Zone 1 event (location, direction, material, weapon, counter, rear, charged ...): gore, wounds, finishers, hit-impact and the clip driver read the Pit's event, not our summary of it. */
+export type Event = EventBody & { pit?: CombatEvent };
+type EventBody =
   | { type: 'Telegraph'; id: string; move: string; ms: number }   // a windup began: the tell World animates and sounds
   | { type: 'Swing'; id: string; move: string }                    // the blow's active part began
   | { type: 'Hit'; attacker: string; victim: string; damage: number; move: string }
@@ -62,7 +65,8 @@ export type Event =
   | { type: 'Aggressed'; attacker: string; victim: string; first: boolean }   // a player's blow met another player (hit, block, parry or dodge): `first` = the victim had not struck him in the last AGGRO_WINDOW_S. The server's murder rule reads Aggressed(first) then Died(by)
   | { type: 'FightStarted'; creature: string; player: string }     // a creature took a player as its foe (the pair's fight opened): fired once per engage, never per step; World's hook for the combat music, the hint hide and the log
   | { type: 'Died'; id: string; by: string }
-  | { type: 'Evaded'; id: string };                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
+  | { type: 'Evaded'; id: string }
+  | { type: 'Pit'; id: string };                                  // a Pit event with no Zone 1 summary (Draw, Roll, Guard, skill casts ...): only `pit` carries it, `id` is the actor                               // a creature gave up and is back home, healed: World may drop it from the world (no XP, no loot, no combat log: the game does not hear of it)
 
 const OPPONENT = (kind: string) => (OPPONENTS as Record<string, (typeof OPPONENTS)[keyof typeof OPPONENTS]>)[kind];
 

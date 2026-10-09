@@ -37,6 +37,7 @@ function eventsOf(list: readonly CombatEvent[], ids: readonly [string, string], 
   const out: Event[] = [], id = (s: Side) => ids[s], tell = (s: Side) => Math.round(timing(after.fighters[s]).windup * TICK * 1000);
   const scaled = (e: CombatEvent) => Math.round((e.damage ?? 0) * fs[e.actor].attack * (e.target === undefined ? 1 : fs[e.target].res));   // open-world: gear (Attack out, RES in) scales the number the Pit reports
   for (const e of list) {
+    const from = out.length;
     if (e.type === 'AttackStarted' && e.move) out.push({ type: 'Telegraph', id: id(e.actor), move: e.move, ms: tell(e.actor) });
     else if (e.type === 'SpecialStarted') out.push({ type: 'Telegraph', id: id(e.actor), move: e.name ?? 'special', ms: Math.round(RULES.special.windup * TICK * 1000) });
     else if (e.type === 'AttackActive' && e.move) out.push({ type: 'Swing', id: id(e.actor), move: e.move });
@@ -49,6 +50,8 @@ function eventsOf(list: readonly CombatEvent[], ids: readonly [string, string], 
     else if (e.type === 'PostureBroken' && e.target !== undefined) out.push({ type: 'Staggered', id: id(e.target), ms: Math.round((e.ticks ?? RULES.posture.stun) * TICK * 1000), cause: 'posture' });
     else if (e.type === 'Staggered') out.push({ type: 'Staggered', id: id(e.actor), ms: Math.round((e.ticks ?? 0) * TICK * 1000), cause: 'hit' });
     else if (e.type === 'Killed' && e.target !== undefined) out.push({ type: 'Died', id: id(e.target), by: id(e.actor) });
+    if (out.length === from) out.push({ type: 'Pit', id: id(e.actor) });   // no summary for it: the Pit's event itself goes through
+    for (let i = from; i < out.length; i++) out[i]!.pit = e;
   }
   return out;
 }

@@ -143,6 +143,17 @@ test('stab: a thrust press plays the Pit\'s thrust row, not the slash (the page 
   assert.notEqual(stab.move, slash.move);
 });
 
+test('raw Pit events: every Zone 1 event carries the Pit\'s CombatEvent (a Hit keeps its location and weapon), and a Pit event with no summary (a roll) comes through as type Pit', () => {
+  const a = player('a', 0, 0, 0, undefined, 10), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+  const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack: 'thrust' } : STILL, b: t === 90 ? { x: 0, z: 0, roll: { x: 1, z: 0 } } : STILL }));
+  const hit = of(r.events, 'Hit', 'a')[0]!;
+  assert.equal(hit.pit?.type, 'Hit');
+  assert.ok(hit.pit?.location, 'the Pit\'s hit location rides along');
+  assert.ok(hit.pit?.weapon, 'and the weapon');
+  assert.ok(r.events.filter((e) => !['Aggressed', 'FightStarted', 'Evaded'].includes(e.type)).every((e) => e.pit), 'every Pit-sourced event has its original (the loop\'s own Aggressed / FightStarted / Evaded have none)');
+  assert.ok(r.events.some((e) => e.type === 'Pit' && e.pit?.action === 'roll'), 'the roll is not dropped');
+});
+
 test('creature mood: the Pit\'s moodOf draw - about half the home stance, the rest spread over the other three; same rand = same stance', () => {
   let seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
   const count: Record<string, number> = {};
@@ -184,7 +195,7 @@ test('pvp: in the wild a player\'s cut lands on another player on the Pit duel (
   assert.ok(get(world, 'b').health < RULES.health, 'b was hurt');
   assert.deepEqual(of(events, 'Aggressed'), [{ type: 'Aggressed', attacker: 'a', victim: 'b', first: true }]);
   const w = duo(); get(w, 'b').health = 1;
-  assert.deepEqual(of(swing(w).events, 'Died'), [{ type: 'Died', id: 'b', by: 'a' }]);
+  assert.deepEqual(of(swing(w).events, 'Died').map(({ pit, ...e }) => e), [{ type: 'Died', id: 'b', by: 'a' }]);   // the Pit original rides on `pit` (the raw-events test)
 });
 
 test('pvp: a safe-town volume (pvp false on either side) means no fight, no Aggressed', () => {
