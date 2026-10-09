@@ -11,7 +11,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
-import { gateWithBound, settleWithin } from './warm-gate.ts';
+import { gateWithBound, settleWithin } from '../../src/warm-gate.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -113,7 +113,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   }
   const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
   let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate
-  async function pump() {   // one compileAsync in flight at a time (three 0.186's compileAsync has a disposal race under concurrency in Claudecraft's vendored patch); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
+  async function pump() {   // one compileAsync in flight at a time (kept serial to bound the compile load; three 0.186's own compileAsync wait already drops disposed materials, WebGLRenderer.js, so no race to work around); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
     if (pumping) return; pumping = true;
     try {
       await opts.after?.catch(() => {});   // programs are keyed on the scene's environment map: warm only after its final swap (the sky), or every program links twice
