@@ -7,6 +7,10 @@ import zone1 from './zone1/zone.ts';
 import spawns1 from './zone1/spawns.ts';
 import kit1 from './zone1/kit.ts';
 import looks1 from './zone1/look.ts';
+import zone2 from './zone2/zone.ts';
+import spawns2 from './zone2/spawns.ts';
+import kit2 from './zone2/kit.ts';
+import looks2 from './zone2/look.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
@@ -15,7 +19,10 @@ export type Zone = {
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
   looks: Readonly<Record<string, Look>>;
 };
-const PACKAGES: Record<string, Zone> = { '1': { ...zone1, spawns: spawns1, kit: kit1, looks: looks1 } };
+const PACKAGES: Record<string, Zone> = {
+  '1': { ...zone1, spawns: spawns1, kit: kit1, looks: looks1 },
+  '2': { ...zone2, spawns: spawns2, kit: kit2, looks: looks2 },
+};
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
