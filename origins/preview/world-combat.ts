@@ -16,7 +16,7 @@ export type Deps = {
   onKill(spec: MobSpec): void;      // the creature has fallen: loot, toast, respawn timer
   onHeroDied(): void;               // the 2 s dim and the walk back to town
   onHeroHit(amount: number): void;  // red flash + the Hit clip
-  onSwing(): void;                  // the hero's own cut began: the Attack clip
+  onSwing(move: string): void;                  // the hero's own cut began: the Attack clip
   onTelegraph?(id: string, ms: number): void;
   hero?: () => { gear: Loadout; level: number };   // his resolved gear and career level (default: naked, level 1); a creature's level is its spec's
 };
@@ -35,7 +35,7 @@ export function createWorldCombat(d: Deps) {
     specs.set(p.spec.id, p.spec); world = { ...world, fighters: [...world.fighters, creature(p.spec.id, kind, p.x, p.z, 0, p.spec.level)] };
   }
   function handle(ev: Event) {
-    if (ev.type === 'Telegraph') { if (ev.id === ME) d.onSwing(); else { const f = fxOf(ev.id); f.windupT = 0.0001; f.windupMs = ev.ms; d.onTelegraph?.(ev.id, ev.ms); } }
+    if (ev.type === 'Telegraph') { if (ev.id === ME) d.onSwing(ev.move); else { const f = fxOf(ev.id); f.windupT = 0.0001; f.windupMs = ev.ms; d.onTelegraph?.(ev.id, ev.ms); } }
     else if (ev.type === 'Swing' && ev.id !== ME) fxOf(ev.id).swingT = 0.0001;
     else if (ev.type === 'Hit') { if (ev.victim === ME) d.onHeroHit(ev.damage); else fxOf(ev.victim).hurtT = PULSE_S; }
     else if (ev.type === 'Evaded') release(ev.id);   // it gave up, walked home and healed: back to its own wander
