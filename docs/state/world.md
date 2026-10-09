@@ -3,6 +3,16 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-09 14:14 (+04) — HANDOFF #27 before /clear. READ FIRST, then HANDOFF #26 below, then memory
+
+1. **LIVE** 3d4f8854 by my curl of frankendom.com/release.json at 14:14 (phase 0B-swordplay). Deploy had J2 running on the Mac earlier; I did not check the lock.
+2. **Live per gh at 14:14:** #1976 (Zone 2 ember pack spread 5) MERGED, #1954 (seamless harness fix, my PASS) MERGED, #1970 (Web sign-in tap, my PASS) MERGED. Earlier J (61d969e98) carried Zone 2 playable; Lead loaded /zone/2/.
+3. **My PRs, state per gh:** #1965 join mount OPEN ready for the Auditor (f4cf90c83); #1975 zones plug-and-play + tab title OPEN (3d68a0a40, with the Auditor); #1989 goblin camp DRAFT (47ba00e39, stacked on Characters' #1979, Auditor asked); #1948 and #1969 show OPEN on gh although Lead said J carried them (check trunk, may have merged as branch merges); #1953 CLOSED. Closed by me: #1959 (hero clips, Combat's S3 replaces), #1962 (folded into #1965).
+4. **NOT done:** K4 = move hit-impact + feedback sounds into src/fight/ driven by engine events (waits for Combat's K2/K3 head); K7 = Zone 2 full fight with zero combat code, data rows only, <300 lines, test-enforced (Zone 2 exit test; plug-and-play #1975 is its prerequisite); a phone walk into the goblin camp (Dom's acceptance); the cards hand-off is tested, a real 3-joined still was dropped by Dom's ruling (live /zone/2/ run showed 3 hunting, 6 hero hits in 30 s).
+5. **Rulings today (memory files written):** see memory `world_2026-10-09_*` files.
+6. **QUEUE:** (a) answer Auditor findings on #1989/#1975/#1965; (b) K4 on Combat's K2/K3; (c) K7; (d) seamless check on /zone/2/; (e) origins/preview -> origins/zone rename is queued AFTER K, do not touch paths now.
+7. **No crons armed. Worktree:** ~/Developer/frankendom-world (the Developer folder, not a worktree). Branches: world/state-1009 (this doc), world/goblin-camp2, world/zones-plug, world/join-mount, world/zone2-pack, world/zone2-tight. VPS clean clone for checks: /opt/frankendom-shadow/work/world-z2fix (fetch https://github.com/DomLynch/RPG-game, node_modules symlink to work/bn-trunk).
+
 ## 2026-10-09 (+04, Mac clock) — HANDOFF #26 (new account restart): #1948 Zone 1 golden fixed, #1953 merged with it, #1952/#1958/#1954/#1957 reviewed, #1959 hero clips (draft)
 
 ### Now (verify with `gh pr view`)
