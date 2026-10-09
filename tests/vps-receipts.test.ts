@@ -217,8 +217,8 @@ test('coverage: a shardable row no shard ran is UNASSIGNED; WebKit and real-cloc
   const full = coverageGaps([receipt()], commands, source);
   assert.deepEqual(full.unassigned, []);
   assert.ok(full.macOnly.length > 0 && full.macOnly.every((i: number) => !full.t4Only.includes(i)));
-  const skipped = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === 5 ? 'trusted' : 'pass', exit: 0 })) });
-  assert.deepEqual(coverageGaps([skipped], commands, source).unassigned, full.macOnly.includes(5) ? [] : [5]);
+  const skipped = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === 2 ? 'trusted' : 'pass', exit: 0 })) });
+  assert.deepEqual(coverageGaps([skipped], commands, source).unassigned, full.macOnly.includes(2) ? [] : [2]);
   assert.equal(coverageGaps([], commands, source).unassigned.length, commands.length - full.macOnly.length - full.slow.length);
 });
 
