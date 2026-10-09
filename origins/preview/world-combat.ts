@@ -1,7 +1,7 @@
 // The mount of Zone 1's own combat loop (Combat's pure origins/combat/zone1.ts) in the walk: no duel, no ring, no fight start or end (Dom 2026-10-08). The page walks the hero (collisions,
 // relief) and tells this his position; the loop owns hits, creature chase/telegraph/bite/leash. This file: which creatures are in the loop (those that come within the aggro ring, until they are
 // home again), the fixed 1/60 accumulator, and turning the events into what the page shows (a procedural lunge / hit pulse / fall on the creature, bars, the hero's clips, kill and death).
-import { AGGRO_M, creature, newWorld, player, stepCombat, type Event, type Fighter, type World } from '../combat/zone1.ts';
+import { AGGRO_M, creature, newWorld, pairs, player, stepCombat, type Event, type Fighter, type World } from '../combat/zone1.ts';
 import { NAKED, type Loadout } from '../../src/gear-stats.ts';
 import { OPPONENTS } from '../../src/moves.ts';
 import type { MobSpec } from './mobs.ts';
