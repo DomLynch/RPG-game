@@ -7,6 +7,7 @@ import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
 import { loadZone } from '../origins/zones/loader.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LOOT } from '../src/loot.ts';
+import { glbStats } from '../scripts/lib/glb-stats.mjs';
 
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 function nodeNames(path: string): string[] {
@@ -22,15 +23,10 @@ test('the camp goblin\'s look is the engine goblin undyed at native height, on t
 });
 
 test('the world body is phone-safe: the engine goblin\'s 65-joint rig at ~8k tris, one texture, under 2.2 MB (scripts/character/world_body.py, receipt: artifacts/character/pit-goblin/)', () => {
-  const stats = (path: string) => {
-    const b = readFileSync(root(path)), g = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8'));
-    const tris = (g.meshes as { primitives: { indices?: number }[] }[]).flatMap((m) => m.primitives).reduce((n, p) => n + (p.indices === undefined ? 0 : g.accessors[p.indices].count / 3), 0);
-    return { bytes: b.length, tris, images: (g.images ?? []).length, joints: g.skins[0].joints.length, clips: (g.animations as { name: string }[]).map((a) => a.name).sort() };
-  };
-  const engine = stats('src/assets/goblin.glb'), world = stats('public/world/goblin.glb');
+  const engine = glbStats('src/assets/goblin.glb'), world = glbStats('public/world/goblin.glb');
   assert.ok(world.tris <= 8200 && engine.tris > 50000, `world ${world.tris} tris from engine ${engine.tris}`);
   assert.equal(world.images, 1); assert.ok(world.bytes < 2.2 * 1024 * 1024, `${world.bytes} bytes`);
-  assert.equal(world.joints, engine.joints); assert.deepEqual(world.clips, engine.clips, 'the same rig and clip names');
+  assert.equal(world.joints, engine.joints); assert.deepEqual([...world.clips].sort(), [...engine.clips].sort(), 'the same rig and clip names');
 });
 
 test('the engine goblin file already wears the level-1 armour, and the six loot pieces are in the carriers file', () => {
