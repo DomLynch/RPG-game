@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const walk = (dir: string): string[] => readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) => {
@@ -24,10 +24,27 @@ test('every KNOWN_SHIMS entry still exists (delete the entry with the shim)', ()
 
 test('src/fight/ has files (the scan is not empty)', () => assert.ok(engine.length >= 10, `found ${engine.length}`));
 
-test('no file in src/ has the name of a src/fight/ file: the old path is absent, no shim left behind', () => {
-  const names = new Set(engine.filter((f) => f.split('/').length === 3).map((f) => basename(f)));   // the files directly in src/fight (a sub-folder such as sound/ moved from src/audio/, not from src/)
-  const twins = others.filter((f) => f.startsWith('src/') && f.split('/').length === 2 && names.has(basename(f)) && !KNOWN_SHIMS.includes(f));
-  assert.deepEqual(twins, [], 'the moved file left its old path in src/: delete it (git mv) and import src/fight/ directly');
+// The old home of a src/fight/<sub>/ folder when it is not src/<sub>/ (src/audio/* moved to src/fight/sound/*); a file directly in src/fight moved from src/.
+const OLD_HOME: Record<string, string> = { sound: 'src/audio' };
+/** The engine files whose old path is still present: src/fight/<name> against src/<name>, src/fight/<sub>/<name> against <old home of sub>/<name> (never against src/<name>: src/duel.ts is not a twin of src/fight/sound/duel.ts). */
+const twinsOf = (engineFiles: string[], otherFiles: string[]): string[] => {
+  const present = new Set(otherFiles);
+  return engineFiles.flatMap((e) => {
+    const rel = e.slice('src/fight/'.length).split('/'), name = rel.pop()!, sub = rel.join('/');
+    const old = sub ? `${OLD_HOME[sub] ?? `src/${sub}`}/${name}` : `src/${name}`;
+    return present.has(old) && !KNOWN_SHIMS.includes(old) ? [`${old} (moved to ${e})`] : [];
+  });
+};
+
+test('no file in src/ is the old path of a src/fight/ file: the old path is absent, no shim left behind', () => {
+  assert.deepEqual(twinsOf(engine, others), [], 'the moved file left its old path: delete it (git mv) and import src/fight/ directly');
+});
+
+test('the twin check is path-aware: a real twin under a sub-folder fails, a same-named file elsewhere does not', () => {
+  assert.deepEqual(twinsOf(['src/fight/sound/duel.ts'], ['src/duel.ts']), [], 'src/duel.ts is not the old path of src/fight/sound/duel.ts');
+  assert.equal(twinsOf(['src/fight/sound/cues.ts'], ['src/audio/cues.ts']).length, 1, 'a copy left in src/audio fails');
+  assert.equal(twinsOf(['src/fight/fx/spark.ts'], ['src/fx/spark.ts']).length, 1, 'a copy left in a same-named src/ folder fails');
+  assert.equal(twinsOf(['src/fight/gore.ts'], ['src/gore.ts']).length, 1, 'a copy left in src/ fails');
 });
 
 test('no source file copies a block of src/fight/ code or equals one byte for byte', () => {
