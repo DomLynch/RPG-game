@@ -6,6 +6,7 @@ import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { REGISTRY } from './registry.ts';
+import { placesInOrder, type Place } from './place.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
@@ -16,9 +17,12 @@ export type Zone = {
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
   looks: Readonly<Record<string, Look>>;
+  place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
   mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
+/** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
+export const zonePlaces = (): Place[] => placesInOrder(PACKAGES);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
