@@ -131,6 +131,18 @@ test('stances: the Pit table applies in the open - aggressive deals more than Ba
   assert.equal(mk('neutral'), mk(), 'Balanced is byte for byte the stance-less fight');
 });
 
+test('stab: a thrust press plays the Pit\'s thrust row, not the slash (the page used to fold STAB into SLASH)', () => {
+  const hit = (attack: 'light' | 'thrust') => {   // against an idle player, so nothing interrupts the cut
+    const a = player('a', 0, 0, 0, undefined, 10), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+    const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack } : STILL, b: STILL }));
+    return of(r.events, 'Hit', 'a')[0] as Extract<Event, { type: 'Hit' }> | undefined;
+  };
+  const stab = hit('thrust'), slash = hit('light');
+  assert.ok(stab && slash, 'both land at 1.2 m');
+  assert.equal(stab.move, 'thrust');
+  assert.notEqual(stab.move, slash.move);
+});
+
 test('creature mood: the Pit\'s moodOf draw - about half the home stance, the rest spread over the other three; same rand = same stance', () => {
   let seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
   const count: Record<string, number> = {};

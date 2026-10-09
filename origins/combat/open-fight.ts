@@ -56,7 +56,7 @@ function eventsOf(list: readonly CombatEvent[], ids: readonly [string, string], 
 /** Live Input to a Pit Intent. The player's walk is the page's (the world gives his position each step); the Input here is the press: a cut, a roll, a held guard, a special. */
 function intentOf(input: Input, guarding: boolean, lock: boolean): Intent {
   const base = idleIntent();
-  const action = input.special || input.skill ? 'skill' : input.roll ? 'dodge' : input.attack === 'heavy' ? 'heavy' : input.attack === 'kick' ? 'kick' : input.attack === 'light' ? 'light' : input.guard && !guarding ? 'parry' : null;   // open-world: a guard pressed fresh is the Pit's parry tap, held it is the standing guard
+  const action = input.special || input.skill ? 'skill' : input.roll ? 'dodge' : input.attack === 'heavy' ? 'heavy' : input.attack === 'thrust' ? 'thrust' : input.attack === 'kick' ? 'kick' : input.attack === 'light' ? 'light' : input.guard && !guarding ? 'parry' : null;   // open-world: a guard pressed fresh is the Pit's parry tap, held it is the standing guard
   const move = input.roll ? { x: input.roll.x, z: input.roll.z, yaw: 0, run: false } : { x: input.x, z: input.z, yaw: 0, run: !!input.run };
   return { ...base, move, action, guard: !!input.guard, lock };   // open-world: lock-on is the Pit's (he turns toward the foe while ready and in a windup); alone there is nothing to lock
 }
