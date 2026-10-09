@@ -25,6 +25,7 @@ const resolveSha = rev => { const r = spawnSync('git', ['rev-parse', '--verify',
 
 export async function main(argv) {
   const ledgerDir = process.env.HF_LEDGER_DIR || mkdtempSync(join(tmpdir(), 'gpu-run-ledger-'));
+  process.env.HF_BIN ||= hf;   // hf-cleanup runs the same binary
   process.env.HF_LEDGER_DIR = ledgerDir;   // before the imports: hf-cleanup reads it once, and this run's ledger must be the only one it cancels (a deploy's jobs are not ours)
   const { ledger } = await import('./vps-shadow/launch.mjs'), { cleanup } = await import('./hf-cleanup.mjs');
   let code = 1, jobId = null, secrets = null;

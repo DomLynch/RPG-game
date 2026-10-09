@@ -38,7 +38,7 @@ test('the guard: only NVIDIA on BOTH binaries passes; SwiftShader, llvmpipe, no 
 test('the job is the wall rows\' own setup (guard, build) cut at its ROWS section, plus our tail that strips software-GL args and probes again', () => {
   const job = jobScript();
   assert.ok(job.includes('BLOCKER no hardware WebGL') && job.includes('exit 11') && job.includes('npm run build'), 'job.sh setup and its exit-11 guard');
-  assert.ok(!job.includes('release-checks.mjs'), 'none of the rows section');
+  assert.ok(!job.includes('RELEASE_CHECK_CONCURRENCY'), 'none of the rows section');
   assert.ok(job.indexOf('npm run build') < job.indexOf('--use-angle=*|--use-gl=*') && job.includes('swiftshader') && job.includes('BLOCKER software GL still reachable'), 'then the strip + the second probe');
   assert.throws(() => jobScript({ readText: file => (file.endsWith('job.sh') ? 'no seam here' : '') }), /no longer has the .* seam/);
   assert.ok(readFileSync('scripts/hf-wall-rows/job.sh', 'utf8').includes('say "ROWS'), 'the wall-row job still has the seam');
