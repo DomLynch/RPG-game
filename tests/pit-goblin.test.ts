@@ -1,5 +1,5 @@
-// The Zone 1 Pit goblin camp's data (Characters, 2026-10-09): the creature wears the Pit's own rank-1 goblin body and level-1 armour (no new art), its camp size is a data field, and
-// the armour it drops is the six pieces the file wears. World's mobs-view reads MobLook.body ('pit') to fetch src/assets/goblin.glb once and clone it for every camp member.
+// The Zone 1 goblin camp's data (Characters, 2026-10-09): the creature wears the engine goblin's level-1 armour on the generated world body (no new art), its camp size is a data field, and
+// the armour it drops is the six pieces the file wears. The world body is public/world/goblin.glb, generated from src/assets/goblin.glb by scripts/character/world_body.py.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,15 +15,25 @@ function nodeNames(path: string): string[] {
 }
 const ID = 'character:pit-goblin';
 
-test('the Pit goblin\'s look is the Pit\'s own goblin body, undyed, at native height', () => {
+test('the camp goblin\'s look is the engine goblin undyed at native height, on the generated world body', () => {
   const look = MOB_LOOKS[ID]!;
-  assert.equal(look.body, 'pit'); assert.equal(look.opponent, 'goblin');
-  assert.ok(ROSTER.goblin.body === 'goblin', 'the roster body the Pit fights');
+  assert.equal(look.opponent, 'goblin'); assert.ok(ROSTER.goblin.body === 'goblin', 'the roster body the engine fights');
   assert.deepEqual([look.tint, look.scale, look.dressing], [0xffffff, 1, { soot: 0, burnt: 0 }]);
-  assert.ok(Object.entries(MOB_LOOKS).every(([id, l]) => id === ID || l.body === undefined), 'only the Pit goblin asks for the Pit body');
 });
 
-test('the file he is drawn from already wears the level-1 armour, and the six loot pieces are in the carriers file', () => {
+test('the world body is phone-safe: the engine goblin\'s 65-joint rig at ~8k tris, one texture, under 2.2 MB (scripts/character/world_body.py, receipt: artifacts/character/pit-goblin/)', () => {
+  const stats = (path: string) => {
+    const b = readFileSync(root(path)), g = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+    const tris = (g.meshes as { primitives: { indices?: number }[] }[]).flatMap((m) => m.primitives).reduce((n, p) => n + (p.indices === undefined ? 0 : g.accessors[p.indices].count / 3), 0);
+    return { bytes: b.length, tris, images: (g.images ?? []).length, joints: g.skins[0].joints.length, clips: (g.animations as { name: string }[]).map((a) => a.name).sort() };
+  };
+  const engine = stats('src/assets/goblin.glb'), world = stats('public/world/goblin.glb');
+  assert.ok(world.tris <= 8200 && engine.tris > 50000, `world ${world.tris} tris from engine ${engine.tris}`);
+  assert.equal(world.images, 1); assert.ok(world.bytes < 2.2 * 1024 * 1024, `${world.bytes} bytes`);
+  assert.equal(world.joints, engine.joints); assert.deepEqual(world.clips, engine.clips, 'the same rig and clip names');
+});
+
+test('the engine goblin file already wears the level-1 armour, and the six loot pieces are in the carriers file', () => {
   const worn = nodeNames('src/assets/goblin.glb');
   for (const part of ['Steel.Helmet', 'Steel.Body', 'Steel.Greaves', 'Wrap.Boots', 'Gambeson', 'Leather.Body']) assert.ok(worn.includes(part), `${part} is drawn on the Pit goblin`);
   const pieces = LOOT.goblin!.filter((id) => !id.endsWith('Knife'));

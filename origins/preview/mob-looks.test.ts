@@ -28,13 +28,13 @@ test('ranges: scale, dressing and tint are sane; a friendly figure has no look',
 });
 
 test('figures that share a body differ in tint and in height', () => {
-  const share = (body: string) => Object.entries(MOB_LOOKS).filter(([, l]) => l.opponent === body && !l.later && !l.body);   // a look on the Pit's own body (body: 'pit') is a different model, not a re-dressed one
+  const share = (body: string) => Object.entries(MOB_LOOKS).filter(([, l]) => l.opponent === body && !l.later);
   for (const body of ['witch', 'goblin']) {
     const group = share(body);
     assert.ok(group.length >= 2, body);
     for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
       const [a, b] = [group[i]![1], group[j]![1]];
-      assert.ok(Math.abs(a.scale - b.scale) >= .1, `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
+      assert.ok(Math.abs(a.scale - b.scale) >= .1 - 1e-9,   /* 1 vs .9 is .0999999 in floats */ `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
       assert.notEqual(a.tint, b.tint, `${group[i]![0]} vs ${group[j]![0]} share a tint`);
     }
   }
