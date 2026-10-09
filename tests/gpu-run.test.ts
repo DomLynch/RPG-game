@@ -61,12 +61,13 @@ test('the job log parser reads the renderer, blocker, exit, seconds and the arti
 });
 
 // A stub hf: `jobs run` starts job 'a'x24 (or fails), `jobs logs` prints a canned log, `jobs inspect` answers COMPLETED.
-const setup = (mode: 'ok' | 'guard' | 'launch-fails', log = '') => {
+const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail', log = '') => {
   const dir = mkdtempSync(join(tmpdir(), 'gpu-run-')), stub = join(dir, 'hf'), logFile = join(dir, 'log'), out = join(dir, 'out'), ledger = join(dir, 'ledger');
   writeFileSync(logFile, log);
   writeFileSync(stub, `#!/usr/bin/env node
 const fs = require('fs'); const [, , , verb] = process.argv;
-if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.error('quota'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); console.log('Job started with ID: ${'a'.repeat(24)}'); }
+if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.error('quota'); process.exit(1); }
+if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); console.log('Job started with ID: ${'a'.repeat(24)}'); }
 else if (verb === 'logs') process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8'));
 else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-medium', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: 'COMPLETED' } }]));
 `);
@@ -111,4 +112,12 @@ test('a command that fails keeps its own exit code; a failed launch and bad argu
   const bad = setup('ok').run('HEAD', 'node');
   assert.equal(bad.status, 2);
   assert.match(bad.stdout, /^HF: 0 jobs, 0 running/m);
+});
+
+test('a launch that prints a job id but exits nonzero is still ledgered, so the cleanup counts and cancels it', () => {
+  const t = setup('id-then-fail'), r = t.run('HEAD', '--', 'node', 'x.mjs');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /hf jobs run failed/);
+  assert.match(r.stdout, /^HF: 1 jobs, 0 running/m);
+  assert.ok(readdirSync(t.ledger).length > 0);
 });

@@ -44,8 +44,8 @@ export async function main(argv) {
     launchArgs.push('mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh');
     const started = run(launchArgs);
     jobId = /Job started with ID: (\S+)/.exec(started.stdout || '')?.[1] ?? null;
+    if (jobId) ledger(jobId, sha, args.timeout);   // an id means a job exists, whatever the CLI's exit said: ledger it first so the cleanup below cancels it (two jobs once leaked on a nonzero exit)
     if (started.status !== 0 || !jobId) throw new Error(`hf jobs run failed: ${(started.stderr || started.stdout || '').trim().slice(0, 200)}`);
-    ledger(jobId, sha, args.timeout);
     say(`job ${jobId} on ${flavor} at ${sha.slice(0, 8)}${args.blender ? ' (+Blender)' : ''}: ${args.cmd.join(' ').slice(0, 120)}`);
 
     const t0 = Date.now(), budgetS = args.timeoutS + SCHEDULE_GRACE_S;
