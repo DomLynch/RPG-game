@@ -42,10 +42,6 @@ test('nothing is trusted for another tree, a failed or dirty build, a failed row
   assert.ok(!trustedFromVps(edited, tree, commands, source, sums, JOBS, TREES).includes(base[0]));
 });
 
-test('the VPS receipt steps are opt-in (their order in deploy.sh and their behaviour: tests/vps-receipts-guards.test.ts)', () => {
-  assert.match(readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), /DEPLOY_VPS_RECEIPTS:-\}" == on/);
-});
-
 test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launch + clock.resume) are not trusted; a missing script is not trusted', () => {
   const byName = (name: string) => commands.findIndex(c => c.join(' ').includes(name)) + 1;
   const trusted: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
@@ -210,7 +206,6 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   assert.equal(trusts.length, 2);
   fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));
   assert.ok(!/vps-shadow-rows\.sh/.test(lib), 'the old ssh fetch is gone');
-  assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
 });
 
 test('launch.mjs runs a slow row alone: one row per job, width 1, cpu-upgrade, ceiling 1500 s and a 35m job timeout; it refuses them in a shared shard or on t4-medium', () => {
@@ -249,11 +244,11 @@ test('coverage: a shardable row no shard ran is UNASSIGNED; WebKit and real-cloc
   assert.equal(coverageGaps([], commands, source).unassigned.length, commands.length - full.macOnly.length - full.slow.length);
 });
 
-test('the launch waits for a RUNNING shard job and refuses unassigned rows', () => {
+test('the launch waits for a RUNNING shard job and runs unassigned rows on the Mac instead of refusing', () => {
   const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
   assert.match(lib, /RUNNING\|STARTING\|PENDING\|SCHEDULING/);
   assert.match(lib, /grep -q 'UNASSIGNED rows'/);
-  assert.match(lib, /DEPLOY_ALLOW_UNASSIGNED/);
+  assert.doesNotMatch(lib, /exit 1/, 'no refusal: the rows run on the Mac');
 });
 
 test('coverage: SLOW_ROWS are never shardable, so they are never UNASSIGNED (#1933 refuses to shard them; Release H would exit 1 otherwise)', () => {

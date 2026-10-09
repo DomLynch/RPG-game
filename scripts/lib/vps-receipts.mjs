@@ -1,6 +1,6 @@
 // Item 3 (pull model, no runner): the VPS runs the release rows for a candidate commit (scripts/vps-shadow-rows.sh -> rows.json) and
 // deploy.sh trusts a row from that receipt ONLY when it is safe to read off a box with no GPU. Pure helpers, no I/O. Same test as
-// ci-trusted-checks.mjs and hf-wall-rows.mjs: exit 0 for the exact TREE being deployed, and the row is still the same command.
+// ci-trusted-checks.mjs: exit 0 for the exact TREE being deployed, and the row is still the same command.
 import { dirname, join } from 'node:path';
 import { isWebKitRow, timingOf } from '../vps-shadow/rows-lib.mjs';
 

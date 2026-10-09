@@ -27,7 +27,7 @@ const TREES = { [sha]: tree };
 const exe = (file: string, text: string) => { writeFileSync(file, text); chmodSync(file, 0o755); };
 
 // One deploy-vps.sh step in a scratch checkout: `launch.mjs fetch` exits `fetchExit` (1 = the job printed no RECEIPT line) and the trust CLI prints `trust`.
-const step = (call: string, { trust = '', fetchExit = 0, on = true, env = {} as Record<string, string> } = {}) => {
+const step = (call: string, { trust = '', fetchExit = 0, env = {} as Record<string, string> } = {}) => {
   const dir = mkdtempSync(join(tmpdir(), 'vps-receipts-'));
   try {
     mkdirSync(join(dir, 'scripts/lib'), { recursive: true }); mkdirSync(join(dir, 'scripts/vps-shadow'));
@@ -35,7 +35,7 @@ const step = (call: string, { trust = '', fetchExit = 0, on = true, env = {} as 
     writeFileSync(join(dir, 'scripts/vps-shadow/launch.mjs'), `process.exit(${fetchExit});\n`);
     writeFileSync(join(dir, 'scripts/vps-receipt-trust.mjs'), `process.stdout.write(${JSON.stringify(trust)});\n`);
     const script = `set -euo pipefail\nsource scripts/lib/deploy-vps.sh\nrevision=${sha}\ntrusted_checks=1,5\ntrust_source=CI\n${call}\necho "END trusted=$trusted_checks source=$trust_source"\n`;
-    const r = spawnSync('bash', ['-c', script], { cwd: dir, encoding: 'utf8', timeout: 30_000, env: { ...process.env, DEPLOY_VPS_RECEIPTS: on ? 'on' : '', ...env } });
+    const r = spawnSync('bash', ['-c', script], { cwd: dir, encoding: 'utf8', timeout: 30_000, env: { ...process.env, ...env } });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /^END /m, 'the step must return to deploy.sh');
     return r.stdout;
@@ -43,9 +43,8 @@ const step = (call: string, { trust = '', fetchExit = 0, on = true, env = {} as 
 };
 const unit = 'v=$(vps_unit_receipt_ok); echo "unit=[$v]"';
 
-test('vps_receipts_apply joins the HF rows to the trusted list (deduplicated) when on; off or nothing trusted changes nothing', () => {
+test('vps_receipts_apply joins the HF rows to the trusted list (deduplicated) ; nothing trusted changes nothing', () => {
   assert.match(step('vps_receipts_apply', { trust: '5,7', env: { DEPLOY_HF_ROWS_JOBS: 'J1,J2' } }), /END trusted=1,5,7 source=CI \+ VPS receipts \(rows 5,7; tree-bound\)/);
-  assert.match(step('vps_receipts_apply', { trust: '5,7', on: false, env: { DEPLOY_HF_ROWS_JOBS: 'J1' } }), /END trusted=1,5 source=CI$/m);
   assert.match(step('vps_receipts_apply', { trust: '', env: { DEPLOY_HF_ROWS_JOBS: 'J1' } }), /END trusted=1,5 source=CI$/m);
 });
 
@@ -58,7 +57,6 @@ test('a failed fetch does not end deploy.sh under set -e: each job says so and i
 
 test('vps_unit_receipt_ok prints ok only when on, a unit job is named and the trust CLI vouches for the tree', () => {
   assert.match(step(unit, { trust: 'ok', env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[ok\]/);
-  assert.match(step(unit, { trust: 'ok', on: false, env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[\]/);
   assert.match(step(unit, { trust: 'ok' }), /unit=\[\]/, 'no DEPLOY_HF_UNIT_JOB: the Mac runs its suite');
   assert.match(step(unit, { trust: '', env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[\]/);
 });
