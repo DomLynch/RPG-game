@@ -582,8 +582,8 @@
     {
       "paths": [
         "scripts/browser-replay-check.mjs",
-        "src/record.ts",
-        "src/replay.ts"
+        "src/fight/record.ts",
+        "src/fight/replay.ts"
       ],
       "rows": [
         "browser-replay-check"

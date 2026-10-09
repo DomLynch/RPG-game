@@ -92,7 +92,7 @@ or ASAP." The only deadline this lane gives Dom, Lead or Strategy is NOW or ASAP
 blocker (a battery still running with its minutes left, a red gate, the box busy, an HF quota), never a day or a clock time.
 
 **The lane is parked.** Dom's SCOPE rewrite (`docs/SCOPE.md`, #729, 2026-09-25) parks gear stats (Brief 19) and gear damage/defence
-until after Origin. #707 is closed with the `parked` label (branch kept at `9ddf6801`); `src/gear-stats.ts` is imported only by its
+until after Origin. #707 is closed with the `parked` label (branch kept at `9ddf6801`); `src/fight/gear-stats.ts` is imported only by its
 test, so no fight number on trunk depends on it. D3: #539, #551 and #554 are merged; the client-claims PR below is the next Stats item
 **only if Lead reopens the lane**, and the apply stays held for Lead. Phase L went to World #705. No open Stats PRs.
 
@@ -122,11 +122,11 @@ test, so no fight number on trunk depends on it. D3: #539, #551 and #554 are mer
 - **APPLY HELD.** Lead orders it only after the client PR and #554 are in. It ships in ONE publish: the apply, a VPS timer unit for `verify-loot.mjs`, and the client PR. Applying early loses every win between the apply and the client switching over. The post-apply receipt is non-identifying: `select count(*), sum(marks), sum(jsonb_array_length(owned)) from public.account_seed`.
 - **Still open (not Stats):** records aren't bound to an account (Lead's item: an opaque token in the record, which is PR B's format change).
 
-**Window 1:** #528 (PR A v2) goes first, then #530 (Combat's knife v6). PR B stacks on #530: the loadout tail, the version guard, the v6 fixture rewrite, the opaque account token. It must keep Web's `peekRecordHeader` (added to `src/record.ts` on top of #528) working.
+**Window 1:** #528 (PR A v2) goes first, then #530 (Combat's knife v6). PR B stacks on #530: the loadout tail, the version guard, the v6 fixture rewrite, the opaque account token. It must keep Web's `peekRecordHeader` (added to `src/fight/record.ts` on top of #528) working.
 
 ## Done today
 
-**2026-09-22 — Deliverable 1, the tier stat table (`src/gear-stats.ts`, `tests/gear-stats.test.ts`). Data and tests only; no sim
+**2026-09-22 — Deliverable 1, the tier stat table (`src/fight/gear-stats.ts`, `tests/gear-stats.test.ts`). Data and tests only; no sim
 change, and `src/loot.ts`'s "visual cosmetics only, no stats" header still stands.**
 
 **Two stats, not four.** The first cut had gear carrying Attack, Defence, Poise and Stamina. Brief 19 was revised at 22:40 to sit under
@@ -189,7 +189,7 @@ landed before the suite runs (see the gotcha at the top of this file):
   overturned within the hour — which is the whole value of separating the two. The ramp is `(level − 1) / 9`.
 - **SETTLED by Dom, 2026-09-23 00:45 — Brief 19 Addendum C** (`docs/briefs/gear-stats.md`, verified at source on
   `origin/briefs/gear-stats`, not taken from the relay). Three decisions, all matching what this lane proposed in #491:
-  1. **One Attack multiplier for every weapon**, ramped by tier exactly as `src/gear-stats.ts` does it — nothing at Recruit, one
+  1. **One Attack multiplier for every weapon**, ramped by tier exactly as `src/fight/gear-stats.ts` does it — nothing at Recruit, one
      step per tier, the cap at Origin. Grip is not a balance axis. **Caps stay 1.15 / 0.80**: Dom floated +10/+10, Strategy kept
      15/20 because the brackets are built on them and 10 is barely felt on a 150-health fight.
      **Correction, and it is in the brief too: changing a cap is TWO edits, not "one number in `CAPS`".** Addendum C says one;
@@ -256,7 +256,7 @@ landed before the suite runs (see the gotcha at the top of this file):
   `0.936`. 68 of the 901 reachable armour totals drift this way, and a Veteran set with Gladiator arms is one of them. This is not pedantry borrowed from a doc — the first version of the mixed-kit test was written the naive way and
   failed against the module, which is why `tests/gear-stats.test.ts` now pins both forms. A paperdoll rounds it away; a
   1500-tick fight does not, and that is what the arm64/x64 digest rule exists to stop.
-- `src/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a
+- `src/fight/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a
   `Loadout` — the four resolved numbers — and never sees a tier, a slot or a table, which keeps `src/fight/duel.ts` free of any
   import of `loot.ts` or `grades.ts` that `tests/sim-boundary.test.ts` would refuse.
 - A zero-weight slot and an omitted slot behave identically today and diverge the moment the slot carries something: the

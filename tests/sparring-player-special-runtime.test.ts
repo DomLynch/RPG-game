@@ -8,7 +8,7 @@ import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from '../src/sparring-special-runtime.ts';
-import { createRecorder } from '../src/record.ts';
+import { createRecorder } from '../src/fight/record.ts';
 import * as THREE from 'three';
 import { createSpecialPresentation } from '../src/special-presentation.ts';
 

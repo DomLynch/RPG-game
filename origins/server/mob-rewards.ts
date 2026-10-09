@@ -13,7 +13,7 @@ import type { Inventory } from '../inventory/inventory.ts';
 import { loadZone } from '../zones/loader.ts';
 import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { award } from '../progression/model.ts';
-import type { TwistOutcome } from '../../src/twist.ts';
+import type { TwistOutcome } from '../../src/fight/twist.ts';
 import { careerState } from './career.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';

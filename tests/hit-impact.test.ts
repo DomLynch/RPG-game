@@ -4,7 +4,7 @@ import { IMPACT, KICK, KNOCK_SETTLE, ROLL_TUMBLE, impactShove, impactStopMs, imp
 import { shoveFor } from '../src/camera-kick.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt, type MoveId } from '../src/fight/moves.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
+import { createRecorder, encodeRecord } from '../src/fight/record.ts';
 import type { CombatEvent, Intent } from '../src/fight/duel.ts';
 
 // Hit impact (Dom 2026-09-29): every landed blow adds hit-stop and knocks the camera away from it; full for a heavy, a guard break or a

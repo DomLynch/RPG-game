@@ -2,7 +2,7 @@
 
 - Author: Expansion lane analyst (clean-room spec author), 2026-10-07. For Dom, Strategy, Lead and the Combat lane.
 - Status: **proposal**. Nothing here ships or changes `src/`. Every number is PROVISIONAL until Combat measures it on the battery.
-- Trunk read at `0d2d9996`. Our side: `src/fight/duel.ts`, `src/fight/moves.ts` (`RULES`, `MOVES`, `OPPONENTS`), `src/fight/ai.ts`, `src/record.ts`
+- Trunk read at `0d2d9996`. Our side: `src/fight/duel.ts`, `src/fight/moves.ts` (`RULES`, `MOVES`, `OPPONENTS`), `src/fight/ai.ts`, `src/fight/record.ts`
   (`RECORD_VERSION` 27), `src/net/rollback.ts`, `src/net/verify-duel.ts`, `scripts/rng-fingerprint.mjs`, `src/hud.ts`,
   [feuds.md](feuds.md), [progression-proposal.md](progression-proposal.md), [frankendom-baseline.md](frankendom-baseline.md),
   [patron-perks-sim.md](patron-perks-sim.md).
@@ -389,7 +389,7 @@ Hold (d)'s PvE-only ±5% in reserve for after a playtest of (c).
 |---|---|---|---|---|
 | **0 (this PR)** | This spec | docs | Expansion | none |
 | **1 (preview, flags off in the live game)** | Encounter director: tag-team tokens (2A), roles (2E), sweep push (2F); mastery marks counter (4.1) in the Origins save; Ascapart prototype on existing moves (Special + charged heavy); the patron-strike marker reused as a between-duel Slam | `origins/` only, read-only reuse of `src/` (`stepDuel`, `opponentFighter`, `decide`) | Expansion | none: no `src/` file touched, fingerprint and digest unchanged; director has its own seeded stream and its own tests |
-| **2 (Combat, one bump)** | Hit quality (5c) location + timing terms as integer per-mille, behind a per-fight flag in the record header; the HUD tag; stagger reads pre-quality damage | `src/fight/duel.ts`, `src/fight/moves.ts`, `src/record.ts`, `src/hud.ts` | Combat (+ Web for the tag) | next free RV; writer stamps the old version with the flag off (patron-perks pattern); `REACH[new] = []`; flag-off byte-identical proofs (fingerprint 0 changed cells, `hashDuel` over the replay corpus); new fixture for flag-on cells; release order: verifier host first, then clients |
+| **2 (Combat, one bump)** | Hit quality (5c) location + timing terms as integer per-mille, behind a per-fight flag in the record header; the HUD tag; stagger reads pre-quality damage | `src/fight/duel.ts`, `src/fight/moves.ts`, `src/fight/record.ts`, `src/hud.ts` | Combat (+ Web for the tag) | next free RV; writer stamps the old version with the flag off (patron-perks pattern); `REACH[new] = []`; flag-off byte-identical proofs (fingerprint 0 changed cells, `hashDuel` over the replay corpus); new fixture for flag-on cells; release order: verifier host first, then clients |
 | **3 (Combat)** | Big-attack move class (§3): new `MoveDef` rows, `BigAttackTell` event, AI knobs; the blade sweet-spot term (bake change) | `src/fight/moves.ts`, `src/fight/duel.ts`, `src/fight/ai.ts`, `scripts/bake-blades.mjs` | Combat; World and audio draw the marker | RV bump; fingerprint fixture gains new opponents' cells |
 | **4 (arena, Dom's GO)** | Turn hit quality on in the Pit and PvP | `src/match.ts`, `src/net/rollback.ts` kit | Combat, Lead GO | RV bump with REACH = every opponent at every level; battery rerun and anchors held; `fight-records.json` regenerated with the reason; fix-forward re-pins named in the PR |
 | **Later / maybe** | Trainer techniques (4.2); PvE-only luck (5d); true multi-fighter sim (2B) | | Combat | each its own bump |

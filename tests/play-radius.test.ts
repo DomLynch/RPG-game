@@ -5,7 +5,7 @@ import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
-import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
 
 test('the scaled opponents are exactly the ladder rungs that fight in Arena 1', () => {
   const arenaOne = LADDER.filter((_, i) => ARENA_PICK[arenaBand(i + 1)] === '1').map(o => o.id);

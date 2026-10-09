@@ -12,7 +12,7 @@ import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { idleIntent, legal } from '../src/fight/duel.ts';
 import { opponentAt, profileAt } from '../src/fight/moves.ts';
-import { encodeRecord } from '../src/record.ts';
+import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };

@@ -8,7 +8,7 @@ import { PROFILES } from '../src/fight/moves.ts';
 import { packIntents, unpackIntents, type PvpRecord } from '../src/net/pvp.ts';
 import { verifyDuel, type DuelClaim } from '../src/net/verify-duel.ts';
 import { hashDuel, NET, pvpDuel, type Kit } from '../src/net/rollback.ts';
-import { quantizeIntent, RECORD_VERSION } from '../src/record.ts';
+import { quantizeIntent, RECORD_VERSION } from '../src/fight/record.ts';
 import { REASON_MAX, UNVERIFIED_AFTER_MS, verifyRooms } from '../scripts/verify-duels.mjs';
 
 const KITS: [Kit, Kit] = [{ weapon: 'longsword', skill: 'pommel', gear: ['veteran.helmet'] }, { weapon: 'estoc', skill: null, gear: [] }];

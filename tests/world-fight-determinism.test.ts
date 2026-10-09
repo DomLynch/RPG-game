@@ -7,8 +7,8 @@ import { Match } from '../src/match.ts';
 import { mobLayer } from '../origins/mobs/kits.ts';
 import { LEVELS, OPPONENTS, opponentAt, profileAt, type WeaponId } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
-import { quantizeIntent } from '../src/record.ts';
-import { recordSpecials } from '../src/replay.ts';
+import { quantizeIntent } from '../src/fight/record.ts';
+import { recordSpecials } from '../src/fight/replay.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import type { Intent } from '../src/fight/duel.ts';
@@ -83,7 +83,7 @@ for (const [opponent, level, seed] of [['knight', 10, 731], ['veteran', 40, 1234
 
 // A flee-at twist ends the duel with both standing (pit-duel.ts: twist.outcome 'fled' or 'escaped'). The page then hands the 'abandoned' record to `twisted`. It must NOT call Match.end(): that throws
 // without a finish, which froze the duel (frame() never re-armed, `twisted` never fired, no record). The record the page does hand over is the one the server's verifier accepts.
-import { noTwist, stepTwist, type TwistFlag } from '../src/twist.ts';
+import { noTwist, stepTwist, type TwistFlag } from '../src/fight/twist.ts';
 test('flee-at: the fight ends with both standing, Match.end() would throw, and the abandoned record verifies as a win with the twist', () => {
   const flags: TwistFlag[] = [{ kind: 'flee-at', percent: 99 }], [opponent, level, seed] = ['knight', 10, 731] as const;
   for (let intentSeed = 1; intentSeed <= 60; intentSeed++) {

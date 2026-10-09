@@ -520,7 +520,7 @@ scythe move those two Veteran fights not at all (same ticks 1677/1452, outcome a
 The `grip` field also landed here (the shield brief, via the lead, folded in rather than paying a second bump): one-hand = knife, cleaver,
 estoc, trident; two-hand = warhammer, scythe, longsword. The brief named seven; `MAUL` and `REAPER` spread `CLEAVER` and `ESTOC`, so without
 an explicit override they would have silently inherited `one-hand` — both set to `two-hand` and flagged to the lead. Data only, nothing in
-the sim reads it. `RECORD_VERSION` 3 → 4 was the single bump ruling (a) reserved for the whole flip work. `src/record.ts`
+the sim reads it. `RECORD_VERSION` 3 → 4 was the single bump ruling (a) reserved for the whole flip work. `src/fight/record.ts`
 is itself one of the hashed `SIM_FILES`, so the digest was computed *after* the bump rather than copied from the failure message, which
 prints the pre-bump one. References regenerated per the documented procedure (`scripts/record-replay-check.mjs --write`, same PR as the
 bump) — and both replay to the **identical** fight, same ticks (1677, 1452), outcome, killed tick and state digest. Only the version byte

@@ -24,7 +24,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
-import { encodeRecord } from '../src/record.ts';
+import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';

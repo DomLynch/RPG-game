@@ -7,8 +7,8 @@ import { crossCheck } from '../src/group-verify.ts';
 import { OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { TOKENS, groupKill, startStreams, stepStreams, streamRecordGroup, type StreamGroup } from '../src/pack.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
-import { RECORD_VERSION, createRecorder, packRecord, unpackRecord, type FightRecord } from '../src/record.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { RECORD_VERSION, createRecorder, packRecord, unpackRecord, type FightRecord } from '../src/fight/record.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { setStab } from '../src/stab-rule.ts';
 
 // RV39: N attackers on one creature, parallel ordinary duels sharing one health pool through Duel.incoming. Players are driven by decide() (the brain a warden uses); each creature copy by its own decide().

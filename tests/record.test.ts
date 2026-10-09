@@ -5,7 +5,7 @@ import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import type { Intent } from '../src/fight/duel.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
-import { NO_PATRON_VERSION, PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/fight/record.ts';
 // RECORD_VERSION 29 refuses every older version, and a headless recorder stamps an older era (play-radius.ts): a test that records a fight records it as a live fight is fought (this build's circle, late notice and stab).
 const mk: typeof createRecorder = (meta) => { setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true); return createRecorder(meta); };
 
@@ -114,7 +114,7 @@ test('record: an opponent-only weapon (the reaper) is refused at decode — the 
 });
 
 // GPT audit 2026-09-22 (E): a cap on the compressed text is not a cap on what it expands to; direct replay links reach this decoder.
-import { MAX_RECORD_BYTES, MAX_RECORD_TICKS } from '../src/record.ts';
+import { MAX_RECORD_BYTES, MAX_RECORD_TICKS } from '../src/fight/record.ts';
 test('a record past the tick limit or the expanded-size limit is refused, not allocated', async () => {
   // A real 2-tick record with its tick count forged to MAX+1: refused before the intent array exists.
   const rec = mk({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 7 });

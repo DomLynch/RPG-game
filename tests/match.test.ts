@@ -7,14 +7,14 @@ import { Match, equipNotice, nextSeed } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot.ts';
 import { initialPractice } from '../src/fight/combat.ts';
-import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord } from '../src/fight/record.ts';
 import { LADDER } from '../src/ladder.ts';
 import { PORTRAIT_KEYS, portraitKey } from '../src/legends.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { loadProfile, type Profile } from '../src/profile.ts';
 import { loadScorecard, type Scorecard } from '../src/scorecard.ts';
 import { loadTrial, type Trial } from '../src/trial.ts';
-import type { FightRecord } from '../src/record.ts';
+import type { FightRecord } from '../src/fight/record.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';
 import type { Duel } from '../src/fight/duel.ts';
 
