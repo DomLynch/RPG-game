@@ -1,5 +1,5 @@
 // Data-only PRs (Dom via Lead 2026-10-09): a PR that touches ONLY content data skips the Auditor; the gate is this file, not a reviewer.
-// A path is data when it is on DATA_PATHS AND its text is pure data: a zone module may hold `import type` lines, one typed `const` whose value is
+// A path is data when it is on DATA_PATHS AND its text is pure data: a zone module may hold `import type` lines and type aliases (erased), one typed `const` whose value is
 // built only from literals (strings, numbers, booleans, null, arrays, objects with plain keys), and `export default <that const>`. Nothing that runs:
 // no call, no value import, no identifier other than the const itself, no template with ${}, no spread, no function. One file off the list, or one
 // non-literal node, and the PR is not data-only (it needs the Auditor). The schema check (scripts/data-only-check.mjs: loadZone + zoneProblems,
@@ -34,6 +34,7 @@ export function dataProblems(file, text) {
   let name = null, exported = false;
   for (const st of sf.statements) {
     if (ts.isImportDeclaration(st) && st.importClause?.isTypeOnly) continue;
+    if (ts.isTypeAliasDeclaration(st) || ts.isInterfaceDeclaration(st)) continue;   // types are erased: nothing of them runs
     if (ts.isVariableStatement(st) && !name && st.declarationList.flags & ts.NodeFlags.Const && st.declarationList.declarations.length === 1) {
       const d = st.declarationList.declarations[0];
       if (ts.isIdentifier(d.name) && d.initializer && literalValue(d.initializer) && !st.modifiers?.length) { name = d.name.text; continue; }

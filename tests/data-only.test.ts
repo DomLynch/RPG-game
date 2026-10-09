@@ -21,7 +21,7 @@ test('the path list is strict: engine code, loaders, biomes, catalogue rows, leg
 });
 
 test('anything that runs is not data (mutation cases: a call, a value import, an outside identifier, ${}, a function, a spread, a second statement)', () => {
-  const ok = "import type { MobRow } from '../../mobs/row.ts';\nconst spawns: { rows: MobRow[] } = { rows: [{ id: 'character:wolf', level: 1, n: -2, on: true, at: null }] };\nexport default spawns;\n";
+  const ok = "import type { MobRow } from '../../mobs/row.ts';\ntype Local = { n: number };\nconst spawns: { rows: MobRow[] } = { rows: [{ id: 'character:wolf', level: 1, n: -2, on: true, at: null }] };\nexport default spawns;\n";
   assert.deepEqual(dataProblems('origins/zones/zone9/spawns.ts', ok), []);
   const bad: Record<string, string> = {
     call: ok.replace("'character:wolf'", "String(1)"),
