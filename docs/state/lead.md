@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 ~09:08 (+04) — H LIVE; I and J lined up
+**LIVE = Release H 01910aab** (release.json, my curl after 09:05): #1937 catch-up, #1938 warm-up cleanup, #1939 next-swing (merged directly, PR closed). Scoped, 8 of 52 rows, ~2 m 40 s. Try 1 (09:00) died on the Mac's DNS for api.github.com (Tailscale resolver); it recovered by itself at 09:02. G ab2288cd was 7 m 53 s full. Scoped is the default again (DEPLOY_SCOPE=full stopped; the daily full 52 runs off the release path).
+**Release I (zone pipeline):** #1944 → #1941 (rebase, LOADER) → #1942 alias → #1945 Zone 2 package (not linked) → #1933 (rebased) → #1947 (only if PASS, else J).
+**Release J (Zone 2 playable + Proof 3):** #1948 region node + filter, #1955 server zone id, #1953 Ember Wolf (zone mobLooks), #1940 threat, #1943 joiners (head db0ac03ad, FightStarted 8×→3 fix), #1946 disengage, #1949/#1951/#1952 engage client (one engage per FightStarted, idempotent per instance).
+**Rulings today:** CI seamless is advisory (quality.yml:160, required:false); the Auditor's harness fix is #1954 for World. Zone 2 = Option A (Frontier graph node). Spawn IDs for Zone N≥2 carry the z<N>: prefix. Record + loot still central = the I+1 gap. N-players-on-one-creature is parked.
+**Remaining validation:** World's WebKit numbers on H; Dom's iPhone check; Proof 3 clip once J is live; server kill rows.
+
 ## 2026-10-09 ~08:30 (+04) — ROUTING + TIMING RULES (Dom, via the Optimizer and direct)
 **Routing (Dom's ruling, relayed by the Optimizer):** release status, receipts, ETAs, deploy logs and every operational question go to the session titled "COO Task Enabler", not to the Optimizer. The Optimizer gets only scope or acceptance rulings Lead cannot make itself.
 **Timings (Dom, standing):** delivery ETAs are minutes or low single-digit hours, given as a clock time today; never days or weekdays. Each task should ideally take at most 10–15 min; anything longer is split. The three proofs (H, I, Zone 2, many-on-one) are aimed at TODAY by lunch, which supersedes the Sat/Mon/Wed dates in the PLAN entry below.
