@@ -213,3 +213,12 @@ test('a refused/offline engage is asked ONCE more on the player\'s own blow (Aud
   await new Promise((r) => setTimeout(r, 5));
   assert.ok(t.open().includes('wolves-2'), 'the retried engage holds a token');
 });
+
+test('the engage names the page\'s zone (zoneId, "1" when the page names none) and main.ts passes pageZoneId', async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const stub = (async (_u: string, init: { body: string }) => { bodies.push(JSON.parse(init.body)); return new Response('{}', { status: 429 }); }) as unknown as typeof fetch;
+  await spawnTracker({ token: () => 'tok', character: () => PC, now: () => 1, fetch: stub, base: 'http://x', zone: () => '2' }).engaged('z2:wolves-1');
+  await spawnTracker({ token: () => 'tok', character: () => PC, now: () => 1, fetch: stub, base: 'http://x' }).engaged('wolves-1');
+  assert.deepEqual(bodies.map((b) => [b.instance, b.zoneId]), [['z2:wolves-1', '2'], ['wolves-1', '1']]);
+  assert.match(readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), /spawnTracker\(\{[^}]*zone: pageZoneId/);
+});
