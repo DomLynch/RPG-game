@@ -264,7 +264,7 @@ test('coverage: SLOW_ROWS are never shardable, so they are never UNASSIGNED (#19
 });
 
 test('rows that never passed on a Hugging Face job (roster 600 s ceiling, sparring exit 1) are Mac-only on every flavor and never UNASSIGNED', () => {
-  assert.deepEqual(NEVER_ON_HF, ['roster-browser-check.mjs', 'sparring-browser-check.mjs']);
+  assert.deepEqual(NEVER_ON_HF, ['roster-browser-check.mjs', 'sparring-browser-check.mjs', 'account-database-check.mjs']);
   const source = () => 'export const x = 1;';
   for (const name of NEVER_ON_HF) for (const wall of [false, true]) assert.equal(vpsSafeRow(`node scripts/${name}`, ['node', `scripts/${name}`], source, wall), false);
   assert.equal(vpsSafeRow('node scripts/other-check.mjs', ['node', 'scripts/other-check.mjs'], source, true), true);
