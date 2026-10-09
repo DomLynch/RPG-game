@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ArenaMaterials } from '../../src/arena.ts';
+import type { ZoneMaterials } from './zone-scenery.ts';
 import { meshPieces } from './exchange.ts';
 import type { Board, Build } from './frontier-plan.ts';
 import type { Dress } from './frontier-dress.ts';
@@ -73,7 +73,7 @@ function reliefMesh(rz: ReliefZone, material: THREE.MeshStandardMaterial): THREE
   const mesh = new THREE.Mesh(geo, material); mesh.receiveShadow = true; mesh.name = `frontier-relief:${z.zone}`; return mesh;
 }
 
-export function buildFrontier(scene: THREE.Scene, m: ArenaMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = [], relief: readonly ReliefZone[] = []): THREE.Group {
+export function buildFrontier(scene: THREE.Scene, m: ZoneMaterials, b: Build, dress?: Dress, camps: readonly Camp[] = [], relief: readonly ReliefZone[] = []): THREE.Group {
   const group = new THREE.Group(); group.name = 'ash-frontier'; scene.add(group);
   if (relief.length) { const mat = dirtMaterial().clone(); mat.vertexColors = true; mat.color.set(0xffffff); for (const rz of relief) group.add(reliefMesh(rz, mat)); }
   meshPieces(group, b.pieces, m, 'frontier');
