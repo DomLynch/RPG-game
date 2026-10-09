@@ -1,8 +1,8 @@
 // Origins: a world creature fight played on the SERVER's seed and settled with its record (origins/preview/encounter-net.ts over #1688's encounter_start/touch/settle).
 // Opt-in and additive: only `?online=1` on a page with a live Supabase session asks the writer at all. Signed out, no character yet, the flag off (the writer answers 503), a
 // foe the server resolved differently from the page, or any failure all return null and the page plays exactly as it did: its own seed, nothing settled. No DOM, storage or clock read here.
-import { STEP } from '../../src/sim.ts';
-import type { FightRecord } from '../../src/record.ts';
+import { STEP } from '../../src/fight/index.ts';
+import type { FightRecord } from '../../src/fight/index.ts';
 import type { FightSetup } from '../encounters/encounters.ts';
 import { isOffline } from './save.ts';
 import { settleFight, startFight, touchFight, type Fight } from './encounter-net.ts';

@@ -6,7 +6,7 @@
 //   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/moves.ts); absent = the body's own
 //   dressing the Ash Frontier on him: soot = dark ash worked into the cloth and low on the body, 0..1; burnt = scorched, ragged cloth edges, 0..1
 import { BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE } from '../../src/beast-scale.ts';
-import type { WeaponId } from '../../src/moves.ts';
+import type { WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 
 export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
