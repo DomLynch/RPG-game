@@ -6,7 +6,10 @@
 //                hanging beside a torso or the other leg is never swallowed into the hull.
 //   conformOver — pushes a mesh cut from another body out along its (position-shared) normals until it clears the wearer by `gap`: a piece
 //                authored on a narrower or broader frame then sits ON this one instead of through it. Vertices never move inward.
+import fs from 'node:fs';
 import * as T from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 // Triangles of every geometry, bucketed on a uniform grid by their bounding boxes. Rays walk the cells they cross (with a one-cell halo).
 export function triGrid(geometries, cell = .04) {
@@ -147,3 +150,26 @@ export const surfaceAlong = (grid, origin, dir, { layer = .03, far = .35 } = {})
 
 // Rest-space joint position of a bone, from the skeleton's inverse binds (the pattern every build-warrior block uses).
 export const jointOf = (skeleton, boneIndex) => name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+
+// The hero as he is drawn, in rest space: skin, head and neck, level-1 kit (src/assets/warrior.glb, weapon left out), geometry only. The loot build's own parts (body + level 1) have NO
+// neck, so a ray from the neck's axis goes clean through to the shoulders; the shipped hero has his neck, which is what a collar piece has to hug.
+export async function heroGeometries(file = 'src/assets/warrior.glb') {
+  globalThis.ProgressEvent ??= class {};
+  const raw = fs.readFileSync(file), jl = raw.readUInt32LE(12), j = JSON.parse(raw.subarray(20, 20 + jl).toString('utf8'));
+  j.images = []; j.textures = []; j.materials = (j.materials ?? []).map((m) => ({ name: m.name }));   // no textures in node
+  j.buffers[0].uri = `data:application/octet-stream;base64,${raw.subarray(28 + jl, 28 + jl + j.buffers[0].byteLength).toString('base64')}`;
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(j), ''), out = [];
+  asset.scene.updateMatrixWorld(true);
+  asset.scene.traverse((o) => { if (o.isSkinnedMesh && !/Weapon|Sword|Scabbard/i.test(o.name) && !o.userData.weapon) out.push(o.geometry.clone().applyMatrix4(o.bindMatrix)); });
+  return out;
+}
+
+// The goblin's trophy-necklace cord on the player (Characters 2026-10-09): 36 points round the neck's axis, FIRST layer of the wearer (skin plus what lies within 3 cm) plus `gap`, high at the
+// nape (+4 cm) and dropping cos^2 to the front height (a plain outermost hit lands on the shoulders: the cord floated at x +-0.29 m). Used by build-warrior.mjs and scripts/loot-refit-necklace.mjs.
+export function necklaceRing(grid, axis, gap = .007) {
+  const nape = axis.y + .04, front = axis.y + .012 - .065;
+  return Array.from({ length: 36 }, (_, k) => {
+    const a = k / 36 * Math.PI * 2, out = new T.Vector3(Math.sin(a), 0, Math.cos(a)), origin = new T.Vector3(axis.x, nape - (nape - front) * Math.max(0, Math.cos(a)) ** 2, axis.z);
+    return origin.addScaledVector(out, surfaceAlong(grid, origin, out, { layer: .03, far: .35 }) + gap);
+  });
+}

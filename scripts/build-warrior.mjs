@@ -2,7 +2,7 @@ import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
 import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
-import { conformOver, jointOf, ringHull, surfaceAlong, triGrid } from './loot-fit.mjs';
+import { conformOver, heroGeometries, jointOf, necklaceRing, ringHull, surfaceAlong, triGrid } from './loot-fit.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
 import fs from 'node:fs/promises';
@@ -430,8 +430,9 @@ if (fighter === 'goblin' || LOOT) {
     ray.set(origin, out); const hits = ray.intersectObjects(worn, false); if (!hits.length) throw new Error(`goblin necklace: nothing worn at ${y.toFixed(3)} m, azimuth ${a.toFixed(2)}`);
     return origin.addScaledVector(out, Math.max(...hits.map(h => h.distance)) + gap);
   };
-  const nape = axis.y + .012, front = nape - .065, collar = a => surface(nape - (nape - front) * (1 + Math.cos(a)) / 2, a, .007);   // the cord: lower at the front than at the nape
-  const ring = Array.from({ length: 36 }, (_, k) => collar(k / 36 * Math.PI * 2));
+  const nape = axis.y + .012, front = nape - .065, collar = a => surface(nape - (nape - front) * (1 + Math.cos(a)) / 2, a, .007);   // the cord (goblin's own fight build): lower at the front than at the nape
+  // Loot: over the PLAYER the outermost hit is his shoulder, so the cord is the first layer over the shipped hero with his neck (loot-fit.mjs necklaceRing).
+  const ring = LOOT ? necklaceRing(triGrid(await heroGeometries()), axis) : Array.from({ length: 36 }, (_, k) => collar(k / 36 * Math.PI * 2));
   add(new T.TubeGeometry(new T.CatmullRomCurve3(ring, true), 96, .0035, 6, true), leather, 'spine_03');
   for (let i = -2; i <= 2; i++) {   // teeth: bone cones hanging point-down from the front of the cord, the middle ones longest, each just off the chest at its own height
     const length = .03 - Math.abs(i) * .004, p = surface(front - .012 - length / 2, i * .17, .006);

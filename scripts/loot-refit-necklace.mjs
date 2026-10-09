@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { triGrid, surfaceAlong } from './loot-fit.mjs';
+import { heroGeometries, necklaceRing, triGrid, surfaceAlong } from './loot-fit.mjs';
 
 globalThis.ProgressEvent ??= class {};
 const FILE = 'src/assets/loot.glb', NODE = 'goblin.Body.Leather', FIRST = 354, COUNT = 679, write = process.argv.includes('--write');
@@ -18,17 +18,7 @@ const binStart = 20 + jsonLength + 8, bin = Buffer.from(bytes.subarray(binStart,
 const parse = (buffer, plain = true) => { const j = plain ? buffer : null; return new GLTFLoader().parseAsync(j, ''); };
 const toBuffer = (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
 
-// The hero as he is drawn, in rest space: skin, head and neck, level-1 kit (src/assets/warrior.glb, no weapon). build-warrior.mjs fits over body_realistic + level1_realistic only, which have
-// no head or neck, so a ray from the neck axis went clean through to the shoulders; the shipped hero has his neck, which is what the cord has to hug.
-const worn = [];
-{
-  const raw = fs.readFileSync('src/assets/warrior.glb'), jl = raw.readUInt32LE(12), hj = JSON.parse(raw.subarray(20, 20 + jl).toString('utf8'));
-  hj.images = []; hj.textures = []; hj.materials = (hj.materials ?? []).map((m) => ({ name: m.name }));   // geometry only: no textures in node
-  hj.buffers[0].uri = `data:application/octet-stream;base64,${raw.subarray(28 + jl, 28 + jl + hj.buffers[0].byteLength).toString('base64')}`;
-  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(hj), '');
-  asset.scene.updateMatrixWorld(true);
-  asset.scene.traverse((o) => { if (o.isSkinnedMesh && !/Weapon|Sword|Scabbard/i.test(o.name) && !o.userData.weapon) worn.push(o.geometry.clone().applyMatrix4(o.bindMatrix)); });
-}
+const worn = await heroGeometries();
 const grid = triGrid(worn);
 // The neck's own axis: the rig's neck_01 joint (from the loot file's own skin), nudged .03 m forward as the build does.
 const lootJson = JSON.parse(JSON.stringify(json)); lootJson.images = []; lootJson.textures = []; lootJson.materials = (json.materials ?? []).map((m) => ({ name: m.name }));
@@ -39,12 +29,12 @@ const neck = skinned.skeleton.bones.findIndex((b) => b.name === 'neck_01');
 const axis = new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skinned.skeleton.boneInverses[neck]).invert()).add(new T.Vector3(0, 0, 0.03));
 
 const ringBy = (rule) => {
-  const first = rule !== 'outermost', nape = axis.y + (first ? 0.04 : 0.012), front = axis.y + 0.012 - 0.065, GAP = 0.007;
+  if (rule !== 'outermost') return necklaceRing(grid, axis);   // the build's own rule (loot-fit.mjs)
+  const nape = axis.y + 0.012, front = nape - 0.065, GAP = 0.007;
   return Array.from({ length: 36 }, (_, k) => {
-    const a = (k / 36) * Math.PI * 2, y = first ? nape - (nape - front) * Math.max(0, Math.cos(a)) ** 2 : nape - ((nape - front) * (1 + Math.cos(a))) / 2, out = new T.Vector3(Math.sin(a), 0, Math.cos(a)), origin = new T.Vector3(axis.x, y, axis.z);
+    const a = (k / 36) * Math.PI * 2, y = nape - ((nape - front) * (1 + Math.cos(a))) / 2, out = new T.Vector3(Math.sin(a), 0, Math.cos(a)), origin = new T.Vector3(axis.x, y, axis.z);
     const hits = grid.hits(origin, out, 0.35); if (!hits.length) throw new Error(`no body at azimuth ${a.toFixed(2)}`);
-    const d = rule === 'outermost' ? Math.max(...hits) : surfaceAlong(grid, origin, out, { layer: 0.03, far: 0.35 });
-    return origin.addScaledVector(out, d + GAP);
+    return origin.addScaledVector(out, Math.max(...hits) + GAP);
   });
 };
 const tubeOf = (ring) => new T.TubeGeometry(new T.CatmullRomCurve3(ring, true), 96, 0.0035, 6, true);
@@ -58,7 +48,9 @@ const deviation = (tube) => { let worst = 0; const p = tube.attributes.position;
 const old = tubeOf(ringBy('outermost'));
 if (old.attributes.position.count !== COUNT) throw new Error(`tube has ${old.attributes.position.count} vertices, expected ${COUNT}`);
 console.log(`replay of the build's outermost rule against the file: worst vertex ${(deviation(old) * 1000).toFixed(2)} mm (the build's TubeGeometry order, ${COUNT} vertices from #${FIRST})`);
-const ring = ringBy('first-layer'), tube = tubeOf(ring), box = new T.Box3().setFromBufferAttribute(tube.attributes.position);
+const ring = ringBy('first-layer'), tube = tubeOf(ring);
+console.log(`new rule against the file: worst vertex ${(deviation(tube) * 1000).toFixed(2)} mm (0 once patched, or once a loot rebuild has run the same rule)`);
+const box = new T.Box3().setFromBufferAttribute(tube.attributes.position);
 console.log(`new cord: x ${box.min.x.toFixed(3)}..${box.max.x.toFixed(3)}  y ${box.min.y.toFixed(3)}..${box.max.y.toFixed(3)}  z ${box.min.z.toFixed(3)}..${box.max.z.toFixed(3)} (was x +-0.289, y 1.464..1.536)`);
 if (!write) process.exit(0);
 
