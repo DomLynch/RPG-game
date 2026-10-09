@@ -120,7 +120,7 @@ test('touch: a hit touches the token at most every TOUCH_EVERY_MS; tick touches 
   } finally { await w.close(); }
 });
 
-test('onCombatEvent: FightStarted (or, until #1943, the creature\'s first move / the first blow) engages once; his hits count per creature; a wander-past or another player\'s event engages nothing; Evaded drops', () => {
+test('onCombatEvent: FightStarted alone engages (a tell, a swing or a first blow does not); his hits count per creature; a wander-past or another player\'s event engages nothing; Evaded drops', () => {
   const log: string[] = [];
   const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [] };
   const on = onCombatEvent(t, 'me');
@@ -132,7 +132,7 @@ test('onCombatEvent: FightStarted (or, until #1943, the creature\'s first move /
   on({ type: 'Hit', attacker: 'wolves-4', victim: 'me' });
   on({ type: 'Blocked', attacker: 'me', victim: 'wolves-5' });
   on({ type: 'Evaded', id: 'wolves-2' });
-  assert.deepEqual(log, ['engage wolves-1', 'engage wolves-2', 'engage wolves-3', 'hit wolves-3', 'engage wolves-4', 'evade wolves-2']);
+  assert.deepEqual(log, ['engage wolves-1', 'hit wolves-3', 'evade wolves-2']);
 });
 
 test('FightStarted twice for one creature (it left reach and came back) = ONE engage on its open token; after Evaded a new FightStarted engages again', async () => {
