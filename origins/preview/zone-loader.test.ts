@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 import test from 'node:test';
 import { loadZone, zoneProblems, type Zone } from './zone-loader.ts';
+// The import ban and the data-only lint live in tests/zone-packages.test.ts (AST-based, with negative controls).
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
 const clone = (z: Zone): Mut<Zone> => JSON.parse(JSON.stringify(z));
@@ -25,25 +24,4 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.kit.url = '/elsewhere.glb'; }), /kit url/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.fog = 'red'; }), /not #rrggbb/);
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
-});
-
-test('nothing outside the loader imports a zone package (origins/zones/**)', () => {
-  const root = path.resolve(import.meta.dirname, '..'), offenders: string[] = [];
-  const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (e.name !== 'zones' && e.name !== 'node_modules') walk(p); continue; }
-    if (!/\.(ts|mjs)$/.test(e.name) || e.name === 'zone-loader.ts' || e.name === 'zone-loader.test.ts') continue;
-    if (/from\s+['"][^'"]*\/zones\/zone\d+\//.test(fs.readFileSync(p, 'utf8'))) offenders.push(path.relative(root, p));
-  } };
-  walk(root);
-  assert.deepEqual(offenders, [], 'read a zone through loadZone(), not its files');
-});
-
-test('a zone data file is pure data: only type imports, no function, class or loop', () => {
-  const dir = path.resolve(import.meta.dirname, '../zones/zone1');
-  for (const f of fs.readdirSync(dir)) {
-    const src = fs.readFileSync(path.join(dir, f), 'utf8').replace(/^\s*\/\/.*$/gm, '');
-    assert.ok(!/^import\s+(?!type\b)/m.test(src), `${f}: only 'import type'`);
-    assert.ok(!/=>|\bfunction\b|\bclass\b|\bfor\s*\(|\bwhile\s*\(/.test(src), `${f}: data only`);
-  }
 });
