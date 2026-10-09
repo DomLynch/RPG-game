@@ -16,7 +16,7 @@ export type GearSheetDeps = {
 };
 export function createGearSheet(d: GearSheetDeps) {
   const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-  function setLoot(loot: Loot) { d.profile().loot = loot; persist(); d.view().wear(d.wornIds(), d.wornTiers()); renderLoot(); }
+  function setLoot(loot: Loot) { d.profile().loot = loot; d.persist(); d.view().wear(d.wornIds(), d.wornTiers()); renderLoot(); }
   // One rack row: the piece's name, who it was taken from, and Wear/Worn on the journal's own wear path.
   function rackRow(id: LootId): HTMLLIElement {
     const loot = d.profile().loot ?? emptyLoot(), worn = d.wornIds();
@@ -126,8 +126,9 @@ export function createGearSheet(d: GearSheetDeps) {
   });
   // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
   function enterGear() {
-    if (gear || typeof d.view().gearStage !== 'function') return;
-    try { gear = enterGearRoom(d.view().gearStage(), d.element('gear-window'), { width: () => d.canvas.clientWidth, height: () => d.canvas.clientHeight }); d.journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+    const v = d.view();
+    if (gear || typeof v.gearStage !== 'function') return;
+    try { gear = enterGearRoom(v.gearStage(), d.element('gear-window'), { width: () => d.canvas.clientWidth, height: () => d.canvas.clientHeight }); d.journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
     catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
   }
   function leaveGear() {
