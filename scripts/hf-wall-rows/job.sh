@@ -15,7 +15,9 @@ nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1 | head -2;
 say "SETUP"
 export DEBIAN_FRONTEND=noninteractive
 # jpegtran: the lossless texture plugin in vite.config.mjs; ffmpeg: arena-audio-check and the clip rows; the GL libs for the probe.
-apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git ffmpeg libvulkan1 libegl1 libjpeg-turbo-progs >/dev/null 2>&1; echo "apt exit $? jpegtran=$(command -v jpegtran || echo MISSING)"
+# postgresql: initdb for account-database-check (row 13), which refuses root, and this job runs the rows as pwuser.
+apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git ffmpeg libvulkan1 libegl1 libjpeg-turbo-progs postgresql >/dev/null 2>&1; echo "apt exit $? jpegtran=$(command -v jpegtran || echo MISSING)"
+pgbin=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1); echo "initdb=${pgbin:-MISSING}/initdb"
 id pwuser >/dev/null 2>&1 || useradd -m pwuser
 work=/home/pwuser/rows; mkdir -p "$work"; chown -R pwuser "$work"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}"
@@ -68,7 +70,7 @@ echo "build exit $build in $(( $(date +%s) - b0 ))s"; [[ $build -eq 0 ]] || { ta
 
 say "ROWS (width ${WIDTH:-4}, on the Mac: $SKIP)"
 r0=$(date +%s)
-su pwuser -c "cd $work/repo && PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH RELEASE_CHECK_CONCURRENCY=${WIDTH:-4} RELEASE_CHECKS_SKIP=$SKIP RELEASE_CHECKS_SKIP_SOURCE=the-Mac node scripts/release-checks.mjs > /tmp/rows.log 2>&1"; rows=$?
+su pwuser -c "cd $work/repo && PATH=${pgbin:+$pgbin:}\$PATH PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH RELEASE_CHECK_CONCURRENCY=${WIDTH:-4} RELEASE_CHECKS_SKIP=$SKIP RELEASE_CHECKS_SKIP_SOURCE=the-Mac node scripts/release-checks.mjs > /tmp/rows.log 2>&1"; rows=$?
 wall=$(( $(date +%s) - r0 ))
 echo "rows exit $rows in ${wall}s"
 grep -E '(Release|Extended) check|Retrying|Not retrying' /tmp/rows.log

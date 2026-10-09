@@ -35,4 +35,4 @@ hf_wall_rows_apply() {
 hf_wall_rows_table() { [[ -n "${hf_job:-}" ]] && node scripts/hf-wall-rows.mjs table || true; }
 
 # On any exit before collect: a job still running would finish on its own (45-min cap) but is cancelled so an aborted deploy pays nothing more.
-hf_wall_rows_cancel() { [[ -n "${hf_job:-}" && ! -s "${hf_state}.json" ]] && hf jobs cancel "$hf_job" >/dev/null 2>&1 || true; }
+hf_wall_rows_cancel() { [[ -n "${hf_job:-}" && ! -s "${hf_state}.json" ]] || return 0; local id; for id in ${hf_job//,/ }; do hf jobs cancel "$id" >/dev/null 2>&1 || true; done; }   # hf_job: one id or several, comma-separated
