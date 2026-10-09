@@ -5,6 +5,7 @@ import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
 import { JOIN_M } from '../preview/world-combat.ts';
+import { AGGRO_M } from '../combat/zone1.ts';
 import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
@@ -90,6 +91,8 @@ test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a wa
   const plan = frontierPlan(false, '2'), specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
   const crowd = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= JOIN_M).length));
   assert.ok(crowd >= 3, `most creatures within JOIN_M of one home: ${crowd}`);
+  const hunt = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= AGGRO_M).length));
+  assert.ok(hunt >= 4, `a hero at one home has all four wolves inside AGGRO_M (they hunt only inside it, so all can join): ${hunt}`);
   assert.equal(specs.filter((m) => m.spawn === 'reach-wolves').length, 4, 'the wolf pack is four');
   assert.ok(specs.filter((m) => m.spawn === 'reach-wolves').every((m) => m.id.startsWith('z2:')));
 });
