@@ -27,7 +27,7 @@ try {
   await page.waitForTimeout(8000);
   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
   await shot('idle');
-  const target = await page.evaluate(() => window.originsPreview.mobs().mobs.find((m) => m.drawn && m.body));
+  const target = await page.evaluate(() => { const ms = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body), near = (a) => ms.filter((b) => b.name === a.name && Math.hypot(a.x - b.x, a.z - b.z) < 8).length; return ms.sort((a, b) => near(b) - near(a))[0]; });   // the drawn creature with the biggest same-kind pack around it
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
   await page.waitForTimeout(20000);
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
