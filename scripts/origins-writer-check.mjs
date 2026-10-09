@@ -102,7 +102,7 @@ try {
   eq([made.status, /^pc:[0-9a-f]{32}$/.test(made.json.result.id)], [200, true], 'create_character');
   eq((await call('create_character', 'ta', { name: 'Aldren' })).status, 409, 'a second Aldren');
   for (const name of ['', ' x', 'x'.repeat(33), 'a\nb', 7, undefined]) eq((await call('create_character', 'ta', { name })).status, 400, `bad name ${JSON.stringify(name)}`);
-  eq((await call('open', 'ta')).json.result.characters.map(c => c.name), ['Aldren'], 'the character is in the snapshot');
+  eq((await call('open', 'ta')).json.result.characters.map(c => c.name), ['Wanderer aaaaaa', 'Aldren'], 'the first open made the first character (Wanderer <6>); Aldren is the second');
   eq((await call('create_character', 'tb', { name: 'Aldren' })).status, 200, 'names are per account');
 
   // Pit import: a win verified after the snapshot pays the legend row once, at the derived level, however many opens race
