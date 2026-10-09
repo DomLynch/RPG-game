@@ -27,14 +27,14 @@ const writer = http.createServer((req, res) => {
 await new Promise((r) => writer.listen(0, '127.0.0.1', r));
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
-const errors = [];
+const errors = [], logs = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
-  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (r) => r.abort());
+  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => logs.push(`${m.type()}: ${m.text().slice(0, 160)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
   await page.addInitScript((s) => localStorage.setItem('frankendom.auth.v1', s), JSON.stringify({ access_token: 'tok', expires_at: Math.floor(Date.now() / 1000) + 3600 }));
   await page.goto(new URL(`/?gear=1&writer=http://127.0.0.1:${writer.address().port}/origins`, origin).href);
   await page.waitForSelector('#journal[open][data-gear="live"]');
-  await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]');
+  await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]', { timeout: 60000 }).catch(async (e) => { console.log('NO PIECE. writer saw', JSON.stringify(seen), 'errors', JSON.stringify(errors), 'console', JSON.stringify(logs.slice(-6)), 'pack', await page.evaluate(() => document.getElementById('pack')?.innerHTML.slice(0, 300))); throw e; });
   assert.equal(await page.locator('#gear-back').innerText(), 'Back to Zone 1'); assert.equal(await page.evaluate(() => document.getElementById('journal-tab-profile').checked), true, 'the Profile tab');
   assert.ok(!new URL(page.url()).search.includes('gear=1'), 'the flag leaves the address');
   await page.screenshot({ path: `${dir}/1-server-piece-in-pack.png` });
