@@ -867,7 +867,7 @@ export function createScene(
         if (hamstrungOk()) warriors?.opponent.prepareHamstrung();
         if (executionOk()) warriors?.opponent.prepareExecution();
       } // a fresh match: both bars full again
-      fx.onContact({ events, practice, state, dt, blow, contact, killed, finisher, detailedBlood, rig, blockHeavy, warriors, dustFeet, dustPositions, footDust, flinches, burstPool, feel, right, opponentId, bloodMode,
+      fx.onContact({ events, practice, state, dt, blow, contact, killed, finisher, detailedBlood, camera: rig.camera, kick: rig, blockHeavy, warriors, dustFeet, dustPositions, footDust, flinches, burstPool, feel, right, opponentId, bloodMode,
         DIP_FRAMES, setDip: (frames) => { dip = frames; } });   // the camera kick, the sand, the sparks, the wounds, the splats and the blade blood: src/fight/fx.ts
       fx.update(dt);   // moving the Pit's contact effects into src/fight/fx.ts: the clash sparks, the generic sparks, the splats
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
