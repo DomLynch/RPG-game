@@ -28,7 +28,7 @@ test('the seven shipped kinds are valid rows with a complete citation, eligible 
     const s = r.source as { kind: string; work: string; author?: string; year?: number; scripture?: boolean };
     assert.ok(s.work && s.author && s.year !== undefined && !s.scripture, `${r.id}: names work, author and year, never scripture`);
   }
-  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore', 'folklore', 'literature', 'folklore']);
+  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore', 'folklore', 'literature', 'folklore', 'chronicle']);
 });
 
 test('the shipped rows agree with the content: loot is the creature\'s own table, the look exists, the band holds the character\'s level', () => {
