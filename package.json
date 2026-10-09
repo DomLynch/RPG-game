@@ -10,6 +10,7 @@
     "test": "node --test --test-skip-pattern=\"\\[slow\\]\" tests/*.test.ts",
     "fingerprint:update": "node scripts/rng-fingerprint.mjs --update",
     "test:slow": "node --test --test-name-pattern=\"\\[slow\\]\" tests/*.test.ts",
+    "zones": "node scripts/gen-zones.mjs",
     "test:all": "node --test tests/*.test.ts",
     "test:bot": "node --test tests/*.test.mjs",
     "quality:stop": "eslint src && npm run typecheck:tests && npm test",
