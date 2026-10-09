@@ -5,6 +5,25 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-09 ~09:40 (+04) — HANDOFF before /clear (Dom: standby + save). READ FIRST, then memory `frankendom_backend_handoff_2026-10-09_midmorning.md`
+1. **LIVE:** Release H 01910aab. Writer `current` -> ab2288cd (G reinstall 08:35, receipt #1935 6074339729; H closure diff empty, so no reinstall).
+2. **Found:** no page code called engage/touch/kill_report, which is why prod has 0 engages and 0 ledger rows. Built the client.
+3. **Open PRs, all sent to the Auditor, riding Release J:**
+   - #1949 @5cebb1cb: Proof 3 many-on-one PG test, 73/73.
+   - #1950 DRAFT @405ce9dc: migration 0016, `origins_spawns.zone` from the `z<N>:` prefix, 76/76; apply after I with PRE/GO/POST.
+   - #1951 @2bdcb2e7: spawn-net.ts client.
+   - #1952 @667240ff: wiring. The TEMP fallback engage is deleted in the same release as #1943; the spent-instance fix is in. 13/13.
+   - #1955 @28ebd9cf, on World #1948: server zoneId; Zone 2 kill priced from Zone 2 rows. 51/51.
+4. **Rulings:**
+   - #1953 Ember Wolf: bronze 4–11, Ash items, x1.1 visual only. Characters applied it @1ba08943.
+   - 6/min cap: server-side only.
+5. **QUEUE:**
+   - (a) Re-arm the kill watch (:07/:37).
+   - (b) Chase the Auditor PASSes.
+   - (c) Delete the fallback when #1943 merges.
+   - (d) Client `zoneId: pageZoneId()` after #1955 and #1952 land.
+   - (e) J: writer reinstall and closure parity.
+
 ## 2026-10-09 08:16 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-10-08 night entry, then memory
 **READ FIRST:** lane memory `frankendom_backend_handoff_2026-10-09_morning.md`.
 1. **LIVE:** Release F fc7d448aa (own curl 08:16). Deploy lock PRESENT: Release G is in flight (#1935 + #1932 merged). Origins writer `current` -> fc7d448a (installed 08:00:44, closure parity 95/95).
