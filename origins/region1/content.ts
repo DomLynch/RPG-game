@@ -63,11 +63,11 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 10 }),
-  // The Ember Wolf's table: the Ash Wolf's, same shape (Backend to rule on the numbers when Zone 2's economy is set; nothing here is tuned).
+  // The Ember Wolf's table (Backend ruled 2026-10-09: Ash Wolf items, bronze x1.1).
   table('loottable:ember-wolf', 'collect', [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
-  ], { min: 3, max: 10 }),
+  ], { min: 4, max: 11 }),
   // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
   table('loottable:cinder-bear', 'collect', [
     independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
