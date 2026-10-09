@@ -25,7 +25,7 @@ function fakeSpawnDb(clock: { ms: number }) {
   const engages = new Map<string, E>(), dead = new Set<string>(), calls: string[] = [];
   const open = () => [...engages.values()].filter((e) => e.result === null);
   const db: Db = { async run(sql, v = {}) {
-    const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? '')?.[1];
+    const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? sql)?.[1];   // after the psql guard; the bare call once the probe is cached (store.ts gated)
     if (fn) calls.push(fn);
     const iso = new Date(clock.ms).toISOString();
     if (fn === 'origins_spawn_engage') {

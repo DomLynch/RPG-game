@@ -21,7 +21,7 @@ import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
-import { type FinisherId } from './finishers.ts';
+import { type FinisherId } from './fight/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
 import { createHamstrungAssets } from './hamstrung-assets.ts';
@@ -36,7 +36,7 @@ import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
-import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
+import { createFinisherBlood, finisherBloodSources } from './fight/finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fatigue-tune.ts';
@@ -44,12 +44,12 @@ import { fatigueReadFrom } from './fatigue-read.ts';
 import { stanceFrom } from './stance-pose.ts';
 import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
-import { bloodGrow, foeBurstPull } from './blood-style.ts';
-import { createBloodEdge } from './blood-edge.ts';
+import { bloodGrow, foeBurstPull } from './fight/blood-style.ts';
+import { createBloodEdge } from './fight/blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig, framingLow, framingTall } from './camera.ts';
-import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
-import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
+import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './fight/severed-head.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool } from './fight/gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
 import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
@@ -519,7 +519,7 @@ export function createScene(
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
   // Finisher complete (Lead brief 2026-09-22, for Web's loot panel): has the ceremony FINISHED PLAYING, and at what finish
   // age did it first say so. Latched from the scene's own state in the frame loop below, never from a delay; cleared with
-  // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
+  // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/fight/finishers.ts was measured from.
   let finishComplete = false,
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.

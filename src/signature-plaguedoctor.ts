@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { weaponOf, type Direction } from './moves.ts';
-import { surfaceHit } from './gore.ts';
+import { surfaceHit } from './fight/gore.ts';
 import { hitBy, registerSignature, type MarkLook, type MarkSite, type SignatureFrame } from './signature.ts';
 import type { CombatEvent, Side } from './duel.ts';
 
