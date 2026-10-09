@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+import { coverageGaps, jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
@@ -211,4 +211,20 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));
   assert.ok(!/vps-shadow-rows\.sh/.test(lib), 'the old ssh fetch is gone');
   assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
+});
+
+test('coverage: a shardable row no shard ran is UNASSIGNED; WebKit and real-clock rows are Mac-only and never unassigned (Release G left 15 behind)', () => {
+  const full = coverageGaps([receipt()], commands, source);
+  assert.deepEqual(full.unassigned, []);
+  assert.ok(full.macOnly.length > 0 && full.macOnly.every((i: number) => !full.t4Only.includes(i)));
+  const skipped = receipt({ rows: rows.map((r: Row) => ({ ...r, status: r.index === 5 ? 'trusted' : 'pass', exit: 0 })) });
+  assert.deepEqual(coverageGaps([skipped], commands, source).unassigned, full.macOnly.includes(5) ? [] : [5]);
+  assert.equal(coverageGaps([], commands, source).unassigned.length, commands.length - full.macOnly.length);
+});
+
+test('the launch waits for a RUNNING shard job and refuses unassigned rows', () => {
+  const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
+  assert.match(lib, /RUNNING\|STARTING\|PENDING\|SCHEDULING/);
+  assert.match(lib, /grep -q 'UNASSIGNED rows'/);
+  assert.match(lib, /DEPLOY_ALLOW_UNASSIGNED/);
 });

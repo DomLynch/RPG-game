@@ -82,3 +82,14 @@ export function trustedFromShards(receipts, tree, commands, readSource, ownSums,
 export const unitReceiptOk = (receipt, tree, ownSums, jobs = {}, trees = {}) =>
   !!receipt && trees?.[receipt.sha] === tree && receipt.kind === 'vps-unit-suite' && fullHex(tree) && receipt.tree === tree && jobVerified(jobs?.[receipt.job], receipt.job, receipt.sha, 'unit')
   && receipt.exit === 0 && receipt.fail === 0 && Number.isInteger(receipt.pass) && receipt.pass > 0 && boundToTree(receipt, ownSums);
+
+// Shard coverage for a release: every row must be run by some shard or be one no Hugging Face job can vouch for. `macOnly` = rows even the T4 may not vouch for
+// (WebKit, real-clock resume, a missing script): they always run on the Mac. `t4Only` = wall-clock rows only the T4 can vouch for. `unassigned` = rows no shard ran
+// that a shard COULD have vouched for: a launch with any of these ran them on a busy Mac for nothing (Release G: 15 rows).
+export function coverageGaps(receipts, commands, readSource) {
+  const ran = new Set(receipts.flatMap(r => (r?.rows || []).filter(x => x.status !== 'trusted').map(x => Number(x.index))));
+  const rows = commands.map((argv, i) => i + 1);
+  const macOnly = rows.filter(i => !vpsSafeRow(commands[i - 1].join(' '), commands[i - 1], readSource, true));
+  const t4Only = rows.filter(i => !macOnly.includes(i) && !vpsSafeRow(commands[i - 1].join(' '), commands[i - 1], readSource, false));
+  return { macOnly, t4Only, unassigned: rows.filter(i => !ran.has(i) && !macOnly.includes(i)) };
+}

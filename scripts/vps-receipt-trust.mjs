@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { trustedFromShards, unitReceiptOk } from './lib/vps-receipts.mjs';
+import { coverageGaps, trustedFromShards, unitReceiptOk } from './lib/vps-receipts.mjs';
 
 const [sha, flag] = process.argv.slice(2);
 const rev = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8', timeout: 10_000 });
@@ -42,8 +42,9 @@ if (flag === '--unit') {
   const receipts = files.map(f => json(`${dir}/${f}`)).filter(Boolean);
   const trusted = trustedFromShards(receipts, tree, commands, source, own(['run-rows.sh', 'rows-json.mjs', 'rows-lib.mjs']), inspectJobs([...new Set(receipts.map(r => r.job).filter(Boolean))]), treesOf(receipts));
   console.error(`vps-receipts: ${trusted.length} of ${commands.length} rows trusted from ${receipts.length} receipt(s) in ${dir} (deploy tree ${tree.slice(0, 8)})`);
-  const ran = new Set(receipts.flatMap(r => (r.rows || []).filter(x => x.status !== 'trusted').map(x => x.index)));
-  const unassigned = commands.map((_, i) => i + 1).filter(i => !ran.has(i));
-  if (unassigned.length) console.error(`vps-receipts: rows no shard ran (never assigned; they run here unless CI trusts them): ${unassigned.join(',')}`);
+  const gaps = coverageGaps(receipts, commands, source);
+  console.error(`vps-receipts: Mac-only rows (no HF job may vouch: WebKit, real-clock resume): ${gaps.macOnly.join(',') || 'none'}; T4-only wall rows: ${gaps.t4Only.join(',') || 'none'}`);
+  if (gaps.unassigned.length) console.error(`vps-receipts: UNASSIGNED rows (no shard ran them, a shard could have): ${gaps.unassigned.join(',')}`);
+  else console.error(`vps-receipts: coverage complete: every row is in a shard or Mac-only (${commands.length} rows)`);
   process.stdout.write(trusted.join(','));
 }
