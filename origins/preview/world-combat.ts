@@ -7,7 +7,7 @@ import { OPPONENTS } from '../../src/moves.ts';
 import type { MobSpec } from './mobs.ts';
 import type { MobPick, Mobs } from './mobs-view.ts';
 
-export const ME = 'me', STEP = 1 / 60, JOIN_M = AGGRO_M + 3, DROP_M = AGGRO_M + 8, FALL_S = 1.4, PULSE_S = 0.18, MAX_STEPS = 6;
+export const ME = 'me', STEP = 1 / 60, JOIN_M = AGGRO_M + 3, DROP_M = AGGRO_M + 8, FALL_S = 1.4, PULSE_S = 0.18, MAX_STEPS = 15;   // 15 steps = 0.25 s of catch-up per frame (was 6: any frame over 100 ms silently dropped fight time). No higher: a creature acts inside the catch-up while the page was frozen, and the fastest creature cycle is longer than 15 ticks, so at most ONE swing can land in a frame (tested).
 /** The roster kind a Zone 1 body fights as, or null (it cannot be fought yet: it only wanders). */
 export const kindOf = (body: string): string | null => (Object.prototype.hasOwnProperty.call(OPPONENTS, body) ? body : null);
 
@@ -24,7 +24,7 @@ type Fx = { hurtT: number; fallT: number; windupT: number; windupMs: number; swi
 
 export function createWorldCombat(d: Deps) {
   const mine = () => d.hero?.() ?? { gear: NAKED, level: 1 };
-  let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false;
+  let world: World = newWorld([player(ME, 0, 0, 0, mine().gear, mine().level)]), acc = 0, pendingAttack: 'light' | 'heavy' | 'kick' | null = null, pendingRoll: { x: number; z: number } | null = null, guardHeld = false, heroDead = false, lostMs = 0, hitches = 0, steps = 0;
   const specs = new Map<string, MobSpec>(), fx = new Map<string, Fx>();
   const fxOf = (id: string): Fx => { let f = fx.get(id); if (!f) { f = { hurtT: 0, fallT: 0, windupT: 0, windupMs: 400, swingT: 0 }; fx.set(id, f); } return f; };
   const gearOf = () => { const { gear, level } = mine(), p = player(ME, 0, 0, 0, gear, level); return { attack: p.attack, res: p.res, level: p.level, shielded: p.shielded }; };
@@ -50,10 +50,11 @@ export function createWorldCombat(d: Deps) {
     update(dt: number, hero: { x: number; z: number; facing: number }): { dx: number; dz: number } {
       const mobs = d.mobs(); if (!mobs) return { dx: 0, dz: 0 };
       if (!heroDead) for (const p of mobs.within(hero.x, hero.z, JOIN_M)) join(p);
-      acc = Math.min(acc + dt, STEP * MAX_STEPS);
+      const want = acc + dt, cap = STEP * MAX_STEPS; acc = Math.min(want, cap);
+      if (want > cap) { lostMs += (want - cap) * 1000; hitches++; if (hitches === 1 || hitches % 10 === 0) console.warn(`world-combat: a ${Math.round(dt * 1000)} ms frame dropped ${Math.round((want - cap) * 1000)} ms of fight time (${hitches} such frame(s), ${Math.round(lostMs)} ms lost in all)`); }
       let first = true;   // the page owns the hero's walk; a ROLL is the loop's own displacement, so only the first step of a frame takes the page's position and the rest keep the loop's
       while (acc >= STEP) {
-        acc -= STEP;
+        acc -= STEP; steps++;
         const m = me(); if (first) world = { ...world, fighters: [{ ...m, ...gearOf(), x: hero.x, z: hero.z, facing: m.phase === 'roll' ? m.facing : hero.facing }, ...world.fighters.slice(1)] }; first = false;
         const r = stepCombat(world, { [ME]: { x: 0, z: 0, attack: heroDead ? null : pendingAttack, guard: guardHeld && !heroDead, roll: heroDead ? null : pendingRoll } }, STEP); pendingAttack = null; pendingRoll = null;
         world = r.world; for (const ev of r.events) handle(ev);
@@ -79,6 +80,8 @@ export function createWorldCombat(d: Deps) {
     hero: () => { const m = me(); return { health: m.health, max: m.maxHealth, stamina: m.stamina, maxStamina: m.maxStamina, phase: m.phase, facing: m.facing, posture: m.posture, exhausted: m.exhausted, dead: heroDead }; },
     /** The creature he is fighting now (the nearest hunting one), for the target bar. */
     target: () => { let best: Fighter | null = null; for (const f of world.fighters.slice(1)) if (f.phase !== 'dead' && f.hunting && (!best || Math.hypot(f.x - me().x, f.z - me().z) < Math.hypot(best.x - me().x, best.z - me().z))) best = f; const s = best && specs.get(best.id); return best && s ? { name: s.name, health: best.health, max: best.maxHealth } : null; },
+    /** Frame health for the seamless receipt: sim steps run, fight time dropped by the 0.25 s catch-up cap, and how many frames dropped some. */
+    stats: () => ({ steps, lostMs: Math.round(lostMs), hitches }),
     inCombat: () => world.fighters.slice(1).some((f) => f.phase !== 'dead' && f.hunting),
     debug: () => world.fighters.map((f) => ({ id: f.id, phase: f.phase, hp: Math.round(f.health), x: +f.x.toFixed(1), z: +f.z.toFixed(1), hunting: f.hunting, returning: f.returning })),
   };
