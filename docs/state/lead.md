@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 16:50 (+04) — Release K (J4b + Zone 1 on the shared engine) RUNNING. READ FIRST
+**LIVE = J4a 9f4937e38** (my curl 16:47). **Running:** K launched 16:47:37 (deploy-5719c9f3.log). Trunk = 5719c9f36 = J4b (8ba8e2e56: #1980 #1982 #1998 #1979 #1981 #1991 #1989 #1986) + #2005 K2b/K2c-1 + #2006 K2d @02123ab46 + #1833 → #1837 → #1997 (the first open creates a character) + #2003. Unit job 6ac8e08b… 3106/0 on tree e985d77cd (I checked = tree of 5719c9f36); /zone1/ smoke on the VPS OK; Auditor delta PASS #2006 @02123ab46. Full 52 Mac rows at width 4 (governor → 2 above compressor 6 GB). J4b run 2 stopped pre-switch (folded into K). Fallback if K rows fail: publish J4b alone at 8ba8e2e56.
+**After K:** Backend writer reinstall at 5719c9f36 → Dom sign-in + kill receipt. Then "Zone 1 on the shared engine" may be reported (K2d live). Next batch: Web gear stack + #2001 (rebasing onto release-k, test:all owed), #1992, #1967, #2002, #2004 (K8 s1) → #2007 → #2010 → #2011 → #2009, #2008 (K10 s1), #1996.
+**Lessons today:** #2006's walkCam ReferenceError passed tsc + suite because origins/preview/main.ts is in NO tsconfig (Auditor: ratchet PR GO'd). New rule: page-entry PRs need a zero-error browser smoke (scripts/origins-zone1-smoke.mjs). #1999 closed (superseded by #2005). WebGL-heavy rows stay on the Mac (HF software GL is 5–10x slower); Deploy's follow-up PR starts the Mac pool without waiting on HF.
+**Parity checklist (22 rows) in memory project_engine_parity_checklist_2026-10-09. Order after K: K5+K6 (Combat S1 gore move on release-k) → K4 → K8 (World, #2004 up) → K9 → K10 (Web, #2008 up) → K11 (Characters #2010) → K12 (Characters #2007/#2011) → K7.**
+
 ## 2026-10-09 16:00 (+04) — J4a LIVE; J4b running. READ FIRST
 **LIVE = J4a 9f4937e38** (#1978 hero engine animations, #1975, #1987; Published, switch 15:42:41; my curl). Run 3 trusted 28 rows from run 1 (same tree); 7 rows passed on a solo retry; row 14 passed solo at load 9–11 (a race, so #2003 is the fix). No writer reinstall owed.
 **J4b GO (Deploy):** #1980 ac9f7886f → #1982 326a82db5 → #1998 041630a2f → #1979 → #1981 → #1991 → #1989 → #1986 d7de6ac3c (K3 creatures). All have the Auditor's PASS on these heads. Dom's phone check of hero/creature attacks = acceptance, not a gate.
