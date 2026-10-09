@@ -3,6 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadZone } from '../zones/loader.ts';
+import { frontierDress } from './frontier-dress.ts';
+import { frontierKit } from './frontier-kit.ts';
+import { frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { resolveZone } from '../zones/resolve.ts';
 import { lookOf, withZoneLook, zoneDayNight, zoneHour, type ZoneFields } from './look.ts';
 
@@ -39,4 +42,10 @@ test('time of day: follow:false pins the hour; dayNight.on:false turns the cycle
   assert.equal(zoneHour(of({ look: { timeOfDay: { follow: false, hour: 22 } } })), 22);
   assert.equal(zoneHour(of({ look: { timeOfDay: { hour: 22 } } })), null, 'an hour without follow:false does nothing');
   assert.equal(zoneDayNight(of({ dayNight: { on: false } })), false); assert.equal(zoneDayNight(of({})), true);
+});
+
+test('look.props.density scales how many props the kit places (1 = as the kit says, the default)', () => {
+  const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), n = (density?: number) => frontierKit(F, B, D, density).placements.length;
+  assert.equal(n(1), n(), 'the default is 1'); assert.ok(n(2) > n(1) * 1.5, `${n(2)} vs ${n(1)}`); assert.ok(n(0.5) < n(1) * 0.7); assert.equal(n(0), 0);
+  assert.equal(loadZone().fields?.['look.props.density'], 1, 'Zone 1 keeps the default');
 });
