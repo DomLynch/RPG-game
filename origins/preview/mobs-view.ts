@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { beastBodyUrl } from '../../src/beast-scale.ts';
 import goblinUrl from '../../src/assets/goblin.glb?url';
 import knightUrl from '../../src/assets/knight.glb?url';
 import pitbornUrl from '../../src/assets/pitborn.glb?url';
@@ -20,7 +19,7 @@ import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVis
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
 const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl };   // the wolf is served from WORLD_URLS (public/world), not bundled
 // The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
-const WORLD_URLS: Record<string, string> = { goblin: '/world/goblin.glb', wolf: '/world/wolf.glb', bear: '/world/bear.glb', boar: beastBodyUrl('boar') };   // public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters
+const WORLD_URLS: Record<string, string> = { goblin: '/world/goblin.glb', wolf: '/world/wolf.glb', bear: '/world/bear.glb', boar: '/world/boar.glb' };   // public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
