@@ -189,7 +189,7 @@ esac`, { mode: 0o755 });
   assert.deepEqual(trusted, keep.filter(r => !job2Rows.includes(r)), 'job2 failed: only its rows fall back to the Mac');
   const receipt = JSON.parse(readFileSync(`${state}.json`, 'utf8'));
   for (const r of job2Rows) assert.equal(receipt.untrusted[r], 'job ended ERROR');
-  assert.equal(receipt.seconds, 300, 'the three finished jobs\' seconds, summed');
+  assert.equal(receipt.seconds, 400, 'every job\'s seconds, summed: the failed one cost compute too');
   rmSync(dir, { recursive: true, force: true });
 });
 

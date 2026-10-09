@@ -49,6 +49,7 @@ export function parseJobLog(text) {
 
 // The T4 leg as N parallel jobs (Dom 2026-10-09: "max out the GPU, it's cheap"): longest-first onto the least-loaded job, so the jobs finish together.
 // weight(row) = the row's expected seconds (row-placement.mjs ON_T4 measurements; others a flat guess). Never more jobs than rows; empty jobs are dropped.
+/** @param {number[]} rows @param {number} n @param {(row: number) => number} [weight] @returns {number[][]} */
 export function splitRows(rows, n, weight = () => 1) {
   const jobs = Array.from({ length: Math.max(1, Math.min(n, rows.length)) }, () => ({ rows: [], load: 0 }));
   for (const row of [...rows].sort((a, b) => weight(b) - weight(a) || a - b)) { const j = jobs.reduce((min, x) => (x.load < min.load ? x : min)); j.rows.push(row); j.load += weight(row); }
