@@ -8,12 +8,17 @@ import type { Offline } from './save.ts';
 type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
 export const isOffline = (r: GearView | Offline): r is Offline => 'offline' in r;
 export const openGear = (token: string | null, character: string, opts: Opts = {}) => call('gear_open', { character }, token, viewOf, opts);
-// One op: its steps in order, each answered with the whole view. The first refusal stops the op and the view is re-read, so the sheet shows what the server holds (a 422 changes nothing server-side).
+// One op: its steps in order, each answered with the whole view. A refusal stops the op and the view is re-read. A swap is two commits (the occupant comes off, then the piece goes on), so if a
+// step AFTER the first is refused (the rank check can refuse the equip), the occupant is put back before the re-read: the slot is never left empty by a refused wear.
 export async function runOp(token: string | null, character: string, view: GearView, op: GearOp, opts: Opts = {}): Promise<{ view: GearView | Offline; refused: boolean }> {
-  let now = view;
-  for (const step of stepsFor(view, op)) {
+  const steps = stepsFor(view, op); let now = view;
+  for (const [i, step] of steps.entries()) {
     const next = await call(step.op, { character, id: step.id }, token, viewOf, opts);
-    if (isOffline(next)) return { view: await openGear(token, character, opts), refused: true };
+    if (isOffline(next)) {
+      const first = steps[0];
+      if (i > 0 && first?.op === 'gear_unequip') await call('gear_equip', { character, id: first.id }, token, viewOf, opts);   // put the occupant back
+      return { view: await openGear(token, character, opts), refused: true };
+    }
     now = next;
   }
   return { view: now, refused: false };
