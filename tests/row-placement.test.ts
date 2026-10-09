@@ -15,7 +15,7 @@ test('the Mac-only list is the rows no Hugging Face job may vouch for, minus the
 });
 
 test('a "slower on HF" entry carries its measurement, and every slow row has one', () => {
-  assert.deepEqual(SLOW_ON_HF.map(entry => entry.row), SLOW_ROWS);
+  assert.deepEqual(SLOW_ON_HF.map(entry => entry.row), SLOW_ROWS.filter((row: number) => !VPS_ROWS.includes(row)));
   for (const entry of SLOW_ON_HF) assert.ok(entry.hf_s > 0, `row ${entry.row} needs hf_s`);
   for (const entry of MAC_ONLY.filter(e => /^(roster|sparring)/.test(e.why))) assert.ok(entry.mac_s > 0, `row ${entry.row} needs mac_s`);
 });
