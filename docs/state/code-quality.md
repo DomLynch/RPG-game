@@ -1,5 +1,14 @@
 # Code quality lane (Auditor)
 
+## 2026-10-09 ~14:3x (+04): HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-09d`
+
+**IN FLIGHT:** J4 delta head-checks after Characters' shared triangle counter (scripts/lib/glb-stats.mjs): **#1979 → 799651b7b, #1981 → 0e503ee67, #1991 → 66b97e06c**. Verified by reading: the helper is correct (lists count/3, strips/fans count-2, non-indexed uses POSITION), and the catalogue rows changed only engine tris, upward; no world asset changed. The VPS run (cq-glb) may not have reported: rerun at 66b97e06c, then post PASS on all three heads (Deploy merges J4 only on them).
+**HOLD:** #1984 @8ae1650e6: tests tsc fails (TS6133 unused `LootId`) + no-loss conditions (client keeps its local ledger until `skipped` is empty; a worn piece that fails validation falls back to pack/bank; a missing tier is permanent).
+**NEXT (GO from Dom/Lead/Strategy via the COO):** the capture load gate + HF spill in scripts/vps-shadow/capture.sh (live /usr/local/bin/capture). Final spec in memory 10-09d: 5-min load < 12; after 5 min spill to HF cpu-upgrade ONLY if still over AND the job is tagged hf_ok; never server/Postgres/nginx/deploy-lock/browser jobs; Deploy's runner image + 10-min no-output cancel; spill log. Carry the live `lanejob "$@"` line (Deploy, after the 10-08 OOM) + a test.
+**Mine:** PR #1987 @2798b2c0e (content sim digest; Combat second-review PASS), PR #1968 (Stop worker cap; Lead PASS).
+**Verdicts today (all on their threads):** I: #1947+bdbfe2995, #1941, #1945, #1899 + deploy.sh 4fd528f4f/c60dffa36, #1972. J: #1943, #1946, #1948, #1950 (0016 PRE + POST), #1951, #1952, #1953, #1955 (+ writer POST), #1957, #1958, #1960, #1963, #1964, #1965, #1969, #1902, #1970, #1893, #1973, #1974. K: #1966, #1971, #1967, #1978 (@2833ea202). J3/J4: #1975, #1976, #1979, #1980 (@45b64cd7c), #1981, #1982, #1989, #1991.
+**Rules learned:** (1) a release step that calls a script: check its git mode (100755) and that a failed step can't pass a later check on stale artifacts (my Release I miss, fixed in #1972). (2) Two PRs can each pass alone and break together: trial-merge the release set (the #1953 ember-wolf rename × #1955/#1969). (3) A phone-budget counter must count non-indexed primitives (19 shipped GLBs had them).
+
 ## 2026-10-09 ~10:3x (+04): HANDOFF before Dom's clear. READ FIRST, then memory `frankendom_handoff_2026-10-09b`
 
 **NEXT, in order:** (1) **#1951 @2bdcb2e70 + #1952 @667240ff9** (Backend spawn client + page wiring): code read OK, VPS test run owed (spawn-net.test.ts + tests/origins-* + both tscs), then post. (2) **#1955 @28ebd9cf2** (server zoneId, stacked on #1948): not read yet.
