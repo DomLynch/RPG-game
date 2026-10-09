@@ -7,7 +7,7 @@ import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
-import { PLAYER_ONLY_CLIPS, WEAPON_CLIPS } from '../src/characters.ts';
+import { PLAYER_ONLY_CLIPS, WEAPON_CLIPS } from '../src/fight/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });

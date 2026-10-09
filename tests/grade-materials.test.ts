@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { Box3, Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { SOURCE_DYE, SOURCE_MAPPED, buildWarriors, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { SOURCE_DYE, SOURCE_MAPPED, buildWarriors, lootId, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
 import { LOOT, cleanProvenance, isWeaponLoot, kitWorn } from '../src/loot.ts';
 import { OPPONENTS, WEAPONS, type OpponentId } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';

@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent, initialDuel } from '../src/duel.ts';
-import { NO_HIP_DRAW, clipFor, drawRole } from '../src/characters.ts';
+import { NO_HIP_DRAW, clipFor, drawRole } from '../src/fight/characters.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
 import { setLateNotice } from '../src/play-radius.ts';

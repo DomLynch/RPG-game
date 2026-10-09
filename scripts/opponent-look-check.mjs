@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, lootIds, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { buildWarriors, lootIds, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
 import { kitWorn } from '../src/loot.ts';
 import { OPPONENTS, weaponOf } from '../src/moves.ts';
 
