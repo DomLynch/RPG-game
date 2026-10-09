@@ -49,10 +49,13 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
   const idle: Worker[] = [], all = new Set<Worker>(), queue: Job[] = [];
   let seq = 0;
 
+  // A session holds the process open only while it runs an op (so a test, a load run or a check can exit with idle sessions up; a pending op is never abandoned).
+  const hold = (w: Worker, on: boolean) => { const k = on ? 'ref' : 'unref'; w.child[k](); for (const io of [w.child.stdin, w.child.stdout, w.child.stderr]) (io as unknown as { ref(): void; unref(): void })[k](); };
+
   const finish = (w: Worker, fail?: Error) => {
     clearTimeout(w.timer);
     const job = w.job; w.job = null;
-    if (fail) { w.dead = true; all.delete(w); w.child.kill('SIGKILL'); } else idle.push(w);
+    if (fail) { w.dead = true; all.delete(w); w.child.kill('SIGKILL'); } else { idle.push(w); hold(w, false); }
     if (job) (fail ? job.reject(fail) : job.resolve(w.out.trim()));
     w.out = ''; w.err = '';
     pump();
@@ -76,7 +79,7 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
       finish(w, new DbError(m?.[1] ?? 'psql', m?.[2] ?? (w.err.trim().slice(0, 200) || `psql exit ${status}`)));
     });
     child.stdin.on('error', () => { /* the close handler reports it */ });
-    child.unref(); for (const io of [child.stdin, child.stdout, child.stderr]) (io as unknown as { unref(): void }).unref();   // idle sessions never keep the process alive; a running op's timeout timer does
+    hold(w, false);
     all.add(w);
     return w;
   };
@@ -87,7 +90,7 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
       if (!w) return;
       if (w.dead) continue;
       const job = queue.shift()!;
-      w.job = job; w.id = ++seq; w.out = ''; w.err = '';
+      w.job = job; w.id = ++seq; w.out = ''; w.err = ''; hold(w, true);
       w.timer = setTimeout(() => w.child.kill('SIGKILL'), timeoutMs);
       const keys = Object.keys(job.vars);
       w.child.stdin.write(`${keys.map(k => `\\set ${k} ${quote(job.vars[k])}\n`).join('')}${job.sql}\n;\nrollback;\n${keys.map(k => `\\unset ${k}\n`).join('')}\\echo\n\\echo ${done(w.id)}\n`);
