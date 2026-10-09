@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const [dist, out, ...given] = process.argv.slice(2), root = process.cwd();
-const names = given.length ? given : ['Back to The Concord Exchange Quarter', 'Back to Zone Of The Long Ash Reaches Of Nowhere!'];
+const names = given.length ? given : ['The Concord Exchange Quarter', 'Zone Of The Long Ash Reaches Of Nowhere!'];   // zone names; the button shows "\u2039 " + the name without a leading "The", the aria-label "Back to <name>"
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
@@ -33,7 +33,7 @@ try {
   await page.waitForSelector('#journal[open][data-gear="live"]'); await page.waitForTimeout(4000);
   const box = (sel) => page.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { l: r.left, r: r.right, t: r.top, b: r.bottom }; }, sel);
     for (const name of [null, ...names]) {
-    if (name) await page.evaluate((n) => { const b = document.getElementById('nav-pit'); b.textContent = n; b.setAttribute('aria-label', n); }, name);
+    if (name) await page.evaluate((n) => { const b = document.getElementById('nav-pit'); b.textContent = `\u2039 ${n.replace(/^the\s+/i, '')}`; b.setAttribute('aria-label', `Back to ${n}`); }, name);
     await page.waitForTimeout(300);
     const exit = await box('#nav-pit'), gear = await box('#nav-gear'), aria = await page.evaluate(() => document.getElementById('nav-pit').getAttribute('aria-label'));
     // What is DRAWN, not the padded boxes: the GEAR word, and the Settings tab's icon (26 px, centred) plus its SETTINGS word.
@@ -48,7 +48,7 @@ try {
     assert.ok(exit.r <= gear.l + 0.5, `${name}: the exit ends at ${exit.r}, the Gear tab starts at ${gear.l}`);
     assert.ok(drawn.cog.l - drawn.gear.r >= 2, `${name ?? '(as shipped)'}: the GEAR word ends at ${drawn.gear.r.toFixed(1)}, the Settings cog starts at ${drawn.cog.l.toFixed(1)}: they overlap or touch`);
     assert.ok(exit.l >= 0 && gear.r <= 375.5, `${name}: the nav leaves the viewport`);
-    if (name) assert.equal(aria, name, 'the full name stays in the accessible label');
+    if (name) assert.equal(aria, `Back to ${name}`, 'the full name stays in the accessible label');
   }
   assert.deepEqual(errors, []); console.log(JSON.stringify({ passed: true, rows }));
 } finally { await browser.close(); server.close(); }
