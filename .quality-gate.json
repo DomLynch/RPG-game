@@ -438,7 +438,7 @@
         "scripts/sparring-browser-check.mjs",
         "src/sparring.ts",
         "src/match.ts",
-        "src/characters.ts",
+        "src/fight/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
       "rows": [
@@ -466,7 +466,7 @@
         "src/match.ts",
         "src/main.ts",
         "src/scene.ts",
-        "src/characters.ts"
+        "src/fight/characters.ts"
       ],
       "rows": [
         "equip-fallback-check"
