@@ -37,10 +37,12 @@ export const pitPending = async (db: Db, account: string): Promise<PitClaim[]> =
   JSON.parse(await db.run(`select coalesce(json_agg(p), '[]')::text from public.origins_pit_pending(:'a'::uuid) p;`, { a: acct(account) }));
 // One spawn answers both halves of a step (statements run in order, ON_ERROR_STOP, so a refusal in the first throws before the second runs).
 // The pending list is cut in SQL at `limit`, and built as jsonb: json_agg puts newlines between rows, which would split the two answers.
-const pendingSql = `select coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb)::text from (select * from public.origins_pit_pending(:'a'::uuid) limit :'n'::int) p;`;
-const lines = (out: string): [string, string] => { const [a, b, ...rest] = out.split('\n'); if (b === undefined || rest.length) throw Error('expected two answers from one statement pair'); return [a, b]; };
+// ONE statement, two answers on two lines: each statement is a round trip to the database (about 130 ms from the VPS), and origins_open only reads (it locks the career row for the
+// statement), so the pending list read in the same statement is the same list the second statement used to read.
+const pendingExpr = `(select coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb)::text from (select * from public.origins_pit_pending(:'a'::uuid) limit :'n'::int) p)`;
+const lines = (out: string): [string, string] => { const [a, b, ...rest] = out.split('\n'); if (b === undefined || rest.length) throw Error('expected two answers on two lines'); return [a, b]; };
 export const openWithPending = async (db: Db, account: string, limit: number): Promise<{ snap: Snapshot; pending: PitClaim[] }> => {
-  const [snap, pending] = lines(await db.run(`select public.origins_open(:'a'::uuid)::text; ${pendingSql}`, { a: acct(account), n: String(limit) }));
+  const [snap, pending] = lines(await db.run(`select public.origins_open(:'a'::uuid)::text || E'\\n' || ${pendingExpr};`, { a: acct(account), n: String(limit) }));
   return { snap: JSON.parse(snap), pending: JSON.parse(pending) };
 };
 export const commitThenOpen = async (db: Db, account: string, batch: readonly Json[]): Promise<Snapshot> =>
