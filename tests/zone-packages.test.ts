@@ -10,7 +10,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { loadZone, zoneProblems } from '../origins/zones/loader.ts';
 
-const LOADER = 'origins/zones/loader.ts';   // the ONE module allowed to import a package
+const LOADER = 'origins/zones/loader.ts', REGISTRY = 'origins/zones/registry.ts';   // the loader reads packages through the generated registry (scripts/gen-zones.mjs): only these two may import one
 export const HOOKS_BUDGET = 300;
 const repo = path.resolve(import.meta.dirname, '..');
 
@@ -75,7 +75,7 @@ export function zoneImportOffenders(root: string, loader = LOADER): string[] {
   const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) { if (e.name !== 'node_modules' && !e.name.startsWith('.') && e.name !== 'dist') walk(p); continue; }
-    if (!/\.(ts|mts|mjs|js)$/.test(e.name) || path.relative(root, p) === loader || !fs.readFileSync(p, 'utf8').includes('zone')) continue;   // cheap prefilter: '../zone9/' and '../zones/zone9/' both contain 'zone'
+    if (!/\.(ts|mts|mjs|js)$/.test(e.name) || [loader, REGISTRY].includes(path.relative(root, p)) || !fs.readFileSync(p, 'utf8').includes('zone')) continue;   // cheap prefilter: '../zone9/' and '../zones/zone9/' both contain 'zone'
     const ownPackage = p.startsWith(zones) ? path.join(zones, path.relative(zones, p).split(path.sep)[0]!) + path.sep : null;
     for (const { spec, line } of specifiers(p)) {
       if (!spec.startsWith('.')) continue;

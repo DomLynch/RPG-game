@@ -4,7 +4,6 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-// @ts-expect-error: a plain .mjs script
 import { registrySource, ZONES_DIR, zoneFolders } from '../scripts/gen-zones.mjs';
 import { loadZone, zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 
