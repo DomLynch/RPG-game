@@ -38,12 +38,12 @@ if [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" != "$lock_now" ]]; th
 fi
 # A GPU box (t4-medium): plain Chromium falls back to SwiftShader (CPU rendering) there; only the Vulkan flags below reach the Tesla T4 (probe job 6ac902ac, 2026-10-09: default,
 # --use-gl=egl and --use-angle=gl all printed "SwiftShader", this set printed "NVIDIA Tesla T4"). Rows launch the binary from chromium.executablePath(), so wrap it once here
-# and every row gets the flags; the renderer is printed so the job log proves which one ran. No GPU (cpu-upgrade, the VPS): nothing changes.
+# and every row gets the flags (LAST on the command line: Playwright adds its own --use-angle=swiftshader and the later flag wins, as in the probe); the renderer is printed so the job log proves which one ran. No GPU (cpu-upgrade, the VPS): nothing changes.
 if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
   chrome=$(node -e 'process.stdout.write(require("playwright").chromium.executablePath())')
   if [[ -x "$chrome" && ! -e "$chrome.real" ]]; then
     mv "$chrome" "$chrome.real"
-    printf '#!/bin/sh\nexec "%s.real" --use-angle=vulkan --enable-features=Vulkan --ignore-gpu-blocklist --disable-vulkan-surface "$@"\n' "$chrome" > "$chrome"; chmod +x "$chrome"
+    printf '#!/bin/sh\nexec "%s.real" "$@" --use-angle=vulkan --enable-features=Vulkan --ignore-gpu-blocklist --disable-vulkan-surface\n' "$chrome" > "$chrome"; chmod +x "$chrome"
   fi
   echo "GPU: $(nvidia-smi -L | head -1)"
   renderer=$(node --input-type=module -e 'import { chromium } from "playwright"; const b = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }); const p = await b.newPage(); console.log(await p.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); const e = g && g.getExtension("WEBGL_debug_renderer_info"); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : "no webgl"; })); await b.close();' 2>&1 | tail -1)
