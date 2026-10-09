@@ -7,6 +7,8 @@ import { pathToFileURL } from 'node:url';
 import { registrySource, ZONES_DIR } from '../scripts/gen-zones.mjs';
 import { newZone } from '../scripts/new-zone.mjs';
 import { zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
+import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
+import biomesData from '../origins/zones/biomes-data.ts';
 
 const tree = (dir: string): string[] => readdirSync(dir, { recursive: true }).map(String).sort();
 
@@ -69,12 +71,11 @@ test('the copied kit and looks say whose they are (Zone N, a copy of Zone 2\'s),
 });
 
 test('a copy that fails after the folder is made leaves no half-made folder behind', () => {
-  const scratch = mkdtempSync(`${tmpdir()}/newzone-f-`);   // no zone2 here: reading the template throws
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-f-`);   // no zone2 here: reading the template throws after the folder exists
   try {
     assert.throws(() => newZone({ n: 5, dir: `${scratch}/` }), /ENOENT/);
     assert.deepEqual(readdirSync(scratch), []);
-    assert.doesNotThrow(() => newZone({ n: 5, dir: `${scratch}/` }) && 0 || undefined, undefined);
-  } catch (e) { /* the second call fails the same way: only the first call's cleanup is under test */ void e; } finally { rmSync(scratch, { recursive: true, force: true }); }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
 test('the biome presets are the literal data file, and the default biome is one of them', () => {
