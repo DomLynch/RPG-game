@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { SLOW_ROWS, coverageGaps, jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
+import { NEVER_ON_HF, SLOW_ROWS, coverageGaps, jobCommand, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
 import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
@@ -248,4 +248,21 @@ test('coverage: SLOW_ROWS are never shardable, so they are never UNASSIGNED (#19
   for (const row of SLOW_ROWS) assert.ok(!none.unassigned.includes(row), `row ${row}`);
   assert.deepEqual(none.slow, SLOW_ROWS.filter((i: number) => !none.macOnly.includes(i)));
   assert.equal(none.unassigned.length + none.macOnly.length + none.slow.length, commands.length);
+});
+
+test('rows that never passed on a Hugging Face job (roster 600 s ceiling, sparring exit 1) are Mac-only on every flavor and never UNASSIGNED', () => {
+  assert.deepEqual(NEVER_ON_HF, ['roster-browser-check.mjs', 'sparring-browser-check.mjs']);
+  const source = () => 'export const x = 1;';
+  for (const name of NEVER_ON_HF) for (const wall of [false, true]) assert.equal(vpsSafeRow(`node scripts/${name}`, ['node', `scripts/${name}`], source, wall), false);
+  assert.equal(vpsSafeRow('node scripts/other-check.mjs', ['node', 'scripts/other-check.mjs'], source, true), true);
+  const commands = [['node', 'scripts/roster-browser-check.mjs'], ['node', 'scripts/other-check.mjs']];
+  const gaps = coverageGaps([], commands, source);
+  assert.deepEqual(gaps.macOnly, [1]);
+  assert.deepEqual(gaps.unassigned, [2]);
+});
+
+test('run-rows.sh prints the last 50 lines of every FAILED or CEILING row into the job log', () => {
+  const run = readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8');
+  assert.match(run, /grep -E 'FAILED\|CEILING' "\$run\/rows\.log"/);
+  assert.match(run, /tail -n 50 "\$f"/);
 });

@@ -158,7 +158,8 @@ previews_ok=1
 # this revision now (the checkout is the live revision after the cmp checks above), then require that /zone1/ serves the bundle just built.
 # Same rule as above: record the failure, raise it at the end, never skip the verifier install.
 if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
-  scripts/publish-origins-preview.sh || previews_ok=0
+  rm -rf artifacts/origins-preview   # a leftover build must never satisfy the bundle compare below (Release I: the publish step failed and a stale build "matched")
+  bash scripts/publish-origins-preview.sh || previews_ok=0
   built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
   live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
   if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
@@ -168,6 +169,9 @@ if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
     echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
   fi
 fi
+# The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
+nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
+if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
 curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from

@@ -24,8 +24,11 @@ export function sourceWithImports(script, readSource, seen = new Set()) {
 // Not trusted from the VPS whatever its receipt says: a missing script, a WebKit launch (Linux WebKit is not Mac Safari), a real-clock
 // resume, or a wall-clock browser row (software GL runs the fight at ~1/5 speed: the T4's or the Mac's to judge). Virtual-clock
 // Chromium rows and no-browser rows are deterministic on both boxes, so a VPS pass is a pass. Judged on the script AND its imports.
+// Rows that never passed on a Hugging Face job even at low load (Release I, 2026-10-09): roster hit the 600 s ceiling, sparring exited 1; both passed on the Mac (73 s, 145 s).
+export const NEVER_ON_HF = ['roster-browser-check.mjs', 'sparring-browser-check.mjs'];
 export const vpsSafeRow = (command, argv, readSource, allowWall = false) => {
   const script = argv.find(arg => /\.(mjs|js|sh)$/.test(arg));
+  if (NEVER_ON_HF.includes((argv.find(arg => /\.(mjs|js|sh)$/.test(arg)) || '').split('/').pop())) return false;
   const source = script ? sourceWithImports(script, readSource) : null;
   if (source === null) return false;
   // Any non-comment `webkit` in the script or its imports (a row can pick its engine through a variable: engine = x ? webkit : chromium).
