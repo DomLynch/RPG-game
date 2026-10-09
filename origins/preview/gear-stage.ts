@@ -3,17 +3,18 @@
 // walk's scene is never touched. Presentation only: the rig and pieces load on the first open, and what was asked to be worn before they land goes on when they do.
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
-import { HERO_BODY_URL, loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
+import { loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
 import type { GearStage } from '../../src/gear-room.ts';
 import type { Tier } from '../../src/grades.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 
-export function createZone1GearStage(renderer: THREE.WebGLRenderer) {
+// `bodyUrl` is the hero rig's url as the page already holds it (play.ts ASSETS.hero, the build's optimized file): the stage never imports the .glb itself, which would ship a second, unoptimized copy.
+export function createZone1GearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
   scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.1));   // the room's key and rim come from gear-room.ts; this is the fill the Pit borrows from its arena
   let actor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, pieces: Awaited<ReturnType<typeof loadLoot>> | undefined, worn: readonly string[] = [], tiers: Record<string, Tier> = {}, started = false;
   const dress = () => { if (actor && pieces) actor.wear(pieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => tiers[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit'); };
-  const load = () => { if (started) return; started = true; void Promise.all([loadWarriors(HERO_BODY_URL), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; console.warn('the gear screen rig did not load', error); captureException(error); }); };
+  const load = () => { if (started) return; started = true; void Promise.all([loadWarriors(bodyUrl), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; console.warn('the gear screen rig did not load', error); captureException(error); }); };
   const stage: GearStage = {
     scene, camera,
     setArenaVisible() { /* a scene of its own: there is no arena in it to hide */ },
