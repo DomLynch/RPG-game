@@ -11,6 +11,7 @@ import { LOOT, LOOT_IDS } from '../src/loot.ts';
 import { ROTATION } from '../src/finishers.ts';
 import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
 import { MAX_LEVEL } from '../src/career.ts';
+import { glbStats } from '../scripts/lib/glb-stats.mjs';
 import { LOOT_TABLES } from '../origins/region1/content.ts';
 
 const known = {
@@ -18,12 +19,7 @@ const known = {
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
 };
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
-function glb(path: string) {
-  const b = readFileSync(root(path)), g = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8'));
-  const tris = (g.meshes as { primitives: { indices?: number }[] }[]).flatMap((m) => m.primitives).reduce((n, p) => n + (p.indices === undefined ? 0 : g.accessors[p.indices].count / 3), 0);
-  const joints = new Set<string>((g.skins ?? []).flatMap((s: { joints: number[] }) => s.joints.map((i) => g.nodes[i].name)));
-  return { tris: Math.round(tris), joints, clips: ((g.animations ?? []) as { name: string }[]).map((a) => a.name) };
-}
+const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
 const goblin = () => structuredClone(catalogueRow('goblin')!) as CatalogueRow;
 
 test('the catalogue is valid, ids are unique, and every roster character has a row', () => {
