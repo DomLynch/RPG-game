@@ -213,6 +213,6 @@ else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
 fi
 if [[ "$previews_ok" != 1 ]]; then
-  echo "release $revision is LIVE (verifier installed), previews not current: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
+  echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1
 fi
