@@ -42,5 +42,8 @@ if (flag === '--unit') {
   const receipts = files.map(f => json(`${dir}/${f}`)).filter(Boolean);
   const trusted = trustedFromShards(receipts, tree, commands, source, own(['run-rows.sh', 'rows-json.mjs', 'rows-lib.mjs']), inspectJobs([...new Set(receipts.map(r => r.job).filter(Boolean))]), treesOf(receipts));
   console.error(`vps-receipts: ${trusted.length} of ${commands.length} rows trusted from ${receipts.length} receipt(s) in ${dir} (deploy tree ${tree.slice(0, 8)})`);
+  const ran = new Set(receipts.flatMap(r => (r.rows || []).filter(x => x.status !== 'trusted').map(x => x.index)));
+  const unassigned = commands.map((_, i) => i + 1).filter(i => !ran.has(i));
+  if (unassigned.length) console.error(`vps-receipts: rows no shard ran (never assigned; they run here unless CI trusts them): ${unassigned.join(',')}`);
   process.stdout.write(trusted.join(','));
 }
