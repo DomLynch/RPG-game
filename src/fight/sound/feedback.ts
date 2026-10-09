@@ -1,16 +1,16 @@
-import type { ClarityEvent, CombatEvent } from './combat.ts';
-import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
-import { MANIFEST, type CueName } from './audio/manifest.ts';
-import { loadSprite } from './audio/sprite.ts';
-import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
-import { createBreath, type Breath } from './audio/breath.ts';
-import { sayPowerWord } from './audio/power-word.ts';
-import { voiceCreature, type CreatureCue } from './audio/creature.ts';
-import { prepareBell } from './audio/bell.ts';
-import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
-import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
-import { armfeelLayers, MAX_LAYERS, OUTPUT_GAIN } from './audio/armfeel-sound.ts';
-import type { Feel } from './armfeel.ts';
+import type { ClarityEvent, CombatEvent } from '../../combat.ts';
+import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './cues.ts';
+import { MANIFEST, type CueName } from '../../audio/manifest.ts';
+import { loadSprite } from '../../audio/sprite.ts';
+import { createArenaAudio, type ArenaFrame } from '../../audio/arena.ts';
+import { createBreath, type Breath } from './breath.ts';
+import { sayPowerWord } from './power-word.ts';
+import { voiceCreature, type CreatureCue } from './creature.ts';
+import { prepareBell } from '../../audio/bell.ts';
+import { loadSpecial, playSpecial, type SpecialCue } from './special.ts';
+import { loadDuel, playDuel, type DuelCue } from './duel.ts';
+import { armfeelLayers, MAX_LAYERS, OUTPUT_GAIN } from './armfeel-sound.ts';
+import type { Feel } from '../../armfeel.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the

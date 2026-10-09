@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
-import { createFeedback } from '../src/feedback.ts';
+import { createFeedback } from '../src/fight/sound/feedback.ts';
 import { BELL_SECONDS, prepareBell } from '../src/audio/bell.ts';
 
 // Minimal Web Audio stand-in: enough surface for unlock/quiet/play to run without a browser.

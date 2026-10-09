@@ -6,7 +6,7 @@ import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src
 import { EXECUTION_BEATS, EXECUTION_VICTIMS, executionAt, executionPick, poseOf, resolveExecution } from '../src/execution.ts';
 import { HAMSTRUNG_VICTIMS, resolveHamstrung } from '../src/hamstrung.ts';
 import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
-import { cuesFor, type DeathPresentation } from '../src/audio/cues.ts';
+import { cuesFor, type DeathPresentation } from '../src/fight/sound/cues.ts';
 import { createFinisherBlood, finisherBloodSources } from '../src/finisher-blood.ts';
 import type { CombatEvent } from '../src/combat.ts';
 import type { Finish } from '../src/duel.ts';
