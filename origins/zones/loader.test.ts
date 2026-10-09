@@ -4,6 +4,7 @@ import test from 'node:test';
 import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
+import { JOIN_M } from '../preview/world-combat.ts';
 import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
@@ -67,4 +68,13 @@ test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zon
 test('Zone 1 world is pinned: the same pieces and solids as before Zone 2', () => {
   const b = frontierBuild(frontierPlan(false, '1')), h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
   assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [170, 'acc9e948fd235ae5', 57, '70bce4a238048f1c']);
+});
+
+// Proof 3 needs a camp where three can really join one player (#1943: up to 3). A creature's home is walkable by construction (mobSpecs places it with stand()), so standing at one is a real spot.
+test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a walkable spot, and the pack is four wolves', () => {
+  const plan = frontierPlan(false, '2'), specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
+  const crowd = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= JOIN_M).length));
+  assert.ok(crowd >= 3, `most creatures within JOIN_M of one home: ${crowd}`);
+  assert.equal(specs.filter((m) => m.spawn === 'reach-wolves').length, 4, 'the wolf pack is four');
+  assert.ok(specs.filter((m) => m.spawn === 'reach-wolves').every((m) => m.id.startsWith('z2:')));
 });
