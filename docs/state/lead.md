@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 ~08:30 (+04) — ROUTING + TIMING RULES (Dom, via the Optimizer and direct)
+**Routing (Dom's ruling, relayed by the Optimizer):** release status, receipts, ETAs, deploy logs and every operational question go to the session titled "COO Task Enabler", not to the Optimizer. The Optimizer gets only scope or acceptance rulings Lead cannot make itself.
+**Timings (Dom, standing):** delivery ETAs are minutes or low single-digit hours, given as a clock time today; never days or weekdays. Each task should ideally take at most 10–15 min; anything longer is split. The three proofs (H, I, Zone 2, many-on-one) are aimed at TODAY by lunch, which supersedes the Sat/Mon/Wed dates in the PLAN entry below.
+**G ab2288cd (08:2x):** concurrency 8; unit suite trusted from HF receipt job 6ac86740; 4 of 5 HF row shards printed a RECEIPT but launch reported "no RECEIPT line" (parser suspected; sent to Deploy, Combat owns the code), so 41 rows ran on the Mac (load 65, VPS idle); row 44 sparring timed out at load 53, re-run asked.
+**Remaining validation:** G Published line; the parser fix in H's tree; H's PR verdicts (#1937, #1939, #1938, #1933).
+
 ## 2026-10-09 ~08:18 (+04) — HANDOFF (Dom: "save your work, /clear"). READ FIRST, then the PLAN entry below. Memory: project_handoff_2026-10-09_0815.
 **LIVE = Release F fc7d448aa** (Published 07:59:51). **Release G is running** on trunk ab2288cd (preflight 08:13:18, load 4.2; #1934 #1927 #1932 #1935, all Auditor MERGE PASS; bar 9 min). After it: Backend reinstalls the writer, the Auditor does G's POST parity, and the numbers go to the Optimizer/COO.
 **Next:** Release H = PROOF 1 passengers (#1937 has MERGE PASS; Combat next-swing tick; World #1936 fixes; #1933). Dom's iPhone check Sat 10-10. I = ?zone= + loader move + the Auditor's zone-packages test (Sat). World Zone 2 Mon 10-12. PROOF 3 Wed 10-14.
