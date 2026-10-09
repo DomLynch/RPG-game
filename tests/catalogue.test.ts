@@ -73,7 +73,7 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { r.finisher.finishers = ['decapitation']; }), 'finisher,timing');   // the picks and their timing rows must agree
   assert.equal(edit((r) => { r.blood = { start: 'red', end: '#000000', amount: 1 }; }), 'blood');
   assert.equal(edit((r) => { r.loot = { table: 'loottable:nothing' }; }), 'loot');
-  assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'legend');
+  assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'look,legend');   // rank looks need the ten ranks too
   assert.equal(edit((r) => { r.render = { scale: 0 }; }), 'render');
   assert.equal(edit((r) => { r.weapon = 'lightsaber'; }), 'weapon');
   assert.equal(edit((r) => { (r as { home: string }).home = 'berserk'; }), 'home');
