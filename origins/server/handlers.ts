@@ -12,6 +12,7 @@ import type { StoryContent } from './story.ts';
 import * as store from './store.ts';
 import { talkPick } from './talk-pick.ts';
 import { shopBuyHandler } from './shop-buy.ts';
+import { gearHandlers } from './gear.ts';
 import { upgradeHandler } from './upgrade.ts';
 
 // `where` asks presence where the account stands (X1: the only source of a player's place); a handler without it treats the player as nowhere.
@@ -70,4 +71,4 @@ export const storyOps = (content: StoryContent | null): Record<string, Handler> 
 export const handlers: Record<string, Handler> = { open, create_character: createCharacter, ...storyOps(null) };
 
 // The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
-export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items), shop_buy: shopBuyHandler(items, items.shops ?? new Map()) });
+export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items), shop_buy: shopBuyHandler(items, items.shops ?? new Map()), ...gearHandlers(items) });
