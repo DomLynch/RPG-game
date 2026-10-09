@@ -15,6 +15,7 @@ import { THROATS } from '../src/audio/creature.ts';
 import { beastRenderScale } from '../src/beast-scale.ts';
 import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
+import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
@@ -23,7 +24,7 @@ import { LOOT_TABLES } from '../origins/region1/content.ts';
 const known = {
   roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
-  weapons: new Set(Object.keys(WEAPONS)), stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)),
+  weapons: new Set(Object.keys(WEAPONS)), stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
 };
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
