@@ -92,7 +92,13 @@ export function frontierPlan(flat = false, zoneId: string = '1'): Frontier {
     }
   }
   const owned = new Set(loadZone(zoneId).world), kept = [...placed.values()].filter((q) => owned.has(q.zone));
-  for (const q of kept) q.links = q.links.filter((l) => owned.has(l.to));
+  // A link this page does not walk leaves nothing behind: its landmark (the post and collider it would draw) goes too, unless a kept link or a spawn stands on it.
+  const spawnAt = new Set(data.registry.regions.get(FRONTIER)!.spawns.map((s) => s.at));
+  for (const q of kept) {
+    q.links = q.links.filter((l) => owned.has(l.to));
+    const used = new Set(q.links.map((l) => l.here));
+    for (const c of Object.values(frZones.get(q.zone)!.connections)) if (!owned.has(c.to) && !used.has(c.here) && !spawnAt.has(c.here)) delete q.landmarks[c.here];
+  }
   zones.push(...kept);
 
   // Signposts: one at every link a walker can reach, naming where it goes; the two ends of the west road name the crossing.
