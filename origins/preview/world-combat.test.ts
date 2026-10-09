@@ -5,6 +5,7 @@ import { MAX_STEPS, ME, createWorldCombat, kindOf } from './world-combat.ts';
 import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
+import { NAKED } from '../../src/gear-stats.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
@@ -114,4 +115,13 @@ test('the card names the primary pair\'s foe (the nearest of the pack), whatever
     run(wc, { x: 0, z: 0, facing: 0 }, 1); return wc.target()?.name;
   };
   assert.equal(card(pack), 'w1'); assert.equal(card([...pack].reverse()), 'w1');
+});
+
+test('the card hands on: with a hero given the health to outlast two wolves one joiner falls first, and the card then names the next foe', () => {
+  const f = fakeMobs([['w1', 1.2], ['w2', 2.4]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+  const kills: string[] = [], names: string[] = [];
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, hero: () => ({ gear: NAKED, level: 1, health: 2000 }) });
+  for (let i = 0; i < 600 && kills.length < 2; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.hp > 0)[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); const n = wc.target()?.name; if (n && names.at(-1) !== n) names.push(n); } if (wc.hero().dead) break; }
+  console.log('DBG', JSON.stringify({ kills, names, dead: wc.hero().dead }));
+  assert.equal(kills[0], 'w1', 'the nearest fell first'); assert.deepEqual(names.slice(0, 2), ['w1', 'w2'], 'the card named w1, then w2 after it fell');
 });
