@@ -70,7 +70,7 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { (r.armour as string[]).push('goblin.Cape'); }), 'armour');
   assert.equal(edit((r) => { r.stats = { archetype: 'nope', levels: [1, 10] }; }), 'stats');
   assert.equal(edit((r) => { r.finisher.cut!.neck = []; }), 'finisher');
-  assert.equal(edit((r) => { r.finisher.finishers = ['decapitation']; }), 'finisher');
+  assert.equal(edit((r) => { r.finisher.finishers = ['decapitation']; }), 'finisher,timing');   // the picks and their timing rows must agree
   assert.equal(edit((r) => { r.blood = { start: 'red', end: '#000000', amount: 1 }; }), 'blood');
   assert.equal(edit((r) => { r.loot = { table: 'loottable:nothing' }; }), 'loot');
   assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'legend');
