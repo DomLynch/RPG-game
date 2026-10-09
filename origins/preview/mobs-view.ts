@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
+import { beastBodyUrl } from '../../src/beast-scale.ts';
 import goblinUrl from '../../src/assets/goblin.glb?url';
 import knightUrl from '../../src/assets/knight.glb?url';
 import pitbornUrl from '../../src/assets/pitborn.glb?url';
@@ -9,8 +10,10 @@ import witchUrl from '../../src/assets/witch.glb?url';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
+import { attackTimeScale, mobClipName, type MobRole } from './mob-clips.ts';
 import { mobVariant } from './mob-looks.ts';
-import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec } from './mobs.ts';
+import { gateWithBound, settleWithin } from '../../src/warm-gate.ts';
+import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
@@ -18,7 +21,7 @@ import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVis
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
 const URLS: Record<string, string> = { goblin: goblinUrl, knight: knightUrl, pitborn: pitbornUrl, witch: witchUrl };   // the wolf is served from WORLD_URLS (public/world), not bundled
 // The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
-const WORLD_URLS: Record<string, string> = { goblin: '/world/goblin.glb', wolf: '/world/wolf.glb' };   // public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters
+const WORLD_URLS: Record<string, string> = { goblin: '/world/goblin.glb', wolf: '/world/wolf.glb', bear: '/world/bear.glb', boar: beastBodyUrl('boar') };   // public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
@@ -26,7 +29,7 @@ const NEAR = 25;   // m: inside it a creature's mixer ticks every frame
 const TWEEN = 6;   // 1/s: how quickly a walk/idle blend and a turn settle
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; mixer?: THREE.AnimationMixer; idle?: THREE.AnimationAction; walk?: THREE.AnimationAction; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; walkW: number; pending: number; skip: number };
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; mixer?: THREE.AnimationMixer; idle?: THREE.AnimationAction; walk?: THREE.AnimationAction; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; walkW: number; pending: number; skip: number; clips: Partial<Record<MobRole, THREE.AnimationAction>>; shot?: { role: MobRole; action: THREE.AnimationAction }; shotW: number; dead: boolean };
 
 function labelSprite(text: string, named: boolean): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96;
@@ -49,24 +52,33 @@ function bangSprite(): THREE.Sprite {
   s.scale.set(0.045, 0.045, 1); return s;
 }
 
+export type MobDrive = { x: number; z: number; facing: number; moving: boolean; lunge?: number; pulse?: number; fall?: number };   // World's combat loop (world-combat.ts) drives a creature while it fights: its position, a procedural lunge / hit pulse / fall (0..1)
 export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
+  clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void;   // before the draw: a name tag under the HUD slides down the view to just below it
   pick(ray: THREE.Ray): MobPick | null;   // the nearest drawn creature the ray passes through (a generous sphere: a thumb is not a pixel)
   find(id: string): MobPick | null;       // a creature by id, where it stands now (null while it is down)
-  nearest(x: number, z: number, within: number): MobPick | null;   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
+  nearest(x: number, z: number, within: number): MobPick | null;
+  within(x: number, z: number, r: number): MobPick[];   // every drawn creature inside r metres
+  play(id: string, role: MobRole, windupMs?: number): number;   // a combat event's clip (attack = Bite / Attack, sped so its contact frame meets the strike at the end of `windupMs`, hit = Hurt / Hit, death = Death, held): plays once over the gait and returns its length in seconds, or 0 when the body has no such clip (or is not loaded yet) and World's procedural lunge / pulse / fall stands in
+  drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
+  warmState(): { kinds: string[]; warmed: string[]; failed: string[] };   // the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
 };
 const RESPAWN = 90;   // s
+const WARM_BOUND_MS = 4000;   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
 const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
   const specs = mobSpecs(frontier, build, previewRows(location.search)), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
-  const blobGeometry = new THREE.CircleGeometry(0.6, 20).rotateX(-Math.PI / 2), blobMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });   // one shared soft-looking shadow under every creature
+  // One soft contact shadow under every creature (they cast no real shadow, for phone perf): a radial gradient that is darkest at the feet and gone before the rim, so no disc edge is ever visible (Dom 2026-10-08: "a circle stand that looks fake").
+  const blobTexture = (() => { const N = 64, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d')!, gr = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2); gr.addColorStop(0, 'rgba(0,0,0,0.5)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, N, N); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const blobGeometry = new THREE.PlaneGeometry(1.5, 1.5).rotateX(-Math.PI / 2), blobMaterial = new THREE.MeshBasicMaterial({ map: blobTexture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let shown: number[] = [];
   const down = new Map<number, number>();   // creature index -> seconds until it is back
@@ -79,10 +91,47 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = false; });
       if (opts.phone) budgetTextures(gltf.scene, FIGHTER_TEXTURE_CAP);
       bodies.set(kind, { scene: gltf.scene, clips: gltf.animations });
-    }).catch((error: unknown) => { bodies.set(kind, 'failed'); console.warn(`${kind} body did not load; capsules stand in`, error); });
+      if (gate) queueWarm(kind, { scene: gltf.scene });
+    }).catch((error: unknown) => { bodies.set(kind, 'failed'); failedKinds.add(kind); console.warn(`${kind} body did not load; capsules stand in`, error); });
   };
 
-  const modelHeight = (m?: THREE.Object3D) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
+  // Warm-up (Combat #1915, Claudecraft idioms; the Metal trace, 2026-10-08: the engage frame is 18 ms, the cost is the FIRST DRAW of a body: its programs link and its textures and geometry upload inside that frame, up to 179 ms).
+  // So a body kind is revealed only after, per kind and off-frame: compileAsync of one probe clone (never the whole scene, which stalls), then its textures through initTexture and its geometries through a 4x4 proxy draw, one unit per frame.
+  // Until the gate opens the creature stays the capsule it already is. On a phone only the kinds near the walker are fetched (memory), so only they are warmed; elsewhere the whole zone's kinds are fetched at entry.
+  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map((x) => x.body))];
+  const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+  let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
+  const pending = new Map<string, { scene: THREE.Object3D }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
+  async function warmKind(kind: string, body: { scene: THREE.Object3D }) {
+    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => x.body === kind)!, look = mobVariant(first.character, first.id);
+    const probe = clone(body.scene); if (look) dressMob(probe, look);
+    const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
+    await renderer.compileAsync(holder, camera, scene);
+    const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
+    probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry); for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
+    for (const t of textures) { renderer.initTexture(t); await frame(); }
+    const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4);
+    try { for (const g of geometries) { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } await frame(); } }
+    finally { target.dispose(); proxy.dispose(); }
+  }
+  const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
+  let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate
+  async function pump() {   // one compileAsync in flight at a time (kept serial to bound the compile load; three 0.186's own compileAsync wait already drops disposed materials, WebGLRenderer.js, so no race to work around); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
+    if (pumping) return; pumping = true;
+    try {
+      await opts.after?.catch(() => {});   // programs are keyed on the scene's environment map: warm only after its final swap (the sky), or every program links twice
+      while (pending.size) {
+        const kind = [...pending.keys()].sort((x, y) => kindDist(x) - kindDist(y))[0]!, body = pending.get(kind)!; pending.delete(kind);
+        const g = await gateWithBound(kind, warmKind(kind, body), WARM_BOUND_MS);
+        warmed.add(kind);   // revealed: warmed, failed or past the bound (logged by the gate)
+        if (g.result === 'late' && !(await settleWithin(kind, g.settled, WARM_BOUND_MS))) { ungated = true; for (const k of pending.keys()) warmed.add(k); pending.clear(); }   // still one compile in flight, but only for one more bound: a compile that never settles must not leave the rest of the zone a capsule (they are revealed ungated, as on trunk, and logged)
+      }
+    } finally { pumping = false; }
+  }
+  const queueWarm = (kind: string, body: { scene: THREE.Object3D }) => { if (ungated) { warmed.add(kind); return; } pending.set(kind, body); void pump(); };
+  const revealed = (kind: string) => !gate || warmed.has(kind);
+
+  const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
     const model = clone(body.scene), look = mobVariant(s.character, s.id);
     model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
@@ -90,6 +139,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     v.mixer = new THREE.AnimationMixer(model);
     const act = (name: string) => { const c = THREE.AnimationClip.findByName(body.clips, name); return c ? v.mixer!.clipAction(c) : undefined; };
     v.idle = act('Idle'); v.walk = act('Walk'); v.idle?.play(); v.walk?.play(); v.walk?.setEffectiveWeight(0);
+    for (const role of ['attack', 'hit', 'death'] as const) {   // the combat clips: played once on an event (play()), the death clip held on its last frame
+      const name = mobClipName(role, body.clips), a = name ? act(name) : undefined;
+      if (a) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; v.clips[role] = a; }
+    }
     v.mixer.setTime(Math.random() * 3);   // not in step with its neighbours
     v.group.add(model); v.group.remove(v.stand); v.model = model;
   }
@@ -99,23 +152,26 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const s = specs[i]!, group = new THREE.Group(), look = mobVariant(s.character, s.id), height = Math.max(1.9, (s.named ? 2.75 : 2.35) * (look?.scale ?? 1));
     const stand = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 4, 10), new THREE.MeshStandardMaterial({ color: look ? look.tint : 0x5a4a3a, roughness: 0.9 }));
     stand.position.y = 0.85;
-    const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height;
+    const label = labelSprite(`${s.name} · Lv ${s.level}`, s.named); label.position.y = height; label.userData.y0 = height;
     const bang = bangSprite(); bang.position.y = label.position.y + 0.55; bang.visible = false;
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.aggro - 0.12, s.aggro, 48), new THREE.MeshBasicMaterial({ color: '#d8c9a8', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
     const blob = new THREE.Mesh(blobGeometry, blobMaterial); blob.position.y = 0.03; blob.scale.setScalar(look?.scale ?? 1);
     group.add(stand, label, bang, blob);
-    v = { group, stand, model: null, ring, bang, label, walkW: 0, pending: 0, skip: i }; views.set(i, v);
+    v = { group, stand, model: null, ring, bang, label, walkW: 0, pending: 0, skip: i, clips: {}, shotW: 0, dead: false }; views.set(i, v);
     root.add(group, ring);
     return v;
   }
 
   let engaged: string | null = null;
+  const driven = new Map<number, MobDrive>();
   return {
     update(dt, hero, hideLabel) {
-      mobs.forEach((m, i) => { mobs[i] = stepMob(m, specs[i]!, hero, dt, stands[i]!); });
-      for (const [i, t] of down) { if (t - dt <= 0) down.delete(i); else down.set(i, t - dt); }
+      lastHero = hero;
+      mobs.forEach((m, i) => { const d = driven.get(i); mobs[i] = d ? { ...m, x: d.x, z: d.z, facing: d.facing, mode: d.moving ? 'wander' : 'aggro' } : stepMob(m, specs[i]!, hero, dt, stands[i]!); });
+      for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); const v = views.get(i); if (v) { v.dead = false; v.shot = undefined; v.shotW = 0; for (const a of Object.values(v.clips)) a?.stop(); } } else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
+      if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
@@ -125,10 +181,12 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
       for (const i of shown) {
         const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
-        if (!v.model && body && body !== 'loading' && body !== 'failed') dress(v, s, body);
+        if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(s.body)) dress(v, s, body);
         v.group.visible = v.ring.visible = !hiddenInFight(s.id, engaged);
-        v.group.position.set(m.x, 0, m.z); v.group.rotation.y = m.facing;
-        v.ring.position.set(m.x, 0.04, m.z);
+        const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
+        const dv = driven.get(i), lunge = v.clips.attack ? 0 : dv?.lunge ?? 0;   // a creature with its Bite / Attack clip does not slide forward as well
+        v.group.position.set(m.x + Math.sin(m.facing) * lunge, gy, m.z + Math.cos(m.facing) * lunge); v.group.rotation.order = 'YXZ'; v.group.rotation.y = m.facing; v.group.rotation.x = v.clips.death ? 0 : (dv?.fall ?? 0) * Math.PI / 2; v.group.scale.setScalar(v.clips.hit ? 1 : dv?.pulse ?? 1);
+        v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
         v.label.visible = s.id !== hideLabel && nearestOf.get(s.name) === i;   // the info card (creature-card.ts) carries this creature's name and level while it is up
@@ -136,10 +194,25 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         if (!v.model) v.stand.position.y = 0.85 + (m.mode === 'wander' ? Math.abs(Math.sin(performance.now() / 220 + i)) * 0.04 : 0);
         if (v.mixer && v.idle && v.walk) {
           v.walkW = THREE.MathUtils.damp(v.walkW, m.mode === 'wander' ? 1 : 0, TWEEN, dt);
-          v.walk.setEffectiveWeight(v.walkW); v.idle.setEffectiveWeight(1 - v.walkW);
+          const shot = v.shot;   // a combat clip fades in over the gait, out again when it ends; a death is held until the creature is back
+          if (shot && !v.dead && !shot.action.isRunning()) v.shot = undefined;
+          v.shotW = THREE.MathUtils.damp(v.shotW, v.shot ? 1 : 0, TWEEN * 3, dt);
+          if (shot) shot.action.setEffectiveWeight(v.shotW);
+          if (!v.shot && shot && v.shotW < 0.01) shot.action.stop();
+          v.walk.setEffectiveWeight(v.walkW * (1 - v.shotW)); v.idle.setEffectiveWeight((1 - v.walkW) * (1 - v.shotW));
           if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; v.mixer.update(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)
           else { v.pending += dt; if (++v.skip % 4 === 0) { v.mixer.update(v.pending); v.pending = 0; } }
         }
+      }
+    },
+    clampLabels(camera, floorPx, heightPx) {
+      const ceiling = labelCeilingNdc(floorPx, heightPx), at = new THREE.Vector3();
+      for (const v of views.values()) {
+        const y0 = v.label.userData.y0 as number; v.label.position.set(0, y0, 0);   // back home every frame, then clamped from there
+        if (!v.label.visible || !v.group.visible) continue;
+        v.group.updateMatrixWorld(true); v.label.getWorldPosition(at).project(camera);
+        if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;   // behind the camera, or already clear of the HUD
+        at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at);
       }
     },
     pick(ray) {
@@ -158,12 +231,23 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= within && (!best || d < best.dist)) best = { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }; }
       return best;
     },
+    within(x, z, r) { const out: MobPick[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }); } return out; },
+    play(id, role, windupMs) {
+      const i = specs.findIndex((sp) => sp.id === id), v = i < 0 ? undefined : views.get(i), a = v?.clips[role];
+      if (!v || !a || v.dead) return 0;
+      if (v.shot && v.shot.action !== a) v.shot.action.stop();
+      const clip = a.getClip(), speed = role === 'attack' && windupMs ? attackTimeScale(clip.name, clip.duration, windupMs) : 1;
+      a.reset().setEffectiveWeight(v.shotW).setEffectiveTimeScale(speed).play(); v.shot = { role, action: a }; v.dead = role === 'death';
+      return clip.duration / speed;
+    },
+    drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else { driven.delete(i); const v = views.get(i); if (v && !v.dead) v.shot = undefined; } },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
+    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (WORLD_URLS[k] ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
-      mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
+      mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, clip: views.get(i)?.shot?.role ?? null, clipT: +(views.get(i)?.shot?.action.time ?? 0).toFixed(2), height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
     }),
   };
 }

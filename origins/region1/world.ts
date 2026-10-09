@@ -56,7 +56,7 @@ const FRONTIER = {
     density: { npcs: 0.05, props: 0.4, creatures: 0.25 },
     spawns: { respawnSeconds: 300 },
     ambience: { weather: 'dust', sound: 'wind' }, // the look preset is set zone by zone (frontier-haze)
-    terrain: { biome: 'ash-waste', ground: 'ash' },
+    terrain: { biome: 'ash-waste', ground: 'ash', relief: 1.5, hillScale: 40 }, // gentle hills in the open ground (origins/world/relief.ts); every building, prop and road keeps a flat pad
   },
   zones: {
     'east-road': {
@@ -66,11 +66,13 @@ const FRONTIER = {
         milestone: { u: 0.5, v: 0.3, facing: 0 },
         watchtower: { u: 0.82, v: 0.55, facing: -90 },
         'fields-turn': { u: 0, v: 0.7, facing: 90 },
+        'reach-turn': { u: 1, v: 0.2, facing: -90 },   // the track to the Ash Reach (Zone 2)
         crossroads: { u: 0.5, v: 1, facing: 0 },
       },
       connections: {
         ferry: { to: 'ferry-landing', kind: 'road', here: 'crossroads', there: 'road-end' },
         fields: { to: 'cinder-fields', kind: 'road', here: 'fields-turn', there: 'road-gate' },
+        reach: { to: 'ash-reach', kind: 'road', here: 'reach-turn', there: 'reach-gate' },
       },
       difficulty: { levelMin: 11, levelMax: 12 },
       ambience: { preset: 'frontier-haze' },
@@ -143,6 +145,18 @@ const FRONTIER = {
       spawns: { boss: 'crypt' },
       density: { creatures: 0.15 },
       difficulty: { levelMin: 13, levelMax: 14 },
+      ambience: { preset: 'frontier-haze' },
+    },
+    // The Ash Reach (Zone 2, zone-runtime step 4): one open zone off the east road, its entry gate and a cairn at the middle. Its creatures are origins/zones/zone2/spawns.ts.
+    'ash-reach': {
+      zoneSize: { width: 100, depth: 100 },
+      layout: {
+        'reach-gate': { u: 0, v: 0.5, facing: 90 },
+        'reach-cairn': { u: 0.4, v: 0.5, facing: 0 },
+        'reach-ruin': { u: 0.8, v: 0.75, facing: 0 },
+      },
+      connections: { road: { to: 'east-road', kind: 'road', here: 'reach-gate', there: 'reach-turn' } },
+      density: { creatures: 0.3 },
       ambience: { preset: 'frontier-haze' },
     },
     // Cinder Hold: a village (living-world §12) beside the Cinder Fields. No creatures inside the town.

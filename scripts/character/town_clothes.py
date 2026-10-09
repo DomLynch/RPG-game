@@ -2,8 +2,8 @@
 # on ONE small swatch atlas, so a townsperson is the world body + a choice of pieces + a tint (origins/preview/mob-looks.ts dressing). Procedural, no downloads.
 # Each garment is its own skinned mesh node named `Cloth_<piece>`; the game shows or hides pieces per outfit. Weights are explicit per ring (nearest-body-vertex
 # transfer tore the robe between the legs in Walk): the skirt blends pelvis into the thigh on its own side, a sleeve blends upperarm into lowerarm at the elbow.
-#   blender -b -P scripts/character/town_clothes.py -- <warrior-world.glb> <out.glb> [atlas.png] [pieces: robe,sleeves,belt,cap]   (TOWN_FULL=1: body + clips kept, for renders)
-# Budget per piece (tris): robe <= 260, sleeves <= 140, belt <= 60, cap <= 80; the script prints each count and fails when one is over.
+#   blender -b -P scripts/character/town_clothes.py -- <warrior-world.glb> <out.glb> [atlas.png] [pieces: robe,tunic,sleeves,belt,cap,apron,hat,hood]   (TOWN_FULL=1: body + clips kept, for renders)
+# Budget per piece (tris): robe <= 260, tunic <= 200, sleeves <= 140, belt <= 60, cap <= 80, apron <= 80, hat <= 120, hood <= 100; the script prints each count and fails when one is over.
 import math
 import os
 import sys
@@ -15,8 +15,8 @@ from mathutils import Euler, Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, OUT = argv[0], argv[1]
 ATLAS = argv[2] if len(argv) > 2 else os.path.splitext(OUT)[0] + "-atlas.png"
-PIECES = (argv[3] if len(argv) > 3 else "robe,sleeves,belt,cap").split(",")
-BUDGET = {"robe": 260, "sleeves": 140, "belt": 60, "cap": 80}
+PIECES = (argv[3] if len(argv) > 3 else "robe,tunic,sleeves,belt,cap,apron,hat,hood").split(",")
+BUDGET = {"robe": 260, "tunic": 200, "sleeves": 140, "belt": 60, "cap": 80, "apron": 80, "hat": 120, "hood": 100}
 
 # 4x4 swatches, near-neutral so the runtime tint (mob-looks) reads: (name, rgb)
 SWATCHES = [
@@ -123,22 +123,26 @@ def robe_weights(co):
     return {"pelvis": 1 - t, "thigh_l": t * left, "thigh_r": t * (1 - left)}
 
 
-def robe(bm, uv):
-    """Neck-to-ankle robe: rings follow the body's own section (padded), a flare to the hem, open at neck and hem."""
-    sides = 12
-    levels = [(1.47, .035), (1.38, .07), (1.22, .06), (1.05, .05), (.86, .09), (.62, .15), (.36, .16), (.1, .18)]
-    rings = []
-    for z, pad in levels:
-        hx, hy, cy = section(z)
-        hx = .13 if z >= 1.45 else (min(max(hx, .17), .24) if z >= 1.3 else max(hx, .21))   # a close collar, shoulders no wider than the body's, a straight hang below
-        rings.append(ring(bm, z, hx, max(hy, .1), cy, sides, pad))
-        for v in rings[-1]:
-            WEIGHTS[v.co.to_tuple()] = robe_weights(v.co)
-    faces = tube(bm, rings)
-    paint(bm, uv, faces[: sides * 3], "cloth_main")
-    paint(bm, uv, faces[sides * 3:], "cloth_main")
-    paint(bm, uv, faces[-sides:], "cloth_trim")   # a trimmed hem
-    paint(bm, uv, faces[:sides], "cloth_trim")   # and collar
+def garment(levels):
+    """A neck-to-hem shell: rings follow the body's own section (padded), open at neck and hem. `levels` = [(z, pad)] from the collar down."""
+    def make(bm, uv):
+        sides = 12
+        rings = []
+        for z, pad in levels:
+            hx, hy, cy = section(z)
+            hx = .13 if z >= 1.45 else (min(max(hx, .17), .24) if z >= 1.3 else max(hx, .21))   # a close collar, shoulders no wider than the body's, a straight hang below
+            rings.append(ring(bm, z, hx, max(hy, .1), cy, sides, pad))
+            for v in rings[-1]:
+                WEIGHTS[v.co.to_tuple()] = robe_weights(v.co)
+        faces = tube(bm, rings)
+        paint(bm, uv, faces, "cloth_main")
+        paint(bm, uv, faces[-sides:], "cloth_trim")   # a trimmed hem
+        paint(bm, uv, faces[:sides], "cloth_trim")   # and collar
+    return make
+
+
+robe = garment([(1.47, .035), (1.38, .07), (1.22, .06), (1.05, .05), (.86, .09), (.62, .15), (.36, .16), (.1, .18)])
+tunic = garment([(1.47, .035), (1.38, .07), (1.22, .06), (1.05, .05), (.86, .09), (.62, .11)])   # to the knee
 
 
 def sleeves(bm, uv):
@@ -183,7 +187,68 @@ def cap(bm, uv):
     paint(bm, uv, faces[:sides], "cloth_dark")
 
 
-MAKERS = {"robe": robe, "sleeves": sleeves, "belt": belt, "cap": cap}
+def apron(bm, uv):
+    """A work apron over the tunic: a strip following the body's front from the chest to the knee, a leather tie round the waist."""
+    levels = [1.22, 1.0, .8, .62, .46]
+    rings = []
+    for z in levels:
+        hx, hy, cy = section(z)
+        hx, hy = max(hx, .2), max(hy, .1)
+        span = 50 if z >= .8 else 42   # degrees either side of the front: a little narrower toward the hem
+        ring_ = []
+        for k in range(5):
+            a = math.radians(-90 + (k - 2) * span / 2)
+            v = bm.verts.new((math.cos(a) * (hx + .125), cy + math.sin(a) * (hy + .125), z))   # clear of the tunic's own shell (pad up to .09) so the two never z-fight
+            WEIGHTS[v.co.to_tuple()] = robe_weights(v.co)
+            ring_.append(v)
+        rings.append(ring_)
+    faces = []
+    for r0, r1 in zip(rings, rings[1:]):
+        faces += [bm.faces.new((r0[i], r0[i + 1], r1[i + 1], r1[i])) for i in range(4)]
+    paint(bm, uv, faces, "cloth_light")
+    paint(bm, uv, faces[-4:], "cloth_trim")
+
+
+def hat(bm, uv):
+    """A wide-brimmed hat: a flat brim and a tapering crown."""
+    h0, _ = bone("Head")
+    c = h0 + Vector((0, 0, .1))
+    sides = 12
+    brim = [(.0, .27), (.0, .13)]
+    crown = [(.0, .125), (.1, .115), (.17, .08)]
+    rings = []
+    for z, r in brim + crown:
+        rings.append([bm.verts.new((c.x + math.cos(2 * math.pi * i / sides) * r, c.y + math.sin(2 * math.pi * i / sides) * r, c.z + z)) for i in range(sides)])
+        for v in rings[-1]:
+            WEIGHTS[v.co.to_tuple()] = {"Head": 1.0}
+    top = bm.faces.new(list(reversed(rings[-1])))
+    faces = tube(bm, rings[:2]) + tube(bm, rings[2:])
+    paint(bm, uv, faces[:sides], "leather")   # the brim
+    paint(bm, uv, faces[sides:] + [top], "felt")
+    paint(bm, uv, faces[sides:sides * 2], "cloth_dark")   # a hat band at the crown's foot
+
+
+def hood(bm, uv):
+    """A cowl: a shell over the back and sides of the head and round the neck, open at the face."""
+    h0, _ = bone("Head")
+    c = h0 + Vector((0, 0, .03))
+    rings = []
+    for z, r, rz in ((-.17, .13, 0), (-.05, .15, 0), (.07, .145, 0), (.17, .1, 0), (.22, .04, 0)):
+        pts = []
+        for k in range(8):
+            a = math.radians(90 + 25 + k * (310 / 7) - 0)   # from the face's right round the back to its left, leaving the front open
+            v = bm.verts.new((c.x + math.cos(a) * r, c.y + math.sin(a) * r * 1.08, c.z + z))
+            WEIGHTS[v.co.to_tuple()] = {"Head": 1.0} if z > -.1 else {"Head": .5, "neck_01": .5}
+            pts.append(v)
+        rings.append(pts)
+    faces = []
+    for r0, r1 in zip(rings, rings[1:]):
+        faces += [bm.faces.new((r0[i], r0[i + 1], r1[i + 1], r1[i])) for i in range(7)]
+    paint(bm, uv, faces, "cloth_main")
+    paint(bm, uv, faces[:7], "cloth_trim")
+
+
+MAKERS = {"robe": robe, "tunic": tunic, "sleeves": sleeves, "belt": belt, "cap": cap, "apron": apron, "hat": hat, "hood": hood}
 make_atlas()
 mat = bpy.data.materials.new("TownClothes")
 mat.use_nodes = True

@@ -10,6 +10,7 @@ import { fakeWhere } from '../presence/fixtures.ts';
 import { createWriter } from './server.ts';
 import { handlers } from './handlers.ts';
 import { itemContent, itemOps } from './content-ops.ts';
+import { validateShopList } from '../shops/shop.ts';
 
 const region1 = loadEncounterContent();
 const ACCOUNT = '11111111-1111-4111-8111-111111111111';
@@ -63,4 +64,16 @@ test('the writer entry point serves the item ops from the loaded Region 1 conten
   assert.match(src, /import \{ itemOps \} from '\.\.\/origins\/server\/content-ops\.ts'/, 'and itemOps is imported (a call without its import is a boot failure)');
   assert.match(src, /import \{ loadEncounterContent \} from '\.\.\/origins\/encounters\/encounters\.ts'/);
   assert.doesNotMatch(src, /\.\.\.handlers\b/, 'the bare base ops would drop consume and apply_upgrade');
+});
+
+test('Region 1 ships a shop (Dom 12:5x: live, not a 501): every list validates against Region 1 items and shop_buy is served', () => {
+  assert.ok(region1.ok);
+  const content = itemContent(region1.value);
+  assert.ok(content.shops && content.shops.size >= 1, 'at least one shop');
+  for (const [service, list] of content.shops) {
+    assert.match(service, /^service:[a-z0-9-]+$/);
+    assert.deepEqual(validateShopList(list, (id) => content.lookup(id as never) !== undefined), [], `${service} validates`);
+    for (const row of list.rows) if (content.lookup(row.item as never)?.stack === 1) assert.equal(row.max >= 1 && row.minLevel !== undefined, true, `${row.item}: a single-copy piece carries a level gate`);
+  }
+  assert.ok(typeof itemOps(region1).shop_buy === 'function');
 });
