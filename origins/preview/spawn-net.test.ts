@@ -1,6 +1,7 @@
 // The page's spawn client (spawn-net.ts) against the REAL writer handlers (createWriter + worldSpawnOps) over HTTP, with a stateful stand-in for migration 202610080014: one token per
 // instance per account, at most 4 open, a kill consumes its token once and must clear the time-to-kill floor from ITS OWN issue time. The real-Postgres proof of the same rules is
 // scripts/origins-spawns-check.mjs (#1949); this one proves the page drives them: three creatures on one player = three engages, three kill reports, the 5th engage refused.
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -10,7 +11,7 @@ import { fakeWhere } from '../presence/fixtures.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, zone1Spawns } from '../server/world-spawns.ts';
-import { spawnTracker, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
+import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -118,4 +119,67 @@ test('touch: a hit touches the token at most every TOUCH_EVERY_MS; tick touches 
     assert.deepEqual(await none.engaged(ids[1]!), { offline: 'no-character' });
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 1);
   } finally { await w.close(); }
+});
+
+test('onCombatEvent: FightStarted (or, until #1943, the creature\'s first move / the first blow) engages once; his hits count per creature; a wander-past or another player\'s event engages nothing; Evaded drops', () => {
+  const log: string[] = [];
+  const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [] };
+  const on = onCombatEvent(t, 'me');
+  on({ type: 'FightStarted', creature: 'wolves-1', player: 'me' });
+  on({ type: 'FightStarted', creature: 'wolves-9', player: 'someone-else' });
+  on({ type: 'Telegraph', id: 'wolves-2' });
+  on({ type: 'Telegraph', id: 'me' });
+  on({ type: 'Hit', attacker: 'me', victim: 'wolves-3' });
+  on({ type: 'Hit', attacker: 'wolves-4', victim: 'me' });
+  on({ type: 'Blocked', attacker: 'me', victim: 'wolves-5' });
+  on({ type: 'Evaded', id: 'wolves-2' });
+  assert.deepEqual(log, ['engage wolves-1', 'engage wolves-2', 'engage wolves-3', 'hit wolves-3', 'engage wolves-4', 'evade wolves-2']);
+});
+
+test('FightStarted twice for one creature (it left reach and came back) = ONE engage on its open token; after Evaded a new FightStarted engages again', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base }), on = onCombatEvent(t, 'me');
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    const first = await t.engaged(ids[0]!);
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    assert.equal(await t.engaged(ids[0]!), first, 'the same open engage');
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 1, 'one request to the server');
+    on({ type: 'Evaded', id: ids[0]! });
+    assert.deepEqual(t.open(), []);
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    await t.engaged(ids[0]!);
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a fresh fight after Evaded engages again (the server returns its still-open token)');
+  } finally { await w.close(); }
+});
+
+test('killed BEFORE the killing Hit is delivered (any event order): the late Hit / FightStarted opens no new token; after SPENT_MS a respawned creature engages again', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base }), on = onCombatEvent(t, 'me');
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    await t.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) on({ type: 'Hit', attacker: 'me', victim: ids[0]! });
+    clock.ms += 60_000;
+    assert.equal(killedOf(await t.killed(ids[0]!))?.result, 'killed');
+    on({ type: 'Hit', attacker: 'me', victim: ids[0]! });   // the killing blow, delivered late
+    on({ type: 'Hit', attacker: ids[0]!, victim: 'me' });
+    on({ type: 'Telegraph', id: ids[0]! });
+    assert.deepEqual(await t.engaged(ids[0]!), { offline: 'spent' });
+    assert.deepEqual(t.open(), [], 'no 4th token held');
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 1, 'no engage request after the kill');
+    clock.ms += SPENT_MS;
+    // past SPENT_MS the page asks again (the server answers by its own respawn clock)
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    await t.engaged(ids[0]!);   // the same request (the open engage), awaited
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a respawned creature is engaged again');
+  } finally { await w.close(); }
+});
+
+test('the page frame drives the tracker: main.ts calls spawnNet.tick() in the same per-frame block as wc.update (an open token is touched in a long fight), and onEvent is wired to the tracker', () => {
+  const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
+  const frame = main.split('\n').find((l) => l.includes('wc.update(dt'));
+  assert.ok(frame, 'the walk loop steps Zone 1 combat');
+  assert.match(frame!, /spawnNet\.tick\(\)/, 'the same frame ticks the engage client');
+  assert.match(main, /onEvent: onCombatEvent\(spawnNet, ME\)/, 'combat events reach the tracker');
 });
