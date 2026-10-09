@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 17:20 (+04) — RELEASE K LIVE 5719c9f36. READ FIRST
+**LIVE = K 5719c9f36** (my curl 17:20; /zone1/ index-CQs-LCoZ.js; all pages 200) = J4b + #2005/#2006 (Zone 1's fight loop is in src/fight; its own creature-duel path is deleted) + #1833/#1837/#1997 + #2003. Row 27 was rerun alone after a SIGSTOP ceiling kill.
+**Now:** Backend writer reinstall at 5719c9f36 → Dom sign-in + kill → read-back. Then #2013 (pooled DB, draft) → its reinstall → the COO's quiet window → production 100-account run.
+**Release L GO'd** (merge only PRs PASSed on their current head): #1995 → #2001 → #2014 → #2012 → #2004 → #2007 → #2010 → #2011 → #2015 → #2009 → #2008 → #2016 → #1992 → #1967 → #2002 → #1996. Deploy's pipeline-inversion PR (Dom: flags DELETED; the Mac-only list is the only config; first log line "N trusted / M HF / P VPS / Q Mac", refuse if Q > 8) goes first if PASSed; the next release's first line is Dom's receipt.
+**Effects plan (Dom: universal engine, MOVE not copy):** P1 contact effects (Combat, stacked on #2014) → P2 Zone 1 per pair → P3 finisher ceremony via engine HINTS → P4 specials. Every effects PR: git rename, old path gone, the Pit imports from src/fight in the same PR, a duplicate-sibling lint. Words banned: building / copy / the Pit's / missing compared with the Pit.
+**Other:** #2016 K7 exit test (World); #2012 tsc ratchet (Lead 2nd PASS); K8 s2 / K10 s2 paused (subscribe to P2); Characters K11 s2 next; Backend: node-safe src/fight door plan after #2013.
+
 ## 2026-10-09 16:50 (+04) — Release K (J4b + Zone 1 on the shared engine) RUNNING. READ FIRST
 **LIVE = J4a 9f4937e38** (my curl 16:47). **Running:** K launched 16:47:37 (deploy-5719c9f3.log). Trunk = 5719c9f36 = J4b (8ba8e2e56: #1980 #1982 #1998 #1979 #1981 #1991 #1989 #1986) + #2005 K2b/K2c-1 + #2006 K2d @02123ab46 + #1833 → #1837 → #1997 (the first open creates a character) + #2003. Unit job 6ac8e08b… 3106/0 on tree e985d77cd (I checked = tree of 5719c9f36); /zone1/ smoke on the VPS OK; Auditor delta PASS #2006 @02123ab46. Full 52 Mac rows at width 4 (governor → 2 above compressor 6 GB). J4b run 2 stopped pre-switch (folded into K). Fallback if K rows fail: publish J4b alone at 8ba8e2e56.
 **After K:** Backend writer reinstall at 5719c9f36 → Dom sign-in + kill receipt. Then "Zone 1 on the shared engine" may be reported (K2d live). Next batch: Web gear stack + #2001 (rebasing onto release-k, test:all owed), #1992, #1967, #2002, #2004 (K8 s1) → #2007 → #2010 → #2011 → #2009, #2008 (K10 s1), #1996.
