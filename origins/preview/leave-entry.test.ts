@@ -24,7 +24,7 @@ test('the Origins duel menu has a Leave the Pit entry that closes the menu and l
 
 test('bind() uses it, and the preview page keeps the game\'s nav visible in the duel', () => {
   const src = readFileSync(new URL('./pit-duel.ts', import.meta.url), 'utf8'), html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
-  assert.match(src, /addLeaveEntry\(element\('app-nav'\), \(\) => journal!\.close\(\), leave\)/);
+  assert.match(src, /addLeaveEntry\(element\('app-nav'\), \(\) => journal!\.close\(\), leave, hostBack\)/);
   assert.doesNotMatch(html, /#duel #app-nav[^{]*\{[^}]*display: none/, 'the nav that carries the exit is not hidden');
   assert.match(html, /#duel\.world #journal[^{]*\{[^}]*pointer-events: auto/, 'the world layer is pointer-events none: the menu inside it must take taps, or the exit cannot be pressed (browser run, PR #1835)');
 });
@@ -38,4 +38,17 @@ test('the menu\'s first entry is "Arena / Pit", which goes to /arena/ once howev
   addArenaEntry(nav, () => {}); assert.equal(made.length, 2, 'bound again: no third entry');
   const src = readFileSync(new URL('./pit-duel.ts', import.meta.url), 'utf8');
   assert.match(src, /addArenaEntry\(element\('app-nav'\), \(\) => location\.assign\('\/arena\/'\)\)/, 'bind() sends it to /arena/');
+});
+
+// Lead 2026-10-09 (Dom: "Pit" appears only in the Pit client): a zone hosts the engine's gear sheet in its own words. The labels come from the host, never hard-coded in the sheet.
+test('a zone-hosted gear sheet says Gear and Back to <zone>, and shows no Pit or Arena text', () => {
+  const { nav, made } = fakeNav();
+  const exit = addLeaveEntry(nav, () => {}, () => {}, 'Back to Zone 1') as unknown as (typeof made)[number];
+  assert.equal(exit.textContent, 'Back to Zone 1'); assert.equal(exit.id, 'nav-pit', 'same entry, the zone\'s words');
+  const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8'), duel = read('./pit-duel.ts'), main = read('./main.ts'), mount = read('./gear-mount.ts'), html = read('./index.html');
+  assert.match(duel, /element\('nav-gear'\)\.textContent = 'Gear'/, 'the tab reads Gear in a zone');
+  assert.match(main, /enterWorld\(leaveFight, \{ back: `Back to \$\{frontier!\.name\}` \}\)/); assert.match(main, /duel\.enterWorld\(leaveFight, \{ back: `Back to \$\{frontier\.name\}` \}\)/);
+  const emptyPack = /emptyPack: '([^']*)'/.exec(mount)?.[1] ?? 'Win gear in the arena.';
+  assert.doesNotMatch(emptyPack, /pit|arena/i, 'the zone\'s empty rack line');
+  assert.match(html, /#duel\.gearing #nav-arena, #duel\.gearing #nav-arena-page \{ display: none !important; \}/, 'the Arena entries stay out of the sheet while it is up');
 });

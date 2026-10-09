@@ -13,6 +13,7 @@ type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; g
 export type GearSheetDeps = {
   element: <T extends HTMLElement = HTMLElement>(id: string) => T; journal: HTMLElement; canvas: HTMLElement;
   profile: () => { loot?: Loot }; persist: () => void; view: () => View; weapon: () => string;
+  emptyPack?: string;   // the empty rack's line: a host that is not the Pit says its own words
   act?: (op: GearOp) => boolean;   // a signed-in character's wear / stow goes to the server (gear-ledger.ts stepsFor): true = handled; false or absent = the local ledger (a guest, the Pit today)
 };
 export function createGearSheet(d: GearSheetDeps) {
@@ -62,7 +63,7 @@ export function createGearSheet(d: GearSheetDeps) {
     const pack = Array.from({ length: PACK.total }, (_, i) => {
       const li = document.createElement('li'), id = loot.pack?.[i];
       if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
-      if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = 'Nothing stored. Win gear in the arena.'; return li; }
+      if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = d.emptyPack ?? 'Nothing stored. Win gear in the arena.'; return li; }
       const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
       li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, d.profile().loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
       button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
