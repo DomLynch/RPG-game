@@ -139,11 +139,12 @@ test('preview wins sit on top of the saved career, counted as preview CP; offlin
 
 test('the save line is neutral until the read answers, then the real career or the offline line', async () => {
   assert.equal(saveLine(CHECKING), 'Checking saved progress…');
-  for (const reason of ['no-session', 'http-403', 'timeout', 'network', 'bad-reply', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Not signed in: progress isn’t saved', reason);
+  for (const reason of ['no-session', 'http-401', 'http-403', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Not signed in: progress isn’t saved', reason);
   const { f } = recorder(() => new Promise(() => {}));
   const answered = await openWith('tok', { fetch: f, timeoutMs: 20 });
   if (!isOffline(answered)) return assert.fail('a timeout is offline');
-  assert.equal(saveLine(answered), 'Not signed in: progress isn’t saved', 'a timeout ends the checking line');
+  assert.equal(saveLine(answered), 'Not saving: offline — progress isn’t being saved', 'a timeout ends the checking line, and says offline, not signed out');
+  for (const reason of ['network', 'bad-reply', 'http-500', 'http-502']) assert.equal(saveLine({ offline: reason }), 'Not saving: offline — progress isn’t being saved', reason);
   assert.notEqual(saveLine(answered), saveLine(CHECKING));
 });
 

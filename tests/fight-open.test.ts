@@ -2,7 +2,8 @@
 // character), a refusal is final, and a failure is not kept.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openAccount, openCharacter } from '../src/fight/open.ts';
+import { characterFor, openAccount, openCharacter } from '../src/fight/open.ts';
+import { spawnTracker } from '../origins/preview/spawn-net.ts';
 
 const token = () => ({ getItem: () => JSON.stringify({ access_token: 'tok', expires_at: Date.now() / 1000 + 3600 }) });
 const ok = (id = 'pc:1') => new Response(JSON.stringify({ ok: true, result: { characters: [{ id, name: 'Wanderer' }] } }), { status: 200 });
@@ -46,4 +47,26 @@ test('one request per storage: every caller shares the answer; a failure is not 
   const guest = scripted(async () => ok());
   assert.equal(await openCharacter({ storage: null, search: '', fetch: guest.f }), null);
   assert.equal(guest.calls(), 0);
+});
+
+test('the first open times out, the second succeeds, and then the kill is reported', async () => {
+  const seen: string[] = []; let opens = 0;
+  const f = (async (url: string) => {
+    const op = String(url).split('/').pop()!; seen.push(op);
+    if (op === 'open') return ++opens === 1 ? new Promise<Response>(() => {}) : ok('pc:77');
+    if (op === 'engage') return new Response(JSON.stringify({ ok: true, result: { token: 'T', instance: 'z1:wolf:1', generation: 1, kind: 'wolf', level: 1, hp: 10, expiresAt: '2026-10-09T20:00:00Z' } }), { status: 200 });
+    if (op === 'kill_report') return new Response(JSON.stringify({ ok: true, result: { result: 'killed', instance: 'z1:wolf:1', respawnAt: null, loot: [], cp: 5, bronze: 3 } }), { status: 200 });
+    return new Response('{}', { status: 404 });
+  }) as unknown as typeof fetch;
+  const storage = token(); let characterId: string | null = null;
+  const deps = { storage, search: '', fetch: f, retries: 0, timeoutMs: 20 };
+  assert.equal(await openCharacter(deps), null, 'the page-load open timed out: no character id');
+  const tracker = spawnTracker({ token: () => 'tok', character: characterFor(deps, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), fetch: f, timeoutMs: 200 });
+  const engaged = await tracker.engaged('z1:wolf:1');
+  assert.ok(!('offline' in engaged), 'the engage re-asked the door, found the character and went through');
+  tracker.hit('z1:wolf:1');
+  const killed = await tracker.killed('z1:wolf:1');
+  assert.ok(!('offline' in killed));
+  assert.equal(characterId, 'pc:77');
+  assert.deepEqual(seen, ['open', 'open', 'engage', 'kill_report']);
 });
