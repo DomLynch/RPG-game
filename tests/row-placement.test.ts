@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { MAC_ENFORCE, MAC_MAX, MAC_ONLY, SLOW_ON_HF, VPS_ROWS, placementLine } from '../scripts/lib/row-placement.mjs';
+import { MAC_ENFORCE, MAC_MAX, MAC_ONLY, SLOW_ON_HF, T4_FUNDED, VPS_ROWS, placementLine, wallJobs } from '../scripts/lib/row-placement.mjs';
 import { coverageGaps, SLOW_ROWS } from '../scripts/lib/vps-receipts.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -10,7 +10,7 @@ const source = (path: string) => (existsSync(path) ? readFileSync(path, 'utf8') 
 test('the Mac-only list is the rows no Hugging Face job may vouch for, minus the VPS rows, and fits MAC_MAX (it cannot drift from the code)', () => {
   const computed = coverageGaps([], commands, source).macOnly.filter((row: number) => !VPS_ROWS.includes(row));
   assert.deepEqual(MAC_ONLY.map(entry => entry.row), computed);
-  assert.ok(MAC_ONLY.length <= MAC_MAX);
+  assert.ok(MAC_ONLY.length + SLOW_ON_HF.length <= MAC_MAX);
   for (const entry of MAC_ONLY) assert.ok(entry.why, `row ${entry.row} needs a reason`);
 });
 
@@ -24,8 +24,14 @@ test('the first line counts trusted / HF / VPS / Mac, and an over-limit Mac list
   const ok = placementLine({ total: 52, ci: [1], hf: [3, 6], mac: [2, 4] });
   assert.match(ok.text, /^Release rows: 52 total: 3 trusted \/ 2 HF \(3,6\) \/ 0 VPS \/ 2 Mac \(2,4\)/);
   assert.equal(ok.refuse, false);
-  const many = placementLine({ total: 52, ci: [], hf: [], mac: Array.from({ length: 12 }, (_, i) => i + 1) });
+  const many = placementLine({ total: 52, ci: [], hf: [], mac: Array.from({ length: 20 }, (_, i) => i + 1) });
   assert.equal(many.refuse, true);
   assert.equal(many.enforce, MAC_ENFORCE);
-  assert.match(many.warning, /Mac rows 12 > MAC_MAX 8: rows not on the Mac-only list: 1,3,5,6,7,8,9,10,11,12/);
+  assert.match(many.warning, /Mac rows 20 > MAC_MAX 16: rows not on the Mac-only list: 1,3,6,8,10,11,12,13,14,15,17,18,19,20/);
+});
+
+test('wall rows are packed four to a t4-medium job; nothing launches until T4_FUNDED is turned on by a reviewed PR', () => {
+  assert.deepEqual(wallJobs([1, 3, 6, 8, 14, 15]), [[1, 3, 6, 8], [14, 15]]);
+  assert.deepEqual(wallJobs([]), []);
+  assert.equal(T4_FUNDED, false);
 });

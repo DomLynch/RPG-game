@@ -11,7 +11,11 @@ printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-vps.sh
-trap 'rm -f "$DEPLOY_LOCK"; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+# Nothing is left running (Dom 2026-10-09): on ANY exit, signal included, cancel every Hugging Face job this release launched and log the count; a job still running is a red line.
+hf_cleanup() { trap - EXIT INT TERM; node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
+trap 'hf_cleanup; rm -f "$DEPLOY_LOCK"; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+trap 'exit 130' INT
+trap 'exit 143' TERM
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
 node scripts/check-account-config.mjs

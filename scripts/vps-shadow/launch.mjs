@@ -4,7 +4,7 @@
 // Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, jobCommand } from '../lib/vps-receipts.mjs';
 
@@ -42,7 +42,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     } else {
       const args = hfArgs(cmd, a, b, c, process.argv[6]);
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
-      else { const r = spawnSync('hf', args, { encoding: 'utf8', timeout: 60_000 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || ''); process.exit(r.status ?? 1); }
+      else {
+        const r = spawnSync('hf', args, { encoding: 'utf8', timeout: 60_000 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
+        // Every job started here goes in the ledger scripts/hf-cleanup.mjs reads at the end of the release (id and the job's own --timeout in seconds).
+        const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1], timeout = /^(\d+)m$/.exec(args[args.indexOf('--timeout') + 1] || '')?.[1];
+        if (id) { const dir = process.env.HF_LEDGER_DIR || 'artifacts/hf-jobs'; mkdirSync(dir, { recursive: true }); appendFileSync(`${dir}/${b}.ledger`, `${id} ${Number(timeout || 0) * 60}\n`); }
+        process.exit(r.status ?? 1);
+      }
     }
   } catch (e) { console.error(`launch: ${e.message}`); process.exit(2); }
 }
