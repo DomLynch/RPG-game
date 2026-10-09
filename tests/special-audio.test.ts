@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { SPECIAL_CUES, SPECIAL_CUE_OF, loadSpecial } from '../src/audio/special.ts';
+import { SPECIAL_CUES, SPECIAL_CUE_OF, loadSpecial } from '../src/fight/sound/special.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 
 const dir = new URL('../src/assets/special-audio/', import.meta.url);
