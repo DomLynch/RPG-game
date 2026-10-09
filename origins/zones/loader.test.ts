@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
+import { frontierBuild } from '../preview/frontier-plan.ts';
+import { mobSpecs } from '../preview/mobs.ts';
 import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
@@ -65,4 +68,16 @@ test('Zone 2 loads: level 2, six rows of [2, 3], the opener a row, its own looks
   assert.equal(z.spawns.openers['ash-reach'], 'character:ash-wolf');
   assert.notEqual(z.looks['frontier-haze']!.fog, loadZone('1').looks['frontier-haze']!.fog, 'its own haze');
   assert.deepEqual(Object.keys(z.looks), Object.keys(loadZone('1').looks), 'the preset names the page asks for');
+});
+
+test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zone 2 is the Ash Reach alone with its own creatures', () => {
+  const frontier = (id: string) => frontierPlan(false, id).zones.filter((q) => q.region === FRONTIER).map((q) => q.zone).sort();
+  assert.deepEqual(frontier('1'), [...loadZone('1').world].sort());
+  assert.deepEqual(frontier('2'), ['ash-reach']);
+  const plan = frontierPlan(false, '2');
+  assert.deepEqual(plan.zones.find((q) => q.zone === 'ash-reach')!.links, [], 'its road to the east road is not walked on this page');
+  const specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
+  assert.ok(specs.length >= 4 && specs.every((m) => m.zone === 'ash-reach'), 'creatures stand in the Ash Reach only');
+  assert.ok(specs.every((m) => m.level >= 2 && m.level <= 3), 'at the Zone 2 band');
+  assert.equal(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).some((m) => m.zone === 'ash-reach'), false);
 });

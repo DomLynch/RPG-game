@@ -226,6 +226,7 @@ export const REGIONS = [
       'road-gate', 'ash-pits', 'shrine', 'hold-road',
       'landing-shore', 'reed-bank', 'mere-hollow', 'causeway', 'causeway-foot',
       'causeway-end', 'ruin-jetty', 'ruin-gate', 'crypt',
+      'reach-turn', 'reach-gate', 'reach-cairn', 'reach-ruin',
       'hold-gate', 'hold-centre', 'hold-hall', 'hold-forge', 'hold-fence', 'hold-jail',
       'end-gate', 'end-centre', 'end-hall', 'end-healer', 'end-jail',
     ],
@@ -254,6 +255,8 @@ export const REGIONS = [
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
       spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
+      spawn('reach-wolves', 'reach-cairn', null, ['character:ash-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
+      spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
