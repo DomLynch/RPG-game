@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 ~09:15 (+04) — HANDOVER (Dom: tokens at 99%). READ FIRST. Full detail in HANDOVER-lead-2026-10-09.md (worktree unruffled-bohr-be4aa3) + memory project_handoff_2026-10-09_0915.
+**LIVE:** main site = Release H 01910aab. **BUT /zone1/ is STALE**: the origins preview bundle index-DYV1TjW2.js, Last-Modified Thu 08 Oct 17:34:46 GMT, not republished since about Release A. Dom's 09:15 iPhone "smooth" ran on that OLD build. Deploy was asked to publish the preview from 01910aab and to add publish + a live bundle check to deploy.sh in I. H's tree measured by World (WebKit, Apple GPU, local build): engage worst gap 19/22/41 ms, 0 programs after ready. Repeat Dom's phone check after the publish.
+**New gap (Dom):** only slash works in Zone 1; stab/heavy/kick/guard were in drafts #1884/#1890/#1901. Combat owns the mount, slice plan requested.
+**I:** #1944 → #1941 @3e35a9f67 (head-check) → #1942 → #1945 @46a77e206 (head-check, not linked) → #1933 (rebase) → #1947 @82480aae6 + resolution bdbfe2995 (PASS needed, else J).
+**J:** #1948 HOLD (a Zone 1 stone post breaks the golden), #1955, #1953, #1950 (draft), #1940, #1943 @db0ac03ad (delta review), #1946, #1949 PASS, #1951, #1952 @667240ff (guard in).
+
 ## 2026-10-09 ~09:08 (+04) — H LIVE; I and J lined up
 **LIVE = Release H 01910aab** (release.json, my curl after 09:05): #1937 catch-up, #1938 warm-up cleanup, #1939 next-swing (merged directly, PR closed). Scoped, 8 of 52 rows, ~2 m 40 s. Try 1 (09:00) died on the Mac's DNS for api.github.com (Tailscale resolver); it recovered by itself at 09:02. G ab2288cd was 7 m 53 s full. Scoped is the default again (DEPLOY_SCOPE=full stopped; the daily full 52 runs off the release path).
 **Release I (zone pipeline):** #1944 → #1941 (rebase, LOADER) → #1942 alias → #1945 Zone 2 package (not linked) → #1933 (rebased) → #1947 (only if PASS, else J).
