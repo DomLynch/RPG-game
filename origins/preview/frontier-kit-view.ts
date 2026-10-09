@@ -4,8 +4,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { Kit, KitPlacement } from './frontier-kit.ts';
+import { loadZone } from './zone-loader.ts';
 
-export const KIT_URL = '/world/kit/zone1-kit.glb';   // public/world: served by URL, never bundled
+export const KIT_URL = loadZone().kit.url;   // public/world: served by URL, never bundled
 const NO_SHADOW = /^(bush_|tuft_)/;
 
 export function kitGroup(root: THREE.Object3D, kit: Pick<Kit, 'placements' | 'landmarks'>, groundAt: (x: number, z: number) => number = () => 0): THREE.Group {
