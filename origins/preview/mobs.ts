@@ -62,6 +62,7 @@ export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): bo
 export const previewRows = (_search: string): readonly MobRow[] => FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
+  const ID_PREFIX = f.zone === '1' ? '' : `z${f.zone}:`;   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
   for (const sp of reg.spawns) {
     const zone = f.zones.find((z) => z.region === FRONTIER && Object.hasOwn(z.landmarks, sp.at));
@@ -85,7 +86,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
       const count = named ? 1 : bh!.campSize![1], def = f.data.registry.characters.get(w.id)!;
       const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
       for (let i = 0; i < count; i++) {
-        const id = `${sp.id}-${i + 1}`;
+        const id = `${ID_PREFIX}${sp.id}-${i + 1}`;
         let rng = mixSeed(TUNING.seed, out.length), home: Pos | null = null;
         for (let tries = 0; tries < 60 && !home; tries++) {
           let u: number, v: number;
@@ -111,7 +112,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     let rng = mixSeed(TUNING.seed, 5000 + out.length);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
-    out.push({ id: `opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
+    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   return levelByDistance(f, b, out, rows);
 }
