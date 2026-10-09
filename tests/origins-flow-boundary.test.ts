@@ -8,7 +8,13 @@ import { join } from 'node:path';
 
 export const FLOW = ['main', 'match', 'ladder', 'arena', 'arena-themes', 'arena-props', 'trial', 'scorecard', 'sparring', 'sparring-specials', 'sparring-special-runtime'] as const;
 const KNOWN: readonly string[] = [
-  // filled from the first run
+  // The Pit mount (pit-duel.ts / pit-adapter.ts) and the record reader: the debt the one-core slices S3-S7 pay down. Remove a line when its import goes.
+  'origins/preview/pit-adapter.ts -> src/arena-themes.ts',
+  'origins/preview/pit-adapter.ts -> src/arena.ts',
+  'origins/preview/pit-duel.ts -> src/match.ts',
+  'origins/preview/pit-duel.ts -> src/scorecard.ts',
+  'origins/preview/pit-duel.ts -> src/trial.ts',
+  'origins/preview/world-record.ts -> src/match.ts',
 ];
 
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
