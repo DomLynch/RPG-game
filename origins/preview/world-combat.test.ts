@@ -9,9 +9,9 @@ import { NAKED } from '../../src/gear-stats.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
-  const driven = new Map<string, MobDrive>(), fell: string[] = [];
-  const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id) } as unknown as Mobs;
-  return { mobs, driven, fell };
+  const driven = new Map<string, MobDrive>(), fell: string[] = [], played: string[] = [];
+  const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id), play: (id: string, role: string) => { played.push(`${id}:${role}`); return role === 'death' ? 2.4 : 0.5; } } as unknown as Mobs;
+  return { mobs, driven, fell, played };
 }
 const run = (wc: ReturnType<typeof createWorldCombat>, hero: { x: number; z: number; facing: number }, seconds: number, dt = 1 / 30) => { for (let t = 0; t < seconds; t += dt) wc.update(dt, hero); };
 
@@ -64,6 +64,16 @@ test('call-site pin: the page reaches combat only through zone1.ts stepCombat (s
   const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
   assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
+});
+
+test('combat events play the creature\'s clips: attack at its tell, hit when it is struck, death once; the body is held until the Death clip has played (2.4 s here, not 1.4)', () => {
+  const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: number[] = []; let t = 0;   // level 1 and auto-aim, as the kill test above: a level-11 wolf outlasts the test under the Pit-copied engine
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(t); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let k = 0; k < 15; k++) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); t += 1 / 30; } }
+  const roles = f.played.map((p) => p.split(':')[1]);
+  assert.ok(roles.includes('attack'), 'the wolf\'s tell played its Bite'); assert.ok(roles.includes('hit'), 'the cut played Hurt');
+  assert.equal(roles.filter((r) => r === 'death').length, 1, 'one Death');
+  assert.equal(kills.length, 1, 'then it is released and killed once');
 });
 
 test('a hitch catches up to 0.25 s of fight time instead of dropping everything past 100 ms, and what it still drops is counted', () => {
