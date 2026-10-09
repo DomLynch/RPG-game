@@ -106,11 +106,11 @@ test('an older record decodes only where no later bump reached its fight', () =>
 });
 
 // The patron rule must survive the NEXT fight-logic bump (the Auditor's RV33 probe, 2026-10-07): a throwaway copy of src/fight/record.ts with the ceiling at 33 (imports pointed back
-// at the real src/, so the one sim and the one set of era flags). Today the ceiling is 33 (RV33/RV34 stamp only a Gambit / stances fight; a patron-less fight writes 31, a patron fight 32); at 35 every
+// at the real src/ and src/fight/, so the one sim and the one set of era flags). Today the ceiling is 33 (RV33/RV34 stamp only a Gambit / stances fight; a patron-less fight writes 31, a patron fight 32); at 35 every
 // live fight stamps the ceiling again (a patron byte of 0 for a patron-less one), the build must read its own fresh links, and only v32 refuses a zero patron.
 test('RV41 simulated: a patron-less fight stamps the new ceiling and round-trips; a patron fight too; a v32 record with no patron is still refused', async () => {
   assert.equal(NO_PATRON_VERSION, RECORD_VERSION <= 40 ? 31 : RECORD_VERSION); assert.equal(PATRON_VERSION, RECORD_VERSION <= 40 ? 32 : RECORD_VERSION);
-  const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\//g, `from '${new URL('../src/', import.meta.url).href}`);
+  const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\.\//g, `from '${new URL('../src/', import.meta.url).href}`).replace(/from '\.\//g, `from '${new URL('../src/fight/', import.meta.url).href}`);
   const bumped = src.replace('export const RECORD_VERSION = 40;', 'export const RECORD_VERSION = 41;').replace('38, 39, 40] as const', '38, 39, 40, 41] as const').replace('  40: [],', '  40: [],\n  41: [],');
   assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 41') && bumped.includes('40, 41] as const') && bumped.includes('41: [],'), 'the probe edits applied');
   const dir = mkdtempSync(join(tmpdir(), 'rv33-'));
