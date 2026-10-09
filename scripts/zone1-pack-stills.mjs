@@ -28,7 +28,8 @@ try {
   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
   await shot('idle');
   const target = await page.evaluate(() => { const ms = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body), near = (a) => ms.filter((b) => b.name === a.name && Math.hypot(a.x - b.x, a.z - b.z) < 8).length; return ms.sort((a, b) => near(b) - near(a))[0]; });   // the drawn creature with the biggest same-kind pack around it
-  await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
+  const mid = await page.evaluate((t) => { const p = window.originsPreview.mobs().mobs.filter((b) => b.name === t.name && Math.hypot(b.x - t.x, b.z - t.z) < 8); return [p.reduce((a, b) => a + b.x, 0) / p.length, p.reduce((a, b) => a + b.z, 0) / p.length]; }, target);
+  await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), mid);   // the middle of the pack, so every one of them notices
   await page.waitForTimeout(20000);
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
