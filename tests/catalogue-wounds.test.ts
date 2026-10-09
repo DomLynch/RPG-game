@@ -9,7 +9,7 @@ import { LOOT_IDS } from '../src/loot.ts';
 import { ROTATION, FINISHER_POSE } from '../src/finishers.ts';
 import { WEAPONS } from '../src/moves.ts';
 import { PICKS } from '../src/stance.ts';
-import { THROATS } from '../src/audio/creature.ts';
+import { THROATS } from '../src/fight/sound/creature.ts';
 import { LOOT_TABLES } from '../origins/region1/content.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
 
@@ -29,6 +29,8 @@ test('every bodytype tree is right side up: one trunk root, the head hangs from 
   for (const limb of ['foreL', 'foreR', 'hindL', 'hindR']) assert.equal(q.get(limb)!.parent, 'torso');
   const upside = { parts: [{ id: 'head', bones: ['head'], vital: true, weight: 2, cuttable: true }, { id: 'neck', bones: ['neck'], vital: true, weight: 1, cuttable: true, parent: 'head' }, { id: 'torso', bones: ['spine2'], vital: true, weight: 5, cuttable: false }] } satisfies Bodytype;
   assert.ok(bodytypeProblems(upside).some((p) => /exactly one root/.test(p)), 'the Auditor\'s upside-down head/neck tree is refused');
+  const inverted = { parts: [{ id: 'torso', bones: ['spine2'], vital: true, weight: 5, cuttable: false }, { id: 'head', bones: ['head'], vital: true, weight: 2, cuttable: true, parent: 'torso' }, { id: 'neck', bones: ['neck'], vital: true, weight: 1, cuttable: true, parent: 'head' }] } satisfies Bodytype;
+  assert.ok(bodytypeProblems(inverted).some((p) => /head hangs from the neck/.test(p)), 'a single-root torso -> head -> neck tree is refused too');
   const loop = { parts: [{ id: 'a', bones: [], vital: true, weight: 1, cuttable: false, parent: 'b' }, { id: 'b', bones: [], vital: false, weight: 1, cuttable: true, parent: 'a' }] };
   assert.ok(bodytypeProblems(loop).some((p) => /cycle|exactly one root/.test(p)));
 });

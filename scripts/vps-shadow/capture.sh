@@ -35,6 +35,11 @@
 #     Anything else is told why and stays VPS-only. No hf login on this user also means VPS-only.
 #   - the spilled job is cancelled after CAPTURE_HF_QUIET_S (default 600) without a new log line, and has its own --timeout (CAPTURE_HF_TIMEOUT, 40m).
 #   - every spill appends one line to capture.spill.log: when, lane, HF job, stage, waited, load seen, run seconds, cost at CAPTURE_HF_RATE_PER_H.
+# v8 (Lead 2026-10-09: no HF token on the VPS, the credential stays with Dom): this box never launches HF. The spill is handed to the CALLER:
+#   scripts/capture-mac.sh (run on a Mac logged in to HF) calls `capture --spill-to-caller …`; at the spill point capture leaves the queue, logs
+#   a stage=HANDED line and exits 76 after printing `CAPTURE_SPILL log=<spill log> sha=<full sha> args=<base64 of the NUL-separated command>`.
+#   The wrapper runs it on HF (the v7 runner, moved there) and appends the result line to the same log. --hf-ok without --spill-to-caller is refused
+#   (nobody here could launch it): the job stays VPS-only. The allow-list (spill_refusal) is unchanged and still decided HERE.
 set -euo pipefail
 home="${SHADOW_HOME:-/opt/frankendom-shadow}"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$home/ms-playwright}"   # a non-interactive `ssh frankvps capture …` reads no .bashrc
@@ -42,7 +47,7 @@ lock="$home/capture.lock"; holder="$home/capture.holder"
 queue="$home/capture.queue"; qlock="$home/capture.queue.lock"   # the live ticket queue: "pid lane since", head first
 wait_s="${CAPTURE_WAIT_S:-3600}"; warn_s="${CAPTURE_WARN_S:-600}"; slots="${CAPTURE_SLOTS:-2}"; prio="${CAPTURE_PRIO:-3}"
 max_load="${CAPTURE_MAX_LOAD:-12}"; loadavg="${CAPTURE_LOADAVG:-/proc/loadavg}"; spill_after="${CAPTURE_SPILL_AFTER_S:-300}"; hf_ok="${CAPTURE_HF_OK:-0}"
-hf="${CAPTURE_HF:-hf}"; hf_quiet="${CAPTURE_HF_QUIET_S:-600}"; hf_poll="${CAPTURE_HF_POLL_S:-20}"; hf_timeout="${CAPTURE_HF_TIMEOUT:-40m}"; hf_rate="${CAPTURE_HF_RATE_PER_H:-0.03}"
+to_caller=0   # --spill-to-caller: the caller (scripts/capture-mac.sh) runs a spill on HF; set only by that wrapper
 spill_log="$home/capture.spill.log"
 load5() { awk '{ print $2 }' "$loadavg"; }
 load_ok() { awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; }
@@ -75,8 +80,8 @@ if [[ "${1:-}" == "--status" ]]; then
   done
   echo "load $(cut -d' ' -f1-3 "$loadavg") (a job starts only while the 5-min figure is under $max_load)"; echo "queue (lowest prio first, then first come, first served; the head holds or takes the lock next):"; show_queue; exit 0
 fi
-while [[ "${1:-}" == "--prio" || "${1:-}" == "--hf-ok" ]]; do
-  if [[ "$1" == "--hf-ok" ]]; then hf_ok=1; shift; else prio="${2:-}"; shift 2 || { echo "capture: --prio needs a number 1..4"; exit 2; }; fi
+while [[ "${1:-}" == "--prio" || "${1:-}" == "--hf-ok" || "${1:-}" == "--spill-to-caller" ]]; do
+  if [[ "$1" == "--hf-ok" ]]; then hf_ok=1; shift; elif [[ "$1" == "--spill-to-caller" ]]; then to_caller=1; shift; else prio="${2:-}"; shift 2 || { echo "capture: --prio needs a number 1..4"; exit 2; }; fi
 done
 [[ "$prio" =~ ^[1-4]$ ]] || { echo "capture: priority must be 1..4 (1 a live bug Dom reported, 2 release-gating, 3 default, 4 cleanup), got '$prio'"; exit 2; }
 lane="${1:?usage: capture [--prio 1..4] [--hf-ok] <lane> <command…> | --status | --queue}"; shift
@@ -105,38 +110,22 @@ spill_refusal() {
   esac
   git rev-parse --verify -q HEAD >/dev/null 2>&1 || { echo "$PWD is not a git checkout"; return; }
   [[ -z "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]] || { echo "the checkout has uncommitted changes (the HF box only gets the commit)"; return; }
-  "$hf" auth whoami >/dev/null 2>&1 || echo "no Hugging Face login for $(id -un) on this box"
+  [[ "$to_caller" == 1 ]] || echo "no caller to run it on Hugging Face (this box has no HF login; run it through scripts/capture-mac.sh from a Mac)"
 }
 if [[ "$hf_ok" == 1 ]]; then
   why=$(spill_refusal "$@")
   if [[ -n "$why" ]]; then echo "capture: --hf-ok refused ($why); $lane's job stays on the VPS"; hf_ok=0; fi
 fi
 
-# The spill: one HF job in Deploy's runner image, its log streamed here, cancelled after hf_quiet seconds of silence. Prints one spill.log line.
-run_on_hf() {
-  local waited=$1 load_seen=$2 sha cmd script out id t0 stage="UNKNOWN" seen=0 quiet_since n logs status=1 why=""
-  shift 2   # the rest is the job
-  sha=$(git rev-parse HEAD); cmd=$(printf '%q ' "$@")
-  script="set -e; apt-get update -qq >/dev/null; apt-get install -y -qq git ca-certificates libjpeg-turbo-progs >/dev/null; mkdir -p /work/repo; cd /work/repo; git init -q; git remote add origin https://github.com/DomLynch/RPG-game.git; git fetch -q --depth 1 origin $sha; git checkout -q --detach $sha; npm ci --no-audit --no-fund >/dev/null; echo \"capture-spill: \$(git rev-parse HEAD) $cmd\"; exec $cmd"
-  out=$("$hf" jobs run --flavor cpu-upgrade --timeout "$hf_timeout" --detach node:22 bash -c "$script" 2>&1) || true
-  id=$(sed -n 's/.*Job started with ID: \([^[:space:]]*\).*/\1/p' <<<"$out" | head -n 1)
-  if [[ -z "$id" ]]; then echo "capture: the HF launch failed ($(head -c 200 <<<"$out")); $lane's job goes back to the VPS queue" >&2; return 99; fi
-  leave_queue   # the VPS queue moves on now; the job is HF's
-  echo "capture: $lane spilled to Hugging Face job $id (cpu-upgrade, load5 $load_seen after ${waited}s waiting): $cmd"
-  t0=$(date +%s); quiet_since=$t0
-  while :; do
-    sleep "$hf_poll"
-    logs=$("$hf" jobs logs "$id" 2>/dev/null || true); n=$(printf '%s' "$logs" | grep -c '' || true)
-    if (( n > seen )); then printf '%s\n' "$logs" | tail -n +"$((seen + 1))"; seen=$n; quiet_since=$(date +%s); fi
-    stage=$("$hf" jobs inspect "$id" 2>/dev/null | sed -n 's/.*"stage": *"\([A-Z_]*\)".*/\1/p' | head -n 1)
-    case "$stage" in COMPLETED) status=0; break ;; ERROR|CANCELED|CANCELLED|DELETED) break ;; esac
-    if (( $(date +%s) - quiet_since >= hf_quiet )); then why=" quiet_cancel=${hf_quiet}s"; "$hf" jobs cancel "$id" >/dev/null 2>&1 || true; stage="CANCELED"; break; fi
-  done
-  local secs=$(( $(date +%s) - t0 ))
-  printf '%s lane=%s hf_job=%s stage=%s%s waited_s=%s load5=%s run_s=%s cost_usd=%s sha=%s cmd=%s\n' "$(date -u +%FT%TZ)" "$lane" "$id" "$stage" "$why" "$waited" "$load_seen" "$secs" \
-    "$(awk -v s="$secs" -v r="$hf_rate" 'BEGIN { printf "%.4f", s * r / 3600 }')" "$sha" "$cmd" >> "$spill_log"
-  echo "capture: Hugging Face job $id ended $stage${why:+ (no output for ${hf_quiet}s)} after ${secs}s"
-  return $status
+# The spill (v8): hand the job to the caller and leave. One spill.log line now (stage=HANDED); the caller appends the HF result.
+hand_off() {
+  local waited=$1 load_seen=$2 sha; shift 2   # the rest is the job
+  sha=$(git rev-parse HEAD)
+  printf '%s lane=%s stage=HANDED waited_s=%s load5=%s sha=%s cmd=%s\n' "$(date -u +%FT%TZ)" "$lane" "$waited" "$load_seen" "$sha" "$(printf '%q ' "$@")" >> "$spill_log"
+  leave_queue
+  echo "capture: $lane spills after ${waited}s waiting (load5 $load_seen over $max_load): handed to the caller for Hugging Face"
+  echo "CAPTURE_SPILL log=$spill_log sha=$sha args=$(printf '%s\0' "$@" | base64 -w0)"
+  exit 76
 }
 
 # Take a ticket; give it back on any exit (a kill -9 leaves it: the others prune it by the pid check).
@@ -165,7 +154,7 @@ while :; do
   if [[ "$hf_ok" == 1 && $spill_checked -eq 0 ]] && (( now - started >= spill_after )); then
     spill_checked=1; seen_load=$(load5)
     if load_ok; then echo "capture: $lane has waited $((now - started))s but load5 $seen_load is under $max_load now: it stays on the VPS"
-    else status=0; run_on_hf "$((now - started))" "$seen_load" "$@" || status=$?; [[ $status -eq 99 ]] || exit $status; fi
+    else hand_off "$((now - started))" "$seen_load" "$@"; fi
   fi
   if (( now - started >= wait_s )); then echo "capture: gave up waiting after ${wait_s}s at position $pos of $n"; exit 75; fi
   if [[ $pos -ne $last_pos ]] || (( now - last_said >= 60 )); then
