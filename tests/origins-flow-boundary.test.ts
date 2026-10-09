@@ -72,9 +72,16 @@ const ENGINE_DEBT: readonly string[] = [
   'origins/server/world-spawns.ts -> src/moves.ts',
   'origins/shared/with-bar.ts -> src/combat.ts',
 ];
-const direct = (): string[] => files('origins').flatMap((file) => [...new Set([...readFileSync(file, 'utf8').matchAll(IMPORT)].map((m) => m[1]!)
+const edgesOf = (file: string, text: string): string[] => [...new Set([...text.matchAll(IMPORT)].map((m) => m[1]!)
   .filter((s) => /(^|\/)src\/(fight\/)?[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
-  .filter((name) => ENGINE.includes(name)))].map((name) => `${file} -> src/${name}.ts`)).sort();
+  .filter((name) => ENGINE.includes(name)))].map((name) => `${file} -> src/${name}.ts`);
+const direct = (): string[] => files('origins').flatMap((file) => edgesOf(file, readFileSync(file, 'utf8'))).sort();
+
+test('the scan counts a flat import and a src/fight/<core>.ts import alike, and nothing else (mutation case)', () => {
+  assert.deepEqual(edgesOf('origins/zones/x.ts', "import { legal } from '../../src/fight/duel.ts';"), ['origins/zones/x.ts -> src/duel.ts']);
+  assert.deepEqual(edgesOf('origins/zones/x.ts', "import { legal } from '../../src/duel.ts';"), ['origins/zones/x.ts -> src/duel.ts']);
+  assert.deepEqual(edgesOf('origins/zones/x.ts', "import { createFight } from '../../src/fight/index.ts';"), []);
+});
 
 test('origins/ reaches the fight engine only through src/fight/index.ts, except the named server debt', () => {
   const now = direct();
