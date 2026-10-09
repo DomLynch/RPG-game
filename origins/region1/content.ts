@@ -63,6 +63,8 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 10 }),
+  // The Pit goblin's table: bronze only here (Backend, 2026-10-09: 2-6); Backend adds his own level-1 armour pieces (goblin.Helmet ... goblin.Gloves) to this row.
+  table('loottable:pit-goblin', 'collect', [], { min: 2, max: 6 }),
   // The Ember Wolf's table (Backend ruled 2026-10-09: Ash Wolf items, bronze x1.1).
   table('loottable:ember-wolf', 'collect', [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
@@ -120,6 +122,8 @@ export const FOES = [
     ], 'court-thrall'),
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
     null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'cinder-scavenger'),
+  figure('character:pit-goblin', 'Pit goblin', ORIGINAL, 'A goblin of the Pit in the armour the Pit gave him, camped at the edge of the Frontier where a fighter can find him.',
+    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'pit-goblin'),
   figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
     null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ash-wolf'),
   figure('character:ember-wolf', 'Ember wolf', ORIGINAL, 'Its coat has burned down to the colour of a banked fire, and it hunts the Reach in a pack of two or three.',
@@ -350,6 +354,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:court-thrall': 'elite',
   'character:rift-spawn': 'elite',
   'character:cinder-scavenger': 'mob',
+  'character:pit-goblin': 'mob',
   'character:mere-brood': 'mob',
   'character:ash-wolf': 'mob',
   'character:ember-wolf': 'mob',
@@ -369,6 +374,7 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 // Which encounter each creature table is rolled from in the open world (no encounter: a plain kill).
 export const CREATURE_LOOT: Record<string, string> = {
   'character:cinder-scavenger': 'loottable:cinder-scavenger',
+  'character:pit-goblin': 'loottable:pit-goblin',
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
   'character:ash-wolf': 'loottable:ash-wolf',

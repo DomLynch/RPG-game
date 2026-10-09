@@ -9,7 +9,7 @@ import { BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE } from '../../s
 import type { WeaponId } from '../../src/moves.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 
-export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
+export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true; body?: 'pit' };   // body 'pit': the Pit's own high-detail rank-1 body (the roster GLB, src/assets/goblin.glb, level-1 armour in the file) instead of the 8k world body; absent = the world body. The mob view reads it (World)
 
 export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   // The matriarch: the Witch grown huge, mere-green and drowned, long wet rags.
@@ -22,6 +22,8 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   'character:court-thrall': { opponent: 'pitborn', tint: 0x8c2f2f, scale: 1, dressing: { soot: .35, burnt: .5 } },
   // Small, quick, iron bits: the Goblin in ash brown, its own knife.
   'character:cinder-scavenger': { opponent: 'goblin', tint: 0x6b5a48, scale: .9, dressing: { soot: .7, burnt: .3 } },
+  // The Zone 1 Pit goblin camp (Lead 2026-10-09, for Dom's loot/inventory test): the Pit's rank-1 goblin as he fights, armour and all: no tint, no soot, native height.
+  'character:pit-goblin': { opponent: 'goblin', tint: 0xffffff, scale: 1, dressing: { soot: 0, burnt: 0 }, body: 'pit' },
   // The mere's spawn: smaller still, reed green, no soot (it is wet, not burnt).
   'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
   // Starved servant of the ruin: tall for a goblin, grey and ragged.
