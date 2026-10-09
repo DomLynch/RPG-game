@@ -2,9 +2,9 @@
 // forged fingerprint, an intent column changed on one page, and a room with one record are each refused (the last as unverified).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { decide, initialAi, type AiState } from '../src/ai.ts';
-import { idleIntent, stepDuel, type Intent, type Side } from '../src/duel.ts';
-import { PROFILES } from '../src/moves.ts';
+import { decide, initialAi, type AiState } from '../src/fight/ai.ts';
+import { idleIntent, stepDuel, type Intent, type Side } from '../src/fight/duel.ts';
+import { PROFILES } from '../src/fight/moves.ts';
 import { packIntents, unpackIntents, type PvpRecord } from '../src/net/pvp.ts';
 import { verifyDuel, type DuelClaim } from '../src/net/verify-duel.ts';
 import { hashDuel, NET, pvpDuel, type Kit } from '../src/net/rollback.ts';

@@ -3,9 +3,9 @@
 // Outside the sim files like stepSparring and first-loss.ts: decide(), the rules, the ladder and RECORD_VERSION are untouched, nothing is
 // recorded or awarded, and normal fights never reach it. There are no timeouts: the foe re-offers the same thing until the cue happens, and
 // after the last step it stands and never ends the fight itself. Both fighters are kept above half health.
-import { decide } from './ai.ts';
-import { project, type Practice } from './combat.ts';
-import { distance, guardOf, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './duel.ts';
+import { decide } from './fight/ai.ts';
+import { project, type Practice } from './fight/combat.ts';
+import { distance, guardOf, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './fight/duel.ts';
 import { SPARRING_DUMMY, disarm } from './sparring.ts';
 
 export const TUTORIAL_STEPS = ['slash', 'stab', 'heavy', 'guard', 'parry', 'kick', 'roll'] as const;

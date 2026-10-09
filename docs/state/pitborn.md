@@ -319,7 +319,7 @@ Worktree `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitb
      09-25 evening, or #680 comes out of A1.
 2. **#707 PARKED** (SCOPE #729: gear stats out of beta). Lead closed it with the `parked` label; the branch is kept.
    Review stopped; do not run its Easy gate. **PASS notes, for when it comes back** (head `9ddf6801`, base `f704eed6`):
-   - `src/duel.ts`: `geared()` touches only the three hit writes (vsGuard kick, GuardBroken, clean Hit) and the chip.
+   - `src/fight/duel.ts`: `geared()` touches only the three hit writes (vsGuard kick, GuardBroken, clean Hit) and the chip.
      Poise (`dealt < d.poise`), stun, `shake` (posture) and the wound marks read the unscaled blow. `gear === 1` is a
      branch, not a rounding.
    - Naked is bit-identical: both fixtures replay to the same per-tick hash (fighters minus `loadout`, plus events) on

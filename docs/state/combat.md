@@ -568,7 +568,7 @@ sim has 0 same-beat trades in 926 swing-start casts).
 
 **Gotcha:** 18+ parallel shards took the Mac to load 79 and stalled Deploy's browser rows (14:17). Max 4 shards, only after FREE.
 
-**Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
+**Gotchas:** (1) Any edit to src/fight/ai.ts or src/fight/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
 (2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
 
 ## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
@@ -716,7 +716,7 @@ the 3 recorded below.
 the approach stop. Read it as refinement, not invalidation. The `cramped` branch was NOT redundant and stays.
 
 **Blast radius, narrower than first reported.** Gated on `guardShare === 0`, and `guard: 0` appears on exactly three lines of
-`src/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
+`src/fight/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
 this. But the Goblin is the opponent in many rows, so the whole table was re-scanned, not the knife's.
 
 **Receipts.** `quality:stop` 468 tests / 466 pass / 0 fail (2 skipped). `test:slow` 94/94. `record-replay --write` then verify PASS
@@ -773,7 +773,7 @@ Even with every commitment knob at its limit the fight does not resolve. `reacti
 profile change that half-moves it would be tuning toward a pin without fixing the defect. The fix has to be the approach/in-reach
 disagreement itself in ai.ts — which is shared by every opponent, so it needs the full battery across all weapons.
 
-**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/ai.ts`.** The profile-only prescription is
+**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/fight/ai.ts`.** The profile-only prescription is
 superseded by measurement. Lead's reading, and he is accountable for it: GAME_SPEC's "profiles move reaction/prediction/aggression,
 never data" governs PROFILES; ai.ts approach logic is neither a profile nor weapon data, it is the code profiles feed, so fixing a
 logic defect there is in scope.
@@ -896,7 +896,7 @@ kick-only dies 24/24, all 24 knife fights stalemate at the tick limit). Weapons'
 (estoc/goblin hard ×2, scythe/goblin normal) — **unsigned by Combat**: re-deriving them needs the box, and a signature on someone else's
 numbers is worth nothing.
 
-## Tuning history moved out of src/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
+## Tuning history moved out of src/fight/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
 The comments in moves.ts now keep only why each current rule exists; the dated experiments and probe numbers that set them live here.
 - Anti-turtling band form (owner 2026-09-21): the "no regen while retreating anywhere" form failed 3 of the 24 rung identity pins (a charged-heavy spammer beat the Veteran 13/24, goblin fights ran past 45 s) and halved the hero brain's Veteran-normal wins — the rungs were tuned to recover by backing off. `RULES.retreat.wallOnly: false` restores it.
 - Trident: LIVE since slice V (combat review 2026-09-16) — initialDuel gives the Veteran the trident table; the shaft-guard and thrust-opener rules landed in the same slice.

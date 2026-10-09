@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { decide, initialAi } from '../src/ai.ts';
-import { idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { PROFILES } from '../src/moves.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { idleIntent, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
+import { PROFILES } from '../src/fight/moves.ts';
 import { fightChain } from '../src/net/fixture.ts';
 import { pvpDuel } from '../src/net/rollback.ts';
 import { quantizeIntent } from '../src/record.ts';
@@ -32,7 +32,7 @@ function reach(entries: string[]): Set<string> {
 }
 
 test('net determinism: every file the sim or the rollback core reaches is scanned by the detmath ban (the list cannot drift)', () => {
-  const reached = reach(['src/duel.ts', 'src/net/rollback.ts', 'src/net/fixture.ts']);
+  const reached = reach(['src/fight/duel.ts', 'src/net/rollback.ts', 'src/net/fixture.ts']);
   const unscanned = [...reached].filter((f) => !f.startsWith('src/net/') && !SIM.includes(f));
   assert.deepEqual(unscanned, [], 'a sim file outside tests/detmath.test.ts SIM: add it there (and to SIM_FILES if it changes fights)');
   for (const file of reached) {

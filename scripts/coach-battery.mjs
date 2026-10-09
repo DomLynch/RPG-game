@@ -1,10 +1,10 @@
 // Coach mode battery (Combat, slice 1): the player's side driven by src/coach.ts (decide() with the stance brain, human reaction bounds) against every LIVE foe at each level, one stance per row,
 // the foe in its seeded mood (src/stance.ts moodOf), `seeds` fights per cell, side 0 = the coach. A cell is the coach's win rate (draws count half), so Strategy can see what each of the four live
 // stance names wins by itself before any UI.   Usage: [FOES=goblin,pitborn] node scripts/coach-battery.mjs [fights=120] [level=6]
-import { decide, initialAi } from '../src/ai.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
 import { createCoach } from '../src/coach.ts';
-import { opponentFighter, stepDuel, withStances } from '../src/duel.ts';
-import { OPPONENTS, profileAt } from '../src/moves.ts';
+import { opponentFighter, stepDuel, withStances } from '../src/fight/duel.ts';
+import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { PICKS, asStance, moodOf } from '../src/stance.ts';
 import { arena } from '../tests/strategies.ts';

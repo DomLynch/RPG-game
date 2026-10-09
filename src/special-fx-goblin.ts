@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import type { CombatEvent, Fighter } from './duel.ts';
+import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, shadowPhase, FALL_AT, type Cast, type isHadesShadow } from './special-timing.ts';
 import { clamp01, hash, smooth } from './fx-math.ts';

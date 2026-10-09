@@ -124,7 +124,7 @@ export type CharacterDefinition = {
   relationships: { character: CharacterId; relation: (typeof RELATIONS)[number] }[];
   questRoles: { quest: QuestId; role: (typeof QUEST_ROLES)[number] }[];
   presentations: { id: string; asset: string }[];
-  // How the figure fights. `opponent` routes the fight through today's duel (src/duel.ts opponentFighter) at `level` (1..50).
+  // How the figure fights. `opponent` routes the fight through today's duel (src/fight/duel.ts opponentFighter) at `level` (1..50).
   encounterForms: { id: string; opponent: OpponentId | null; level: number | null; encounter: EncounterId | null }[];
   routine: Routine[];
 };

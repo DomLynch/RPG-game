@@ -8,7 +8,7 @@ import {
 } from '../progression/model.ts';
 
 export type Outcome = 'win' | 'loss' | 'draw';
-// The arena's finish (src/duel.ts Finish), by shape: side 1 is the opponent. A draw is never a win.
+// The arena's finish (src/fight/duel.ts Finish), by shape: side 1 is the opponent. A draw is never a win.
 export type Finished = { victim: 0 | 1; draw?: boolean } | null;
 export const outcomeOf = (finish: Finished): Outcome | null => (!finish ? null : finish.draw ? 'draw' : finish.victim === 1 ? 'win' : 'loss');
 

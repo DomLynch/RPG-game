@@ -1,4 +1,4 @@
-import type { Practice } from './combat.ts';
+import type { Practice } from './fight/combat.ts';
 import type { StoragePort } from './profile.ts';
 
 // Control trial tally: fights, wins, rematches, duel length and damage on this device, shown under the combat debug view.

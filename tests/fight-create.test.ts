@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFight } from '../src/fight/index.ts';
-import { createFighter, idleIntent, opponentFighter } from '../src/duel.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { createFighter, idleIntent, opponentFighter } from '../src/fight/duel.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 
 const hero = () => createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready', 'longsword');
 const foe = (x: number) => opponentFighter(opponentAt(OPPONENTS.goblin, 1), { x, z: 0, heading: Math.PI, distance: 0 }, 'ready');

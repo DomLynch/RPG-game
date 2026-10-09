@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi, type AiState } from '../src/ai.ts';
-import { initialPractice } from '../src/combat.ts';
-import { idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { decide, initialAi, type AiState } from '../src/fight/ai.ts';
+import { initialPractice } from '../src/fight/combat.ts';
+import { idleIntent, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
 import { crossCheck } from '../src/group-verify.ts';
-import { OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
+import { OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { TOKENS, groupKill, startStreams, stepStreams, streamRecordGroup, type StreamGroup } from '../src/pack.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { RECORD_VERSION, createRecorder, packRecord, unpackRecord, type FightRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { setStab } from '../src/stab-rule.ts';

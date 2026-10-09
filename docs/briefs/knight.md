@@ -50,13 +50,13 @@ built through `parts.py` gets its rig knuckles fitted to its own mesh automatica
 Lead's routing says "existing family via `creaturePaths`; Weapons gives it a proper blade table on the hero rig". Checked
 on trunk rather than inherited, and the gap is bigger than "a blade table":
 
-- **The data already exists; the asset does not — and that split decides who does what.** `src/moves.ts:406` on trunk
+- **The data already exists; the asset does not — and that split decides who does what.** `src/fight/moves.ts:406` on trunk
   `3405a95`, read in full: `const MAUL: Weapon = { ...CLEAVER, id: 'maul', grip: 'two-hand', moves: { ...CLEAVER_MOVES,
   thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'),
   guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } }`. So it is the **cleaver** spread with a
   two-hand grip, a longer thrust (`stepIn .3`, `reach 1.4`), cleaver paths under the `'Maul'` creature prefix, a
   `guard: 'shaft'` profile, `material: 'wood'` and a low `thrustShare` of .1. **"Maul, two-hand" is already true in the
-  data.** `src/moves.ts` is **Weapons' file — this lane does not edit it**; the hero-rig **asset** is this lane's work.
+  data.** `src/fight/moves.ts` is **Weapons' file — this lane does not edit it**; the hero-rig **asset** is this lane's work.
 - **Its geometry lives inside the held Minotaur's GLB.** `git ls-tree` finds no `maul` asset anywhere; the maul's
   materials (`MaulAshHaft`, `MaulLeather`, `WeatheredStone`, `MaulIronBands`) were measured inside `minotaur.glb` on this
   lane's own read. `build-creature-weapons.mjs` covers `minotaur` and `wraith` only.
@@ -179,7 +179,7 @@ missing, which is what the gate was actually for.
 1. **Masked is Dom's requirement; full plate + closed helm is the proposal**, and the twice-run silhouette test in §2
    judges it, with the **bare pass counting**. Confirmed as written.
 2. **The maul part is Weapons', on the shelf rule — this lane does not model it.** Lead confirms the handoff. This lane
-   authors the character; `src/moves.ts` (where the maul's numbers already live) is not ours to edit either.
+   authors the character; `src/fight/moves.ts` (where the maul's numbers already live) is not ours to edit either.
 3. **"Cannot be cut" gets NO new sim rule.** Nobody writes plate immunity. His identity comes from three things that
    exist or are already in flight: (a) he wears the **heaviest kit**, so under Brief 19 he sits in the **top RES bracket** —
    numerically the hardest man to cut once gear stats land; (b) **`guard: 'shaft'`** is already in his weapon data;
@@ -207,7 +207,7 @@ missing, which is what the gate was actually for.
 
 - **The hero rig and the hero's assets are Character Main's.** This build *reads* the hero skeleton and clips; it never
   edits them. Anything that would touch them stops and goes to Lead.
-- **`src/moves.ts` is Weapons'.** The maul's numbers are already there and correct; this lane authors the asset.
+- **`src/fight/moves.ts` is Weapons'.** The maul's numbers are already there and correct; this lane authors the asset.
 - **Nothing ahead of the shield in Combat's queue** (owner, 2026-09-22). The maul is content, not a rules change. **If
   this character turns out to need a combat-rule or AI edit to work, that is a request to Lead, not an edit by this lane.**
 - **Not beta-critical.**

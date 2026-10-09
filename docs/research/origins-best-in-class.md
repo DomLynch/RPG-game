@@ -525,9 +525,9 @@ Legend: `##` the game leans on it hard, `#` present in the files read, `-` absen
 
 ## M9. Proposed FIRST body-family batch
 
-**Alignment note.** Characters' body-families spec (#1648) owns rigs, silhouettes and the family list. This batch is a *request* shaped by the donor patterns; it does not decide #1648's contents (I did not read it). Moveset hooks name only **existing** `MoveId`s and `AiProfile` knobs from `src/moves.ts` (ours); numbers are Combat's, proven in the Pit.
+**Alignment note.** Characters' body-families spec (#1648) owns rigs, silhouettes and the family list. This batch is a *request* shaped by the donor patterns; it does not decide #1648's contents (I did not read it). Moveset hooks name only **existing** `MoveId`s and `AiProfile` knobs from `src/fight/moves.ts` (ours); numbers are Combat's, proven in the Pit.
 
-**What the duel needs from any new body (from `src/moves.ts` and mobs.md 5.3):**
+**What the duel needs from any new body (from `src/fight/moves.ts` and mobs.md 5.3):**
 - A **windup tell** readable at 375 px: the swing's first phase is the only warning. Existing timings at 60 Hz: a light is 20 ticks of windup (333 ms), a thrust 16, a heavy 32, a kick 18. Our own comment in `moves.ts` records that a 14-tick tell (233 ms) read as "under human reaction". So a beast tell is **at least 16 ticks and a silhouette change** (head drop, haunch coil, rear-up), not a colour flash.
 - A **reach** number per attack (light 1.65, jab 1.0, lunge 2.4, ironrush 2.0, cleave 1.6, stomp 1.4, shove 1.3 in the existing tables) and a direction (right, left, overhead, thrust, low) so the player's guard read has something to read.
 - A **posture/stagger/knockback** profile so a bite feels like a bite and a charge like a charge.

@@ -12,9 +12,9 @@ import * as chunkRecoverModule from '../src/chunk-recover.ts';
 import * as kickCloseModule from '../src/kick-close.ts';
 import * as victoryHeadlineModule from '../src/victory-headline.ts';
 import * as fatiguePreviewModule from '../src/fatigue-preview.ts';
-import * as sim from '../src/sim.ts';
-import * as combat from '../src/combat.ts';
-import * as moves from '../src/moves.ts';
+import * as sim from '../src/fight/sim.ts';
+import * as combat from '../src/fight/combat.ts';
+import * as moves from '../src/fight/moves.ts';
 const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
 import * as ladder from '../src/ladder.ts';
@@ -36,7 +36,7 @@ import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as clip from '../src/clip.ts';
 import * as detmath from '../src/detmath.ts';
-import * as ai from '../src/ai.ts';
+import * as ai from '../src/fight/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/special-look.ts';
@@ -1040,7 +1040,7 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A headless record is stamped with an older era (play-radius.ts: no circle, no late notice, no stab), and every pre-29 version is refused (REACH[29]): stamp this one as a live fight is.
-  const pr = await import('../src/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
+  const pr = await import('../src/fight/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
   const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('goblin', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);
   const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });

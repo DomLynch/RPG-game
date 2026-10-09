@@ -2,16 +2,16 @@
 // pattern). This pins that the two are the SAME fight at the same seed and intents, tick for tick, so a verified record means what the client played. A divergence names its first tick.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { initialPractice, stepPractice } from '../src/combat.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { Match } from '../src/match.ts';
 import { mobLayer } from '../origins/mobs/kits.ts';
-import { LEVELS, OPPONENTS, opponentAt, profileAt, type WeaponId } from '../src/moves.ts';
+import { LEVELS, OPPONENTS, opponentAt, profileAt, type WeaponId } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { quantizeIntent } from '../src/record.ts';
 import { recordSpecials } from '../src/replay.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import type { Intent } from '../src/duel.ts';
+import type { Intent } from '../src/fight/duel.ts';
 
 const ACTIONS = [null, 'light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
 const intentAt = (rand: () => number, tick: number): Intent => quantizeIntent({

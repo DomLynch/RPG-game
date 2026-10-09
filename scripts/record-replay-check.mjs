@@ -16,11 +16,11 @@
 // test); deploy.sh runs it on the Mac, CI runs the soft gate, and the release is unaffected.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent, legal } from '../src/duel.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent, legal } from '../src/fight/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent } from './duel.ts';
+import type { CombatEvent } from './fight/duel.ts';
 import { OPPONENT_SIDE, registerSignature, type SignatureFrame } from './signature.ts';
 
 // The Witch's signature, A: The Grasp, short range, no projectile (docs/briefs/signature-effects.md row 10). Two parts on events the sim

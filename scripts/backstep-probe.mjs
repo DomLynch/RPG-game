@@ -1,8 +1,8 @@
 // RV30 backstep evidence: does a backstep / roll / guard answer the Executioner's heavy, by start gap and reaction delay?
 //   node scripts/backstep-probe.mjs   env: FOE (executioner), MOVE (heavy), BS_TICKS (override RULES.backstep.ticks), BS_SPEED
-import { OPPONENTS } from '../src/combat.ts';
-import { RULES } from '../src/moves.ts';
-import { stepDuel, movesOf } from '../src/duel.ts';
+import { OPPONENTS } from '../src/fight/combat.ts';
+import { RULES } from '../src/fight/moves.ts';
+import { stepDuel, movesOf } from '../src/fight/duel.ts';
 import { arena, act, idle, gap, W, P, blows } from '../tests/strategies.ts';
 
 const foe = OPPONENTS[process.env.FOE ?? 'executioner'], move = process.env.MOVE ?? 'heavy';

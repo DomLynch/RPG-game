@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Color, Scene } from 'three';
-import type { CombatEvent } from '../src/duel.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 import { IMPACT, IMPACT_DEFAULT, IMPACT_TINT, createSkillImpact, impactOf, impactPoint } from '../src/skill-impact.ts';
 
 // The shared SKILL-IMPACT kit (Strategy via Lead, 2026-09-26): every skill move ships on it, keyed by its SkillId (move id = skill_<id>).

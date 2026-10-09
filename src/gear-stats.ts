@@ -8,7 +8,7 @@
 //
 // The seam this file is built for: the simulation takes a `Loadout` — the resolved multipliers — and never sees a tier, a slot or a
 // table. That is why this module is deliberately NOT in eslint.config.js's SIM list and never needs to be: the resolution happens
-// once, outside the duel, and only its results cross the boundary. It also keeps `src/duel.ts` free of any import of `loot.ts` or
+// once, outside the duel, and only its results cross the boundary. It also keeps `src/fight/duel.ts` free of any import of `loot.ts` or
 // `grades.ts`, which the sim-boundary test would refuse.
 //
 // The bar (brief 19): gear tilts, skill decides. A full Origin set moves either stat by at most 20% against no gear, so a naked

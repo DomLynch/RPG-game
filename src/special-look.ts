@@ -2,8 +2,8 @@
 // Pure: read from the sim's own state and events, never written back, so a fight steps the same whether or not anything is drawn.
 // The seam: SpecialStarted (the windup begins; the strike lands RULES.special.windup ticks later, the cast tick included), SpecialLanded
 // (the strike), SpecialFizzled (the caster fell during the windup) or SpecialInterrupted (damage cut it; presented as a fizzle), then SPECIAL_RECOVER ticks of presentation after the strike.
-import { RULES } from './moves.ts';
-import type { Fighter } from './duel.ts';
+import { RULES } from './fight/moves.ts';
+import type { Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 
 export const SPECIAL_RECOVER = 45;   // the cloud tears away and the caster returns to stance (Finishers, 2026-09-29: 30 read as a pop at phone size)

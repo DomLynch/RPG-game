@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/hud.ts';
-import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/combat.ts';
-import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/duel.ts';
+import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/fight/combat.ts';
+import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/fight/duel.ts';
 
 // A minimal DOM: what the HUD writes to (properties, attributes, dataset, style props) is what the assertions read.
 class FakeElement {
@@ -175,9 +175,9 @@ test('refused presses dim the matching button only for the player, and mark noth
 // 18-tick wind-up, so from a standing foe with his guard up it lands out to ~1.585 m. The light must mean "a kick lands from here":
 // never lit where it whiffs, and not so timid that it hides a landing kick. Measured against the sim itself, every opponent.
 test('KICK lights only where a kick lands on a guard-raised foe, within 0.15 m of the true edge', async () => {
-  const { createFighter, opponentFighter, stepDuel, idleIntent: idleI } = await import('../src/duel.ts');
-  const { OPPONENTS: ALL, PLAYER_WEAPONS } = await import('../src/moves.ts');
-  const { TARGET } = await import('../src/sim.ts');
+  const { createFighter, opponentFighter, stepDuel, idleIntent: idleI } = await import('../src/fight/duel.ts');
+  const { OPPONENTS: ALL, PLAYER_WEAPONS } = await import('../src/fight/moves.ts');
+  const { TARGET } = await import('../src/fight/sim.ts');
   const { KICK_LANDS } = await import('../src/hud.ts');
   const idle = () => ({ ...idleI(), lock: false });
   const guard = (dir: 'left' | 'right') => ({ ...idle(), guard: true, guardDirection: dir, lock: true });

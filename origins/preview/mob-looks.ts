@@ -3,7 +3,7 @@
 // different people at 375 wide. Pure data: no three.js, no DOM. The mob view reads it; Characters owns it (Expansion owns content.ts, which is not edited).
 //   tint     the colour the body's CLOTH is multiplied toward (0xRRGGBB, 0xffffff = untouched); metal keeps its grade
 //   scale    the body's height multiplier on top of the roster's own (1 = the roster body as it is)
-//   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/moves.ts); absent = the body's own
+//   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/fight/moves.ts); absent = the body's own
 //   dressing the Ash Frontier on him: soot = dark ash worked into the cloth and low on the body, 0..1; burnt = scorched, ragged cloth edges, 0..1
 import { BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE } from '../../src/beast-scale.ts';
 import type { WeaponId } from '../../src/fight/index.ts';

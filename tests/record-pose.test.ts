@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent, roundPose, type DuelPose } from '../src/duel.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent, roundPose, type DuelPose } from '../src/fight/duel.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { FIRST_POSE_VERSION, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord, type RecordMeta } from '../src/record.ts';
 

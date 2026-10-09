@@ -6,14 +6,14 @@
 // foreign version byte is refused with the version error rather than decoded best-effort, and when src/replay.ts verifyRecord
 // (the replay page's own check) accepts every record this gate replays. Any other result, including
 // a replay that quietly ends elsewhere, exits 1 with the seed, opponent and both sides of the mismatch printed.
-// The player is driven by the same brain the AI uses (src/ai.ts decide for side 0) so the fights are real: both sides
+// The player is driven by the same brain the AI uses (src/fight/ai.ts decide for side 0) so the fights are real: both sides
 // attack, guard, parry and kill. Usage: node scripts/kill-link-check.mjs [--seeds N] [--profile normal|hard|easy]
-import { initialPractice, stepPractice } from '../src/combat.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
-import { decide, initialAi } from '../src/ai.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
 import { verifyRecord } from '../src/replay.ts';
-import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { underRecord } from '../src/detmath.ts';
 

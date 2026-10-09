@@ -1,6 +1,6 @@
 // Origins Zone 1 (the Ash Frontier) encounter logic: fight setup, fight outcome, seeded loot, loot into the backpack, world-mob damage
 // rolls. Pure: no DOM, no clock, no storage, no Math.random. Every failure is a contracts Result issue, never a throw. Nothing in src/
-// imports this folder; it reads src/ only for the roster bodies' health (src/moves.ts) and the rank titles, as origins/region1 does.
+// imports this folder; it reads src/ only for the roster bodies' health (src/fight/moves.ts) and the rank titles, as origins/region1 does.
 //
 // Spec: docs/specs/origins/region1-ash-frontier.md §3 (Bounties), §4 (bosses, creatures, boss rules), §5 (loot), §7 (rulings 3, 4, 6,
 // 9, 10). Data: origins/region1 (content.ts + the loader). Loot roll semantics: docs/specs/origins/eqemu-loot.md §5 (clean-room
@@ -14,7 +14,7 @@ import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts'
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../luck/luck.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
-import { OPPONENTS, opponentAt } from '../../src/moves.ts';
+import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
 import { TIERS, type Tier } from '../../src/grades.ts';
 import type { OpponentId } from '../../src/roster.ts';
 import { oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';

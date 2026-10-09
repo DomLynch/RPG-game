@@ -4,9 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
+import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 import { PLAYER_ONLY_CLIPS, WEAPON_CLIPS } from '../src/fight/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
@@ -110,7 +110,7 @@ test('player equip files (Brief 5): each loot weapon is its own small file — W
 });
 
 test('the warden reasons with its own weapon\'s reach: carrying a longer weapon it throws the thrust from where the longsword would only walk in', async () => {
-  const { decide, initialAi } = await import('../src/ai.ts'); const { PROFILES } = await import('../src/moves.ts');
+  const { decide, initialAi } = await import('../src/fight/ai.ts'); const { PROFILES } = await import('../src/fight/moves.ts');
   const before = WEAPONS.trident; WEAPONS.trident = { ...LONGSWORD, id: 'trident', reach: 2.6, moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.6 } } };
   try {
     const arena = (weapon: 'longsword' | 'trident'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 2.3, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', weapon)], finish: null, events: [] });
@@ -124,7 +124,7 @@ test('the warden reasons with its own weapon\'s reach: carrying a longer weapon 
 import { AnimationMixer, Quaternion, Vector3, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { swingProgress } from '../src/blade.ts';
-import { TRIDENT, TRIDENT_PATHS, total } from '../src/moves.ts';
+import { TRIDENT, TRIDENT_PATHS, total } from '../src/fight/moves.ts';
 
 const TRIDENT_GLB = 'src/assets/veteran.glb';   // the shipped Veteran carries the trident (built with WARRIOR_WEAPON=trident, the veteran default)
 async function readRig(file: string) { // the rig without its images (the bake reads it the same way)
@@ -264,7 +264,7 @@ test('the fight the trident gives (real tables): its thrust lands from 2.1 m whe
 // ── The cleaver (weapons lane, 2026-09-16): the Pitborn's, on the longsword's clip family — ON THE SHELF. The weapons lane delivers
 // the part, the rig, the data and the proof; the combat lane flips `WEAPONS.cleaver` to CLEAVER, adds the manifest entry, bakes and
 // reviews the fight (artifacts/weapons/REQUESTS.md §5–6). Until then the Pitborn's slot borrows the longsword, exactly as before.
-import { CLEAVER, CLEAVER_PATHS, OPPONENTS } from '../src/moves.ts';
+import { CLEAVER, CLEAVER_PATHS, OPPONENTS } from '../src/fight/moves.ts';
 import { ENCOUNTERS } from '../src/roster.ts';
 const CLEAVER_GLB = 'src/assets/weapons/cleaver/veteran-cleaver.glb';
 
@@ -369,7 +369,7 @@ test('the sweep trips a roll (slice V): a low blade lands on a roller in the rol
 });
 
 test('the Veteran\'s stance (slice V): the trident warden opens with the thrust most of the time, closes to sweep range rather than the sword\'s, never thrusts inside the point — there it kicks, and steps back out when it cannot', async () => {
-  const { decide, initialAi } = await import('../src/ai.ts'); const { PROFILES } = await import('../src/moves.ts');
+  const { decide, initialAi } = await import('../src/fight/ai.ts'); const { PROFILES } = await import('../src/fight/moves.ts');
   const arena = (gap: number, weapon: 'longsword' | 'trident', player: Partial<ReturnType<typeof createFighter>> = {}): Duel => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), ...player }, createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', weapon)], finish: null, events: [] });
   // Openers: with the cadence due and the first heavy shown, count what each weapon decides to close in for over many seeds.
   const openers = (weapon: 'longsword' | 'trident') => { const n = { light: 0, heavy: 0, thrust: 0 }; for (let s = 1; s <= 300; s++) { const state = { ...initialAi(s * 7919), mode: 'approach' as const, decision: 500, wait: 0, next: null, habits: { ...initialAi().habits, attacks: 1 } }; const out = decide(arena(3, weapon), 1, state, PROFILES.normal).ai.next!; n[out]++; } return n; };
@@ -402,7 +402,7 @@ test('the Veteran\'s stance (slice V): the trident warden opens with the thrust 
 
 // ── The knife (weapons lane, 2026-09-17): the goblin's sica. LIVE since slice X (combat lane): `WEAPONS.knife` is KNIFE, baked from the
 // goblin's own rig (src/assets/goblin.glb carries it: WARRIOR_FIGHTER=goblin defaults to the knife), his stance and knobs set.
-import { KNIFE, KNIFE_PATHS, OPPONENTS as OPP, type MoveId, type PathId } from '../src/moves.ts';
+import { KNIFE, KNIFE_PATHS, OPPONENTS as OPP, type MoveId, type PathId } from '../src/fight/moves.ts';
 const KNIFE_GLB = 'src/assets/goblin.glb';
 
 test('the knife is live (slice X): WEAPONS.knife is KNIFE, the goblin carries it, and it is baked from his own rig with the blade as the contact segment', () => {
@@ -453,7 +453,7 @@ test('the knife\'s data keeps the goblin\'s brief: every wind-up ≥ 12 ticks (r
 });
 
 // The estoc is live: variant A on the shipped Nightborn and the same rig in the blade bake.
-import { ESTOC, ESTOC_PATHS } from '../src/moves.ts';
+import { ESTOC, ESTOC_PATHS } from '../src/fight/moves.ts';
 const ESTOC_GLB = 'src/assets/weapons/estoc/nightborn-estoc.glb';
 
 test('the live estoc uses its own moves, baked point, and the exact shipped Nightborn rig', () => {
@@ -511,7 +511,7 @@ test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly
 // ── The scythe (weapons lane → combat lane, 2026-09-18): the Executioner's — LIVE. Mesh (variant B), 13-clip family on his rig, SCYTHE
 // data and the man-scale bake; the flip (WEAPONS.scythe = SCYTHE, the manifest entry, his rebuilt body, the WEAPON_CLIPS map) is the
 // GAMEPLAY CHANGE REQUESTS §15 flagged: new timings, a shaft guard profile, a chip profile and a dead band inside the arc.
-import { SCYTHE, SCYTHE_MOVES, SCYTHE_PATHS } from '../src/moves.ts';
+import { SCYTHE, SCYTHE_MOVES, SCYTHE_PATHS } from '../src/fight/moves.ts';
 const SCYTHE_GLB = 'src/assets/weapons/scythe/executioner-scythe.glb', SCYTHE_BAKE_GLB = 'src/assets/weapons/scythe/warrior-scythe.glb';
 const SCYTHE_CLIPS: Record<string, number> = { Scythe_Idle: 1.667, Scythe_Walk: 1.333, Scythe_StrafeLeft: .8, Scythe_StrafeRight: .8, Scythe_Reap: 1, Scythe_High: 1, Scythe_Thrust: 1, Scythe_Chain: 1, Scythe_Guard: 1, Scythe_BlockImpact: 1, Scythe_Deflected: 1, Scythe_Hit: .333, Scythe_Death: 2.4 };
 

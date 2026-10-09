@@ -638,10 +638,10 @@ dormant). This lane verifies each addition after the fact (`select count(*) from
 
 ### Ghost storage (PvP as ghosts first — Strategy's "friend's echo")
 A ghost is a fighter another player can be thrown against: the look (rig, weapon, equipped loot) plus the warden's behaviour profile
-of that player. Behaviour, not rank: `Habits` (`src/ai.ts:11` — ticks, guard, parries, rolls, steps, lights, heavies, thrusts, kicks,
+of that player. Behaviour, not rank: `Habits` (`src/fight/ai.ts:11` — ticks, guard, parries, rolls, steps, lights, heavies, thrusts, kicks,
 attacks…) is exactly what the warden reads live, so a stored `Habits` drives the same `readOpponent` path with no new AI.
 - `public.ghosts (id text pk check '^[A-Za-z0-9_-]{8}$', user_id uuid unique → auth.users cascade, display_name text (1–24, same check
-  as fighter_profiles), rig text check in the roster's player rigs, weapon text check in PLAYER_WEAPONS (src/moves.ts:410), loot jsonb (same check as
+  as fighter_profiles), rig text check in the roster's player rigs, weapon text check in PLAYER_WEAPONS (src/fight/moves.ts:410), loot jsonb (same check as
   fighter_profiles.loot), habits jsonb check (pg_column_size ≤ 2048 and every key is a Habits field and every value a bounded integer
   — a jsonb check, not `pg_jsonschema`, so the local check needs no extension), fights integer default 0, revision bigint (the
   fighter_profiles trigger pattern), updated_at)`.

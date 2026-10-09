@@ -5,10 +5,10 @@
 //   node scripts/special-hero-brain.mjs --merge <dir> [--out report.md]
 /* global process, console */
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { decide, initialAi } from '../src/ai.ts';
-import { stepDuel, withSpecials } from '../src/duel.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { stepDuel, withSpecials } from '../src/fight/duel.ts';
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS, PROFILES, opponentAt, profileAt, RULES } from '../src/moves.ts';
+import { OPPONENTS, PROFILES, opponentAt, profileAt, RULES } from '../src/fight/moves.ts';
 import { skillOf } from '../src/loot.ts';
 import { arena } from '../tests/strategies.ts';
 

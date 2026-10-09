@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { initialPractice, stepPractice } from '../../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/moves.ts';
+import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/fight/moves.ts';
 import { createRecorder, type FightRecord } from '../../src/record.ts';
 import { liveRecorder } from '../../tests/lib/live-recorder.ts';
 import { recordSpecials } from '../../src/replay.ts';

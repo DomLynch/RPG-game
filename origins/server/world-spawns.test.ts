@@ -5,9 +5,9 @@ import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { mobBatch } from './mob-rewards.ts';
-import { OPPONENTS, opponentAt } from '../../src/moves.ts';
-import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../../src/duel.ts';
-import { OPEN_RADIUS } from '../../src/play-radius.ts';
+import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
+import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../../src/fight/duel.ts';
+import { OPEN_RADIUS } from '../../src/fight/play-radius.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
@@ -53,7 +53,7 @@ test('the floors are bounds from the Pit kit: at least one hit, monotone in heal
   assert.ok(withinReach(spec, { x: 9, z: 0 })); assert.ok(!withinReach(spec, { x: 20, z: 0 }));
 });
 
-// The Auditor's pin (#1880): the duel Zone 1 actually runs (src/duel.ts stepDuel on a duel with radius OPEN_RADIUS, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
+// The Auditor's pin (#1880): the duel Zone 1 actually runs (src/fight/duel.ts stepDuel on a duel with radius OPEN_RADIUS, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
 // than the floors. The attacker's best case: a creature that never moves, guards or swings, and a hero who presses one attack every tick it is legal.
 test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (the open-world duel, best case for the attacker)', () => {
   const kinds = [...new Set([...spawns.values()].map((s) => s.spec.body))];

@@ -7,7 +7,7 @@
 /* global process, console */
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { PUNISH_WINDUP, SPECIAL, cell } from '../tests/special-battery.ts';
 import { STRATEGIES, TAP_ATTACK } from '../tests/strategies.ts';
 

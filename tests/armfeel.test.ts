@@ -7,10 +7,10 @@ import * as THREE from 'three';
 import { BLOOD, makeRng, spawnBlood } from '../src/fight/blood-style.ts';
 import { ARMFEEL, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
-import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
+import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { createRecorder, packRecord } from '../src/record.ts';
-import { opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent, legal, type CombatEvent } from '../src/duel.ts';
+import { opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent, legal, type CombatEvent } from '../src/fight/duel.ts';
 
 test('the setting: High for everyone; ?feel= (with or without the old ?look=armfeel) picks Low or Off; reduced motion starts at Low', () => {
   assert.equal(armfeelFrom(''), 'high');

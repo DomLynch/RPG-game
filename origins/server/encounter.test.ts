@@ -6,7 +6,7 @@ import { encounterOps, fightOfToken, poseOfToken, POSED_FIGHT_MAX, tokenFor } fr
 import { issuePose, MARK_GAP, MIN_GAP, poseBounds } from './encounter-pose.ts';
 import { verifyEncounter } from './encounter-verify.ts';
 import { decodeRecord } from '../../src/record.ts';
-import { roundPose, type DuelPose } from '../../src/duel.ts';
+import { roundPose, type DuelPose } from '../../src/fight/duel.ts';
 import { ACCOUNT, CHAR, fakeDb, RESOLVED, deps, fight } from './encounter-fixtures.ts';
 
 const ctx = (db: Db) => ({ db, account: ACCOUNT });

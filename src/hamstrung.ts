@@ -1,6 +1,6 @@
 import { FINISHER_POSE, selectFinisher, type FinisherId } from './fight/finishers.ts';
-import type { Finish } from './duel.ts';
-import type { WeaponId } from './moves.ts';
+import type { Finish } from './fight/duel.ts';
+import type { WeaponId } from './fight/moves.ts';
 import { isHeld, ROSTER, type OpponentId } from './roster.ts';
 
 // Hamstrung: a paired finisher (Death_Hamstrung on the victim, Fin_Hamstrung on the killer): a low cut at the knee, then a thrust

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { initialDuel, withSpecials, stepDuel, idleIntent } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
+import { initialDuel, withSpecials, stepDuel, idleIntent } from '../src/fight/duel.ts';
 import * as goblin from '../src/special-fx-goblin.ts';
 import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/special-timing.ts';
 import { disposeSpecialGroup } from '../src/special-presentation.ts';

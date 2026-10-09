@@ -1,6 +1,6 @@
 # Interruptible special wind-ups (#1507 item 1)
 
-Status: spec, Combat, 2026-10-07. Design reference only: the "cast bar you can interrupt" of WoW / EverQuest. No donor code exists or was read for this item; everything below is read from our own `src/duel.ts`, `src/moves.ts`, `src/combat.ts` on trunk. Build by a fresh implementer from this file plus `src/`; Combat reviews the PR against it.
+Status: spec, Combat, 2026-10-07. Design reference only: the "cast bar you can interrupt" of WoW / EverQuest. No donor code exists or was read for this item; everything below is read from our own `src/fight/duel.ts`, `src/fight/moves.ts`, `src/fight/combat.ts` on trunk. Build by a fresh implementer from this file plus `src/`; Combat reviews the PR against it.
 
 ## 1. What exists today (verified on trunk)
 

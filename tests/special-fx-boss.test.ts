@@ -7,7 +7,7 @@ import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { LAND_AT } from '../src/special-timing.ts';
 import { BUILD_AT, slingAngle, wrathTremor, type BossKind } from '../src/special-boss-timing.ts';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
 // The Witch's boss specials (special-fx-boss.ts): the same seam as the Shield Quake, on her class skill, the Witch-fire.
 const fighters = [{ special: 0 }, { special: 0, skill: 'witchfire' }] as unknown as readonly [Fighter, Fighter];

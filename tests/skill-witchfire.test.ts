@@ -5,9 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, opponentAt, profileAt, type SkillId } from '../src/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, opponentAt, profileAt, type SkillId } from '../src/fight/moves.ts';
 import { decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/replay.ts';

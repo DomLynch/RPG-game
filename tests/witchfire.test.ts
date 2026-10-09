@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createFighter, movesOf } from '../src/duel.ts';
-import { initialState } from '../src/sim.ts';
+import { createFighter, movesOf } from '../src/fight/duel.ts';
+import { initialState } from '../src/fight/sim.ts';
 import { WITCHFIRE, createWitchfire, witchfireStage } from '../src/witchfire.ts';
 
 // A rig stand-in: an anchor with a left hand 1.2 m up, the fighter at the origin facing +z (heading 0).
