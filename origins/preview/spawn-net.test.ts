@@ -134,3 +134,20 @@ test('onCombatEvent: FightStarted (or, until #1943, the creature\'s first move /
   on({ type: 'Evaded', id: 'wolves-2' });
   assert.deepEqual(log, ['engage wolves-1', 'engage wolves-2', 'engage wolves-3', 'hit wolves-3', 'engage wolves-4', 'evade wolves-2']);
 });
+
+test('FightStarted twice for one creature (it left reach and came back) = ONE engage on its open token; after Evaded a new FightStarted engages again', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base }), on = onCombatEvent(t, 'me');
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    const first = await t.engaged(ids[0]!);
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    assert.equal(await t.engaged(ids[0]!), first, 'the same open engage');
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 1, 'one request to the server');
+    on({ type: 'Evaded', id: ids[0]! });
+    assert.deepEqual(t.open(), []);
+    on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    await t.engaged(ids[0]!);
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a fresh fight after Evaded engages again (the server returns its still-open token)');
+  } finally { await w.close(); }
+});
