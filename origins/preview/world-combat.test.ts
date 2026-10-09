@@ -62,7 +62,7 @@ test('call-site pin: the page reaches combat only through zone1.ts stepCombat (s
   const users = src.filter((f) => /from '\.\.\/combat\//.test(readFileSync(new URL(f, dir), 'utf8')));
   assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports origins/combat');
   const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
-  assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
+  assert.deepEqual([...text.matchAll(/from '(\.\.\/\.\.\/src\/fight\/[^']+)'/g)].map((m) => m[1]), ['../../src/fight/world.ts'], 'and only the engine world.ts');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
 

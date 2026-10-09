@@ -1,7 +1,7 @@
 // Proof 3 evidence (#1936 c): three creatures engage one player in the open world, he kills one, runs, and the other two walk home - no end screen.
-// Headless: the real stepCombat (origins/combat/zone1.ts), no browser. Prints the event log, then a 4-frame top-down SVG between SVG-BEGIN / SVG-END.
+// Headless: the real stepCombat (src/fight/world.ts), no browser. Prints the event log, then a 4-frame top-down SVG between SVG-BEGIN / SVG-END.
 // Run: node scripts/proof3-three-on-one.ts
-import { MAX_ATTACKERS, creature, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from '../origins/combat/zone1.ts';
+import { MAX_ATTACKERS, creature, newWorld, player, stepCombat, type Event, type Fighter, type Input, type World } from '../src/fight/world.ts';
 
 const RUN_MS = 5.2, DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const boost = (f: Fighter): Fighter => { f.health = f.maxHealth = 1e6; return f; };

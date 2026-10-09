@@ -7,7 +7,7 @@ import { phoneTier, pixelCap } from '../../src/quality.ts';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
-import { SPEEDS } from './speeds.ts';
+import { SPEEDS } from '../../src/fight/speeds.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -568,7 +568,7 @@ function pressEngage() {
 // the walker and the engaged creature are not drawn (the duel draws its own pair), the other creatures stand frozen and those past 20 m are hidden. On by default; ?worldfight=0 (or =off) is the kill switch
 // and the fight is the Pit's, as it was.
 const WORLDFIGHT = !/[?&]worldfight=(?:0|off)\b/.test(location.search);   // ON by default (Dom 2026-10-08: all switches on); ?worldfight=0 or =off is the emergency kill switch back to the Pit's own fight
-// Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the Pit is on hold; the wild is continuous and open, no fight start/end). Combat's pure origins/combat/zone1.ts decides hits, reach, creature chase /
+// Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the Pit is on hold; the wild is continuous and open, no fight start/end). Combat's pure src/fight/world.ts decides hits, reach, creature chase /
 // telegraph / bite / leash; world-combat.ts mounts it here. ?combat=pit is the emergency switch back to the Pit duel for a creature (the old path below stays untouched).
 const WORLDCOMBAT = !/[?&]combat=pit\b/.test(location.search);
 const wcBars = document.createElement('div'); wcBars.id = 'wc-bars'; wcBars.hidden = true;
