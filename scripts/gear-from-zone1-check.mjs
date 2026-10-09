@@ -5,7 +5,6 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import http from 'node:http';
 import { preview } from 'vite';
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
@@ -14,25 +13,23 @@ const dir = process.env.GEAR_RECEIPT_DIR || 'artifacts/gear-from-zone1'; await f
 const piece = (where, paperdoll) => ({ id: 'inst:g1', item: 'item:loot.goblin.Helmet', lootId: 'goblin.Helmet', slot: 'Helmet', where, index: where === 'equipped' ? null : 0, paperdoll, tier: 'Recruit', version: 1 });
 let ledger = { pieces: [piece('pack', null)], worn: {}, packSize: 8, bankSize: 100 };
 const seen = [];
-const writer = http.createServer((req, res) => {
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'POST' };
-  if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
-  let body = ''; req.on('data', (c) => { body += c; }); req.on('end', () => {
-    const op = req.url.split('/').at(-1); seen.push({ op, auth: req.headers.authorization });
-    if (op === 'gear_equip') ledger = { pieces: [piece('equipped', 'head')], worn: { head: 'inst:g1' }, packSize: 8, bankSize: 100 };
-    const result = op === 'open' ? { career: { total_credit: 0 }, characters: [{ id: 'c1', name: 'Dom' }], marks: 0 } : ledger;
-    res.writeHead(200, { ...cors, 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, result }));
-  });
-});
-await new Promise((r) => writer.listen(0, '127.0.0.1', r));
+// The page's CSP allows only its own origin to be fetched, so the fake writer is the page's own /origins/<op> answered by the browser (page.route), as the live page would reach nginx.
+const answer = (route) => {
+  const op = route.request().url().split('/').at(-1), cors = { 'access-control-allow-origin': '*' };
+  if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+  seen.push({ op, auth: route.request().headers().authorization });
+  if (op === 'gear_equip') ledger = { pieces: [piece('equipped', 'head')], worn: { head: 'inst:g1' }, packSize: 8, bankSize: 100 };
+  const result = op === 'open' ? { career: { total_credit: 0 }, characters: [{ id: 'c1', name: 'Dom' }], marks: 0 } : ledger;
+  return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
+};
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 const errors = [], logs = [];
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
-  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => logs.push(`${m.type()}: ${m.text().slice(0, 160)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
+  page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => logs.push(`${m.type()}: ${m.text().slice(0, 160)}`)); await page.route('**/*sentry.io/**', (r) => r.abort()); await page.route('**/origins/*', answer);
   await page.addInitScript((s) => localStorage.setItem('frankendom.auth.v1', s), JSON.stringify({ access_token: 'tok', expires_at: Math.floor(Date.now() / 1000) + 3600 }));
-  await page.goto(new URL(`/?gear=1&writer=http://127.0.0.1:${writer.address().port}/origins`, origin).href);
+  await page.goto(new URL('/?gear=1', origin).href);
   await page.waitForSelector('#journal[open][data-gear="live"]');
   await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]', { timeout: 60000 }).catch(async (e) => { console.log('NO PIECE. writer saw', JSON.stringify(seen), 'errors', JSON.stringify(errors), 'console', JSON.stringify(logs.slice(-6)), 'pack', await page.evaluate(() => document.getElementById('pack')?.innerHTML.slice(0, 300))); throw e; });
   assert.equal(await page.locator('#gear-back').innerText(), 'Back to Zone 1'); assert.equal(await page.evaluate(() => document.getElementById('journal-tab-profile').checked), true, 'the Profile tab');
@@ -43,4 +40,4 @@ try {
   assert.deepEqual(seen.map((s) => s.op).filter((o) => o.startsWith('gear_')), ['gear_open', 'gear_equip']); assert.ok(seen.every((s) => s.auth === 'Bearer tok'));
   await page.screenshot({ path: `${dir}/2-worn-from-the-server.png` });
   assert.deepEqual(errors, []); console.log(JSON.stringify({ passed: true, ops: seen.map((s) => s.op) }));
-} finally { await browser.close(); writer.close(); await server?.close(); }
+} finally { await browser.close(); await server?.close(); }
