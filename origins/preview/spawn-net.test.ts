@@ -1,6 +1,7 @@
 // The page's spawn client (spawn-net.ts) against the REAL writer handlers (createWriter + worldSpawnOps) over HTTP, with a stateful stand-in for migration 202610080014: one token per
 // instance per account, at most 4 open, a kill consumes its token once and must clear the time-to-kill floor from ITS OWN issue time. The real-Postgres proof of the same rules is
 // scripts/origins-spawns-check.mjs (#1949); this one proves the page drives them: three creatures on one player = three engages, three kill reports, the 5th engage refused.
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -173,4 +174,12 @@ test('killed BEFORE the killing Hit is delivered (any event order): the late Hit
     await t.engaged(ids[0]!);   // the same request (the open engage), awaited
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a respawned creature is engaged again');
   } finally { await w.close(); }
+});
+
+test('the page frame drives the tracker: main.ts calls spawnNet.tick() in the same per-frame block as wc.update (an open token is touched in a long fight), and onEvent is wired to the tracker', () => {
+  const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
+  const frame = main.split('\n').find((l) => l.includes('wc.update(dt'));
+  assert.ok(frame, 'the walk loop steps Zone 1 combat');
+  assert.match(frame!, /spawnNet\.tick\(\)/, 'the same frame ticks the engage client');
+  assert.match(main, /onEvent: onCombatEvent\(spawnNet, ME\)/, 'combat events reach the tracker');
 });
