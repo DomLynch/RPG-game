@@ -24,7 +24,7 @@ export function countErrors(output) {
 }
 
 /** What is wrong against the pins: errors over a pin (or unpinned), and pins above today's count (lower them). Empty = pass. */
-export function judge(counts, debt = DEBT) {
+export function judge(counts, debt = DEBT, where = 'scripts/origins-tsc.mjs') {   // where: the script whose DEBT holds the pins (scripts/origins-lint.mjs reuses this judge)
   const over = [], stale = [];
   for (const [file, codes] of Object.entries(counts)) for (const [code, n] of Object.entries(codes)) {
     const pin = debt[file]?.codes[code] ?? 0;
@@ -32,7 +32,7 @@ export function judge(counts, debt = DEBT) {
   }
   for (const [file, { owner, codes }] of Object.entries(debt)) for (const [code, pin] of Object.entries(codes)) {
     const n = counts[file]?.[code] ?? 0;
-    if (n < pin) stale.push(`${file} ${code}: ${n} errors, pinned ${pin} (${owner}): lower the pin in scripts/origins-tsc.mjs so it cannot come back`);
+    if (n < pin) stale.push(`${file} ${code}: ${n} errors, pinned ${pin} (${owner}): lower the pin in ${where} so it cannot come back`);
   }
   return { over, stale };
 }
