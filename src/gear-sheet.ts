@@ -13,12 +13,14 @@ type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; g
 export type GearSheetDeps = {
   element: <T extends HTMLElement = HTMLElement>(id: string) => T; journal: HTMLElement; canvas: HTMLElement;
   profile: () => { loot?: Loot }; persist: () => void; view: () => View; weapon: () => string;
-  act?: (op: GearOp) => void;   // where a wear / stow goes; default: the local ledger (a guest, the Pit today). A signed-in character's goes to the server (gear-ledger.ts stepsFor).
+  act?: (op: GearOp) => boolean;   // a signed-in character's wear / stow goes to the server (gear-ledger.ts stepsFor): true = handled; false or absent = the local ledger (a guest, the Pit today)
   pieceName: (id: LootId) => string; wornIds: () => LootId[]; wornTiers: () => Record<string, Tier>;
 };
 export function createGearSheet(d: GearSheetDeps) {
   const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-  const act = (op: GearOp) => (d.act ? d.act(op) : setLoot(applyLocal(d.profile().loot ?? emptyLoot(), op)));
+  const act = (op: GearOp) => { if (!d.act?.(op)) setLoot(applyLocal(d.profile().loot ?? emptyLoot(), op)); };
+  // Show a ledger that is not the local profile's (the server's, for a signed-in character): the rig and the sheet follow it, nothing is written to the profile.
+  function showLoot(loot: Loot) { d.profile().loot = loot; d.view().wear(d.wornIds(), d.wornTiers()); renderLoot(); }
   function setLoot(loot: Loot) { d.profile().loot = loot; d.persist(); d.view().wear(d.wornIds(), d.wornTiers()); renderLoot(); }
   // One rack row: the piece's name, who it was taken from, and Wear/Worn on the journal's own wear path.
   function rackRow(id: LootId): HTMLLIElement {
@@ -141,5 +143,5 @@ export function createGearSheet(d: GearSheetDeps) {
     d.view().wear(d.wornIds(), d.wornTiers()); renderFitting();
   }
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) d.element(`slot-${key}-off`).addEventListener('click', () => act({ kind: 'stow', key }));
-  return { setLoot, act, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: () => gear };
+  return { setLoot, showLoot, act, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: () => gear };
 }

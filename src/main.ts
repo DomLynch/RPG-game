@@ -46,6 +46,8 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { createGearSheet, lootThumb } from './gear-sheet.ts';
+import type { GearOp } from './gear-ledger.ts';
+import { createServerGear } from '../origins/preview/gear-server.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
@@ -240,7 +242,8 @@ const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(locatio
 // Play goes to Zone 1 (src/zone1-hop.ts): a returning player on a plain `/`; a storage that cannot be read stays on the arena.
 if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: location.search, pathname: location.pathname, hasFighter: localStorage.getItem(FIGHTER_KEY) !== null, lessonDone: localStorage.getItem(LESSON_DONE_KEY) === '1' }); if (to) location.replace(to); } catch { /* blocked storage: stay */ } }
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
-const { setLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, profile: () => profile, persist, view: () => view, weapon: () => match.weapon, pieceName, wornIds, wornTiers });
+let serverGear: { refresh(): Promise<boolean>; act(op: GearOp): boolean } | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
+const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, act: (op) => serverGear?.act(op) ?? false, profile: () => profile, persist, view: () => view, weapon: () => match.weapon, pieceName, wornIds, wornTiers });
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
@@ -765,6 +768,18 @@ function openJournal() {
   renderScorecard(); renderLoot();
   journal.showModal();
   enterGear();
+  void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
+}
+serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
+// TEMPORARY: deleted in the last A PR (Strategy 10-09). Zone 1's Gear button lands here (/arena/?gear=1): the engine's gear screen opens on the Profile tab with a Back to Zone 1 link.
+// The walk's position is not kept (Zone 1 starts at its spawn on every load), so Back lands at the zone start.
+const gearHop = /[?&]gear=1(?:&|$)/.test(location.search); let gearHopDone = false;
+function openGearFromZone1() {
+  if (!gearHop || gearHopDone) return; gearHopDone = true;
+  try { history.replaceState(history.state, '', `${location.pathname}${location.search.replace(/([?&])gear=1(&|$)/, (_m, a, b) => (b ? a : '')).replace(/[?&]$/, '')}${location.hash}`); } catch { /* no history API: the flag stays in the address */ }
+  element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal();
+  const back = document.createElement('button'); back.id = 'gear-back'; back.type = 'button'; back.className = 'stats-return'; back.textContent = 'Back to Zone 1';
+  back.addEventListener('click', () => location.assign('/zone1/')); element('stats-return').after(back);
 }
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
@@ -1245,7 +1260,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
-      if (kind === 'ready') view?.startStandoff();
+      if (kind === 'ready') { view?.startStandoff(); setTimeout(openGearFromZone1, 0); }   // after `view` is assigned
     },
     opponent.id,
     arenaPick,   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged

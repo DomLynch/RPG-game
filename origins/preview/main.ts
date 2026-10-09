@@ -421,6 +421,8 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
+      // TEMPORARY: deleted in the last A PR (Strategy 10-09). Gear is the engine's own screen at /arena/ (src/gear-sheet.ts) until the sheet is mounted here; Back to Zone 1 returns to the zone start.
+      const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => location.assign('/arena/?gear=1')); chips.append(gearEntry);
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
       pick.addEventListener('click', () => { menu.close(); openPanel('allegiance'); });
