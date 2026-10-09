@@ -69,7 +69,7 @@ try {
     { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } },
     { ...F.helmetDef(), id: 'item:loot.veteran.Arms', slot: 'Arms', name: "The Centurion's vambraces", appearance: { asset: 'loot.glb/veteran.Arms' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
-  server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
+  server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'), 30_000, 3),   /* the production path: pooled sessions */ verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
     lookup: id => defs.get(id),
     smith: smithContent(F.blacksmith(), { ...F.forgeCosts(), rows: [{ level: 1, rarity: 'common', coin: 0, materials: [{ item: 'item:grave-iron', quantity: 5 }] }, { level: 2, rarity: 'common', coin: 250, materials: [] }] }),
 
