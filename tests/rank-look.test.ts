@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { buildWarriors, readRankLook } from '../src/characters.ts';
+import { buildWarriors, readRankLook } from '../src/fight/characters.ts';
 import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { ADDITIVE_ROLES, QUADRUPED_CLIPS, ROLES, buildWarriors, isQuadruped } from '../src/characters.ts';
+import { ADDITIVE_ROLES, QUADRUPED_CLIPS, ROLES, buildWarriors, isQuadruped } from '../src/fight/characters.ts';
 
 // The seven clips scripts/character/quadruped_rig.py exports.
 const WOLF = ['Idle', 'Walk', 'Run', 'Flee', 'Bite', 'Hurt', 'Death'];

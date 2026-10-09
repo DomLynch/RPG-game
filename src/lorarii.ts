@@ -19,7 +19,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent } from './duel.ts';
 import type { SimView } from './arena.ts';
-import { retryTransient } from './characters.ts';
+import { retryTransient } from './fight/characters.ts';
 
 const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
 
