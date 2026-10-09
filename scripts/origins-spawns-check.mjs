@@ -186,6 +186,18 @@ try {
   eq(psql(`select string_agg(instance || '=' || zone, ',' order by instance) from public.origins_spawns where instance in ('wolves-11', 'z2:wolves-11', 'opener-ash-reach-1')`), 'wolves-11=1,z2:wolves-11=2', 'zones: the zone is read from the id; Zone 1 ids read 1');
   eq(psql(`select count(*) from public.origins_spawns where zone is null`), '0', 'zones: every existing row has a zone');
 
+  // ---- 202610090017: the zone has no ceiling and no leading zero; a key that does not match stays Zone 1 in the table (the writer refuses such a key before it is stored) ----------------------
+  eq(psql(`begin; insert into public.origins_spawns(instance, kind) values ('z1000:wolves-1', 'character:ash-wolf'), ('z700:wolves-1', 'character:ash-wolf'), ('z123456:wolves-1', 'character:ash-wolf'), ('z01:wolves-1', 'character:ash-wolf'), ('z0:wolves-1', 'character:ash-wolf');
+    select string_agg(instance || '=' || zone, ',' order by instance) from public.origins_spawns where instance in ('z1000:wolves-1', 'z700:wolves-1', 'z123456:wolves-1', 'z01:wolves-1', 'z0:wolves-1'); rollback;`.replace('order by instance', 'order by instance collate "C"')),
+    'z01:wolves-1=1,z0:wolves-1=1,z1000:wolves-1=1000,z123456:wolves-1=123456,z700:wolves-1=700', 'zones: 700, 1000 and 123456 read as their own zone; z01 and z0 do not parse and stay 1 (the writer refuses them)');
+  eq(psql(`select count(*) from public.origins_spawns where instance like 'z1000:%'`), '0', 'zones: the probe rows were rolled back');
+  const ZONE17 = '202610090017_origins_spawn_zone_unbounded.sql', probe = `begin; insert into public.origins_spawns(instance, kind) values ('z1000:wolves-1', 'character:ash-wolf'), ('z2:wolves-1', 'character:ash-wolf'); select string_agg(instance || '=' || zone, ',' order by instance collate "C") from public.origins_spawns where instance in ('z1000:wolves-1', 'z2:wolves-1'); rollback;`;
+  psql(readFileSync(join(dir, '..', 'down', ZONE17.replace('.sql', '_down.sql')), 'utf8'));
+  eq(psql(probe), 'z1000:wolves-1=1,z2:wolves-1=2', '0017 down: back to 1 to 3 digits (z1000 reads as 1 again), Zone 2 unchanged');
+  eq(psql(`select count(*) from public.origins_spawns where zone is null`), '0', '0017 down: every existing row still has a zone');
+  psql(readFileSync(join(dir, ZONE17), 'utf8'));
+  eq(psql(probe), 'z1000:wolves-1=1000,z2:wolves-1=2', '0017 up again after down');
+
   // ---- down ----------------------------------------------------------------------------------------------------------------------------------------
   const eventsBefore = psql(`select count(*) from public.origins_events`);
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
