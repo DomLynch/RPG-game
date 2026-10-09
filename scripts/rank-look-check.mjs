@@ -241,7 +241,7 @@ try {
           // Where the worst frame sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
           // Lead on 8d138778 (condition 2): the frames from the fetch's end to the swap hold the map uploads and the pre-swap bake; their p95
-          // against the same span with ?lookbake=off (--load-query '&lookbake=off') is the no-hitch evidence.
+          // against the same span with ?off=lookbake (--load-query '&off=lookbake') is the no-hitch evidence.
           const span = globalThis.__frames.filter(([t]) => t >= from && t < s.on).map(([, ms]) => ms).sort((a, b) => a - b);
           const bakeP95 = span.length ? +span[Math.min(span.length - 1, Math.ceil(span.length * 0.95) - 1)].toFixed(1) : null, bakeFrames = span.length;
           return { bakeP95, bakeFrames, state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
