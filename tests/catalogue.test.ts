@@ -8,7 +8,7 @@ import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { LEVELS, statsAt, opponentAt, OPPONENTS } from '../src/fight/stats.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 import { LOOT, LOOT_IDS } from '../src/loot.ts';
-import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/finishers.ts';
+import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/fight/finishers.ts';
 import { WEAPONS } from '../src/moves.ts';
 import { PICKS, homePick } from '../src/stance.ts';
 import { THROATS } from '../src/fight/sound/creature.ts';

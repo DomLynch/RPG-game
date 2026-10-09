@@ -53,7 +53,7 @@ import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-run
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
-import type { FinisherId } from './finishers.ts';
+import type { FinisherId } from './fight/finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { executionPick, resolveExecution } from './execution.ts';
 
@@ -693,7 +693,7 @@ function updateHud() {
   document.documentElement.classList.toggle('endgame-hush', !!phase && hushed);
   // The loot panel opens on the finisher-complete event, not a delay of ours: `complete` is the scene's own latch (the victim's
   // clip has run out, the camera has settled, a severed head has come to rest), so a long ceremony is never cut short and a
-  // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
+  // short one never leaves the player waiting. src/fight/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
   // budgets its layout against; nothing here reads it. The panel's own geometry is untouched — this is timing only.
   if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
 }

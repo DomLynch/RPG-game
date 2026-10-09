@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { defendedBy, isHeavy, OPPONENT_SIDE, registerSignature, type SignatureEffect, type SignatureFrame } from './signature.ts';
-import { type WoundHit } from './gore.ts';
+import { type WoundHit } from './fight/gore.ts';
 import { weaponOf } from './moves.ts';
 import type { CombatEvent } from './duel.ts';
 

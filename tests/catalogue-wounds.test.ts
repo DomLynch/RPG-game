@@ -6,7 +6,7 @@ import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LOOT_IDS } from '../src/loot.ts';
-import { ROTATION, FINISHER_POSE } from '../src/finishers.ts';
+import { ROTATION, FINISHER_POSE } from '../src/fight/finishers.ts';
 import { WEAPONS } from '../src/moves.ts';
 import { PICKS } from '../src/stance.ts';
 import { THROATS } from '../src/fight/sound/creature.ts';

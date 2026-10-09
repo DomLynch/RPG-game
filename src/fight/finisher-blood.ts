@@ -1,7 +1,7 @@
 import { AddEquation, Color, CustomBlending, DstColorFactor, DynamicDrawUsage, OneMinusSrcAlphaFactor, SRGBColorSpace, TextureLoader, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
 import type { FinisherId } from './finishers.ts';
-import { HAMSTRUNG_BEATS } from './hamstrung.ts';
-import { EXECUTION_BEATS, executionAt } from './execution.ts';
+import { HAMSTRUNG_BEATS } from '../hamstrung.ts';
+import { EXECUTION_BEATS, executionAt } from '../execution.ts';
 
 // Blood on the floor multiplies onto the sand: dst × lerp(1, texture, alpha·opacity). Premultiplied output makes alpha and opacity
 // fade it toward "no change" — never toward white, which a plain MultiplyBlending ignores opacity for.
@@ -94,7 +94,7 @@ export function createFinisherBlood(map: Texture) {
   group.add(drops,...pools);
   let photo = false, tint = '#68121a';
   if (typeof document !== 'undefined')
-    Promise.all([...FLOOR_POOLS,...FLOOR_SPLASHES].map(f=>new TextureLoader().loadAsync(new URL(`./assets/blood/${f}`, import.meta.url).href))).then(all=>{
+    Promise.all([...FLOOR_POOLS,...FLOOR_SPLASHES].map(f=>new TextureLoader().loadAsync(new URL(`../assets/blood/${f}`, import.meta.url).href))).then(all=>{
       all.forEach((t,i)=>{t.colorSpace=SRGBColorSpace;multiplyOnto(poolMaterials[i],t);poolMaterials[i].opacity=1;});photo=true;
     }).catch(()=>{});   // no textures: the canvas splat stays
   const particles = Array.from({length:160},()=>({position:new Vector3(),velocity:new Vector3(),life:0,size:0}));
