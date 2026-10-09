@@ -143,8 +143,8 @@ test('the save line is neutral until the read answers, then the real career or t
   const { f } = recorder(() => new Promise(() => {}));
   const answered = await openWith('tok', { fetch: f, timeoutMs: 20 });
   if (!isOffline(answered)) return assert.fail('a timeout is offline');
-  assert.equal(saveLine(answered), 'Not saving: offline — progress isn’t being saved', 'a timeout ends the checking line, and says offline, not signed out');
-  for (const reason of ['network', 'bad-reply', 'http-500', 'http-502']) assert.equal(saveLine({ offline: reason }), 'Not saving: offline — progress isn’t being saved', reason);
+  assert.equal(saveLine(answered), 'Couldn’t reach the save server: retrying…', 'a timeout ends the checking line, and says the save server is unreachable, not signed out');
+  for (const reason of ['network', 'bad-reply', 'http-500', 'http-502']) assert.equal(saveLine({ offline: reason }), 'Couldn’t reach the save server: retrying…', reason);
   assert.notEqual(saveLine(answered), saveLine(CHECKING));
 });
 

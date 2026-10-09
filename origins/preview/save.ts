@@ -64,7 +64,7 @@ export async function openedAccount(d: OpenDeps): Promise<Opened | Offline> {
 export type Source = { saved: CareerState } | { offline: string };
 export const CHECKING: Source = { offline: 'checking' };
 export const saveLine = (source: Source): string =>
-  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : SLOW_OFFLINE.test(source.offline) ? 'Not saving: offline — progress isn’t being saved' : 'Not signed in: progress isn’t saved';
+  'saved' in source ? 'Your saved career · duel wins here are preview only' : source.offline === CHECKING.offline ? 'Checking saved progress…' : SLOW_OFFLINE.test(source.offline) ? 'Couldn’t reach the save server: retrying…' : 'Not signed in: progress isn’t saved';
 /** A signed-in player whose open did not answer (a timeout, the network, a 5xx, a bad reply) is told so, not told they are signed out. */
 const SLOW_OFFLINE = /^(timeout|network|bad-reply|http-5\d\d)$/;
 /** The signed-out line carries a "Sign in" link (Strategy 2026-10-08): the arena's Google sign-in via the account entry, back to Zone 1 afterwards (src/zone1-hop.ts). Not while the read is still answering. */
