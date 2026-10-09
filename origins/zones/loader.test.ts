@@ -65,7 +65,7 @@ test('Zone 2 loads: level 2, six rows of [2, 3], the opener a row, its own looks
   const z = loadZone('2');
   assert.equal(z.id, '2'); assert.equal(z.level, 2); assert.equal(z.spawns.rows.length, 6);
   assert.deepEqual(zoneProblems(z), []);
-  assert.equal(z.spawns.openers['ash-reach'], 'character:ash-wolf');
+  assert.equal(z.spawns.openers['ash-reach'], 'character:ember-wolf');
   assert.notEqual(z.looks['frontier-haze']!.fog, loadZone('1').looks['frontier-haze']!.fog, 'its own haze');
   assert.deepEqual(Object.keys(z.looks), Object.keys(loadZone('1').looks), 'the preset names the page asks for');
 });

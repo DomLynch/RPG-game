@@ -13,6 +13,7 @@ import zone2 from './zone2/zone.ts';
 import spawns2 from './zone2/spawns.ts';
 import kit2 from './zone2/kit.ts';
 import looks2 from './zone2/look.ts';
+import mobLooks2 from './zone2/mob-looks.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
@@ -25,7 +26,7 @@ export type Zone = {
 };
 const PACKAGES: Record<string, Zone> = {
   '1': { ...zone1, spawns: spawns1, kit: kit1, looks: looks1 },
-  '2': { ...zone2, spawns: spawns2, kit: kit2, looks: looks2 },
+  '2': { ...zone2, spawns: spawns2, kit: kit2, looks: looks2, mobLooks: mobLooks2 },
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
