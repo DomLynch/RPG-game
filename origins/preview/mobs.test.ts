@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { ZONE_LEVEL } from '../mobs/frontier-rows.ts';
+import { loadZone } from '../zones/loader.ts';
+const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
@@ -30,7 +31,7 @@ test('each creature carries the body, level and encounter its character record n
   assert.deepEqual([row('character:cinder-scavenger').body, row('character:mere-brood').body, row('character:ruin-ghoul').body], ['goblin', 'goblin', 'goblin']);
   assert.deepEqual([row('character:hrungnir').body, row('character:peg-powler').body, row('character:mere-mother').body, row('character:court-thrall').body], ['knight', 'witch', 'witch', 'pitborn']);
   assert.equal(row('character:hrungnir').encounter, 'encounter:bounty-hrungnir');
-  assert.equal(row('character:mere-mother').level, 15, 'the public world boss keeps its record level (15,000 health, boss-battery tunable) until Dom rules; the bounty bosses are the named rares at the zone level + 2');
+  assert.equal(row('character:mere-mother').level, ZONE_LEVEL + 3, 'the public world boss is the zone level + 3 (4,000 health, the 1,000-a-level rule; boss-battery tunable); the bounty bosses are the named rares at the zone level + 2');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
   assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));
@@ -217,6 +218,13 @@ test('near the spawn the common creatures are the zone level; at the far edge on
   const origin = spawnAmong(F, B, SPECS)!, d = (s: MobSpec) => Math.hypot(s.home.x - origin.x, s.home.z - origin.z), common = SPECS.filter((s) => !s.named);
   assert.ok(common.filter((s) => d(s) <= LEVEL_NEAR_M + 25).every((s) => s.level <= ZONE_LEVEL + 1) && common.some((s) => s.level === ZONE_LEVEL), 'the camps by the spawn are the zone level');
   assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
+});
+
+test('a world fight hides the zone header so the foe card no longer draws over it (live bug, Deploy Metal stills 2026-10-08), and keeps its height', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const rule = html.split('\n').find((l) => l.includes('body.infight #hud')) ?? '';
+  assert.match(rule, /body\.infight #hud \{ visibility: hidden; \}/, 'visibility, not display: --hud-bottom and the player\'s bars stay put');
+  assert.ok(!/body\.infight #hud \{[^}]*display/.test(html), 'never display:none on #hud');
 });
 
 test('name tags are kept below the HUD: the ceiling is the floor plus half a tag, in NDC', async () => {

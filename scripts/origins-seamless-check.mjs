@@ -48,6 +48,7 @@ try {
   const walkGaps = (await page.evaluate(() => window.__gaps.slice())).slice(0, -1);
   const canvasesBefore = await page.evaluate(() => document.querySelectorAll('canvas').length);
   await page.evaluate(() => { window.__gaps = []; });
+  await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });   // a regression that breaks zone-ready must fail the row, never skip it
   const namesBefore = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsBeforeTap = namesBefore.length;
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
@@ -65,7 +66,12 @@ try {
   assert.equal(after.canvases, canvasesBefore, 'no swap at engage: the canvas count changed');
   assert.ok(after.shown && after.infight, 'no swap at engage: the page canvas must stay shown with body.infight set');
   assert.ok(receipt.fightMoved >= Math.max(1, Math.floor(receipt.walkMoved / 2)), `world live during the fight: ${receipt.fightMoved} creatures moved, ${receipt.walkMoved} did on the walk`);
-  assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
+  // Frame gaps mean nothing on software GL (SwiftShader runs ~3 fps and a loaded runner adds 600-3000 ms): the 200 ms bar is measured on Mac Metal with scripts/origins-engage-warmup.mjs (#1927). Here, on software GL, the row asserts what does not depend on speed: the engage compiles no program once [zone ready] has fired.
+  receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; });
+  receipt.zoneReady = await page.evaluate(() => window.__zoneReady ?? null);
+  receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer);
+  if (receipt.hitch.enforced) assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
+  else assert.deepEqual(receipt.newPrograms, [], 'engage compiled programs after [zone ready]');
   assert.deepEqual(receipt.errors, []);
   console.log('origins-seamless: PASS', JSON.stringify(receipt));
 } catch (error) { console.error('origins-seamless: FAIL', String(error.message ?? error), JSON.stringify(receipt)); process.exitCode = 1; }

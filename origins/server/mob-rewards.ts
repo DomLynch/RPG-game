@@ -10,7 +10,7 @@ import type { CharacterInstanceId, EncounterId } from '../contracts/ids.ts';
 import type { ItemInstance } from '../contracts/items.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
-import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { loadZone } from '../zones/loader.ts';
 import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { award } from '../progression/model.ts';
 import type { TwistOutcome } from '../../src/twist.ts';
@@ -105,7 +105,7 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // last PAID kill of the fight, from the `enc:<token>` events the settle commits with its rewards), so a writer restart forgets nothing, only committed kills count, and a
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = 300_000;
-const ROW_RESPAWN = new Map([...FRONTIER_ROWS, ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
+const ROW_RESPAWN = new Map([...loadZone().spawns.rows, ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
 export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
   const setup = fightSetup(fight, content);
   return (setup.ok ? rows.get(setup.value.opponent.character) : undefined) ?? RESPAWN_MS;

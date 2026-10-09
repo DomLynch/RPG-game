@@ -3,11 +3,13 @@
 // run through the verbatim copies duel-open.ts / ai-open.ts / sim-open.ts by the adapter open-fight.ts; this file owns only what the Pit has no word for: who is in whose fight (aggro, the nearest foe, the hold-off ring
 // for the rest of a pack), the chase to that ring, leash, give-up, heal-home, the creature rows (`creature`, levels from moves.ts opponentAt), player-vs-player rules (the server's pvp flag, the low-level shield, the
 // level band, the `Aggressed` first-strike event) and `minKillSeconds`. Conventions as the rest of the game: heading h means forward = (sin h, cos h), aim = atan2(dx, dz). World owns mounting, rendering, animation and input.
-import { LEVELS, LEVEL_ANCHORS, MOVES, OPPONENTS, RULES, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, OPPONENTS, RULES, WEAPONS, opponentAt, type SkillId, type SpecialName } from '../../src/moves.ts';
 import { CAPS, NAKED, type Loadout } from '../../src/gear-stats.ts';
+import { GAMBIT_ODDS } from '../../src/gambit.ts';
 import { asStance, moodOf, type PickedStance, type StanceId } from '../../src/stance.ts';
 import { GIVE_UP_UNSEEN_S, SPEEDS, chaseSpeed, leashOf } from '../preview/speeds.ts';
 import { IDLE_INPUT, openBout, stepBout, type Bout } from './open-fight.ts';
+import type { AiState } from './ai-open.ts';
 
 const TICK = 1 / 60;
 const secs = (ticks: number): number => ticks * TICK;
@@ -41,6 +43,7 @@ export type Fighter = {
   special: SpecialName | null; specialIn: number;       // the named special this fighter can cast (moves.ts specialOf), seconds until it is ready; with one, the SKILL button is the special (the Pit has one button)
   skill: SkillId | null;                                // the equipped skill (moves.ts SkillId, the Pit's `equippedSkill(profile.loot)`; null = none): the SKILL button fires its move when no special is set (duel.ts `Fighter.skill`)
   stance?: StanceId;                                    // src/stance.ts: the Pit's table (absent = Balanced)
+  brain?: AiState;                                      // creature only: its Pit brain (wait, decision, habits, rng) kept ON THE CREATURE, so a rebuilt fight (a pack's next bout, a re-engage) resumes its swing timing instead of restarting at the opening wait of 90 ticks (#1936 b)
   pvp: boolean; level: number; shielded: boolean;       // attackable by players here and now (server-set); his level; the low-level shield (dropped on his first attack)
 };
 export type World = { time: number; fighters: Fighter[]; aggro: Record<string, Record<string, number>>; streams: Record<string, Bout> };   // streams: slot-0 player id -> his fight (a Pit duel); aggro[attacker][victim] = when the attacker last struck that player
@@ -78,6 +81,8 @@ export const withStance = (f: Fighter, pick: PickedStance): Fighter => ({ ...f, 
 export const withSpecial = (f: Fighter, name: SpecialName): Fighter => ({ ...f, special: name, specialIn: secs(RULES.special.first) });
 /** A creature's stance mood: the Pit's own draw (src/stance.ts moodOf: half its home stance, half one of the other three), seeded from the injected `rand` instead of the fight seed. Call once at spawn. */
 export const withMood = (f: Fighter, rand: () => number): Fighter => withStance(f, moodOf(Math.floor(rand() * 4294967296) >>> 0, f.kind));
+/** The brain as the next bout will find it. retreatUntil / disengageUntil are absolute ticks of the bout that wrote them and a rebuilt bout restarts its clock at 0, so they are rebased onto the new clock (Auditor, #1939); lastTravel compared against the old bout's distance, so it restarts. The live bout keeps its own copy. */
+const carried = (ai: AiState, tick: number): AiState => ({ ...ai, retreatUntil: Math.max(0, ai.retreatUntil - tick), disengageUntil: Math.max(0, ai.disengageUntil - tick), lastTravel: 0 });
 export const newWorld = (fighters: Fighter[]): World => ({ time: 0, fighters, aggro: {}, streams: {} });
 
 const dist = (a: Fighter, b: Fighter): number => Math.hypot(b.x - a.x, b.z - a.z);
@@ -130,6 +135,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const prev = world.streams[a.id], same = prev && prev.foe === (b?.id ?? null);
     const bout: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt);
+    if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
     streams[a.id] = r.bout; events.push(...r.events);
     if (b && b.side === 'player') for (const e of r.events) {   // player against player: log who struck first (a blow that hit, was blocked, parried or dodged)
       const hit = e.type === 'Hit' ? [e.attacker, e.victim] : e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' ? [e.attacker, e.victim] : null;
@@ -150,7 +156,7 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
     const prey = players.sort((a, b) => dist(f, a) - dist(f, b))[0];
     if (f.returning) {   // gave up: walks home at its amble, heals to full on arrival (no event)
       const dx = f.homeX - f.x, dz = f.homeZ - f.z, d = Math.hypot(dx, dz), step = SPEEDS.creature.amble * dt;
-      if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; events.push({ type: 'Evaded', id: f.id }); }
+      if (d <= Math.max(step, 0.1)) { f.x = f.homeX; f.z = f.homeZ; f.returning = false; f.health = f.maxHealth; f.posture = 0; f.brain = undefined; events.push({ type: 'Evaded', id: f.id }); }
       else { f.facing = Math.atan2(dx, dz); f.x += (dx / d) * step; f.z += (dz / d) * step; }
     } else if (prey && (f.hunting ? dist(f, prey) <= SIGHT_M || f.unseen < GIVE_UP_UNSEEN_S : dist(f, prey) <= AGGRO_M)) {
       if (!f.hunting) { f.hunting = true; f.chaseX = f.x; f.chaseZ = f.z; f.unseen = 0; }
@@ -166,15 +172,22 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
   return { world: { time: world.time + dt, fighters, aggro, streams }, events };
 }
 
+// The Pit kit's extremes, read from the tables so a new weapon or skill moves the bound with it (no number is copied here): the biggest base blow of any weapon move, the fastest windup and the fastest cycle of any damaging move.
+const KIT = (() => {
+  const moves = Object.values(WEAPONS).filter(w => w.id !== 'bite').flatMap(w => Object.values(w.moves)).filter(m => m.damage > 0);
+  const cycle = (m: (typeof moves)[number]) => { const t = m.chained ?? m; return t.windup + t.active + t.recovery; };
+  return { damage: Math.max(...moves.map(m => m.damage)), windup: Math.min(...moves.map(m => (m.chained ?? m).windup)), cycle: Math.min(...moves.map(cycle)) };
+})();
 /**
- * The SERVER's plausibility bound for a kill report (there is no record to replay in Zone 1, so anti-cheat is a bound, not a proof): the fewest seconds a player could possibly take to kill
- * `kind` at `level` with the longsword's light cut. Hits needed at the best gear (CAPS.attack) and the best damage multiplier the rules ever give (a rear or counter blow, RULES.rear.damage); the cadence is the fastest
- * chained cut. A claimed kill faster than this, or with hitsDealt x best damage below the creature's health, is refused. Conservative on purpose: it never refuses an honest fight.
+ * The SERVER's plausibility bound for a kill report (there is no record to replay in Zone 1, so anti-cheat is a bound, not a proof): the fewest seconds a player could possibly take to kill `kind` at `level` with the WHOLE Pit kit.
+ * The biggest blow is the kit's biggest base damage x the gear cap (CAPS.attack) x a held charge (RULES.charge) x the best situational multiplier (stop-hit, counter, rear on a downed target) x a landed Gambit; the fastest blow
+ * and the fastest chained cycle come from the kit too. At a low level one such blow can kill, and then the bound is just the fastest windup: it only refuses a kill no kit could make. The special (20% of max health, a 2 s windup, a 20 s
+ * cooldown) is never faster than blows, so it is not in the bound. The real protection is the server's spawn state, the single-use token and the per-account caps; this refuses only the impossible and never an honest fight.
  */
 export function minKillSeconds(kind: string, level = 1): number {
   const o = OPPONENT(kind);
   if (!o) throw new RangeError(`zone1: unknown creature kind ${kind}`);
-  const cut = MOVES.light_right, best = Math.round(cut.damage * CAPS.attack) * RULES.rear.damage, hits = Math.ceil(opponentAt(o, level).health / best);
-  const chained = cut.chained ?? cut, cycle = secs(chained.windup + chained.active + chained.recovery);
-  return secs(cut.windup) + Math.max(0, hits - 1) * cycle;   // the first blow lands after its windup; every later one a full chained cycle apart
+  const situational = Math.max(RULES.stopHit.damage, RULES.counter.damage, RULES.rear.downed, RULES.rear.damage);
+  const best = Math.round(KIT.damage * CAPS.attack * RULES.charge.damage * situational * GAMBIT_ODDS.multiplier), hits = Math.ceil(opponentAt(o, level).health / best);
+  return secs(KIT.windup) + Math.max(0, hits - 1) * secs(KIT.cycle);   // the first blow lands after its windup; every later one a full cycle apart
 }

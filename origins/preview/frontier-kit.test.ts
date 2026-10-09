@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { frontierDress } from './frontier-dress.ts';
-import { frontierKit, KIT_NODES, LANDMARK_NODES } from './frontier-kit.ts';
+import { frontierKit } from './frontier-kit.ts';
+import { loadZone } from '../zones/loader.ts';
+const { nodes: KIT_NODES, landmarks: LANDMARK_NODES } = loadZone().kit;
 import { frontierBuild, frontierPlan, inFirstView, inZone, onRoad } from './frontier-plan.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), D = frontierDress(F, B), K = frontierKit(F, B, D);

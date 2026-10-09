@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BANDS, bandOf, commonOf, conBand, creatureInfo, groupOf } from './info.ts';
-import { FRONTIER_ROWS } from './frontier-rows.ts';
+import { loadZone } from '../zones/loader.ts';
+const FRONTIER_ROWS = loadZone().spawns.rows;
 import { falloffPermille } from '../progression/model.ts';
 import { cardLines, nearestNoticing } from '../preview/creature-card.ts';
 import type { MobRow } from './row.ts';

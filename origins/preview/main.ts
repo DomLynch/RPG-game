@@ -1,9 +1,9 @@
+import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { buildArena } from '../../src/arena.ts';
-import { ARENA_THEMES } from '../../src/arena-themes.ts';
+import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { gaitWeights } from '../../src/characters.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap } from '../../src/quality.ts';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
@@ -19,7 +19,7 @@ import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
-import { FRONTIER_ROWS } from '../mobs/frontier-rows.ts';
+import { loadZone } from '../zones/loader.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -27,6 +27,7 @@ import { groundAt, reliefZones } from './frontier-relief.ts';
 import { campFires } from './camp-fire.ts';
 import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
+import { settleWithin } from '../../src/warm-gate.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { createWorldCombat } from './world-combat.ts';
@@ -116,7 +117,8 @@ function environment(sky?: THREE.Texture) {
   scene.environment = (room ? pmrem.fromScene(room, 0.04) : pmrem.fromEquirectangular(sky!)).texture;
   scene.environmentIntensity = room ? 0.45 : 1; room?.dispose(); pmrem.dispose();
 }
-environment(); void arena.ready.then(() => environment(arena.sky));
+let skyReady = false;   // the scene's environment map is final (programs are keyed on it): warm-up waits for this
+environment(); void arena.ready.then(() => environment(arena.sky)).finally(() => { skyReady = true; });
 const forgeGlow = new THREE.PointLight('#ff7a2a', 14, 10, 1.6); forgeGlow.position.copy(exchange.hearth); scene.add(forgeGlow);
 const warm = exchange.braziers.slice(0, PHONE ? 2 : 4).map((b) => { const l = new THREE.PointLight('#ff8a3a', 9, 9, 1.8); l.position.set(b.x, 1.9, b.z); scene.add(l); return l; });
 const fires = camps.length ? campFires(scene, camps) : null;   // ?camps: the Pit's flame at each fire (camp-fire.ts)
@@ -165,7 +167,7 @@ const measureHud = () => {
   labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!); const barsEl = document.querySelector('.combat-hud'); if (barsEl) hudWatch.observe(barsEl);
-const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, FRONTIER_ROWS, () => careerLine(session.career).level);
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, loadZone().spawns.rows, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
@@ -313,7 +315,7 @@ function step(dt: number) {
   showZone(zone ? zone.zone : null);
   if (frontier && frontierParts && !mobsAsked && (zone || onRoad(frontier, state.x, state.z))) {
     mobsAsked = true; if (WORLDFIGHT) preloadFight();   // the fight chunks come early (worldfight is on unless ?worldfight=0|off)
-    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
+    void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
   if (mobs) { mobs.update(dt, state, cardId); if (WORLDCOMBAT) { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } updateBars(); document.body.classList.toggle('infight', wc.inCombat()); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
@@ -347,30 +349,46 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
-let uploadMs = -1, uploadQueue: (() => void)[] = [], uploadTotal = 0, uploadNext = 0;
+let compileChain: Promise<unknown> = Promise.resolve(), programsInFlight = 0, uploadMs = -1, uploadQueue: (() => void)[] = [], uploadTotal = 0, uploadNext = 0;
 const uploaded = new WeakSet<object>();   // textures and geometries already on the GPU through this path
 // The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
 // frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
 const UPLOAD_BUDGET_MS = 6;
+const KINDS_WAIT_MS = 20000, MATERIAL_BOUND_MS = 4000;   // each scene-material compile on the chain is bounded too: one that never settles is logged and skipped, so the chain, programsInFlight and [zone ready] go on
+const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
 function planUpload() {
-  const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
+  const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh>();
   scene.traverse((o) => {
+    const sp = o as THREE.Sprite; if (sp.isSprite) { const t = sp.material.map; if (t && !uploaded.has(t)) textures.add(t); return; }   // a creature's name label and its '!' are canvas-texture sprites: first drawn at first sight, so they upload here (Metal trace: +1 texture at engage, #1921)
     const m = o as THREE.Mesh; if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return;   // skinned bodies are warmed by their own stage (pit-duel warmStage / warmOwn), not here
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) if (!uploaded.has(mat) && !materials.has(mat)) materials.set(mat, m);
     if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture);
   });
   const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4), queue: (() => void)[] = [];
   for (const t of textures) queue.push(() => { renderer.initTexture(t); uploaded.add(t); });
   for (const g of geometries) queue.push(() => { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } uploaded.add(g); });
+  for (const [mat, m] of materials) queue.push(() => { uploaded.add(mat); programsInFlight++; compileChain = compileChain.then(kindsWarmed).then(() => { const holder = new THREE.Group(); holder.add(m.clone()); return settleWithin('scene-material', renderer.compileAsync(holder, camera, scene), MATERIAL_BOUND_MS); }).catch(() => {}).finally(() => { programsInFlight--; }); });   // the scene's own materials (the arena's iron, the Exchange's stone) link their programs now, not when first in view; the geometry draws above use a proxy material and never link them. One chain, started after the body kinds are warmed, so the compiles never pile up on the frames the creatures are being revealed in
   if (queue.length) queue.push(() => { target.dispose(); proxy.dispose(); }); else { target.dispose(); proxy.dispose(); }
   uploadTotal += queue.length; return queue;
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
-  if (!WORLDFIGHT || !mobs) return;
+  if (!WORLDFIGHT || !mobs || !skyReady) return;
   if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
   uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B
+}
+// "Zone ready" (the single point loadZone's ready hook will become, #1913): every body kind of the zone has its programs linked and textures and geometry uploaded, and the walk's own upload plan is drained.
+// After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
+let zoneReadyAt = -1;
+function zoneReadyCheck() {
+  if (zoneReadyAt >= 0 || !mobs) return;
+  const w = mobs.warmState();
+  if (!w.kinds.length || w.warmed.length < w.kinds.length || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
+  zoneReadyAt = Math.round(performance.now());
+  const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed };
+  (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
 }
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
@@ -378,7 +396,7 @@ const walkLoop = () => {
     mobs?.update(dt, state, cardId); arena.update(dt, [], camera); exchange.update(time); fires?.update(time, state, warm);
     return;
   }
-  step(dt); warmFight(time); warmUpload(time); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); warmFight(time); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -618,7 +636,7 @@ function worldMount(spec: MobSpec, at: { x: number; z: number }, toward: { x: nu
 let warmAt = -Infinity, warmKey = '', warmSince = 0;
 const WARM_M = 14, WARM_DWELL_S = 2;   // a creature this near is the likely next fight: its stage is built now, not at the tap
 function warmFight(time: number) {   // every 2 s on the walk, with the fight chunks in: build the world-mounted stage of the nearest creature (pit-duel warmStage keeps it when it is already the one)
-  if (!WORLDFIGHT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;
+  if (!WORLDFIGHT || WORLDCOMBAT || fighting || !duel || !huntMod || !hunt || !mobs || time - warmAt < 0.5) return;   // the Pit duel's stage is only the fallback (?combat=pit): Zone 1's own loop never draws it, so it is not built (GPU work on the walk for nothing)
   warmAt = time;
   const t = mobs.nearest(state.x, state.z, WARM_M); if (!t) { warmKey = ''; return; }
   const run = huntMod.prepare(hunt, t.spec); if (!run.ok) return;
