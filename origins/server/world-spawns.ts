@@ -148,7 +148,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level });
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
-      payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, cp: paid.summary.cp, paid: paid.batch.length > 0, beta: true },
+      payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true },
     };
     const got = await store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch], { reach }).catch(GONE);
     if (got === null) return absent();
