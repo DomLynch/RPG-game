@@ -11,7 +11,7 @@ import { LOOT, LOOT_IDS } from '../src/loot.ts';
 import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/finishers.ts';
 import { WEAPONS } from '../src/moves.ts';
 import { PICKS, homePick } from '../src/stance.ts';
-import { THROATS } from '../src/audio/creature.ts';
+import { THROATS } from '../src/fight/sound/creature.ts';
 import { beastRenderScale } from '../src/beast-scale.ts';
 import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
