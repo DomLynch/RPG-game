@@ -11,6 +11,7 @@ import { Refused } from './errors.ts';
 import { BadRequest, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
+import { gearImportHandler } from './gear-import.ts';
 
 const locOf = (l: Location): store.Json => (l.kind === 'equipped' ? { kind: l.kind, owner: l.owner, slot: l.slot } : { ...l });
 // The rows that differ between two reads of one inventory, as origins_apply `put`s (the same shape upgrade.ts commits).
@@ -60,6 +61,7 @@ export function gearHandlers(content: Content): Record<string, Handler> {
   };
   return {
     gear_open: gearOpen,
+    gear_import: gearImportHandler(content),
     gear_equip: move((inv, id, standing) => equip(inv, id, lookup, standing)),
     gear_unequip: move((inv, id, _s, index) => unequip(inv, id, lookup, index)),
   };
