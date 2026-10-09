@@ -52,7 +52,7 @@ if [[ -z "$ci_green" ]]; then
   fi
 fi
 deploy_step "quality gate"
-vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: DEPLOY_VPS_RECEIPTS=on and a tree-bound unit-suite receipt
+vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
 if [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
   npm run typecheck:tests
@@ -81,7 +81,7 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
-vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree (DEPLOY_VPS_RECEIPTS=on)
+vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree
 hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 # Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
