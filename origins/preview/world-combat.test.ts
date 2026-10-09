@@ -131,3 +131,10 @@ test('the card hands on: with a hero given the health to outlast two wolves one 
   console.log('DBG', JSON.stringify({ kills, names, dead: wc.hero().dead }));
   assert.equal(kills[0], 'w1', 'the nearest fell first'); assert.deepEqual(names.slice(0, 2), ['w1', 'w2'], 'the card named w1, then w2 after it fell');
 });
+
+test('a frame that runs no step (dt 0: the clock\'s first frame, or a very short one) asks the page to move the hero nowhere: the loop\'s body only follows the page after its first step', () => {
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 90, z: 90 }]), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: () => {} });
+  const hero = { x: -70, z: -110, facing: 0 };
+  assert.deepEqual(wc.update(0, hero), { dx: 0, dz: 0 }, 'live Zone 2 teleported the hero to (0, 0) on this frame (3 loads in 8)');
+  assert.deepEqual(wc.update(1 / 60, hero), { dx: 0, dz: 0 }, 'and a normal frame after it still moves him nowhere');
+});
