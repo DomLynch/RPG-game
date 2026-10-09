@@ -778,8 +778,8 @@ function openGearFromZone1() {
   if (!gearHop || gearHopDone) return; gearHopDone = true;
   try { history.replaceState(history.state, '', `${location.pathname}${location.search.replace(/([?&])gear=1(&|$)/, (_m, a, b) => (b ? a : '')).replace(/[?&]$/, '')}${location.hash}`); } catch { /* no history API: the flag stays in the address */ }
   element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal();
-  const back = document.createElement('button'); back.id = 'gear-back'; back.type = 'button'; back.className = 'stats-return'; back.textContent = 'Back to Zone 1';
-  back.addEventListener('click', () => location.assign('/zone1/')); element('stats-return').after(back);
+  const back = document.createElement('button'); back.id = 'gear-back'; back.type = 'button'; back.textContent = 'Back to Zone 1';
+  back.addEventListener('click', () => location.assign('/zone1/')); element('app-nav').append(back);   // the sticky tab bar: in view on every tab
 }
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {

@@ -32,7 +32,7 @@ try {
   await page.goto(new URL('/?gear=1', origin).href);
   await page.waitForSelector('#journal[open][data-gear="live"]');
   await page.waitForSelector('#pack li[data-loot="goblin.Helmet"]', { timeout: 60000 }).catch(async (e) => { console.log('NO PIECE. writer saw', JSON.stringify(seen), 'errors', JSON.stringify(errors), 'console', JSON.stringify(logs.slice(-6)), 'pack', await page.evaluate(() => document.getElementById('pack')?.innerHTML.slice(0, 300))); throw e; });
-  assert.equal(await page.locator('#gear-back').innerText(), 'Back to Zone 1'); assert.equal(await page.evaluate(() => document.getElementById('journal-tab-profile').checked), true, 'the Profile tab');
+  assert.equal(await page.locator('#gear-back').innerText(), 'Back to Zone 1'); assert.equal(await page.locator('#gear-back').isVisible(), true, 'Back to Zone 1 is in view'); assert.ok((await page.locator('#gear-back').boundingBox()).height >= 44, 'a thumb target'); assert.equal(await page.evaluate(() => document.getElementById('journal-tab-profile').checked), true, 'the Profile tab');
   assert.ok(!new URL(page.url()).search.includes('gear=1'), 'the flag leaves the address');
   await page.screenshot({ path: `${dir}/1-server-piece-in-pack.png` });
   await page.locator('#pack li[data-loot="goblin.Helmet"] [data-fit]').tap(); await page.locator('#fitting-wear').tap();
