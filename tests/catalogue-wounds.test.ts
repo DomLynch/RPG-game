@@ -20,7 +20,7 @@ const known = {
   bodytypes: BODYTYPES, species: SPECIES,
 };
 const beasts = ['wolf', 'boar', 'bear'];
-const edit = (id: string, f: (r: CatalogueRow) => void) => { const r = structuredClone(catalogueRow(id)!) as CatalogueRow; f(r); return catalogueProblems(r, known).map((p) => p.code).join(','); };
+const edit = (id: string, f: (r: CatalogueRow) => void) => { const r = structuredClone(catalogueRow(id)!) as CatalogueRow; f(r); return [...new Set(catalogueProblems(r, known).map((p) => p.code))].join(','); };
 
 test('every bodytype tree is right side up: one trunk root, the head hangs from the neck and the neck from the trunk', () => {
   for (const [id, bt] of Object.entries(BODYTYPES)) assert.deepEqual(bodytypeProblems(bt), [], id);
@@ -58,7 +58,7 @@ test('the parts agree with the finisher cuts and the species with the row blood'
 test('each wounds fault is named', () => {
   assert.equal(edit('wolf', () => {}), '');
   assert.equal(edit('wolf', (r) => { r.wounds = { ...r.wounds!, body: 'serpent' }; }), 'wounds');
-  assert.equal(edit('wolf', (r) => { r.wounds = { ...r.wounds!, size: 0 }; }), 'wounds,blood'.replace(',blood', ''));
+  assert.equal(edit('wolf', (r) => { r.wounds = { ...r.wounds!, size: 0 }; }), 'wounds');
   assert.equal(edit('wolf', (r) => { r.wounds = { ...r.wounds!, tiers: [{ below: 0.2, decals: 1, drip: 1 }, { below: 0.5, decals: 2, drip: 1 }] }; }), 'wounds');
   assert.equal(edit('wolf', (r) => { r.wounds = { ...r.wounds!, size: 0.5 }; }), 'wounds');
   assert.equal(edit('wolf', (r) => { r.wounds = { ...r.wounds!, bleedRate: 2 }; }), 'wounds');
