@@ -139,9 +139,9 @@ const orla = new THREE.Mesh(new THREE.CapsuleGeometry(T.orla.radius, T.orla.leng
 orla.position.set(T.orla.x, T.orla.radius + T.orla.length / 2, T.orla.z); orla.castShadow = true;
 const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(T.orePile.radius, 0), arena.materials.stone); ore.scale.y = 0.5;
 ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow = true; scene.add(orla, ore);
-// The hero is the Pit's own actor (characters.ts loadWarriors: the same rig, clips, trail and gait the Pit plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
+// The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
-let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
+let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
 loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
@@ -281,10 +281,10 @@ function step(dt: number) {
   }
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
-  // The Pit's actor poses him: the gait follows the speed he actually covers (collisions included, signed backwards), the pose / progress / attack / contact come from the Pit's actorPose of his duel.
+  // The engine's actor poses him: the gait follows the speed he actually covers (collisions included, signed backwards), the pose / progress / attack / contact come from the engine's actorPose of his duel.
   if (warriors) {
     gaitSpeed += (Math.hypot(state.x - px, state.z - pz) / Math.max(dt, 1e-3) - gaitSpeed) * (1 - Math.exp(-dt * 14)); if (gaitSpeed < 0.015) gaitSpeed = 0;
-    const duel = wc.heroDuel(), posed = duel ? actorPose({ duel } as unknown as Practice, 0) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 };
+    const duel = wc.heroDuel(), posed = forcedPose ?? (duel ? actorPose({ duel } as unknown as Practice, 0) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 });
     const dx = state.x - px, dz = state.z - pz, moved = Math.hypot(dx, dz);
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
@@ -677,7 +677,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
   mobClip: (id: string, role: 'attack' | 'hit' | 'death') => mobs?.play(id, role) ?? 0,   // the browser checks: play a creature's combat clip and get its length (0: no clip, procedural stands in)
-  mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }),
+  mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
