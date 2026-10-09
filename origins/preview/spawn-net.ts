@@ -31,7 +31,7 @@ export function killedOf(r: unknown): Killed | null {
 }
 const touchedOf = (r: unknown): { expiresAt: string } | null => (r && typeof r === 'object' && typeof (r as { expiresAt?: unknown }).expiresAt === 'string' ? { expiresAt: (r as { expiresAt: string }).expiresAt } : null);
 
-type Deps = { token: () => string | null; character: () => string | null; now: () => number; fetch?: typeof fetch; base?: string; timeoutMs?: number };
+type Deps = { token: () => string | null; character: () => string | null; zone?: () => string; now: () => number; fetch?: typeof fetch; base?: string; timeoutMs?: number };
 type Open = { engage: Promise<Engaged | Offline>; hits: number; touchedAt: number };
 export type SpawnTracker = {
   engaged(instance: string): Promise<Engaged | Offline>;
@@ -54,7 +54,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (had) return had.engage;
     if (isSpent(instance)) return Promise.resolve<Offline>({ offline: 'spent' });   // the kill's own late events never open a new token   // FightStarted is once per engage, but a re-fire must never open a second token
     const character = d.character();
-    const engage = character ? call('engage', { character, instance }, d.token(), engagedOf, opts) : Promise.resolve<Offline>({ offline: 'no-character' });
+    const engage = character ? call('engage', { character, instance, zoneId: d.zone?.() ?? '1' }, d.token(), engagedOf, opts) : Promise.resolve<Offline>({ offline: 'no-character' });
     live.set(instance, { engage, hits: 0, touchedAt: d.now() });
     void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
     return engage;
