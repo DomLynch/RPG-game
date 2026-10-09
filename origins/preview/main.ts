@@ -39,7 +39,7 @@ import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
 import { applyLook, blendLook, lookAlong, lookOf } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
-import { creaturesLook } from '../../src/audio/creature.ts';
+import { creaturesLook } from '../../src/fight/sound/creature.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the

@@ -20,7 +20,7 @@ let production, inspectedUi;
 try {
  if (!process.argv.includes('--ui-only')) {
  const page = await browser.newPage(); page.on('pageerror', e => report.errors.push(String(e)));
- await page.route(`${origin}/harness`, r => r.fulfill({ contentType: 'text/html', body: `<script type="module">import {createFeedback} from '/src/feedback.ts';import {loadArena} from '/src/audio/arena.ts';import {ARENA_MANIFEST} from '/src/audio/arena-manifest.ts';import {SPRITE_SECONDS} from '/src/audio/manifest.ts';import {prepareBell} from '/src/audio/bell.ts';window.h={createFeedback,loadArena,prepareBell,ARENA_MANIFEST,isBank:d=>d>20&&Math.abs(d-SPRITE_SECONDS)>=.05};</script>` }));
+ await page.route(`${origin}/harness`, r => r.fulfill({ contentType: 'text/html', body: `<script type="module">import {createFeedback} from '/src/fight/sound/feedback.ts';import {loadArena} from '/src/audio/arena.ts';import {ARENA_MANIFEST} from '/src/audio/arena-manifest.ts';import {SPRITE_SECONDS} from '/src/audio/manifest.ts';import {prepareBell} from '/src/audio/bell.ts';window.h={createFeedback,loadArena,prepareBell,ARENA_MANIFEST,isBank:d=>d>20&&Math.abs(d-SPRITE_SECONDS)>=.05};</script>` }));
  await page.goto(`${origin}/harness`); await page.waitForFunction(() => !!window.h);
  report.codecs = await page.evaluate(async () => {
   const ctx = new OfflineAudioContext(1, 48000, 48000), results = {};

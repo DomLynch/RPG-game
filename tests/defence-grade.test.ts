@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { cuesFor } from '../src/audio/cues.ts';
+import { cuesFor } from '../src/fight/sound/cues.ts';
 import type { CombatEvent } from '../src/duel.ts';
 import { defenceFlag, defenceGrade, GRADE_AUDIO, GRADE_LABEL, GRADES, HEAVY_BLOCK } from '../src/defence-grade.ts';
 
