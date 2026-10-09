@@ -1,4 +1,5 @@
 // Region 1 content: the shipped data loads clean, and each validation refuses the break it exists for.
+import { LOOT_ITEM_IDS } from '../inventory/loot-catalogue.ts';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -106,7 +107,7 @@ test('twists are Origins encounter flags only, and a Bounty shows exactly its en
 });
 
 test('no weapon drops in Region 1', () => {
-  for (const r of BUNDLE) if (r.kind === 'item-definition' && !String(r.id).startsWith('item:loot.')) assert.ok(!(WEAPON_SLOTS as readonly string[]).includes(r.slot as string), String(r.id));   // the legacy loot catalogue holds the engine's weapon pieces; no table awards one (below)
+  for (const r of BUNDLE) if (r.kind === 'item-definition' && !LOOT_ITEM_IDS.has(String(r.id))) assert.ok(!(WEAPON_SLOTS as readonly string[]).includes(r.slot as string), String(r.id));   // the legacy loot catalogue holds the engine's weapon pieces; no table awards one (below)
   refused(withBundle((b) => { rec(b, 'item:frontier.ash-helm').slot = 'Gladius'; }), 'content-rule', 'item:frontier.ash-helm.slot');
 });
 
@@ -134,4 +135,9 @@ test('rifts: five sites, none in a town or safe zone', () => {
   for (const kind of ['rift-boss', 'rift-scheduler']) {
     refused(withLocal((l) => { const r = l.rifts.find((x) => x.kind === kind)!; l.rifts.push({ ...r, id: `${String(r.id)}-two` }); }), 'duplicate-id', `rifts[${RIFTS.length}]`);
   }
+});
+
+test('the weapon exemption is the generated id set, not the item:loot. prefix: a weapon that merely wears the prefix is refused', () => {
+  refused(withBundle((b) => { b.push({ ...(clone(rec(b, 'item:frontier.ash-helm'))), id: 'item:loot.fake.Gladius', slot: 'Gladius', appearance: { asset: 'loot.glb/fake.Gladius' } }); }), 'content-rule', 'item:loot.fake.Gladius.slot');
+  assert.ok(LOOT_ITEM_IDS.has('item:loot.goblin.Knife'), 'the engine\'s own weapon pieces stay exempt');
 });

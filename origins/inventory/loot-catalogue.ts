@@ -14,3 +14,5 @@ export const lootItemDef = (id: LootId) => ({
   slot: slotOf(id), power: 'slot-weight', material: MATERIAL[slotOf(id)] ?? 'iron', appearance: { asset: `loot.glb/${id}` }, story: 'none', binding: 'none', stack: 1,
 });
 export const LOOT_ITEMS = [...LOOT_IDS].sort().map((id) => lootItemDef(id as LootId));
+// The generated ids as a set: the one thing the Region 1 weapon rule exempts (load.ts), so nothing else can slip in under the `item:loot.` prefix.
+export const LOOT_ITEM_IDS: ReadonlySet<string> = new Set(LOOT_ITEMS.map((d) => d.id));
