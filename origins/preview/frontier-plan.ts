@@ -26,6 +26,7 @@ export type ZonePlan = {
 export type Sign = { at: At; lines: string[]; back: boolean }; // back: this sign is the way back to the Exchange
 export type Giver = { character: CharacterId; name: string; at: At; bounty: Bounty; foe: string; where: string };
 export type Frontier = {
+  zone: string;   // the zone package this plan is for (frontierPlan's zoneId)
   zones: ZonePlan[];
   road: { from: Point & { z: number }; to: { x: number; z: number }; width: number; facing: number; inward: number }; // the west road, world metres
   signs: Sign[];
@@ -117,7 +118,7 @@ export function frontierPlan(flat = false, zoneId: string = '1'): Frontier {
     at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, 4.5), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
   };
   if (flat) for (const z of zones) z.relief = { ...z.relief, relief: 0 };
-  return { zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
+  return { zone: zoneId, zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
 }
 // A spot `metres` from a building toward the town centre, facing the centre: where its keeper stands.
 function standBefore(building: At, centre: { x: number; z: number }, metres: number): At {

@@ -79,6 +79,8 @@ test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zon
   const specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
   assert.ok(specs.length >= 4 && specs.every((m) => m.zone === 'ash-reach'), 'creatures stand in the Ash Reach only');
   assert.ok(specs.every((m) => m.level >= 2 && m.level <= 3), 'at the Zone 2 band');
+  assert.ok(specs.every((m) => m.id.startsWith('z2:')), 'Zone 2 instance ids carry the z2: prefix (the server keys a creature by its id alone, Backend 10-09)');
+  assert.ok(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).every((m) => !m.id.includes(':')), 'Zone 1 ids are unchanged');
   assert.equal(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).some((m) => m.zone === 'ash-reach'), false);
 });
 
