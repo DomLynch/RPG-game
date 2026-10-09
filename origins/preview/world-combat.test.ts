@@ -57,12 +57,12 @@ test('Evaded: a creature that gave up and is home and healed is released at once
   assert.ok(!wc.debug().some((x) => x.id === 'wolf-1'), 'gone from the world after Evaded');
 });
 
-test('call-site pin: the page reaches combat only through zone1.ts stepCombat (so a lone creature always takes the copied duel/ai, a pack the legacy rows, as zone1.ts routes them)', () => {
+test('call-site pin: the page reaches combat only through the engine world.ts stepCombat (so a lone creature always takes the copied duel/ai, a pack the legacy rows, as zone1.ts routes them)', () => {
   const dir = new URL('.', import.meta.url), src = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
-  const users = src.filter((f) => /from '\.\.\/combat\//.test(readFileSync(new URL(f, dir), 'utf8')));
-  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports origins/combat');
+  const users = src.filter((f) => /from '\.\.\/\.\.\/src\/fight\/world\.ts'/.test(readFileSync(new URL(f, dir), 'utf8')));
+  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports the engine world.ts');
   const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
-  assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
+  assert.deepEqual([...new Set([...text.matchAll(/from '(\.\.\/\.\.\/src\/fight\/[^']+)'/g)].map((m) => m[1]))].sort(), ['../../src/fight/index.ts', '../../src/fight/world.ts'], 'and only the engine: its public door and the world loop');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
 

@@ -5,7 +5,7 @@ import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
 import { JOIN_M } from '../preview/world-combat.ts';
-import { AGGRO_M } from '../combat/zone1.ts';
+import { AGGRO_M } from '../../src/fight/world.ts';
 import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
