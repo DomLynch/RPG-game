@@ -43,7 +43,7 @@ test('the engine goblin file already wears the level-1 armour, and the six loot 
   assert.ok(carriers.some((n) => n.includes('Gloves')), 'the shared gloves are in the carriers file');
 });
 
-test('Zone 1 has his row: level 1-2, camp size a data field of 2, bronze-only table for now', () => {
+test('Zone 1 has his row: level 1 (Dom 10-09: a level-1 goblin), camp size a data field of 2, bronze-only table for now', () => {
   const row = loadZone('1').spawns.rows.find((r) => r.id === ID)!;
-  assert.deepEqual(row.level, [1, 2]); assert.deepEqual(row.behaviour.campSize, [2, 2]); assert.equal(row.loot, 'loottable:pit-goblin');
+  assert.deepEqual(row.level, [1, 1]); assert.deepEqual(row.behaviour.campSize, [2, 2]); assert.equal(row.loot, 'loottable:pit-goblin');
 });
