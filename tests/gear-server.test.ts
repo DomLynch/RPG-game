@@ -36,3 +36,10 @@ test('a guest, or a writer that does not answer, keeps the local ledger: refresh
   const down = createServerGear({ storage: storage(true), search: '', now: () => NOW, fetch: writer([], {}), getLoot: () => undefined, show: () => assert.fail('shows nothing') });
   assert.equal(await down.refresh(), false); assert.equal(down.act({ kind: 'stow', key: 'head' }), false);
 });
+
+test('Zone 1\'s menu Gear button is the temporary page hop to the engine\'s gear screen, marked for deletion in the last A PR (Strategy 2026-10-09), and the Pit lands it on Profile with a way back', async () => {
+  const { readFileSync } = await import('node:fs');
+  const zone1 = readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8'), pit = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.match(zone1, /TEMPORARY: deleted in the last A PR \(Strategy 10-09\)[^\n]*\n[^\n]*menu-gear[^\n]*location\.assign\('\/arena\/\?gear=1'\)/);
+  assert.match(pit, /TEMPORARY: deleted in the last A PR \(Strategy 10-09\)/); assert.match(pit, /back\.addEventListener\('click', \(\) => location\.assign\('\/zone1\/'\)\)/);
+});
