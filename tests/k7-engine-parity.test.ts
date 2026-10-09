@@ -104,8 +104,6 @@ const KNOWN: readonly string[] = [
   "16 | P1/P2 | origins/preview/main.ts -> warm-gate",
   "16 | P1/P2 | origins/preview/mobs-view.ts -> quality",
   "16 | P1/P2 | origins/preview/mobs-view.ts -> warm-gate",
-  "6 | K2 | origins/preview/gear-stage.ts -> characters",   // Web #2001's gear stage (owner Web) loads the hero through src/characters.ts (a re-export of src/fight/characters.ts): import it from src/fight/index.ts
-  "6 | K2 | origins/preview/gear-stage.ts -> warrior",
   "20 | K12 | origins/preview/main.ts -> legends",
   "20 | K12 | origins/preview/pit-duel.ts -> legends",
   "20 | K12 | origins/preview/pit-duel.ts -> roster",
