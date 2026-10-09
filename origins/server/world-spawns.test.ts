@@ -11,7 +11,7 @@ import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
 import type { WhereFn } from '../presence/where.ts';
-import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zone1Spawns, type Spawn } from './world-spawns.ts';
+import { keyOf, maxHit, minHits, minKillMs, spawnKey, withinReach, worldSpawnOps, zone1Spawns, zoneSpawns, type Spawn } from './world-spawns.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -95,7 +95,7 @@ test('spawn_state: every spawn, never-engaged ones alive at generation 0, dead o
 test('engage: the server names the kind, level and HP; unknown instances are refused; dead 409, too many 429', async () => {
   const ops = worldSpawnOps({ content, spawns });
   const out = await ops.engage!(ctx(stub({ origins_spawn_engage: { token: TOKEN, instance: wolf.spec.id, generation: 0, kind: wolf.spec.character, issuedAt: 'I', expiresAt: 'E' } }).db), { character: PC, instance: wolf.spec.id, level: 99, hp: 1 }) as Record<string, unknown>;
-  assert.deepEqual(out, { token: TOKEN, instance: wolf.spec.id, generation: 0, kind: wolf.spec.character, level: wolf.spec.level, hp: wolf.hp, expiresAt: 'E' });
+  assert.deepEqual(out, { token: TOKEN, instance: wolf.spec.id, zoneId: '1', generation: 0, kind: wolf.spec.character, level: wolf.spec.level, hp: wolf.hp, expiresAt: 'E' });
   await assert.rejects(async () => ops.engage!(ctx(stub({}).db), { character: PC, instance: 'nowhere-1' }), BadRequest);
   await assert.rejects(async () => ops.engage!(ctx(stub({ origins_spawn_engage: { refused: 'dead', respawnAt: 'R' } }).db), { character: PC, instance: wolf.spec.id }), status(409, 'dead'));
   await assert.rejects(async () => ops.engage!(ctx(stub({ origins_spawn_engage: { refused: 'too-many' } }).db), { character: PC, instance: wolf.spec.id }), status(429, 'too-many'));
@@ -147,4 +147,34 @@ test('kill_report prices the kill at the SPAWN\'s level (mobSpecs, by distance),
   assert.deepEqual(one.slice(1), expect(1), 'level 1: exactly what mobBatch pays a level-1 kill');
   assert.deepEqual(two.slice(1), expect(2), 'level 2: exactly what mobBatch pays a level-2 kill');
   assert.notDeepEqual(one.slice(1), two.slice(1), 'and the two differ: the spawn\'s level prices the kill');
+});
+
+test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 400); a Zone 2 creature is keyed z2: and its kill is priced from ZONE 2\'s rows and level', async () => {
+  const z2 = zoneSpawns(content, '2'), z2wolf = [...z2.values()].find((s) => s.spec.character === 'character:ash-wolf')!;
+  assert.ok(z2wolf, 'Zone 2 has an ash wolf (a placeholder row at its own band)');
+  assert.ok(z2wolf.spec.level >= 2, `Zone 2's wolf is level ${z2wolf.spec.level}, from Zone 2's band, not Zone 1's`);
+  assert.equal(spawnKey('2', 'reach-wolves-1'), 'z2:reach-wolves-1'); assert.deepEqual(keyOf('z2:reach-wolves-1'), { zoneId: '2', instance: 'reach-wolves-1' }); assert.deepEqual(keyOf('wolves-1'), { zoneId: '1', instance: 'wolves-1' });
+  const keys: string[] = [];
+  const db = stub({ origins_spawn_engage: { token: TOKEN, instance: 'x', generation: 0, kind: z2wolf.spec.character, issuedAt: 'I', expiresAt: 'E' } }).db;
+  const spy: Db = { run: (sql, v = {}) => { if (/origins_spawn_engage\(/.test(sql) && v.i) keys.push(v.i); return db.run(sql, v); } };
+  const ops = worldSpawnOps({ content, spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {} });
+  const out = await ops.engage!(ctx(spy), { character: PC, instance: z2wolf.spec.id, zoneId: '2' }) as Record<string, unknown>;
+  assert.deepEqual([out.instance, out.zoneId, out.level, out.hp], [z2wolf.spec.id, '2', z2wolf.spec.level, z2wolf.hp]);
+  assert.deepEqual(keys, [`z2:${z2wolf.spec.id}`], 'the database key carries the zone');
+  await assert.rejects(async () => ops.engage!(ctx(stub({}).db), { character: PC, instance: z2wolf.spec.id, zoneId: '9' }), BadRequest);
+  await assert.rejects(async () => ops.engage!(ctx(stub({}).db), { character: PC, instance: z2wolf.spec.id, zoneId: 2 }), BadRequest);
+  if (!spawns.has(z2wolf.spec.id)) await assert.rejects(async () => ops.engage!(ctx(stub({}).db), { character: PC, instance: z2wolf.spec.id }), BadRequest, 'a Zone 2 id is not a Zone 1 spawn');
+  // the kill: the token's key names Zone 2, so the floors, the level and the price are Zone 2's
+  const ok = stub({ origins_spawn_engage_get: { ...open, instance: `z2:${z2wolf.spec.id}` }, origins_spawn_kill: { result: 'killed', instance: `z2:${z2wolf.spec.id}`, respawnAt: 'R' } });
+  await assert.rejects(async () => ops.kill_report!(ctx(stub({ origins_spawn_engage_get: { ...open, instance: `z2:${z2wolf.spec.id}` } }).db), { token: TOKEN, hits: minHits(z2wolf.hp) - 1 }), status(422, 'too-few-hits'));
+  const killed = await ops.kill_report!(ctx(ok.db), { token: TOKEN, hits: 50 }) as Record<string, unknown>;
+  assert.deepEqual([killed.result, killed.instance, killed.zoneId], ['killed', z2wolf.spec.id, '2']);
+  assert.equal(Number(ok.kills[0]!.m), minKillMs(z2wolf.hp), 'the time floor is the Zone 2 creature\'s');
+  const priced = (level: number) => mobBatch({ account: UID, character: PC, token: TOKEN, fight: z2wolf.fight, seed: 7, enemy: z2wolf.spec.body, level, twist: null }, { career: row(), inventory: emptyPack(), metal: 'absent' }, content, '2026-10-08T10:01:00.000Z', { level }).batch;
+  assert.deepEqual(ok.kills[0]!.b.slice(1), priced(z2wolf.spec.level), `paid exactly what a level-${z2wolf.spec.level} (Zone 2) kill pays`);
+  assert.notDeepEqual(ok.kills[0]!.b.slice(1), priced(1), 'not what a level-1 (Zone 1) kill pays');
+});
+  const z2b = mobBatch({ account: UID, character: PC, token: TOKEN, fight: z2wolf.fight, seed: 7, enemy: 'x', level: z2wolf.spec.level, twist: null }, { career: row(), inventory: emptyPack(), metal: null }, content, 'T', { level: z2wolf.spec.level });
+  assert.equal(killed.cp, z2b.summary.cp, 'paid at Zone 2\'s level');
+  if (z1.summary.cp !== z2b.summary.cp) assert.notEqual(killed.cp, z1.summary.cp, 'not at a Zone 1 level');
 });
