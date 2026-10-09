@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-09 ~08:18 (+04) — HANDOFF (Dom: "save your work, /clear"). READ FIRST, then the PLAN entry below. Memory: project_handoff_2026-10-09_0815.
+**LIVE = Release F fc7d448aa** (Published 07:59:51). **Release G is running** on trunk ab2288cd (preflight 08:13:18, load 4.2; #1934 #1927 #1932 #1935, all Auditor MERGE PASS; bar 9 min). After it: Backend reinstalls the writer, the Auditor does G's POST parity, and the numbers go to the Optimizer/COO.
+**Next:** Release H = PROOF 1 passengers (#1937 has MERGE PASS; Combat next-swing tick; World #1936 fixes; #1933). Dom's iPhone check Sat 10-10. I = ?zone= + loader move + the Auditor's zone-packages test (Sat). World Zone 2 Mon 10-12. PROOF 3 Wed 10-14.
+**Open:** the #1880 kill ledger waits on Dom's first signed-in kill. Overnight F failures fixed by #1934. Standing rules: receipts are never skipped; no full release without the exact tree's unit receipt; Deploy builds deploy/candidate before the Auditor's pass.
+**RESTART:** re-arm the */10 sweep; read deploy-ab2288cd.log + release.json.
+
 ## 2026-10-09 ~08:15 (+04) — PLAN: three PROOF releases for Zone 1 real-time combat (Optimizer's frame, Dom's ask "what's next, streamlined"). Lead = Lead + Strategy.
 **Live:** Release F fc7d448aa (release.json, Published 07:59:51; 14 min 23 s at width 8; every row + test:all on the Mac, Lead's miss, see memory feedback_unit_receipt_before_full_release_2026-10-09). The writer was reinstalled at fc7d448aa (Backend, closure parity 95/95). Release G (#1934 merged-on-trunk fix, #1927 Metal harness, #1932 Zone 1 as data, #1935 Mere-Mother Lv 4 / 4,000 HP) has all Auditor MERGE PASS and launches on a COMPLETED HF unit receipt; Deploy's bar is 9 min, full, width 8 (12 if quiet).
 **Rule:** no full release without the exact tree's unit receipt, pre-launched before the Auditor's pass (Dom). Receipts are never skipped; a moved tree means a rebuild.
