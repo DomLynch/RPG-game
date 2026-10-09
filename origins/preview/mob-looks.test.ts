@@ -5,13 +5,14 @@ import { test } from 'node:test';
 import { FOES } from '../region1/content.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { MOB_LOOKS, MOB_SPREAD, VARIANTS, mobLook, mobVariant, variantLook } from './mob-looks.ts';
-import { loadZone, type Zone } from '../zones/loader.ts';
+import { loadZone, zoneIds, type Zone } from '../zones/loader.ts';
 
 test('every Frontier foe has exactly one look, on the body content.ts names', () => {
   const foes = FOES as unknown as { id: string; encounterForms: { opponent: string }[] }[];
-  assert.deepEqual(Object.keys(MOB_LOOKS).sort(), foes.map(f => f.id).sort());
+  const zoned = Object.assign({}, ...zoneIds().map((z) => loadZone(z).mobLooks?.looks ?? {})) as Record<string, (typeof MOB_LOOKS)[string]>;   // a zone package's own looks (origins/zones/<id>/mob-looks.ts) count as the foe's look
+  assert.deepEqual([...Object.keys(MOB_LOOKS), ...Object.keys(zoned)].sort(), foes.map(f => f.id).sort(), 'one look each, central or in a zone package, never both');
   for (const f of foes) {
-    const look = MOB_LOOKS[f.id]!;
+    const look = MOB_LOOKS[f.id] ?? zoned[f.id]!;
     assert.ok(f.encounterForms.every(e => e.opponent === look.opponent), `${f.id}: look body ${look.opponent} != ${f.encounterForms.map(e => e.opponent)}`);
     assert.ok(look.opponent in ROSTER, `${f.id}: ${look.opponent} is not a roster body`);
   }
