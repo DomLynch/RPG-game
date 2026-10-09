@@ -1,3 +1,4 @@
+import { placementLine } from './lib/row-placement.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
@@ -112,6 +113,15 @@ if (outOfScope.size) console.log(`${kind} checks: ${outOfScope.size} out of scop
 for (const index of [...trustedIndices].sort((a, b) => a - b)) console.log(`${kind} check ${index}/${commands.length} trusted from ${trustedSource} — ${commands[index - 1].join(' ')}`);
 const ordered = [...all].sort((a, b) => b.expected - a.expected);  // longest known first; unknown checks sit at the median
 const fixed = all.filter(item => item.fixedPort).length;
+{
+  // RELEASE_CHECKS_HF_TRUSTED="3,6": the subset of the trusted rows an HF receipt proved (deploy.sh); the others came from CI or a ruling.
+  const hfRows = new Set(String(process.env.RELEASE_CHECKS_HF_TRUSTED || '').split(',').map(Number));
+  const trusted = [...trustedIndices].sort((x, y) => x - y);
+  const line = placementLine({ total: commands.length, ci: trusted.filter(n => !hfRows.has(n)), hf: trusted.filter(n => hfRows.has(n)), mac: all.map(item => item.index + 1).sort((x, y) => x - y) });
+  console.log(line.text);
+  if (line.warning) console.log(line.warning);
+  if (line.enforce) { console.error(line.warning); process.exit(1); }
+}
 console.log(`${kind} checks: ${commands.length} total, ${trustedIndices.size} trusted from ${trustedSource}, ${all.length} to run, concurrency ${concurrency}, ${fixed} fixed-port (one at a time), ` +
   (knownSeconds.size ? `ordered by last run's durations (${knownSeconds.size} known)` : 'no previous durations, contract order'));
 const wall = Date.now();

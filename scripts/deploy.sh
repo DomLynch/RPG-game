@@ -76,6 +76,7 @@ fi
 # Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
+hf_trusted_rows=""
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows an HF job proved for this exact tree (tree-bound receipts, always read)
@@ -99,7 +100,7 @@ deploy_scope_apply() {
 }
 out_of_scope=""
 deploy_scope_apply
-RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
+RELEASE_CHECKS_HF_TRUSTED="${hf_trusted_rows:-}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
 node scripts/check-built-account.mjs dist

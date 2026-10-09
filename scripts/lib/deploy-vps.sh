@@ -24,6 +24,7 @@ vps_receipts_apply() {
   if grep -q 'UNASSIGNED rows' "$trust_err"; then echo "vps-receipts: rows no shard ran (list above) run on the Mac"; fi
   rm -f "$trust_err"
   [[ -n "$vps_trusted" ]] || { echo "0 trusted from VPS receipts; every row not trusted by CI runs here"; return 0; }
+  hf_trusted_rows="$vps_trusted"
   trusted_checks=$(printf '%s' "${trusted_checks:+$trusted_checks,}$vps_trusted" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)
   n=$(printf '%s' "$vps_trusted" | tr ',' '\n' | wc -l | tr -d ' ')
   trust_source="$trust_source + VPS receipts (rows $vps_trusted; tree-bound)"
