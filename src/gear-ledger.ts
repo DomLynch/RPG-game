@@ -2,7 +2,7 @@
 // this file is the pure half. It reads a gear_open reply into the Loot shape the gear sheet already draws (so the sheet changes nothing), and turns a wear /
 // stow into the server calls that make it (the server has no silent swap: a slot's occupant is unequipped first, to the pack). No network, DOM or clock.
 import { TIERS } from './grades.ts';
-import { paperdollOf, slotOf, type Loot, type LootId, type Paperdoll, type Provenance } from './loot.ts';
+import { paperdollOf, slotOf, stow, unwear, wear, wearFromPack, type Loot, type LootId, type Paperdoll, type Provenance } from './loot.ts';
 
 export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number };
 export type GearView = { pieces: GearPiece[]; worn: Record<string, string>; packSize: number; bankSize: number };
@@ -41,3 +41,10 @@ export function stepsToWear(v: GearView, lootId: LootId): Step[] {
 }
 // Take a worn slot's piece off into the pack. [] for an empty slot.
 export function stepsToStow(v: GearView, key: Paperdoll): Step[] { const id = v.worn[key]; return id ? [{ op: 'gear_unequip', id }] : []; }
+
+// Every wear / stow the gear sheet makes is one of these, and the sheet hands it to ONE function (its `act`): a guest's local ledger applies it (applyLocal, src/loot.ts), a
+// signed-in character's goes to the server as the calls stepsFor names. The Pit and Zone 1 mount the same sheet, so they decide nothing apart.
+export type GearOp = { kind: 'wear'; id: LootId } | { kind: 'wearFromPack'; id: LootId } | { kind: 'unwear'; key: Paperdoll } | { kind: 'stow'; key: Paperdoll };
+export const applyLocal = (loot: Loot, op: GearOp): Loot => (op.kind === 'wear' ? wear(loot, op.id) : op.kind === 'wearFromPack' ? wearFromPack(loot, op.id) : op.kind === 'unwear' ? unwear(loot, op.key) : stow(loot, op.key));
+// The server has one way to take a piece off (into the pack), so Wear's swap and Wear-from-pack are the same calls, and Take off and Store are the same call.
+export const stepsFor = (v: GearView, op: GearOp): Step[] => (op.kind === 'wear' || op.kind === 'wearFromPack' ? stepsToWear(v, op.id) : stepsToStow(v, op.key));

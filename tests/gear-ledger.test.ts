@@ -1,7 +1,9 @@
 // The engine's gear screen over the ONE item ledger (src/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lootOfView, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/gear-ledger.ts';
+import { readFileSync } from 'node:fs';
+import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/gear-ledger.ts';
+import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/loot.ts';
 
 const piece = (id: string, lootId: string | null, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
   ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, ...over });
@@ -29,4 +31,22 @@ test('wearing: an empty slot is one equip; an occupied slot comes off into the p
 test('stowing a worn slot is one unequip; an empty slot is nothing', () => {
   assert.deepEqual(stepsToStow(pack, 'chest'), [{ op: 'gear_unequip', id: 'i2' }]);
   assert.deepEqual(stepsToStow(pack, 'head'), []);
+});
+
+test('one decision point: a local op is exactly the ledger function it names; a server op is the calls stepsFor names', () => {
+  const loot = { ...emptyLoot(), owned: ['goblin.Helmet', 'goblin.Body'] as never[], pack: ['goblin.Helmet'] as never[] };
+  assert.deepEqual(applyLocal(loot, { kind: 'wear', id: 'goblin.Body' as never }), wear(loot, 'goblin.Body' as never));
+  assert.deepEqual(applyLocal(loot, { kind: 'wearFromPack', id: 'goblin.Helmet' as never }), wearFromPack(loot, 'goblin.Helmet' as never));
+  const worn = wear(loot, 'goblin.Body' as never);
+  assert.deepEqual(applyLocal(worn, { kind: 'unwear', key: 'chest' }), unwear(worn, 'chest'));
+  assert.deepEqual(applyLocal(worn, { kind: 'stow', key: 'chest' }), stow(worn, 'chest'));
+  assert.deepEqual(stepsFor(pack, { kind: 'wear', id: 'goblin.Helmet' as never }), stepsToWear(pack, 'goblin.Helmet' as never));
+  assert.deepEqual(stepsFor(pack, { kind: 'wearFromPack', id: 'goblin.Helmet' as never }), stepsToWear(pack, 'goblin.Helmet' as never));
+  assert.deepEqual(stepsFor(pack, { kind: 'unwear', key: 'chest' }), stepsToStow(pack, 'chest')); assert.deepEqual(stepsFor(pack, { kind: 'stow', key: 'chest' }), stepsToStow(pack, 'chest'));
+});
+test('the gear sheet decides nothing itself: every wear / stow click goes through its one `act`, and the sheet imports no ledger function that could bypass it', () => {
+  const sheet = readFileSync(new URL('../src/gear-sheet.ts', import.meta.url), 'utf8');
+  assert.equal((sheet.match(/\bact\(/g) ?? []).length >= 5, true, 'the rack button, Wear this, Store, and each slot\'s Store go through act');
+  assert.doesNotMatch(sheet, /import \{[^}]*\b(wear|unwear|stow|wearFromPack)\b[^}]*\} from '\.\/loot\.ts'/, 'no direct ledger call in the sheet');
+  assert.match(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), /createGearSheet\(/, 'the Pit mounts the sheet');
 });

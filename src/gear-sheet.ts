@@ -4,7 +4,8 @@ import { captureException } from '@sentry/browser';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { TIERS, type Tier } from './grades.ts';
 import { isLegendOpponent, legendAt } from './legends.ts';
-import { PACK, PAPERDOLL, emptyLoot, packFull, paperdollOf, slotOf, stow, unwear, wear, wearFromPack, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { PACK, PAPERDOLL, emptyLoot, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { applyLocal, type GearOp } from './gear-ledger.ts';
 import { shortLink } from './share-store.ts';
 
 export const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
@@ -12,10 +13,12 @@ type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; g
 export type GearSheetDeps = {
   element: <T extends HTMLElement = HTMLElement>(id: string) => T; journal: HTMLElement; canvas: HTMLElement;
   profile: () => { loot?: Loot }; persist: () => void; view: () => View; weapon: () => string;
+  act?: (op: GearOp) => void;   // where a wear / stow goes; default: the local ledger (a guest, the Pit today). A signed-in character's goes to the server (gear-ledger.ts stepsFor).
   pieceName: (id: LootId) => string; wornIds: () => LootId[]; wornTiers: () => Record<string, Tier>;
 };
 export function createGearSheet(d: GearSheetDeps) {
   const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+  const act = (op: GearOp) => (d.act ? d.act(op) : setLoot(applyLocal(d.profile().loot ?? emptyLoot(), op)));
   function setLoot(loot: Loot) { d.profile().loot = loot; d.persist(); d.view().wear(d.wornIds(), d.wornTiers()); renderLoot(); }
   // One rack row: the piece's name, who it was taken from, and Wear/Worn on the journal's own wear path.
   function rackRow(id: LootId): HTMLLIElement {
@@ -24,7 +27,7 @@ export function createGearSheet(d: GearSheetDeps) {
     li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
     name.textContent = d.pieceName(id);
     button.setAttribute('data-wear', id); button.textContent = isWorn ? 'Worn' : 'Wear';
-    button.addEventListener('click', () => setLoot(isWorn ? unwear(d.profile().loot ?? emptyLoot(), paperdollOf(slotOf(id))) : wear(d.profile().loot ?? emptyLoot(), id)));
+    button.addEventListener('click', () => act(isWorn ? { kind: 'unwear', key: paperdollOf(slotOf(id)) } : { kind: 'wear', id }));
     li.append(name);
     if (taken) {
       const small = document.createElement('small'), bold = document.createElement('b');
@@ -118,8 +121,8 @@ export function createGearSheet(d: GearSheetDeps) {
   }
   d.element('fitting-thumb').addEventListener('error', () => { d.element('fitting-thumb').hidden = true; });
   d.element('fitting-cancel').addEventListener('click', () => tryOn(null));
-  d.element('fitting-wear').addEventListener('click', () => { const id = fitId; fitId = fitKey = null; if (id) setLoot(wearFromPack(d.profile().loot ?? emptyLoot(), id)); });
-  d.element('fitting-store').addEventListener('click', () => { const key = fitKey; fitId = fitKey = null; if (key) setLoot(stow(d.profile().loot ?? emptyLoot(), key)); });
+  d.element('fitting-wear').addEventListener('click', () => { const id = fitId; fitId = fitKey = null; if (id) act({ kind: 'wearFromPack', id }); });
+  d.element('fitting-store').addEventListener('click', () => { const key = fitKey; fitId = fitKey = null; if (key) act({ kind: 'stow', key }); });
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) d.element(`slot-${key}`).addEventListener('click', (event) => {
     if ((event.target as Element).closest('.slot-off') || !d.profile().loot?.equipped[key]) return;   // an empty slot has nothing to show; the hidden per-slot Store is the old path
     const again = !fitId && fitKey === key; fitId = null; fitKey = again ? null : key; dressed(); renderFitting();
@@ -137,6 +140,6 @@ export function createGearSheet(d: GearSheetDeps) {
     delete d.journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
     d.view().wear(d.wornIds(), d.wornTiers()); renderFitting();
   }
-  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) d.element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(d.profile().loot ?? emptyLoot(), key)));
-  return { setLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: () => gear };
+  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) d.element(`slot-${key}-off`).addEventListener('click', () => act({ kind: 'stow', key }));
+  return { setLoot, act, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: () => gear };
 }
