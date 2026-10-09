@@ -127,9 +127,9 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   // A region-definition spawn may stand only in a zone where creatures may fight: never a town's foe inside a town.
   const townZones = new Set(local.towns.map((t) => `${t.region}/${t.zone}`));
 
-  // 5. No weapon drops in Region 1 (ruled): no item a table can award, and no item defined here, is a weapon.
+  // 5. No weapon drops in Region 1 (ruled): no item a table can award, and no item defined here, is a weapon. The one exception is the legacy loot catalogue (`item:loot.<LootId>`, origins/inventory/loot-catalogue.ts): the engine's ledger owns weapon pieces, so the server must be able to hold them; no table can award one (the next loop).
   const weapon = (item: ItemId) => (WEAPON_SLOTS as readonly string[]).includes(registry.items.get(item)?.slot ?? '');
-  for (const def of registry.items.values()) if (weapon(def.id)) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1`);
+  for (const def of registry.items.values()) if (weapon(def.id) && !def.id.startsWith('item:loot.')) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1`);
   for (const t of registry.lootTables.values()) t.rolls.forEach((roll, i) => roll.entries.forEach((e, j) => {
     if (weapon(e.item)) issues.add('content-rule', `${t.id}.rolls[${i}].entries[${j}].item`, `${e.item} is a weapon: no weapon drops in Region 1`);
   }));
