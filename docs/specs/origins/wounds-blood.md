@@ -54,16 +54,16 @@ Flee-at stays Expansion's rule (`body-families.md`); `tiers` only changes how it
 ## Example rows (bones are #1967's; numbers are a starting point for Dom's eye at 375 wide)
 ```
 bodytypes.quadruped = { parts: [
-  { id: 'head', bones: ['head','jaw'], vital: true,  weight: 2, cuttable: true },
-  { id: 'neck', bones: ['neck'],        vital: true,  weight: 1, cuttable: true, parent: 'head' },
+  { id: 'head', bones: ['head','jaw'], vital: true,  weight: 2, cuttable: true, parent: 'neck' },
+  { id: 'neck', bones: ['neck'],        vital: true,  weight: 1, cuttable: true, parent: 'torso' },
   { id: 'torso', bones: [],             vital: true,  weight: 5 },
   { id: 'foreL', bones: ['front_up_L'], vital: false, weight: 1, cuttable: true, parent: 'torso' },
   { id: 'foreR', bones: ['front_up_R'], vital: false, weight: 1, cuttable: true, parent: 'torso' },
   { id: 'hindL', bones: ['hind_up_L'],  vital: false, weight: 1, cuttable: true, parent: 'torso' },
   { id: 'hindR', bones: ['hind_up_R'],  vital: false, weight: 1, cuttable: true, parent: 'torso' } ] }
 bodytypes['biped-small'] = { parts: [
-  { id: 'head', bones: ['Head'], vital: true, weight: 2, cuttable: true },
-  { id: 'neck', bones: ['neck_01'], vital: true, weight: 1, cuttable: true, parent: 'head' },
+  { id: 'head', bones: ['Head'], vital: true, weight: 2, cuttable: true, parent: 'neck' },
+  { id: 'neck', bones: ['neck_01'], vital: true, weight: 1, cuttable: true, parent: 'torso' },
   { id: 'torso', bones: [], vital: true, weight: 5 },
   { id: 'armL', bones: ['upperarm_l'], vital: false, weight: 1, cuttable: true, parent: 'torso' },
   { id: 'armR', bones: ['upperarm_r'], vital: false, weight: 1, cuttable: true, parent: 'torso' },
