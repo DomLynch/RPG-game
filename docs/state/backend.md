@@ -5,6 +5,16 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-09 ~15:05 (+04) — HANDOFF before /clear (Dom: save work). READ FIRST, then memory `frankendom_backend_handoff_2026-10-09_afternoon.md`
+1. **LIVE:** J3 `3d4f8854`. Writer `current` -> 3d4f8854 (14:12, closure parity 107/107; rollback chain 1a6313bc -> 61d969e9 -> ab2288cd). Migration 0016 APPLIED (version 20261009083903, Auditor POST PASS). Prod read 14:55: **0 characters ever**, 0 items/spawns/engages/metal.
+2. **Found:** no page code creates a character, so signed-in players had characterId null and nothing could persist. Lead ruled a server-side fix: **#1997** (`open` makes the first character `Wanderer <6>`, clash retry 8 then full id).
+3. **Open PRs (all mine, Auditor asked on each):**
+   - One item ledger (merge order #1980 -> #1982 -> #1984, ride J4b): #1980 catalogue ac9f7886f, #1982 gear_open/equip/unequip 326a82db5, #1984 gear_import 821dddb6a (HOLD fixed: worn-but-unwearable falls back to pack/bank, `unworn` in the receipt).
+   - Persistence stack (one batch after J4b): #1833 f7f353638, #1837 ec7755d51, #1997 8855dddd1 (PG writer-check 177). Then writer reinstall + parity, then Dom's sign-in + kill and the DB read-back receipt.
+   - #1979 Pit goblin loot (my table + Characters' row) 3130d747d; #1692 scale test (draft) 7175ac8af.
+4. **Owed:** 100-account scale numbers by 17:00 +04 (only when VPS 5-min load < 4, load beside each number); Auditor POST reads for the J2/J3 reinstalls; first-kill DB read-back and Auditor ping.
+5. **Rules:** PR not READY without a VPS receipt with the SHA in the body; never force-push; say "shared fight engine", never "the Pit's own".
+
 ## 2026-10-09 ~09:40 (+04) — HANDOFF before /clear (Dom: standby + save). READ FIRST, then memory `frankendom_backend_handoff_2026-10-09_midmorning.md`
 1. **LIVE:** Release H 01910aab. Writer `current` -> ab2288cd (G reinstall 08:35, receipt #1935 6074339729; H closure diff empty, so no reinstall).
 2. **Found:** no page code called engage/touch/kill_report, which is why prod has 0 engages and 0 ledger rows. Built the client.
