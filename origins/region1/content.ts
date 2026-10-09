@@ -177,7 +177,7 @@ export const ENCOUNTERS = [
   {
     kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:mere-mother', name: 'The Mere-Mother Rises', region: 'region:ash-frontier', scope: 'public',
     stages: [{ id: 'guard', killsToAdvance: 1, population: 1, roster: [{ character: 'character:mere-brood', weight: 1 }], loot: null }],
-    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 4, health: 15_000 },   // Zone 1's boss is the zone level + 3 (Dom 2026-10-08: Zone N = level N, boss N+3); health unchanged, still the boss battery's to set   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
+    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 4, health: 4_000 },   // Zone 1's boss is the zone level + 3 (Dom 2026-10-08: Zone N = level N, boss N+3); health = the boss fixture's 1,000 a level (Lead ruling on Combat's bound for a Lv 4 player: ~3.3 min of perfect hits, 7-11 min realistic; 15,000 was 25-40 min); a boss battery may re-set it   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
     decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 3600, rewards: { minContributionPercent: 10 },
   },
   solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 3),
