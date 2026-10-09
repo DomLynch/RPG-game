@@ -10,6 +10,7 @@ import ts from 'typescript';
 // carries the legends rule (sources, living religions), which no parser checks: they join only once they are split into pure-data files.
 export const DATA_PATHS = [
   /^origins\/zones\/zone\d+\/(zone|spawns|kit|look)\.ts$/,
+  /^origins\/zones\/biomes-data\.ts$/,   // the biome presets once World splits them out of biomes.ts as a literal-only module (biomes.ts itself stays code)
   /^src\/assets\/source\/loot\/loot\.json$/,
 ];
 export const onDataPath = file => DATA_PATHS.some(re => re.test(file));
@@ -44,6 +45,34 @@ export function dataProblems(file, text) {
   }
   if (!name || !exported) problems.push(`${file}: needs one literal \`const\` and \`export default\` of it`);
   return problems;
+}
+
+// The value of a pure-data module (call only after dataProblems returned []): the literal const, as plain JSON.
+function literalJson(node) {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
+  if (ts.isNumericLiteral(node)) return Number(node.text);
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (node.kind === ts.SyntaxKind.NullKeyword) return null;
+  if (ts.isPrefixUnaryExpression(node)) return -Number(node.operand.text);
+  if (ts.isArrayLiteralExpression(node)) return node.elements.map(literalJson);
+  if (ts.isObjectLiteralExpression(node)) return Object.fromEntries(node.properties.map(p => [p.name.text, literalJson(p.initializer)]));
+  return literalJson(node.expression);   // as const, satisfies, parentheses
+}
+export function moduleValue(file, text) {
+  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const st = sf.statements.find(s => ts.isVariableStatement(s));
+  return st ? literalJson(st.declarationList.declarations[0].initializer) : null;
+}
+
+// Legends (Lead 2026-10-09): a spawns row that brings a legend id trunk does not have, or changes the source citation of one it has, is legends
+// content, and the legends rule is the Auditor's judgement, so the PR is not data-only. A row reusing an existing id with the same citation stays data.
+// `rows` = spawns.rows; a legend is a row whose id is a `character:` id with a `source` (the citation). Returns { id: JSON(source) }.
+export const legendCitations = rows => Object.fromEntries((Array.isArray(rows) ? rows : []).filter(r => r && typeof r.id === 'string' && r.id.startsWith('character:') && r.source)
+  .map(r => [r.id, JSON.stringify(r.source)]));
+export function legendProblems(head, base) {
+  return Object.entries(head).flatMap(([id, source]) => !(id in base) ? [`${id} is a new legend: the legends rule needs the Auditor`]
+    : base[id] !== source ? [`${id}'s source citation changed: the legends rule needs the Auditor`] : []);
 }
 
 // The verdict for a PR's changed files: { dataOnly, problems }. Deleted files count as on-path by name (the schema check catches a broken zone).
