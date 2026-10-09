@@ -4,7 +4,7 @@ import test from 'node:test';
 import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
-import { JOIN_M } from '../preview/world-combat.ts';
+import { JOIN_M } from '../../src/fight/index.ts';
 import { AGGRO_M } from '../../src/fight/world.ts';
 import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
