@@ -1,10 +1,10 @@
 // What a finisher may cut, and how a creature bleeds: ONE row per roster creature (wolf, boar, bear, goblin), keyed by the ROSTER id. Data only, no per-creature
 // code: the finisher path reads a row through creatureGore(id), so a new creature is one row here and one test pass (tests/creature-gore.test.ts). Characters, 2026-10-09,
 // for Release K (Combat's S7 wires it). Bones are the skin joints of the shipped GLBs, read from the files (the test re-reads them, so a renamed bone fails here, not in a cut).
-// Finishers are picked from the Pit's own set (src/finishers.ts FinisherId). The beasts carry the neck cuts only: the Dwarf rule (src/roster.ts) keeps a finisher off a body until a clip is
+// Finishers are picked from the Pit's own set (src/fight/finishers.ts FinisherId). The beasts carry the neck cuts only: the Dwarf rule (src/roster.ts) keeps a finisher off a body until a clip is
 // measured on it, and the blade-through ones need a torso a blade can cross; a beast falls back to plainDeath when the picked one is not on its row. Blood colour and amount are a starting point
-// for Dom's eye at 375 wide: amount scales the Pit's BLOOD counts (src/blood-style.ts), 1 = a man.
-import type { FinisherId } from './finishers.ts';
+// for Dom's eye at 375 wide: amount scales the Pit's BLOOD counts (src/fight/blood-style.ts), 1 = a man.
+import type { FinisherId } from './fight/finishers.ts';
 
 export type Shape = 'quadruped' | 'biped';
 export type CreatureGore = {

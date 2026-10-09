@@ -1,5 +1,5 @@
 import test from 'node:test';
-import {finisherBloodSources} from '../src/finisher-blood.ts';
+import {finisherBloodSources} from '../src/fight/finisher-blood.ts';
 import {finisherSidePose} from '../src/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

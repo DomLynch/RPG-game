@@ -5,8 +5,8 @@
 import * as THREE from 'three';
 import { bloodiesMaterial, FLOOR_POOLS, FLOOR_SPLASHES, multiplyOnto } from './finisher-blood.ts';
 export { multiplyOnto };
-import type { HitLocation } from './blade.ts';
-import type { Direction } from './moves.ts';
+import type { HitLocation } from '../blade.ts';
+import type { Direction } from '../moves.ts';
 
 export type BloodMode = 'red' | 'dark' | 'off';
 type Rigs = { player: { anchor: THREE.Object3D }; opponent: { anchor: THREE.Object3D } };
@@ -130,7 +130,7 @@ export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>, limb: 0
 // splat with a dark core and thin translucent edge, and a drip with a rounded bead at its leading edge and a tapering tail —
 // plus small normal maps from their own luminance so the arena sun catches the bead. Loaded lazily in the browser only; the
 // node tests build the pool without textures (the canvas splat stands in until the PNG lands, and forever under node).
-const BLOOD_ASSET = (file: string) => new URL(`./assets/blood/${file}`, import.meta.url).href;
+const BLOOD_ASSET = (file: string) => new URL(`../assets/blood/${file}`, import.meta.url).href;
 const FLOOR_FRESH = new THREE.Color('#ffffff'), FLOOR_DRIED = new THREE.Color('#b09a9a'), FLOOR_DARK_MODE = new THREE.Color('#a8a0a0');
 const FLOOR_DRY = 8;   // seconds for a stain to settle from wet to dried
 const BLOOD_TEXTURES = { floorPool: 'floor-pool.png', floorSplash: 'floor-splash.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;

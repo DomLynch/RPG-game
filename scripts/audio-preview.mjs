@@ -101,7 +101,8 @@ try {
       assert.ok(last / RATE <= PROBE_AT + spec.length + .25, `creature-${body}-${cue} rings on to ${(last / RATE).toFixed(2)} s, past its ${spec.length} s`);
       checks.creatures++;
     }
-    assert.equal(checks.creatures, 15);
+    assert.equal(checks.creatures, Object.keys(THROATS).length * Object.keys(CREATURE_CUES).length);   // every throat x cue was rendered ...
+    assert.ok(checks.creatures >= 24, `only ${checks.creatures} creature voices rendered`);   // ... and none dropped: 8 throats x 3 cues since #2009 (creature voices) added the Zone 1 wolf, boar and bear to the 5 pinned at 15
   }
   // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage flat at REFERENCE. Not ×1: there the
   // ordinary peaks (~.89 after the soft ceiling) sit above the output guard's .55 knee and the reference is itself compressed,

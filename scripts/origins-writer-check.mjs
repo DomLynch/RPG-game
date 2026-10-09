@@ -16,7 +16,8 @@ import * as F from '../origins/contracts/fixtures.ts';
 import { creditFromMarks, cumulative } from '../origins/progression/model.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
-import { fetchOpen, isOffline, saveLine } from '../origins/preview/save.ts';
+import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
+import { openCharacter } from '../src/fight/open.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { zoneAt } from '../origins/presence/zones.ts';
@@ -30,8 +31,8 @@ const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 
 const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env, timeout: 300_000 });
 const psql = sql => run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'], sql).trim();
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', G = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
-const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G };
+const E = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', G = 'ffffffff-ffff-4fff-8fff-ffffffffffff', H = '99999999-9999-4999-8999-999999999999';
+const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G, tg: H };
 // The story ops run on the writer's example bundle (the Concord Commission, Orla, an errand), read from a file the way the writer reads it at start.
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
@@ -58,7 +59,7 @@ try {
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
-    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${D}'),('${E}'),('${G}');`);
+    insert into auth.users values ('${A}'),('${B}'),('${C}'),('${D}'),('${E}'),('${G}'),('${H}');`);
   psql(readdirSync(dir).filter(n => n.endsWith('.sql')).sort().map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${B}','Bran',0,'{"owned":[],"equipped":{}}'),('${D}','Dara',10,'{"owned":[],"equipped":{}}');`);
 
@@ -361,9 +362,13 @@ try {
     }
     eq(psql(`select count(*) from public.origins_events`), events, 'no content: nothing written');
   } finally { bare.close(); }
-  // The greybox preview's read (origins/preview/save.ts fetchOpen) against this real writer: the mapped career is the writer's derived total,
+  // The greybox preview's read (origins/preview/save.ts openedAccount) against this real writer: the mapped career is the writer's derived total,
   // the read writes nothing, and every refusal comes back offline instead of throwing.
-  const writer = base.slice(0, -1), events = () => psql(`select count(*) from public.origins_events where account = '${A}'`);
+  const writer = base.slice(0, -1);
+  // the page's open with a fresh page (storage) each time; `token` is the stored sign-in, `to` the writer address a page is pointed at (?writer=, loopback only)
+  const pageStorage = (token) => (token ? { getItem: () => JSON.stringify({ access_token: token, expires_at: Date.now() / 1000 + 3600 }) } : null);
+  const fetchOpen = (token, { base: to }) => openedAccount({ storage: pageStorage(token), search: `?writer=${encodeURIComponent(to)}` });
+  const events = () => psql(`select count(*) from public.origins_events where account = '${A}'`);
   const before = events(), viaPreview = await fetchOpen('ta', { base: writer }), direct = (await call('open', 'ta')).json.result.career;
   eq([viaPreview.career?.credit, careerLine(viaPreview.career).credit, viaPreview.career?.beaten, viaPreview.characters.map(c => c.name)],
     [Number(direct.total_credit), Number(direct.total_credit), direct.beaten, ['Wanderer aaaaaa', 'Aldren']], 'preview: the mapped career is the derived total');
@@ -466,6 +471,11 @@ try {
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
+    // one rule for every door (src/fight/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
+    psql(`insert into public.origins_access(account) values ('${H}');`);
+    const pitId = await openCharacter({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
+    const zoneOpen = await openedAccount({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
+    eq([/^pc:[0-9a-f]{32}$/.test(pitId), zoneOpen.characters.map(c => c.id), chars(H).split(',').length], [true, [pitId], 1], 'open: a fresh account whose first page is the Pit has one character, and the later zone open reuses it');
   }
   // the down script drops exactly what the up created, and the up applies again cleanly after it
   const up = readFileSync(join(dir, '202610070009_origins_character_location.sql'), 'utf8'), down = readFileSync('supabase/down/202610070009_origins_character_location_down.sql', 'utf8');
