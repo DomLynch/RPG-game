@@ -5,6 +5,16 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-09 08:16 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-10-08 night entry, then memory
+**READ FIRST:** lane memory `frankendom_backend_handoff_2026-10-09_morning.md`.
+1. **LIVE:** Release F fc7d448aa (own curl 08:16). Deploy lock PRESENT: Release G is in flight (#1935 + #1932 merged). Origins writer `current` -> fc7d448a (installed 08:00:44, closure parity 95/95).
+2. **Went live (10-08 eve → 10-09 morning):** Zone 1 detached spawns (#1880: migrations 0014 + 0015 applied 21:56, writer reinstalled, Auditor POST PASS). The bear and duel-season-archive migrations (0008 + 0011) applied 22:15, so prod matches every trunk migration (`duel_season_close()` NOT run). The receipt tests (#1920) shipped in Release D. The first trusted unit-suite receipt from Hugging Face (2987/0, 417 s). Shop gear (#1831) in Release F. The writer reinstalled at F (08:00) so kills are priced at the new Zone 1 levels (#1845).
+3. **NOT done yet:** the writer reinstall for Release G (#1935 Mere-Mother Lv 4, #1932), due the minute G is live (Lead GO standing; receipt on #1935). The first-kill ledger check on #1880 waits for a real signed-in Zone 1 kill (0 kills in prod; guests cannot make one). The Auditor POST on the parity pair (#1818) is not confirmed.
+4. **Sessions down:** none known.
+5. **Rulings:** heavy checks on HF cpu-upgrade with --detach + --timeout (memory `feedback_heavy_checks_hf_cpu_2026-10-08`). A writer reinstall is due whenever a release changes a file in the writer's import closure. Lead option A: no test access row for the first-kill check. Browser rows 5/7/16 stay on the Mac (600 s ceiling even alone at width 1).
+6. **QUEUE:** (a) G writer reinstall + parity + receipt #1935; (b) re-arm the kill watch (:07/:37) and post the first-kill read-back on #1880; (c) ping the Auditor for the #1818 POST if still missing.
+7. **Crons:** kill watch 61125cdd (session-only, dies with /clear: re-arm). Box tools: `/root/backend-tools/{apply-1880.sh, closure-parity.sh, writer-closure.mjs, closure-fc7d448a.txt}`. No open branch of mine; `~/Developer/frankendom-backend` is on backend/mob-rewards (clean).
+
 ## 2026-10-08 (night, ~20:50 +04) — HANDOFF before /clear: #1880 floors rework UNTESTED @93fd91dd (GO withdrawn); town release LIVE
 **READ FIRST:** lane memory `frankendom_backend_handoff_2026-10-08_night.md`, then `frankendom_1880_apply_runbook.md`.
 **Now (in order):**
