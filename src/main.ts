@@ -46,7 +46,6 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { createGearSheet, lootThumb } from './gear-sheet.ts';
-import type { GearOp } from './gear-ledger.ts';
 import { createServerGear } from '../origins/preview/gear-server.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
