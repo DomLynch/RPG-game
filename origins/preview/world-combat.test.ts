@@ -66,13 +66,10 @@ test('call-site pin: the page reaches combat only through zone1.ts stepCombat (s
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
 });
 
-test('combat events play the creature\'s clips: attack at its tell, hit when it is struck, death once; the body is held until the Death clip has played (2.4 s here, not 1.4)', () => {
+test('a creature that is struck down falls, is released and killed once (the engine\'s actor plays its Death from the duel)', () => {
   const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: number[] = []; let t = 0;   // level 1 and auto-aim, as the kill test above: a level-11 wolf outlasts the test under the Pit-copied engine
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(t); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let k = 0; k < 15; k++) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); t += 1 / 30; } }
-  const roles = f.played.map((p) => p.split(':')[1]);
-  assert.ok(roles.includes('attack'), 'the wolf\'s tell played its Bite'); assert.ok(roles.includes('hit'), 'the cut played Hurt');
-  assert.equal(roles.filter((r) => r === 'death').length, 1, 'one Death');
   assert.equal(kills.length, 1, 'then it is released and killed once');
 });
 
@@ -112,7 +109,7 @@ test('a pack of four around the hero: three join and telegraph their own blows, 
 
 test('three joined: each joiner is driven with its own windup (one actor per creature)', () => {
   const f = fakeMobs([['w1', 1.2], ['w2', 2.4], ['w3', 3.2]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
-  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p && p.lunge !== 0) lunged.add(id); real(id, p); }) as typeof real;
+  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p?.duel?.fighters[1].phase === 'attack') lunged.add(id); real(id, p); }) as typeof real;
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   run(wc, { x: 0, z: 0, facing: 0 }, 4);
   assert.ok(lunged.size >= 3, `each of the three had its own windup/lunge: ${[...lunged]}`);
