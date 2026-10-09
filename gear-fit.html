@@ -1,0 +1,46 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gear fit</title><style>html,body{margin:0;background:#2b2724;overflow:hidden}canvas{display:block}</style>
+<script type="module">
+// Characters lane check page (never shipped): the Zone 1 hero (src/assets/warrior.glb, the rig Zone 1 draws) wearing loot pieces through the engine's own path:
+// loadLoot (src/assets/loot.glb) -> actor.wear(pieces). window.__fit.ids lists every loot id; __fit.wear(id) dresses ONLY that piece and returns what it measured
+// (did wear throw, is every draw skinned to the hero's skeleton, does its box sit on the hero's body). scripts/gear-fit-stills.mjs drives it.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadWarriors, loadLoot, lootIds } from '/src/characters.ts';
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(innerWidth, innerHeight); renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3430);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture;
+const sun = new THREE.DirectionalLight(0xfff0dd, 1.6); sun.position.set(2, 4, 5); scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 32), new THREE.MeshStandardMaterial({ color: 0x4a423a, roughness: 1 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, .1, 50); camera.position.set(0, 1.05, 5.2); camera.lookAt(0, .95, 0);
+const errors = []; addEventListener('error', (e) => errors.push(String(e.message)));
+const warriors = await loadWarriors('/src/assets/warrior.glb'), hero = warriors.player, pieces = await loadLoot('/src/assets/loot.glb');
+scene.add(hero.anchor);
+const settle = () => { for (let i = 0; i < 30; i++) hero.update(0, 1 / 30, 'sheathed'); scene.updateMatrixWorld(true); };
+const boxOf = (m) => { m.skeleton?.update(); m.computeBoundingBox(); return m.boundingBox.clone().applyMatrix4(m.matrixWorld); };
+const ids = [...new Set(pieces.flatMap((p) => lootIds(p)))];
+settle();
+const bodyBox = (() => { const b = new THREE.Box3(); hero.anchor.traverse((o) => { if (o.isSkinnedMesh && !o.userData.slot_worn) b.union(boxOf(o)); }); return b; })();
+const hh = bodyBox.max.y - bodyBox.min.y;
+window.__fit = {
+  ids, errors, bodyHeight: hh,
+  wear(id) {
+    const chosen = pieces.filter((p) => lootIds(p).includes(id)), failed = [];
+    const before = new Set(); hero.anchor.traverse((o) => before.add(o));
+    hero.wear(chosen, (fid, error) => failed.push(`${fid}: ${String(error).slice(0, 120)}`));
+    settle();
+    const worn = []; hero.anchor.traverse((o) => { if (!before.has(o) && o.isSkinnedMesh) worn.push(o); });
+    const box = new THREE.Box3(); for (const m of worn) box.union(boxOf(m));
+    const body = bodyBox.clone().expandByScalar(.15), size = box.getSize(new THREE.Vector3());
+    return { id, chosen: chosen.length, worn: worn.length, failed,
+      allSkinned: worn.length > 0 && worn.every((m) => m.skeleton && m.skeleton.bones.length > 0),
+      finite: [box.min, box.max].every((v) => [v.x, v.y, v.z].every(Number.isFinite)),
+      onBody: !box.isEmpty() && body.intersectsBox(box), heightRatio: +(size.y / hh).toFixed(3),
+      box: box.isEmpty() ? null : { min: box.min.toArray().map((n) => +n.toFixed(2)), max: box.max.toArray().map((n) => +n.toFixed(2)) } };
+  },
+  clear() { hero.wear([]); settle(); },
+  shoot() { renderer.render(scene, camera); },
+};
+window.__fit.ready = true;
+</script>
