@@ -7,8 +7,8 @@
 // The full fairness sweep is scripts/skill-battery.mjs --skill <id>; its output goes in the PR that changes a row.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aim, createFighter, idleIntent, initialDuel, mirror, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type MoveId, type SkillId, type Timing } from '../src/moves.ts';
+import { aim, createFighter, idleIntent, initialDuel, mirror, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type MoveId, type SkillId, type Timing } from '../src/fight/moves.ts';
 import { SKILLS, skillOf } from '../src/loot.ts';
 import type { OpponentId } from '../src/roster.ts';
 

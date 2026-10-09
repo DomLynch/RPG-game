@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { NO_PATRON_VERSION, PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { duplicateNames, simDigest } from './lib/sim-digest.ts';
@@ -24,7 +24,7 @@ import type { OpponentId } from '../src/roster.ts';
 // different camera does not change the fight.
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
-const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/detmath.ts', 'src/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
+const SIM_FILES = ['src/fight/duel.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/detmath.ts', 'src/fight/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
 const SIM_DIGEST = '6945d756c883ea4048b99139f2f996721c926e65cc3f935385fab99b85484032';   // re-pinned 2026-10-09 for the content digest (tests/lib/sim-digest.ts), NO bump: the old path digest of these same files was f9f4f395... (RV40's pin), so the code is unchanged. RV40 (2026-10-09, K1: the wall is Duel.radius, duel.ts / sim.ts / ai.ts; absent = the Pit's live circle, every Pit duel and every v18-v39 record is byte for byte as before, tests/open-world + the replay rows)   // RV39 (2026-10-08, N attackers on one creature: duel.ts Duel.incoming / SharedHit, the group flag in record.ts; a duel without incoming and an ungrouped record are byte for byte as v38, tests/streams.test.ts and tests/record-group.test.ts)
 const PINNED_FOR_VERSION = 40;
 
@@ -44,10 +44,10 @@ test('the digest is sound only while every top-level name lives in one sim file'
 });
 test('moving a function between sim files byte for byte (or a file split) keeps the digest, so it keeps RECORD_VERSION', () => {
   const real = simSources(), before = simDigest(real);
-  const fn = /^export function walled[\s\S]*?\n\}\n|^export const walled = [^\n]*\n/m.exec(real['src/duel.ts']!)?.[0];
+  const fn = /^export function walled[\s\S]*?\n\}\n|^export const walled = [^\n]*\n/m.exec(real['src/fight/duel.ts']!)?.[0];
   assert.ok(fn, 'the probe moves duel.ts walled(): it must exist');
-  const moved = { ...real, 'src/duel.ts': real['src/duel.ts']!.replace(fn, "import { walled } from './fight/walls.ts';\nexport { walled } from './fight/walls.ts';\n"), 'src/fight/walls.ts': `import { RULES } from '../moves.ts';\n// moved, unchanged\n${fn}` };
-  assert.notEqual(moved['src/duel.ts'], real['src/duel.ts']);
+  const moved = { ...real, 'src/fight/duel.ts': real['src/fight/duel.ts']!.replace(fn, "import { walled } from './fight/walls.ts';\nexport { walled } from './fight/walls.ts';\n"), 'src/fight/walls.ts': `import { RULES } from '../moves.ts';\n// moved, unchanged\n${fn}` };
+  assert.notEqual(moved['src/fight/duel.ts'], real['src/fight/duel.ts']);
   assert.equal(simDigest(moved), before, 'a byte-identical move changed the digest: it would force a bump and kill every live link for nothing');
   assert.deepEqual(duplicateNames(moved), []);
   const renamed = Object.fromEntries(Object.entries(real).map(([p, src]) => [p.replace('src/', 'src/fight/'), src]));
@@ -55,12 +55,12 @@ test('moving a function between sim files byte for byte (or a file split) keeps 
 });
 test('any real change still moves the digest (a constant, a number in a body, an aliased import, a data file); a comment does not', () => {
   const real = simSources(), before = simDigest(real), edit = (path: string, from: RegExp, to: string) => { const src = real[path]!.replace(from, to); assert.notEqual(src, real[path], `the probe edit applies to ${path}`); return simDigest({ ...real, [path]: src }); };
-  assert.notEqual(edit('src/play-radius.ts', /BASE_RADIUS = 8\.55/, 'BASE_RADIUS = 8.56'), before, 'a sim constant changed and the digest did not');
-  assert.notEqual(edit('src/duel.ts', /\.85 - 1e-8/, '.86 - 1e-8'), before, 'a number inside a function body changed and the digest did not');
-  assert.notEqual(simDigest({ ...real, 'src/ai.ts': real['src/ai.ts']!.replace(/import \{ aim,/, 'import { aim as aimOther, aim,') }), before, 'an aliased import is a rebinding: it must count');
+  assert.notEqual(edit('src/fight/play-radius.ts', /BASE_RADIUS = 8\.55/, 'BASE_RADIUS = 8.56'), before, 'a sim constant changed and the digest did not');
+  assert.notEqual(edit('src/fight/duel.ts', /\.85 - 1e-8/, '.86 - 1e-8'), before, 'a number inside a function body changed and the digest did not');
+  assert.notEqual(simDigest({ ...real, 'src/fight/ai.ts': real['src/fight/ai.ts']!.replace(/import \{ aim,/, 'import { aim as aimOther, aim,') }), before, 'an aliased import is a rebinding: it must count');
   assert.notEqual(simDigest({ ...real, 'src/blade-table.json': '{"a":1}' }), simDigest({ ...real, 'src/blade-table.json': '{"a":2}' }), 'a data file is hashed by its bytes');
-  assert.equal(edit('src/sim.ts', /\/\/ World coordinates only\./, '// World coordinates only, reworded.'), before, 'a comment is not the fight');
-  assert.deepEqual(duplicateNames({ ...real, 'src/stance.ts': `${real['src/stance.ts']}\nexport const walled = 1;\n` }), ['walled: src/duel.ts, src/stance.ts'], 'a second declaration of a sim name is reported');
+  assert.equal(edit('src/fight/sim.ts', /\/\/ World coordinates only\./, '// World coordinates only, reworded.'), before, 'a comment is not the fight');
+  assert.deepEqual(duplicateNames({ ...real, 'src/stance.ts': `${real['src/stance.ts']}\nexport const walled = 1;\n` }), ['walled: src/fight/duel.ts, src/stance.ts'], 'a second declaration of a sim name is reported');
 });
 
 // The accept-list, pinned as data beside the digest above and for the same reason: which versions this build will READ is a decision

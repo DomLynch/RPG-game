@@ -2,9 +2,9 @@
 //  - a KIT is one to three rows of "throw THIS existing attack when THIS holds, at most once per COOLDOWN" (a deterministic trigger and a cooldown, no chance), which makes a kind recognisable
 //    and caps how often the hero meets its worst move;
 //  - a MODE is a small DELTA on the warden's own AiProfile numbers (shy, bold, ambusher): the fight-side half of Expansion's `mode` preset (the world half, aggro ring and leash, is theirs).
-import { profileAt, OPPONENTS, type AiProfile } from '../../src/moves.ts';
+import { profileAt, OPPONENTS, type AiProfile } from '../../src/fight/moves.ts';
 import { initialKit, kitIntent, type ChainRow, type KitRow } from '../../src/mobkit.ts';
-import type { Duel, Intent } from '../../src/duel.ts';
+import type { Duel, Intent } from '../../src/fight/duel.ts';
 import { MOB_STYLE, type MobStyle } from './styles.ts';
 
 export const KITS: Readonly<Record<MobStyle, readonly KitRow[]>> = {
@@ -32,7 +32,7 @@ export const MODE: Readonly<Record<Mode, Partial<Record<Knob, number>>>> = {
   ambusher: { dash: 0.4, lapse: -0.1, interrupt: 0.2 },
 };
 
-// The layer a mob of this style fights under (src/combat.ts stepPractice's `layer`, src/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
+// The layer a mob of this style fights under (src/fight/combat.ts stepPractice's `layer`, src/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
 export function mobLayer(style: MobStyle): (duel: Duel, warden: Intent) => Intent {
   const rows = KITS[style], chains = CHAINS[style]; let state = initialKit(rows);
   return (duel, warden) => { if (duel.tick === 0) state = initialKit(rows); const r = kitIntent(duel, 1, warden, rows, state, chains); state = r.state; return r.intent; };

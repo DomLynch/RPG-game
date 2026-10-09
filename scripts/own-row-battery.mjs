@@ -1,6 +1,6 @@
 // RV30 own-row evidence: the scripted battery (tests/strategies.ts) against one opponent at normal and hard, wins / untouched per script.
 //   node scripts/own-row-battery.mjs   env: IDS (shieldmaiden,knight,plaguedoctor), SEEDS (24), LEVELS (normal,hard)
-import { OPPONENTS } from '../src/combat.ts';
+import { OPPONENTS } from '../src/fight/combat.ts';
 import { battery, STRATEGIES, TAP_ATTACK } from '../tests/strategies.ts';
 
 const seeds = +(process.env.SEEDS ?? 24);
@@ -12,9 +12,9 @@ for (const id of (process.env.IDS ?? 'shieldmaiden,knight,plaguedoctor').split('
 
 // Readability: the foe's mean health left when the fight ends (a script that never wins still shows how far it gets): kick only v light spam.
 import { arena } from '../tests/strategies.ts';
-import { decide, initialAi } from '../src/ai.ts';
-import { stepDuel } from '../src/duel.ts';
-import { opponentAt, profileAt } from '../src/moves.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { stepDuel } from '../src/fight/duel.ts';
+import { opponentAt, profileAt } from '../src/fight/moves.ts';
 for (const id of (process.env.IDS ?? 'shieldmaiden,knight,plaguedoctor').split(',')) for (const level of (process.env.LEVELS ?? 'normal,hard').split(',')) {
   const out = [];
   for (const name of ['kick only', 'light spam']) {

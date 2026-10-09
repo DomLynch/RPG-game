@@ -1,9 +1,9 @@
 // Special Moves battery (scripts/special-battery.mjs): the strategy battery's fight with the sim's own Special Moves (duel.ts withSpecials,
 // RULES.special) off and on over the same seeds. The AI casts its own special (ai.ts); the scripted player casts whenever it is ready and in
 // reach, over whatever its strategy does (the upper bound on how often a special can matter). Counts come from the fight's events.
-import { decide, initialAi } from '../src/ai.ts';
-import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/duel.ts';
-import { RULES, opponentAt, profileAt, type Opponent } from '../src/moves.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/fight/duel.ts';
+import { RULES, opponentAt, profileAt, type Opponent } from '../src/fight/moves.ts';
 import { skillOf } from '../src/loot.ts';
 import { STRATEGIES, act, arena, gap, idle, k, P, ready, W } from './strategies.ts';
 

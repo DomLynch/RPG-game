@@ -6,12 +6,12 @@
 //      locations tallied per move, mirroring the finishers lane's 24-duel setup with the weapons isolated one at a time.
 // Run from the repo root: node scripts/head-battery.mjs  (writes artifacts/combat/head-region-evidence.json)
 import fs from 'node:fs/promises';
-import { decide, initialAi } from '../src/ai.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { createFighter, opponentFighter, stepDuel } from '../src/duel.ts';
-import { OPPONENTS, PATHS, PROFILES, WEAPONS } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { createFighter, opponentFighter, stepDuel } from '../src/fight/duel.ts';
+import { OPPONENTS, PATHS, PROFILES, WEAPONS } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 const body = (x, z, heading) => ({ x, z, heading, distance: 0 });
 const at = (d) => body(0, d, Math.PI), df = () => body(0, 0, 0);

@@ -432,7 +432,7 @@ commit fails once and succeeds on retry. (v) Scratch capture scripts go in `arti
 
 **Pick up: the fight-HUD brief (Dom described it on his Centurion screenshot; Strategy + Lead ruled, NO mockups, ONE 375-wide phone
 still as the receipt, to Lead then Strategy).** Branch off trunk AFTER #664 merges (same rank row); if started earlier, rebase.
-(a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/combat.ts:147–158).
+(a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/fight/combat.ts:147–158).
     REMOVE the larger red-background banner: that is `#combat-status[data-threat=true]` (style.css ~755 desktop, ~1049 phone:
     `background: #542c23cc`, border-left, padding; hud.ts:93 sets data-threat). Confirm with Lead whether only the red styling goes
     or the "Incoming strike…" threat text too. ANSWERED (Lead, 2026-09-24): BOTH go — the red-background styling AND the

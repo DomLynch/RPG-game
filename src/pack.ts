@@ -4,12 +4,12 @@
 //     from the play circle's far edge, the leader enters last. Waiting members are presentation only, not in the sim.
 //  2. The creature's THREAT LIST (`ThreatList`): who the creature turns on when several players hit it. Donor: AzerothCore ThreatManager (damage adds threat; the current victim changes only when another beats it
 //     by 110 %, casters 130 %; a list cap of 7; suppressed targets are used only when no online one is left). Deterministic: a pure function of the join order and the damage stream, ties go to the earlier joiner.
-import type { Practice } from './combat.ts';
-import { idleIntent, opponentFighter, stepDuel, type Duel, type Intent } from './duel.ts';
+import type { Practice } from './fight/combat.ts';
+import { idleIntent, opponentFighter, stepDuel, type Duel, type Intent } from './fight/duel.ts';
 import { M } from './detmath.ts';
-import type { Opponent } from './moves.ts';
+import type { Opponent } from './fight/moves.ts';
 import type { RecordGroup } from './record.ts';
-import { RADIUS, type State } from './sim.ts';
+import { RADIUS, type State } from './fight/sim.ts';
 
 export const THREAT_MAX = 7;
 export const SWITCH_MELEE = 1.1, SWITCH_CASTER = 1.3;

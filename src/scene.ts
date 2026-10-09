@@ -18,14 +18,14 @@ import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFo
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
-import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
 import { type FinisherId } from './fight/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
 import { createHamstrungAssets } from './hamstrung-assets.ts';
-import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
 import { buildArena, type Arena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';

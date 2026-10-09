@@ -12,7 +12,7 @@ import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encou
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';
-import { OPPONENTS, RULES, opponentAt, weaponOf } from '../../src/moves.ts';
+import { OPPONENTS, RULES, opponentAt, weaponOf } from '../../src/fight/moves.ts';
 import { CAPS } from '../../src/gear-stats.ts';
 import { ROLL_BAND } from '../../src/roll.ts';
 import { GAMBIT_ODDS } from '../../src/gambit.ts';

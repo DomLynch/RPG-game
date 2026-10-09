@@ -3,7 +3,7 @@
 // duel message is rejected — no throw, no change to the duel or the session, and the fight carries on in step with the honest peer.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { idleIntent, type Intent, type Side } from '../src/duel.ts';
+import { idleIntent, type Intent, type Side } from '../src/fight/duel.ts';
 import { PvpDuel, packIntents, type DuelMessage } from '../src/net/pvp.ts';
 import { hashDuel, NET } from '../src/net/rollback.ts';
 import { RECORD_VERSION } from '../src/record.ts';

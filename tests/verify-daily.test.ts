@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent } from '../src/duel.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent } from '../src/fight/duel.ts';
 import { encodeRecord, type FightRecord } from '../src/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { psqlAdapter, restAdapter, verifyPending } from '../scripts/verify-daily.mjs';

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { SHIPPED, SIGNATURES, pickSignature } from '../src/signature.ts';
 import { RECALL, recallPosition, recallTime } from '../src/signature-nightborn.ts';
-import type { CombatEvent } from '../src/duel.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 
 test('Blood Recall is the Nightborn\'s A and answers only a blade blow he lands', () => {
   const effect = pickSignature(SIGNATURES.nightborn, 'on');

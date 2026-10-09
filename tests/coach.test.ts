@@ -3,11 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { initialPractice, stepPractice } from '../src/combat.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { COACH_BRAINS, COACH_FIXED, coachProfile, createCoach } from '../src/coach.ts';
-import { OPPONENTS, PROFILES, opponentAt, profileAt, type Level } from '../src/moves.ts';
+import { OPPONENTS, PROFILES, opponentAt, profileAt, type Level } from '../src/fight/moves.ts';
 import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 import { PICKS, type PickedStance } from '../src/stance.ts';
@@ -64,7 +64,7 @@ test('a coached fight is a pure function of seed and stance, and the stances pla
 
 // ---- the on/off switch, the hand-over and the `build` string (TOP10 row 8; the contract Web builds against) ----
 import { BUILD_MAX, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
-import { idleIntent, type Intent } from '../src/duel.ts';
+import { idleIntent, type Intent } from '../src/fight/duel.ts';
 import { kitOfBuild } from '../origins/mobs/kit-version.ts';
 
 test('one intent per tick: the coach drives only while on, the player only while off; a press hands over on the SAME tick with the tap as that tick\'s input', () => {

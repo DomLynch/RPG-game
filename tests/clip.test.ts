@@ -5,13 +5,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Match } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { CLIP_FINISH_CAP, CLIP_HEIGHT, CLIP_LEAD, CLIP_SECONDS, CLIP_TAIL, CLIP_WIDTH, clipEnded, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';
-import type { Duel } from '../src/duel.ts';
+import type { Duel } from '../src/fight/duel.ts';
 
 const counting = () => { const m = new Map<string, string>(); let writes = 0; return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { writes++; m.set(k, v); }, writes: () => writes }; };
 const spam = (d: Duel) => {

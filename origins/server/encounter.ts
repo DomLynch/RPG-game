@@ -17,7 +17,7 @@ import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
 import { knownLayer, type VerifyEncounter } from './encounter-verify.ts';
 import { issuePose, packPose, unpackPose } from './encounter-pose.ts';
-import type { DuelPose } from '../../src/duel.ts';
+import type { DuelPose } from '../../src/fight/duel.ts';
 
 // What `resolve` returns for a fight the character may start (Expansion's FightSetup, reduced to what the server holds and re-simulates).
 export type Resolved = { enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; instance: string | null };

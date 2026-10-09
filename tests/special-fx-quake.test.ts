@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createShieldQuake, isShieldQuake, quakeLook } from '../src/special-fx-quake.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { LAND_AT, SLAM_AT, advanceCast } from '../src/special-timing.ts';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 // The Centurion's Shield Quake (special-fx-quake.ts): the same seam as Red Wind, on his class skill, the Scutum Shove.

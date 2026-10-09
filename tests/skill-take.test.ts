@@ -6,7 +6,7 @@ import { SKILLS, cleanLoot, isSkillId, mergeLoot, skillOf, type Loot } from '../
 import { loadProfile, saveProfile } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 import { Match } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 

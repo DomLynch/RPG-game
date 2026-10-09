@@ -589,7 +589,7 @@ was an artifact. Corrected off u2net mattes: **Knight 0.367, Executioner 0.374, 
   `scripts/build-weapon.mjs` and nothing else — `git ls-tree` on trunk finds no maul file at all, so the part must be
   produced before anything can reference it. (The sha reported to this lane, `4e34fa3`, is
   `Revert "Merge pull request #488 from DomLynch/stats/lane"`, not the maul.)
-- **The hero rig has no `Maul_*` clips.** `src/moves.ts:406` still reads `paths: creaturePaths(CLEAVER_PATHS, 'Maul')` —
+- **The hero rig has no `Maul_*` clips.** `src/fight/moves.ts:406` still reads `paths: creaturePaths(CLEAVER_PATHS, 'Maul')` —
   the Minotaur's creature clips. Weapons is authoring the `Maul_*` family on the hero skeleton (their `Warhammer_*`
   precedent). Until that lands, **the donor step and the fit proceed on the warhammer stand-in as wired**; only the arm
   re-solve and the versus still wait.

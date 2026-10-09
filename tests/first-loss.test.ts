@@ -4,12 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LESSONS, type LessonId } from '../src/first-loss.ts';
 import { Match, PRESET_LEVEL } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';
-import type { Duel, Intent } from '../src/duel.ts';
+import type { Duel, Intent } from '../src/fight/duel.ts';
 
 const counting = () => { const m = new Map<string, string>(); let writes = 0; return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { writes++; m.set(k, v); }, removeItem: (k: string) => { m.delete(k); }, writes: () => writes }; };
 // The players: the bot catalogue (tests/strategies.ts) plus one that does nothing and one that fights back as hard as it can.

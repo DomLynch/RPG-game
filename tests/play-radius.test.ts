@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setLateNotice, ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/play-radius.ts';
+import { setLateNotice, ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
@@ -35,7 +35,7 @@ test('underRecord steps a record in its own circle and puts the live one back', 
 });
 
 test('fighters start inside the smaller circle, shrunk with it but never closer than half of the old start', async () => {
-  const { initialState, initialTarget } = await import('../src/sim.ts');
+  const { initialState, initialTarget } = await import('../src/fight/sim.ts');
   setPlayScale(1); assert.deepEqual([initialState().z, initialTarget().z], [4, -2.5]);
   setPlayScale(ARENA_ONE_SCALE);
   const [p, t] = [initialState(), initialTarget()];

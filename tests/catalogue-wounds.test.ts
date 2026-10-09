@@ -7,7 +7,7 @@ import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LOOT_IDS } from '../src/loot.ts';
 import { ROTATION, FINISHER_POSE } from '../src/fight/finishers.ts';
-import { WEAPONS } from '../src/moves.ts';
+import { WEAPONS } from '../src/fight/moves.ts';
 import { PICKS } from '../src/stance.ts';
 import { THROATS } from '../src/fight/sound/creature.ts';
 import { LOOT_TABLES } from '../origins/region1/content.ts';

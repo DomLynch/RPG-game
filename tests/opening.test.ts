@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, openingOf } from '../src/combat.ts';
-import { RULES } from '../src/moves.ts';
-import type { CombatEvent, Duel } from '../src/duel.ts';
+import { initialPractice, openingOf } from '../src/fight/combat.ts';
+import { RULES } from '../src/fight/moves.ts';
+import type { CombatEvent, Duel } from '../src/fight/duel.ts';
 
 const base = (): Duel => initialPractice().duel;
 const staggered = (d: Duel, side: 0 | 1, stun: number, age: number, events: CombatEvent[] = []): Duel => {

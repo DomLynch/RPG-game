@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './duel.ts';
+import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, type Cast } from './special-timing.ts';
 import { charge, CUE_AT, isCharge, RACE, RACE_FROM, slideAt } from './charge-timing.ts';

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/match.ts';
-import { OPPONENTS, RULES } from '../src/moves.ts';
-import { idleIntent, stepDuel, type Duel } from '../src/duel.ts';
+import { OPPONENTS, RULES } from '../src/fight/moves.ts';
+import { idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
