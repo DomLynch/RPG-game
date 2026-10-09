@@ -213,3 +213,6 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   }
   return null;
 }
+
+/** The highest a name tag may sit on screen, in NDC: its centre stays `half` px below `floorPx` (the HUD stack and the player's bars), so no tag draws over them. */
+export const labelCeilingNdc = (floorPx: number, heightPx: number, half = 12): number => 1 - (2 * (floorPx + half)) / Math.max(1, heightPx);
