@@ -3,7 +3,8 @@
 import { emptyLoot, type Loot } from './loot.ts';
 import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
 import { isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
-import { call, storedToken, writerBase } from './writer-call.ts';
+import { storedToken, writerBase } from './writer-call.ts';
+import { openCharacter } from './fight/open.ts';
 
 type Deps = { storage: { getItem(key: string): string | null } | null; search: string; now: () => number; fetch?: typeof fetch; getLoot: () => Loot | undefined; show: (loot: Loot) => void; refused?: () => void };
 export function createServerGear(d: Deps) {
@@ -16,8 +17,7 @@ export function createServerGear(d: Deps) {
   async function who(): Promise<string | null> {
     if (character) return character;
     const token = storedToken(d.storage, d.now()); if (!token) return null;
-    const first = await call('open', {}, token, (r) => { const c = (r as { characters?: { id?: unknown }[] } | null)?.characters?.[0]?.id; return typeof c === 'string' ? { id: c } : null; }, opts());   // the same `open` op the Zone 1 page reads its character from (save.ts fetchOpen)
-    return (character = 'id' in first ? first.id : null);
+    return (character = await openCharacter({ storage: d.storage, search: d.search, now: d.now, ...(d.fetch ? { fetch: d.fetch } : {}) }));   // the page's one `open` (src/fight/open.ts), shared with the Pit's own load
   }
   return {
     // Called whenever the sheet opens: read the ledger; nothing changes on any failure (the local ledger stays on screen).

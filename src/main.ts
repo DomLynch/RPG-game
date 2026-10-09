@@ -48,6 +48,7 @@ import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparrin
 import { createGearSheet, lootThumb } from './gear-sheet.ts';
 import { wornIdsOf, wornTiersOf } from './gear-ledger.ts';
 import { createServerGear } from './gear-server.ts';
+import { openCharacter } from './fight/open.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
@@ -772,6 +773,7 @@ function openJournal() {
   void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
+void openCharacter({ storage, search: location.search });   // the signed-in account's character exists from the first page, whichever door it came through (src/fight/open.ts; the gear sheet reads the same answer)
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();

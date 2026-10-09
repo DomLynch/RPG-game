@@ -4,11 +4,14 @@ import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
-import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';
+import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, openedAccount, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { NEW_ALLEGIANCE } from '../patrons/patrons.ts';
 
 const row = { seed_credit: 5000, world_credit: 700, total_credit: 5700, rested: 12, rested_at: 99, heat: { wolf: { units: 5, at: 9 } }, beaten: ['legend:knight@12'], story: ['s1'], version: 4 };
+// The page's one open (src/fight/open.ts) through the zone page's mapping, with a fresh storage per call holding `token` as the stored sign-in (null = signed out).
+const openWith = (token: string | null, o: { fetch?: typeof fetch; timeoutMs?: number } = {}) =>
+  openedAccount({ storage: token ? { getItem: () => JSON.stringify({ access_token: token, expires_at: Date.now() / 1000 + 3600 }) } : null, search: '', ...o });
 const reply = (status: number, body: unknown) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const good = { ok: true, result: { marks: 4, career: row, characters: [{ id: 'pc:1', name: 'Aldren', extra: 1 }, { id: 2 }], items: [], quests: [], journal: [], talk: [] } };
 function recorder(answer: (url: string, init: RequestInit) => Promise<Response>) {
@@ -31,9 +34,9 @@ test('a row that is not a career is no career', () => {
   }
 });
 
-test('fetchOpen: POST <base>/open, empty body, the bearer token, nothing else; the reply mapped', async () => {
+test('the page open: POST <base>/open, empty body, the bearer token, nothing else; the reply mapped', async () => {
   const { f, calls } = recorder(async () => reply(200, good));
-  const got = await fetchOpen('tok', { base: '/origins', fetch: f });
+  const got = await openWith('tok', { fetch: f });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.url, '/origins/open');
   assert.equal(calls[0]!.init.method, 'POST');
@@ -48,52 +51,52 @@ test('fetchOpen: POST <base>/open, empty body, the bearer token, nothing else; t
 
 test('the default base is the one config constant', async () => {
   const { f, calls } = recorder(async () => reply(200, good));
-  await fetchOpen('tok', { fetch: f });
+  await openWith('tok', { fetch: f });
   assert.equal(calls[0]!.url, `${WRITER_PATH}/open`);
   assert.equal(WRITER_PATH, '/origins');
 });
 
 test('no session: no request at all', async () => {
   const { f, calls } = recorder(async () => reply(200, good));
-  assert.deepEqual(await fetchOpen(null, { fetch: f }), { offline: 'no-session' });
+  assert.deepEqual(await openWith(null, { fetch: f }), { offline: 'no-session' });
   assert.equal(calls.length, 0);
 });
 
 for (const status of [401, 403, 404, 409, 500, 503]) {
   test(`HTTP ${status} -> offline, no throw`, async () => {
     const { f } = recorder(async () => reply(status, { ok: false, error: 'x' }));
-    assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: `http-${status}` });
+    assert.deepEqual(await openWith('tok', { fetch: f }), { offline: `http-${status}` });
   });
 }
 
 test('an nginx 404 page (not JSON) -> offline', async () => {
   const { f } = recorder(async () => new Response('<html>404</html>', { status: 404 }));
-  assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: 'http-404' });
+  assert.deepEqual(await openWith('tok', { fetch: f }), { offline: 'http-404' });
 });
 
 test('network error -> offline, no throw', async () => {
   const { f } = recorder(async () => { throw new TypeError('fetch failed'); });
-  assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: 'network' });
+  assert.deepEqual(await openWith('tok', { fetch: f }), { offline: 'network' });
 });
 
 test('timeout -> offline within the limit, even when the fetch ignores its signal; the signal is aborted', async () => {
   let signal: AbortSignal | undefined;
   const { f } = recorder((_u, init) => { signal = init.signal ?? undefined; return new Promise(() => {}); });
   const t0 = Date.now();
-  assert.deepEqual(await fetchOpen('tok', { fetch: f, timeoutMs: 50 }), { offline: 'timeout' });
+  assert.deepEqual(await openWith('tok', { fetch: f, timeoutMs: 50 }), { offline: 'timeout' });
   assert.ok(Date.now() - t0 < 1000);
   assert.equal(signal?.aborted, true);
 });
 
 test('a fetch that honours the abort -> timeout, not network', async () => {
   const { f } = recorder((_u, init) => new Promise((_r, reject) => init.signal!.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))));
-  assert.deepEqual(await fetchOpen('tok', { fetch: f, timeoutMs: 30 }), { offline: 'timeout' });
+  assert.deepEqual(await openWith('tok', { fetch: f, timeoutMs: 30 }), { offline: 'timeout' });
 });
 
 test('malformed 200 replies -> offline bad-reply', async () => {
   for (const body of ['not json', { ok: false }, { ok: true }, { ok: true, result: { career: null, characters: [] } }, { ok: true, result: { career: row } }, { ok: true, result: { career: { ...row, total_credit: 'lots' }, characters: [] } }]) {
     const { f } = recorder(async () => reply(200, body));
-    assert.deepEqual(await fetchOpen('tok', { fetch: f }), { offline: 'bad-reply' }, JSON.stringify(body));
+    assert.deepEqual(await openWith('tok', { fetch: f }), { offline: 'bad-reply' }, JSON.stringify(body));
   }
 });
 
@@ -138,7 +141,7 @@ test('the save line is neutral until the read answers, then the real career or t
   assert.equal(saveLine(CHECKING), 'Checking saved progress…');
   for (const reason of ['no-session', 'http-403', 'timeout', 'network', 'bad-reply', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Not signed in: progress isn’t saved', reason);
   const { f } = recorder(() => new Promise(() => {}));
-  const answered = await fetchOpen('tok', { fetch: f, timeoutMs: 20 });
+  const answered = await openWith('tok', { fetch: f, timeoutMs: 20 });
   if (!isOffline(answered)) return assert.fail('a timeout is offline');
   assert.equal(saveLine(answered), 'Not signed in: progress isn’t saved', 'a timeout ends the checking line');
   assert.notEqual(saveLine(answered), saveLine(CHECKING));
