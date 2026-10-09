@@ -42,6 +42,7 @@ import { applyLook, blendLook, lookAlong, lookOf } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/sound/creature.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
+import { FrameStats, crowdWanted, readout, walkerAt, walkers } from './crowd.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -144,7 +145,7 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
+loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); if (CROWD) void dressCrowd(); }).catch((error: unknown) => console.warn('hero did not load; the capsule stands in', error));
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -371,10 +372,41 @@ function zoneReadyCheck() {
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
 }
+// ?chars=N (crowd.ts): N clones of the hero rig walk loops round the walker and a readout counts frame gaps. Off unless the flag is present.
+const CROWD = crowdWanted(location.search), crowdStats = new FrameStats();
+const crowd: { group: THREE.Group; actor: Awaited<ReturnType<typeof loadWarriors>>['player']; walker: ReturnType<typeof walkers>[number]; at: { x: number; z: number } }[] = [];
+let crowdEl: HTMLElement | null = null, crowdLast = 0;
+const crowdCentre = { x: 0, z: 0 };   // where the walker stood when the crowd was dressed
+// Each loadWarriors call builds two engine actors (player + opponent twin): the crowd takes both, ceil(N/2) loads one after another so a phone never parses them all at once.
+async function dressCrowd() {
+  crowdEl = Object.assign(document.createElement('div'), { id: 'crowd-readout' });
+  crowdEl.style.cssText = 'position:fixed;z-index:9;left:8px;bottom:calc(8px + env(safe-area-inset-bottom));padding:4px 8px;border-radius:6px;background:rgba(0,0,0,.65);color:#f3e6d2;font:600 12px/1.3 Georgia,serif;pointer-events:none';
+  document.body.append(crowdEl); crowdCentre.x = state.x; crowdCentre.z = state.z;
+  const list = walkers(CROWD);
+  while (crowd.length < CROWD) {
+    const w = await loadWarriors(ASSETS.hero!);
+    for (const actor of [w.player, w.opponent]) {
+      if (crowd.length >= CROWD || !actor) continue;
+      const group = new THREE.Group(), walker = list[crowd.length]; group.add(actor.anchor); scene.add(group);
+      crowd.push({ group, actor, walker, at: { x: crowdCentre.x + walker.cx + walker.r, z: crowdCentre.z + walker.cz } });
+    }
+  }
+}
+function crowdFrame(dt: number, time: number) {
+  const now = performance.now(); if (crowdLast) crowdStats.add(now - crowdLast); crowdLast = now;
+  for (const f of crowd) {
+    const p = walkerAt(f.walker, time, crowdCentre);
+    if (canStand(p.x, p.z)) { f.at = { x: p.x, z: p.z }; f.group.rotation.y = p.heading; }
+    f.group.position.set(f.at.x, groundY(f.at.x, f.at.z), f.at.z);
+    f.actor.update(p.speed, dt, 'ready', 0, 'light', 0.35, 0);   // the engine actor's own gait blend (gaitWeights) and clips
+  }
+  if (crowdEl && crowdStats.frames % 15 === 0) crowdEl.textContent = readout(crowd.length, crowdStats);
+}
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
+  if (CROWD) crowdFrame(dt, time);
   step(dt); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
