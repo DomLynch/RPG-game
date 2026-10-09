@@ -1,0 +1,8 @@
+MAX_ATTACKERS=3
+     0s {"type":"FightStarted","creature":"boar-1","player":"hero"}
+     0s {"type":"FightStarted","creature":"boar-2","player":"hero"}
+     0s {"type":"FightStarted","creature":"boar-3","player":"hero"}
+ 43.67s {"type":"Died","id":"boar-1","by":"hero"}
+ 83.47s {"type":"Evaded","id":"boar-2"}
+ 84.13s {"type":"Evaded","id":"boar-3"}
+SUMMARY FightStarted=3 Died=1 Evaded=2 hero-alive=true

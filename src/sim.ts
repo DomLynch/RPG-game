@@ -10,7 +10,7 @@ export const initialTarget = (): { x: number; z: number } => ({ x: 0, z: TARGET.
 
 // World coordinates only. No renderer, clock, animation, physics or browser state.
 // `pace` scales the fighter's speed (moves.ts `Opponent.speed`; 1 = a man): walking, sprinting, the wind-up lunge and the backstep all follow it.
-export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET, pace = 1): State {
+export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET, pace = 1, wall: number = RADIUS): State {   // wall: this fight's circle (Duel.radius, RV40); the Pit's live one by default
   const length = M.hypot(input.x, input.z);
   if (!length || !Number.isFinite(length) || !Number.isFinite(input.yaw)) return { ...state };
   const scale = Math.min(1, length) / length;
@@ -28,7 +28,7 @@ export function advance(state: State, input: Input, target: { x: number; z: numb
     z = target.z + M.cos(angle) * 0.85;
   }
   const radius = M.hypot(x, z);
-  if (radius > RADIUS) { x *= RADIUS / radius; z *= RADIUS / radius; }
+  if (radius > wall) { x *= wall / radius; z *= wall / radius; }
   if (M.hypot(x - target.x, z - target.z) < .85 - 1e-8) return { ...state };
   return { x, z, heading: M.atan2(dx, dz), distance: state.distance + M.hypot(x - state.x, z - state.z) };
 }

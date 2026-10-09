@@ -5,12 +5,14 @@ import { test } from 'node:test';
 import { FOES } from '../region1/content.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { MOB_LOOKS, MOB_SPREAD, VARIANTS, mobLook, mobVariant, variantLook } from './mob-looks.ts';
+import { loadZone, zoneIds, type Zone } from '../zones/loader.ts';
 
 test('every Frontier foe has exactly one look, on the body content.ts names', () => {
   const foes = FOES as unknown as { id: string; encounterForms: { opponent: string }[] }[];
-  assert.deepEqual(Object.keys(MOB_LOOKS).sort(), foes.map(f => f.id).sort());
+  const zoned = Object.assign({}, ...zoneIds().map((z) => loadZone(z).mobLooks?.looks ?? {})) as Record<string, (typeof MOB_LOOKS)[string]>;   // a zone package's own looks (origins/zones/<id>/mob-looks.ts) count as the foe's look
+  assert.deepEqual([...Object.keys(MOB_LOOKS), ...Object.keys(zoned)].sort(), foes.map(f => f.id).sort(), 'one look each, central or in a zone package, never both');
   for (const f of foes) {
-    const look = MOB_LOOKS[f.id]!;
+    const look = MOB_LOOKS[f.id] ?? zoned[f.id]!;
     assert.ok(f.encounterForms.every(e => e.opponent === look.opponent), `${f.id}: look body ${look.opponent} != ${f.encounterForms.map(e => e.opponent)}`);
     assert.ok(look.opponent in ROSTER, `${f.id}: ${look.opponent} is not a roster body`);
   }
@@ -18,7 +20,7 @@ test('every Frontier foe has exactly one look, on the body content.ts names', ()
 
 test('ranges: scale, dressing and tint are sane; a friendly figure has no look', () => {
   for (const [id, l] of Object.entries(MOB_LOOKS)) {
-    assert.ok(l.scale >= .7 && l.scale <= 2, `${id} scale ${l.scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07)
+    assert.ok(l.scale >= .7 && l.scale <= 2.2, `${id} scale ${l.scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/beast-scale.ts)
     for (const v of [l.dressing.soot, l.dressing.burnt]) assert.ok(v >= 0 && v <= 1, `${id} dressing ${v}`);
     assert.ok(Number.isInteger(l.tint) && l.tint >= 0 && l.tint <= 0xffffff, `${id} tint`);
   }
@@ -67,4 +69,17 @@ test('visual spread: a creature always gets the same variant, a camp of four mos
   const band = (id: string) => { const h = Array.from({ length: VARIANTS }, (_, v) => variantLook(id, v)!.scale); return [Math.min(...h), Math.max(...h)]; };
   const [scav, brood, ghoul] = ['character:cinder-scavenger', 'character:mere-brood', 'character:ruin-ghoul'].map(band) as [number[], number[], number[]];
   assert.ok(scav[0]! - brood[1]! >= .01 && ghoul[0]! - scav[1]! >= .01, `the three goblin kinds keep their height order: ${brood} < ${scav} < ${ghoul}`);
+});
+
+test('a zone\'s own mob look wins over the central table, and a zone without one changes nothing', () => {
+  const z1 = loadZone('1'), id = 'character:ash-wolf', own = { opponent: 'wolf', tint: 0x8a4a32, scale: 1.5, dressing: { soot: .1, burnt: .6 } };
+  const zone = { ...z1, id: 'test', mobLooks: { looks: { [id]: own, 'character:ember-wolf': own }, spread: { 'character:ember-wolf': { tints: [0x7a4030, 0x9a5a3a], scale: .08, soot: .1, burnt: .1 } } } } as unknown as Zone;
+  assert.equal(mobLook(id, z1), MOB_LOOKS[id], 'Zone 1: the central look, untouched');
+  assert.equal(mobLook(id), MOB_LOOKS[id], 'the default zone off a page is Zone 1');
+  assert.equal(mobLook(id, zone), own, 'the zone\'s entry first');
+  assert.equal(mobLook('character:ash-boar', zone), MOB_LOOKS['character:ash-boar'], 'a kind the zone does not dress falls back to the central table');
+  assert.equal(variantLook('character:ember-wolf', 0, zone), own, 'variant 0 IS the zone look');
+  assert.equal(variantLook(id, 3, zone), own, 'no spread for the wolf: the look as it is');
+  assert.ok(new Set([1, 2, 3, 4, 5, 6, 7].map((v) => variantLook('character:ember-wolf', v, zone)!.tint)).size > 1, 'the zone spread gives a pack its variety');
+  assert.equal(variantLook('character:ember-wolf', 3, zone), variantLook('character:ember-wolf', 3, zone), 'the same object every call (the cloth-clone cache)');
 });

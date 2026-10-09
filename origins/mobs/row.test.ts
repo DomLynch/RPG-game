@@ -1,4 +1,4 @@
-// Mob rows (row.ts), the Frontier's rows (frontier-rows.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
+// Mob rows (row.ts), the Frontier's rows (zones/zone1/spawns.ts via zones/loader.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
 // its code; the shipped rows are valid and agree with the content they sit beside; populateZone is deterministic and stays inside the zone's band.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -6,7 +6,8 @@ import { generateZone, type Template } from '../world/generate.ts';
 import { frontierPlan } from '../preview/frontier-plan.ts';
 import { mobLook } from '../preview/mob-looks.ts';
 import { CREATURE_LOOT } from '../region1/content.ts';
-import { FRONTIER_ROWS } from './frontier-rows.ts';
+import { loadZone } from '../zones/loader.ts';
+const FRONTIER_ROWS = loadZone().spawns.rows;
 import { populateZone } from './populate.ts';
 import { styleOpponent } from './styles.ts';
 import { WILDLIFE_ROWS } from './wildlife-rows.ts';
@@ -18,16 +19,16 @@ const cited = { kind: 'folklore', work: 'A cited collection', locator: 'ch. 3' }
 const good: MobRow = { ...FRONTIER_ROWS[0]!, source: cited };
 const codes = (row: MobRow, c: RowContext = ctx) => validateMobRow(row, c).map((i) => i.code);
 
-test('the three shipped kinds are valid rows with a complete citation, eligible for the generator (legends-rule)', () => {
+test('the six shipped kinds are valid rows with a complete citation, eligible for the generator (legends-rule)', () => {
   assert.deepEqual(validateRows(FRONTIER_ROWS, ctx), []);
   assert.deepEqual(validateRows(FRONTIER_ROWS, { ...ctx, generated: true }), [], 'a cited row is generated');
-  assert.equal(FRONTIER_ROWS.length, 3);
+  assert.equal(FRONTIER_ROWS.length, 6);
   for (const r of FRONTIER_ROWS) {
     assert.ok(!('pending' in r.source) && !('legendId' in r.source), `${r.id}: a full citation, not a placeholder`);
     const s = r.source as { kind: string; work: string; author?: string; year?: number; scripture?: boolean };
     assert.ok(s.work && s.author && s.year !== undefined && !s.scripture, `${r.id}: names work, author and year, never scripture`);
   }
-  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore']);
+  assert.deepEqual(FRONTIER_ROWS.map((r) => (r.source as { kind: string }).kind), ['chronicle', 'literature', 'folklore', 'folklore', 'literature', 'folklore']);
 });
 
 test('the shipped rows agree with the content: loot is the creature\'s own table, the look exists, the band holds the character\'s level', () => {
@@ -86,7 +87,7 @@ const WILDS: Template = {
   vary: { 'zoneSize.width': [80, 230], 'zoneSize.depth': [80, 230], 'density.creatures': [0.3, 0.8], 'difficulty.levelMin': [11, 12], 'difficulty.levelMax': [13, 14] },
   jitter: 0.05,
 };
-const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited }));
+const cited3 = FRONTIER_ROWS.map((r) => ({ ...r, source: cited, level: [11, 13] as const }));   // the generator tests run on WILDS zones (levels 11-13); the shipped Zone 1 bands are 1-2 (Dom 2026-10-08), so these fixtures carry the zone's own band
 
 test('populateZone: deterministic, inside the zone, band met, count within one camp of the budget, never the boss anchor', () => {
   for (let seed = 1; seed <= 60; seed++) {
@@ -147,7 +148,7 @@ test('rungWeights: the zone window picks the home rung; a row with no ladder kee
 
 // ---- rarity: uncommon curve, rares that take over a placeholder's camp ----
 
-const common = { ...FRONTIER_ROWS[0]!, source: cited }, rare: MobRow = { ...FRONTIER_ROWS[1]!, source: cited, rarity: 'rare', replaces: common.id, chance: 0.2, level: [11, 13] };
+const common = { ...FRONTIER_ROWS[0]!, source: cited, level: [11, 13] as const }, rare: MobRow = { ...FRONTIER_ROWS[1]!, source: cited, rarity: 'rare', replaces: common.id, chance: 0.2, level: [11, 13] };
 
 test('rarity rules: each failing row yields exactly its code', () => {
   const rc = (rows: MobRow[]) => validateRows(rows, ctx).map((i) => i.code);

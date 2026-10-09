@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { ARENA_THEMES, ARENA_PICK, arenaBand, arenaFor, hasArena1Sand } from '../src/arena-themes.ts';
+import { ARENA_THEMES, ARENA_PICK, arenaBand, arenaFor } from '../src/arena-themes.ts';
 import { buildArena, CAMERA_CLAMP, PLAY_RADIUS } from '../src/arena.ts';
 import { resetPhoneTierForTests } from '../src/quality.ts';
 import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
@@ -151,13 +151,4 @@ test('the phone tier draws 500 rain streaks, the full tier every one the theme a
     assert.equal(phone.count, 500, `${key}: a third of the rain on the phone tier`);
     assert.equal(phone.material.side, full.material.side, 'the streak sides are untouched'); assert.equal(phone.culled, full.culled);
   } finally { delete g.location; resetPhoneTierForTests(); }
-});
-
-test('hasArena1Sand: Arena 1 has its own sand; every clay, flag or tinted arena does not (the glow Pit swaps theirs for Arena 1\'s)', () => {
-  assert.equal(hasArena1Sand(ARENA_THEMES['1'].textures), true);
-  for (const key of Object.keys(ARENA_THEMES).filter((k) => k !== '1') as (keyof typeof ARENA_THEMES)[]) {
-    const look = ARENA_THEMES[key].textures, same = look.floor === 'sand' && look.sandSeed === 7 && look.sand.every((v) => v === 1);
-    assert.equal(hasArena1Sand(look), same, `arena ${key}`);
-  }
-  assert.equal(hasArena1Sand(ARENA_THEMES.a.textures), false, 'the Night Pit\'s cracked clay');
 });

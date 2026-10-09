@@ -14,7 +14,7 @@ const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview')
 if (!fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 600_000 });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ktx2': 'image/ktx2' };
 const roots = { '/preview/origins/': `${built}/` };
-for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world']) roots[`/${d}/`] = `${root}/public/${d}/`;
+for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
   for (const [p, r] of Object.entries(roots)) if (u.startsWith(p)) hit = path.join(r, u.slice(p.length) || 'index.html');
@@ -48,15 +48,21 @@ try {
   const walkGaps = (await page.evaluate(() => window.__gaps.slice())).slice(0, -1);
   const canvasesBefore = await page.evaluate(() => document.querySelectorAll('canvas').length);
   await page.evaluate(() => { window.__gaps = []; });
+  await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });   // a regression that breaks zone-ready must fail the row, never skip it
   const namesBefore = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsBeforeTap = namesBefore.length;
+  // The target roams while the walk and [zone ready] run (31 s+): put the hero 2.5 m from where it is NOW, so the tap is in reach (Zone 1 refuses a tap past 3.5 m).
+  { const at = await page.evaluate((id) => { const m = window.originsPreview.mobs().mobs.find((x) => x.id === id); return m && [m.x, m.z]; }, target.id); assert.ok(at, `${target.id} is gone before the tap`); await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), at); }
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
-  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
+  // The engage: Zone 1's own combat (the default) sets body.infight the frame its loop is in combat (main.ts, wc.inCombat()); ?combat=pit's duel reports ready. Read the engage THEN, not
+  // after a 120 s wait for a Pit duel the default path never starts (every run waited the full 120 s, then read infight and the programs ~130 s after one cut: whatever the fight had become).
+  await page.waitForFunction(() => document.body.classList.contains('infight') || window.originsPreview.duel()?.ready, null, { timeout: 15000 }).catch(() => {});   // a miss fails below on infight, with the receipt
+  const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
+  receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
   { const keys = await page.evaluate(() => window.originsPreview.renderInfo().programKeys); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, keys[n]])); }   // WHICH programs compile at the engage (each one is a stall)
-  receipt.fightMoved = await moved(10000);
-  const after = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight'), gaps: window.__gaps.slice() }));
+  const after = { ...engaged, gaps: await page.evaluate(() => window.__gaps.slice()) };
   const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0;
   let clock = 0; const engageGaps = after.gaps.slice(0, -1).filter((g) => (clock += g) <= 5000), worst = Math.max(...engageGaps, 0);   // the engage is the first 5 s after the tap; later long frames are the fight, not the engage
   receipt.noSwap = { canvasesBefore, canvasesAfter: after.canvases, canvasShown: after.shown, infight: after.infight };
@@ -65,7 +71,12 @@ try {
   assert.equal(after.canvases, canvasesBefore, 'no swap at engage: the canvas count changed');
   assert.ok(after.shown && after.infight, 'no swap at engage: the page canvas must stay shown with body.infight set');
   assert.ok(receipt.fightMoved >= Math.max(1, Math.floor(receipt.walkMoved / 2)), `world live during the fight: ${receipt.fightMoved} creatures moved, ${receipt.walkMoved} did on the walk`);
-  assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
+  // Frame gaps mean nothing on software GL (SwiftShader runs ~3 fps and a loaded runner adds 600-3000 ms): the 200 ms bar is measured on Mac Metal with scripts/origins-engage-warmup.mjs (#1927). Here, on software GL, the row asserts what does not depend on speed: the engage compiles no program once [zone ready] has fired.
+  receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; });
+  receipt.zoneReady = await page.evaluate(() => window.__zoneReady ?? null);
+  receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer);
+  if (receipt.hitch.enforced) assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
+  else assert.deepEqual(receipt.newPrograms, [], 'engage compiled programs after [zone ready]');
   assert.deepEqual(receipt.errors, []);
   console.log('origins-seamless: PASS', JSON.stringify(receipt));
 } catch (error) { console.error('origins-seamless: FAIL', String(error.message ?? error), JSON.stringify(receipt)); process.exitCode = 1; }

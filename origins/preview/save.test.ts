@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
-import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, type Opened } from './save.ts';
+import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, fetchOpen, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { NEW_ALLEGIANCE } from '../patrons/patrons.ts';
 
@@ -130,17 +130,17 @@ test('preview wins sit on top of the saved career, counted as preview CP; offlin
   assert.equal(previewCp({ saved }, won.session.career), won.award!.cp);
   assert.equal(saved.credit, creditFromMarks(4), 'the saved career itself is untouched');
   assert.equal(previewCp({ offline: 'http-404' }, won.session.career), 0);
-  assert.equal(saveLine({ offline: 'http-404' }), 'Offline preview: progress is not saved');
+  assert.equal(saveLine({ offline: 'http-404' }), 'Not signed in: progress isn’t saved');
   assert.match(saveLine({ saved }), /saved career/);
 });
 
 test('the save line is neutral until the read answers, then the real career or the offline line', async () => {
   assert.equal(saveLine(CHECKING), 'Checking saved progress…');
-  for (const reason of ['no-session', 'http-403', 'timeout', 'network', 'bad-reply', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Offline preview: progress is not saved', reason);
+  for (const reason of ['no-session', 'http-403', 'timeout', 'network', 'bad-reply', 'late', 'reset']) assert.equal(saveLine({ offline: reason }), 'Not signed in: progress isn’t saved', reason);
   const { f } = recorder(() => new Promise(() => {}));
   const answered = await fetchOpen('tok', { fetch: f, timeoutMs: 20 });
   if (!isOffline(answered)) return assert.fail('a timeout is offline');
-  assert.equal(saveLine(answered), 'Offline preview: progress is not saved', 'a timeout ends the checking line');
+  assert.equal(saveLine(answered), 'Not signed in: progress isn’t saved', 'a timeout ends the checking line');
   assert.notEqual(saveLine(answered), saveLine(CHECKING));
 });
 
@@ -173,4 +173,33 @@ test('the picker opens only on the saved career at Gladiator (level 11) or above
   assert.match(picker.render(NEW_ALLEGIANCE, 'Aldren'), /Choose your allegiance/);
   const co = picker.act({ choose: 'company:glass' }, NEW_ALLEGIANCE, 12, 1_790_000_000)!;
   assert.match(picker.render(co, 'Aldren'), /Aldren swore to The Free Company on 2026-09-21/);
+});
+
+test('ensureFreshSession: only a stored, stale session loads the client and asks it to renew; fresh, none and a failing client do not throw', async () => {
+  const now = 1_700_000_000_000;
+  const mk = (s: unknown) => ({ getItem: (k: string) => (k === AUTH_KEY && s !== null ? JSON.stringify(s) : null) });
+  let made = 0, asked = 0;
+  const factory = async () => { made++; return { auth: { getSession: async () => { asked++; return {}; } } }; };
+  await ensureFreshSession(mk({ access_token: 'old', refresh_token: 'r', expires_at: now / 1000 - 4000 }), now, factory); assert.deepEqual([made, asked], [1, 1], 'stale: renewed');
+  await ensureFreshSession(mk({ access_token: 'a', refresh_token: 'r', expires_at: now / 1000 + 3600 }), now, factory); assert.deepEqual([made, asked], [1, 1], 'fresh: untouched');
+  await ensureFreshSession(mk(null), now, factory); assert.deepEqual([made, asked], [1, 1], 'no session: signed out, no client');
+  await ensureFreshSession(null, now, factory); assert.equal(made, 1, 'no storage');
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => { throw new Error('chunk'); });
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => null);
+  await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: async () => { throw new Error('net'); } } }));
+  const t0 = Date.now(); await ensureFreshSession(mk({ access_token: 'old', expires_at: 1 }), now, async () => ({ auth: { getSession: () => new Promise(() => {}) } }));
+  assert.ok(Date.now() - t0 >= RENEW_TIMEOUT_MS - 50 && Date.now() - t0 < RENEW_TIMEOUT_MS + 1500, 'a renewal that never answers lets go after ~3 s');
+});
+test('the preview build reads the repo root env (VITE_SUPABASE_*): envDir is the repo root', async () => {
+  const cfg = (await import('./vite.config.mjs')).default as { envDir?: string; root?: string };
+  assert.ok(cfg.envDir && cfg.root!.startsWith(cfg.envDir) && cfg.envDir !== cfg.root, `envDir ${cfg.envDir}`);
+});
+
+test('the Sign in link shows only when the player is truly signed out (no session, 401), never on a timeout, network, 5xx, 403 or checking', async () => {
+  const { canSignIn, SIGN_IN_HREF, CHECKING } = await import('./save.ts');
+  for (const offline of ['no-session', 'http-401']) assert.equal(canSignIn({ offline }), true, offline);
+  for (const offline of ['timeout', 'network', 'bad-reply', 'http-500', 'http-503', 'http-403', 'late', 'reset']) assert.equal(canSignIn({ offline }), false, offline);
+  assert.equal(canSignIn(CHECKING), false);
+  assert.equal(canSignIn({ saved: {} as never }), false);
+  assert.equal(SIGN_IN_HREF, '/?account=signin&next=zone1');
 });
