@@ -70,7 +70,7 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { r.finisher.finishers = ['decapitation']; }), 'finisher');
   assert.equal(edit((r) => { r.blood = { start: 'red', end: '#000000', amount: 1 }; }), 'blood');
   assert.equal(edit((r) => { r.loot = { table: 'loottable:nothing' }; }), 'loot');
-  assert.equal(edit((r) => { (r as { ranks: unknown[] }).ranks = []; }), 'legend');
+  assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'legend');
 });
 
 test('the rows say what the files say: tri counts, clips, cut bones, the armour set, the loot table', () => {
