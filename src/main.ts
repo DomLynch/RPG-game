@@ -692,7 +692,7 @@ function updateHud() {
   document.documentElement.classList.toggle('endgame-hush', !!phase && hushed);
   // The loot panel opens on the finisher-complete event, not a delay of ours: `complete` is the scene's own latch (the victim's
   // clip has run out, the camera has settled, a severed head has come to rest), so a long ceremony is never cut short and a
-  // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
+  // short one never leaves the player waiting. src/fight/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
   // budgets its layout against; nothing here reads it. The panel's own geometry is untouched — this is timing only.
   if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
 }
