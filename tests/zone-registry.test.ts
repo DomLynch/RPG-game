@@ -23,7 +23,7 @@ test('a throwaway zone99 folder loads with zero edits outside it', async () => {
     cpSync(`${ZONES_DIR}zone2`, `${scratch}/zone99`, { recursive: true });
     writeFileSync(`${scratch}/zone99/zone.ts`, readFileSync(`${scratch}/zone99/zone.ts`, 'utf8').replace("id: '2', level: 2, name: 'The Ash Reach', names: { 'ash-reach': 'The Ash Reach' }", "id: '99', level: 99, name: 'Zone Ninety-Nine', names: { 'ash-reach': 'Ninety-Nine' }"));
     const src = registrySource(`${scratch}/`);
-    assert.match(src, /'99': \{ \.\.\.zone99, spawns: spawns99, kit: kit99, looks: looks99, mobLooks: mobLooks99 \}/);
+    assert.match(src, /'99': \{ \.\.\.zone99, spawns: spawns99, kit: kit99, looks: looks99, mobLooks: mobLooks99, place: place99 \}/);
     writeFileSync(`${scratch}/registry.ts`, src);
     const { REGISTRY } = await import(pathToFileURL(`${scratch}/registry.ts`).href) as { REGISTRY: Record<string, Zone> };
     assert.deepEqual(Object.keys(REGISTRY), ['99']);

@@ -8,8 +8,9 @@ import spawns2 from './zone2/spawns.ts';
 import kit2 from './zone2/kit.ts';
 import looks2 from './zone2/look.ts';
 import mobLooks2 from './zone2/mob-looks.ts';
+import place2 from './zone2/place.ts';
 
 export const REGISTRY = {
   '1': { ...zone1, spawns: spawns1, kit: kit1, looks: looks1 },
-  '2': { ...zone2, spawns: spawns2, kit: kit2, looks: looks2, mobLooks: mobLooks2 },
+  '2': { ...zone2, spawns: spawns2, kit: kit2, looks: looks2, mobLooks: mobLooks2, place: place2 },
 };
