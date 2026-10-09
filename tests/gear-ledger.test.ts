@@ -24,7 +24,7 @@ test('wearing: an empty slot is one equip; an occupied slot comes off into the p
   assert.deepEqual(stepsToWear(pack, 'goblin.Helmet'), [{ op: 'gear_equip', id: 'i1' }]);
   const other = view([piece('i2', 'goblin.Body', 'equipped', { paperdoll: 'chest' }), piece('i6', 'veteran.Body', 'pack')], { chest: 'i2' });
   assert.deepEqual(stepsToWear(other, 'veteran.Body'), [{ op: 'gear_unequip', id: 'i2' }, { op: 'gear_equip', id: 'i6' }]);
-  assert.deepEqual(stepsToWear(pack, 'nobody.Helmet'), []);
+  assert.deepEqual(stepsToWear(pack, 'nobody.Helmet' as never), []);
 });
 test('stowing a worn slot is one unequip; an empty slot is nothing', () => {
   assert.deepEqual(stepsToStow(pack, 'chest'), [{ op: 'gear_unequip', id: 'i2' }]);
