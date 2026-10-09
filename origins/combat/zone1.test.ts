@@ -228,6 +228,7 @@ test('#1936 b (Auditor HOLD): a brain carried out of a LONG bout is rebased - hi
   assert.ok(long.world.streams.p!.duel.tick > 500, 'a long bout'); assert.ok(of(long.events, 'Hit', 'p').length > 0, 'the creature was hit');
   const after = run({ ...long.world, streams: {} }, 2);   // re-engage: the stream is rebuilt, the player stands still
   assert.ok(of(after.events, 'Telegraph', 'c').length > 0, 'the creature swings within 2 s of the rebuild (not 0 swings while an old retreatUntil counts down)');
+});
 
 test('#1936 c: the creature chooses by threat - of two players in reach it fights the one that hurt it, not the nearer; with no threat it takes the nearer', () => {
   const mk = (threat?: Fighter['threat']) => { const c = creature('c', 'wolf', 0, 0); if (threat) c.threat = threat; return newWorld([player('a', 3.5, 0), player('b', 0, 2), c]); };
