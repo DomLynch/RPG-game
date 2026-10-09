@@ -170,6 +170,7 @@ test('killed BEFORE the killing Hit is delivered (any event order): the late Hit
     clock.ms += SPENT_MS;
     // past SPENT_MS the page asks again (the server answers by its own respawn clock)
     on({ type: 'FightStarted', creature: ids[0]!, player: 'me' });
+    await t.engaged(ids[0]!);   // the same request (the open engage), awaited
     assert.equal(w.calls.filter((c) => c === 'origins_spawn_engage').length, 2, 'a respawned creature is engaged again');
   } finally { await w.close(); }
 });
