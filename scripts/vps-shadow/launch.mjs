@@ -4,9 +4,10 @@
 // Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, jobCommand } from '../lib/vps-receipts.mjs';
+import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, jobCommand } from '../lib/vps-receipts.mjs';
+import { T4_FUNDED, wallJobs } from '../lib/row-placement.mjs';
 
 // Rows that hit the 600 s per-row ceiling on cpu-upgrade even alone (Backend's width-1 probe, 2026-10-08), or cannot run in the container at all (13: initdb refuses root).
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
@@ -31,7 +32,21 @@ export const receiptFrom = (logs, kind) => {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [cmd, a, b, c] = process.argv.slice(2);
   try {
-    if (cmd === 'fetch') {
+    if (cmd === 'wall') {
+      // node launch.mjs wall <full sha> <rows NOT to place, e.g. the CI-trusted and out-of-scope ones>: the wall-clock rows left go to t4-medium, four to a job, one hard --timeout each
+      // (hfArgs: 20m). Prints "id,id;row,row" (jobs; the rows they carry) or nothing. Nothing launches while T4_FUNDED is false.
+      const skip = new Set(String(b || '').split(',').map(Number).filter(Number.isInteger));
+      const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
+      const read = path => { try { return readFileSync(path, 'utf8'); } catch { return null; } };
+      const wall = coverageGaps([], commands, read).t4Only.filter(row => !skip.has(row));
+      const ids = [], placed = [];
+      if (T4_FUNDED) for (const rows of wallJobs(wall)) {
+        const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 't4-medium', rows.join(','), '4'], { encoding: 'utf8', timeout: 90_000 });
+        const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
+        if (id) { ids.push(id); placed.push(...rows); } else console.error(`launch: no job for wall rows ${rows.join(',')}; they run on the Mac`);
+      }
+      process.stdout.write(ids.length ? `${ids.join(',')};${placed.join(',')}` : '');
+    } else if (cmd === 'fetch') {
       const logs = spawnSync('hf', ['jobs', 'logs', a], { encoding: 'utf8', timeout: 120_000, maxBuffer: 64 << 20 });
       if (logs.error || logs.status !== 0) throw new Error(`hf jobs logs ${a} failed`);
       const unit = receiptFrom(logs.stdout, 'unit'), rows = receiptFrom(logs.stdout, 'rows'), receipt = unit || rows;

@@ -1,5 +1,5 @@
 import { placementLine } from './lib/row-placement.mjs';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -84,12 +84,23 @@ const withFixedPortLock = task => {
   return run;
 };
 
+// RELEASE_CHECKS_HF_ASSIGNED="3,6" (deploy.sh): wall rows launched on t4-medium. They sit at the END of the queue so the Mac starts its own rows at once; the first
+// worker to reach one runs RELEASE_CHECKS_HF_RESOLVE (a shell command printing the rows the jobs proved, scripts/lib/hf-resolve.sh) ONCE. Proven rows are trusted, the rest run here.
+const hfProven = new Set();
+let hfResolved;
+const resolveHf = () => hfResolved ??= new Promise(resolve => {
+  const done = out => resolve(new Set(String(out || '').split(',').map(Number).filter(Number.isInteger)));
+  if (!process.env.RELEASE_CHECKS_HF_RESOLVE) return done('');
+  console.log('HF rows: the Mac queue reached them; collecting the t4-medium receipts');
+  execFile('bash', ['-c', process.env.RELEASE_CHECKS_HF_RESOLVE], { encoding: 'utf8', timeout: 1_800_000, maxBuffer: 1 << 20 }, (error, stdout, stderr) => { if (stderr) process.stderr.write(stderr); done(error ? '' : stdout); });
+});
 const pool = async (items, limit) => {
   const results = [];
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) {
       const item = items[next++];
+      if (item.hf && (await resolveHf()).has(item.index + 1)) { trustedIndices.add(item.index + 1); hfProven.add(item.index + 1); continue; }   // an HF job proved it for this tree
       const task = () => runCheck(item.command, item.index);
       results[item.index] = await (item.fixedPort ? withFixedPortLock(task) : task());
     }
@@ -107,17 +118,19 @@ const trustedIndices = new Set(extended ? [] : String(process.env.RELEASE_CHECKS
 // RELEASE_CHECKS_OUT_OF_SCOPE="4,5" (from deploy.sh's change scope): rows NOT run because this release did not touch their area.
 // Kept apart from trusted rows in the receipt: nothing proved them for this revision (Auditor S1 on #1381).
 const outOfScope = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_OUT_OF_SCOPE || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length && !trustedIndices.has(n)));
-const all = commands.map((command, index) => ({ command, index, fixedPort: bindsFixedPort(command), expected: knownSeconds.get(command.join(' ')) ?? fallback }))
+const hfAssigned = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_HF_ASSIGNED || '').split(',').map(Number).filter(Number.isInteger));
+const all = commands.map((command, index) => ({ command, index, hf: hfAssigned.has(index + 1), fixedPort: bindsFixedPort(command), expected: knownSeconds.get(command.join(' ')) ?? fallback }))
   .filter(item => !trustedIndices.has(item.index + 1) && !outOfScope.has(item.index + 1));
 if (outOfScope.size) console.log(`${kind} checks: ${outOfScope.size} out of scope for this change (not run): ${[...outOfScope].sort((a, b) => a - b).join(',')}`);
 for (const index of [...trustedIndices].sort((a, b) => a - b)) console.log(`${kind} check ${index}/${commands.length} trusted from ${trustedSource} — ${commands[index - 1].join(' ')}`);
-const ordered = [...all].sort((a, b) => b.expected - a.expected);  // longest known first; unknown checks sit at the median
+const ordered = [...all].sort((a, b) => Number(a.hf) - Number(b.hf) || b.expected - a.expected);  // the Mac's own rows first (longest known first; unknown checks sit at the median), then the rows an HF job is proving
 const fixed = all.filter(item => item.fixedPort).length;
 {
   // RELEASE_CHECKS_HF_TRUSTED="3,6": the subset of the trusted rows an HF receipt proved (deploy.sh); the others came from CI or a ruling.
   const hfRows = new Set(String(process.env.RELEASE_CHECKS_HF_TRUSTED || '').split(',').map(Number));
   const trusted = [...trustedIndices].sort((x, y) => x - y);
-  const line = placementLine({ total: commands.length, ci: trusted.filter(n => !hfRows.has(n)), hf: trusted.filter(n => hfRows.has(n)), mac: all.map(item => item.index + 1).sort((x, y) => x - y) });
+  const pending = all.filter(item => item.hf).map(item => item.index + 1);   // launched on t4-medium, receipts collected mid-pool
+  const line = placementLine({ total: commands.length, ci: trusted.filter(n => !hfRows.has(n)), hf: [...trusted.filter(n => hfRows.has(n)), ...pending].sort((x, y) => x - y), mac: all.filter(item => !item.hf).map(item => item.index + 1).sort((x, y) => x - y) });
   console.log(line.text);
   if (line.warning) console.log(line.warning);
   if (line.enforce) { console.error(line.warning); process.exit(1); }
@@ -155,7 +168,7 @@ if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).
 const wallSeconds = (Date.now() - wall) / 1000;
 const detail = [
   ...results.map(r => ({ index: r.index + 1, command: r.command.join(' '), seconds: Number(r.seconds.toFixed(1)), retried: retried.has(r.index) })),
-  ...[...trustedIndices].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, trusted: trustedSource })),
+  ...[...trustedIndices].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, trusted: hfProven.has(index) ? 'HF t4-medium job (tree-bound receipt)' : trustedSource })),
   ...[...outOfScope].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, out_of_scope: true })),
 ].sort((a, b) => a.index - b.index);
 console.log(`${kind} checks wall time ${wallSeconds.toFixed(0)}s (serial sum ${detail.reduce((sum, r) => sum + r.seconds, 0).toFixed(0)}s)`);

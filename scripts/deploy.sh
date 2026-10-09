@@ -52,6 +52,34 @@ if [[ -z "$ci_green" ]]; then
     ci_green_for="$merged_head (merged branch head, same tree as $revision)"
   fi
 fi
+hf_trusted_rows=""
+trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+trust_source="CI release-checks for $revision"
+# Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
+# revision run here, about 5. The full 50 run when DEPLOY_SCOPE=full, when the last full run is over 24 h old or unknown, or
+# when the live revision is not an ancestor of this one. Any doubt in the lookup means a full run, as before.
+deploy_scope_apply() {
+  [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
+  local age live skip
+  age=$(node scripts/release-rows-for.mjs --full-age . || true)
+  [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
+  if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
+  live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
+  if [[ -z "$live" ]] || ! git merge-base --is-ancestor "$live" "$revision" 2>/dev/null; then
+    echo "release scope: full (live revision ${live:-unknown} is not an ancestor of $revision)"; return 0
+  fi
+  skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip --base "$live") || { echo "release scope: full (row selection failed)"; return 0; }
+  out_of_scope="$skip"
+  echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
+}
+out_of_scope=""
+deploy_scope_apply
+# The wall-clock rows still to run (in scope, not CI-trusted) go to t4-medium, four to a job, launched NOW so they overlap the quality gate (scripts/vps-shadow/launch.mjs wall: nothing
+# launches while T4_FUNDED is false in scripts/lib/row-placement.mjs). release-checks.mjs starts the Mac rows at once and collects these receipts when its queue reaches them.
+hf_wall_jobs=""; hf_wall_rows=""
+wall_out=$(node scripts/vps-shadow/launch.mjs wall "$revision" "${trusted_checks:+$trusted_checks,}$out_of_scope" || true)
+if [[ "$wall_out" == *";"* ]]; then hf_wall_jobs="${wall_out%%;*}"; hf_wall_rows="${wall_out#*;}"; fi
+[[ -z "$hf_wall_jobs" ]] || echo "HF: wall rows $hf_wall_rows launched on t4-medium, jobs $hf_wall_jobs"
 deploy_step "quality gate"
 vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
 if [[ "$vps_unit" == ok ]]; then
@@ -80,31 +108,9 @@ fi
 # Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
-hf_trusted_rows=""
-trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
-trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows an HF job proved for this exact tree (tree-bound receipts, always read)
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
-# Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
-# revision run here, about 5. The full 50 run when DEPLOY_SCOPE=full, when the last full run is over 24 h old or unknown, or
-# when the live revision is not an ancestor of this one. Any doubt in the lookup means a full run, as before.
-deploy_scope_apply() {
-  [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
-  local age live skip
-  age=$(node scripts/release-rows-for.mjs --full-age . || true)
-  [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
-  if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
-  live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
-  if [[ -z "$live" ]] || ! git merge-base --is-ancestor "$live" "$revision" 2>/dev/null; then
-    echo "release scope: full (live revision ${live:-unknown} is not an ancestor of $revision)"; return 0
-  fi
-  skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip --base "$live") || { echo "release scope: full (row selection failed)"; return 0; }
-  out_of_scope="$skip"
-  echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
-}
-out_of_scope=""
-deploy_scope_apply
-RELEASE_CHECKS_HF_TRUSTED="${hf_trusted_rows:-}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
+RELEASE_CHECKS_HF_ASSIGNED="$hf_wall_rows" RELEASE_CHECKS_HF_RESOLVE="${hf_wall_jobs:+REVISION=$revision VPS_RECEIPT_SHA=$revision DEPLOY_HF_ROWS_JOBS=$hf_wall_jobs bash scripts/lib/hf-resolve.sh}" RELEASE_CHECKS_HF_TRUSTED="${hf_trusted_rows:-}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
 node scripts/check-built-account.mjs dist

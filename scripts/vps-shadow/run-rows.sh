@@ -36,6 +36,18 @@ if [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" != "$lock_now" ]]; th
   npx playwright install --with-deps chromium >> "$run/npm-ci.log" 2>&1   # --with-deps: a fresh container has none of chromium's system libraries (WebKit rows are never trusted from here, so webkit is not installed)
   echo "$lock_now" > "$home/.lock-installed"
 fi
+# A GPU box (t4-medium): plain Chromium falls back to SwiftShader (CPU rendering) there; only the Vulkan flags below reach the Tesla T4 (probe job 6ac902ac, 2026-10-09: default,
+# --use-gl=egl and --use-angle=gl all printed "SwiftShader", this set printed "NVIDIA Tesla T4"). Rows launch the binary from chromium.executablePath(), so wrap it once here
+# and every row gets the flags; the renderer is printed so the job log proves which one ran. No GPU (cpu-upgrade, the VPS): nothing changes.
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+  chrome=$(node -e 'process.stdout.write(require("playwright").chromium.executablePath())')
+  if [[ -x "$chrome" && ! -e "$chrome.real" ]]; then
+    mv "$chrome" "$chrome.real"
+    printf '#!/bin/sh\nexec "%s.real" --use-angle=vulkan --enable-features=Vulkan --ignore-gpu-blocklist --disable-vulkan-surface "$@"\n' "$chrome" > "$chrome"; chmod +x "$chrome"
+  fi
+  echo "GPU: $(nvidia-smi -L | head -1)"
+  node --input-type=module -e 'import { chromium } from "playwright"; const b = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }); const p = await b.newPage(); console.log("RENDERER: " + await p.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); const e = g && g.getExtension("WEBGL_debug_renderer_info"); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : "no webgl"; })); await b.close();' || echo "RENDERER: probe failed"
+fi
 # The three public VITE_ keys live on the VPS only; a fresh HF container has none, so the build runs without them (rows that need them fail loudly, they are never silently green).
 [[ -f "$home/env.production.local" ]] && install -m 600 "$home/env.production.local" .env.production.local
 export VITE_SENTRY_RELEASE="$full"
