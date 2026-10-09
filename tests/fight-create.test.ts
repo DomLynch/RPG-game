@@ -13,6 +13,9 @@ test('createFight carries the wall and steps a duel; an Intent steers a slot wit
   const evs = f.step([{ ...idleIntent(), action: 'light' }]);
   assert.equal(f.duel.tick, 1);
   assert.ok(evs.some((e) => e.type === 'AttackStarted' && e.actor === 0));
+  assert.deepEqual(f.duel.events, [...evs], 'the tick\'s events are on the duel too, as on the Pit\'s practice.duel');
+  f.step();
+  assert.ok(f.duel.events.every((e) => e.type !== 'AttackStarted'), 'and replaced by the next tick\'s');
 });
 
 test('a slot with a profile thinks for itself, and the same seed replays the same fight', () => {
