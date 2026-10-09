@@ -6,7 +6,12 @@ import fs from 'node:fs';
 import { ROSTER } from '../src/roster.ts';
 import { LEGENDS } from '../src/legends.ts';
 import { LOOT } from '../src/loot.ts';
-import { ROTATION } from '../src/finishers.ts';
+import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/finishers.ts';
+import { beastRenderScale } from '../src/beast-scale.ts';
+import { homePick } from '../src/stance.ts';
+import { THROATS } from '../src/audio/creature.ts';
+import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';
+import { LADDER } from '../src/ladder.ts';
 import { glbStats } from './lib/glb-stats.mjs';
 
 const glb = (path) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };   // the shared counter: a non-indexed mesh counts its positions
@@ -46,8 +51,14 @@ const rows = Object.entries(ROSTER).map(([id, r]) => {
     armour: (LOOT[id] ?? []).filter((p) => !/\.(Knife|Cleaver|Trident|Estoc|Scythe|Warhammer|Maul|Gladius|Shield|Longsword|Reaper)$/.test(p)),
     stats: { archetype: r.archetype, levels: [1, 50] },
     animations: { clips: e.clips },
-    finisher: { cut, finishers },
+    finisher: { cut, finishers, timing: finishers.map((f) => ({ id: f, pose: FINISHER_POSE[f] ?? null, seconds: finisherSeconds(f).seconds, measured: finisherSeconds(f).measured })) },
     blood: r.blood === false ? null : (BLOOD[id] ?? MAN_BLOOD),
+    render: { scale: beastRenderScale(id) },
+    weapon: r.weapon,
+    home: homePick(id),
+    voice: THROATS[r.body] ? r.body : null,
+    look: { levels: [...(SHIPPING_LOOKS[id] ?? [])], phone: PHONE_LOOKS.has(id), tint: !!LEGENDS[id] && (LOOT[id] ?? []).length > 0 },
+    ladder: { order: LADDER.some((o) => o.id === id) ? LADDER.findIndex((o) => o.id === id) + 1 : null, hold: !LADDER.some((o) => o.id === id) },
     loot: { table: id === 'goblin' ? 'loottable:pit-goblin' : null },
     legend: LEGENDS[id] ? null : (CREATURE_CITATION[id] ?? { pending: 'no citation yet (held roster character)' }),
     ranks: LEGENDS[id] ? LEGENDS[id].map((l) => ({ name: l.name, source: l.source, backstory: l.backstory })) : [],
