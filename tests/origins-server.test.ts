@@ -115,18 +115,16 @@ test('create_character name rules', async () => {
   for (const name of ['A', 'x'.repeat(32), 'Æthelflæd', '名前']) assert.deepEqual(await handlers.create_character(ctx, { name }), { id: 'pc:abc' }, name);
 });
 
-test('pitBatch: a first win is an event plus a career_set at the row\'s version; a repeat is a cp 0 event only', () => {
-  const level = levelOfCredit(5000);
+test('pitBatch: a Pit win pays Pit ranks only: one cp 0 event (the claim is settled once), no career_set, so zone credit is byte-unchanged', () => {
+  const level = levelOfCredit(5000), before = JSON.stringify(row());
   const won = pitBatch(A, row(), claim(7));
-  assert.equal(won.reason, 'ok');
-  assert.equal(won.batch.length, 2);
-  assert.deepEqual(won.batch[0], { op: 'event', event_id: 'pit:7', kind: 'pit', account: A, payload: { cp: won.cp, legend: legendKey('knight', level), reason: 'ok' } });
-  assert.ok(won.cp > 0);
-  assert.equal(won.batch[1].op, 'career_set');
-  assert.equal(won.batch[1].expected_version, 3);
-  assert.deepEqual(won.batch[1].beaten, [legendKey('knight', level)]);
+  assert.equal(won.cp, 0);
+  assert.deepEqual(won.batch, [{ op: 'event', event_id: 'pit:7', kind: 'pit', account: A, payload: { cp: 0, legend: legendKey('knight', level), reason: 'pit-ranks-only' } }]);
+  assert.ok(!won.batch.some(o => o.op === 'career_set'), 'no career column is written');
+  assert.equal(JSON.stringify(row()), before);
+  // a repeat of the same opponent is the same: one cp 0 event
   const again = pitBatch(A, row({ beaten: [legendKey('knight', level)] }), claim(8));
-  assert.deepEqual([again.reason, again.cp, again.batch.map(o => o.op)], ['already-beaten', 0, ['event']]);
+  assert.deepEqual([again.cp, again.batch.map(o => o.op)], [0, ['event']]);
 });
 
 test('openAccount: the first open snapshots once (the marks recorded, credit 0: Pit marks do not seed zone level), a moved-marks refusal re-reads, a lost race is swallowed', async () => {

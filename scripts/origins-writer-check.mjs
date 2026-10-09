@@ -108,14 +108,15 @@ try {
 
   // Pit import: a win verified after the snapshot pays the legend row once, at the derived level, however many opens race
   const claim = n => psql(`insert into public.loot_claims(user_id, opponent, record, verified, checked_at, fight_hash) values ('${A}', 'knight', 'wrec${n}', true, now() + interval '1 minute', '${n.toString(16).padStart(64, '0')}') returning id;`).split('\n')[0];
+  const career = acct => psql(`select to_jsonb(c)::text from public.origins_career c where account = '${acct}'`), careerBefore = career(A);   // the whole row, every column
   const c1 = claim(1);
   const opens = await Promise.all([call('open', 'ta'), call('open', 'ta'), call('open', 'ta')]);
   eq(opens.map(o => o.status), [200, 200, 200], 'racing opens all answer');
   const total1 = (await call('open', 'ta')).json.result.career.total_credit;
   const [rows, cp] = psql(`select count(*) || '|' || coalesce(sum((payload->>'cp')::bigint), 0) from public.origins_events where account = '${A}' and kind = 'pit'`).split('|');
   eq(rows, '1', 'one pit event however many opens raced');
-  eq([total1, total1 > seed], [seed + Number(cp), true], 'total = seed + the pit event, and the win paid something');
-  eq((await call('open', 'ta')).json.result.career.beaten.length, 1, 'the legend is recorded as beaten');
+  eq([total1, Number(cp), career(A)], [seed, 0, careerBefore], 'a Pit win pays Pit ranks only: the event has cp 0 and the zone career row is byte-unchanged');
+  eq((await call('open', 'ta')).json.result.career.beaten.length, 0, 'no legend is recorded as beaten in the zone career');
   // the same opponent again at the same level pays nothing, but still leaves pending
   const c2 = claim(2);
   const after = (await call('open', 'ta')).json.result.career.total_credit;
