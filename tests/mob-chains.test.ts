@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { stepDuel, type Duel } from '../src/fight/duel.ts';
-import { CHAIN_CAP, initialKit, kitIntent, validateChains, type ChainRow } from '../src/mobkit.ts';
+import { CHAIN_CAP, initialKit, kitIntent, validateChains, type ChainRow } from '../src/fight/mobkit.ts';
 import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
 import { CHAINS, KITS } from '../origins/mobs/kits.ts';
 import { MOB_STYLE, MOB_STYLES, type MobStyle } from '../origins/mobs/styles.ts';
 import { hashDuel } from '../src/net/rollback.ts';
 import { arena, idle } from './strategies.ts';
 
-// C4 opponent chains: authored follow-ups on the engine's own chain window, in the mob layer (src/mobkit.ts). No sim file, no record bump.
+// C4 opponent chains: authored follow-ups on the engine's own chain window, in the mob layer (src/fight/mobkit.ts). No sim file, no record bump.
 const weaponOf = (s: MobStyle) => OPPONENTS[MOB_STYLE[s].opponent].weapon;
 
 test('every shipped chain row sits inside the engine\'s chain window for its weapon; a row that reaches past it is refused', () => {

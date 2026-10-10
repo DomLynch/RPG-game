@@ -5,7 +5,7 @@ import { initialPractice } from '../src/fight/combat.ts';
 import { idleIntent, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
 import { crossCheck } from '../src/group-verify.ts';
 import { OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
-import { TOKENS, groupKill, startStreams, stepStreams, streamRecordGroup, type StreamGroup } from '../src/pack.ts';
+import { TOKENS, groupKill, startStreams, stepStreams, streamRecordGroup, type StreamGroup } from '../src/fight/pack.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { RECORD_VERSION, createRecorder, packRecord, unpackRecord, type FightRecord } from '../src/fight/record.ts';
 import { verifyRecord } from '../src/fight/replay.ts';

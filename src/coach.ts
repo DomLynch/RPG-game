@@ -1,7 +1,7 @@
 // Coach mode, slice 1 (Combat, docs/briefs/coach-mode.md; Lead's GO 2026-10-07: the four LIVE stance names, no extra instruction, Pit duels only): the player's side driven by the SAME brain that drives a
 // warden. `decide()` (src/fight/ai.ts) already works for either side of a duel, so a coach is that brain with a profile shaped by the stance the player picked (the stance battery's `bystance` brains: a
 // human who picks Defensive guards and parries, an Aggressive one presses, a Trickster feints and kicks, Neutral plays it straight) and a player-level base profile.
-// Outside SIM_FILES on purpose, like src/mobkit.ts: it reads a Duel and returns an Intent, writes nothing back. A coached fight's INTENTS are what the record stores, so a coached record is a played
+// Outside SIM_FILES on purpose, like src/fight/mobkit.ts: it reads a Duel and returns an Intent, writes nothing back. A coached fight's INTENTS are what the record stores, so a coached record is a played
 // record: no RECORD_VERSION, same replay (tests/coach.test.ts replays one). The stance itself is the sim's (src/fight/stance.ts, withStances), picked exactly as a human picks it.
 // Human reaction, by construction identical to the AI's: the coach never overrides `reaction`, `tellReaction`, `anticipate`, `accuracy` or `discipline`, so it notices a cut after the same ticks the
 // warden does at that level, and `decide()` applies the same reaction cap. tests/coach.test.ts pins that no stance brain touches them and that none is faster than the quickest AI profile.

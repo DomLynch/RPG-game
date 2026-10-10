@@ -7,7 +7,7 @@
 import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../../src/fight/server.ts';
 import { CHAINS, KITS, MODE } from './kits.ts';
 
-// Bump when the kit CODE changes behaviour: src/mobkit.ts (kitIntent, holds, validateChains) or origins/mobs/kits.ts (mobLayer, mobProfile). (Combat owns those; the pin test below calls them out.)
+// Bump when the kit CODE changes behaviour: src/fight/mobkit.ts (kitIntent, holds, validateChains) or origins/mobs/kits.ts (mobLayer, mobProfile). (Combat owns those; the pin test below calls them out.)
 export const KIT_LOGIC_VERSION = 2;   // 2: #1701 C4 chains (mobLayer and kitIntent now walk CHAINS)
 
 // cyrb53: a small synchronous 53-bit string hash (no crypto: it runs in the page). Not a secret, only a version tag.
