@@ -10,11 +10,12 @@ export const T4_MEDIUM_USD_PER_HOUR = 0.60;   // Hugging Face list price, 2026-0
 // ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30). A hold is a one-line edit here.
 export const HELD_ROWS = [];
 
-// The 1-based indices of the rows the job runs: timing-sensitive (wall clock) browser rows (rows-lib timingOf), never a WebKit row
-// (Linux WebKit is not Mac Safari) and never a held one. Virtual-clock and no-browser rows stay on the Mac with test:all and publish.
+// The 1-based indices of the rows the job runs: every browser row, because anything that draws goes to the T4 (Dom 2026-10-09; Lead 2026-10-10 after
+// R's CPU job 6ac9806a died on its 20 m timeout drawing at load 250+): wall-clock AND virtual-clock rows (rows-lib timingOf), never a WebKit row
+// (Linux WebKit is not Mac Safari) and never a held one. Rows that open no browser stay on the CPU shard / Mac. The name is kept: callers import it.
 export function selectWallRows(commands, readSource, held = HELD_ROWS) {
   return rowSet(commands, readSource)
-    .filter(row => row.timing === 'wall' && !isWebKitRow(row.command) && !held.some(name => row.name.startsWith(name)))
+    .filter(row => row.timing !== 'none' && !isWebKitRow(row.command) && !held.some(name => row.name.startsWith(name)))
     .map(row => row.index);
 }
 

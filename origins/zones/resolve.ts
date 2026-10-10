@@ -4,7 +4,7 @@
 import { BIOMES, DEFAULT_BIOME, type Spec } from './biomes.ts';
 import { FIELDS, SCHEMA_VERSION, byPath, type Field } from './schema.ts';
 
-export type Resolved = { values: Record<string, unknown>; tree: Spec; problems: string[]; unwired: string[] };
+export type Resolved = { values: Record<string, unknown>; tree: Spec; problems: string[]; unwired: string[]; explicit: string[] };   // explicit: the paths a biome or the zone itself SET (a default is not explicit): a reader changes behaviour only for these, so a zone that sets nothing renders exactly as before
 export type Migrations = Readonly<Record<number, (spec: Spec) => Spec>>;   // MIGRATIONS[v] upgrades a version-v spec to v+1
 export const MIGRATIONS: Migrations = {};
 
@@ -65,19 +65,19 @@ export function resolveSpec(input: Spec, { fields = FIELDS, biomes = BIOMES, mig
   let spec = input, v = typeof spec.schemaVersion === 'number' ? spec.schemaVersion : 1;
   if (v > version) problems.push(`schemaVersion ${v} is newer than this build (${version})`);
   for (; v < version; v++) { const step = migrations[v]; if (step) spec = step(spec); }   // a version with no step changed no meaning
-  const values: Record<string, unknown> = {}, known = byPath(fields);
+  const values: Record<string, unknown> = {}, known = byPath(fields), explicit = new Set<string>();
   for (const f of fields) values[f.path] = f.default;
   const biomeName = typeof spec.biome === 'string' ? spec.biome : DEFAULT_BIOME, biome = biomes[biomeName];
   if (!biome) problems.push(`biome "${biomeName}" is not a preset (${Object.keys(biomes).join(', ')})`);
   const layer = (src: Spec, label: string) => {
     const flat: Record<string, unknown> = {}, bad: string[] = []; flatten(src, fields, flat, bad);
     for (const p of bad) problems.push(`${label}: unknown field "${p}" (nearest: "${nearest(p, fields)}")`);
-    for (const [p, val] of Object.entries(flat)) { const why = badValue(known.get(p)!, val); if (why) problems.push(`${label}: ${why}`); else values[p] = val; }
+    for (const [p, val] of Object.entries(flat)) { const why = badValue(known.get(p)!, val); if (why) problems.push(`${label}: ${why}`); else { values[p] = val; explicit.add(p); } }
   };
   if (biome) layer(biome, `biome ${biomeName}`);
   layer(spec, 'zone');
   values.schemaVersion = version;
-  return { values, tree: nest(values), problems, unwired: fields.filter((f) => !f.wired).map((f) => f.path) };
+  return { values, tree: nest(values), problems, unwired: fields.filter((f) => !f.wired).map((f) => f.path), explicit: [...explicit] };
 }
 
 /** A zone's own spec resolved; `id` fills `id`, and a missing name falls to "Zone N" (a placeholder Dom renames, not a required field). */

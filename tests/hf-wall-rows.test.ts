@@ -4,6 +4,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { cpuShards } from '../scripts/vps-shadow/launch.mjs';
+import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 import { parseJobLog, selectWallRows, splitRows, trustedRows, waitBudget, HELD_ROWS, T4_MEDIUM_USD_PER_HOUR, costLine } from '../scripts/lib/hf-wall-rows.mjs';
 
 const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8'));
@@ -11,7 +13,7 @@ const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8'));
 const noGit = (() => { try { execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { stdio: 'ignore' }); return false; } catch { return 'no git history in this checkout (HEAD and its tree are unreadable)'; } })();
 const source = (script: string) => { try { return readFileSync(script, 'utf8'); } catch { return ''; } };
 
-test('the T4 gets the wall-clock browser rows only: never a WebKit row, never a held row, never a virtual-clock or no-browser row', () => {
+test('the T4 gets every browser row (wall and virtual clock): never a WebKit row, never a held row, never a no-browser row', () => {
   const rows = selectWallRows(gate.release_commands, source, ['arena-audio-check']);
   assert.ok(rows.length >= 20, `wall rows: ${rows.length}`);
   // Row 22 ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30): no hold today, so the default selection includes it.
@@ -22,10 +24,19 @@ test('the T4 gets the wall-clock browser rows only: never a WebKit row, never a 
     assert.doesNotMatch(command, /--engine\s+webkit/, `${index} is a WebKit row`);
     assert.doesNotMatch(command, /arena-audio-check/, `${index} is held (row 22 until it is green in a release)`);
   }
-  assert.ok(!rows.includes(gate.release_commands.findIndex((c: string[]) => c.join(' ').includes('roster-browser-check')) + 1), 'row 2 drives the virtual clock: the Mac keeps it');
+  const timings = new Map<number, string>(rowSet(gate.release_commands, source).map((r: { index: number; timing: string }): [number, string] => [r.index, r.timing]));
+  assert.ok(rows.some((i: number) => timings.get(i) === 'virtual'), 'virtual-clock browser rows draw too: they go to the T4');
+  for (const i of rows) assert.notEqual(timings.get(i), 'none', `row ${i} opens no browser: it stays on the CPU shard`);
+  for (const [i, t] of timings) if (t !== 'none' && !/--engine\s+webkit/.test(gate.release_commands[i - 1].join(' ')) && i !== 22) assert.ok(rows.includes(i), `browser row ${i} must be on the T4 list`);
   // Held rows are named by script, so the list survives a renumbering.
   const withoutHold = selectWallRows(gate.release_commands, source, []);
   assert.equal(withoutHold.length, rows.length + 1, 'lifting the hold adds exactly row 22 back');
+});
+
+test('the HF CPU shard carries no row that draws: every CPU-shard row opens no browser (R job 6ac9806a timed out drawing on CPU)', () => {
+  const timings = new Map<number, string>(rowSet(gate.release_commands, source).map((r: { index: number; timing: string }): [number, string] => [r.index, r.timing]));
+  const cpu: number[] = cpuShards(gate.release_commands, source).flat();
+  for (const i of cpu) assert.equal(timings.get(i), 'none', `CPU shard row ${i} draws`);
 });
 
 test('a row is trusted ONLY when its T4 receipt says exit 0 for the deployed tree (a receipt for another tree, a failed row, a missing row: never)', () => {

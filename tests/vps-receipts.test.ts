@@ -277,3 +277,10 @@ test('run-rows.sh prints the last 50 lines of every FAILED or CEILING row into t
   assert.match(run, /grep -E 'FAILED\|CEILING' "\$run\/rows\.log"/);
   assert.match(run, /tail -n 50 "\$f"/);
 });
+
+test('the job command caps every setup step at 300 s so a wedged apt or fetch fails the job fast (S attempt 1: 15+ min in apt-get)', () => {
+  for (const kind of ['unit', 'rows']) {
+    const text = jobCommand(kind, sha)[2];
+    for (const step of ['apt-get update', 'apt-get install', 'git fetch']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
+  }
+});

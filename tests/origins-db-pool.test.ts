@@ -61,7 +61,7 @@ test('kill -9 on a busy pooled session errors that op cleanly, replaces the sess
   const db = pooled(2);
   const pid = Number(await db.run('select pid;'));
   const slow = db.run('select slow 300;', { a: 'x' });
-  await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 200 && !/^start /m.test(readFileSync(log, 'utf8')); i++) await new Promise((r) => setTimeout(r, 25));   // wait for the op to be running, not for a fixed 100 ms (a loaded box starts the session later)
   const started = readFileSync(log, 'utf8').trim().split('\n').pop()!.split(' ');
   process.kill(Number(started[2]), 'SIGKILL');
   await assert.rejects(slow, (e: DbError) => e instanceof DbError && /psql exit/.test(e.message));
@@ -70,7 +70,7 @@ test('kill -9 on a busy pooled session errors that op cleanly, replaces the sess
 });
 
 test('a hung op is killed at the timeout, errors, and its session is replaced', async () => {
-  const db = pooled(1, 300);
+  const db = pooled(1, 2000);   // the op timeout must outlast a slow session start on a loaded box (the first select pid; has to answer inside it)
   const before = await db.run('select pid;');
   await assert.rejects(db.run('select hang;'), (e: DbError) => e instanceof DbError);
   assert.notEqual(await db.run('select pid;'), before);
@@ -87,7 +87,7 @@ test('an idle session that dies is dropped, not handed to the next op', async ()
 test('#1833 holds with 4 sessions: one account\'s writes never interleave, other accounts overlap and use other sessions', async () => {
   writeFileSync(log, '');
   const db = pooled(4);
-  const slow: Handler = async ({ db: d, account }) => d.run('select slow 80;', { a: account });
+  const slow: Handler = async ({ db: d, account }) => d.run('select slow 600;', { a: account });
   const writer = createWriter({ db, verify: async (t) => ({ a1: 'acct-a', a2: 'acct-a', a3: 'acct-a', b1: 'acct-b', c1: 'acct-c' } as Record<string, string>)[t] ?? null, where: async () => null as never, handlers: { slow } });
   await new Promise<void>((ok) => writer.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(writer.address() as AddressInfo).port}/origins/`;

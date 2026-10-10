@@ -14,7 +14,7 @@ import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, Missi
 import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
-import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
+import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
@@ -159,7 +159,7 @@ export function createScene(
   const feel = typeof location === 'undefined' ? undefined : armfeelFrom(location.search, typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const flinches = feel && feel !== 'off' ? [new Flinch(feel), new Flinch(feel)] : null;
   const stance = typeof location !== 'undefined' ? stanceFrom(location.search) : 'neutral';   // ?look=stances&stance=<name>: neutral (today's frame) without the flag
-  const fatigueRead = typeof location !== 'undefined' && fatigueReadFrom(location.search);   // ?look=fatigue-read (fatigue-read.ts): the tired pose made legible from behind; absent = today's frame
+  const fatigueRead = typeof location !== 'undefined' && fatigueReadFrom(location.search);   // fatigue-read.ts: the tired pose made legible from behind, ON; ?off=fatigue-read = the live layer alone
   const pivots: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   const burstPool = flinches ? createBurstPool(scene) : null;
@@ -304,9 +304,9 @@ export function createScene(
   // `?tier=` picks it for stills). It streams once the rung is set and the rigs are in (setTier, before the Fight tap; else at first playable)
   // and swaps on at an idle beat of the fight (render()). The gate reads its state and stamps off window.__rankLook.
   const rankLookFlagged = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
-  // Dev/gate only: `?lookbake=off` takes no waist-cut bake for the look at all (before or after the swap), so an opened kill finds it pending
+  // Dev/gate only: `?off=lookbake` (the old `?lookbake=off` still works) takes no waist-cut bake for the look at all (before or after the swap), so an opened kill finds it pending
   // and the fallback runs (Lead: condition 3 tested once with the bake forced off).
-  const lookBakeOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('lookbake') === 'off';
+  const lookBakeOff = typeof location !== 'undefined' && lookBakeOffFrom(location.search);
   let lookForced = false;   // this fight's look plays runThrough for opened, with no waist-cut bake (RUN_THROUGH_LOOKS)
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
   let lookStarted: string | undefined | null = null;   // the look file the stream started on (undefined: none at that rung), null before it starts

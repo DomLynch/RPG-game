@@ -1,7 +1,7 @@
 // New zone: `node scripts/new-zone.mjs <N> [--biome ash-wastes] [--name "The Name"] [--from row.json]` writes origins/zones/zone<N>/ and NOTHING else (Dom 2026-10-09, plug and play).
 // The registry is generated from the folders (`npm run zones`, which the vite build also runs), so the new folder is all a zone costs. Kit and looks start as Zone 2's (the node names are that kit's contract);
 // spawns start empty (a zone with no rows is valid) and `world` is empty until its place.ts and world data exist. Level = the zone number (Dom 2026-10-08).
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
 import { zoneProblems } from '../origins/zones/loader.ts';
@@ -9,7 +9,7 @@ import { zoneProblems } from '../origins/zones/loader.ts';
 const ZONES_DIR = fileURLToPath(new URL('../origins/zones/', import.meta.url));
 
 // One data ROW (a JSON object with the zone's fields: name, names, world, biome, spawns, kit, looks, and optionally mobLooks and place) writes the whole folder. The row is checked by the loader's own
-// zoneProblems BEFORE anything is written, so a bad row leaves nothing behind. Every file is pure literal data (one typed const + export default), so a zone row ships as a data-only PR.
+// zoneProblems BEFORE anything is written, so a bad row leaves nothing behind. Every file is one typed literal const + export default. zone/spawns/kit/look are on the data-only path list; mob-looks and place are pure literals too but are not on it yet (the Auditor adds them), so a row that has them is reviewed until then.
 const lit = (v) => JSON.stringify(v, null, 2);
 const hdr = (row, key, dflt) => `${(row.notes?.[key] ?? dflt).split('\n').map((l) => `// ${l}`.trimEnd()).join('\n')}\n`;   // row.notes[file] carries a file's header comment (a row is JSON: it cannot hold comments itself)
 function rowFiles(n, row) {
@@ -25,6 +25,7 @@ function rowFiles(n, row) {
   };
   if (own('mobLooks').length) files['mob-looks.ts'] = `${hdr(row, 'mobLooks', `Zone ${n}'s creature looks, from its row.`)}import type { Zone } from '../loader.ts';\n\nconst mobLooks: NonNullable<Zone['mobLooks']> = ${lit(row.mobLooks)};\nexport default mobLooks;\n`;
   if (own('place').length) files['place.ts'] = `${hdr(row, 'place', `Zone ${n} on the Region 1 map, from its row.`)}import type { Place } from '../place.ts';\n\nconst place: Place = ${lit(row.place)};\nexport default place;\n`;
+  for (const k of ['kit', 'looks']) if (row[k] === undefined) throw new Error(`row for zone ${n}: "${k}" is required`);   // zoneProblems would throw a TypeError on a missing kit; say it plainly instead
   const probe = { ...head, spawns: row.spawns ?? { openers: {}, rows: [] }, kit: row.kit, looks: row.looks, ...(row.mobLooks ? { mobLooks: row.mobLooks } : {}), ...(row.place ? { place: row.place } : {}) };
   const bad = zoneProblems(probe);
   if (bad.length) throw new Error(`row for zone ${n} is invalid: ${bad.join('; ')}`);
@@ -42,12 +43,18 @@ export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ZO
   if (existsSync(folder)) throw new Error(`zone${n} already exists`);
   mkdirSync(folder);
   if (fromRow) { try { for (const [f, text] of Object.entries(fromRow)) writeFileSync(`${folder}${f}`, text); } catch (e) { rmSync(folder, { recursive: true, force: true }); throw e; } return folder; }
-  const biomeLine = biome === DEFAULT_BIOME ? '' : `, biome: ${JSON.stringify(biome)}`;
-  writeFileSync(`${folder}zone.ts`, `// Zone ${n} (${name}): the zone's own facts. \`level\` is the zone number = its base level (Dom 2026-10-08: Zone N = level N). Made by scripts/new-zone.mjs.\n`
-    + `const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = { id: '${n}', level: ${n}, name: ${JSON.stringify(name)}, names: {}, world: []${biomeLine} };\nexport default zone;\n`);
-  writeFileSync(`${folder}spawns.ts`, `// Zone ${n}'s creatures as data: none yet. A row's level must be ${n}-${n + 1} (loadZone checks it); every opener must name a row. Made by scripts/new-zone.mjs.\n`
-    + `import type { MobRow } from '../../mobs/row.ts';\n\nconst spawns: { openers: Record<string, string>; rows: MobRow[] } = { openers: {}, rows: [] };\nexport default spawns;\n`);
-  for (const f of ['kit.ts', 'look.ts']) cpSync(`${dir}zone2/${f}`, `${folder}${f}`);
+  try {
+    const biomeLine = biome === DEFAULT_BIOME ? '' : `, biome: ${JSON.stringify(biome)}`;
+    writeFileSync(`${folder}zone.ts`, `// Zone ${n} (${name}): the zone's own facts. \`level\` is the zone number = its base level (Dom 2026-10-08: Zone N = level N). Made by scripts/new-zone.mjs.\n`
+      + `const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = { id: '${n}', level: ${n}, name: ${JSON.stringify(name)}, names: {}, world: []${biomeLine} };\nexport default zone;\n`);
+    writeFileSync(`${folder}spawns.ts`, `// Zone ${n}'s creatures as data: none yet. A row's level must be ${n}-${n + 1} (loadZone checks it); every opener must name a row. Made by scripts/new-zone.mjs.\n`
+      + `import type { MobRow } from '../../mobs/row.ts';\n\nconst spawns: { openers: Record<string, string>; rows: MobRow[] } = { openers: {}, rows: [] };\nexport default spawns;\n`);
+    // Kit and looks start as Zone 2's: their first line is the template's, so it is rewritten to say what this file is (Auditor nit on #2047).
+    for (const [f, what] of [['kit.ts', 'kit'], ['look.ts', 'looks']]) {
+      const [, ...rest] = readFileSync(`${dir}zone2/${f}`, 'utf8').split('\n');
+      writeFileSync(`${folder}${f}`, [`// Zone ${n}'s ${what}: a copy of Zone 2's until Characters ship this zone's own (the kit's node names are a contract). Made by scripts/new-zone.mjs. Read through loadZone only.`, ...rest].join('\n'));
+    }
+  } catch (e) { rmSync(folder, { recursive: true, force: true }); throw e; }   // a failed copy leaves no half-made folder (Auditor nit on #2047)
   return folder;
 }
 

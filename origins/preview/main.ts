@@ -2,7 +2,7 @@ import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
-import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
+import { actorPose, characterFor, loadWarriors, type Practice } from '../../src/fight/index.ts';
 import { phoneTier, pixelCap } from '../../src/quality.ts';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
@@ -19,7 +19,6 @@ import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
-import { characterFor } from '../../src/fight/open.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { frontierDress } from './frontier-dress.ts';
@@ -44,7 +43,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/sound/creature.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
@@ -242,8 +241,9 @@ addEventListener('keydown', (e) => {
 const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REGION || /[?&]look=zones\b/.test(location.search),
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
   LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : DUEL ? 'frontier-duel' : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
-const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
-const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if (DUEL && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel only: the Frontier's own dirt is what the look's ground tint reaches (it is inert on every other look, so they are unchanged)
+const ZONE_FIELDS = loadZone(), FIXED_HOUR = zoneHour(ZONE_FIELDS);   // the zone's own look/time fields (schema.ts): only what the zone or its biome SET changes anything
+const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search) && zoneDayNight(ZONE_FIELDS), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
+const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
 const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
@@ -279,8 +279,8 @@ function step(dt: number) {
   if (state.z < -5) arena.raiseGate(true);
   if (ZONE_LOOK) {
     let look = lookAlong(HAZE ? state.x : state.z, LOOK_STOPS);
-    if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
-    sunHome.set(...applyLook(scene, renderer, sun, hemi, look, GROUNDS, STONES).sunPos);
+    if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(FIXED_HOUR ?? gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
+    sunHome.set(...applyLook(scene, renderer, sun, hemi, withZoneLook(look, ZONE_FIELDS), GROUNDS, STONES).sunPos);
   }
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
@@ -573,14 +573,14 @@ function heroDeathSequence() {
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
   const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
-  let local = `${spec.name} is down.`;
+  let local = `${spec.name} is down.`, bountyTaken = false;   // bountyTaken: the journal step's own answer (play.bountyPaid): a refused step says no bounty line
   try {
     huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
     const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
-    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
+    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) bountyTaken = play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
   } catch (error) { console.warn('the kill could not be settled', error); }
   const k = await answer;   // the toast shows the server's answer when signed in (its numbers, its loot), the page's own only for a guest or offline page, labelled preview
-  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id));
+  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id, spec.name, bountyTaken));
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
