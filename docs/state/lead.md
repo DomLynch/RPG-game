@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-10 20:40 — PAUSE until Sunday morning (Dom): LIVE AV 99e3f10bc, all lanes saving
+**Dom's order (in chat + via Strategy 20:3x):** all lanes paused until Sunday morning, because the weekly quota is at 83% (reset Mon 00:00). No launches, PRs or new work. Lead relayed it to Deploy, Auditor, World, Web, Combat, Backend (VPS), Characters (VPS), COO and Hooks Dev; each lane replies with its branch head + state-doc commit; Lead sends Strategy ONE summary.
+- **LIVE = AV 99e3f10bc** (#2157 rows child timeout 540→600) = trunk (my curl + `git rev-parse` 20:18). Deploy: published 20:17, no hold, clean.
+- **In flight (all frozen):** #2154 camera B (World, draft 802472603) · #2159 landscape zone page (Web, draft e9cf45b92) · #1984 Core 1b gear_import (Backend, ready 9e85a2325, CI was running, Auditor PASS conditional on the Postgres writer check) · #2161 CC ladder (Combat, draft 8fd7293fd, **RV41 ruled to it**, trunk RV=40; #1840 is CLOSED and takes the next free number if reopened) · #2162 prelaunched_cpu shape check (Deploy, ded3e62bd) · #2160 deploy state doc.
+- **Resume order Sunday (when Dom says):** (1) ledger 1b: #1984 → one kill path → one bank → boundary C5; (2) camera B #2154 alone; (3) landscape #2159 alone; (4) CC ladder #2161 alone (writer reinstall); (5) #2162. Slice 2 career moves to **Monday** after the quota reset. Hooks #124/#125 install Sunday after the first release.
+- Batch rule stands: an Auditor PASS on the current head + green required CI rides the next 30-minute batch, no per-PR GO.
+
 ## 2026-10-10 20:15 — handoff: LIVE AU a2125a8fd (Core 1a), AV #2157 GO, camera B #2154, Web landscape #2159, Core 1b started
 Untracked restart handoff. Canonical Lead state = top entry of `docs/state/lead.md` on `origin/lead-catalogue/state-1008`. Memory (same key): `project_handoff_2026-10-10_2010.md`, `project_core_shape_2026-10-10.md`, `feedback_seamless_waiver_2026-10-10.md`.
 
