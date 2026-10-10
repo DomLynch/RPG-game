@@ -21,7 +21,7 @@ const specsOf = (file: string, text: string): Spec[] => [...text.matchAll(IMPORT
 });
 
 const PAGE = (f: string): boolean => f === 'src/main.ts' || f.startsWith('origins/preview/');
-const SERVER = (f: string): boolean => /^origins\/(server|contracts|encounters|inventory|region1)\//.test(f) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));
+const SERVER = (f: string): boolean => (f.startsWith('origins/') && !PAGE(f)) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));   // every other origins/ dir (server, contracts, encounters, inventory, region1, mobs, zones, ...) and the node scripts
 const inCore = (t: string): boolean => /^src\/core\//.test(t);
 
 export function c1(read: (f: string) => string, list: readonly string[]): string[] {
@@ -62,6 +62,7 @@ test('C1: modes reach the core only through src/core/index.ts, server code only 
 test('C1 mutation: a deep core import from the Pit, the zone page or a server module is flagged; the door is not', () => {
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/profile.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/preview/save.ts', "import { call } from '../../src/core/writer-call.ts';"), FILES).length, 1);
+  assert.equal(c1(withFile('origins/mobs/mobs.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
   assert.equal(c1(withFile('src/main.ts', "import { x } from './core/server.ts';"), FILES).length, 1, 'a page may not take the server door');

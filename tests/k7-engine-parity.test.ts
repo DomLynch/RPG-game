@@ -34,7 +34,7 @@ export const ROWS: Record<string, readonly [number, Own]> = {
 // never a folder or a module wildcard; the post-K7 ledger unification revisits them. Combat stays strict: nothing from a combat module outside src/fight.
 const LEDGER_UI: readonly string[] = [];   // EMPTY since CORE 1a (the account/ledger modules live in src/core, behind src/core/index.ts and server.ts; tests/core-boundary.test.ts pins them): nothing may be added back
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
-const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'loot', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
+const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
 const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts)
 
@@ -56,7 +56,7 @@ const fromFightIndex = (spec: string, file = ''): boolean => /(^|\/)src\/fight\/
 export function violations(read: (f: string) => string = (f) => readFileSync(f, 'utf8'), list: readonly string[] = files('origins')): { bad: string[]; unclassified: string[] } {
   const bad: string[] = [], unclassified: string[] = [];
   for (const file of list) for (const spec of new Set([...read(file).matchAll(IMPORT)].map((m) => m[1]!))) {
-    const mod = moduleOf(spec); if (!mod || fromFightIndex(spec, file) || /\.(png|webp|ogg|css)(\?.*)?$/.test(spec)) continue;
+    const mod = moduleOf(spec); if (!mod || fromFightIndex(spec, file) || /\.(png|webp|ogg|css)(\?.*)?$/.test(spec) || /(^|\/)assets\/loot\.glb(\?.*)?$/.test(spec)) continue;   // loot.glb: an asset URL, not the core's loot.ts
     const row = ROWS[mod]; if (row) bad.push(`${row[0]} | ${SERVER_DIRS.some((d) => file.startsWith(d)) ? 'server' : row[1]} | ${file} -> ${mod}`);
     else if (!ALLOWED.has(mod) && !LEDGER_UI.includes(`${file} -> ${mod}`)) unclassified.push(`${file} -> ${mod}`);
   }
