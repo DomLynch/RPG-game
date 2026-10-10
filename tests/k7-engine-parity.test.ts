@@ -160,6 +160,7 @@ test('K7 camera limits row: createFollowCamera in origins/preview/main.ts is cal
   const main = readFileSync('origins/preview/main.ts', 'utf8');
   assert.ok(call(main), 'the page builds the follow camera'); assert.ok(!/\d/.test(call(main).replace(/camera\.passage/g, '')), `no number in the call: ${call(main)}`);
   assert.ok(/createFollowCamera\(camera,\s*\{[^;]*\d/.test('createFollowCamera(camera, { passage: { back: 3.4 } });'), 'a literal in the call is seen (mutation)');
+});
 
 // Strategy's donor verdict (2026-10-10): MAX_ATTACKERS is never exceeded, and no other cap can alias it. The cap lives in src/fight/attackers.ts (a leaf, so the node-safe door's closure does not pull the world loop).
 test('MAX_ATTACKERS is never exceeded: N creatures on one hero put at most MAX_ATTACKERS duels on him at any tick', async () => {
