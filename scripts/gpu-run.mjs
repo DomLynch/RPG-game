@@ -5,6 +5,7 @@
 // the artifacts/ it wrote). Every path ends in the ledger + scripts/hf-cleanup.mjs's "HF: N jobs, 0 running, <=$X" line. The exit code is the command's own; 11 = no NVIDIA
 // renderer, 12 = a setup blocker, 124 = the job did not finish in its timeout. The artifacts the command wrote land in artifacts/gpu-run/<job id>/.
 // The HF token is the hf CLI's own login: never read or printed here. Env: GPU_RUN_HF (the hf binary; tests stub it), HF_LEDGER_DIR (the ledger folder), GPU_RUN_OUT, GPU_RUN_POLL_S.
+import { tierLine, withSlot } from './lib/hf-slots.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -46,7 +47,11 @@ export async function main(argv) {
     launchArgs.push('mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh');
     let logs = '', now = 'UNKNOWN', timedOut = false;
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const started = run(launchArgs);
+      // Work waterfall: a T4 slot under the shared cap (scripts/lib/hf-slots.mjs); a lane's graphics job waits for one instead of piling onto the card.
+      const slot = withSlot({ hf, flavor, generic: true, maxWaitS: Number(process.env.GPU_RUN_MAX_WAIT_S || 600), launch: () => run(launchArgs) });
+      if (!slot.ok) throw new Error(`no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`);
+      say(tierLine(flavor, slot.slot, slot.queuedS));
+      const started = slot.value;
       jobId = /Job started with ID: (\S+)/.exec(started.stdout || '')?.[1] ?? null;
       if (jobId) ledger(jobId, sha, args.timeout);   // an id means a job exists, whatever the CLI's exit said: ledger it first so the cleanup below cancels it (two jobs once leaked on a nonzero exit)
       if (started.status !== 0 || !jobId) throw new Error(`hf jobs run failed: ${(started.stderr || started.stdout || '').trim().slice(0, 200)}`);

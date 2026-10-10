@@ -6,7 +6,8 @@
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, jobCommand } from '../lib/vps-receipts.mjs';
+import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, genericJobCommand, jobCommand } from '../lib/vps-receipts.mjs';
+import { tierLine, withSlot } from '../lib/hf-slots.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
 import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 
@@ -25,6 +26,31 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
   const [bash, dashC, script] = jobCommand(kind, sha);
   return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : slow.length ? '35m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), ...(slow.length ? ['-e', `RELEASE_CHECK_CEILING_S=${SLOW_CEILING_S}`] : []), JOB_IMAGE, bash, dashC, script];
 };
+
+// `launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <argv…>`: a lane's job at a sha on HF (work waterfall, Hooks Dev's submit path).
+// hf-cpu (cpu-upgrade) by default; --gfx = hf-t4 (t4-medium), graphics only: a job without --gfx never gets a T4. Exit 0 started, 75 no slot in --max-wait-s (the caller
+// requeues to the VPS), 2 refused. Lane jobs use their own ledger (artifacts/hf-lane-jobs), never the release ledger deploy.sh's exit cleanup reads.
+export function genericJobArgs(argv) {
+  const dd = argv.indexOf('--');
+  if (dd < 0 || dd === argv.length - 1) throw new Error('usage: launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <command…>');
+  const [sha, ...flags] = argv.slice(0, dd), cmd = argv.slice(dd + 1);
+  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
+  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600 };
+  for (let i = 0; i < flags.length; i++) {
+    const f = flags[i];
+    if (f === '--gfx') opts.gfx = true;
+    else if (f === '--lane') opts.lane = String(flags[++i] ?? '');
+    else if (f === '--timeout') opts.timeout = String(flags[++i] ?? '');
+    else if (f === '--max-wait-s') opts.maxWaitS = Number(flags[++i]);
+    else throw new Error(`unknown flag ${f}`);
+  }
+  if (!/^\d+[mh]$/.test(opts.timeout)) throw new Error('--timeout must look like 40m or 2h');
+  if (!/^[\w.-]{1,40}$/.test(opts.lane)) throw new Error('--lane must be a short word');
+  if (!Number.isFinite(opts.maxWaitS) || opts.maxWaitS < 0 || opts.maxWaitS > 3600) throw new Error('--max-wait-s must be 0-3600');
+  const flavor = opts.gfx ? 't4-medium' : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
+  const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, JOB_IMAGE, bash, dashC, script];
+  return { args, flavor, opts, sha };
+}
 // The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
 // (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, CPU_WIDTH wide, each under hfArgs' 20m --timeout.
 export const CPU_SHARD = 6;
@@ -36,7 +62,7 @@ export function cpuShards(commands, readSource, skip = []) {
   return Array.from({ length: Math.ceil(rows.length / CPU_SHARD) }, (_, i) => rows.slice(i * CPU_SHARD, (i + 1) * CPU_SHARD));
 }
 // Every job a release starts goes in the ledger scripts/hf-cleanup.mjs reads on deploy.sh's EXIT (id and the job's own --timeout in seconds).
-export const ledger = (id, sha, timeout) => { const dir = process.env.HF_LEDGER_DIR || 'artifacts/hf-jobs'; mkdirSync(dir, { recursive: true }); appendFileSync(`${dir}/${sha}.ledger`, `${id} ${Number(/^(\d+)m$/.exec(timeout || '')?.[1] || 0) * 60}\n`); };
+export const ledger = (id, sha, timeout, laneDir) => { const dir = laneDir || process.env.HF_LEDGER_DIR || 'artifacts/hf-jobs'; mkdirSync(dir, { recursive: true }); appendFileSync(`${dir}/${sha}.ledger`, `${id} ${Number(/^(\d+)m$/.exec(timeout || '')?.[1] || 0) * 60}\n`); };
 export const receiptFrom = (logs, kind) => {
   const line = String(logs).split('\n').reverse().find(l => l.startsWith(`RECEIPT ${kind} `));
   try { return line ? JSON.parse(line.slice(`RECEIPT ${kind} `.length)) : null; } catch { return null; }
@@ -76,13 +102,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const file = `${dir}/${unit ? 'unit.json' : `rows-${a}.json`}`; writeFileSync(file, JSON.stringify(receipt, null, 1) + '\n');
       console.log(file);
     } else {
-      if (cmd === 'unit') { const refusal = unitShaRefusal(a); if (refusal) throw new Error(refusal); }
-      const args = hfArgs(cmd, a, b, c, process.argv[6]);
+      const hfBin = process.env.HF_BIN || 'hf';
+      const lane = cmd === 'job' ? genericJobArgs(process.argv.slice(3)) : null;
+      if (!lane && cmd === 'unit') { const refusal = unitShaRefusal(a); if (refusal) throw new Error(refusal); }
+      const args = lane ? lane.args : hfArgs(cmd, a, b, c, process.argv[6]), flavor = args[args.indexOf('--flavor') + 1];
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {
-        const r = spawnSync('hf', args, { encoding: 'utf8', timeout: 60_000 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
+        // Work waterfall: a slot under the shared HF caps (scripts/lib/hf-slots.mjs); a lane's job keeps off the slot reserved for the deploy lane's unit/rows jobs.
+        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : 300, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }) });
+        if (!slot.ok) { console.error(`launch: no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s; run it on the VPS queue instead`); process.exit(75); }
+        const r = slot.value; process.stdout.write(`${tierLine(flavor, slot.slot, slot.queuedS)}\n${r.stdout || ''}`); process.stderr.write(r.stderr || '');
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
-        if (id) ledger(id, a, args[args.indexOf('--timeout') + 1]);
+        if (id) ledger(id, lane ? lane.sha : a, args[args.indexOf('--timeout') + 1], lane ? 'artifacts/hf-lane-jobs' : undefined);
         process.exit(r.status ?? 1);
       }
     }
