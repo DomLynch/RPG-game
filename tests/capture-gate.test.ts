@@ -135,6 +135,9 @@ test('Ctrl-C on the wrapper cancels the HF job it started and logs it (exit 130)
   const dir = mkdtempSync(join(tmpdir(), 'capture-int-')), stub = join(dir, 'bin'), home = join(dir, 'home'), repo = join(dir, 'repo');
   execFileSync('mkdir', ['-p', stub, home, repo], { timeout: 5000 });
   for (const [name, body] of Object.entries(STUBS)) { writeFileSync(join(stub, name), `#!/bin/bash\n${body}\n`); chmodSync(join(stub, name), 0o755); }
+  // A slow `date` (a loaded box) holds open the gap between the "runs on Hugging Face" line and the poll loop, where the Ctrl-C lands: the
+  // interrupt must survive it (it was lost there 1 run in 20 under load: the flag the trap set was reset to 0 after it, and the job polled on).
+  writeFileSync(join(stub, 'date'), '#!/bin/bash\nsleep 0.5; exec /bin/date "$@"\n'); chmodSync(join(stub, 'date'), 0o755);
   const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { timeout: 10000, stdio: 'ignore' });
   git('init', '-q'); writeFileSync(join(repo, 'a.txt'), 'a\n'); git('add', '.'); git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'a');
   const loadavg = join(dir, 'loadavg'); writeFileSync(loadavg, '1.00 20.00 20.00 1/100 1\n');
