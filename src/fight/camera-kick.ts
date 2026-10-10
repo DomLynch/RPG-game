@@ -1,5 +1,5 @@
 import { HEAVY_CLASS } from './clash-sparks.ts';
-import type { CombatEvent } from './fight/duel.ts';
+import type { CombatEvent } from './duel.ts';
 
 // Presentation only: what a contact does to the camera. A landing blow drops the camera and shoves it a little along the blow; a block
 // rocks it less; a parry flicks it sideways with the deflection. Metres, seconds. Readable brutality: the frame shifts by a few pixels

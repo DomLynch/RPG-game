@@ -3,7 +3,7 @@
 // The rig reads simulation positions and the scene's finisher facts as plain data; it never reaches into rigs, blood or wounds.
 import * as THREE from 'three';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
-import type { Shove } from './camera-kick.ts';
+import type { Shove } from './fight/camera-kick.ts';
 import type { FinisherId } from './fight/finishers.ts';
 
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);

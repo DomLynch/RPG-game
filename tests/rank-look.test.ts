@@ -7,11 +7,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildWarriors, readRankLook } from '../src/fight/characters.ts';
 import { resetPhoneTierForTests } from '../src/quality.ts';
-import { openWaist } from '../src/opened.ts';
+import { openWaist } from '../src/fight/opened.ts';
 import { initialPractice, type Practice } from '../src/fight/combat.ts';
 import { LOADOUT_FROM, OPPONENTS } from '../src/fight/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
-import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, lookBakeOffFrom, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 import { supportsFinishers } from '../src/roster.ts';
@@ -673,7 +673,7 @@ test('pre-swap bake scope (Lead on 151e50e8): the Knight and the Plague Doctor (
   for (const [opp, level] of [['goblin', 8], ['goblin', 2], ['nightborn', 5], ['nightborn', 7]] as const)
     assert.equal(lookBakes(supportsFinishers(opp, 'opened'), rankLookFor(opp, level)), true, `${opp} L${level}`);
   assert.equal(lookBakes(supportsFinishers('nightborn', 'opened'), rankLookFor('nightborn', 10)), false, 'forced rank: no bake');
-  assert.equal(lookBakes(supportsFinishers('goblin', 'opened'), rankLookFor('goblin', 8), true), false, '?lookbake=off: no bake');
+  assert.equal(lookBakes(supportsFinishers('goblin', 'opened'), rankLookFor('goblin', 8), true), false, '?off=lookbake: no bake');
 });
 
 // An image's pixel size from its header (PNG, JPEG, WebP): the gate's row 5b counts each look map as uploaded, RGBA with mips (characters.ts).
@@ -714,4 +714,9 @@ test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 a
     const cap = lookMapCapMiB(opponent, phone);
     assert.ok(bytes / 2 ** 20 <= cap, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps (cap ${cap})`);
   }
+});
+
+test('?off=lookbake switches the pre-swap bake off, and an old ?lookbake=off link still does', () => {
+  for (const q of ['?off=lookbake', '?x=1&off=lookbake', '?off=fatigue-read,lookbake', '?lookbake=off', '?opponent=goblin&lookbake=off']) assert.equal(lookBakeOffFrom(q), true, q);
+  for (const q of ['', '?off=fatigue-read', '?off=lookbake2', '?lookbake=on', '?lookbake']) assert.equal(lookBakeOffFrom(q), false, q);
 });

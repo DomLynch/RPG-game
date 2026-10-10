@@ -21,7 +21,7 @@ test('a throwaway zone99 folder loads with zero edits outside it', async () => {
   const scratch = mkdtempSync(`${tmpdir()}/zones99-`);
   try {
     cpSync(`${ZONES_DIR}zone2`, `${scratch}/zone99`, { recursive: true });
-    writeFileSync(`${scratch}/zone99/zone.ts`, readFileSync(`${scratch}/zone99/zone.ts`, 'utf8').replace("id: '2', level: 2, name: 'The Ash Reach', names: { 'ash-reach': 'The Ash Reach' }", "id: '99', level: 99, name: 'Zone Ninety-Nine', names: { 'ash-reach': 'Ninety-Nine' }"));
+    writeFileSync(`${scratch}/zone99/zone.ts`, "const zone = { id: '99', level: 99, name: 'Zone Ninety-Nine', names: { 'ash-reach': 'Ninety-Nine' }, world: ['ash-reach'] };\nexport default zone;\n");   // the zone's own file, written whole: not a text edit of zone2's (Zone 2 is generated from its row, its formatting is the generator's)
     const src = registrySource(`${scratch}/`);
     assert.match(src, /'99': \{ \.\.\.zone99, spawns: spawns99, kit: kit99, looks: looks99, mobLooks: mobLooks99, place: place99 \}/);
     writeFileSync(`${scratch}/registry.ts`, src);

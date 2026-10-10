@@ -1,7 +1,7 @@
 import { RULES } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { LAND_AT } from './special-timing.ts';
-import { smooth } from './fx-math.ts';
+import { smooth } from './fight/fx-math.ts';
 
 // The class specials' three-free timing (the Witch, the Plague Doctor, the Knight; effects in special-fx-class.ts, loaded lazily): the registry (special-modes.ts) reads the gait from here
 // without pulling the effect's chunk into the main bundle.

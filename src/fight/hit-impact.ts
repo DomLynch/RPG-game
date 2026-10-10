@@ -6,8 +6,8 @@
 //   half: every other landed hit (a stab, a slash, a kick):                                              +3 frames, 2 cm
 import { HEAVY_CLASS } from './clash-sparks.ts';
 import { shoveFor, type Shove } from './camera-kick.ts';
-import type { CombatEvent } from './fight/duel.ts';
-import type { Direction } from './fight/moves.ts';
+import type { CombatEvent } from './duel.ts';
+import type { Direction } from './moves.ts';
 
 export type Tier = 'full' | 'half' | 'parry' | 'block';
 // Guard tiers (Dom 2026-09-29, "implement this also"): a PARRY is the longest beat in the game (70 ms + 11 frames = 253 ms, a heavy hit is

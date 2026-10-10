@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Object3D } from 'three';
 import { finisherBloodSources } from '../src/fight/finisher-blood.ts';
-import { HAMSTRUNG_BEATS } from '../src/hamstrung.ts';
+import { HAMSTRUNG_BEATS } from '../src/fight/hamstrung.ts';
 
 // A victim of bare bones: neck, head, chest and the right calf, 1 m tall.
 function victim() {

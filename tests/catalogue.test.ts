@@ -1,4 +1,4 @@
-// The character catalogue (src/fight/catalogue.ts + catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
+// The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
 // named, and the engine reads a row by id with no per-character code (a new character is one row).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,9 +30,11 @@ const root = (p: string) => new URL(`../${p}`, import.meta.url);
 const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
 const goblin = () => structuredClone(catalogueRow('goblin')!) as CatalogueRow;
 
+// A VARIANT row (`body` set: the Ember wolf on the Ash wolf's body) is a creature of its own that shares a roster body; the roster-keyed checks below read the BODY rows.
+const BODIES = CATALOGUE.filter((r) => !r.body);
 test('the catalogue is valid, ids are unique, and every roster character has a row', () => {
   assert.deepEqual(catalogueRowsProblems(CATALOGUE, known), []);
-  assert.deepEqual(CATALOGUE.map((r) => r.id).sort(), Object.keys(ROSTER).sort());
+  assert.deepEqual(BODIES.map((r) => r.id).sort(), Object.keys(ROSTER).sort());
   assert.deepEqual(catalogueRowsProblems([CATALOGUE[0]!, CATALOGUE[0]!], known).map((p) => p.code), ['dup-id']);
 });
 
@@ -51,7 +53,7 @@ test('every Pit rank resolves to a catalogue row: the ten legends of each of the
 
 test('stats resolve inside the engine: every row at every level of its band through src/fight/stats.ts, the same fighter the Pit builds', () => {
   assert.equal(LEVELS, MAX_LEVEL);
-  for (const row of CATALOGUE) {
+  for (const row of BODIES) {
     const id = row.id as OpponentId;
     for (const level of [row.stats.levels[0], 6, 18, 46, row.stats.levels[1]]) {
       const f = statsAt(id, level);
@@ -66,6 +68,13 @@ test('each fault is named', () => {
   const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => p.code).join(','); };
   assert.equal(edit(() => {}), '');
   assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'dragon'; }), 'id', 'a variant row whose body is not a roster id');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.loot = { table: 'loottable:ember-wolf' }; }), '', 'a variant row names a table that resolves');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.loot = { table: 'loottable:ember-wolff' }; }), 'loot', 'a variant row whose table does not resolve (a typo) is refused, never data');
+  assert.equal(edit((r) => { r.loot = { table: 'loottable:nope' }; }), 'loot', 'a body row needs a known table too')
+  assert.equal(edit((r) => { r.body = r.id; }), 'id', 'a variant row cannot be its own body');
+  assert.equal(edit((r) => { r.summary = '  '; }), 'id', 'an empty summary');
   assert.equal(edit((r) => { r.world = { ...r.world!, tris: 62000, maxTris: 62000 }; }), 'budget');
   assert.equal(edit((r) => { r.world = { ...r.world!, asset: r.engine.asset }; }), 'asset');
   assert.equal(edit((r) => { (r.armour as string[]).push('goblin.Cape'); }), 'armour');
@@ -112,7 +121,7 @@ test('the engine reads a row by id with no per-character code: a new character i
 });
 
 test('the new fields are what their sources say: render scale, weapon, home stance, voice, rank looks, finisher timing, ladder order', () => {
-  for (const row of CATALOGUE) {
+  for (const row of BODIES) {
     const id = row.id as OpponentId;
     assert.equal(row.render.scale, beastRenderScale(id), `${id}: render scale`);
     assert.equal(row.weapon, ROSTER[id].weapon, `${id}: weapon`);
@@ -127,4 +136,13 @@ test('the new fields are what their sources say: render scale, weapon, home stan
   assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2, 1.8, 2.2], 'the beasts draw at the size they are met walking');
   assert.equal(catalogueRow('goblin')!.home, 'trickster'); assert.equal(catalogueRow('executioner')!.home, 'aggressive'); assert.equal(catalogueRow('shieldmaiden')!.home, 'defensive');
   assert.deepEqual(CATALOGUE.filter((r) => r.ladder.order !== null).map((r) => r.ladder.order), LADDER.map((_, i) => i + 1).slice(0, LADDER.length), 'the ladder is 1..n with no gaps');
+});
+
+test('a variant row shares its body: everything but its own name, lore, level band, loot and citation is the body row\'s', () => {
+  for (const row of CATALOGUE.filter((r) => r.body)) {
+    const body = catalogueRow(row.body!)!;
+    assert.ok(body && !body.body, `${row.id}: its body ${row.body} is a body row`);
+    const strip = (r: CatalogueRow) => { const { id, body: b, name, summary, stats, loot, legend, ...rest } = r; void id; void b; void name; void summary; void loot; void legend; return { ...rest, archetype: stats.archetype }; };
+    assert.deepEqual(strip(row), strip(body), `${row.id}: shares ${row.body}'s rig, assets, clips, finishers, blood, wounds, weapon, voice`);
+  }
 });

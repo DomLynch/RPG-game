@@ -16,7 +16,7 @@
 // or shop gear. Instead an escalating PER-ITEM cooldown (tradeCooldown below): a fresh piece waits FIRST_TRADE_DELAY_S after it entered
 // its owner's hands, and after each change of hands the new owner waits COOLDOWN_STEPS_S[hops - 1], capped at the last step forever.
 // Cash-shop items, metal, shop consumables and every stackable stay untradeable.
-import { SLOT_WEIGHT } from '../../src/fight/gear-stats.ts';
+import { SLOT_WEIGHT } from '../../src/fight/server.ts';
 import { levelOf as tierLevel } from '../../src/grades.ts';
 import { isWeaponSlot } from '../../src/loot.ts';
 import {

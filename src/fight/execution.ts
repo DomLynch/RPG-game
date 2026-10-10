@@ -1,7 +1,7 @@
-import { selectFinisher, type FinisherId } from './fight/finishers.ts';
-import type { Finish } from './fight/duel.ts';
-import type { WeaponId } from './fight/moves.ts';
-import type { OpponentId } from './roster.ts';
+import { selectFinisher, type FinisherId } from './finishers.ts';
+import type { Finish } from './duel.ts';
+import type { WeaponId } from './moves.ts';
+import type { OpponentId } from '../roster.ts';
 import { HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, poseOf as hamstrungPoseOf } from './hamstrung.ts';
 
 // Execution: a paired finisher (Death_Execution on the victim, Fin_Execution on the killer), GAME_SPEC's "the one ceremonial beat: a held
@@ -38,7 +38,7 @@ export function resolveExecution(id: OpponentId, finish: Finish, weapons: readon
   return EXECUTION_VICTIMS.includes(id) && selectFinisher(finish, weapons, previous) ? 'execution' : null;
 }
 
-// poseOf (src/hamstrung.ts) with Execution's pose word added; finishers.ts's table stays as it was.
+// poseOf (src/fight/hamstrung.ts) with Execution's pose word added; finishers.ts's table stays as it was.
 export const poseOf = (id: FinisherId): ReturnType<typeof hamstrungPoseOf> | 'execution' => id === 'execution' ? 'execution' : hamstrungPoseOf(id);
 
 // One id for picture and audio, as hamstrungPick: clips not installed by the kill means the plain death for both.

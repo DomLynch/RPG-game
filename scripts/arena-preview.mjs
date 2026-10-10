@@ -23,7 +23,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, PLAY_RADIUS, CAMERA_CLAMP } from '/src/arena.ts';
 import { cameraPose } from '/src/camera.ts';
-import { createFootDust } from '/src/foot-dust.ts';
+import { createFootDust } from '/src/fight/foot-dust.ts';
 import { loadWarriors } from '/src/fight/characters.ts';
 import { actorPose, initialPractice } from '/src/fight/combat.ts';
 import { OPPONENTS } from '/src/fight/moves.ts';

@@ -19,7 +19,7 @@ const engine = walk('src/fight');
 const others = [...walk('src'), ...walk('origins')].filter((f) => !f.startsWith('src/fight/'));
 const SHARED_LINES = 10;
 // Debt, not a licence: a re-export shim another lane left (K10 step 1, e37ac574d). Its owner deletes src/hud.ts and imports src/fight/hud.ts; the next test fails when it is gone, so this list is emptied then.
-const KNOWN_SHIMS = ['src/hud.ts'];
+const KNOWN_SHIMS: string[] = [];
 test('every KNOWN_SHIMS entry still exists (delete the entry with the shim)', () => assert.deepEqual(KNOWN_SHIMS.filter((f) => !existsSync(join(root, f))), []));
 
 test('src/fight/ has files (the scan is not empty)', () => assert.ok(engine.length >= 10, `found ${engine.length}`));
@@ -65,4 +65,14 @@ test('the scan sees a copy (the check is not vacuous)', () => {
   const sample = solid(text(engine.find((f) => f.endsWith('fx.ts')) ?? engine[0]!));
   assert.ok(sample.length >= SHARED_LINES, 'fx.ts has enough solid lines to be detected as a copy');
   assert.ok(engine.some((f) => f.endsWith('/characters.ts')), 'characters.ts is an engine file whose old src/characters.ts path must stay absent');
+});
+
+// One bar drawing (Dom's universal engine, 2026-10-10): the zone page used to build its own health and stamina bars (wcBars, #wc-hp, a hard-coded style string). They are createMeters in
+// src/fight/hud.ts now; a client builds no <meter> and no bar of its own, so a second health bar cannot grow back in origins/.
+test('no origins/ file builds its own health or stamina bar: the meters are createMeters in src/fight/hud.ts', () => {
+  const own = /createElement\(\s*['"]meter['"]\s*\)|<meter\b|\bwc-(?:bars|hp|st|foe|name)\b|\bwcBars\b|\bwcFlash\b|\bupdateBars\b[^(]*=\s*\(/;
+  const files = [...others.filter((f) => f.startsWith('origins/')), 'origins/preview/index.html'];
+  assert.deepEqual(files.filter((f) => own.test(text(f))), [], 'build the bar with createMeters (src/fight/hud.ts), do not hand-roll one');
+  assert.ok(files.includes('origins/preview/main.ts') && /createMeters\(/.test(text('origins/preview/main.ts')), 'the zone page mounts the shared meters');
+  assert.ok(own.test('const bar = document.createElement(\'meter\');') && own.test("wcBars.innerHTML = '<div id=\"wc-hp\">'"), 'the pattern sees a hand-rolled bar (not vacuous)');
 });

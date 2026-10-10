@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NO_STANCE, STANCES, stanceFrom, stancePose } from '../src/stance-pose.ts';
+import { NO_STANCE, STANCES, stanceFrom, stancePose } from '../src/fight/stance-pose.ts';
 
 test('no flag, a wrong look or an unknown stance is neutral: today\'s frame', () => {
   for (const q of ['', '?stance=defensive', '?look=fatigue-read&stance=defensive', '?look=stances', '?look=stances&stance=nope']) assert.equal(stanceFrom(q), 'neutral');
