@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { SKILLS, cleanLoot, isSkillId, mergeLoot, skillOf, type Loot } from '../src/fight/loot.ts';
 import { loadProfile, saveProfile } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';

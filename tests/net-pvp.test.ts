@@ -5,7 +5,7 @@ import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/fight/ai.ts';
 import { project } from '../src/fight/combat.ts';
 import { idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../src/fight/duel.ts';
-import { Match, type PvpDriver } from '../src/match.ts';
+import { Match, type PvpDriver } from '../src/fight/match.ts';
 import { OPPONENTS, PROFILES } from '../src/fight/moves.ts';
 import { MESSAGE_CAP, PvpDuel, SILENCE, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent } from '../src/net/rollback.ts';

@@ -30,7 +30,7 @@ import { createLootPanel } from './fight/loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, equipNotice } from './match.ts';
+import { Match, equipNotice } from './fight/match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
 import { mountStancePanel, stanceFlag, type StancePanel } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
@@ -395,7 +395,7 @@ function nameOpponent() {
   element('target-health').setAttribute('aria-label', `${spoken} health`);
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
-// The match (src/match.ts): the fight's state and every start / end / reset, in explicit modes — career, practice, replay, sparring.
+// The match (src/fight/match.ts): the fight's state and every start / end / reset, in explicit modes — career, practice, replay, sparring.
 // Every fight is recorded in memory (beta plan brief 3: kill links): the seed, the warden profile and every quantized intent the
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
@@ -834,7 +834,7 @@ function settleClaim(piece: string | null): Promise<void> {
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
-// After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
+// After any start (src/fight/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 // The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
 let stancePanel: StancePanel | null = null;
 // Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.

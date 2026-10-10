@@ -10,35 +10,35 @@
 //   pvp      — a live duel against another player (src/net/pvp.ts, docs/duel-architecture.md): the page's driver steps both men and hands
 //              back this side's view; no recorder here (the rollback session keeps both streams) and nothing awarded (src/net/rewards.ts).
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
-import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './fight/combat.ts';
-import { createRecorder, quantizeIntent, type FightRecord } from './fight/record.ts';
-import { recordSpecials } from './fight/replay.ts';
-import type { PickedStance } from './fight/stance.ts';
+import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
+import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
+import { recordSpecials } from './replay.ts';
+import type { PickedStance } from './stance.ts';
 // Phase two: class B from Veteran and all boss tiers are enabled in valid PvE fights. A record carries its own flag
 // (version 21), so links made either way replay as they were fought.
 const LIVE_SPECIALS = true;
-import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './fight/moves.ts';
-import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
-import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
-import { awardMark, levelOf, marksOf, turnDial, RANK_STEPS, TITLES } from './career.ts';
-import { autopsy } from './autopsy.ts';
-import { readOpponent } from './fight/ai.ts';
-import { idleIntent, roundPose, type Duel, type DuelPose } from './fight/duel.ts';
-import { nextArena, nextOpponent, passKey, won } from './ladder.ts';
-import type { ArenaKey } from './arena-themes.ts';
-import type { RecordArena } from './fight/record.ts';
-import { defeat, type LootId } from './fight/loot.ts';
-import { stepSparring, type SparringKit } from './sparring.ts';
-import { createFirstLoss, type LessonId } from './first-loss.ts';
-import { createTutorial, type TutorialStep } from './tutorial.ts';
-import type { Profile, StoragePort } from './profile.ts';
-import { underRecord } from './fight/detmath.ts';
-import { FIRST_STAB_VERSION, STAB_ON, setStab } from './fight/stab-rule.ts';
-import { FIRST_LATE_NOTICE_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor, setLateNotice, setPlayScale } from './fight/play-radius.ts';
-import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './fight/sparring-special-runtime.ts';
-import { bossSpecialFor } from './fight/special-identity.ts';
-import { classSpecialFor } from './fight/class-special-identity.ts';
-import type { SpecialTest } from './fight/special-look.ts';
+import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
+import { recordPractice, recordRematch, saveTrial, type Trial } from '../trial.ts';
+import { recordResult, saveScorecard, type Scorecard } from '../scorecard.ts';
+import { awardMark, levelOf, marksOf, turnDial, RANK_STEPS, TITLES } from '../career.ts';
+import { autopsy } from '../autopsy.ts';
+import { readOpponent } from './ai.ts';
+import { idleIntent, roundPose, type Duel, type DuelPose } from './duel.ts';
+import { nextArena, nextOpponent, passKey, won } from '../ladder.ts';
+import type { ArenaKey } from '../arena-themes.ts';
+import type { RecordArena } from './record.ts';
+import { defeat, type LootId } from './loot.ts';
+import { stepSparring, type SparringKit } from '../sparring.ts';
+import { createFirstLoss, type LessonId } from '../first-loss.ts';
+import { createTutorial, type TutorialStep } from '../tutorial.ts';
+import type { Profile, StoragePort } from '../profile.ts';
+import { underRecord } from './detmath.ts';
+import { FIRST_STAB_VERSION, STAB_ON, setStab } from './stab-rule.ts';
+import { FIRST_LATE_NOTICE_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor, setLateNotice, setPlayScale } from './play-radius.ts';
+import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
+import { bossSpecialFor } from './special-identity.ts';
+import { classSpecialFor } from './class-special-identity.ts';
+import type { SpecialTest } from './special-look.ts';
 
 const CLASS_B_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');   // rank 4, level 16 in the canonical career ladder
 

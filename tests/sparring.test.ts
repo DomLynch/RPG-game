@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { initialAi } from '../src/fight/ai.ts';
 import { project } from '../src/fight/combat.ts';
-import { Match, PRESET_LEVEL } from '../src/match.ts';
+import { Match, PRESET_LEVEL } from '../src/fight/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
