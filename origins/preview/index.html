@@ -20,7 +20,8 @@
     [hidden] { display: none !important; }   /* #shade / #prompt set display, which would override the hidden attribute */
     .glass { border: 1px solid var(--c-brass); background: var(--c-glass); color: var(--c-ink); }
     #hud { position: fixed; z-index: 1; left: 0; right: calc(var(--tap) * 2 + var(--gap-m)); top: env(safe-area-inset-top); padding: var(--gap-s) var(--gap-m); font: 600 var(--fs-m)/1.3 var(--f-serif); color: var(--c-ink); text-shadow: 0 1px 3px var(--c-shadow); pointer-events: none; }
-    #hud small { display: block; font-weight: 400; opacity: 0.8; }
+    #hud small { display: block; width: fit-content; max-width: 100%; font-weight: 400; opacity: 0.8; }
+    #hud > span { width: fit-content; max-width: 100%; }
     body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
     #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
@@ -69,7 +70,9 @@
        from the right edge to sit clear of the SKILL column (which rises to the top on a short screen). Measured by scripts/landscape-check.mjs in portrait, landscape (812x375, 844x340) and iPad. */
     @media (orientation: landscape) and (max-height: 520px) {
       #hud { right: auto; width: min(40vw, 330px); padding: 4px max(var(--gap-m), env(safe-area-inset-left)); font-size: var(--fs-s); line-height: 1.2; }
-      #hud small { display: inline; margin-left: 8px; }
+      #hud { display: flex; flex-wrap: wrap; column-gap: 8px; align-items: baseline; }
+      #hud small { display: block; }
+      #creature-card { flex: 0 0 100%; }
       #hud #hint, #hud .walk-only { display: none; }
       #creature-card { margin-top: 3px; padding: 2px var(--gap-s); font-size: var(--fs-s); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #duel.world header { right: calc(max(14px, env(safe-area-inset-right)) + 100px); }
