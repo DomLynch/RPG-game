@@ -46,6 +46,7 @@ cp -R "$here/src" "$here/origins" "$dest/"
 find "$dest/origins" \( -name '*.test.ts' -o -name 'README.md' \) -delete
 install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer.mjs"
 install -m 0644 "$here/package.json" "$dest/package.json"
+prev=$(basename "$(readlink -f "$opt/current" 2>/dev/null || true)")   # the rollback target, kept by the prune below
 ln -sfn "$dest" "$opt/current"
 install -d -m 0700 "$r/etc/frankendom"
 install -d -m 0700 "$backup"   # before any branch: the nginx -t failure path writes its temp file here even on a re-install where the include is already present
@@ -76,3 +77,5 @@ if [ -s "$venv" ] && grep -q '^DATABASE_URL=' "$venv" && [ -s "$env" ] && grep -
 else
   echo "install-origins-writer: $revision installed, route proxied, service NOT started: needs DATABASE_URL in $venv and SUPABASE_URL + SUPABASE_ANON_KEY in $env"
 fi
+# Old installs pile up at 400 MB each (33 dirs = 12 GB on 2026-10-10): keep current, the one before it and the 3 newest others. Never fails the install.
+bash "$here/ops/prune-origins-installs.sh" "$opt" 3 "$prev" || echo "install-origins-writer: prune failed (exit $?), installs left as they are" >&2
