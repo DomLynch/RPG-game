@@ -1,4 +1,4 @@
-import type { StoragePort } from './profile.ts';
+import type { StoragePort } from './core/profile.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
 // Beta scorecard (owner 2026-09-20): fights, wins and losses per opponent, saved on this device. "Left" counts inside losses — a

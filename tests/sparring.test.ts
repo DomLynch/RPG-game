@@ -9,7 +9,7 @@ import { initialAi } from '../src/fight/ai.ts';
 import { project } from '../src/fight/combat.ts';
 import { Match, PRESET_LEVEL } from '../src/fight/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { SPARRING_DUMMY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, disarm, sparringLink, sparringParam, stepSparring, type SparringKit } from '../src/sparring.ts';
@@ -79,7 +79,7 @@ test('sparring: the link carries a checked kit; any unknown value refuses it', (
 });
 
 test('sparring: admin-only behind one flag; the Finisher pick sits in the Sparring tab, gated the same way', () => {
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), account = readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), account = readFileSync(new URL('../src/core/account.ts', import.meta.url), 'utf8');
   assert.equal(SPARRING_FOR_ALL, false, 'closed to players until the flag flips');
   // Options → admin Sparring, Daily removed (Dom 2026-09-29): the TAB is the admin-only element; its pane holds the row and Finisher, no switch.
   assert.match(html, /<label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring<\/label>/, 'the Sparring tab ships hidden');

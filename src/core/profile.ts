@@ -1,6 +1,6 @@
-import { isOpponentId, type OpponentId } from './roster.ts';
-import { isRotationArena, type ArenaKey } from './arena-themes.ts';
-import { cleanLoot, keepsLoot, recoverPack, type Loot } from './fight/loot.ts';
+import { isOpponentId, type OpponentId } from '../roster.ts';
+import { isRotationArena, type ArenaKey } from '../arena-themes.ts';
+import { cleanLoot, keepsLoot, recoverPack, type Loot } from './loot.ts';
 export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; pass?: OpponentId[]; arena?: ArenaKey; arenaPass?: ArenaKey[]; dial?: { level: number; losses: number; wins: number }; career?: { victoryMarks: number }; loot?: Loot }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
 export type StoragePort = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'frankendom.fighter.v1';
@@ -23,7 +23,7 @@ export function loadProfile(storage: StoragePort, createId: () => string): { pro
       const arenaPass: ArenaKey[] = Array.isArray(value.arenaPass) ? [...new Set((value.arenaPass as unknown[]).filter(isRotationArena))] : [];
       // The difficulty dial (career.ts turnDial): this device's; anything unreadable is no dial (the rank's level).
       const d = value.dial, dial = d && [d.level, d.losses, d.wins].every((n) => Number.isSafeInteger(n) && n >= 0) ? { level: d.level, losses: d.losses, wins: d.wins } : undefined;
-      const loot = recoverPack(cleanLoot(value.loot));   // owned pieces, the worn set and refused offers (src/fight/loot.ts), kept only when there is something to keep
+      const loot = recoverPack(cleanLoot(value.loot));   // owned pieces, the worn set and refused offers (src/core/loot.ts), kept only when there is something to keep
       // A guest who has only ever said Leave it has something to keep: `declined` alone must survive a refresh (loot-smoke-check (3)).
       return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(pass.length ? { pass } : {}), ...(arena ? { arena } : {}), ...(arenaPass.length ? { arenaPass } : {}), ...(dial ? { dial } : {}), ...(career ? { career } : {}), ...(keepsLoot(loot) ? { loot } : {}) }, returning: true };
     }

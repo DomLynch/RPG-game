@@ -16,7 +16,7 @@ import * as sim from '../src/fight/sim.ts';
 import * as combat from '../src/fight/combat.ts';
 import * as moves from '../src/fight/moves.ts';
 const { MOVES } = moves;
-import * as profile from '../src/profile.ts';
+import * as profile from '../src/core/profile.ts';
 import * as ladder from '../src/ladder.ts';
 import * as arenaThemes from '../src/arena-themes.ts';
 import * as roster from '../src/roster.ts';
@@ -26,9 +26,9 @@ import * as hamstrung from '../src/fight/hamstrung.ts';   // the pure Hamstrung 
 import * as trial from '../src/trial.ts';
 import * as record from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
-import * as loot from '../src/fight/loot.ts';
-import * as grades from '../src/grades.ts';
-import * as lootPanel from '../src/fight/loot-panel.ts';
+import * as loot from '../src/core/loot.ts';
+import * as grades from '../src/core/grades.ts';
+import * as lootPanel from '../src/core/loot-panel.ts';
 import * as quality from '../src/fight/quality.ts';   // ?dpr= parsing (urlDpr): pure, the real module
 import * as perfBeacon from '../src/perf-beacon.ts';   // the per-fight beacon (#1035): pure payload + send, the real module
 import * as rankLook from '../src/fight/rank-look.ts';   // the rematch's rank-look reload decision (#961): pure, the real module   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
@@ -50,8 +50,8 @@ import * as classSpecialIdentity from '../src/fight/class-special-identity.ts';
 const clipModule: Record<string, unknown> = { ...clip };
 let shareNavigator: unknown;   // main.ts reads `navigator` for the share sheet; undefined (no share sheet) unless a test sets one
 const shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
-import { session } from '../src/session.ts';
-import * as lootClaims from '../src/fight/loot-claims.ts';
+import { session } from '../src/core/session.ts';
+import * as lootClaims from '../src/core/loot-claims.ts';
 import * as fightResults from '../src/fight-results.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
@@ -67,9 +67,9 @@ import * as tutorialUi from '../src/fight/tutorial-ui.ts';
 import * as match from '../src/fight/match.ts';
 import * as stancePanel from '../src/fight/stance-panel.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
-import * as gearLedger from '../src/fight/gear-ledger.ts';
-import * as gearServer from '../src/fight/gear-server.ts';
-import * as fightOpen from '../src/fight/open.ts';
+import * as gearLedger from '../src/core/gear-ledger.ts';
+import * as gearServer from '../src/core/gear-server.ts';
+import * as fightOpen from '../src/core/open.ts';
 import * as coachUi from '../src/fight/coach-ui.ts';
 import * as input from '../src/fight/input.ts';
 import * as legends from '../src/legends.ts';
@@ -79,7 +79,7 @@ import * as legends from '../src/legends.ts';
 // boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
 const unstubbed = new Set<string>();
 const transpile = (file: string) => ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-const code = transpile('../src/main.ts'), gearSheetCode = transpile('../src/fight/gear-sheet.ts');   // main.ts imports the gear sheet's wiring: it runs in the same fake page as main, so its document is the fake one
+const code = transpile('../src/main.ts'), gearSheetCode = transpile('../src/core/gear-sheet.ts');   // main.ts imports the gear sheet's wiring: it runs in the same fake page as main, so its document is the fake one
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];

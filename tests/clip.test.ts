@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { CLIP_FINISH_CAP, CLIP_HEIGHT, CLIP_LEAD, CLIP_SECONDS, CLIP_TAIL, CLIP_WIDTH, clipEnded, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';

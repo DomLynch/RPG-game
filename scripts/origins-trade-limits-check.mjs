@@ -8,7 +8,7 @@ import process from 'node:process';
 import console from 'node:console';
 
 const UP = '202610070005_origins_trade_limits.sql', UP6 = '202610070008_origins_trade_reversal.sql';
-import { TIERS } from '../src/grades.ts';
+import { TIERS } from '../src/core/server.ts';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;

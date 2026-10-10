@@ -6,7 +6,7 @@
 //
 //   node scripts/split-loot.mjs        re-cut every opponent after loot.glb changes (tests/grade-materials.test.ts fails until you do)
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { LOOT, isWeaponLoot } from '../src/fight/loot.ts';
+import { LOOT, isWeaponLoot } from '../src/core/server.ts';
 
 // The armour an opponent wears and offers: his LOOT ids minus the weapon (a weapon is an equip file, never a loot.glb draw).
 export const carriersOf = (opponent) => (LOOT[opponent] ?? []).filter((id) => !isWeaponLoot(id));

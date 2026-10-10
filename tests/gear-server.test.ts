@@ -1,9 +1,9 @@
-// The engine's gear screen reads and writes the server's ledger when signed in, and falls back to the local one otherwise (src/fight/gear-server.ts).
+// The engine's gear screen reads and writes the server's ledger when signed in, and falls back to the local one otherwise (src/core/gear-server.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServerGear } from '../src/fight/gear-server.ts';
-import type { Loot } from '../src/fight/loot.ts';
-import type { GearPiece, GearView } from '../src/fight/gear-ledger.ts';
+import { createServerGear } from '../src/core/gear-server.ts';
+import type { Loot } from '../src/core/loot.ts';
+import type { GearPiece, GearView } from '../src/core/gear-ledger.ts';
 
 const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: null, version: 1 });
 const dropped: GearView = { pieces: [piece('i1', 'goblin.Helmet', 'pack')], worn: {}, packSize: 8, bankSize: 100 };

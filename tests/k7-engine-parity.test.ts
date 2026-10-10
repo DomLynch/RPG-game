@@ -32,17 +32,9 @@ export const ROWS: Record<string, readonly [number, Own]> = {
 };
 // ACCOUNT / ITEM-LEDGER UI (not combat), by EXACT path (Lead 2026-10-09, #2016 HOLD): the gear screen and the writer call talk to the account and the item ledger, not to the fight. Each line is one file -> one module,
 // never a folder or a module wildcard; the post-K7 ledger unification revisits them. Combat stays strict: nothing from a combat module outside src/fight.
-const LEDGER_UI: readonly string[] = [
-  'origins/preview/gear-mount.ts -> gear-server',
-  'origins/preview/gear-mount.ts -> gear-sheet',
-  'origins/preview/gear-stage.ts -> gear-room',
-  'origins/preview/encounter-net.ts -> writer-call',
-  'origins/preview/save.ts -> writer-call',
-  'origins/preview/main.ts -> open',   // src/fight/open.ts: the one door to the writer's `open` (the account's first character), #2023
-  'origins/preview/save.ts -> open',
-];
+const LEDGER_UI: readonly string[] = [];   // EMPTY since CORE 1a (the account/ledger modules live in src/core, behind src/core/index.ts and server.ts; tests/core-boundary.test.ts pins them): nothing may be added back
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
-const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'grades', 'loot', 'profile', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
+const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
 const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts)
 
@@ -57,7 +49,7 @@ const ownCreatureTiming = (text: string): boolean => /\b\w*(lunge|pulse|hurt|fal
 
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(join(dir, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.(ts|mjs)$/.test(e.name) ? [join(dir, e.name)] : []);
-const moduleOf = (spec: string): string | null => /(^|\/)src\//.test(spec) ? spec.replace(/\?.*$/, '').replace(/\.[a-z]+$/, '').split('/').pop()! : null;
+const moduleOf = (spec: string): string | null => /(^|\/)src\//.test(spec) && !/(^|\/)src\/core\//.test(spec) ? spec.replace(/\?.*$/, '').replace(/\.[a-z]+$/, '').split('/').pop()! : null;
 const SERVER_DOOR = /(^|\/)src\/fight\/server\.ts$/;   // the node-safe door: server-run code only (renderer-free re-exports)
 const fromFightIndex = (spec: string, file = ''): boolean => /(^|\/)src\/fight\/index\.ts$/.test(spec) || (SERVER_DOOR.test(spec) && SERVER_DIRS.some((d) => file.startsWith(d)));
 

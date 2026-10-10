@@ -6,7 +6,7 @@ import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { actorPose, initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { stepDuel, withSpecials } from '../src/fight/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam, specialStage } from '../src/fight/special-look.ts';

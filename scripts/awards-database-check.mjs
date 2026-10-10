@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { idleIntent } from '../src/fight/duel.ts';
-import { levelOf, tierAt } from '../src/grades.ts';
+import { levelOf, tierAt } from '../src/core/server.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { gzipSync } from 'node:zlib';
 import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/fight/record.ts';

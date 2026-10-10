@@ -1,14 +1,14 @@
-import { SPARRING_FOR_ALL, sparringAsked } from './sparring.ts';
+import { SPARRING_FOR_ALL, sparringAsked } from '../sparring.ts';
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.ts';
 import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, readStanding, saveFailure, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { captureException } from '@sentry/browser';
-import { marksOf } from './career.ts';
-import { keepsLoot, mergeLoot } from './fight/loot.ts';
+import { marksOf } from '../career.ts';
+import { keepsLoot, mergeLoot } from './loot.ts';
 import { session } from './session.ts';
-import { timedSignal } from './timed-signal.ts';
-import { flushThenStanding, saveStanding } from './fight/loot-claims.ts';
-import { takeZone1 } from './zone1-hop.ts';
+import { timedSignal } from '../timed-signal.ts';
+import { flushThenStanding, saveStanding } from './loot-claims.ts';
+import { takeZone1 } from '../zone1-hop.ts';
 
 export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;

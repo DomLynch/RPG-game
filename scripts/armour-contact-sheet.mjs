@@ -9,8 +9,8 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { preview } from 'vite';
-import { LOOT, LOOT_SLOTS, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/fight/loot.ts';
-import { TIERS } from '../src/grades.ts';
+import { LOOT, LOOT_SLOTS, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/core/server.ts';
+import { TIERS } from '../src/core/server.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'audit'), only = arg('only', 'both');

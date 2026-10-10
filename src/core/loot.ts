@@ -4,8 +4,8 @@
 // is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from '../career.ts';
-import type { Tier } from '../grades.ts';
-import { PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
+import type { Tier } from './grades.ts';
+import { PLAYER_WEAPONS, type SkillId, type WeaponId } from '../fight/moves.ts';
 import { ROSTER, isOpponentId, type OpponentId } from '../roster.ts';
 import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey, rungOf } from '../legends.ts';
 

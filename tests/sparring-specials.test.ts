@@ -6,10 +6,10 @@ import { SPECIAL_LABELS, SPECIAL_BANDS, specialBand, sparringSpecialOptions, def
 import { sparringLink } from '../src/sparring.ts';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES, opponentAt, SKILL_MOVE } from '../src/fight/moves.ts';
-import { skillOf } from '../src/fight/loot.ts';
+import { skillOf } from '../src/core/loot.ts';
 import { specialOf } from '../src/fight/moves.ts';
 import { idleIntent } from '../src/fight/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 

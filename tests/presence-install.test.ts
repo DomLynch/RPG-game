@@ -96,7 +96,7 @@ test('install: the first install needs the public Supabase values, writes a 0600
     const r = s.run(['rev1'], PUBLIC);
     assert.equal(r.status, 0, r.stderr);
     assert.ok(existsSync(join(s.root, 'opt/frankendom-presence/rev1/origins/presence/main.ts')), 'the code is under the revision');
-    assert.ok(existsSync(join(s.root, 'opt/frankendom-presence/rev1/src/fight/loot.ts')), 'with the src files it imports');
+    assert.ok(existsSync(join(s.root, 'opt/frankendom-presence/rev1/src/core/loot.ts')), 'with the src files it imports');
     assert.equal(readlinkSync(join(s.root, 'opt/frankendom-presence/current')), join(s.root, 'opt/frankendom-presence/rev1'), 'current points at it');
     assert.equal((statSync(join(s.root, 'etc/frankendom/presence.env')).mode & 0o777), 0o600, 'the env file is root-only');
     const env = s.read('etc/frankendom/presence.env');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanName, loadProfile, saveProfile, type StoragePort } from '../src/profile.ts';
+import { cleanName, loadProfile, saveProfile, type StoragePort } from '../src/core/profile.ts';
 
 test('guest identity and name survive loading a new session', () => {
   let stored: string | null = null;

@@ -11,8 +11,8 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { session } from './session.ts';
-import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './fight/loot-claims.ts';
+import { session } from './core/index.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
 import './monitoring.ts';
@@ -20,13 +20,13 @@ import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
-import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
+import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
-import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
+import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
-import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './fight/loot.ts';
-import { createLootPanel } from './fight/loot-panel.ts';
+import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './core/index.ts';
+import { createLootPanel } from './core/index.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
@@ -45,10 +45,10 @@ import { classSpecialFor } from './fight/class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './fight/scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './fight/special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './fight/sparring-specials.ts';
-import { createGearSheet, lootThumb } from './fight/gear-sheet.ts';
-import { wornIdsOf, wornTiersOf } from './fight/gear-ledger.ts';
-import { createServerGear } from './fight/gear-server.ts';
-import { openCharacter } from './fight/open.ts';
+import { createGearSheet, lootThumb } from './core/index.ts';
+import { wornIdsOf, wornTiersOf } from './core/index.ts';
+import { createServerGear } from './core/index.ts';
+import { openCharacter } from './core/index.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './fight/sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
@@ -130,7 +130,7 @@ function renderFightRank() {
   if (lookTier) { fightRank.setAttribute('aria-label', `${lookTier} · test look`); fightRank.replaceChildren(Object.assign(document.createElement('span'), { className: 'rank-now', textContent: `${lookTier} · test look` })); return; }
   renderRank(fightRank, rankFor(watchedLevel === null ? careerMarks() : watchedLevel - 1));   // a kill link shows the fight's rank, not the viewer's (Lead 2026-09-30, B3)
 }
-// The kill screen's Take-one panel (src/fight/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
+// The kill screen's Take-one panel (src/core/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
 // A piece's kill-screen thumbnail (scripts/loot-layers.mjs); a weapon has none until its equip file renders, so its tile is its name.
@@ -209,7 +209,7 @@ function offerLoot(healthLeft: number) {
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
-// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/fight/loot.ts); the scene wears it (view.wear), the
+// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/core/loot.ts); the scene wears it (view.wear), the
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 // Every surface names the legend (Dom 2026-09-28): an owned piece by the legend of the rung it was taken at (loot.ts ownedName, from its
@@ -773,7 +773,7 @@ function openJournal() {
   void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
-void openCharacter({ storage, search: location.search });   // the signed-in account's character exists from the first page, whichever door it came through (src/fight/open.ts; the gear sheet reads the same answer)
+void openCharacter({ storage, search: location.search });   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
@@ -1612,7 +1612,7 @@ function frame(now: number) {
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           renderFightRank();
           // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
-          // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/fight/loot.ts Provenance).
+          // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/core/loot.ts Provenance).
           if (ended.rewarded && ended.won) { pendingLoot = Math.max(0, Math.round(practice.playerHealth)); persist(); }   // offered once the finisher has finished playing (updateHud)
           if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
         }

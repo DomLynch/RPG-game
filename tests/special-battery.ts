@@ -4,7 +4,7 @@
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/fight/duel.ts';
 import { RULES, opponentAt, profileAt, type Opponent } from '../src/fight/moves.ts';
-import { skillOf } from '../src/fight/loot.ts';
+import { skillOf } from '../src/core/loot.ts';
 import { STRATEGIES, act, arena, gap, idle, k, P, ready, W } from './strategies.ts';
 
 export const SPECIAL = RULES.special;

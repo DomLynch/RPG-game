@@ -1,8 +1,8 @@
 // The one door through which a page asks the Origins writer to `open` the signed-in account, and so the one place a character comes to exist (the writer's `open` makes the account's
-// first character; Lead's rule 2026-10-09: one universal "your character exists"). Every entry (the Pit src/main.ts, every zone page origins/preview/main.ts, the gear sheet src/fight/gear-server.ts)
+// first character; Lead's rule 2026-10-09: one universal "your character exists"). Every entry (the Pit src/main.ts, every zone page origins/preview/main.ts, the gear sheet src/core/gear-server.ts)
 // calls this and nothing else calls `open` (tests/open-single-path.test.ts). One request per page: the answer is shared by every caller, and kept per storage (a page has one).
 // A failure is an answer, never a throw, and is not kept: a later caller (the gear sheet, a token that has since been renewed) asks again.
-import { call, storedToken, writerBase, type Offline } from '../writer-call.ts';
+import { call, storedToken, writerBase, type Offline } from './writer-call.ts';
 
 export type OpenDeps = { storage: { getItem(key: string): string | null } | null; search: string; now?: () => number; fetch?: typeof fetch; timeoutMs?: number; retries?: number; retryMs?: number };
 export type OpenReply = { result: unknown };   // the writer's reply, as sent: each caller maps what it needs (the zone page its career, the gear sheet the character id)

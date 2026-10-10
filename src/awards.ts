@@ -3,17 +3,17 @@
 // never the device's cached marks or loot. Pure: the same claim and standing give the same award on every sweep.
 //
 // SCOPE.md Loot v2 (Strategy, 2026-09-23): the player takes ONE piece of his choice, armour or weapon. The claim names it; the server only
-// checks it — the piece must be in the opponent's kit at the tier he was met at (the server's marks before the win, src/grades.ts tierAt).
+// checks it — the piece must be in the opponent's kit at the tier he was met at (the server's marks before the win, src/core/grades.ts tierAt).
 // A claim with no piece (the take declined) is still a mark.
 import { DIAL_TRAIL, FIRST_FIFTY_VERSION, OLD_MAX_LEVEL, levelOf as rankLevel } from './career.ts';
-import { TIERS, levelOf, tierAt, type Tier } from './grades.ts';
-import { LOOT, WORN_FROM, isLootId, type LootId, type WornFrom } from './fight/loot.ts';
+import { TIERS, levelOf, tierAt, type Tier } from './core/grades.ts';
+import { LOOT, WORN_FROM, isLootId, type LootId, type WornFrom } from './core/loot.ts';
 import type { OpponentId } from './roster.ts';
 
 export type Claim = { opponent: string; piece: string | null };
 export type Standing = { marks: number; owned: readonly string[] };
 export type Award = { piece: string; tier: number };
-// The kit floor is src/fight/loot.ts WORN_FROM (empty in beta: every piece worn from Recruit). `wornFrom` is only for tests to inject a floor.
+// The kit floor is src/core/loot.ts WORN_FROM (empty in beta: every piece worn from Recruit). `wornFrom` is only for tests to inject a floor.
 
 export const kitAt = (opponent: string, tier: Tier, wornFrom: WornFrom = WORN_FROM): readonly LootId[] =>
   (LOOT[opponent as OpponentId] ?? []).filter(id => levelOf(wornFrom[id] ?? TIERS[0]) <= levelOf(tier));
