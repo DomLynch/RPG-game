@@ -143,3 +143,30 @@ test('the node-safe door src/fight/server.ts is for server-run code only, and it
   assert.notDeepEqual(mutant("export * from './world.ts';"), [], 'the check fails when the door re-exports the world loop');
   assert.notDeepEqual(mutant("import * as T from 'three';"), [], 'the check fails when the door pulls three');
 });
+
+// Strategy's donor verdict (2026-10-10): MAX_ATTACKERS is never exceeded, and no other cap can alias it. The cap lives in src/fight/attackers.ts (a leaf, so the node-safe door's closure does not pull the world loop).
+test('MAX_ATTACKERS is never exceeded: N creatures on one hero put at most MAX_ATTACKERS duels on him at any tick', async () => {
+  const { MAX_ATTACKERS } = await import('../src/fight/attackers.ts');
+  const W = await import('../src/fight/world.ts');
+  assert.equal(W.MAX_ATTACKERS, MAX_ATTACKERS, 'world.ts re-exports the one cap');
+  for (const n of [4, 5, 7]) {
+    const foes = Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2, r = 5 + (i % 2); return W.creature(`c${i}`, 'wolf', Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, 3); });
+    const hero = W.player('hero', 0, 0, 0); hero.health = hero.maxHealth = 1e6;
+    let w = W.newWorld([hero, ...foes]), peak = 0;
+    for (let k = 0; k < 60 * 30; k++) {
+      w = W.stepCombat(w, { hero: { x: 0, z: 0, attack: k % 25 === 0 ? 'light' : null } }, 1 / 60).world;
+      peak = Math.max(peak, W.pairs(w).filter((p) => p.player === 'hero').length);
+      assert.ok(peak <= MAX_ATTACKERS, `${n} creatures: ${peak} duels on one hero at tick ${k}`);
+    }
+    assert.equal(peak, MAX_ATTACKERS, `${n} creatures do reach the cap (the test is not vacuous)`);
+  }
+});
+
+test('no second attacker cap constant exists outside src/fight/attackers.ts (a numeric constant named *ATTACKER* or *TOKEN*)', () => {
+  const CAP = /\b(?:const|let|var)\s+([A-Za-z_]*(?:ATTACKER|TOKEN)S?[A-Za-z_]*)\s*(?::[^=\n]+)?=\s*-?\d/g;
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(join(dir, e.name))) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.ts$/.test(e.name) ? [join(dir, e.name)] : []);
+  const hits = (read: (f: string) => string) => ['src', 'origins'].flatMap(walk).flatMap((f) => [...read(f).matchAll(CAP)].map((m) => `${f}: ${m[1]}`)).filter((h) => !h.startsWith('src/fight/attackers.ts'));
+  assert.deepEqual(hits((f) => readFileSync(f, 'utf8')), [], 'one attacker cap: src/fight/attackers.ts MAX_ATTACKERS');
+  assert.notDeepEqual(hits((f) => readFileSync(f, 'utf8') + (f === 'src/fight/pack.ts' ? '\nexport const TOKENS = 3;\n' : '')), [], 'the check fails when pack.ts declares its own TOKENS');
+  assert.notDeepEqual(hits((f) => readFileSync(f, 'utf8') + (f === 'src/fight/ai.ts' ? '\nconst MAX_ATTACKERS_2: number = 4;\n' : '')), [], 'the check fails on a typed, renamed cap');
+});
