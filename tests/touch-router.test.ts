@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { INTERACTIVE_SELECTORS, getTouchOwner, isInteractiveHud, type TouchTarget } from '../src/touch-router.ts';
+import { INTERACTIVE_SELECTORS, getTouchOwner, isInteractiveHud, type TouchTarget } from '../src/fight/touch-router.ts';
 
 // A fake element: it matches the selectors it (or an ancestor) carries.
 const el = (...selectors: string[]): TouchTarget => ({ closest: (s: string) => (selectors.includes(s) ? el(...selectors) : null) });
@@ -34,6 +34,6 @@ test('main.ts keeps the zoom guards and routes only the camera drag; input.ts is
 });
 
 test('the file header keeps the MIT notice and the @f46f30f provenance', () => {
-  const head = readFileSync(new URL('../src/touch-router.ts', import.meta.url), 'utf8').slice(0, 1200);
+  const head = readFileSync(new URL('../src/fight/touch-router.ts', import.meta.url), 'utf8').slice(0, 1200);
   assert.match(head, /MIT/); assert.match(head, /f46f30f/); assert.match(head, /Levy Street/);
 });

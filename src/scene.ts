@@ -11,13 +11,13 @@ import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdenti
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './fight/characters.ts';
-import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
-import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
+import { shieldFor, SHIPPING_SHIELDS } from './fight/shields.ts';
+import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './fight/weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
-import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
+import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './fight/rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
-import { kitWorn } from './loot.ts';
-import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
+import { kitWorn } from './fight/loot.ts';
+import { standoffClock, standoffFlag, standoffPose } from './fight/standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './fight/beast-scale.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
@@ -28,13 +28,13 @@ import { createHamstrungAssets } from './fight/hamstrung-assets.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
 import { buildArena, type Arena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
-import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
+import { nightBronzeApplies, toneNightBronze } from './fight/night-armour.ts';
 import { createFootDust, dustToneFor } from './fight/foot-dust.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './fight/finisher-blood.ts';
-import { phoneTier, pixelCap } from './quality.ts';
+import { phoneTier, pixelCap } from './fight/quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fight/fatigue-tune.ts';
 import { fatigueReadFrom } from './fight/fatigue-read.ts';
@@ -58,7 +58,7 @@ import './fight/signature-nightborn.ts';   // Nightborn A: Blood Recall
 import './fight/signature-goblin.ts';   // Goblin A: Hooked Wound
 import './fight/signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 import './fight/signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
-import { settleWithin } from './warm-gate.ts';
+import { settleWithin } from './fight/warm-gate.ts';
 const COMPILE_BOUND_MS = 6000;   // a compile (warm-up only) that has not settled by then is given up on: a lost context never settles it, and the walk must not wait
 const SIDES = [0, 1] as const;   // the two fighters, for the per-frame loops: one shared tuple, not a new array every frame (armfeel is on for everyone now)
 
@@ -525,7 +525,7 @@ export function createScene(
     restartStandoff() { standoff.restart(); },   // main.ts nextFight: the rematch plays the draw-in again (a no-op with ?standoff=0)
     opponentRoot: () => warriors?.opponent.anchor ?? null,   // the foe rig's root (undefined-safe): the Origins preview dresses a creature's cloth on it; the sim never reads it
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
-    // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
+    // The player's worn loot by id (src/fight/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the

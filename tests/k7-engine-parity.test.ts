@@ -49,19 +49,8 @@ const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', '
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
   "10 | P1/P2 | origins/preview/pit-duel.ts -> scene",
-  "12 | P1/P2 | origins/preview/creature-voice.ts -> creature",
-  "12 | P1/P2 | origins/preview/creature-voice.ts -> feedback",
-  "12 | P1/P2 | origins/preview/main.ts -> creature",
-  "12 | P1/P2 | origins/preview/pit-duel.ts -> creature",
-  "12 | P1/P2 | origins/preview/pit-duel.ts -> feedback",
-  "14 | P1/P2 | origins/preview/pit-duel.ts -> hud",
-  "16 | P1/P2 | origins/preview/main.ts -> quality",
-  "16 | P1/P2 | origins/preview/main.ts -> warm-gate",
-  "16 | P1/P2 | origins/preview/mobs-view.ts -> quality",
-  "16 | P1/P2 | origins/preview/mobs-view.ts -> warm-gate",
 ];
 const KNOWN_COPIES: readonly string[] = [
-  "14 | P1/P2 | origins/preview/main.ts defines updateBars",
 ];
 
 // Row 7: a zone draws a creature from the engine's pose (actorPose of the duel, `fall` progress); it must not keep its own windup / hit-pulse / fall timers (src/fight/world-combat.ts owns hurtT, fallT, windupT, swingT).

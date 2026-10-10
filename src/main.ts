@@ -7,12 +7,12 @@ import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './fight/defence-grade.ts';
 import { kickCloseFlag } from './fight/kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fight/fatigue-preview.ts';
-import { headlineFlag, victoryHeadline } from './victory-headline.ts';
+import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './fight/loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
 import './monitoring.ts';
@@ -23,16 +23,16 @@ import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
-import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
+import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
-import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './loot.ts';
-import { createLootPanel } from './loot-panel.ts';
+import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './fight/loot.ts';
+import { createLootPanel } from './fight/loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
-import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts';
-import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
+import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
+import { mountStancePanel, stanceFlag, type StancePanel } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
@@ -45,23 +45,23 @@ import { classSpecialFor } from './fight/class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './fight/special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
-import { createGearSheet, lootThumb } from './gear-sheet.ts';
-import { wornIdsOf, wornTiersOf } from './gear-ledger.ts';
-import { createServerGear } from './gear-server.ts';
+import { createGearSheet, lootThumb } from './fight/gear-sheet.ts';
+import { wornIdsOf, wornTiersOf } from './fight/gear-ledger.ts';
+import { createServerGear } from './fight/gear-server.ts';
 import { openCharacter } from './fight/open.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
+import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
 import { HEAVY_MOVES, createHud } from './fight/hud.ts';
-import { getTouchOwner, type TouchTarget } from './touch-router.ts';
+import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
-import { createTutorialUi } from './tutorial-ui.ts';
+import { createTutorialUi } from './fight/tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './fight/hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './fight/detmath.ts';
@@ -130,7 +130,7 @@ function renderFightRank() {
   if (lookTier) { fightRank.setAttribute('aria-label', `${lookTier} · test look`); fightRank.replaceChildren(Object.assign(document.createElement('span'), { className: 'rank-now', textContent: `${lookTier} · test look` })); return; }
   renderRank(fightRank, rankFor(watchedLevel === null ? careerMarks() : watchedLevel - 1));   // a kill link shows the fight's rank, not the viewer's (Lead 2026-09-30, B3)
 }
-// The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
+// The kill screen's Take-one panel (src/fight/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
 // A piece's kill-screen thumbnail (scripts/loot-layers.mjs); a weapon has none until its equip file renders, so its tile is its name.
@@ -209,7 +209,7 @@ function offerLoot(healthLeft: number) {
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
-// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
+// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/fight/loot.ts); the scene wears it (view.wear), the
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 // Every surface names the legend (Dom 2026-09-28): an owned piece by the legend of the rung it was taken at (loot.ts ownedName, from its
@@ -1612,7 +1612,7 @@ function frame(now: number) {
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           renderFightRank();
           // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
-          // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
+          // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/fight/loot.ts Provenance).
           if (ended.rewarded && ended.won) { pendingLoot = Math.max(0, Math.round(practice.playerHealth)); persist(); }   // offered once the finisher has finished playing (updateHud)
           if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
         }

@@ -1,16 +1,16 @@
 // Scripted conversion of the roster into catalogue rows (src/fight/catalogue.ts): one row per ROSTER character, the ten Pit ranks' legends inside the row. Pure data out, no rig code:
-// every value is READ from the existing sources (src/roster.ts, src/legends.ts, src/loot.ts, the GLBs), none is typed here except the small override tables below, which are the facts
+// every value is READ from the existing sources (src/roster.ts, src/legends.ts, src/fight/loot.ts, the GLBs), none is typed here except the small override tables below, which are the facts
 // no source holds yet (blood colour/amount, a beast's finisher picks, the world assets that exist). Writes src/fight/catalogue-data.ts; the file is the source of truth after this run.
 //   node scripts/catalogue-convert.mjs            (Node 24 strips the .ts imports)
 import fs from 'node:fs';
 import { ROSTER } from '../src/roster.ts';
 import { LEGENDS } from '../src/legends.ts';
-import { LOOT } from '../src/loot.ts';
+import { LOOT } from '../src/fight/loot.ts';
 import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/fight/finishers.ts';
 import { beastRenderScale } from '../src/fight/beast-scale.ts';
 import { homePick } from '../src/fight/stance.ts';
 import { THROATS } from '../src/fight/sound/creature.ts';
-import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';
+import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/fight/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
 import { glbStats } from './lib/glb-stats.mjs';
 

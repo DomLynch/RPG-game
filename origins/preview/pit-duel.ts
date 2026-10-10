@@ -8,9 +8,9 @@
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
 import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
-import { creaturesLook } from '../../src/fight/sound/creature.ts';
-import { createFeedback } from '../../src/fight/sound/feedback.ts';
-import { createHud } from '../../src/fight/hud.ts';
+import { creaturesLook } from '../../src/fight/index.ts';
+import { createFeedback } from '../../src/fight/index.ts';
+import { createHud } from '../../src/fight/index.ts';
 import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
 import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';

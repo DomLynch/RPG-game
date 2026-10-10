@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aim, createFighter, idleIntent, initialDuel, mirror, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
 import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type MoveId, type SkillId, type Timing } from '../src/fight/moves.ts';
-import { SKILLS, skillOf } from '../src/loot.ts';
+import { SKILLS, skillOf } from '../src/fight/loot.ts';
 import type { OpponentId } from '../src/roster.ts';
 
 const NINE: Record<Exclude<SkillId, 'witchfire' | 'pommel'>, OpponentId> = {

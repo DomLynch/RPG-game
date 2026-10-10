@@ -5,11 +5,11 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { actorPose, buildWarriors, createZoneFinisher, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
 import { catalogueBodyUrl, OPPONENTS, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
-import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/quality.ts';
+import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
-import { gateWithBound, settleWithin } from '../../src/warm-gate.ts';
+import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { pageSignedIn } from './save.ts';
 
