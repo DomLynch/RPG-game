@@ -1,4 +1,4 @@
-// Fresh vs gassed, both in ready idle, at the fight camera (375x812) from behind the hero: the evidence for `?look=fatigue-read` (src/fatigue-read.ts).
+// Fresh vs gassed, both in ready idle, at the fight camera (375x812) from behind the hero: the evidence for the fatigue read (src/fatigue-read.ts; ON by default, so the baseline pass adds `&off=fatigue-read`).
 // A passive dummy (spar), the hero draws, stands fresh until frame 150, spams heavies until 480, then stands while the sim says `ready`. Frame-stepped on the
 // harness clock, so the same frame is the same sim tick with the flag on or off. Two-pass: run WITHOUT --look to find the frames and write <out>/frames.json,
 // then with --look fatigue-read --frames <that file> to shoot the same two frames (plus the clip window); both write fresh.jpg, gassed.jpg and a 2-up.
@@ -13,7 +13,7 @@ import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
 const DIST = arg('dist', 'dist'), OUT = arg('out', 'artifacts/fread'), LOOK = arg('look', ''), FRAMES = arg('frames', ''), CLIP = process.argv.includes('--clip'), DPR = Number(arg('dpr', 2));
-const QUERY = `?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none&yourSpecial=none&special=none&debug${LOOK ? `&look=${LOOK}` : ''}`;
+const QUERY = `?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none&yourSpecial=none&special=none&debug${LOOK ? `&look=${LOOK}` : '&off=fatigue-read'}`;
 const tap = (f) => f === 0 ? '#attack-button' : (f >= 150 && f < 480 && (f - 150) % 24 === 0) ? '#heavy-button' : null;
 
 async function serveDist(dir) {
