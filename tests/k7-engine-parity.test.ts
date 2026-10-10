@@ -49,10 +49,6 @@ const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', '
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
   "10 | P1/P2 | origins/preview/pit-duel.ts -> scene",
-  "16 | P1/P2 | origins/preview/main.ts -> quality",
-  "16 | P1/P2 | origins/preview/main.ts -> warm-gate",
-  "16 | P1/P2 | origins/preview/mobs-view.ts -> quality",
-  "16 | P1/P2 | origins/preview/mobs-view.ts -> warm-gate",
 ];
 const KNOWN_COPIES: readonly string[] = [
 ];

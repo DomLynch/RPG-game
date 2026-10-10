@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { budgetTextures } from './quality.ts';
+import { budgetTextures } from './fight/quality.ts';
 // Asset URLs the way scene.ts resolves the rigs (an expression, so Node tests can import this module without a bundler).
 const url = (file: string) => new URL(`./assets/arena/props/${file}.glb`, import.meta.url).href;
 const portcullisUrl = url('portcullis'), rackUrl = url('weapon-rack'), shieldUrl = url('shield'), drumUrl = url('column-drum'), bonesUrl = url('bone-pile');
