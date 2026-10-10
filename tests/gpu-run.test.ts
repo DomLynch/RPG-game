@@ -61,14 +61,14 @@ test('the job log parser reads the renderer, blocker, exit, seconds and the arti
 });
 
 // A stub hf: `jobs run` starts job 'a'x24 (or fails), `jobs logs` prints a canned log, `jobs inspect` answers COMPLETED.
-const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs', log = '') => {
+const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs' | 'empty-log-once', log = '') => {
   const dir = mkdtempSync(join(tmpdir(), 'gpu-run-')), stub = join(dir, 'hf'), logFile = join(dir, 'log'), out = join(dir, 'out'), ledger = join(dir, 'ledger');
   writeFileSync(logFile, log);
   writeFileSync(stub, `#!/usr/bin/env node
 const fs = require('fs'); const [, , , verb] = process.argv;
 if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.error('quota'); process.exit(1); }
 if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); console.log('Job started with ID: ${'a'.repeat(24)}'); }
-else if (verb === 'logs') process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8'));
+else if (verb === 'logs') { const seen = ${JSON.stringify(join(dir, 'logged'))}; if (${JSON.stringify(mode)} === 'empty-log-once' && !fs.existsSync(seen)) fs.writeFileSync(seen, 'x'); else process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8')); }
 else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
 else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-medium', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: ${JSON.stringify(mode)} === 'hangs' && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? 'RUNNING' : 'COMPLETED' } }]));
 `);
@@ -135,4 +135,11 @@ test('a cancelled CI run (SIGTERM) cancels its job, logs the HF line and exits 1
   assert.equal(code, 130);
   assert.match(out, /^HF: 1 jobs, 0 running.*interrupted by SIGTERM/m);
   assert.ok(existsSync(join(t.dir, 'cancelled')), 'the running job was cancelled');
+});
+
+test('a job that finishes but leaves HF with no usable log is run once more, automatically', () => {
+  const t = setup('empty-log-once', ['=== RENDERER shell=' + T4 + ' | chrome=' + T4 + ' ===', '=== RUN ===', 'ok', '=== EXIT 0 ===', '=== COST seconds=60 ==='].join('\n')), r = t.run('HEAD', '--', 'node', 'x.mjs');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /no usable log.*one automatic retry/);
+  assert.match(r.stdout, /^HF: \d jobs, 0 running/m);
 });

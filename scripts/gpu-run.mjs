@@ -44,19 +44,24 @@ export async function main(argv) {
       if (pairs.length) { secrets = join(mkdtempSync(join(tmpdir(), 'gpu-run-')), 'secrets.env'); writeFileSync(secrets, pairs.join('\n') + '\n', { mode: 0o600 }); launchArgs.push('--secrets-file', secrets); }
     }
     launchArgs.push('mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh');
-    const started = run(launchArgs);
-    jobId = /Job started with ID: (\S+)/.exec(started.stdout || '')?.[1] ?? null;
-    if (jobId) ledger(jobId, sha, args.timeout);   // an id means a job exists, whatever the CLI's exit said: ledger it first so the cleanup below cancels it (two jobs once leaked on a nonzero exit)
-    if (started.status !== 0 || !jobId) throw new Error(`hf jobs run failed: ${(started.stderr || started.stdout || '').trim().slice(0, 200)}`);
-    say(`job ${jobId} on ${flavor} at ${sha.slice(0, 8)}${args.blender ? ' (+Blender)' : ''}: ${args.cmd.join(' ').slice(0, 120)}`);
+    let logs = '', now = 'UNKNOWN', timedOut = false;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const started = run(launchArgs);
+      jobId = /Job started with ID: (\S+)/.exec(started.stdout || '')?.[1] ?? null;
+      if (jobId) ledger(jobId, sha, args.timeout);   // an id means a job exists, whatever the CLI's exit said: ledger it first so the cleanup below cancels it (two jobs once leaked on a nonzero exit)
+      if (started.status !== 0 || !jobId) throw new Error(`hf jobs run failed: ${(started.stderr || started.stdout || '').trim().slice(0, 200)}`);
+      say(`job ${jobId} on ${flavor} at ${sha.slice(0, 8)}${args.blender ? ' (+Blender)' : ''}: ${args.cmd.join(' ').slice(0, 120)}`);
 
-    const t0 = Date.now(), budgetS = args.timeoutS + SCHEDULE_GRACE_S;
-    let now = stage(jobId), timedOut = false;
-    while (LIVE.includes(now)) {
-      if ((Date.now() - t0) / 1000 > budgetS) { say(`still ${now} after ${Math.round((Date.now() - t0) / 1000)} s: cancelling`); run(['jobs', 'cancel', jobId]); timedOut = true; break; }
-      await sleep(pollS); now = stage(jobId);
+      const t0 = Date.now(), budgetS = args.timeoutS + SCHEDULE_GRACE_S;
+      now = stage(jobId); timedOut = false;
+      while (LIVE.includes(now)) {
+        if ((Date.now() - t0) / 1000 > budgetS) { say(`still ${now} after ${Math.round((Date.now() - t0) / 1000)} s: cancelling`); run(['jobs', 'cancel', jobId]); timedOut = true; break; }
+        await sleep(pollS); now = stage(jobId);
+      }
+      logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 28, timeout: 300_000 }).stdout || '';
+      if (timedOut || /^=== COST /m.test(logs) || attempt === 2) break;
+      say(`job ${jobId} finished but HF gave no usable log (one job in six did, 2026-10-10): one automatic retry`);
     }
-    const logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 28, timeout: 300_000 }).stdout || '';
     const parsed = parseJobLog(logs);
     const ran = logs.split('\n'), from = ran.findIndex(l => l === '=== RUN ==='), to = ran.findIndex((l, i) => i > from && /^=== EXIT \d+ ===$/.test(l));
     if (from >= 0) process.stdout.write(`${ran.slice(from + 1, to > from ? to : undefined).join('\n')}\n`);
