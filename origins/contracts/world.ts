@@ -8,7 +8,7 @@
 // server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
 import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
 import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
-import { isOpponentId, type OpponentId } from '../../src/roster.ts';
+import { isOpponentId, type OpponentId } from '../../src/fight/server.ts';
 import {
   Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion,
   readString, readText, readTimestamp, type Issue, type Obj, type Result,

@@ -43,44 +43,11 @@ const LEDGER_UI: readonly string[] = [
 ];
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
 const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'grades', 'loot', 'profile', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
-// Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Named debt of Duels & Backend, one door for node is a later slice.
+// Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
 const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts'];
 
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
-  "1 | server | origins/mobs/kits.ts -> duel",
-  "1 | server | origins/server/encounter-fixtures.ts -> combat",
-  "1 | server | origins/server/encounter-fixtures.ts -> duel",
-  "1 | server | origins/server/encounter-fixtures.ts -> play-radius",
-  "1 | server | origins/server/encounter-fixtures.ts -> record",
-  "1 | server | origins/server/encounter-fixtures.ts -> replay",
-  "1 | server | origins/server/encounter-fixtures.ts -> stab-rule",
-  "1 | server | origins/server/encounter-pose.ts -> duel",
-  "1 | server | origins/server/encounter-pose.ts -> play-radius",
-  "1 | server | origins/server/encounter-pose.ts -> record",
-  "1 | server | origins/server/encounter-verify.ts -> combat",
-  "1 | server | origins/server/encounter-verify.ts -> detmath",
-  "1 | server | origins/server/encounter-verify.ts -> duel",
-  "1 | server | origins/server/encounter-verify.ts -> record",
-  "1 | server | origins/server/encounter-verify.ts -> replay",
-  "1 | server | origins/server/encounter-verify.ts -> sim",
-  "1 | server | origins/server/encounter.ts -> duel",
-  "1 | server | origins/server/encounter.ts -> record",
-  "1 | server | origins/shared/with-bar.ts -> combat",
-  "3 | server | origins/contracts/economy.ts -> gear-stats",
-  "3 | server | origins/contracts/items.ts -> gear-stats",
-  "3 | server | origins/encounters/encounters.ts -> moves",
-  "3 | server | origins/encounters/encounters.ts -> twist",
-  "3 | server | origins/luck/luck.ts -> gambit",
-  "3 | server | origins/mobs/kits.ts -> moves",
-  "3 | server | origins/server/encounter-fixtures.ts -> moves",
-  "3 | server | origins/server/encounter-verify.ts -> moves",
-  "3 | server | origins/server/encounter-verify.ts -> twist",
-  "3 | server | origins/server/encounter.ts -> twist",
-  "3 | server | origins/server/mob-rewards.ts -> twist",
-  "3 | server | origins/server/world-spawns.ts -> gambit",
-  "3 | server | origins/server/world-spawns.ts -> gear-stats",
-  "3 | server | origins/server/world-spawns.ts -> moves",
   "4 | K2 | origins/preview/main.ts -> speeds",
   "4 | K2 | origins/preview/mobs.ts -> speeds",
   "5 | K2 | origins/preview/pit-duel.ts -> input",
@@ -90,8 +57,6 @@ const KNOWN: readonly string[] = [
   "7 | K11 | origins/preview/mobs-view.ts -> knight",
   "7 | K11 | origins/preview/mobs-view.ts -> pitborn",
   "7 | K11 | origins/preview/mobs-view.ts -> witch",
-  "7 | server | origins/mobs/kit-version.ts -> mobkit",
-  "7 | server | origins/mobs/kits.ts -> mobkit",
   "10 | P1/P2 | origins/preview/pit-duel.ts -> scene",
   "12 | P1/P2 | origins/preview/creature-voice.ts -> creature",
   "12 | P1/P2 | origins/preview/creature-voice.ts -> feedback",
@@ -106,14 +71,6 @@ const KNOWN: readonly string[] = [
   "20 | K12 | origins/preview/main.ts -> legends",
   "20 | K12 | origins/preview/pit-duel.ts -> legends",
   "20 | K12 | origins/preview/pit-duel.ts -> roster",
-  "20 | server | origins/contracts/ids.ts -> legends",
-  "20 | server | origins/contracts/ids.ts -> roster",
-  "20 | server | origins/contracts/items.ts -> legends",
-  "20 | server | origins/contracts/world.ts -> roster",
-  "20 | server | origins/encounters/encounters.ts -> roster",
-  "20 | server | origins/inventory/loot-catalogue.ts -> roster",
-  "20 | server | origins/mobs/styles.ts -> roster",
-  "20 | server | origins/zones/loader.ts -> roster",
 ];
 const KNOWN_COPIES: readonly string[] = [
   "14 | P1/P2 | origins/preview/main.ts defines updateBars",
@@ -125,12 +82,13 @@ const KNOWN_COPIES: readonly string[] = [
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(join(dir, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.(ts|mjs)$/.test(e.name) ? [join(dir, e.name)] : []);
 const moduleOf = (spec: string): string | null => /(^|\/)src\//.test(spec) ? spec.replace(/\?.*$/, '').replace(/\.[a-z]+$/, '').split('/').pop()! : null;
-const fromFightIndex = (spec: string): boolean => /(^|\/)src\/fight\/index\.ts$/.test(spec);
+const SERVER_DOOR = /(^|\/)src\/fight\/server\.ts$/;   // the node-safe door: server-run code only (renderer-free re-exports)
+const fromFightIndex = (spec: string, file = ''): boolean => /(^|\/)src\/fight\/index\.ts$/.test(spec) || (SERVER_DOOR.test(spec) && SERVER_DIRS.some((d) => file.startsWith(d)));
 
 export function violations(read: (f: string) => string = (f) => readFileSync(f, 'utf8'), list: readonly string[] = files('origins')): { bad: string[]; unclassified: string[] } {
   const bad: string[] = [], unclassified: string[] = [];
   for (const file of list) for (const spec of new Set([...read(file).matchAll(IMPORT)].map((m) => m[1]!))) {
-    const mod = moduleOf(spec); if (!mod || fromFightIndex(spec) || /\.(png|webp|ogg|css)(\?.*)?$/.test(spec)) continue;
+    const mod = moduleOf(spec); if (!mod || fromFightIndex(spec, file) || /\.(png|webp|ogg|css)(\?.*)?$/.test(spec)) continue;
     const row = ROWS[mod]; if (row) bad.push(`${row[0]} | ${SERVER_DIRS.some((d) => file.startsWith(d)) ? 'server' : row[1]} | ${file} -> ${mod}`);
     else if (!ALLOWED.has(mod) && !LEDGER_UI.includes(`${file} -> ${mod}`)) unclassified.push(`${file} -> ${mod}`);
   }
