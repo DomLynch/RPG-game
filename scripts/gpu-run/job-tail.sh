@@ -43,11 +43,14 @@ rc=${PIPESTATUS[0]}
 say "EXIT $rc"
 echo "command wall $(( $(date +%s) - c0 ))s"
 
-# Back to the caller: every file under artifacts/ the command wrote (images, json, text and short clips under 4 MB each; not the built sites the scripts build there), as one gzip tar in the log (base64, capped).
+# Back to the caller: every file under artifacts/ the command wrote (images, json, text and short clips, smallest first up to ~2.5 MB; not the built sites), as one gzip tar in the log (base64, capped).
 if [[ -d artifacts ]]; then
-  find artifacts -type f -newer /tmp/run.start -not -path 'artifacts/origins-preview/*' -size -4M \( -name '*.png' -o -name '*.jpg' -o -name '*.webp' -o -name '*.json' -o -name '*.txt' -o -name '*.log' -o -name '*.md' -o -name '*.mp4' \) -print0 | tar czf /tmp/artifacts.tgz --null -T - 2>/dev/null
+  # Result files only, smallest first, up to ARTIFACT_MAX_KB in all: HF's log API returned NOTHING for two jobs whose log carried ~10 MB of base64 (2026-10-10), so what rides in the log stays small.
+  find artifacts -type f -newer /tmp/run.start -not -path 'artifacts/origins-preview/*' \( -name '*.png' -o -name '*.jpg' -o -name '*.webp' -o -name '*.json' -o -name '*.txt' -o -name '*.log' -o -name '*.md' -o -name '*.mp4' \) -printf '%s %p\n' | sort -n \
+    | awk -v max=$(( ${ARTIFACT_MAX_KB:-2500} * 1024 )) '{ t += $1; if (t <= max) print $2; else printf "dropped %s (%s bytes, over the log budget)\n", $2, $1 > "/dev/stderr" }' > /tmp/art.list
+  [[ -s /tmp/art.list ]] && tar czf /tmp/artifacts.tgz -T /tmp/art.list 2>/dev/null
   bytes=$(stat -c %s /tmp/artifacts.tgz 2>/dev/null || echo 0)
-  if [[ "$bytes" -gt 0 && "$bytes" -le $(( ${ARTIFACT_MAX_MB:-24} * 1048576 )) ]]; then say "ARTIFACTS BEGIN bytes=$bytes"; base64 -w 76 /tmp/artifacts.tgz; say "ARTIFACTS END"
+  if [[ "$bytes" -gt 0 && "$bytes" -le $(( 3 * 1048576 )) ]]; then say "ARTIFACTS BEGIN bytes=$bytes"; base64 -w 76 /tmp/artifacts.tgz; say "ARTIFACTS END"
   elif [[ "$bytes" -gt 0 ]]; then say "ARTIFACTS TOO_LARGE bytes=$bytes"; fi
 fi
 say "COST seconds=$(( $(date +%s) - t0 ))"
