@@ -19,7 +19,7 @@ import { cumulative } from '../origins/progression/model.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
-import { openCharacter } from '../src/fight/open.ts';
+import { openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { zoneAt } from '../origins/presence/zones.ts';
@@ -476,7 +476,7 @@ try {
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
-    // one rule for every door (src/fight/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
+    // one rule for every door (src/core/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
     psql(`insert into public.origins_access(account) values ('${H}');`);
     const pitId = await openCharacter({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
     const zoneOpen = await openedAccount({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });

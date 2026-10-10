@@ -114,5 +114,5 @@ test('records and replays are byte-identical with the feel driven or not', () =>
 });
 test('the simulation never reads armfeel: no sim file imports it', () => {
   for (const file of ['duel', 'moves', 'ai', 'sim', 'record', 'blade', 'blade-paths', 'roster', 'finishers', 'detmath', 'combat', 'match', 'replay'])
-    assert.doesNotMatch(readFileSync(new URL(`../src/${['finishers', 'duel', 'moves', 'ai', 'sim', 'combat', 'record', 'replay'].includes(file) ? 'fight/' : ''}${file}.ts`, import.meta.url), 'utf8'), /armfeel/, `${file}.ts must not import armfeel`);
+    assert.doesNotMatch(readFileSync(new URL(`../src/${['finishers', 'duel', 'moves', 'ai', 'sim', 'combat', 'record', 'replay', 'blade', 'detmath', 'blade-paths', 'match'].includes(file) ? 'fight/' : ''}${file}.ts`, import.meta.url), 'utf8'), /armfeel/, `${file}.ts must not import armfeel`);
 });

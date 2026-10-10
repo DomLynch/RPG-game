@@ -6,7 +6,7 @@ import { TITLES } from '../src/career.ts';
 import { ROSTER } from '../src/roster.ts';
 import { Color, MeshStandardMaterial } from 'three';
 import { tinted } from '../src/fight/rank-tint.ts';
-import { CLASS_OF, GRADES, TIERS, WEAPON_METAL, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
+import { CLASS_OF, GRADES, TIERS, WEAPON_METAL, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/core/grades.ts';
 
 const draws = (() => {
   const bytes = readFileSync(new URL('../src/assets/loot.glb', import.meta.url)), length = bytes.readUInt32LE(12);
@@ -17,7 +17,7 @@ const draws = (() => {
 test('grades: every material the shipped kit uses is classified — a new piece cannot land ungraded', () => {
   const materials = [...new Set(draws.map(materialOf))];
   assert.ok(materials.length >= 10, `loot.glb carries a palette: ${materials.length}`);
-  for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (src/grades.ts CLASS_OF)`);
+  for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (src/core/grades.ts CLASS_OF)`);
 });
 
 test('grades: the ladder IS the career ladder — one word for a rank and its kit', () => {

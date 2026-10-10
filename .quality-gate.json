@@ -352,9 +352,23 @@
     [
       "node",
       "scripts/next-fight-black-check.mjs"
+    ],
+    [
+      "bash",
+      "scripts/origins-writer-boot-check.sh"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "scripts/origins-writer.mjs",
+        "scripts/origins-writer-boot-check.sh",
+        "origins/**"
+      ],
+      "rows": [
+        "origins-writer-boot-check"
+      ]
+    },
     {
       "paths": [
         "docs/**",
@@ -424,11 +438,11 @@
     },
     {
       "paths": [
-        "src/loot.ts",
+        "src/core/loot.ts",
         "src/loot-panel.ts",
         "src/loot-data.ts",
-        "src/profile.ts",
-        "src/cloud-profile.ts",
+        "src/core/profile.ts",
+        "src/core/cloud-profile.ts",
         "src/main.ts",
         "src/fight/moves.ts",
         "index.html",
@@ -437,7 +451,7 @@
         "scripts/difficulty-persist-check.mjs",
         "scripts/sparring-browser-check.mjs",
         "src/sparring.ts",
-        "src/match.ts",
+        "src/fight/match.ts",
         "src/fight/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
@@ -463,7 +477,7 @@
     {
       "paths": [
         "scripts/equip-fallback-check.mjs",
-        "src/match.ts",
+        "src/fight/match.ts",
         "src/main.ts",
         "src/scene.ts",
         "src/fight/characters.ts"

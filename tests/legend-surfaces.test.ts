@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { initialPractice, practiceHint } from '../src/fight/combat.ts';
 import { LEGEND_OPPONENTS, LEGENDS } from '../src/legends.ts';
-import { LOOT, lootName, slotOf } from '../src/loot.ts';
+import { LOOT, lootName, slotOf } from '../src/core/loot.ts';
 
 test('legend surfaces: the take card names every legend with a plain "\'s", even a name ending in s', () => {
   let pieces = 0;

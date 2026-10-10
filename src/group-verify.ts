@@ -3,7 +3,7 @@
 // streams' verified damage on tick t-1 (the pool's one tick of latency). With every sibling present the two must be equal. With a sibling missing the recorded incoming can only be >= what the present ones account for, and
 // the excess is `unproven`: damage claimed from a record nobody produced. It costs the owner of the missing record (Backend pays on proven shares only); it never blocks the others.
 import type { FightRecord } from './fight/record.ts';
-import { dealtOn } from './pack.ts';
+import { dealtOn } from './fight/pack.ts';
 import { verifyRecord } from './fight/replay.ts';
 
 export type GroupCheck = { index: number; ok: boolean; reason?: string; unproven: number };

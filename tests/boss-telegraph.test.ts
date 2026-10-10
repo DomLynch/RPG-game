@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RULES } from '../src/fight/moves.ts';
-import { telegraphFlag, telegraphLook } from '../src/boss-telegraph.ts';
+import { telegraphFlag, telegraphLook } from '../src/fight/boss-telegraph.ts';
 
 test('the flag is explicit: only ?telegraph=1|on|ring turns it on', () => {
   assert.equal(telegraphFlag('?telegraph=1'), true);

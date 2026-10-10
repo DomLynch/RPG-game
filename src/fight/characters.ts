@@ -1,9 +1,9 @@
 // THE ACTOR DRIVER, in the shared fight core (src/fight/, Dom via Strategy 2026-10-09: the Pit and every zone play one fight, one animation system). Moved from src/characters.ts, which now re-exports it
 // so the Pit's importers are untouched; Zone 1 imports it from src/fight/index.ts. Nothing in this file changed but the relative paths.
-import { beastRenderScale } from '../beast-scale.ts';
+import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
-import { swingProgress } from '../blade.ts';
-export { swingProgress } from '../blade.ts';
+import { swingProgress } from './blade.ts';
+export { swingProgress } from './blade.ts';
 import { attackSpecs, POMMEL_BASH, type Attack, type Practice } from './combat.ts';
 import { weaponOf, type Direction, type WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
@@ -12,7 +12,7 @@ import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material,
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from '../quality.ts';
+import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist, openWaistSteps } from './opened.ts';
 import { openPose, openWeight, NO_OPEN } from './opening-pose.ts';
@@ -26,7 +26,7 @@ import { HAMSTRUNG_BEATS } from './hamstrung.ts';
 import { EXECUTION_BEATS } from './execution.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
 import { tinted } from './rank-tint.ts';
-import type { Tier } from '../grades.ts';
+import type { Tier } from '../core/grades.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -231,7 +231,7 @@ export function equipWeapon(hero: FighterAsset, part: FighterAsset): FighterAsse
 }
 // Loot (brief 5): the pieces of loot.glb, skinned to the hero rig with warrior.glb's bind (build-warrior.mjs WARRIOR_LOOT). Fetched on its own,
 // after the rigs, never as part of a fight's load; the player's actor wears the pieces (`wear`) once both are in. Each draw's userData names
-// its opponent, slot and layer; its id is `<opponent>.<slot>` (src/loot.ts).
+// its opponent, slot and layer; its id is `<opponent>.<slot>` (src/core/loot.ts).
 export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
@@ -408,7 +408,7 @@ export const SHIELD_CARRY = {
   lifted: { elbow: new Vector3(.3, .55, .35).normalize(), wrist: new Vector3(-.2, 1, .25).normalize() },
   planted: { elbow: new Vector3(.3, -.75, .6).normalize(), wrist: new Vector3(.05, -1, .3).normalize() },
 } as const;
-// A beast is drawn at the size it is met walking (src/beast-scale.ts), by roster id: render only, the sim's capsule is untouched. scene.ts calls this once the foe's rig is built.
+// A beast is drawn at the size it is met walking (src/fight/beast-scale.ts), by roster id: render only, the sim's capsule is untouched. scene.ts calls this once the foe's rig is built.
 export function sizeBeast(warriors: { opponent: { anchor: Group } }, opponentId: string): void {
   const k = beastRenderScale(opponentId);
   if (k !== 1) warriors.opponent.anchor.scale.setScalar(k);
@@ -528,7 +528,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let leaning = 0, leanDrive = 0;   // the charged-heavy lean's weight, 0..1, and the ease that drives it
     let tiltApplied = false;   // the mixer rewrites a bone only when its clip value changes (a held guard's does not), so the tilt is undone by hand before every update
     let speed = 0;
-    let severed = false;   // decapitation is once per kill; unsever() resets on rematch
+    let severed = false, severedBone: Object3D | null = null;   // decapitation is once per kill (and which bone it collapsed); unsever() resets on rematch
     let crown: ReturnType<typeof splitSkull> | undefined;
     let droppedWeapon: ReturnType<typeof prepareWeaponDrop> | undefined;
     // Probe a paired scene's contact pose without advancing clocks, fading the ghost or changing the live actor state.
@@ -821,17 +821,19 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Decapitation (owner 2026-09-18): bake the fighter's OWN head — face, hair, whatever helm he wears — out of the skinned
       // draws into a static prop at its current pose, and collapse the rig's Head bone so the corpse reads headless. Runs once
       // per kill; the caller re-parents the returned group to the world and owns the ballistics (and disposes it on rematch).
-      sever() {
+      /** Cut the head off: bake the triangles the head bone(s) dominate into a loose prop and collapse the bone. `bones` = the rig's head bones (a catalogue row's finisher.cut.head; the Pit's humanoid rig is ['Head'], the default). */
+      sever(bones: readonly string[] = ['Head']) {
         if (severed) return null;
-        const bone = root.getObjectByName('Head');
+        const bone = bones.map((n) => root.getObjectByName(n)).find(Boolean);
         if (!bone) return null;
+        severedBone = bone;
         severed = true;
         root.updateWorldMatrix(true, true);
         root.updateMatrixWorld(true); // refresh SkinnedMesh bind inverses after actor movement before baking world vertices
         const group = new Group();
         root.traverse(object => {
           if (!(object instanceof SkinnedMesh) || !object.visible) return;   // only what he shows: a draw a loot piece or a rank look hid stays off the head too
-          const headIndex = object.skeleton.bones.findIndex(b => b.name === 'Head');
+          const headIndices = new Set<number>(); object.skeleton.bones.forEach((b, i) => { if (bones.includes(b.name)) headIndices.add(i); }); const headIndex = headIndices.size ? 0 : -1;
           const geometry = object.geometry, position = geometry.getAttribute('position'), skinIndex = geometry.getAttribute('skinIndex'), skinWeight = geometry.getAttribute('skinWeight');
           if (headIndex < 0 || !position || !skinIndex || !skinWeight) return;
           object.skeleton.update();   // bake from THIS frame's pose, not last render's
@@ -865,7 +867,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           const triangles = (index ? index.count : position.count) / 3;
           for (let t = 0; t < triangles; t++) {
             let weight = 0;
-            for (let k = 0; k < 3; k++) { const i = index ? index.getX(t * 3 + k) : t * 3 + k; for (let j = 0; j < 4; j++) if (skinIndex.getComponent(i, j) === headIndex) weight += skinWeight.getComponent(i, j); }
+            for (let k = 0; k < 3; k++) { const i = index ? index.getX(t * 3 + k) : t * 3 + k; for (let j = 0; j < 4; j++) if (headIndices.has(skinIndex.getComponent(i, j))) weight += skinWeight.getComponent(i, j); }
             if (weight / 3 < .5) continue;   // keep triangles the Head bone dominates: skull, scalp, helm — not the neck blend
             for (let k = 0; k < 3; k++) kept.push(vertex(index ? index.getX(t * 3 + k) : t * 3 + k));
           }
@@ -890,7 +892,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         droppedWeapon?.dispose(); droppedWeapon = undefined;
         if (!severed) return;
         severed = false;
-        root.getObjectByName('Head')?.scale.setScalar(1);
+        (severedBone ?? root.getObjectByName('Head'))?.scale.setScalar(1);
+        severedBone = null;
       },
       // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
       rebakeOpened() { if (!opened && !openedJob) return; opened?.dispose(); opened = undefined; openedJob = undefined; this.prepareOpened(); },

@@ -1,5 +1,5 @@
 // The gear sheet with the GUEST account block showing (375x812, this tree's build): the block only un-hides when the build has Supabase env
-// (src/account-entry.ts), which a local preview lacks, so it is shown by hand the way the live guest state reads. Checks the mannequin stays
+// (src/core/account-entry.ts), which a local preview lacks, so it is shown by hand the way the live guest state reads. Checks the mannequin stays
 // whole when the block pushes the stage down (gear-room refits when the stage box moves) and that Continue with Google reads (text vs plate).
 //   node scripts/gear-sheet-guest-still.mjs  -> artifacts/gear-sheet/after-guest-block.png   (run `npm run build` first)
 import { chromium } from 'playwright';

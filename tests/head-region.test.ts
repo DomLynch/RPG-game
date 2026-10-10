@@ -8,8 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';
-import { bladeImpact, type HitLocation } from '../src/blade.ts';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladeImpact, type HitLocation } from '../src/fight/blade.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { OPPONENTS, PATHS, PROFILES, WEAPONS, type PathId, type WeaponId } from '../src/fight/moves.ts';
 import { TARGET } from '../src/fight/sim.ts';

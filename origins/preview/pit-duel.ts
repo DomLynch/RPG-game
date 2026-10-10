@@ -1,26 +1,30 @@
 // The Pit duel, the arena game's own combat inside the Origins greybox. Loaded on demand (main.ts `import('./pit-duel.ts')`), so it is its own
 // chunk of the greybox build and the walk never pays for it; nothing here is part of the live game's build.
-// Read-only reuse of src/: the scene (src/scene.ts: rigs, arena, effects and the LIVE locked camera rig, untouched), the input layer
-// (src/input.ts), the combat HUD (src/hud.ts) and the match session (src/match.ts) in its sparring mode, which records, awards and writes
+// Read-only reuse of src/: the scene (src/fight/scene.ts: rigs, arena, effects and the LIVE locked camera rig, untouched), the input layer
+// (src/fight/input.ts), the combat HUD (src/hud.ts) and the match session (src/fight/match.ts) in its sparring mode, which records, awards and writes
 // nothing (its ports here are in memory, never the game's localStorage). The simulation is the live one: stepPractice at 60 Hz on the
 // career level's opponent and AI profile. What a finished duel pays is origins/pit/pit.ts's (award()), decided by the page, not here.
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
 import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
-import { creaturesLook } from '../../src/fight/sound/creature.ts';
-import { createFeedback } from '../../src/fight/sound/feedback.ts';
-import { createHud } from '../../src/fight/hud.ts';
+import { creaturesLook } from '../../src/fight/index.ts';
+import { createFeedback } from '../../src/fight/index.ts';
+import { createHud } from '../../src/fight/index.ts';
 import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
-import { createInput, type ControlIntent } from '../../src/input.ts';
-import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
-import { Match } from '../../src/match.ts';
+import { createInput, type ControlIntent } from '../../src/fight/index.ts';
+import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
+import { Match } from '../../src/fight/match.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
-import { bareName } from '../../src/roster.ts';
-import { loadProfile, type StoragePort } from '../../src/profile.ts';
-import { tierAt } from '../../src/grades.ts';
+import { loadProfile, type StoragePort } from '../../src/core/index.ts';
+import { tierAt } from '../../src/core/index.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
-import { createScene, type WorldMount } from '../../src/scene.ts';
+import { loadScene, type WorldMount } from '../../src/fight/index.ts';
+type SceneModule = Awaited<ReturnType<typeof loadScene>>;
+let sceneModule: SceneModule | undefined;
+/** Resolves when the scene chunk is in: await it right after importing this module, before the first stage. */
+export const sceneReady: Promise<void> = loadScene().then((m) => { sceneModule = m; });
+const createScene = (...args: Parameters<SceneModule['createScene']>) => sceneModule!.createScene(...args);
 import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
@@ -52,7 +56,7 @@ const memory = (): StoragePort => { const m = new Map<string, string>(); return 
 const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as readonly string[]).includes(id);
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
-type View = ReturnType<typeof createScene>;
+type View = ReturnType<SceneModule['createScene']>;
 type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.

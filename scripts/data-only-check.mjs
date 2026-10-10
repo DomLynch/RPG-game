@@ -3,10 +3,10 @@
 // Prints one JSON line { dataOnly, problems } and exits 0 = data-only (the label goes on), 1 = not data-only (a normal PR: the Auditor reviews it),
 // 2 = every file is on the data path but the data is wrong (CI red: unknown field, a bad level, a stale registry, a failing loot or catalogue test).
 // The schema checks are the repo's own: gen-zones (the registry must be exactly what the folders generate), loadZone + zoneProblems on EVERY zone,
-// and the loot tests when the loot table changed.
+// the zone-place tests when a zone's place.ts changed, and the loot tests when the loot table changed.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { catalogueCitations, classify, legendCitations, legendProblems, moduleValue, onDataPath } from './lib/data-only.mjs';
+import { catalogueCitations, citationClashes, classify, legendCitations, legendProblems, moduleValue, onDataPath } from './lib/data-only.mjs';
 
 const REGISTRY = 'origins/zones/registry.ts';
 const sh = (cmd, args, timeoutMs = 300_000) => spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs, killSignal: 'SIGKILL' });   // bounded (tests/child-process-bounds.test.ts)
@@ -25,8 +25,12 @@ function registryProblems() {
   return before === after ? [] : [`${REGISTRY} is not what gen-zones writes from the zone folders (run npm run zones)`];
 }
 
-const ZONE_CHECK = `import { loadZone, zoneIds, zoneProblems } from './origins/zones/loader.ts';
+// Every zone through loadZone + zoneProblems, and every biome row through resolveSpec, not only the biomes a zone names: a bad field in an unused preset must not ride in as data.
+export const ZONE_CHECK = `import { loadZone, zoneIds, zoneProblems } from './origins/zones/loader.ts';
+import { BIOMES } from './origins/zones/biomes.ts';
+import { resolveSpec } from './origins/zones/resolve.ts';
 const bad = zoneIds().flatMap((id) => { try { return zoneProblems(loadZone(id)).map((p) => 'zone ' + id + ': ' + p); } catch (e) { return ['zone ' + id + ': ' + e.message]; } });
+for (const b of Object.keys(BIOMES)) { try { bad.push(...resolveSpec({ biome: b }).problems.map((p) => p.startsWith('biome ' + b + ':') ? p : 'biome ' + b + ': ' + p)); } catch (e) { bad.push('biome ' + b + ': ' + e.message); } }
 console.log(JSON.stringify(bad));`;
 
 // Every legend citation in the zone spawns files at `base` (trunk): git show, so the working tree (the PR) is not read.
@@ -49,12 +53,12 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
   // A new legend (or a changed citation) is a normal PR for the Auditor, not a red one: code 1.
   const spawns = data.filter(c => c.status !== 'removed' && c.file.endsWith('/spawns.ts'));
   if (spawns.length && base) {
-    const known = baseCitations(base), legends = spawns.flatMap(c => legendProblems(legendCitations(moduleValue(c.file, readText(c.file))?.rows), known));
+    const known = baseCitations(base), legends = spawns.flatMap(c => { const rows = moduleValue(c.file, readText(c.file))?.rows; return [...citationClashes(rows, 'spawns'), ...legendProblems(legendCitations(rows), known)]; });
     if (legends.length) return { dataOnly: false, code: 1, problems: legends };
   }
   const catalogue = data.filter(c => c.status !== 'removed' && c.file === CATALOGUE_DATA);
   if (catalogue.length && base) {
-    const legends = legendProblems(catalogueCitations(moduleValue(CATALOGUE_DATA, readText(CATALOGUE_DATA))), baseCatalogueCitations(base));
+    const rows = moduleValue(CATALOGUE_DATA, readText(CATALOGUE_DATA)), legends = [...citationClashes(rows, 'catalogue'), ...legendProblems(catalogueCitations(rows), baseCatalogueCitations(base))];
     if (legends.length) return { dataOnly: false, code: 1, problems: legends };
   }
   const problems = [];
@@ -63,12 +67,16 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
     const z = sh(process.execPath, ['--input-type=module', '-e', ZONE_CHECK]);
     try { problems.push(...JSON.parse(z.stdout.trim().split('\n').pop())); } catch { problems.push(`the zone check did not run: ${(z.stderr || z.stdout).trim().slice(0, 300)}`); }
   }
+  if (data.some(c => c.file.endsWith('/place.ts'))) {   // where a zone stands on the map: zoneProblems does not read it, the zone-place tests do (a join to a missing zone throws)
+    const t = sh(process.execPath, ['--test', 'tests/zone-place.test.ts']);
+    if (t.status !== 0) problems.push(`the zone place tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
+  }
   if (data.some(c => c.file.startsWith('src/assets/source/loot/'))) {
     const t = sh(process.execPath, ['--test', 'tests/loot.test.ts', 'tests/loot-unscale-tables.test.ts']);
     if (t.status !== 0) problems.push(`the loot tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
   if (data.some(c => c.file === CATALOGUE_DATA)) {   // a malformed row turns CI red (exit 2) instead of getting the label
-    const t = sh(process.execPath, ['--test', 'tests/catalogue.test.ts', 'tests/catalogue-data.test.ts', 'tests/catalogue-wounds.test.ts', 'tests/catalogue-look.test.ts', 'tests/creature-gore.test.ts', 'tests/world-bodies.test.ts']);
+    const t = sh(process.execPath, ['--test', 'tests/catalogue.test.ts', 'tests/catalogue-data.test.ts', 'tests/catalogue-wounds.test.ts', 'tests/catalogue-look.test.ts', 'tests/wounds.test.ts', 'tests/world-bodies.test.ts']);
     if (t.status !== 0) problems.push(`the catalogue tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
   return { dataOnly: problems.length === 0, code: problems.length ? 2 : 0, problems };

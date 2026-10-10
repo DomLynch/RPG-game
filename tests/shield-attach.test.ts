@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { Bone, BufferGeometry, Float32BufferAttribute, Matrix4, Quaternion, Skeleton, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { armWarriors, buildWarriors, gripFit, SHIELD_CARRIERS } from '../src/fight/characters.ts';
-import * as shields from '../src/shields.ts';
-import { shieldFor, SHIPPING_SHIELDS } from '../src/shields.ts';
+import * as shields from '../src/fight/shields.ts';
+import { shieldFor, SHIPPING_SHIELDS } from '../src/fight/shields.ts';
 
 test('shieldFor: the band file per rank, the Centurion stem, no rank-1 Centurion shield, nothing without the flag or for another opponent', () => {
   assert.equal(shieldFor('shieldmaiden', 1, true), '/shields/shieldmaiden-plain.glb');

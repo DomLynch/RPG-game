@@ -1,4 +1,4 @@
-import { createInput } from './input.ts';
+import { createInput } from './fight/index.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -7,12 +7,12 @@ import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './fight/defence-grade.ts';
 import { kickCloseFlag } from './fight/kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fight/fatigue-preview.ts';
-import { headlineFlag, victoryHeadline } from './victory-headline.ts';
+import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { session } from './session.ts';
-import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './loot-claims.ts';
+import { session } from './core/index.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
 import './monitoring.ts';
@@ -20,51 +20,51 @@ import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
-import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
+import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
-import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
-import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
+import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
+import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
-import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './loot.ts';
-import { createLootPanel } from './loot-panel.ts';
+import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './core/index.ts';
+import { createLootPanel } from './core/index.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, equipNotice } from './match.ts';
-import { coachKilled, createCoachSession, type CoachEvent } from './coach-ui.ts';
-import { mountStancePanel, stanceFlag, type StancePanel } from './stance-panel.ts';
+import { Match, equipNotice } from './fight/match.ts';
+import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
+import { mountStancePanel, stanceFlag, type StancePanel } from './fight/stance-panel.ts';
 import { zone1AfterLesson, zone1Hop } from './zone1-hop.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
 import { SPECIAL_CUE_OF } from './fight/sound/special.ts';
-import { announcePowerWord, powerWordsLook } from './power-words.ts';
+import { announcePowerWord, powerWordsLook } from './fight/power-words.ts';
 import { POWER_WORD_LOOK_GAIN } from './fight/sound/power-word.ts';
 import { breathLook } from './fight/sound/breath.ts';
-import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
-import { classSpecialFor } from './class-special-identity.ts';
-import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
-import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
-import { createGearSheet, lootThumb } from './gear-sheet.ts';
-import { wornIdsOf, wornTiersOf } from './gear-ledger.ts';
-import { createServerGear } from './gear-server.ts';
-import { openCharacter } from './fight/open.ts';
-import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
+import { bossSpecialFor, bossSpecialId } from './fight/special-identity.ts';
+import { classSpecialFor } from './fight/class-special-identity.ts';
+import { CARRIED_WEAPONS, createScene } from './fight/scene.ts';
+import { SPECIAL_TESTS, specialStage, type SpecialTest } from './fight/special-look.ts';
+import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './fight/sparring-specials.ts';
+import { createGearSheet, lootThumb } from './core/index.ts';
+import { wornIdsOf, wornTiersOf } from './core/index.ts';
+import { createServerGear } from './core/index.ts';
+import { openCharacter } from './core/index.ts';
+import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './fight/sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
+import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
 import { HEAVY_MOVES, createHud } from './fight/hud.ts';
-import { getTouchOwner, type TouchTarget } from './touch-router.ts';
+import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
-import { createTutorialUi } from './tutorial-ui.ts';
+import { createTutorialUi } from './fight/tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './fight/hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
-import { underRecord } from './detmath.ts';
+import { underRecord } from './fight/detmath.ts';
 import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
 import { lockPageZoom } from './zoom-guard.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -130,7 +130,7 @@ function renderFightRank() {
   if (lookTier) { fightRank.setAttribute('aria-label', `${lookTier} · test look`); fightRank.replaceChildren(Object.assign(document.createElement('span'), { className: 'rank-now', textContent: `${lookTier} · test look` })); return; }
   renderRank(fightRank, rankFor(watchedLevel === null ? careerMarks() : watchedLevel - 1));   // a kill link shows the fight's rank, not the viewer's (Lead 2026-09-30, B3)
 }
-// The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
+// The kill screen's Take-one panel (src/core/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
 // A piece's kill-screen thumbnail (scripts/loot-layers.mjs); a weapon has none until its equip file renders, so its tile is its name.
@@ -209,7 +209,7 @@ function offerLoot(healthLeft: number) {
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
-// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
+// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/core/loot.ts); the scene wears it (view.wear), the
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 // Every surface names the legend (Dom 2026-09-28): an owned piece by the legend of the rung it was taken at (loot.ts ownedName, from its
@@ -395,7 +395,7 @@ function nameOpponent() {
   element('target-health').setAttribute('aria-label', `${spoken} health`);
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
-// The match (src/match.ts): the fight's state and every start / end / reset, in explicit modes — career, practice, replay, sparring.
+// The match (src/fight/match.ts): the fight's state and every start / end / reset, in explicit modes — career, practice, replay, sparring.
 // Every fight is recorded in memory (beta plan brief 3: kill links): the seed, the warden profile and every quantized intent the
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
@@ -773,7 +773,7 @@ function openJournal() {
   void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
-void openCharacter({ storage, search: location.search });   // the signed-in account's character exists from the first page, whichever door it came through (src/fight/open.ts; the gear sheet reads the same answer)
+void openCharacter({ storage, search: location.search });   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
@@ -834,7 +834,7 @@ function settleClaim(piece: string | null): Promise<void> {
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
 window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
-// After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
+// After any start (src/fight/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 // The stance panel (src/stance-panel.ts): on unless ?stances=off. A pick sets Match.stancePref and starts the next fight on it; the panel shows both stances at every fight start.
 let stancePanel: StancePanel | null = null;
 // Also called once at boot (after the scene): the first fight starts without began() (only a rematch, replay or equip fallback runs it), so a began()-only mount left the panel absent until then.
@@ -845,7 +845,7 @@ function showStances() {
 }
 function began() {
   nameOpponent();
-  coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();
+  coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching, match.opponent.id); paintCoach();
   showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
@@ -1279,7 +1279,7 @@ try {
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   showStances();   // ?stances=: the panel is on the page from load, before any fight starts
-coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching); paintCoach();   // the first fight of a page load never runs began(): arm the Coach (and paint the chip) here too
+coach.begin(match.seed, match.stances ?? 'neutral', 0, (match.mode === 'career' || match.mode === 'practice') && !match.replay && !watching, match.opponent.id); paintCoach();   // the first fight of a page load never runs began(): arm the Coach (and paint the chip) here too
   if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -1612,7 +1612,7 @@ function frame(now: number) {
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           renderFightRank();
           // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
-          // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
+          // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/core/loot.ts Provenance).
           if (ended.rewarded && ended.won) { pendingLoot = Math.max(0, Math.round(practice.playerHealth)); persist(); }   // offered once the finisher has finished playing (updateHud)
           if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
         }

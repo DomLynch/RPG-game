@@ -2,14 +2,14 @@
 // nothing (a sparring fight: no record, reward or stored row), and presentation never changes the fight it draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { actorPose, initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { stepDuel, withSpecials } from '../src/fight/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam, specialStage } from '../src/special-look.ts';
+import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam, specialStage } from '../src/fight/special-look.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
 test('?special=hades names the Nightborn at rank 9 (level 41); anything else is no test', () => {
@@ -86,7 +86,7 @@ test('presentation never changes the fight: the same seed steps to the same end 
 });
 
 test('the Pitborn grey-box pages: antaeus, surtr and typhon are his rank 8, 9 and 10 sparring pages, and his Cleave draws their art', async () => {
-  const { isPitbornSpecial: isHadesShadow } = await import('../src/special-fx-pitborn.ts');
+  const { isPitbornSpecial: isHadesShadow } = await import('../src/fight/special-fx-pitborn.ts');
   for (const [name, level] of [['antaeus', 36], ['surtr', 41], ['typhon', 46]] as const) {
     assert.equal(specialParam(`?special=${name}`), name);
     assert.deepEqual(SPECIAL_TESTS[name], { opponent: 'pitborn', level, first: 180 });

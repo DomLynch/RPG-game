@@ -3,9 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LESSONS, type LessonId } from '../src/first-loss.ts';
-import { Match, PRESET_LEVEL } from '../src/match.ts';
+import { Match, PRESET_LEVEL } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';

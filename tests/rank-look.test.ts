@@ -6,14 +6,14 @@ import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildWarriors, readRankLook } from '../src/fight/characters.ts';
-import { resetPhoneTierForTests } from '../src/quality.ts';
+import { resetPhoneTierForTests } from '../src/fight/quality.ts';
 import { openWaist } from '../src/fight/opened.ts';
 import { initialPractice, type Practice } from '../src/fight/combat.ts';
 import { LOADOUT_FROM, OPPONENTS } from '../src/fight/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
-import { bakeSafeFinisher, idleBeat, lookBakeOffFrom, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, lookBakeOffFrom, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/fight/rank-look.ts';
 import { existsSync } from 'node:fs';
-import { TIERS, levelOf } from '../src/grades.ts';
+import { TIERS, levelOf } from '../src/core/grades.ts';
 import { supportsFinishers } from '../src/roster.ts';
 
 // Parse a shipped GLB in Node (geometry, rig, material names; images dropped), as tests/loot-wear.test.ts does.
@@ -300,7 +300,7 @@ test('rank look stream: the sim is untouched (tick reads a frozen practice and n
   const p = freeze(at(['ready', 'ready'])), before = JSON.stringify(p);
   stream.tick(p); await Promise.resolve(); await Promise.resolve(); stream.tick(p);
   assert.equal(stream.state(), 'on'); assert.equal(JSON.stringify(p), before);
-  for (const file of ['fight/combat.ts', 'fight/duel.ts', 'fight/sim.ts', 'match.ts', 'fight/ai.ts']) assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('rank-look'), `${file} never reads the look`);
+  for (const file of ['fight/combat.ts', 'fight/duel.ts', 'fight/sim.ts', 'fight/match.ts', 'fight/ai.ts']) assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('rank-look'), `${file} never reads the look`);
 });
 
 test('rank look on the Goblin: his own look goes off as a set (carriers too), the look goes on his bones, the kept draws and the knife stay, and the head bake takes only what he shows', async () => {

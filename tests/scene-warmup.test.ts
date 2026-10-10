@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 // createScene needs a WebGL context, so this pins the order in the source: one compile call, in the rig load callback, after the
 // rigs are dressed (their materials are in the scene) and immediately before the ready status.
 test('scene.ts compiles every shader before it reports ready, in the rig load callback', () => {
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   const compiles = [...scene.matchAll(/renderer\.compile\(scene, camera\);/g)].map((m) => m.index!);
   assert.equal(compiles.length, 1, 'one warm-up compile');
   const ready = scene.indexOf("assetStatus('', 'ready');");
@@ -23,7 +23,7 @@ test('scene.ts compiles every shader before it reports ready, in the rig load ca
 // Sentry FRANKENDOM-3 (2026-09-30, Dom's live test): the rank look's warm-up compiled on a lost context and threw from shaderSource.
 // Like a lost draw (main.ts), the warm-up swallows an error only when the context is lost, and uploads no map on a lost context.
 test('the rank look warm-up survives a lost WebGL context and rethrows anything else', () => {
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   assert.match(scene, /const compiled = renderer\.compileAsync\(warm, camera, scene\)\.then\(\(\) => null, \(error: unknown\) => error\);/);
   assert.match(scene, /if \(await settleWithin\('scene-look', compiled, COMPILE_BOUND_MS\)\) \{ const error = await compiled; if \(error && !lost\(\)\) throw error; \}/);
   assert.match(scene, /const lost = \(\) => renderer\.getContext\(\)\.isContextLost\(\);/);

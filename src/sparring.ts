@@ -1,13 +1,13 @@
 // Sparring (Dom 2026-09-26, "rapid test the game rather than trying to defeat opponents"): an admin's test fight against any
 // warden, at any level, with any weapon and move, for that fight only. The journal's Options tab builds the link; the page boots on
-// it the way a kill link does (main.ts), and src/match.ts's 'sparring' mode writes nothing: no record, share, post, mark or loot.
+// it the way a kill link does (main.ts), and src/fight/match.ts's 'sparring' mode writes nothing: no record, share, post, mark or loot.
 // Everything in the link is public input, so each value is checked against what this build knows; one bad value refuses the link.
-import type { Difficulty } from './match.ts';
+import type { Difficulty } from './fight/match.ts';
 import { decide } from './fight/ai.ts';
 import { project, type Practice } from './fight/combat.ts';
 import { stepDuel, type Action, type Intent } from './fight/duel.ts';
 import { LEVELS, PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type SkillId, type WeaponId } from './fight/moves.ts';
-import type { SpecialTest } from './special-look.ts';
+import type { SpecialTest } from './fight/special-look.ts';
 
 // One flag opens Sparring to every player later; until then it shows with the admin test tools (account.ts showTools, or ?debug).
 export const SPARRING_FOR_ALL = false;

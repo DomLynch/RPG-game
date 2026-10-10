@@ -170,7 +170,7 @@
           "pull": 0,
           "campSize": [
             2,
-            4
+            2
           ]
         }
       }
@@ -456,6 +456,20 @@
         ]
       },
       {
+        "id": "reach-pack-a",
+        "at": "reach-ruin",
+        "characters": [
+          "character:ember-wolf"
+        ]
+      },
+      {
+        "id": "reach-pack-b",
+        "at": "reach-ruin",
+        "characters": [
+          "character:ember-wolf"
+        ]
+      },
+      {
         "id": "reach-scavengers",
         "at": "reach-ruin",
         "characters": [
@@ -469,7 +483,25 @@
     "spawns": "Zone 2's creatures as data (zone-runtime step 4, slice 1): the same six cited kinds as Zone 1 at the Zone 2 band (common [2, 3]: loadZone checks it), as PLACEHOLDERS until Characters\nship Zone 2's own creatures (a new kind needs a look in mob-looks.ts, a loot table and a character record; none is data-only yet). Every source is public-domain folklore, chronicle or literature (legends-rule).\n`openers`: Zone 2's one zone (the Region 2 layout, slice 3) opens with the wolf. Zone id -> row id. Donor: field names only (ModernUO spawn fields, Cataclysm place_monsters), nothing copied.",
     "kit": "Zone 2's kit (zone-runtime step 4, slice 1): Zone 1's kit (zone1-kit.glb) and density table until Characters ship a zone2 kit; the node names are that kit's contract. Read through loadZone only.",
     "look": "Zone 2's looks (slice 1): the same preset names the page asks for, with the Ash Reach's colder, duskier haze (Zone 1's values with the fog, sky and ground cooled). Read through loadZone only.",
-    "mobLooks": "Zone 2's creature looks, as data: the Ember Wolf, the wolf body (public/world/wolf.glb, already in Zone 1's download: no new mesh) dressed ember red-brown instead of ash grey.\nscale = WOLF_RENDER_SCALE (2) x 1.1, a pack leader; a literal because zone data files hold one literal and `import type` only (the rule is src/beast-scale.ts WOLF_RENDER_SCALE).",
+    "mobLooks": "Zone 2's creature looks, as data: the Ember Wolf, the wolf body (public/world/wolf.glb, already in Zone 1's download: no new mesh) dressed ember red-brown instead of ash grey.\nscale = WOLF_RENDER_SCALE (2) x 1.1, a pack leader; a literal because zone data files hold one literal and `import type` only (the rule is src/fight/beast-scale.ts WOLF_RENDER_SCALE).",
     "place": "Zone 2 (the Ash Reach) on the Region 1 map: one open zone off the east road, its entry gate and a cairn at the middle. Its creatures are spawns.ts; this is where it stands and how the road reaches it."
+  },
+  "camera": {
+    "presets": {
+      "a": {
+        "back": 3.6,
+        "up": 2.1,
+        "side": 0.8,
+        "ahead": 4,
+        "lookY": 1.5
+      },
+      "b": {
+        "back": 6.4,
+        "up": 3.5,
+        "side": 0,
+        "ahead": 2,
+        "lookY": 1.1
+      }
+    }
   }
 }

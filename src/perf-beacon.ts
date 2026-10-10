@@ -4,7 +4,7 @@
 // throws, never shows. Transport: fetch with keepalive (it survives pagehide like navigator.sendBeacon, which cannot send the
 // publishable key's apikey header that the REST endpoint needs).
 
-import { rafCadence } from './quality.ts';
+import { rafCadence } from './fight/quality.ts';
 
 export type PerfFigures = {
   fightFrames: readonly number[];      // this fight's playable frame times, ms

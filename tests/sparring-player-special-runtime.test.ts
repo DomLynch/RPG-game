@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';
 import { idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
-import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from '../src/sparring-special-runtime.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
+import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from '../src/fight/sparring-special-runtime.ts';
 import { createRecorder } from '../src/fight/record.ts';
 import * as THREE from 'three';
-import { createSpecialPresentation } from '../src/special-presentation.ts';
+import { createSpecialPresentation } from '../src/fight/special-presentation.ts';
 
 const setup = () => {
   const writes: string[] = [], storage = { getItem: () => null, setItem: (key: string) => { writes.push(key); } };

@@ -2,7 +2,7 @@
 // tint and the Ash Frontier dressing on its CLOTH draws only (grades.ts classOf === 'cloth': tunic, wraps, heraldry), as one shared clone per source
 // material and look, so a metal blade, the skin and the weapon keep their own grade. A mapped cloth keeps its pattern (the map is multiplied, not replaced).
 import { Color, Mesh, type MeshStandardMaterial, type Object3D } from 'three';
-import { classOf } from '../../src/grades.ts';
+import { classOf } from '../../src/core/index.ts';
 import type { MobLook } from './mob-looks.ts';
 
 const SOOT = new Color(0x1f1c1a);

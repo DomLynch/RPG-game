@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { createBossSpecial } from '../src/special-fx-boss.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { LAND_AT } from '../src/special-timing.ts';
-import { BUILD_AT, slingAngle, wrathTremor, type BossKind } from '../src/special-boss-timing.ts';
+import { createBossSpecial } from '../src/fight/special-fx-boss.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { LAND_AT } from '../src/fight/special-timing.ts';
+import { BUILD_AT, slingAngle, wrathTremor, type BossKind } from '../src/fight/special-boss-timing.ts';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
 // The Witch's boss specials (special-fx-boss.ts): the same seam as the Shield Quake, on her class skill, the Witch-fire.
@@ -66,8 +66,8 @@ test('The Price: the canvas drains to grey through the build-up and gets its col
 });
 
 test('the boss art ships lazily: only the registry imports it, dynamically; the scene names none of these ids', () => {
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-boss\.ts'\)/);
-  assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /special-fx-boss/);
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-boss\.ts'\)/);
+  assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /special-fx-boss/);
 });
 
 test('the Sling turns the caster one circle through the build-up and the cast leaves him exactly as he was', () => {

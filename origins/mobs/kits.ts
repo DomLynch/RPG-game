@@ -1,4 +1,4 @@
-// Mob behaviour presets and signature moves (Combat, top-10 #5): data on top of MOB_STYLE (styles.ts), consumed by the layer src/mobkit.ts. No new tuning table in a sim file and no new AI:
+// Mob behaviour presets and signature moves (Combat, top-10 #5): data on top of MOB_STYLE (styles.ts), consumed by the layer src/fight/mobkit.ts. No new tuning table in a sim file and no new AI:
 //  - a KIT is one to three rows of "throw THIS existing attack when THIS holds, at most once per COOLDOWN" (a deterministic trigger and a cooldown, no chance), which makes a kind recognisable
 //    and caps how often the hero meets its worst move;
 //  - a MODE is a small DELTA on the warden's own AiProfile numbers (shy, bold, ambusher): the fight-side half of Expansion's `mode` preset (the world half, aggro ring and leash, is theirs).
@@ -12,7 +12,7 @@ export const KITS: Readonly<Record<MobStyle, readonly KitRow[]>> = {
   beast: [{ move: 'thrust', trigger: 'opener', cooldown: 1e9 }, { move: 'heavy', trigger: 'heroExhausted', cooldown: 600 }],   // the pounce to open; the maul on a winded hero
 };
 
-// Chains (C4): the authored follow-ups on the engine's 16-18 tick chain window, one short list per style (src/mobkit.ts validateChains refuses a row that reaches past its weapon's window).
+// Chains (C4): the authored follow-ups on the engine's 16-18 tick chain window, one short list per style (src/fight/mobkit.ts validateChains refuses a row that reaches past its weapon's window).
 export const CHAINS: Readonly<Record<MobStyle, readonly ChainRow[]>> = {
   brute: [{ from: 'light_right', to: 'heavy', chance: 0.5, startsAfter: 3, endsBefore: 12 }, { from: 'light_left', to: 'heavy', chance: 0.5, startsAfter: 3, endsBefore: 12 }],   // cut, then the maul: the heavy finisher winds up quicker inside the window
   skirmisher: [{ from: 'thrust', to: 'thrust', chance: 0.45, startsAfter: 3, endsBefore: 13 }],   // the double poke
@@ -30,7 +30,7 @@ export const MODE: Readonly<Record<Mode, Partial<Record<Knob, number>>>> = {
   ambusher: { dash: 0.4, lapse: -0.1, interrupt: 0.2 },
 };
 
-// The layer a mob of this style fights under (src/fight/combat.ts stepPractice's `layer`, src/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
+// The layer a mob of this style fights under (src/fight/combat.ts stepPractice's `layer`, src/fight/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
 export function mobLayer(style: MobStyle): (duel: Duel, warden: Intent) => Intent {
   const rows = KITS[style], chains = CHAINS[style]; let state = initialKit(rows);
   return (duel, warden) => { if (duel.tick === 0) state = initialKit(rows); const r = kitIntent(duel, 1, warden, rows, state, chains); state = r.state; return r.intent; };

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Mesh, MeshStandardMaterial, Texture } from 'three';
-import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
+import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/fight/quality.ts';
 
 // The phone-tier graphics budget (the owner's live iPhone defect, 2026-09-18: fighters render black under
 // GPU memory pressure). Detection: a mobile UA AND a coarse pointer, overridable both ways by ?gfx= for QA.

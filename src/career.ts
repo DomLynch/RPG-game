@@ -1,4 +1,4 @@
-import type { Profile } from './profile.ts';
+import type { Profile } from './core/profile.ts';
 
 // Career rank from victory marks — the 50-level ladder (Dom via Strategy, 2026-09-27; 2026-10-05: Origin gets its own I–V, was singular at 46):
 // level = 1 + wins, capped at 50. Ten street-plain titles, sub-ranks I–V on all ten; ONE win per

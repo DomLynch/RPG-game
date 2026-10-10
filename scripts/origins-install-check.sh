@@ -111,4 +111,16 @@ case "$out" in *"rolled back (service stopped"*) fail "it still claimed to be ro
 fresh; run rev1; export RELOAD_RC=1; run --rollback
 expect "a failing reload makes the rollback exit non-zero" "$rc" 1
 contains "and says the reload failed" "$out" "ROLLBACK INCOMPLETE: nginx -t passed but the reload failed"
+# The install prunes old installs (Lead 2026-10-10: automatic, never fails the install, keeps current + previous = the rollback target).
+hexdirs() { ls "$tmp/root/opt/frankendom-origins" | grep -cE '^[0-9a-f]{8}$' || true; }
+fresh; for i in 1 2 3 4 5 6 7; do run "a000000$i"; done
+expect "an install prunes to 5 installs: current, previous and the 3 newest others" "$(hexdirs)" 5
+[ ! -d "$tmp/root/opt/frankendom-origins/a0000001" ] && ok || fail "the oldest install survived the prune"
+expect "previous is the rollback target (the install before current)" "$(basename "$(readlink -f "$tmp/root/opt/frankendom-origins/previous")")" "a0000006"
+[ -d "$tmp/root/opt/frankendom-origins/a0000006" ] && [ "$(basename "$(readlink -f "$tmp/root/opt/frankendom-origins/current")")" = a0000007 ] && ok || fail "current or the rollback target was removed"
+printf '#!/usr/bin/env bash\nexit 7\n' > "$tmp/bin/failing-prune"
+fresh; export ORIGINS_PRUNE="$tmp/bin/failing-prune"; for i in 1 2 3 4 5 6 7; do run "a000000$i"; expect "a prune error leaves the install's exit code 0" "$rc" 0; done
+contains "the prune error is logged" "$out" "prune failed (exit 7)"
+expect "and nothing was removed" "$(hexdirs)" 7
+unset ORIGINS_PRUNE
 echo "origins-install-check: $checks checks passed"

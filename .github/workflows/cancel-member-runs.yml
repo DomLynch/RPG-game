@@ -1,0 +1,34 @@
+# When a release candidate opens, the runs of the PRs merged into it are redundant: the candidate's run covers the same tree and each
+# member's PASS stands on its head (Strategy 2026-10-10: Lead cancelled AB's 9 member runs by hand and the queue went 28 -> 18).
+# Members are the merge commits "Merge pull request #N (release-X candidate)" on the candidate PR. For each member only the
+# unfinished runs on the member's CURRENT head sha are cancelled; a newer push, a PR outside the candidate and the candidate's own
+# runs are never touched.
+name: cancel-member-runs
+on:
+  pull_request:
+    types: [opened]
+    branches: [codex/01a09a76/task-1]
+permissions:
+  actions: write
+  pull-requests: read
+jobs:
+  cancel:
+    if: startsWith(github.event.pull_request.head.ref, 'release-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_PR: ${{ github.event.pull_request.number }}
+        run: |
+          members=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$CANDIDATE_PR/commits" --paginate --jq '.[].commit.message | split("\n")[0] | capture("^Merge pull request #(?<n>[0-9]+) \\(release-[A-Za-z]+ candidate\\)").n' | sort -un)
+          if [ -z "$members" ]; then echo "no member merge commits on #$CANDIDATE_PR"; exit 0; fi
+          for n in $members; do
+            [ "$n" = "$CANDIDATE_PR" ] && continue
+            read -r branch sha <<<"$(gh api "repos/$GITHUB_REPOSITORY/pulls/$n" --jq '[.head.ref, .head.sha] | @tsv')"
+            if [ -z "$branch" ] || [ -z "$sha" ]; then echo "#$n: no head, skipped"; continue; fi
+            ids=$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$branch" --limit 50 --json databaseId,status,headSha,event \
+              --jq ".[] | select(.event == \"pull_request\" and .headSha == \"$sha\") | select(.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\" or .status == \"requested\") | .databaseId")
+            if [ -z "$ids" ]; then echo "#$n ($branch @ ${sha:0:9}): no unfinished runs"; continue; fi
+            for id in $ids; do echo "#$n ($branch @ ${sha:0:9}): cancelling run $id"; gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true; done
+          done

@@ -2,7 +2,7 @@
 // every roster opponent round-trips).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LOOT_IDS, RETIRED_LOOT } from '../../src/loot.ts';
+import { LOOT_IDS, RETIRED_LOOT } from '../../src/core/loot.ts';
 import { PORTRAIT_KEYS } from '../../src/legends.ts';
 import { ROSTER } from '../../src/roster.ts';
 import type { Result } from './core.ts';

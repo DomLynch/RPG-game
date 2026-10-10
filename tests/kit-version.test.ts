@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../src/mobkit.ts';
+import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../src/fight/mobkit.ts';
 import { CHAINS, KITS, MODE } from '../origins/mobs/kits.ts';
 import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } from '../origins/mobs/kit-version.ts';
 
-// sha-256 of the text of src/mobkit.ts + origins/mobs/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
-const KIT_CODE_DIGEST = '19260a2048f6ba9a68faebfdec508461f03aaa78cb7ebc2e807132447a2d7615';
+// sha-256 of the text of src/fight/mobkit.ts + origins/mobs/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
+const KIT_CODE_DIGEST = 'c8edc9196174ac569a407e13ce3b8ea501f38a8ef8ae049fe1360a1e84e9af80';
 
-test('the kit code is pinned: a change in src/mobkit.ts or origins/mobs/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
-  const digest = createHash('sha256').update(readFileSync(new URL('../src/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../origins/mobs/kits.ts', import.meta.url))).digest('hex');
+test('the kit code is pinned: a change in src/fight/mobkit.ts or origins/mobs/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
+  const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../origins/mobs/kits.ts', import.meta.url))).digest('hex');
   assert.equal(digest, KIT_CODE_DIGEST, `the kit code changed: decide if behaviour moved, bump KIT_LOGIC_VERSION (now ${KIT_LOGIC_VERSION}) in origins/mobs/kit-version.ts if so, then re-pin KIT_CODE_DIGEST = '${digest}' in tests/kit-version.test.ts`);
 });
 

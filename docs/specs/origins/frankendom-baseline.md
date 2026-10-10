@@ -13,7 +13,7 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 | Live deployed revision | `d05ba4adfa3fdde2bf19db0fd11341c4605fd066`, phase `0B-swordplay` (2026-10-06) | `curl -s https://frankendom.com/release.json` |
 | Live vs trunk | Live is an ancestor of trunk `03cd0d61`, 12 commits behind it at the re-check. | `git merge-base --is-ancestor`, `git log d05ba4ad..03cd0d61` |
 | Record format | `RECORD_VERSION = 25` at `03cd0d61` (was 24 at `8a3cefb7`; v25 adds the Goblin's stab, v24 the late notice) | `src/fight/record.ts:17` |
-| Sim digest pin | `SIM_DIGEST 6e389dbc…` for version 25 over **12** sim files (`src/stab-rule.ts` joined the list) | `tests/record-version-guard.test.ts:20-21` |
+| Sim digest pin | `SIM_DIGEST 6e389dbc…` for version 25 over **12** sim files (`src/fight/stab-rule.ts` joined the list) | `tests/record-version-guard.test.ts:20-21` |
 
 ---
 
@@ -36,10 +36,10 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 - **Determinism guarantees (enforced, not just intended):**
   1. **Lint ban.** The `SIM` file list (`eslint.config.js:3`) bans `Math.random`, `Date.now`, `performance.now`, `window`, `document`, `localStorage` and `requestAnimationFrame` (`eslint.config.js:8`).
   2. **Import boundary.** Sim modules may import only each other (`tests/sim-boundary.test.ts:14`).
-  3. **Cross-engine math.** `src/detmath.ts` gives fdlibm ports of sin, cos, atan2 and hypot built on + − × ÷ √ only (`src/detmath.ts:1-7`). The sim calls `M.*`, never `Math.<transcendental>` (`tests/detmath.test.ts:16`). Records before v20 replay on the frozen engine `Math` table, chosen only through `underRecord` (`src/detmath.ts:99-109`).
+  3. **Cross-engine math.** `src/fight/detmath.ts` gives fdlibm ports of sin, cos, atan2 and hypot built on + − × ÷ √ only (`src/fight/detmath.ts:1-7`). The sim calls `M.*`, never `Math.<transcendental>` (`tests/detmath.test.ts:16`). Records before v20 replay on the frozen engine `Math` table, chosen only through `underRecord` (`src/fight/detmath.ts:99-109`).
   4. **Version guard.** Any change to the sim files (12 at `03cd0d61`) without a `RECORD_VERSION` bump fails `tests/record-version-guard.test.ts:24`, which compares against the digest pin.
   5. **Intent quantization.** Intents are quantized before both recording and netcode (`src/fight/record.ts:107`).
-- **Hazard: module-level mutable sim state.** Three era flags plus the math table are globals: `PLAY_SCALE`/`RADIUS` and `LATE_NOTICE` (`src/fight/play-radius.ts`), `STAB_ON` (`src/stab-rule.ts:6`, off by default when headless) and the detmath `table` (`src/detmath.ts`). They are set only through three doors: **live fights** through `match.ts` begin, which sets the circle, `setLateNotice(true)` and `setStab(true)` (`src/match.ts:112`); **replays** through `detmath.underRecord`, which wraps `underPlayScale` and `underStab` by the record's version (`src/detmath.ts:107-109`); and **PvP** through `pvpDuel`, which calls `setPlayScale(1)` (`src/net/rollback.ts`). Any new caller that steps a duel or a Practice (an Origins arena, server tooling) must enter through one of these doors. Otherwise it fights in the wrong circle, with no late notice and no Goblin stab, while still stamping the current record version.
+- **Hazard: module-level mutable sim state.** Three era flags plus the math table are globals: `PLAY_SCALE`/`RADIUS` and `LATE_NOTICE` (`src/fight/play-radius.ts`), `STAB_ON` (`src/fight/stab-rule.ts:6`, off by default when headless) and the detmath `table` (`src/fight/detmath.ts`). They are set only through three doors: **live fights** through `match.ts` begin, which sets the circle, `setLateNotice(true)` and `setStab(true)` (`src/fight/match.ts:112`); **replays** through `detmath.underRecord`, which wraps `underPlayScale` and `underStab` by the record's version (`src/fight/detmath.ts:107-109`); and **PvP** through `pvpDuel`, which calls `setPlayScale(1)` (`src/net/rollback.ts`). Any new caller that steps a duel or a Practice (an Origins arena, server tooling) must enter through one of these doors. Otherwise it fights in the wrong circle, with no late notice and no Goblin stab, while still stamping the current record version.
 - **Gear is not an input today.** `Loadout` is not consumed by `stepDuel`. The only `src/` importer of `gear-stats.ts` is a comment in `src/net/rollback.ts:18-21`, which says "pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel".
 
 > **Which rank scale?** Specs and proposals that touch rank must name their scale: **tier** (1–10, the title: Recruit … Origin) or **career level** (1 to the cap: 50, `MAX_LEVEL` at `src/career.ts:9`, live since RV27 per Dom's 2026-10-05 ruling). Gladiator is tier 3 = career level 11.
@@ -125,7 +125,7 @@ Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITL
 - `LEGENDS: Record<LegendOpponent, Legend[10]>`, where `Legend = { name, source, backstory }`. That is 10 opponents × 10 rungs = 100 named legends (`:15-22`, `:23-142`).
 - The content rule is public-domain sources only, with no living-religion figures (`:1-6`; skill `legends-rule`).
 - Text only: "no fight number reads this" (`:4`). Legends are kept outside the sim boundary (`:10`).
-- **Legends have no ID.** A legend is addressed by `(opponentId, rung)`: `legendAt` (`:146`), `legendForLevel` (`:151`). Its stable external key is the portrait key `"<opponent>-<rung>"` (`:156-160`, `PORTRAIT_KEYS`), which is used by the skull wall (`Loot.defeats`, `src/loot.ts:35-40`), by `fight_results.opponent_key` (`supabase/migrations/202610050001_fight_results.sql:29`), and by the nginx og:image whitelist (`:158-159`).
+- **Legends have no ID.** A legend is addressed by `(opponentId, rung)`: `legendAt` (`:146`), `legendForLevel` (`:151`). Its stable external key is the portrait key `"<opponent>-<rung>"` (`:156-160`, `PORTRAIT_KEYS`), which is used by the skull wall (`Loot.defeats`, `src/fight/loot.ts:35-40`), by `fight_results.opponent_key` (`supabase/migrations/202610050001_fight_results.sql:29`), and by the nginx og:image whitelist (`:158-159`).
 - Names have changed without breaking anything because names are not keys (Count Dracula → Vlad, `docs/state/lead.md:278`).
 
 ### 2.7 `src/grades.ts`
@@ -178,13 +178,13 @@ RLS is enabled on every table that the migrations create. The default client gra
 | `fighter_profiles` insert/update (`revision` guard) | display_name, encounter, **client-reported** victory_marks, loot jsonb | `src/cloud-profile.ts:66-73` (fields `:17-20`) |
 | `rpc('my_standing')` | server marks/owned + pending | `src/cloud-profile.ts:83` |
 | `rpc` admins read | admin flag | `src/cloud-profile.ts:101` |
-| `loot_claims` insert (via SDK and via keepalive `fetch`) | one claim per signed-in ladder win: opponent, piece (or null), record | `src/loot-claims.ts:114`, `:160`. The outbox key is `frankendom.claims.v1` (`:6-12`) |
+| `loot_claims` insert (via SDK and via keepalive `fetch`) | one claim per signed-in ladder win: opponent, piece (or null), record | `src/fight/loot-claims.ts:114`, `:160`. The outbox key is `frankendom.claims.v1` (`:6-12`) |
 | `fight_records` insert / `rpc/mint_share` / select by id | shared kill links (signed-in and guest) | `src/share-store.ts:55`, `:38`, `:65` |
 | `fight_results` insert (`kind:'ai'`) | cosmetic skull-wall row | `src/fight-results.ts:19` |
 | `rpc report_duel_start` / `report_duel`; `duel_metrics` POST | PvP room registration, result + hash, metrics | `src/net/lobby.ts:87`, `:99`, `:131` |
 | `perf_beacons` POST | anonymous perf | `src/perf-beacon.ts:78` |
 | `rpc pit_recent_kills` / `pit_record` / `daily_board_summary` | Pit wall reads | `src/pit/skulls.ts:79`, `:112`, `:186` |
-| daily results | **no client writer at this commit.** The daily warden was removed from the client; the tables and verifier remain | `src/main.ts:1196-1197`, `src/match.ts:4`, `:47` |
+| daily results | **no client writer at this commit.** The daily warden was removed from the client; the tables and verifier remain | `src/main.ts:1196-1197`, `src/fight/match.ts:4`, `:47` |
 
 **Local storage:**
 - The profile is stored under `frankendom.fighter.v1`, with shape `{ id, name, encounter, pass, dial, career.victoryMarks, loot }` (`src/profile.ts:3-5`).
@@ -276,13 +276,13 @@ Run commands (`package.json`): `npm test` (skips `[slow]`), `npm run test:slow`,
 | Legend | `(OpponentId, rung 1..10)`; external key `"<opponent>-<rung>"` | composite; array index | `src/legends.ts:146-160` |
 | Archetype | `ROSTER[id].archetype` string; several opponents share one | string key into `ARCHETYPES` | `src/fight/moves.ts:570` |
 | Weapon | `WeaponId` (10: longsword, trident, cleaver, estoc, knife, gladius, scythe, maul, reaper, warhammer); 9 in `PLAYER_WEAPONS` | stable lowercase string | `src/fight/moves.ts:254`, `:540-552` |
-| Loot piece | `LootId` = `` `${OpponentId}.${LootSlot}` `` (for example `veteran.Helmet`, `dwarf.Warhammer`); 74 in `LOOT` + 1 `RETIRED_LOOT` | **definition id** (class + slot), no tier, no instance; server regex `^[a-z]{1,32}\.[A-Za-z]{1,32}$` | `src/loot.ts:26`, `:68-94`; `202609230001:27`, `:59` |
-| Slot | `ARMOUR_SLOTS` (8) + `WEAPON_SLOTS` (9, capitalised weapon names) → `PAPERDOLL` keys `head, crest, chest, arms, hands, legs, feet, main, off` | strings | `src/loot.ts:12-25` |
-| Tier | rank title string (`'Gladiator'`); level 1..10 via `levelOf` | derived from the fight's marks, never stored on the piece except as `Provenance.tier` / `awards.tier` | `src/grades.ts:15-18`, `:46`; `src/loot.ts:32` |
-| Skill | `SkillId` (11 strings), `SKILLS[id].opponent` | stable string | `src/fight/moves.ts:8`; `src/loot.ts:46` |
+| Loot piece | `LootId` = `` `${OpponentId}.${LootSlot}` `` (for example `veteran.Helmet`, `dwarf.Warhammer`); 74 in `LOOT` + 1 `RETIRED_LOOT` | **definition id** (class + slot), no tier, no instance; server regex `^[a-z]{1,32}\.[A-Za-z]{1,32}$` | `src/fight/loot.ts:26`, `:68-94`; `202609230001:27`, `:59` |
+| Slot | `ARMOUR_SLOTS` (8) + `WEAPON_SLOTS` (9, capitalised weapon names) → `PAPERDOLL` keys `head, crest, chest, arms, hands, legs, feet, main, off` | strings | `src/fight/loot.ts:12-25` |
+| Tier | rank title string (`'Gladiator'`); level 1..10 via `levelOf` | derived from the fight's marks, never stored on the piece except as `Provenance.tier` / `awards.tier` | `src/grades.ts:15-18`, `:46`; `src/fight/loot.ts:32` |
+| Skill | `SkillId` (11 strings), `SKILLS[id].opponent` | stable string | `src/fight/moves.ts:8`; `src/fight/loot.ts:46` |
 | Special | `SpecialName` strings per opponent × rank 8/9/10 | stable string | `src/fight/moves.ts:693-709` |
 | Move | `MoveId` strings | stable string | `src/fight/moves.ts:6` |
-| Mesh draw | `"<opponent>.<slot>.<material>"` in `loot.glb`; shared meshes `~kit.Gloves` | asset naming | `src/loot.ts:1-2`, `:63-65`; `src/grades.ts:80-82` |
+| Mesh draw | `"<opponent>.<slot>.<material>"` in `loot.glb`; shared meshes `~kit.Gloves` | asset naming | `src/fight/loot.ts:1-2`, `:63-65`; `src/grades.ts:80-82` |
 | Fight | `fight_hash` (sha256 of the record's fight bytes); `loot_claims.id` bigint; share short id (base36) | server ids | `202610010001`, `202609220009` |
 
 **The player's inventory shape:**
@@ -299,28 +299,28 @@ Loot = {
 }
 ```
 
-(`src/loot.ts:40`). It is stored whole as `fighter_profiles.loot` jsonb (64 KB cap).
+(`src/fight/loot.ts:40`). It is stored whole as `fighter_profiles.loot` jsonb (64 KB cap).
 
 **Collisions with a new item-instance model (ItemDefinition/ItemInstance, LootTable):**
 
 1. **`LootId` is a definition, used as if it were an instance.**
-   - `owned` is de-duplicated by `cleanLoot` (`src/loot.ts:154-156`).
+   - `owned` is de-duplicated by `cleanLoot` (`src/fight/loot.ts:154-156`).
    - `dropFor` returns null if the piece is already owned (`:145-149`).
    - `awardFor` returns null for an owned piece (`src/awards.ts:26`).
    - So a player can hold **at most one of each `<opponent>.<slot>` across all tiers**. A Gladiator `veteran.Helmet` and an Origin `veteran.Helmet` cannot coexist.
-2. **Tier is keyed by definition.** `taken: Record<LootId, Provenance>` (`src/loot.ts:40`) holds one provenance (and so one tier) per LootId. The gear-stats `TierOf(piece: LootId)` (`src/fight/gear-stats.ts:119`) has the same one-tier-per-definition assumption.
+2. **Tier is keyed by definition.** `taken: Record<LootId, Provenance>` (`src/fight/loot.ts:40`) holds one provenance (and so one tier) per LootId. The gear-stats `TierOf(piece: LootId)` (`src/fight/gear-stats.ts:119`) has the same one-tier-per-definition assumption.
 3. **The paperdoll references definitions.** `equipped` and `pack` hold LootIds. Instance ids would need a new field or a migration in `cleanLoot`. `cleanLoot` silently drops anything that fails `isLootId` (`:152-156`), so **an older build would erase unknown instance ids** when it saves. `profileDiffers` re-merges from a newer device (`:38-39`), but only for known ids.
 4. **Server checks pin the `<opponent>.<Slot>` grammar.** `loot_claims.piece` and `awards.piece` CHECK regexes (`202609230001:27`, `:59`), `awards.tier smallint 1..10`, the one-award-per-claim primary key (`awards.claim_id`), and `account_seed.owned`/`standing_of().owned` as LootId arrays. Instance ids would need a migration on both tables plus a change to `verify-loot.mjs`.
 5. **Take-one-piece (Loot v2).**
    - A claim names exactly one `piece` or null (`202609230001:20-21`; `src/awards.ts:5-7`), and a declined take is still a mark.
    - Any "pick one from a LootTable roll" must keep "one claim → at most one award" and the verifier's `kitAt(opponent, tier)` membership test (`src/awards.ts:18-19`).
-   - `kitAt` reads `WORN_FROM`, a per-definition tier floor, which is empty today (`src/loot.ts:84-88`).
+   - `kitAt` reads `WORN_FROM`, a per-definition tier floor, which is empty today (`src/fight/loot.ts:84-88`).
 6. **Weapons are both loot and sim ids.**
-   - Loot `"<opponent>.<Weapon>"` maps to `WeaponId` by lower-casing the slot (`src/loot.ts:119`), and the main hand decides the sim weapon (`fightWeapon`, `:123`).
+   - Loot `"<opponent>.<Weapon>"` maps to `WeaponId` by lower-casing the slot (`src/fight/loot.ts:119`), and the main hand decides the sim weapon (`fightWeapon`, `:123`).
    - Loot v2 wielding means an item instance must keep resolving to a `WeaponId` for `createFighter`.
    - `reaper` is a `WeaponId` with no loot slot.
 7. **PvP and the skull wall carry LootId strings.** `Kit.gear?: string[]` (`src/net/rollback.ts:22`, inside PvP records) and `fight_results.opponent_gear` jsonb.
-8. **Retired ids must stay valid forever.** See `RETIRED_LOOT` (`src/loot.ts:89-93`): "a roster change never deletes a player's item".
+8. **Retired ids must stay valid forever.** See `RETIRED_LOOT` (`src/fight/loot.ts:89-93`): "a roster change never deletes a player's item".
 9. **Legends have no id of their own.** If O1 needs a CharacterDefinition per legend, the `"<opponent>-<rung>"` key is already persisted (skull wall `defeats`, `fight_results.opponent_key`, nginx). Reuse it rather than mint a new one.
 
 ---

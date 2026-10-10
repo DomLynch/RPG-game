@@ -5,7 +5,7 @@ import { bodytypeProblems, catalogueProblems, type Bodytype, type CatalogueRow }
 import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { ROSTER } from '../src/roster.ts';
-import { LOOT_IDS } from '../src/loot.ts';
+import { LOOT_IDS } from '../src/core/loot.ts';
 import { ROTATION, FINISHER_POSE } from '../src/fight/finishers.ts';
 import { WEAPONS } from '../src/fight/moves.ts';
 import { PICKS } from '../src/fight/stance.ts';

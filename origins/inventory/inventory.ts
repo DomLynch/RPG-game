@@ -26,8 +26,8 @@
 // Pure: no DOM, network, timers or randomness. Every function takes an Inventory and returns a new one (or a refusal, with the input
 // untouched). Ids from the wire are compared with ===, kept in Maps and never used to index a plain object, so 'constructor',
 // '__proto__' or 'toString' are just strings that name nothing.
-import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
-import { paperdollOf, type Paperdoll } from '../../src/loot.ts';
+import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
+import { paperdollOf, type Paperdoll } from '../../src/core/server.ts';
 import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
 import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../contracts/economy.ts';
 import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';

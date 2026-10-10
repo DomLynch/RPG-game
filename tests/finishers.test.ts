@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/fight/finishers.ts';
 import type { Finish } from '../src/fight/duel.ts';
-import type { HitLocation } from '../src/blade.ts';
+import type { HitLocation } from '../src/fight/blade.ts';
 import type { MoveId, WeaponId } from '../src/fight/moves.ts';
 
 // Finishers & gore v1 (owner-authorized 2026-09-17; blade-kill rule owner-decided 2026-09-18 on PR #112 and broadened the
@@ -95,7 +95,7 @@ test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool s
 });
 
 // The measured per-finisher durations (Lead brief 2026-09-22, for Web's loot panel). The game keys on the event
-// (view.finishPhase().complete in src/scene.ts); this table is the published figure Web budgets a layout against, measured by
+// (view.finishPhase().complete in src/fight/scene.ts); this table is the published figure Web budgets a layout against, measured by
 // `node scripts/finisher-preview.mjs --durations`. What is asserted here is the shape and the honesty of the table, not the
 // numbers themselves — those are whatever the harness measured, and the harness is the thing that re-checks them.
 test('finisher durations are per finisher, measured, and every shipped outcome has one', () => {

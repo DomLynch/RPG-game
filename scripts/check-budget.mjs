@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib';
 import { LEVELS, OPPONENTS, opponentAt } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LEGEND_OPPONENTS } from '../src/legends.ts';
-import { PHONE_LOOKS } from '../src/rank-look.ts';
+import { PHONE_LOOKS } from '../src/fight/rank-look.ts';
 import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
 import { mobSpecs, previewRows, regionBodies } from '../origins/preview/mobs.ts';
 // What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
@@ -71,7 +71,7 @@ const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_600_000, 'plaguedoctor-phon
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
 const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);
-// Weapon shapes per rank (src/weapon-shapes.ts, public/weapons/shapes/<shape>-<band>.glb, Dom 2026-09-28 "implement the maul"): fetched
+// Weapon shapes per rank (src/fight/weapon-shapes.ts, public/weapons/shapes/<shape>-<band>.glb, Dom 2026-09-28 "implement the maul"): fetched
 // after the rigs load, never gating first playable; a fight fetches at most two (the player's file and his). Each weapon's set has its own
 // storage line out of TOTAL (like LOOKS) and each file its own cap. maul 1.0 MB (Lead 2026-09-30, the Knight's grey slab: only GPT's v3 crafted ships, 879,595 B gzip;
 // the flat-grey plain 809,837 and ornate 1,235,724 B files are deleted, the ranks keep the shipped textured maul);
@@ -91,13 +91,13 @@ const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(
 const SHAPES = { maul: 1_000_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
 // A file's set is the longest SHAPES key it starts with (`maul-plain.glb`, a later per-rank `maul-9.glb`: maul).
 const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${set}-`)).sort((a, b) => b.length - a.length)[0];
-// Painted shields (src/shields.ts, public/shields/<carrier>-<band>.glb; GPT job 5, Strategy's shield brief 2026-09-30, Lead's budget): fetched after the
+// Painted shields (src/fight/shields.ts, public/shields/<carrier>-<band>.glb; GPT job 5, Strategy's shield brief 2026-09-30, Lead's budget): fetched after the
 // fight is playable, never a fight's own download, so they stay out of the per-fight figure and out of TOTAL; each carrier's set has its own storage line and each
 // file its own cap (maps inside the GLB, cut at intake to 512 WebP albedo+normal and 256 metal-rough: Lead 2026-10-01). Lead 2026-09-30: <= 0.9 MB per file, <= 2.7 MB per set.
 // shieldmaiden 2.7 MB (plain + crafted + kite = 127,555 + 128,618 + 134,396 B gzip); centurion 2.7 MB (the Veteran rig's scutum: 133,122 + 136,407 + 156,763 B gzip).
 const SHIELDS = { shieldmaiden: 2_700_000, centurion: 2_700_000 }, SHIELD_FILE = 900_000;
 // Beast duel bodies (public/beasts/<id>.glb: the boar, the bear; Lead's ruling 2026-10-08, Dom's phone-first vision): each is a full duel rig (~1.8 MB gzip), so they are NOT in src/assets (the glob emits every
-// file there into every player's download and TOTAL) but fetched on demand by URL when the creature is near or the duel starts (src/beast-scale.ts beastBodyUrl; World's preload warms it). Their own storage line,
+// file there into every player's download and TOTAL) but fetched on demand by URL when the creature is near or the duel starts (src/fight/beast-scale.ts beastBodyUrl; World's preload warms it). Their own storage line,
 // out of TOTAL and out of every per-fight sum: per file and for the folder.
 const BEASTS_FILE = 2_200_000, BEASTS_SET = 8_000_000;
 // World bodies (public/world/<kind>.glb; Lead 2026-10-07, Dom's phone test: the Origins preview went black on an iPhone 15 with full duel GLBs): one
@@ -162,7 +162,7 @@ export async function measure(distDir = dist, srcDir = src) {
   // prop or loot and stay out of every per-fight sum and out of TOTAL; their own storage line is PREVIEW, and no GLB a fight fetches may
   // reference an image under herolook/ (textures() below).
   const preview = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'herolook');
-  // Rank looks (src/rank-look.ts, public/looks/<opponent>-L<n>.glb): streamed only after first playable and gated by time
+  // Rank looks (src/fight/rank-look.ts, public/looks/<opponent>-L<n>.glb): streamed only after first playable and gated by time
   // (scripts/rank-look-check.mjs), so out of the per-fight download and the total; capped per set and per file below, and every image
   // one references must be in dist.
   const looks = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'looks' && f.name.endsWith('.glb'));

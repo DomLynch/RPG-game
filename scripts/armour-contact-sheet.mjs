@@ -9,8 +9,8 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { preview } from 'vite';
-import { LOOT, LOOT_SLOTS, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/loot.ts';
-import { TIERS } from '../src/grades.ts';
+import { LOOT, LOOT_SLOTS, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/core/server.ts';
+import { TIERS } from '../src/core/server.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'audit'), only = arg('only', 'both');
@@ -32,7 +32,7 @@ if (process.argv.includes('--roster')) {
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
 <body><canvas id="world"></canvas><script type="module">
 import * as THREE from 'three';
-import { createScene } from '/src/scene.ts';
+import { createScene } from '/src/fight/scene.ts';
 import { initialPractice, project } from '/src/fight/combat.ts';
 import { OPPONENTS } from '/src/fight/moves.ts';
 import { LADDER } from '/src/ladder.ts';

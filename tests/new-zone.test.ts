@@ -59,7 +59,8 @@ test('a zone name with quotes is written as a valid string', async () => {
 });
 
 // --- one data row writes the whole folder (track B, Lead 2026-10-10): the row of today's Zone 2 regenerates Zone 2 ---
-const rowOf = (id: string) => { const z = loadZone(id); return { name: z.name, names: z.names, world: z.world, spawns: z.spawns, kit: z.kit, looks: z.looks, ...(z.mobLooks ? { mobLooks: z.mobLooks } : {}), ...(z.place ? { place: z.place } : {}) }; };
+const cam = (z: ReturnType<typeof loadZone>) => { const c = Object.fromEntries(['passage', 'presets', 'preset'].filter((k) => z.set?.includes(`camera.${k}`)).map((k) => [k, z.fields![`camera.${k}`]])); return Object.keys(c).length ? c : undefined; };   // the camera fields the zone SET (camera.passage, camera.presets, camera.preset) back into a row
+const rowOf = (id: string) => { const z = loadZone(id); return { name: z.name, names: z.names, world: z.world, spawns: z.spawns, kit: z.kit, looks: z.looks, ...(z.mobLooks ? { mobLooks: z.mobLooks } : {}), ...(z.place ? { place: z.place } : {}), ...(cam(z) ? { camera: cam(z) } : {}) }; };
 const modules = ['zone', 'spawns', 'kit', 'look', 'mob-looks', 'place'];
 
 test('the data row of Zone 2 regenerates a folder that loads to exactly Zone 2 (values, not bytes: JSON has no 0x hex and no comments)', async () => {

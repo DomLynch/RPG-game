@@ -1,18 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';
 import { idleIntent, stepDuel, type Duel, type CombatEvent } from '../src/fight/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { classSpecialFor } from '../src/class-special-identity.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { SPECIAL_TESTS, type SpecialTest } from '../src/special-look.ts';
-import { specialCueFor } from '../src/sparring-special-runtime.ts';
-import { resolveSparringPreview, sparringSpecialOptions } from '../src/sparring-specials.ts';
-import { createSpecialPresentation, disposeSpecialGroup } from '../src/special-presentation.ts';
+import { classSpecialFor } from '../src/fight/class-special-identity.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
+import { specialCueFor } from '../src/fight/sparring-special-runtime.ts';
+import { resolveSparringPreview, sparringSpecialOptions } from '../src/fight/sparring-specials.ts';
+import { createSpecialPresentation, disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 import { createRecorder } from '../src/fight/record.ts';
 import { crowdWave } from '../src/arena.ts';
 

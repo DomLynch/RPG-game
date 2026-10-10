@@ -6,6 +6,8 @@ import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
 import { signedIn } from './save.ts';
+import { campCount } from '../mobs/row.ts';
+import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
@@ -16,14 +18,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 9, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp of three at the hold road');
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 8, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp at the hold road: two now, since the camp size is drawn in 2..3 and no longer always the upper bound (re-pinned on purpose, Lead 10-10)');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
   assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
   assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
   assert.deepEqual(byZone('east-road').map((s) => s.character).sort(), ['character:court-thrall', 'character:pit-goblin', 'character:pit-goblin'], 'the court thrall, and the Pit goblin camp of two at the watchtower by the start path (goblin camp added, Dom 10-09)');
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 24, '22 + the two Pit goblins');
+  assert.equal(SPECS.length, 23, '22 + the two Pit goblins, minus one: the Ash Wolf camp is drawn in 2..3 and is two (re-pinned 10-10, Lead)');
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -176,13 +178,13 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, '24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, 'Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
-test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {
+test('the Ash Wolf is a live row: ?wolf changes nothing, the wolf camp (2 or 3) stands on its own body in the Cinder Fields', () => {
   assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf', false)), SPECS, '?wolf is accepted and does nothing');
   const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
-  assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
+  assert.ok(wolves.length >= 2 && wolves.length <= 3, 'campSize 2..3: the camp is drawn inside the row\'s range (it was always the upper bound until 10-10)');
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
@@ -254,4 +256,11 @@ test('name tags are kept below the HUD: the ceiling is the floor plus half a tag
   const c = labelCeilingNdc(280, 812);   // 375x812 phone, bars end near y 280: tags sit at least 12 px under it
   assert.ok(Math.abs(((1 - c) / 2) * 812 - 292) < 1e-6, 'centre 292 px from the top');
   assert.ok(Number.isFinite(labelCeilingNdc(280, 0)), 'a zero-height window cannot divide by zero');
+});
+
+test('a camp\'s size is drawn inside the row\'s campSize range, not its upper bound (the populate.ts rule, one function)', () => {
+  const seen = new Set<number>();
+  for (let n = 0; n < 400; n++) { const k = campCount([2, 4], nextRandom(mixSeed(1234 + n, n))[0]); assert.ok(k >= 2 && k <= 4 && Number.isInteger(k), `size ${k}`); seen.add(k); }
+  assert.deepEqual([...seen].sort(), [2, 3, 4], 'every size in [2,4] comes up across seeds');
+  assert.equal(campCount([3, 3], 0.999), 3); assert.equal(campCount(undefined, 0), 2, 'no campSize: the default [2,3]');
 });

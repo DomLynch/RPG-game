@@ -64,7 +64,7 @@ test('each zone walks its own world zones: Zone 1 is the Frontier as it was, Zon
   assert.ok(specs.every((m) => m.level >= 2 && m.level <= 3), 'at the Zone 2 band');
   assert.ok(specs.every((m) => m.id.startsWith('z2:')), 'Zone 2 instance ids carry the z2: prefix (the server keys a creature by its id alone, Backend 10-09)');
   const wolves = specs.filter((m) => m.character === 'character:ember-wolf');
-  assert.ok(wolves.length >= 2 && wolves.every((m) => m.body === 'wolf' && /^z2:(reach-wolves|opener-ash-reach)-\d+$/.test(m.id)), 'the Ember Wolves are on the wolf body and their ids are z2:-prefixed (reach-wolves and the zone opener)');
+  assert.ok(wolves.length >= 2 && wolves.every((m) => m.body === 'wolf' && /^z2:(reach-wolves|reach-pack-[ab]|opener-ash-reach)-\d+$/.test(m.id)), 'the Ember Wolves are on the wolf body and their ids are z2:-prefixed (the cairn pair, the ruin camp and the zone opener)');
   assert.ok(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).every((m) => !m.id.includes(':')), 'Zone 1 ids are unchanged');
   assert.equal(mobSpecs(frontierPlan(false, '1'), frontierBuild(frontierPlan(false, '1'))).some((m) => m.zone === 'ash-reach'), false);
 });
@@ -93,16 +93,19 @@ test('Zone 2 world is pinned: the same pieces, solids, creature homes and plan z
   const plan = frontierPlan(false, '2'), b = frontierBuild(plan), specs = mobSpecs(plan, b, loadZone('2').spawns.rows);
   const h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
   assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids), specs.length, h(specs.map((m) => ({ id: m.id, zone: m.zone, home: m.home, spawn: m.spawn, body: m.body }))), h([plan.zones])],
-    [8, 'd508458ff6597cb4', 2, 'a4b3343a082ce465', 8, '2a866f58fd2353d1', '3fc4d31cf1bf4c5e']);
+    [8, 'd508458ff6597cb4', 2, 'a4b3343a082ce465', 10, 'f73c961643987577', '3fc4d31cf1bf4c5e']);   // 10 creatures, creature-homes hash re-pinned 2026-10-10 (pack balance): the cairn pack is two wolves (campSize [2,2]), the ruin gets a four-wolf camp (reach-pack-a/b); pieces, solids and plan zones unchanged
 });
 
 // Proof 3 needs a camp where three can really join one player (#1943: up to 3). A creature's home is walkable by construction (mobSpecs places it with stand()), so standing at one is a real spot.
-test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a walkable spot, and the pack is four wolves', () => {
+test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a walkable spot, and the ruin pack is four wolves, the cairn pair a fair first fight', () => {
   const plan = frontierPlan(false, '2'), specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
   const crowd = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= JOIN_M).length));
   assert.ok(crowd >= 3, `most creatures within JOIN_M of one home: ${crowd}`);
   const hunt = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= AGGRO_M).length));
   assert.ok(hunt >= 4, `a hero at one home has all four wolves inside AGGRO_M (they hunt only inside it, so all can join): ${hunt}`);
-  assert.equal(specs.filter((m) => m.spawn === 'reach-wolves').length, 4, 'the wolf pack is four');
-  assert.ok(specs.filter((m) => m.spawn === 'reach-wolves').every((m) => m.id.startsWith('z2:')));
+  const pack = specs.filter((m) => m.spawn.startsWith('reach-pack-')), cairn = specs.filter((m) => m.spawn === 'reach-wolves');
+  assert.equal(pack.length, 4, 'the ruin camp is four wolves (Proof 2 four-wolf row, Proof 3: three bite, the fourth holds at the ring)');
+  assert.equal(cairn.length, 2, 'the cairn pair is the fair first fight (scripts/pack-battery.ts: a Recruit wins a pair 14-15 of 24)');
+  assert.ok(pack.every((a) => pack.every((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= AGGRO_M)), 'all four ruin wolves hunt inside one AGGRO_M');
+  assert.ok([...pack, ...cairn].every((m) => m.id.startsWith('z2:')));
 });

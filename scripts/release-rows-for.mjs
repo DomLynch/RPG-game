@@ -9,11 +9,19 @@ import { readFileSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, matchesGlob } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import { existsSync } from 'node:fs';
+import { SERVER_ENTRIES, writerClosure } from './writer-closure.mjs';
 import process from 'node:process';
 import console from 'node:console';
 
+// The files the box's node services load at runtime, read from the checkout this runs in (the release sha at deploy). A changed file in it
+// can break the writer's boot, so it triggers the boot-check row; unreadable means unknown, which counts as in.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const serverFiles = () => { try { const set = new Set(); for (const e of SERVER_ENTRIES) writerClosure(f => readFileSync(join(ROOT, f), 'utf8'), f => existsSync(join(ROOT, f)), e).files.forEach(f => set.add(f)); return set; } catch { return null; } };
+const BOOT_ROW = 'origins-writer-boot-check';
+
 const gate = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8'));
-export const rowName = command => (command.find(a => a.endsWith('.mjs')) || command[0]).replace(/^(scripts|artifacts)\//, '').replace(/\.mjs$/, '').replace(/[^\w.-]+/g, '_').slice(0, 40);
+export const rowName = command => (command.find(a => a.endsWith('.mjs') || a.endsWith('.sh')) || command[0]).replace(/^(scripts|artifacts)\//, '').replace(/\.(mjs|sh)$/, '').replace(/[^\w.-]+/g, '_').slice(0, 40);
 export const rows = gate.release_commands.map((command, i) => ({ index: i + 1, name: rowName(command), argv: JSON.stringify(command) }));
 
 export function rowsFor(files) {
@@ -27,6 +35,8 @@ export function rowsFor(files) {
       for (const r of mode === 'first' ? hits.slice(0, 1) : hits) wanted.add(r.index);
     }
   }
+  const server = serverFiles();
+  if (files.some(file => !isDoc(file) && (!server || server.has(file)))) rows.filter(r => r.name === BOOT_ROW).forEach(r => wanted.add(r.index));
   return rows.filter(r => wanted.has(r.index));
 }
 
@@ -36,32 +46,41 @@ export function rowsFor(files) {
 // only delays it to the next release. Not a dependency map: the daily full run is what catches a break outside these rows.
 const CORE = ['roster-browser-check', 'record-replay-check', 'finisher-preview:first', 'account-browser-check', 'viewport-check'];
 const AREAS = [
-  { paths: ['supabase/**', 'src/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
+  { paths: ['supabase/**', 'src/core/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
   { paths: ['src/fight/ai.ts', 'src/fight/moves.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
-  { paths: ['src/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
+  { paths: ['src/loot*.ts', 'src/fight/loot*.ts', 'src/core/profile.ts'], rows: ['loot-smoke-check'] },
   { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
-  { paths: ['src/arena*.ts', 'src/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
+  { paths: ['src/arena*.ts', 'src/fight/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
   // Row 44, the Stage picker (every arena ship re-pins its list in scripts/sparring-browser-check.mjs): the arena files, the sparring
   // files and main.ts, which builds #arena-select (Lead 2026-10-06: 17ab81e9 needed it and the picker had no mapping for it).
   { paths: ['src/arena*.ts', 'src/sparring*.ts', 'src/stage-hide.ts', 'src/main.ts', 'public/arena/**'], rows: ['sparring-browser-check'] },
   { paths: ['src/audio/**', 'src/assets/audio/**'], rows: ['audio-preview', 'arena-audio-check'] },
-  { paths: ['src/blade*.ts', 'src/fight/characters.ts', 'src/shields.ts', 'src/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
+  { paths: ['src/blade*.ts', 'src/fight/blade*.ts', 'src/fight/characters.ts', 'src/fight/shields.ts', 'src/gear-*.ts', 'src/fight/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
   { paths: ['src/fight/finishers.ts', 'src/fight/gore.ts', 'src/fight/finisher-blood.ts', 'src/fight/opened.ts', 'src/fight/severed-head.ts', 'src/fight/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
   { paths: ['src/fight/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
+  // Thumbnails and portraits (public/game/img/**: loot, blood strips, fighter cards): the roster row (CORE) draws them; the gear rows show the loot tiles. Not a full run (Strategy 2026-10-10: two loot .webp files cost Y 35 extra rows).
+  { paths: ['public/game/img/**'], rows: ['loot-smoke-check', 'equip-fallback-check', 'polearm-browser-check:first', 'worn-loot-check'] },
+  { paths: ['scripts/lib/thumb-row.mjs'], rows: ['endgame-hud-check', 'desktop-layout-check'] },   // the two checks that import it
   { paths: ['src/lessons*.ts', 'src/first-loss*.ts', 'src/main.ts'], rows: ['first-loss-browser-check'] },   // a fresh visitor's first minute (Lead 2026-10-06): no other row boots with an empty profile
   // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
   { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
-  { paths: ['src/first-frame.ts', 'src/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
+  { paths: ['src/first-frame.ts', 'src/fight/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
+  { paths: ['scripts/origins-writer.mjs', 'scripts/origins-writer-boot-check.sh', 'origins/**', 'src/fight/index.ts'], rows: ['origins-writer-boot-check'] },   // the writer boots on a box with no `three` (AA crash-looped on src/fight/index.ts, 2026-10-10); the rest of its src files come from the closure walk below
 ];
 // The build: a change here can break any row, so it runs all of them (Auditor B1 on #1381). deploy.sh and the two release
 // scripts are not here: they build no part of the game and their unit tests cover them. The gate's own row list is handled
 // below: only the rows it adds or changes run. public/ assets: the folders with a row of their own are in AREAS (an arena or
 // versus .webp used to run all 51 rows, 15-21 min; Lead 2026-10-06); any other public/ folder (GLBs and looks many rows load)
 // still runs every row.
+// scripts/lib/** is a full run except the libraries below that no release row imports (the deploy pipeline's own scripts: their unit tests
+// cover them, as for deploy.sh) or that one or two rows import (AREAS). A lib listed nowhere stays a full run. Strategy 2026-10-10: Z cost 52 rows for scripts/lib/data-only.mjs.
 const FULL = ['package.json', 'package-lock.json', 'vite.config.*', 'tsconfig*.json', 'scripts/lib/**'];
-const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**'];
-const isFull = file => FULL.some(glob => matchesGlob(file, glob)) || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));
+const LIB_NO_ROWS = ['scripts/lib/deploy-*.sh', 'scripts/lib/row-placement.mjs', 'scripts/lib/vps-receipts.mjs', 'scripts/lib/hf-slots.mjs', 'scripts/lib/hf-wall-rows.mjs',
+  'scripts/lib/published-summary.mjs', 'scripts/lib/prune-releases.sh', 'scripts/lib/data-only.mjs', 'scripts/lib/glb-stats.mjs', 'scripts/lib/gpu-run.mjs', 'scripts/lib/stop-workers.mjs', 'scripts/lib/player-bot-*.mjs'];
+const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**', 'public/game/img/**'];
+const isFull = file => (FULL.some(glob => matchesGlob(file, glob)) && !LIB_NO_ROWS.some(glob => matchesGlob(file, glob)) && !AREAS.some(a => a.paths.includes(file)))
+  || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));
 const GATE = '.quality-gate.json';
 const named = spec => { const [name, mode] = spec.split(':'); const hits = rows.filter(r => r.name === name);
   if (!hits.length) throw new Error(`deploy scope names row "${name}", which is not in release_commands`);
@@ -83,6 +102,8 @@ export function deployRowsFor(files, previousCommands) {
     for (const area of AREAS) if (area.paths.some(glob => matchesGlob(file, glob))) area.rows.forEach(add);
     rows.filter(r => `scripts/${r.name}.mjs` === file).forEach(r => wanted.add(r.index));
   }
+  const server = serverFiles();
+  if (files.some(file => !isDoc(file) && (!server || server.has(file)))) add(BOOT_ROW);
   return rows.filter(r => wanted.has(r.index));
 }
 // Seconds since the last release run that ran every row (artifacts/last-full-release.json, written by release-checks.mjs;

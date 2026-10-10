@@ -14,7 +14,7 @@ import { loadZone } from '../zones/loader.ts';
 import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
 import { award } from '../progression/model.ts';
 import type { TwistOutcome } from '../../src/fight/server.ts';
-import { careerState } from './career.ts';
+import { careerState } from '../../src/core/server.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
 import * as store from './store.ts';

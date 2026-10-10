@@ -4,8 +4,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { advanceCast, shadowPhase, CAST_MARGIN, DROP_TICKS, FALL_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
-import { CLOUD_HIGH, CLOUD_LOW, createSpecialFx } from '../src/special-fx.ts';
+import { advanceCast, shadowPhase, CAST_MARGIN, DROP_TICKS, FALL_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/fight/special-timing.ts';
+import { CLOUD_HIGH, CLOUD_LOW, createSpecialFx } from '../src/fight/special-fx.ts';
 
 // Hades' Shadow (special-timing.ts, special-fx.ts): the presentation follows Combat's special events on the sim's own ticks, draws
 // only for the Nightborn's lunge special, and ships in its own lazy chunk.
@@ -79,7 +79,7 @@ test('special-fx ships in its own lazy chunk: nothing imports it statically', ()
   const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
   const statics = files.filter((f) => /from\s+['"]\.\/special-fx\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8')));
   assert.deepEqual(statics, [], 'a static import would put the claw in every fight download');
-  assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx\.ts'\)/, 'the scene loads it on demand');
+  assert.match(readFileSync('src/fight/scene.ts', 'utf8'), /import\('\.\/special-fx\.ts'\)/, 'the scene loads it on demand');
 });
 
 // The black cloud draws over the target (no depth test) with a violet-grey halo bank under the black so it still reads on the Night Pit.

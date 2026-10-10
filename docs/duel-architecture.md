@@ -10,7 +10,7 @@ Duel lane, 2026-09-29, for Lead. Status: **design, nothing built**. Every number
 
 ## 2. Determinism across engines (the real pair is Chrome/Android vs Safari/iOS WebKit)
 
-What exists: `src/detmath.ts` (sin/cos/atan2/hypot built from + − * / sqrt, which IEEE 754 rounds exactly in every engine); `tests/detmath.test.ts` bans `Math.<transcendental>` and `**` in the 11 sim files; `SIM_DIGEST` pins those files to `RECORD_VERSION` 20. Before detmath, Node V8, Chromium and the VPS Node 22 verifier split a fight at tick 1412 on a 1-ulp `atan2`.
+What exists: `src/fight/detmath.ts` (sin/cos/atan2/hypot built from + − * / sqrt, which IEEE 754 rounds exactly in every engine); `tests/detmath.test.ts` bans `Math.<transcendental>` and `**` in the 11 sim files; `SIM_DIGEST` pins those files to `RECORD_VERSION` 20. Before detmath, Node V8, Chromium and the VPS Node 22 verifier split a fight at tick 1412 on a 1-ulp `atan2`.
 
 Remaining gaps, and the test that closes each:
 1. **The ban list is hand-kept.** A new file imported by `duel.ts` would not be scanned. → `tests/net-determinism.test.ts` walks the transitive imports of `src/fight/duel.ts` and fails if any reached file is missing from the SIM list. It also bans `Math.random`, `Date`, `performance`, `Math.fround`, typed-array float32 and `toFixed` in those files.

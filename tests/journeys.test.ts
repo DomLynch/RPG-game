@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { decodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { createSaveQueue, profileDiffers, readFighter, writeFighter } from '../src/cloud-profile.ts';
-import { mergeLoot, recordTaken, store, unwear, wear, type Loot } from '../src/loot.ts';
-import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
+import { createSaveQueue, profileDiffers, readFighter, writeFighter } from '../src/core/cloud-profile.ts';
+import { mergeLoot, recordTaken, store, unwear, wear, type Loot } from '../src/core/loot.ts';
+import { loadProfile, saveProfile, type Profile } from '../src/core/profile.ts';
 import { fetchSharedRecord, publishRecord, sharedIdFrom, shortLink } from '../src/share-store.ts';
 
 type Row = Record<string, unknown>;

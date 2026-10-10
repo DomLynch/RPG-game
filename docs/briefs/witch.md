@@ -133,7 +133,7 @@ three are creatures. I own both re-proportioning routes (the Goblin's `BUILD.bon
 
 | cost of a new RigId | measured today |
 |---|---|
-| Blade-path bake, her own | 10 tables for one weapon. Every rig has exactly 10 per weapon: hero 7 weapons / 70 tables, goblin, nightborn, minotaur and wraith 1 weapon / 10 each (`src/blade-paths.ts`). The lookup is **strict** — `bladePathsByRig[rig]?.[weapon]?.[kind]` (`src/blade.ts:34`) — so a missing table is a hole, not a fallback. |
+| Blade-path bake, her own | 10 tables for one weapon. Every rig has exactly 10 per weapon: hero 7 weapons / 70 tables, goblin, nightborn, minotaur and wraith 1 weapon / 10 each (`src/fight/blade-paths.ts`). The lookup is **strict** — `bladePathsByRig[rig]?.[weapon]?.[kind]` (`src/fight/blade.ts:34`) — so a missing table is a hole, not a fallback. |
 | Brief 14 kit | **+1 rig family**, and tiers are material variants *per family*, so the shared six-slot library is fitted again for her. This is the big one and it is mine. |
 | Finisher fits | measured per finisher; four carry their own framing (`src/camera.ts:42`: `runThrough`, `splitCrown`, `quietOne`, `opened`). |
 | The re-proportioning itself | `BUILD.bones` per-bone scale through the skin weights, rebuilt inverse binds, pelvis/floor clamp, stride datum — the Goblin route, which works, plus its own verification pass. |

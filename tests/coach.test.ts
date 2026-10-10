@@ -8,8 +8,8 @@ import { COACH_BRAINS, COACH_FIXED, coachProfile, createCoach } from '../src/coa
 import { OPPONENTS, PROFILES, opponentAt, profileAt, type Level } from '../src/fight/moves.ts';
 import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
-import { underRecord } from '../src/detmath.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
+import { underRecord } from '../src/fight/detmath.ts';
 import { PICKS, type PickedStance } from '../src/fight/stance.ts';
 
 const LEVELS: Level[] = ['easy', 'normal', 'hard'];
@@ -63,7 +63,7 @@ test('a coached fight is a pure function of seed and stance, and the stances pla
 });
 
 // ---- the on/off switch, the hand-over and the `build` string (TOP10 row 8; the contract Web builds against) ----
-import { BUILD_MAX, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
+import { BUILD_MAX, FOE_LAPSE, FOE_LAPSE_SCALE, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
 import { idleIntent, type Intent } from '../src/fight/duel.ts';
 import { kitOfBuild } from '../origins/mobs/kit-version.ts';
 
@@ -93,14 +93,26 @@ test('a hold the coach had is released the tick the player takes over unless the
   let p = initialPractice(3, opponentAt(OPPONENTS.veteran, 6), 'longsword', null);
   driver.start(0); driver.start(5);          // a second start does not open a second span
   let guardedAtCoach = false;
-  for (let t = 0; t < 600 && !guardedAtCoach; t++) { const i = driver.pick(p.duel, idleIntent()); if (i.guard) guardedAtCoach = true; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
-  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 600 ticks');
+  for (let t = 0; t < 1800 && !guardedAtCoach; t++) { const i = driver.pick(p.duel, idleIntent()); if (i.guard) guardedAtCoach = true; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
+  assert.ok(guardedAtCoach, 'the defensive coach raises a guard within 1800 ticks (this test is the hand-over; promptness is pinned by the distribution test below)');
   driver.stop(p.duel.tick); driver.stop(p.duel.tick + 1);   // a second stop changes nothing
   assert.equal(driver.spans.length, 1); assert.notEqual(driver.spans[0]!.to, null);
   const released = driver.pick(p.duel, idleIntent());
   assert.equal(released.guard, false, 'the coach\'s guard is not carried into the player\'s tick');
   const holding = driver.pick(p.duel, { ...idleIntent(), guard: true });
   assert.equal(holding.guard, true, 'a player who holds guard keeps it');
+});
+
+// Promptness of the defensive coach, pinned as a distribution not one seed (the one-seed 600-tick bound held only at lapse .1; at the tuned lapse .4 seed 3 first guards at tick 921 in this file's state, 308 alone):
+// measured here: median 189, 90th percentile 423, worst 921 (seed 3); the first guard tick over seeds 1-20 against the L6 veteran.
+test('the defensive coach raises its first guard promptly across seeds: 18 of 20 seeds within 600 ticks, every seed within 1800', () => {
+  const first = (seed: number): number => {
+    const d = createCoachDriver('defensive', seed); let p = initialPractice(seed, opponentAt(OPPONENTS.veteran, 6), 'longsword', null); d.start(0);
+    for (let t = 0; t < 1800; t++) { const i = d.pick(p.duel, idleIntent()); if (i.guard) return t; p = stepPractice(p, i, profileAt(OPPONENTS.veteran, 6)); }
+    return Infinity;
+  };
+  const ticks = Array.from({ length: 20 }, (_, k) => first(k + 1)).sort((a, b) => a - b);
+  assert.ok(ticks[17]! <= 600, `90th-percentile first guard ${ticks[17]}`); assert.ok(ticks[19]! < 1800, 'every seed guards');
 });
 
 test('the record build string: spans listed, kit tag last and still readable; over 255 bytes it falls back to @* and never cuts a span', () => {
@@ -137,4 +149,16 @@ test('the spans reach the record without touching record.ts: the page sets rec.m
   const back = await decodeRecord(await encodeRecord(record));
   assert.equal(back.build, 'abc1234 coach:neutral@40-160 kit:k9z');
   assert.equal(kitOfBuild(back.build), 'k9z'); assert.deepEqual(coachOfBuild(back.build)!.spans, [{ from: 40, to: 160 }]);
+});
+
+test('per-foe strength: a listed foe moves only the lapse, scaled by stance and clamped; an unlisted or absent foe changes nothing', () => {
+  for (const stance of PICKS) {
+    const base = coachProfile(stance, 'normal');
+    assert.deepEqual(coachProfile(stance, 'normal', 'veteran'), base, 'an unlisted foe adds nothing');
+    assert.deepEqual(coachProfile(stance, 'normal', undefined), base);
+    const dwarf = coachProfile(stance, 'normal', 'dwarf');
+    assert.ok(Math.abs(dwarf.lapse - Math.min(0.85, base.lapse + FOE_LAPSE.dwarf! * FOE_LAPSE_SCALE[stance])) < 1e-12, `${stance}: lapse + dwarf x scale`);
+    for (const k of COACH_FIXED) assert.equal(dwarf[k], base[k], `${stance}: ${k} stays the warden's`);
+    assert.ok(coachProfile(stance, 'normal', 'plaguedoctor').lapse >= 0.1 && dwarf.lapse <= 0.85, 'clamped');
+  }
 });

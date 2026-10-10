@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor, powerWordsLook } from '../src/power-words.ts';
+import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor, powerWordsLook } from '../src/fight/power-words.ts';
 
 test('muted, like the other voices', () => assert.equal(POWER_WORD_GAIN, 0));
 

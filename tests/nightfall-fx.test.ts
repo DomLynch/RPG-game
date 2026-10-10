@@ -4,10 +4,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { CAST_MARGIN, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { DRAIN_DONE, nightfall, RETURN, STUCK_AT, VEIL } from '../src/nightfall-timing.ts';
-import { createNightfallFx, FLOOR } from '../src/nightfall-fx.ts';
+import { CAST_MARGIN, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { DRAIN_DONE, nightfall, RETURN, STUCK_AT, VEIL } from '../src/fight/nightfall-timing.ts';
+import { createNightfallFx, FLOOR } from '../src/fight/nightfall-fx.ts';
 
 // Nyx's Nightfall (nightfall-timing.ts, nightfall-fx.ts): the arena's light drains over the windup, a veil sweeps at the release and the light
 // returns in ~0.5 s. Presentation only: it follows Combat's special events on the sim's ticks and ships in its own lazy chunk.
@@ -110,7 +110,7 @@ test('a rig still loading (no head bones) still drains the light, and a fizzle w
 test('nightfall-fx ships in its own lazy chunk: only the registry imports it (dynamically), and the scene applies its exposure and clears it', () => {
   const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
   assert.deepEqual(files.filter((f) => /from\s+['"]\.\/nightfall-fx\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), [], 'a static import would put it in every fight download');
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /nyx:[^\n]*import\('\.\/nightfall-fx\.ts'\)/);
-  const scene = readFileSync('src/scene.ts', 'utf8');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /nyx:[^\n]*import\('\.\/nightfall-fx\.ts'\)/);
+  const scene = readFileSync('src/fight/scene.ts', 'utf8');
   assert.doesNotMatch(scene, /nightfall-fx|nyx/); assert.match(scene, /specialFx as ModeFx[^\n]*\.exposure/); assert.match(scene, /specialFx\?\.clear\(\)/);
 });

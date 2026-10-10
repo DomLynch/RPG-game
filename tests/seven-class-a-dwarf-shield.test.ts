@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import * as factories from '../src/special-fx-dwarf-shield.ts';
+import * as factories from '../src/fight/special-fx-dwarf-shield.ts';
 import { idleIntent, stepDuel, type Duel, type CombatEvent, type Fighter } from '../src/fight/duel.ts';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/special-timing.ts';
-import { disposeSpecialGroup } from '../src/special-presentation.ts';
+import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/fight/special-timing.ts';
+import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 
 const cases = [
   { factory: 'createGroundSet', opponent: 'dwarf', move: 'skill_stomp', root: 'ground set' },

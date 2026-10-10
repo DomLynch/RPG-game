@@ -1,0 +1,10 @@
+# Removes /tmp build/stills dirs older than 24 h with no open handle (ops/sweep-tmp.sh); one run per timer tick, logs to the journal.
+# Install (root): install -m 0755 ops/sweep-tmp.sh /usr/local/sbin/frankendom-tmp-sweep; cp ops/frankendom-tmp-sweep.{service,timer} /etc/systemd/system/; systemctl daemon-reload; systemctl enable --now frankendom-tmp-sweep.timer
+[Unit]
+Description=Frankendom /tmp sweep (dirs older than 24 h, no open handle)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/frankendom-tmp-sweep
+Nice=10
+IOSchedulingClass=idle

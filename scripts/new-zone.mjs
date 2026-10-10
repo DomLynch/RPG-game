@@ -21,11 +21,11 @@ const lit = (v, d = 0) => {
 const hdr = (row, key, dflt) => `${(row.notes?.[key] ?? dflt).split(/\r\n|[\n\r\u2028\u2029]/).map((l) => `// ${l}`.trimEnd()).join('\n')}\n`;   // row.notes[file] carries a file's header comment (a row is JSON: it cannot hold comments itself)
 function rowFiles(n, row) {
   const own = (k) => (row[k] === undefined ? [] : [k]);
-  for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place', 'notes'].includes(k)) throw new Error(`row: unknown key "${k}"`);
+  for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place', 'camera', 'notes'].includes(k)) throw new Error(`row: unknown key "${k}"`);
   if (row.id !== undefined && String(row.id) !== String(n)) throw new Error(`row: id ${row.id} is not zone ${n}`);
-  const head = { id: String(n), level: n, name: row.name, names: row.names ?? {}, world: row.world ?? [], ...(row.biome && row.biome !== DEFAULT_BIOME ? { biome: row.biome } : {}) };
+  const head = { id: String(n), level: n, name: row.name, names: row.names ?? {}, world: row.world ?? [], ...(row.biome && row.biome !== DEFAULT_BIOME ? { biome: row.biome } : {}), ...(row.camera ? { camera: row.camera } : {}) };
   const files = {
-    'zone.ts': `${hdr(row, 'zone', `Zone ${n} (${row.name}): the zone's own facts, from its data row (scripts/new-zone.mjs --from). \`level\` is the zone number = its base level (Dom 2026-10-08).`)}const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = ${lit(head)};\nexport default zone;\n`,
+    'zone.ts': `${hdr(row, 'zone', `Zone ${n} (${row.name}): the zone's own facts, from its data row (scripts/new-zone.mjs --from). \`level\` is the zone number = its base level (Dom 2026-10-08).`)}const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string; camera?: Record<string, unknown> } = ${lit(head)};\nexport default zone;\n`,
     'spawns.ts': `${hdr(row, 'spawns', `Zone ${n}'s creatures as data, from its row. A row's level must be ${n}-${n + 1}; every opener must name a row (loadZone checks both).`)}import type { MobRow } from '../../mobs/row.ts';\n\nconst spawns: { openers: Record<string, string>; rows: MobRow[] } = ${lit(row.spawns ?? { openers: {}, rows: [] })};\nexport default spawns;\n`,
     'kit.ts': `${hdr(row, 'kit', `Zone ${n}'s kit, from its row (the node names are the kit's contract).`)}import type { Zone } from '../loader.ts';\n\nconst kit: Zone['kit'] = ${lit(row.kit)};\nexport default kit;\n`,
     'look.ts': `${hdr(row, 'look', `Zone ${n}'s looks, from its row: the preset names the page asks for.`)}import type { Zone } from '../loader.ts';\n\nconst looks: Zone['looks'] = ${lit(row.looks)};\nexport default looks;\n`,

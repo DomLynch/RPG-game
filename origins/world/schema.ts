@@ -26,7 +26,7 @@ const bool = (def: boolean, doc: string) => ({ t: 'bool', def, doc }) as const;
 const key = (def: string, doc: string) => ({ t: 'key', def, doc }) as const;
 
 // The frozen camera (Dom froze the framing): read-only facts the view group is bounded by, never a parameter. Values are today's
-// src/scene.ts PerspectiveCamera(51, …, 0.1, 180), src/camera.ts GATE_CAM (back 3.4, height 2.1) and the greybox walker's follow camera.
+// src/fight/scene.ts PerspectiveCamera(51, …, 0.1, 180), src/camera.ts GATE_CAM (back 3.4, height 2.1) and the greybox walker's follow camera.
 export const CAMERA = Object.freeze({
   fovDeg: 51, near: 0.1, far: 180,
   follow: Object.freeze({ back: 5.2, height: 2.7, ahead: 3, lookY: 1.5, settlePerSecond: 4 }),

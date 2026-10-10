@@ -267,13 +267,13 @@ esac
 });
 
 test('release_triggers: a new row joins the rules its paths already hit, never a new first rule that steals them (first match wins)', () => {
-  // #865 put a double-tap rule FIRST for src/main.ts, src/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
+  // #865 put a double-tap rule FIRST for src/main.ts, src/fight/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
   // and lost its earlier rows on every PR. Each file keeps its earlier rows plus double-tap-browser-check.
   const rowsFor = (file: string) => (JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', file], { encoding: 'utf8' })) as { name: string }[]).map((r) => r.name).sort();
   const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
   const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
-  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
-    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/input.ts' ? [] : ['next-fight-black-check'])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
+  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/fight/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/fight/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/fight/input.ts' ? [] : ['next-fight-black-check'])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
@@ -285,7 +285,7 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   // The FIRST LOSS row (2026-10-06, Lead): a brand-new visitor's first minute. It joined the page rule (main.ts, index.html) and has a rule ahead of src/**
   // for src/lessons*.ts and src/first-loss*.ts that carries src/**'s rows too (so it never steals them); its own script runs only itself.
   assert.deepEqual(rowsFor('scripts/first-loss-browser-check.mjs'), ['first-loss-browser-check']);
-  for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'first-loss-browser-check'].sort(), file);
+  for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'first-loss-browser-check', ...(file === 'src/first-loss.ts' ? ['origins-writer-boot-check'] : [])].sort(), file);   // first-loss.ts is in the writer's runtime closure, so it also runs the boot check (#2116)
   assert.ok(!rowsFor('src/fight/hud.ts').includes('first-loss-browser-check'), 'other src files do not run the first-loss row');
 });
 
@@ -357,13 +357,13 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return ROWS - skip.size; };
   assert.equal(kept('src/main.ts'), 8, 'any code change: the five core rows plus the first-loss row, the Stage picker row and the next-fight black row (the page the reload loads; the Pit exit guard covered it; Auditor 2026-10-08)');
   assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the kills-board data module triggers no row of its own (the Pit exit row was removed with the room)');
-  assert.equal(kept('src/fight/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
+  assert.equal(kept('src/fight/ai.ts'), 8, 'combat adds the browser replay (chromium) and kill-link rows, and the writer boot check (ai.ts is in the writer\'s runtime closure)');
   assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
   for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])
     assert.equal(kept('src/main.ts', file), ROWS, `${file} changes the build or the gate (with no base to compare): every row (Auditor B1 on #1381)`);
   assert.equal(kept('src/lessons.ts'), 6, 'the first-loss row joins the core five for the lesson files');
-  assert.equal(kept('src/first-loss.ts'), 6);
+  assert.equal(kept('src/first-loss.ts'), 7, 'the first-loss row and the writer boot check (first-loss.ts is in the writer\'s runtime closure)');
   assert.equal(kept('scripts/first-loss-browser-check.mjs'), 6, 'a changed check script runs its own row');
   assert.equal(kept('src/fight/hud.ts'), 7, 'files outside its trigger do not run it');
   assert.equal(kept('src/audio/mix.ts'), 7, 'audio adds its two rows');
@@ -371,13 +371,13 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
 });
 
 test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the first-loss row, the row that boots to a fight from an empty profile', () => {
-  // a2cf3529 (2026-10-06): #1420 fixed the first-loss row in src/first-frame.ts + src/scene.ts, yet the picker left it out of scope (row 51 then, 50 since the Pit exit row went).
+  // a2cf3529 (2026-10-06): #1420 fixed the first-loss row in src/first-frame.ts + src/fight/scene.ts, yet the picker left it out of scope (row 51 then, 50 since the Pit exit row went).
   const picked = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' }).stderr;
-  for (const file of ['src/first-frame.ts', 'src/scene.ts']) {
+  for (const file of ['src/first-frame.ts', 'src/fight/scene.ts']) {
     assert.match(picked(file), /\b50 first-loss-browser-check\b/, `${file} runs row 50 first-loss-browser-check`);
   }
-  assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
-  for (const file of ['src/first-frame.ts', 'src/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
+  assert.match(picked('src/fight/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+  for (const file of ['src/first-frame.ts', 'src/fight/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
   assert.deepEqual(JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', 'scripts/next-fight-black-check.mjs'], { encoding: 'utf8' })).map((r: { name: string }) => r.name), ['next-fight-black-check'], 'a changed check script runs its own row');
 });
 
@@ -395,6 +395,23 @@ test('deploy scope: a public asset runs the rows of its folder, never all 51; th
   for (const file of ['src/arena-themes.ts', 'src/arena.ts', 'src/sparring.ts', 'src/stage-hide.ts', 'src/main.ts'])
     assert.match(picked(file), /\b44 sparring-browser-check\b/, `${file} runs row 44, the Stage picker`);
   assert.doesNotMatch(picked('src/fight/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
+});
+
+test('deploy.sh runs the Mac rows one at a time unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-10)', () => {
+  const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
+  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-1\}" RELEASE_CHECKS_SKIP=/, 'the Mac invocation defaults the width to 1 and keeps the caller\'s value');
+});
+
+test('deploy scope: a loot thumbnail or a deploy-pipeline library is not a full run (Strategy 2026-10-10: Y and Z each ran all 52 rows for two .webp files and for scripts/lib/data-only.mjs)', () => {
+  const pick = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' });
+  const kept = (...files: string[]) => ROWS - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
+  assert.ok(kept('public/game/img/loot/witch.Helmet.webp', 'public/game/img/loot/witch.Helmet.thumb.webp') < 12, 'loot images run the gear rows and the core five, not every row');
+  assert.match(pick('public/game/img/loot/witch.Helmet.webp').stderr, /\b36 loot-smoke-check\b/, 'a loot image runs the loot smoke row');
+  for (const lib of ['data-only.mjs', 'row-placement.mjs', 'vps-receipts.mjs', 'hf-slots.mjs', 'hf-wall-rows.mjs', 'published-summary.mjs', 'deploy-hf.sh', 'prune-releases.sh', 'glb-stats.mjs'])
+    assert.equal(kept(`scripts/lib/${lib}`), 5, `scripts/lib/${lib} builds no part of the game: the core five only`);
+  assert.match(pick('scripts/lib/thumb-row.mjs').stderr, /\bendgame-hud-check\b/, 'a library one row imports runs that row');
+  for (const file of ['scripts/lib/harness.mjs', 'scripts/lib/harness-clock.mjs', 'scripts/lib/a-library-nobody-listed.mjs'])
+    assert.equal(kept(file), ROWS, `${file}: the harness and any unlisted library stay a full run`);
 });
 
 test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', async () => {

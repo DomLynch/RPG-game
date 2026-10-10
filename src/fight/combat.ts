@@ -1,11 +1,11 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
-import type { HitLocation } from '../blade.ts';
+import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, type DuelPose, withGambit, withSpecials, withStances, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { asStance, moodOf, type PickedStance } from './stance.ts';
 import { MOVES, OPPONENTS, SKILL_MOVE, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type SpecialName, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
-import { M } from '../detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
-import { specialStage } from '../special-look.ts';
+import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { specialStage } from './special-look.ts';
 import { stepFatigue, type Fatigue } from './fatigue.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
@@ -154,7 +154,7 @@ export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veter
   const armed = gambit === undefined ? duel : withGambit(duel, gambit);
   return project(stance === undefined ? armed : withStances(armed, asStance(stance), asStance(moodOf(seed, opponent.id))), initialAi(seed));
 };
-// `layer`: a world layer that rewrites the warden's intent AFTER decide() (src/mobkit.ts: signature moves; sparring.ts does the same for the dummy). Absent = today's fight, the same intent object.
+// `layer`: a world layer that rewrites the warden's intent AFTER decide() (src/fight/mobkit.ts: signature moves; sparring.ts does the same for the dummy). Absent = today's fight, the same intent object.
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal, layer?: (duel: Duel, warden: Intent) => Intent): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
   return project(stepDuel(current.duel, [intent, layer ? layer(current.duel, warden.intent) : warden.intent]), warden.ai, current, intent);

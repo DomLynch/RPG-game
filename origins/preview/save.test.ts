@@ -1,7 +1,7 @@
 // The preview's read of the saved career (save.ts): the mapping onto the progression model, and every way the writer can fail -> offline.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
+import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/core/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
 import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, openedAccount, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';
@@ -9,7 +9,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { NEW_ALLEGIANCE } from '../patrons/patrons.ts';
 
 const row = { seed_credit: 5000, world_credit: 700, total_credit: 5700, rested: 12, rested_at: 99, heat: { wolf: { units: 5, at: 9 } }, beaten: ['legend:knight@12'], story: ['s1'], version: 4 };
-// The page's one open (src/fight/open.ts) through the zone page's mapping, with a fresh storage per call holding `token` as the stored sign-in (null = signed out).
+// The page's one open (src/core/open.ts) through the zone page's mapping, with a fresh storage per call holding `token` as the stored sign-in (null = signed out).
 const openWith = (token: string | null, o: { fetch?: typeof fetch; timeoutMs?: number } = {}) =>
   openedAccount({ storage: token ? { getItem: () => JSON.stringify({ access_token: token, expires_at: Date.now() / 1000 + 3600 }) } : null, search: '', retries: 0, ...o });
 const reply = (status: number, body: unknown) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });

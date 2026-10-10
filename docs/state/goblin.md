@@ -104,7 +104,7 @@ recorded under Open below so it survives the file.
 
 - **Lock camera vs a 1.36 m opponent** (was `artifacts/goblin/REQUESTS.md` §8, now untracked — hence recorded here). At
   close range on 393×852 he is mostly behind the hero's back; head and ears peek over the shoulder. `cameraPose` in
-  `src/scene.ts` has no opponent-height term. Suggested: the lock look-at height (and/or pitch) follows the opponent's
+  `src/fight/scene.ts` has no opponent-height term. Suggested: the lock look-at height (and/or pitch) follows the opponent's
   scale, or a small lateral offset when the opponent is shorter than the player. Camera/Lead lane's call — this lane must
   not touch camera code.
 - **Cosmetic, not started:** the iron bracer still reads leather-brown rather than rusted iron at phone size (its own 1K

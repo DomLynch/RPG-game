@@ -53,11 +53,12 @@ launch=$("$hf" jobs run --flavor cpu-upgrade --timeout "$hf_timeout" --detach no
 id=$(sed -n 's/.*Job started with ID: \([^[:space:]]*\).*/\1/p' <<<"$launch" | head -n 1)
 [[ -n "$id" ]] || requeue "the HF launch failed ($(head -c 200 <<<"$launch"))"
 # Ctrl-C or a kill of this wrapper cancels the HF job it started (Lead, #2018) and logs it like a quiet cancel.
+# t_end is set BEFORE the trap: an interrupt landing between the trap and the poll loop must not be reset to 0 (it was, 1 run in 20 under load).
 cancelled() { "$hf" jobs cancel "$id" >/dev/null 2>&1 || true; t_end=1; }
+t_end=0
 trap cancelled INT TERM
 echo "capture-mac: $lane runs on Hugging Face job $id (cpu-upgrade): $cmd"
 t0=$(date +%s); quiet_since=$t0; seen=0; stage="UNKNOWN"; why=""; status=1
-t_end=0
 while (( ! t_end )); do
   sleep "$hf_poll" || true
   (( t_end )) && break

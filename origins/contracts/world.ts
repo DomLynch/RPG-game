@@ -7,7 +7,7 @@
 // rank reads the same. A CharacterInstance stores no marks, credit, level or stats (ruling 7: one career, one rank, one stat set,
 // server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
 import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
-import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
+import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
 import { isOpponentId, type OpponentId } from '../../src/fight/server.ts';
 import {
   Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion,

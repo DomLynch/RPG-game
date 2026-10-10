@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { moodOf } from '../src/fight/stance.ts';
-import { stanceFlag, stanceLabel, stanceReveal } from '../src/stance-panel.ts';
+import { stanceFlag, stanceLabel, stanceReveal } from '../src/fight/stance-panel.ts';
 
 // The stance preview (?stances=): off unless the URL asks, every live fight is as it was.
 test('stances are ON by default: no flag, =1, =on and junk pick Balanced; =<pick> starts on it; ?stances=off is the kill switch and the only way off', () => {

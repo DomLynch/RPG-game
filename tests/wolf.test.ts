@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { decide, initialAi } from '../src/fight/ai.ts';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { WEAPON_CLIPS } from '../src/fight/characters.ts';
 import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { OPPONENTS, PROFILES, WEAPONS, opponentAt, type AiProfile, type Opponent } from '../src/fight/moves.ts';

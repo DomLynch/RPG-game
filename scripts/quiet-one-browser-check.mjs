@@ -131,7 +131,7 @@ async function fight(name) {
   assert.equal(await page.locator('#target-health').evaluate(e => e.value),0,'real UI duel must kill the opponent');
   // Finisher-complete gate (Lead brief 2026-09-22; Dom on the phone: "I have never seen the decapitation land"). The loot panel
   // used to open on the Killed event, over the ceremony. It now opens on the scene's own finisher-complete latch
-  // (src/scene.ts finishPhase().complete — the victim's clip has run out, the camera has settled, a severed head has come to
+  // (src/fight/scene.ts finishPhase().complete — the victim's clip has run out, the camera has settled, a severed head has come to
   // rest — consumed by src/main.ts updateHud). Sampled here on a REAL win with THIS finisher selected: closed at the kill,
   // open once the latch fires, and nothing about the panel's geometry touched. Never a timer on either side.
   const lootState = async () => page.evaluate(() => ({ on: document.getElementById('loot-panel')?.getAttribute('data-on'), phase: JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null') }));

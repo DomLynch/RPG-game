@@ -1,9 +1,9 @@
-// The on-demand beast bodies (src/beast-scale.ts ON_DEMAND_BEASTS) and the files under public/beasts/ are the same set (Characters' review of #1778/#1783): a beast listed without a file would 404 at the duel (an
+// The on-demand beast bodies (src/fight/beast-scale.ts ON_DEMAND_BEASTS) and the files under public/beasts/ are the same set (Characters' review of #1778/#1783): a beast listed without a file would 404 at the duel (an
 // invisible foe), and a stray file would ship in dist unaccounted by any row (check-budget counts the folder, not the list). Every listed beast is also a roster body.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { ON_DEMAND_BEASTS, beastBodyUrl } from '../src/beast-scale.ts';
+import { ON_DEMAND_BEASTS, beastBodyUrl } from '../src/fight/beast-scale.ts';
 import { ROSTER } from '../src/roster.ts';
 
 test('public/beasts/*.glb is exactly ON_DEMAND_BEASTS, and each is a roster body with its URL', () => {

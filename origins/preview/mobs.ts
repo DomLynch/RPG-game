@@ -5,9 +5,9 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
-import { SPEEDS } from '../../src/fight/speeds.ts';
+import { SPEEDS } from '../../src/fight/server.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
-import type { MobRow } from '../mobs/row.ts';
+import { campCount, type MobRow } from '../mobs/row.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zones/zone1/spawns.ts), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
@@ -84,7 +84,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
       const named = !!sp.encounter, row = named ? undefined : rows.find((r) => r.id === w.id);
       if (!named && !row) continue;   // a kind with no row stands nowhere
       const bh = row?.behaviour, p = named ? NAMED : { spread: bh!.spread ?? 6, pull: bh!.pull ?? 0, roam: bh!.roam ?? 6 };
-      const count = named ? 1 : bh!.campSize![1], def = f.data.registry.characters.get(w.id)!;
+      const count = named ? 1 : campCount(bh!.campSize, nextRandom(mixSeed(TUNING.seed, 9000 + out.length))[0]), def = f.data.registry.characters.get(w.id)!;
       const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
       for (let i = 0; i < count; i++) {
         const id = `${ID_PREFIX}${sp.id}-${i + 1}`;

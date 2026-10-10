@@ -50,7 +50,7 @@ deploy_scope_apply
 early_trusted=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 placed_skip="${early_trusted:+$early_trusted,}$out_of_scope"
 hf_wall_rows_launch
-cpu_out=$(node scripts/vps-shadow/launch.mjs cpu "$revision" "$placed_skip" || true); hf_cpu_rows=""
+cpu_out=$(prelaunched_cpu "$revision" || node scripts/vps-shadow/launch.mjs cpu "$revision" "$placed_skip" || true); hf_cpu_rows=""
 if [[ "$cpu_out" == *";"* ]]; then hf_cpu_rows="${cpu_out#*;}"; DEPLOY_HF_ROWS_JOBS="${DEPLOY_HF_ROWS_JOBS:+$DEPLOY_HF_ROWS_JOBS,}${cpu_out%%;*}"; fi
 node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows"
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
@@ -65,13 +65,35 @@ node scripts/merged-on-trunk.mjs
 # revision. Run-level success would wait for the optional counter gate (continue-on-error, often a ~16 min stall).
 # Any of the commit's quality.yml runs counts, not just the newest: a fast-forward of a pre-run candidate (release-V, 2026-10-10) starts a fresh PUSH run for the same sha,
 # which sorts first and is still queued, while the PULL REQUEST run that already proved the tree sits second (V's Mac then ran its own unit suite for 3 min).
-quality_green() {
-  local run_id run_url green
+# A pull_request run whose plan put the browser gates out of scope skips the whole matrix (its job keeps the unexpanded template name), so no
+# "browser (combat)" job exists: that run is green when `quality` and `plan` succeeded (release AI, 2026-10-10: script-only, the Mac fell back to its own suite).
+quality_green_jq='def c(n): [.jobs[] | select(.name == n) | .conclusion]; if c("quality") == ["success"] and (if (c("browser (combat)") | length) > 0 then c("browser (combat)") == ["success"] else c("plan") == ["success"] and c("browser (${{ matrix.gate.name }})") == ["skipped"] end) then (if (c("browser (combat)") | length) > 0 then "yes" else "scoped" end) else "no" end'
+# The first run of "$1" whose verdict is `want` (yes = quality + browser (combat) both success; scoped = browser matrix skipped as out of scope).
+quality_run_with() {
+  local want="$1" run_id run_url verdict
   while read -r run_id run_url; do
     [[ -n "$run_id" ]] || continue
-    green=$(gh run view "$run_id" --json jobs --jq '[.jobs[] | select(.name == "quality" or .name == "browser (combat)") | .conclusion] | if length == 2 and all(. == "success") then "yes" else "no" end' 2>/dev/null || true)
-    if [[ "$green" == "yes" ]]; then echo "$run_url"; return 0; fi
-  done < <(gh run list --workflow quality.yml --commit "$1" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+    verdict=$(gh run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
+    if [[ "$verdict" == "$want" || "$verdict" == yes ]]; then echo "$run_url"; return 0; fi
+  done < <(gh run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+  return 0
+}
+# A scoped run proves only `quality`: the Mac then skips test:browser, so the trunk under this candidate must have had browser (combat) green itself (Auditor LOW on #2136).
+# Walk the first parents (<= 8): a member merge of a multi-member candidate has no CI run, the trunk commit under the candidate does; the first commit with a run decides.
+# No such commit, its run not green, or gh failing on the walk: fail closed.
+quality_green() {
+  local url n base runs
+  url=$(quality_run_with yes "$1"); if [[ -n "$url" ]]; then echo "$url"; return 0; fi
+  url=$(quality_run_with scoped "$1"); [[ -n "$url" ]] || return 0
+  for n in 1 2 3 4 5 6 7 8; do
+    base=$(git rev-parse -q --verify "$1~$n" 2>/dev/null || true)
+    [[ -n "$base" ]] || return 0
+    runs=$(gh run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
+    if [[ -n "$runs" ]]; then
+      [[ -n "$(quality_run_with yes "$base")" ]] && echo "$url"
+      return 0
+    fi
+  done
   return 0
 }
 ci_green=$(quality_green "$revision")
@@ -121,7 +143,7 @@ hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exac
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 out_of_scope=""
 deploy_scope_apply
-RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
+RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).

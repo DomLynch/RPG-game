@@ -11,7 +11,7 @@ import { TYPE_WEIGHTS } from '../progression/model.ts';
 import { toMetres } from '../world/derive.ts';
 import { loadWorld, resolveRegion } from '../world/resolve.ts';
 import type { Params } from '../world/schema.ts';
-import { WEAPON_SLOTS } from '../../src/loot.ts';
+import { WEAPON_SLOTS } from '../../src/core/server.ts';
 import { BUNDLE, LOCAL, PROPOSED_ROWS } from './content.ts';
 import { EXCHANGE_REGION, FRONTIER_REGION, REGION1_WORLD } from './world.ts';
 

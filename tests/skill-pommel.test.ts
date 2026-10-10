@@ -5,9 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aim, createFighter, idleIntent, initialDuel, legal, opponentFighter, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
 import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/fight/moves.ts';
-import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, skillOf } from '../src/loot.ts';
-import { loadProfile } from '../src/profile.ts';
-import { absorbCloud, type CloudProfile } from '../src/cloud-profile.ts';
+import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, skillOf } from '../src/core/loot.ts';
+import { loadProfile } from '../src/core/profile.ts';
+import { absorbCloud, type CloudProfile } from '../src/core/cloud-profile.ts';
 import { POMMEL, act, battery, ready } from './strategies.ts';
 import { actorPose, attackSpecs, initialPractice } from '../src/fight/combat.ts';
 

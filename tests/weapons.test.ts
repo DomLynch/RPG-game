@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
 import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/fight/moves.ts';
 import { TARGET } from '../src/fight/sim.ts';
@@ -123,7 +123,7 @@ test('the warden reasons with its own weapon\'s reach: carrying a longer weapon 
 // ── The trident (weapons lane, 2026-09-16): its rig, clips, contact segment and the fight it gives.
 import { AnimationMixer, Quaternion, Vector3, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { swingProgress } from '../src/blade.ts';
+import { swingProgress } from '../src/fight/blade.ts';
 import { TRIDENT, TRIDENT_PATHS, total } from '../src/fight/moves.ts';
 
 const TRIDENT_GLB = 'src/assets/veteran.glb';   // the shipped Veteran carries the trident (built with WARRIOR_WEAPON=trident, the veteran default)

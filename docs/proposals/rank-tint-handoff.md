@@ -9,7 +9,7 @@ the rung it was taken at (`Provenance.tier`; absent = Recruit), an opponent's ki
 - `src/fight/rank-tint.ts`: `tinted(material, tier)`, a cached clone per (material, tier) that shares textures. After `color_fragment` the
   albedo keeps its luminance and takes the grade's hue: rgb = mix(rgb, chroma(grade)·L·gain, TINT.strength), gain clamped [.35, 2.5].
   One program for every rung (`customProgramCacheKey` 'rank-tint'). Tunables in `TINT`.
-- `src/characters.ts` wear(pieces, failed, tierOf?), `src/scene.ts` (opponent `() => tier`, player `wornTier[id] ?? 'Recruit'`),
+- `src/characters.ts` wear(pieces, failed, tierOf?), `src/fight/scene.ts` (opponent `() => tier`, player `wornTier[id] ?? 'Recruit'`),
   `src/main.ts` wornTiers() and `?perf=1` prints `programs N`, `src/camera.ts` stills-only `?look=foe` (4.4 m in front of the opponent).
 - `tests/rank-tint.test.ts` 3/3 (on e6a23dd4).
 - Base: World's #705 head f85246b6. Rebase when #705 moves or merges.
@@ -38,7 +38,7 @@ the rung it was taken at (`Provenance.tier`; absent = Recruit), an opponent's ki
 - Status: committed; see the ruling and sheet v3 below.
 
 ## Crest (agreed with the Veteran lane)
-The crest is Heraldry, i.e. cloth, and never tints; the rung signal is its presence (none at Recruit, `src/loot.ts:87`). Veteran's new
+The crest is Heraldry, i.e. cloth, and never tints; the rung signal is its presence (none at Recruit, `src/fight/loot.ts:87`). Veteran's new
 crest material is named `HorsehairCloth`, which classOf's `<Word>Cloth` regex makes 'cloth' with no CLASS_OF edit. A plume that tints
 per rung would be a CLASS_OF 'trim' entry, and that is Dom's call. The hero-crest follow-up is Armour's.
 

@@ -2,9 +2,9 @@
 // set on every career win (tests/match.test.ts), backfilled from every tiered kill on record, a union on every merge, and a reason to save.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanLoot, decline, defeat, keepsLoot, killAt, mergeLoot, store, type Loot, type Provenance } from '../src/loot.ts';
-import { profileDiffers } from '../src/cloud-profile.ts';
-import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
+import { cleanLoot, decline, defeat, keepsLoot, killAt, mergeLoot, store, type Loot, type Provenance } from '../src/core/loot.ts';
+import { profileDiffers } from '../src/core/cloud-profile.ts';
+import { loadProfile, saveProfile, type Profile } from '../src/core/profile.ts';
 import { PORTRAIT_KEYS, portraitKey, rungOf, rungTopLevel } from '../src/legends.ts';
 
 const kill = (opponent: Provenance['opponent'], tier?: number, attempt = 1): Provenance => ({ opponent, attempt, healthLeft: 10, recordId: null, day: '2026-09-29', ...(tier ? { tier } : {}) });

@@ -12,7 +12,7 @@ in `docs/state/backend.md` (2026-09-23): *records carry no account binding*, so 
   refused. What is still open: **a stolen record never shared** (copied from a screen recording, a support paste, a leaked replay) can
   be claimed by whoever posts it first. So can **a near-copy**: one tick's input nudged so it still wins. That is a new fight and a new
   hash, which F2 cannot see.
-- **Seed-shopping:** the seed is client-chosen (`src/match.ts`: a fixed 731 opener, then `nextSeed` per rematch), so a player can
+- **Seed-shopping:** the seed is client-chosen (`src/fight/match.ts`: a fixed 731 opener, then `nextSeed` per rematch), so a player can
   replay a known-easy seed forever.
 - **Daily** (`daily_results`): one row per account per day, and everyone fights the same seed (`daily_fight`). Nothing stops account B
   posting account A's winning daily record as B's own and taking A's place on the board.
@@ -74,9 +74,9 @@ client update and delete (202610010001), and the `awards-database-check` emulate
 
 ### 5. Client change (a separate PR, after the migration)
 
-- `src/match.ts`: a signed-in **career ladder** fight awaits `start_fight(opponent, level)` and uses the returned seed instead of
+- `src/fight/match.ts`: a signed-in **career ladder** fight awaits `start_fight(opponent, level)` and uses the returned seed instead of
   731/`nextSeed`. Prefetch the next start while the end-of-fight screen is up, so a rematch has no visible wait.
-- `src/loot-claims.ts` (the outbox, #1209): the claim body carries `fight_start`, and the outbox entry keeps it across reloads.
+- `src/fight/loot-claims.ts` (the outbox, #1209): the claim body carries `fight_start`, and the outbox entry keeps it across reloads.
 - **Fallbacks (RULED, Strategy 2026-10-01):** a guest, offline, or failed `start_fight` keeps today's local seed (731, then `nextSeed`),
   and the fight is **practice**: it plays normally but never becomes a claim. The end-of-fight screen says, in one line, **"Practice: sign
   in to count"**. Sparring and replay are unchanged.

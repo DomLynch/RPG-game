@@ -4,7 +4,7 @@ import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import type { Intent } from '../src/fight/duel.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { NO_PATRON_VERSION, PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/fight/record.ts';
 // RECORD_VERSION 29 refuses every older version, and a headless recorder stamps an older era (play-radius.ts): a test that records a fight records it as a live fight is fought (this build's circle, late notice and stab).
 const mk: typeof createRecorder = (meta) => { setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true); return createRecorder(meta); };

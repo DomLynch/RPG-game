@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bossSpecialFor, bossSpecialId } from '../src/special-identity.ts';
+import { bossSpecialFor, bossSpecialId } from '../src/fight/special-identity.ts';
 import { specialOf, type SpecialName } from '../src/fight/moves.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 
 const EXPECTED = {
   veteran: ['shield', 'centurion', 'tithe'],

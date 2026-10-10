@@ -5,7 +5,7 @@
 //   - the foe's one-health-bar pool: withBar(practice, bar) after initialPractice, only when a one-health-bar flag is present;
 //   - the twist, read after every step that did not finish the fight (stepTwist), and once more on the foe's defeat (the catch window): 'fled' / 'escaped' end the fight with both standing.
 // tests/world-fight-determinism.test.ts pins that a sparring Match (what the client runs) and initialPractice + stepPractice are the same fight tick for tick.
-// A mob layer (src/mobkit.ts via origins/mobs/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
+// A mob layer (src/fight/mobkit.ts via origins/mobs/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
 // build cannot step. A refusal is a normal loss, never a reward.
 import { initialPractice, stepPractice, underRecord, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { RANK_STEPS, TITLES } from '../../src/career.ts';
@@ -23,7 +23,7 @@ export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => 
 
 export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer than 15 minutes is not a fight
 
-// Special Moves are on for a warden from the Veteran rung up (src/match.ts CLASS_B_FROM with LIVE_SPECIALS on): the server dictates it, the record's flag must agree.
+// Special Moves are on for a warden from the Veteran rung up (src/fight/match.ts CLASS_B_FROM with LIVE_SPECIALS on): the server dictates it, the record's flag must agree.
 const SPECIALS_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');
 export const liveSpecials = (level: number): boolean => Number.isInteger(level) && level >= SPECIALS_FROM && level <= LEVELS;
 
