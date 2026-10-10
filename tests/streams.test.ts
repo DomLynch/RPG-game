@@ -5,7 +5,8 @@ import { initialPractice } from '../src/fight/combat.ts';
 import { idleIntent, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
 import { crossCheck } from '../src/group-verify.ts';
 import { OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
-import { TOKENS, groupKill, startStreams, stepStreams, streamRecordGroup, type StreamGroup } from '../src/fight/pack.ts';
+import { MAX_ATTACKERS } from '../src/fight/attackers.ts';
+import { groupKill, startStreams, stepStreams, streamRecordGroup, type StreamGroup } from '../src/fight/pack.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { RECORD_VERSION, createRecorder, packRecord, unpackRecord, type FightRecord } from '../src/fight/record.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
@@ -96,11 +97,11 @@ test('a forged incoming list is caught by the cross-check when the siblings are 
   assert.equal(checks[k]!.ok, false); assert.match(checks[k]!.reason ?? '', /recorded incoming/);
 });
 
-test('seven attackers: only TOKENS copies attack at once, the rest are held IN the sim (recorded, replayed), and there is exactly one kill', () => {
+test('seven attackers: only MAX_ATTACKERS copies attack at once, the rest are held IN the sim (recorded, replayed), and there is exactly one kill', () => {
   const { g, records } = playGroup(7);
-  assert.equal(TOKENS, 3);
-  records.forEach((r, i) => { if (i >= TOKENS) assert.ok(r.group!.held.length > 0 && r.group!.held[0]![0] === 1, `stream ${i} is held from tick 1`); else assert.equal(r.group!.held[0]?.[0] === 1 && r.group!.held[0]![1] > 100, false); });
-  records.slice(TOKENS).forEach((r) => { assert.equal(verifyRecord(r).ok, true, 'a held copy replays from its recorded hold'); });
+  assert.equal(MAX_ATTACKERS, 3);
+  records.forEach((r, i) => { if (i >= MAX_ATTACKERS) assert.ok(r.group!.held.length > 0 && r.group!.held[0]![0] === 1, `stream ${i} is held from tick 1`); else assert.equal(r.group!.held[0]?.[0] === 1 && r.group!.held[0]![1] > 100, false); });
+  records.slice(MAX_ATTACKERS).forEach((r) => { assert.equal(verifyRecord(r).ok, true, 'a held copy replays from its recorded hold'); });
   const kill = groupKill(g)!; assert.notEqual(kill, null, 'the running total reached the bar');
   const bar = g.duels[0]!.fighters[1].maxHealth, hits = g.logs.flatMap((l, index) => l.dealt.map(([tick, damage]) => ({ tick, index, damage }))).sort((x, y) => x.tick - y.tick || x.index - y.index);
   let total = 0, expect = -1; for (const h of hits) { total += h.damage; if (total >= bar) { expect = h.index; break; } }
