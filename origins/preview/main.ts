@@ -411,7 +411,8 @@ const duelLayer = document.getElementById('duel')!, career = document.getElement
 // it has loaded the old floating sticks still work, and if it never loads they stay. The ☰ menu's "Camera locked" chip is the lock-on, saved in this page's own key.
 if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
-  void import('./pit-duel.ts').then((m) => {
+  void import('./pit-duel.ts').then(async (m) => {
+    await m.sceneReady;
     duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit');
     hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
@@ -476,7 +477,7 @@ async function startFight(pick?: string): Promise<PitFight | null> {
   fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
   document.getElementById('art-status')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
-  try { duel ??= await import('./pit-duel.ts'); } catch {
+  try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch {
     // the chunk did not load (offline, a stale deploy): the fight not counted (even if the player left meanwhile), back to the walk with the
     // retry hint if still in the duel; a failure for a fight since replaced does nothing (fight-load.ts)
     const failed = loadFailure(fight === next, fighting);
