@@ -4,7 +4,7 @@
 # Exports the tree WITHOUT node_modules (as the box has none), starts the writer on a scratch port with dummy credentials, waits for "listening", sends one
 # unauthenticated /origins/spawn_state (want 401), stops it, exits 0 only if all of that held. No secrets, no database, no network beyond 127.0.0.1.
 set -euo pipefail
-rev="${1:-HEAD}"; port="${BOOT_CHECK_PORT:-8796}"; D=$(mktemp -d /var/tmp/writer-boot-XXXXXX); pid=""
+rev="${1:-HEAD}"; port="${BOOT_CHECK_PORT:-$(node -e "const s=require('net').createServer().listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})")}"; D=$(mktemp -d /var/tmp/writer-boot-XXXXXX); pid=""
 cleanup() { [ -n "$pid" ] && kill "$pid" 2>/dev/null || true; rm -rf "$D"; }; trap cleanup EXIT
 git archive "$rev" | tar -x -C "$D"
 cd "$D"

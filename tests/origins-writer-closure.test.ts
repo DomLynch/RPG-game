@@ -3,37 +3,12 @@
 // src/fight/server.ts's own closure; this walks the WRITER's RUNTIME imports (type-only imports are erased by node, so they do not load anything).
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { posix } from 'node:path';
 import test from 'node:test';
 
-const ENTRY = 'scripts/origins-writer.mjs';
-// ExecStart of frankendom-origins-writer, -presence, -duel-relay, -verify-daily, -verify-loot.
-const ENTRIES = [ENTRY, 'origins/presence/main.ts', 'scripts/duel-relay.mjs', 'scripts/verify-daily.mjs', 'scripts/verify-loot.mjs'];
-const TYPE_ONLY = /^\s*(?:import|export)\s+type\b/;
-const SPEC = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\(\s*)['"]([^'"]+)['"]/gm;
+import { SERVER_ENTRIES as ENTRIES, writerClosure } from '../scripts/writer-closure.mjs';
+
 const BANNED_FILES = ['src/fight/index.ts'];
 const BANNED_PACKAGES = /^three(\/|$)/;
-
-const resolve = (from: string, rel: string, has: (p: string) => boolean): string | null => {
-  const p = posix.normalize(posix.join(posix.dirname(from), rel));
-  return [p, `${p}.ts`, `${p}.mjs`, `${p}.js`, `${p}/index.ts`].find(has) ?? null;
-};
-
-/** The writer's runtime import closure: the files it loads, and every bare package they import. */
-export function writerClosure(read: (f: string) => string, has: (f: string) => boolean, entry = ENTRY): { files: string[]; packages: string[] } {
-  const seen = new Set<string>(), packages = new Set<string>(), todo = [entry];
-  while (todo.length) {
-    const file = todo.pop()!; if (seen.has(file)) continue; seen.add(file);
-    const text = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    for (const m of text.matchAll(SPEC)) {
-      if (TYPE_ONLY.test(text.slice(m.index!, m.index! + m[0].length))) continue;
-      const spec = m[1]!;
-      if (spec.startsWith('.')) { const next = resolve(file, spec, has); if (next) todo.push(next); }
-      else if (!spec.startsWith('node:')) packages.add(spec);
-    }
-  }
-  return { files: [...seen].sort(), packages: [...packages].sort() };
-}
 
 const disk = (f: string): string => readFileSync(f, 'utf8');
 
