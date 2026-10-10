@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 // No YAML parser in the repo: the shape the Auditor and Lead ruled on (2026-10-10) is pinned by reading the text.
 const yml = readFileSync('.github/workflows/gpu-checks.yml', 'utf8');
+const code = yml.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n');   // the header comment names what is forbidden
 const job = (name: string) => { const at = yml.search(new RegExp(`^ {2}${name}:$`, 'm')); assert.ok(at >= 0, `job ${name}`); const rest = yml.slice(at + 1); const next = rest.search(/\n {2}[a-z]+:\n/); return next < 0 ? rest : rest.slice(0, next); };
 
 test('with no HF_TOKEN the gpu job is SKIPPED, never green: a token job outputs has=yes|no and gpu needs it', () => {
@@ -26,7 +27,7 @@ test('the token reaches only the probe step and the one gpu-run step, never a jo
 test('same-repo non-draft only, pull_request not pull_request_target, read-only, and no dispatch ref that could name a fork commit', () => {
   assert.match(job('gpu'), /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
   assert.match(job('gpu'), /github\.event\.pull_request\.draft == false/);
-  assert.doesNotMatch(yml, /pull_request_target/);
+  assert.doesNotMatch(code, /pull_request_target/);
   assert.match(yml, /^permissions:\n {2}contents: read$/m);
-  assert.doesNotMatch(yml, /inputs\.ref|inputs:/);
+  assert.doesNotMatch(code, /inputs\.ref|inputs:/);
 });
