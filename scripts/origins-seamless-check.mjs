@@ -58,6 +58,7 @@ try {
   // The engage: the engine's own combat loop sets body.infight the frame it is in combat (main.ts, wc.inCombat()). Read the engage THEN, bounded at 15 s; a miss fails below on infight, with the receipt.
   await page.waitForFunction(() => document.body.classList.contains('infight'), null, { timeout: 15000 }).catch(() => {});
   const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
+  const ownersBefore = await page.evaluate(() => window.originsPreview.owners());
   if (process.env.SEAMLESS_STRIKE) {   // SEAMLESS_STRIKE=1: cut the foe inside the engage window, so a hit's effects (sparks, blood splat) are drawn for the first time THERE unless the zone warm covered them (the check passes by luck of timing without it)
     const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id);
     const reach = async () => { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return x && [x.x, x.z]; }, target.id); if (m) await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), m); };   // the foe roams: stand 1.4 m from where it is NOW before each cut (a cut from the 2.5 m tap distance never reaches it)
@@ -67,7 +68,8 @@ try {
     receipt.strike = { hpBefore: hp0, hpAfter: hpNow, fighters: hp0 === null || !(hpNow < hp0) ? await page.evaluate(() => JSON.stringify(window.originsPreview.combat().fighters).slice(0, 400)) : undefined };
     assert.ok(hp0 !== null && hpNow < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);   // a missed strike fails the run, it never counts as a pass
   }
-  receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
+  receipt.fightMoved = await moved(10000);
+  { const after = await page.evaluate(() => window.originsPreview.owners()); const was = new Set(ownersBefore); receipt.ownersDiff = after.filter((x) => !was.has(x)).slice(0, 12); }   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
   { const keys = await page.evaluate(() => window.originsPreview.renderInfo().programKeys); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, keys[n]])); }   // WHICH programs compile at the engage (each one is a stall)
