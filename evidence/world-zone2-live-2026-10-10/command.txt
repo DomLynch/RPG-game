@@ -1,0 +1,4 @@
+LIVE frankendom.com, release.json revision 4a815ecc81ead6bdda419b3de842dec1a57d95dc (curl before and after the run, 07:22 and 07:3x UTC)
+URL: https://frankendom.com/zone/2/?region=1&zone=2&worldfight&lone  (VPS Chromium software GL, 375x812)
+timeout 900 capture --prio 3 world env HOME=/home/lanes ZONE=2 LONE=1 TAGS_TARGET=z2:reach-wolves \"LIVE_URL=<url above>\" node scripts/live-lone.mjs artifacts/origins-preview <out>  (blood-stills.mjs with the page URL swapped for the live one; VPS-local)
+result: target z2:reach-wolves-1 (Ember wolf), infight true, hits at foe hp 40/26/12, kill true, page errors 0
