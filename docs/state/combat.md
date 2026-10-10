@@ -1,3 +1,13 @@
+## 2026-10-10 ~13:50 (+04) — HANDOFF #5 before /clear: merged M1-M3/K5/P3a, frozen open chain M4/K8/K9. READ FIRST, then memory `project_combat_handoff_2026-10-10b.md`
+
+1. **Merged to trunk (gh, 13:46):** M1 #2064, M2 #2071, M3 #2096, K5 #2085 (World), P3a #2053 (finishOf reads catalogueRow(kind).finisher), #2021 P2.
+2. **Open and FROZEN (push only if CI fails for a move reason; Lead's rule: one push when READY, none into an open candidate):** M4 #2089 @e17b9d3ac; K8 row 12 #2098 @0b3499c3c; K8 slice 2 #2099 @2fbe6ca42 (World's zone-sound.ts as donor); K9 #2103 @4ed225395 -> K9b #2105 @4bc1268a8 -> K9c #2106 @fba5d06c5 on the combined AC base (Web #2107 d6183acf3 + Backend #2108 eddf48c29). K9b/K9c re-pin tests/kit-version.test.ts (paths/comments only, KIT_LOGIC_VERSION 2).
+3. **CI:** the K9 chain shows 1 quality fail each, stale-path ENOENTs (src/scene.ts, armfeel.test.ts:115 lacks 'match', rank-look.test.ts:297 src/match.ts); Web's single follow-up PR on the K9c tip fixes all three, I do not push. #2099 showed 11 fails on a stale base at 13:46: re-check.
+4. **Rules (Dom via Lead):** no edits to a candidate PR after open (title/body); Auditor reviews the candidate once from Z; one owner per problem (K8 sound = Combat); no batch waits for a slice. Exclude docs/state from every codemod. Clocks: use `date`.
+5. **Follow-up accepted by Lead:** src/fight -> progression outward imports, to invert after K7 (match.ts imports trial, scorecard, career, autopsy, ladder, loot, sparring, first-loss, tutorial, profile, arena-themes).
+6. **Queue:** watch CI; REBASE PRs #1788, #1809, #1840 (due Mon 10-12); playtest-bot release row; P3b; K7 EXIT has no row of mine left (row 10 is Web's).
+7. **Traps:** zsh word-split and `$1:$2`; `--force-with-lease` needs the full sha; codemod rewrites BARE names in origins-flow-boundary's debt list and skips string paths/regexes/module-map keys: run every test file that names the moved module, and `git grep -n "src/<file>.ts" tests scripts origins`.
+
 ## 2026-10-10 ~14:00 (+04) — engine finish chain: heads and the outward-import follow-up
 
 **Chain on release-AB a016dffd8 (rebased by codemod, merge clean):** K9 #2103 @637b2b541 (13 special modules) -> K9b #2105 @6de906edd (mobkit + pack; kit digest re-pinned) -> K9c #2106 @ac9092a97 (match.ts; kit digest re-pinned for one comment path). Earlier: M1-M3 merged, M4 #2089 @e17b9d3ac, K8 #2098 @0b3499c3c -> #2099 @2fbe6ca42, P3a #2053 stacked on World's K5.
