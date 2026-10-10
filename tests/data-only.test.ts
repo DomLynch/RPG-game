@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { classify, dataProblems, legendCitations, legendProblems, moduleValue, onDataPath } from '../scripts/lib/data-only.mjs';
+import { catalogueCitations, classify, dataProblems, legendCitations, legendProblems, moduleValue, onDataPath } from '../scripts/lib/data-only.mjs';
 import { verdict } from '../scripts/data-only-check.mjs';
 
 const zoneFiles = readdirSync('origins/zones', { withFileTypes: true }).filter(d => d.isDirectory() && /^zone\d+$/.test(d.name))
@@ -67,4 +67,33 @@ test('a PR that edits the gate is judged by the base copy and is a normal PR (ex
   const wf = readFileSync('.github/workflows/data-only.yml', 'utf8'), restore = wf.indexOf('git checkout "$BASE" -- "$f"');
   assert.ok(restore > 0 && restore < wf.indexOf('npm ci') && wf.indexOf('npm ci') < wf.indexOf('node scripts/data-only-check.mjs'), 'restore from base, then npm ci, then the check');
   for (const f of ['scripts/data-only-check.mjs', 'scripts/lib/data-only.mjs', 'package.json', 'package-lock.json']) assert.ok(wf.includes(f), f);
+});
+
+// The catalogue rows (Characters + Auditor 2026-10-10): src/fight/catalogue-data.ts is on the path list; a row reusing a legend with the same citation is data, a new legend, a changed citation or a new rank source is a normal PR (exit 1).
+const CAT = 'src/fight/catalogue-data.ts';
+test('catalogue-data.ts is on the path list and is pure data; the reader catalogue-rows.ts still is not', () => {
+  assert.equal(onDataPath(CAT), true);
+  assert.equal(onDataPath('src/fight/catalogue-rows.ts'), false);
+  assert.deepEqual(classify([{ file: CAT, status: 'modified' }], (f: string) => readFileSync(f, 'utf8')).problems, []);
+});
+
+test('catalogue legends: the same citation is data; a new legend, a changed citation, a new rank source is not; pending and null are data', () => {
+  const text = readFileSync(CAT, 'utf8'), base = catalogueCitations(moduleValue(CAT, text));
+  assert.ok(Object.keys(base).some((k) => k.startsWith('work:')) && Object.keys(base).some((k) => /#rank0$/.test(k)), 'the real rows carry work citations and rank sources');
+  assert.deepEqual(legendProblems(base, base), []);
+  const head = (t: string) => catalogueCitations(moduleValue(CAT, t));
+  assert.equal(legendProblems(head(text.replace(/legend: \{ work: "([^"]+)"/, 'legend: { work: "New $1"')), base).length, 1, 'a new work');
+  assert.equal(legendProblems(head(text.replace(/(legend: \{ work: "[^"]+", author: "[^"]+", year: )\d+/, '$11')), base).length, 1, 'a changed citation (year)');
+  assert.equal(legendProblems(head(text.replace(/(ranks: \[\s*\{ name: "[^"]+", source: ")/, '$1Changed ')), base).length, 1, 'a changed rank source');
+  assert.equal(legendProblems(catalogueCitations([{ id: 'x', legend: { pending: 'original' }, ranks: [] }, { id: 'y', legend: null, ranks: [] }]), base).length, 0, 'pending and null add nothing');
+  assert.equal(legendProblems(catalogueCitations([{ id: 'z', legend: { legendId: 'legend:new' }, ranks: [] }]), base).length, 1, 'a new legendId');
+  assert.equal(legendProblems(catalogueCitations([{ id: 'w', legend: { work: 'x' }, ranks: [{ source: 'brand new' }] }]), {}).length, 2, 'against an empty base every legend and rank is new');
+});
+
+test('the verdict on catalogue-data.ts: code in the file is exit 2, a new legend or a changed citation is exit 1', () => {
+  const text = readFileSync(CAT, 'utf8'), changed = [{ file: CAT, status: 'modified' as const }], at = (t: string) => verdict(changed, () => t, 'HEAD' as never);
+  assert.equal(at(text + '\nconsole.log(1);\n').code, 2, 'a call is code, not data');
+  assert.equal(at(text.replace(/legend: \{ work: "([^"]+)"/, 'legend: { work: "New $1"')).code, 1);
+  assert.equal(at(text.replace(/(legend: \{ work: "[^"]+", author: "[^"]+", year: )\d+/, '$11')).code, 1);
+  assert.equal(verdict([{ file: CAT, status: 'modified' }, { file: 'src/fight/catalogue-rows.ts', status: 'modified' }], () => text, 'HEAD' as never).code, 1, 'the reader beside the data is a normal PR');
 });
