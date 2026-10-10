@@ -73,6 +73,7 @@
       #hud { display: flex; flex-wrap: wrap; column-gap: 8px; align-items: baseline; }
       #hud small { display: block; }
       #creature-card { flex: 0 0 100%; }
+      #creature-card > * { display: inline !important; margin-right: 8px; }   /* name, con marks, commonness: one line (creature-card.ts sets display:block on each) */
       #hud #hint, #hud .walk-only { display: none; }
       #creature-card { margin-top: 3px; padding: 2px var(--gap-s); font-size: var(--fs-s); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #duel.world header { right: calc(max(14px, env(safe-area-inset-right)) + 100px); }
