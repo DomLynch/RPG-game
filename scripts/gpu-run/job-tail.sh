@@ -47,7 +47,7 @@ echo "command wall $(( $(date +%s) - c0 ))s"
 if [[ -d artifacts ]]; then
   # Result files only, smallest first, up to ARTIFACT_MAX_KB in all: HF's log API returned NOTHING for two jobs whose log carried ~10 MB of base64 (2026-10-10), so what rides in the log stays small.
   find artifacts -type f -newer /tmp/run.start -not -path 'artifacts/origins-preview/*' \( -name '*.png' -o -name '*.jpg' -o -name '*.webp' -o -name '*.json' -o -name '*.txt' -o -name '*.log' -o -name '*.md' -o -name '*.mp4' \) -printf '%s %p\n' | sort -n \
-    | awk -v max=$(( ${ARTIFACT_MAX_KB:-2500} * 1024 )) '{ t += $1; if (t <= max) print $2; else printf "dropped %s (%s bytes, over the log budget)\n", $2, $1 > "/dev/stderr" }' > /tmp/art.list
+    | awk -v max=$(( ${ARTIFACT_MAX_KB:-2500} * 1024 )) '{ size = $1; sub(/^[0-9]+ /, ""); t += size; if (t <= max) print; else printf "dropped %s (%s bytes, over the log budget)\n", $0, size > "/dev/stderr" }' > /tmp/art.list
   [[ -s /tmp/art.list ]] && tar czf /tmp/artifacts.tgz -T /tmp/art.list 2>/dev/null
   bytes=$(stat -c %s /tmp/artifacts.tgz 2>/dev/null || echo 0)
   if [[ "$bytes" -gt 0 && "$bytes" -le $(( 3 * 1048576 )) ]]; then say "ARTIFACTS BEGIN bytes=$bytes"; base64 -w 76 /tmp/artifacts.tgz; say "ARTIFACTS END"
