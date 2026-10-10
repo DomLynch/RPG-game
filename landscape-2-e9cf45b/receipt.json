@@ -1,0 +1,3878 @@
+{
+  "dist": "/opt/frankendom-shadow/work/web-z2/artifacts/origins-preview",
+  "views": [
+    {
+      "view": "portrait",
+      "w": 375,
+      "h": 812,
+      "states": {
+        "walk": {
+          "count": 14,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 11,
+              "w": 108,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 16,
+              "y": 28,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 46,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 46,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "hint",
+              "x": 16,
+              "y": 100,
+              "w": 239,
+              "h": 120,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 317,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 188,
+              "y": 615,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 253,
+              "y": 680,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 301,
+              "y": 632,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 294,
+              "y": 509,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 253,
+              "y": 574,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 180,
+              "y": 718,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 295,
+              "y": 726,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 680,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 16,
+              "y": 155,
+              "w": 96,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 118,
+              "y": 155,
+              "w": 138,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 16,
+              "y": 201,
+              "w": 98,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 120,
+              "y": 201,
+              "w": 82,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 208,
+              "y": 201,
+              "w": 66,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 213,
+              "y": 349,
+              "w": 80,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 34,
+              "y": 417,
+              "w": 289,
+              "h": 35,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 219,
+              "y": 506,
+              "w": 58,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 116,
+              "y": 554,
+              "w": 77,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 199,
+              "y": 554,
+              "w": 113,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 32,
+              "y": 362,
+              "w": 115,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 163,
+              "y": 362,
+              "w": 123,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 32,
+              "y": 388,
+              "w": 191,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 0,
+              "y": 1,
+              "w": 188,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 188,
+              "y": 1,
+              "w": 188,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 0,
+              "y": 53,
+              "w": 188,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "card": {
+          "count": 15,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 11,
+              "w": 108,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 16,
+              "y": 28,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 46,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 46,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "hint",
+              "x": 16,
+              "y": 100,
+              "w": 239,
+              "h": 120,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "creature-card",
+              "x": 16,
+              "y": 230,
+              "w": 239,
+              "h": 73,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 317,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 188,
+              "y": 615,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 253,
+              "y": 680,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 301,
+              "y": 632,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 294,
+              "y": 509,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 253,
+              "y": 574,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 180,
+              "y": 718,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 295,
+              "y": 726,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 680,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "fight": {
+          "count": 10,
+          "bad": [],
+          "list": [
+            {
+              "id": "journal-button",
+              "x": 317,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 188,
+              "y": 615,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 253,
+              "y": 680,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 301,
+              "y": 632,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 294,
+              "y": 509,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 253,
+              "y": 574,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 180,
+              "y": 718,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 295,
+              "y": 726,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 680,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "Cinder scavenger",
+              "x": 12,
+              "y": 109,
+              "w": 150,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            }
+          ]
+        },
+        "fight-menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 16,
+              "y": 155,
+              "w": 96,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 118,
+              "y": 155,
+              "w": 138,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 16,
+              "y": 201,
+              "w": 98,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 120,
+              "y": 201,
+              "w": 82,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 208,
+              "y": 201,
+              "w": 66,
+              "h": 40,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 213,
+              "y": 349,
+              "w": 80,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 34,
+              "y": 417,
+              "w": 289,
+              "h": 35,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 219,
+              "y": 506,
+              "w": 58,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 116,
+              "y": 554,
+              "w": 77,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 199,
+              "y": 554,
+              "w": 113,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 32,
+              "y": 362,
+              "w": 115,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 163,
+              "y": 362,
+              "w": 123,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 32,
+              "y": 388,
+              "w": 191,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 0,
+              "y": 1,
+              "w": 188,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 188,
+              "y": 1,
+              "w": 188,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 0,
+              "y": 53,
+              "w": 188,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        }
+      },
+      "errors": []
+    },
+    {
+      "view": "landscape",
+      "w": 812,
+      "h": 375,
+      "states": {
+        "walk": {
+          "count": 13,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 6,
+              "w": 92,
+              "h": 14,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 116,
+              "y": 4,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 22,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 22,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "journal-button",
+              "x": 654,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 625,
+              "y": 178,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 690,
+              "y": 243,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 738,
+              "y": 195,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 731,
+              "y": 72,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 690,
+              "y": 137,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 617,
+              "y": 281,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 732,
+              "y": 289,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 243,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 180,
+              "y": 194,
+              "w": 96,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 282,
+              "y": 194,
+              "w": 138,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 426,
+              "y": 194,
+              "w": 98,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 530,
+              "y": 194,
+              "w": 82,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 180,
+              "y": 240,
+              "w": 66,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 377,
+              "y": 388,
+              "w": 80,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 348,
+              "y": 436,
+              "w": 229,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 281,
+              "y": 504,
+              "w": 58,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 280,
+              "y": 532,
+              "w": 77,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 363,
+              "y": 532,
+              "w": 113,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 196,
+              "y": 401,
+              "w": 115,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 327,
+              "y": 401,
+              "w": 123,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 196,
+              "y": 427,
+              "w": 191,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 164,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 406,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 164,
+              "y": 92,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "card": {
+          "count": 14,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 6,
+              "w": 92,
+              "h": 14,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 116,
+              "y": 4,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 22,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 22,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "creature-card",
+              "x": 16,
+              "y": 69,
+              "w": 293,
+              "h": 21,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 654,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 625,
+              "y": 178,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 690,
+              "y": 243,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 738,
+              "y": 195,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 731,
+              "y": 72,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 690,
+              "y": 137,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 617,
+              "y": 281,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 732,
+              "y": 289,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 243,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "fight": {
+          "count": 10,
+          "bad": [],
+          "list": [
+            {
+              "id": "journal-button",
+              "x": 654,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 625,
+              "y": 178,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 690,
+              "y": 243,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 738,
+              "y": 195,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 731,
+              "y": 72,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 690,
+              "y": 137,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 617,
+              "y": 281,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 732,
+              "y": 289,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 243,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "Cinder scavenger",
+              "x": 12,
+              "y": 78,
+              "w": 150,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            }
+          ]
+        },
+        "fight-menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 180,
+              "y": 194,
+              "w": 96,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 282,
+              "y": 194,
+              "w": 138,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 426,
+              "y": 194,
+              "w": 98,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 530,
+              "y": 194,
+              "w": 82,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 180,
+              "y": 240,
+              "w": 66,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 377,
+              "y": 388,
+              "w": 80,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 348,
+              "y": 436,
+              "w": 229,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 281,
+              "y": 504,
+              "w": 58,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 280,
+              "y": 532,
+              "w": 77,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 363,
+              "y": 532,
+              "w": 113,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 196,
+              "y": 401,
+              "w": 115,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 327,
+              "y": 401,
+              "w": 123,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 196,
+              "y": 427,
+              "w": 191,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 164,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 406,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 164,
+              "y": 92,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        }
+      },
+      "errors": []
+    },
+    {
+      "view": "short",
+      "w": 844,
+      "h": 340,
+      "states": {
+        "walk": {
+          "count": 13,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 6,
+              "w": 92,
+              "h": 14,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 116,
+              "y": 4,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 22,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 22,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "journal-button",
+              "x": 686,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 657,
+              "y": 143,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 722,
+              "y": 208,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 770,
+              "y": 160,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 763,
+              "y": 37,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 722,
+              "y": 102,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 649,
+              "y": 246,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 764,
+              "y": 254,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 208,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 196,
+              "y": 191,
+              "w": 96,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 298,
+              "y": 191,
+              "w": 138,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 442,
+              "y": 191,
+              "w": 98,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 546,
+              "y": 191,
+              "w": 82,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 196,
+              "y": 237,
+              "w": 66,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 393,
+              "y": 385,
+              "w": 80,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 364,
+              "y": 434,
+              "w": 229,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 297,
+              "y": 502,
+              "w": 58,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 296,
+              "y": 530,
+              "w": 77,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 379,
+              "y": 530,
+              "w": 113,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 212,
+              "y": 398,
+              "w": 115,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 343,
+              "y": 398,
+              "w": 123,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 212,
+              "y": 424,
+              "w": 191,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 180,
+              "y": 37,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 422,
+              "y": 37,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 180,
+              "y": 89,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "card": {
+          "count": 14,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 6,
+              "w": 92,
+              "h": 14,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 116,
+              "y": 4,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 22,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 22,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "creature-card",
+              "x": 16,
+              "y": 69,
+              "w": 298,
+              "h": 21,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 686,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 657,
+              "y": 143,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 722,
+              "y": 208,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 770,
+              "y": 160,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 763,
+              "y": 37,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 722,
+              "y": 102,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 649,
+              "y": 246,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 764,
+              "y": 254,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 208,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "fight": {
+          "count": 10,
+          "bad": [],
+          "list": [
+            {
+              "id": "journal-button",
+              "x": 686,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 657,
+              "y": 143,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 722,
+              "y": 208,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 770,
+              "y": 160,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 763,
+              "y": 37,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 722,
+              "y": 102,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 649,
+              "y": 246,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 764,
+              "y": 254,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 16,
+              "y": 208,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "Cinder scavenger",
+              "x": 12,
+              "y": 78,
+              "w": 150,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            }
+          ]
+        },
+        "fight-menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 196,
+              "y": 191,
+              "w": 96,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 298,
+              "y": 191,
+              "w": 138,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 442,
+              "y": 191,
+              "w": 98,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 546,
+              "y": 191,
+              "w": 82,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 196,
+              "y": 237,
+              "w": 66,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 393,
+              "y": 385,
+              "w": 80,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 364,
+              "y": 434,
+              "w": 229,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 297,
+              "y": 502,
+              "w": 58,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 296,
+              "y": 530,
+              "w": 77,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 379,
+              "y": 530,
+              "w": 113,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 212,
+              "y": 398,
+              "w": 115,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 343,
+              "y": 398,
+              "w": 123,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 212,
+              "y": 424,
+              "w": 191,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 180,
+              "y": 37,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 422,
+              "y": 37,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 180,
+              "y": 89,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        }
+      },
+      "errors": []
+    },
+    {
+      "view": "notch",
+      "w": 844,
+      "h": 390,
+      "states": {
+        "walk": {
+          "count": 13,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 47,
+              "y": 6,
+              "w": 92,
+              "h": 14,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 147,
+              "y": 4,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 47,
+              "y": 22,
+              "w": 236,
+              "h": 62,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 47,
+              "y": 40,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "journal-button",
+              "x": 653,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 626,
+              "y": 193,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 691,
+              "y": 258,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 739,
+              "y": 210,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 732,
+              "y": 87,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 691,
+              "y": 152,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 618,
+              "y": 296,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 733,
+              "y": 304,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 47,
+              "y": 258,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 196,
+              "y": 194,
+              "w": 96,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 298,
+              "y": 194,
+              "w": 138,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 442,
+              "y": 194,
+              "w": 98,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 546,
+              "y": 194,
+              "w": 82,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 196,
+              "y": 240,
+              "w": 66,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 393,
+              "y": 388,
+              "w": 80,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 364,
+              "y": 437,
+              "w": 229,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 297,
+              "y": 505,
+              "w": 58,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 296,
+              "y": 533,
+              "w": 77,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 379,
+              "y": 533,
+              "w": 113,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 212,
+              "y": 401,
+              "w": 115,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 343,
+              "y": 401,
+              "w": 123,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 212,
+              "y": 427,
+              "w": 191,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 180,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 422,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 180,
+              "y": 92,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "card": {
+          "count": 14,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 47,
+              "y": 6,
+              "w": 92,
+              "h": 14,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 147,
+              "y": 4,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 47,
+              "y": 22,
+              "w": 236,
+              "h": 62,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 47,
+              "y": 40,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "creature-card",
+              "x": 47,
+              "y": 87,
+              "w": 236,
+              "h": 21,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 653,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 626,
+              "y": 193,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 691,
+              "y": 258,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 739,
+              "y": 210,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 732,
+              "y": 87,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 691,
+              "y": 152,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 618,
+              "y": 296,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 733,
+              "y": 304,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 47,
+              "y": 258,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "fight": {
+          "count": 10,
+          "bad": [],
+          "list": [
+            {
+              "id": "journal-button",
+              "x": 653,
+              "y": 12,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 626,
+              "y": 193,
+              "w": 60,
+              "h": 60,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 691,
+              "y": 258,
+              "w": 44,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 739,
+              "y": 210,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "skill-button",
+              "x": 732,
+              "y": 87,
+              "w": 58,
+              "h": 58,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "thrust-button",
+              "x": 691,
+              "y": 152,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 618,
+              "y": 296,
+              "w": 56,
+              "h": 56,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 733,
+              "y": 304,
+              "w": 64,
+              "h": 64,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "joystick",
+              "x": 47,
+              "y": 258,
+              "w": 108,
+              "h": 108,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "Cinder scavenger",
+              "x": 12,
+              "y": 96,
+              "w": 150,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            }
+          ]
+        },
+        "fight-menu": {
+          "count": 16,
+          "bad": [],
+          "list": [
+            {
+              "id": "mobile-sound",
+              "x": 196,
+              "y": 194,
+              "w": 96,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-camera",
+              "x": 298,
+              "y": 194,
+              "w": 138,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "mobile-coach",
+              "x": 442,
+              "y": 194,
+              "w": 98,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-journal",
+              "x": 546,
+              "y": 194,
+              "w": 82,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "menu-gear",
+              "x": 196,
+              "y": 240,
+              "w": 66,
+              "h": 40,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "quaternius.com",
+              "x": 393,
+              "y": 388,
+              "w": 80,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 364,
+              "y": 437,
+              "w": 229,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 297,
+              "y": 505,
+              "w": 58,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 296,
+              "y": 533,
+              "w": 77,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 379,
+              "y": 533,
+              "w": 113,
+              "h": 15,
+              "scrolled": true,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 212,
+              "y": 401,
+              "w": 115,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 343,
+              "y": 401,
+              "w": 123,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 212,
+              "y": 427,
+              "w": 191,
+              "h": 18,
+              "scrolled": true,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 180,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 422,
+              "y": 40,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 180,
+              "y": 92,
+              "w": 242,
+              "h": 52,
+              "scrolled": true,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        }
+      },
+      "errors": []
+    },
+    {
+      "view": "ipad",
+      "w": 1024,
+      "h": 768,
+      "states": {
+        "walk": {
+          "count": 12,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 11,
+              "w": 108,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 16,
+              "y": 28,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 46,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 46,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "hint",
+              "x": 16,
+              "y": 100,
+              "w": 772,
+              "h": 61,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "sound-button",
+              "x": 501,
+              "y": 29,
+              "w": 98,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 848,
+              "y": 29,
+              "w": 144,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 632,
+              "y": 642,
+              "w": 173,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 559,
+              "y": 642,
+              "w": 64,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 813,
+              "y": 642,
+              "w": 179,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 632,
+              "y": 694,
+              "w": 173,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 813,
+              "y": 694,
+              "w": 179,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "menu": {
+          "count": 11,
+          "bad": [],
+          "list": [
+            {
+              "id": "quaternius.com",
+              "x": 483,
+              "y": 426,
+              "w": 80,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 454,
+              "y": 474,
+              "w": 229,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 387,
+              "y": 543,
+              "w": 58,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 386,
+              "y": 571,
+              "w": 77,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 469,
+              "y": 571,
+              "w": 113,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 302,
+              "y": 439,
+              "w": 115,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 433,
+              "y": 439,
+              "w": 123,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 302,
+              "y": 465,
+              "w": 191,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 270,
+              "y": 254,
+              "w": 242,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 512,
+              "y": 254,
+              "w": 242,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 270,
+              "y": 306,
+              "w": 242,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "card": {
+          "count": 13,
+          "bad": [],
+          "list": [
+            {
+              "id": "place",
+              "x": 16,
+              "y": 11,
+              "w": 108,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "career",
+              "x": 16,
+              "y": 28,
+              "w": 119,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "save",
+              "x": 16,
+              "y": 46,
+              "w": 239,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Sign in",
+              "x": 210,
+              "y": 46,
+              "w": 45,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": [
+                2
+              ]
+            },
+            {
+              "id": "hint",
+              "x": 16,
+              "y": 100,
+              "w": 772,
+              "h": 61,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "creature-card",
+              "x": 16,
+              "y": 171,
+              "w": 772,
+              "h": 73,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "sound-button",
+              "x": 501,
+              "y": 29,
+              "w": 98,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 848,
+              "y": 29,
+              "w": 144,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 632,
+              "y": 642,
+              "w": 173,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 559,
+              "y": 642,
+              "w": 64,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 813,
+              "y": 642,
+              "w": 179,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 632,
+              "y": 694,
+              "w": 173,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 813,
+              "y": 694,
+              "w": 179,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        },
+        "fight": {
+          "count": 8,
+          "bad": [],
+          "list": [
+            {
+              "id": "sound-button",
+              "x": 501,
+              "y": 29,
+              "w": 98,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "journal-button",
+              "x": 848,
+              "y": 29,
+              "w": 144,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "attack-button",
+              "x": 632,
+              "y": 642,
+              "w": 173,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "kick-button",
+              "x": 559,
+              "y": 642,
+              "w": 64,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "heavy-button",
+              "x": 813,
+              "y": 642,
+              "w": 179,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "dodge-button",
+              "x": 632,
+              "y": 694,
+              "w": 173,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "guard-button",
+              "x": 813,
+              "y": 694,
+              "w": 179,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "Cinder scavenger",
+              "x": 12,
+              "y": 109,
+              "w": 150,
+              "h": 44,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            }
+          ]
+        },
+        "fight-menu": {
+          "count": 11,
+          "bad": [],
+          "list": [
+            {
+              "id": "quaternius.com",
+              "x": 483,
+              "y": 426,
+              "w": 80,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "github.com/levy-",
+              "x": 454,
+              "y": 474,
+              "w": 229,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "CC BY 3.0",
+              "x": 387,
+              "y": 543,
+              "w": 58,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "meshoptimizer",
+              "x": 386,
+              "y": 571,
+              "w": 77,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "World of ClaudeC",
+              "x": 469,
+              "y": 571,
+              "w": 113,
+              "h": 15,
+              "scrolled": false,
+              "inline": true,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "About Frankendom",
+              "x": 302,
+              "y": 439,
+              "w": 115,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Privacy & accoun",
+              "x": 433,
+              "y": 439,
+              "w": 123,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "Rig & animations",
+              "x": 302,
+              "y": 465,
+              "w": 191,
+              "h": 18,
+              "scrolled": false,
+              "inline": false,
+              "ctl": false,
+              "anc": []
+            },
+            {
+              "id": "nav-arena-page",
+              "x": 270,
+              "y": 254,
+              "w": 242,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-pit",
+              "x": 512,
+              "y": 254,
+              "w": 242,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            },
+            {
+              "id": "nav-arena",
+              "x": 270,
+              "y": 306,
+              "w": 242,
+              "h": 52,
+              "scrolled": false,
+              "inline": false,
+              "ctl": true,
+              "anc": []
+            }
+          ]
+        }
+      },
+      "errors": []
+    }
+  ]
+}
