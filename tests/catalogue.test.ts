@@ -70,6 +70,8 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'dragon'; }), 'id', 'a variant row whose body is not a roster id');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.loot = { table: 'loottable:ember-goblin' }; }), '', 'a variant row may name its zone\'s table');
+  assert.equal(edit((r) => { r.loot = { table: 'loottable:nope' }; }), 'loot', 'a body row still needs a known table');
   assert.equal(edit((r) => { r.body = r.id; }), 'id', 'a variant row cannot be its own body');
   assert.equal(edit((r) => { r.summary = '  '; }), 'id', 'an empty summary');
   assert.equal(edit((r) => { r.world = { ...r.world!, tris: 62000, maxTris: 62000 }; }), 'budget');
