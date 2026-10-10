@@ -25,7 +25,7 @@ const STUBS: Record<string, string> = {
   hf: `echo "$*" >> "$STUB/hf-calls"
 case "$1 $2" in
   "auth whoami") exit "\${HF_STUB_AUTH:-0}" ;;
-  "jobs run") [[ -z "\${LOWER_ON_CALL:-}" ]] || echo "1.00 1.00 1.00 1/100 1" > "\$CAPTURE_LOADAVG"; [[ -n "\${HF_STUB_LAUNCH_FAIL:-}" ]] && { echo "Error: no quota"; exit 1; }; echo "Job started with ID: job123" ;;
+  "jobs run") [[ -z "\${LOWER_ON_CALL:-}" ]] || echo "1.00 1.00 1.00 1/100 1" > "$CAPTURE_LOADAVG"; [[ -n "\${HF_STUB_LAUNCH_FAIL:-}" ]] && { echo "Error: no quota"; exit 1; }; echo "Job started with ID: job123" ;;
   "jobs logs") echo "capture-spill: abc npm test"; [[ -n "\${HF_STUB_QUIET:-}" ]] || echo "# pass 3" ;;
   "jobs inspect") [[ -n "\${HF_STUB_QUIET:-}" ]] && echo '{"status": {"stage": "RUNNING"}}' || echo '{"status": {"stage": "COMPLETED"}}' ;;
 esac`,
