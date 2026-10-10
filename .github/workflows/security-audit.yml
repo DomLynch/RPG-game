@@ -1,7 +1,12 @@
 name: Security Audit
 on:
   workflow_dispatch:
+  # A push that changes only text (the lane state docs) cannot change the audit's verdict; it ran on every state-branch push
+  # (combat/state-1009: 4 runs on 2026-10-10). Same filter as quality.yml. Strategy/Lead 2026-10-10.
   push:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 jobs:
   audit:
     runs-on: ubuntu-latest
