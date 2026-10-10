@@ -1,3 +1,4 @@
+import { cutOf } from '../src/fight/zone-finisher.ts';
 import test from 'node:test';
 import {finisherBloodSources} from '../src/fight/finisher-blood.ts';
 import {finisherSidePose} from '../src/camera.ts';
@@ -1002,6 +1003,22 @@ test('the Centurion\'s armed run: the veteran rig carries ArmedRun, a one-hand f
 
 // Dom 2026-10-07: a beast is the same size walking and fighting. The world draws the rig at its mob look's scale, the duel at src/fight/beast-scale.ts (sizeBeast, called by scene.ts): one number per body, and the duel's beast
 // stands the rig's native height times it (wolf ~1.29 m, boar ~1.14 m, bear ~1.40 m; Characters' starting constants until Dom's eye has seen the stills).
+test('K6: a beast loses its head at its own row\'s bones (Actor.sever(bones)), once, and unsever grows it back; the humanoid default is unchanged', async () => {
+  const hero = await readWarrior('warrior.glb');
+  for (const [id, file] of [['wolf', 'wolf.glb'], ['boar', 'boar.glb'], ['bear', 'bear.glb']] as const) {
+    const rig = await readWarrior(file), { opponent } = buildWarriors(hero, rig, ['longsword', 'bite']), cut = cutOf(`character:${id}`, id)!;
+    assert.ok(cut.head.length, `${id}: the row names head bones`);
+    const bone = cut.head.map((n) => opponent.anchor.getObjectByName(n)).find(Boolean)!; assert.ok(bone, `${id}: a head bone is on the rig`);
+    opponent.update(0, .1, 'death', .2);
+    assert.equal(opponent.sever(), null, `${id}: the humanoid default 'Head' is not on a beast rig`);
+    const built = opponent.sever(cut.head); assert.ok(built?.group.children.length, `${id}: the head was baked into a prop`);
+    assert.ok(bone.scale.x < .01, `${id}: the bone collapsed`);
+    assert.equal(opponent.sever(cut.head), null, `${id}: once per kill`);
+    opponent.unsever(); assert.equal(bone.scale.x, 1, `${id}: grown back`);
+    built!.group.traverse((o) => { if (o instanceof Mesh) o.geometry.dispose(); });
+  }
+});
+
 test('each beast is drawn the same size in the duel as in the world: one scale per body, the rig times it', async () => {
   assert.equal(MOB_LOOKS['character:ash-wolf']!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale (the wolf; a boar or bear look must use its constant too)');
   assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');

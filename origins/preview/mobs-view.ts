@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { actorPose, buildWarriors, type Practice } from '../../src/fight/index.ts';
+import { actorPose, buildWarriors, createZoneFinisher, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
 import { catalogueBodyUrl, OPPONENTS, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
@@ -50,7 +50,7 @@ function bangSprite(): THREE.Sprite {
   s.scale.set(0.045, 0.045, 1); return s;
 }
 
-export type MobDrive = { x: number; z: number; facing: number; moving: boolean; duel?: Duel; fall?: number };   // World's combat loop (world-combat.ts) drives a creature while it fights: its position, the duel it is in (the engine's actor poses it: bite, hurt) and, once down, the death clip's progress (0..1)
+export type MobDrive = { x: number; z: number; facing: number; moving: boolean; duel?: Duel; fall?: number; finisher?: FinisherId };   // World's combat loop (world-combat.ts) drives a creature while it fights: its position, the duel it is in (the engine's actor poses it: bite, hurt) and, once down, the death clip's progress (0..1)
 export type MobPick = { spec: MobSpec; x: number; z: number; dist: number };
 export type Mobs = {
   update(dt: number, hero: { x: number; z: number }, hideLabel?: string | null): void; debug(): unknown;
@@ -70,7 +70,7 @@ const RESPAWN = 90;   // s
 const WARM_BOUND_MS = 4000;   // a body kind is revealed after this long even if its warm-up has not finished (a bound Claudecraft's gates lack; it is logged)
 const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
-export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
+export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
   const specs = mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
@@ -161,9 +161,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
+  const zoneFinisher = createZoneFinisher(scene, { groundAt: opts.groundAt, bleed: opts.onCut });   // K6: a creature the engine killed with a decapitation loses its head (the row's bones), the Pit's own ballistics
   return {
     update(dt, hero, hideLabel) {
-      lastHero = hero;
+      lastHero = hero; zoneFinisher.update(dt);
       mobs.forEach((m, i) => { const d = driven.get(i); mobs[i] = d ? { ...m, x: d.x, z: d.z, facing: d.facing, mode: d.moving ? 'wander' : 'aggro' } : stepMob(m, specs[i]!, hero, dt, stands[i]!); });
       for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); } else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
@@ -196,6 +197,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
           const tick = (step: number) => v.actor!.update(v.speed, step, posed.pose, posed.progress, posed.attack, posed.contact, 0);
           if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; tick(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)
           else { v.pending += dt; if (++v.skip % 4 === 0) { tick(v.pending); v.pending = 0; } }
+          if (dv?.fall) zoneFinisher.frame(s.id, s, v.actor as unknown as CutRig, dv.fall, dv.finisher, { x: m.x, z: m.z }, hero);
         }
       }
     },
@@ -232,7 +234,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
     warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (WORLD_URLS[k] ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
-    fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); },
+    fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
       mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
