@@ -33,9 +33,9 @@ try {
   const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body).sort((a, b) => (a.id < b.id ? -1 : 1)).find((m) => !id || m.id.startsWith(id)), want);
   console.log('target:', target.id);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
-  await page.waitForTimeout(20000);
+  await page.waitForTimeout(zone === '1' ? 20000 : 2500);   // Zone 2's wolf pack aggros within seconds: a 20 s wait gets the hero mauled and respawned in the Pit
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
-  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
+  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate((w) => window.originsPreview.duel()?.ready || (w && document.body.classList.contains('infight')), zone !== '1')) break; }   // other zones: the engine loop runs in the walk, duel() stays null, so wait for the infight class
   await page.waitForTimeout(600);   // right at the engage: later the software-GL clock can run the whole fight to its end screen
   console.log('infight:', await page.evaluate(() => document.body.classList.contains('infight')));
   await shot('fight');
@@ -44,11 +44,15 @@ try {
   await shot('stab');
   console.log('hero:', JSON.stringify(await page.evaluate(() => window.originsPreview.combat().hero)).slice(0, 200));
   if (process.env.KILL) {   // cut until the foe's health is 0 (or its fighter is gone), then shoot the kill
-    const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters?.find?.((f) => f.id === i)?.hp ?? window.originsPreview.duel()?.health ?? null, target.id);
+    const read = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { foe: c.target?.health ?? null, st: c.hero?.stamina ?? 0, down: !!c.hero?.dead }; });
     let seen = null, dead = false;
-    for (let t = 0; t < 150 && !dead; t++) { await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(400); const h = await hp(); seen ??= h; dead = (h !== null && h <= 0) || (h === null && seen !== null); }
+    for (let t = 0; t < 150 && !dead; t++) {
+      const { foe, st, down } = await read(); seen ??= foe; dead = !down && ((foe !== null && foe <= 0) || (foe === null && seen !== null)); if (dead || down) break;
+      if (st < 30) { await page.waitForTimeout(1500); continue; }   // out of stamina: let it come back, a cut at 0 lands nothing
+      await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(400);
+    }
     console.log('kill:', dead, 'foe hp seen', seen, 'hero:', JSON.stringify(await page.evaluate(() => window.originsPreview.combat().hero)).slice(0, 120));
-    await shot('kill');
+    await shot(dead ? 'kill' : 'no-kill');   // no-kill: the hero went down (or the cuts ran out) first; say so rather than call it a kill
   }
   console.log('errors:', errors.length, errors.slice(0, 2));
 } finally { await browser.close(); server.close(); }
