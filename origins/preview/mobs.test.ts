@@ -6,6 +6,8 @@ import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
 import { signedIn } from './save.ts';
+import { campCount } from '../mobs/row.ts';
+import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
@@ -254,4 +256,11 @@ test('name tags are kept below the HUD: the ceiling is the floor plus half a tag
   const c = labelCeilingNdc(280, 812);   // 375x812 phone, bars end near y 280: tags sit at least 12 px under it
   assert.ok(Math.abs(((1 - c) / 2) * 812 - 292) < 1e-6, 'centre 292 px from the top');
   assert.ok(Number.isFinite(labelCeilingNdc(280, 0)), 'a zero-height window cannot divide by zero');
+});
+
+test('a camp\'s size is drawn inside the row\'s campSize range, not its upper bound (the populate.ts rule, one function)', () => {
+  const seen = new Set<number>();
+  for (let n = 0; n < 400; n++) { const k = campCount([2, 4], nextRandom(mixSeed(1234 + n, n))[0]); assert.ok(k >= 2 && k <= 4 && Number.isInteger(k), `size ${k}`); seen.add(k); }
+  assert.deepEqual([...seen].sort(), [2, 3, 4], 'every size in [2,4] comes up across seeds');
+  assert.equal(campCount([3, 3], 0.999), 3); assert.equal(campCount(undefined, 0), 2, 'no campSize: the default [2,3]');
 });

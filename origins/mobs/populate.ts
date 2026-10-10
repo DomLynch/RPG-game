@@ -7,7 +7,7 @@
 import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
 import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
-import { DEFAULTS, RARE_DEFAULT, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from './row.ts';
+import { RARE_DEFAULT, campCount, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from './row.ts';
 
 export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
@@ -42,7 +42,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   const apart = (c: { x: number; z: number }) => !camps.some((k) => Math.hypot(k.members[0]!.x - c.x, k.members[0]!.z - c.z) < CAMP_GAP);
   // One camp of `row` round `centre`, `size` members (default: the row's own draw); null when no member found room.
   const camp = (row: MobRow, at: string, centre: { x: number; z: number }, size?: number): Camp | null => {
-    const [cmin, cmax] = row.behaviour.campSize ?? DEFAULTS.campSize, n = size ?? cmin + Math.floor(rand() * (cmax - cmin + 1)), spread = row.behaviour.spread ?? 6;
+    const n = size ?? campCount(row.behaviour.campSize, rand()), spread = row.behaviour.spread ?? 6;
     const lo = Math.max(row.level[0], zone.difficulty.levelMin), hi = Math.min(row.level[1], zone.difficulty.levelMax), members: Member[] = [];
     for (let i = 0; i < n; i++) {
       for (let tries = 0; tries < 40; tries++) {

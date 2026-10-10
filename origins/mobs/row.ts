@@ -48,6 +48,8 @@ export type RowContext = {
 };
 
 export const DEFAULTS = { aggro: 7, leash: 26, roam: 6, campSize: [2, 3] as const, weight: 10 };
+/** A camp's size from a draw `u` in [0,1): a whole number in the row's campSize range (both bounds inclusive). The ONE rule: populate.ts and the preview's mobs.ts both call it. */
+export const campCount = (campSize: readonly [number, number] | undefined, u: number): number => { const [lo, hi] = campSize ?? DEFAULTS.campSize; return lo + Math.floor(u * (hi - lo + 1)); };
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 1, uncommon: 0.3, rare: 0 };   // x the row's own weight in a zone's draw
 export const RARE_CHANCE: readonly [number, number] = [0.01, 0.25];
 export const RARE_DEFAULT = 0.05;
