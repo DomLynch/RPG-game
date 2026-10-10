@@ -3,7 +3,8 @@
 # Hugging Face jobs launched before the deploy with scripts/vps-shadow/launch.mjs (unit|rows <sha>); DEPLOY_HF_ROWS_JOBS="id,id" and DEPLOY_HF_UNIT_JOB=id name them, and this
 # step reads each RECEIPT line back (launch.mjs fetch), fresh. VPS_RECEIPT_SHA names the candidate when it is not the revision. Trust is decided by vps-receipt-trust.mjs, not here.
 vps_receipts_apply() {
-  local vps_trusted n
+  local n
+  vps_trusted=""   # global: the Published summary reads it
   local receipt_sha="${VPS_RECEIPT_SHA:-$revision}"
   [[ "$receipt_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "vps-receipts: VPS_RECEIPT_SHA is not a 40-hex sha; every row runs here"; return 0; }
   rm -rf "artifacts/vps-shadow/$receipt_sha"   # no stale local file is ever trusted: fetch fresh or trust nothing
