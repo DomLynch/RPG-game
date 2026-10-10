@@ -56,14 +56,15 @@ test('a real combat job beats the skipped-matrix rule: a failed combat run stays
 
 // The merge-base guard: a scoped (browser-skipped) candidate run is trusted only when the trunk under it (first parent) has its own browser (combat) green.
 // gh is a shim keyed by the commit argument; git rev-parse answers the first parent.
-const guard = (opts: { parent: string | null; runs: Record<string, [string, string][]>; verdicts: Record<string, string> }) => {
+const guard = (opts: { parent: string | null; between?: boolean; runs: Record<string, [string, string][]>; verdicts: Record<string, string> }) => {
   const dir = mkdtempSync(join(tmpdir(), 'qgreen-'));
   try {
     mkdirSync(join(dir, 'bin'));
     const lists = Object.entries(opts.runs).map(([sha, rs]) => `${sha}) ${rs.map(([id, url]) => `echo '${id} ${url}'`).join('; ')};;`).join(' ');
     const views = Object.entries(opts.verdicts).map(([id, v]) => `${id}) echo ${v};;`).join(' ');
     writeFileSync(join(dir, 'bin/gh'), `#!/bin/sh\nif [ "$2" = list ]; then case "$6" in ${lists} esac; exit 0; fi\ncase "$3" in ${views} esac\n`);
-    writeFileSync(join(dir, 'bin/git'), `#!/bin/sh\n${opts.parent ? `echo ${opts.parent}` : 'exit 1'}\n`);
+    // cand~1 is a member merge (no CI run) when `between`, else the trunk itself; cand~2 is the trunk.
+    writeFileSync(join(dir, 'bin/git'), `#!/bin/sh\ncase "$4" in cand~1) ${opts.parent ? (opts.between ? 'echo member' : `echo ${opts.parent}`) : 'exit 1'};; cand~2) ${opts.parent && opts.between ? `echo ${opts.parent}` : 'exit 1'};; *) exit 1;; esac\n`);
     chmodSync(join(dir, 'bin/gh'), 0o755); chmodSync(join(dir, 'bin/git'), 0o755);
     const r = spawnSync('bash', ['-c', `${fn}\nquality_green cand`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
     assert.equal(r.status, 0, r.stderr);
@@ -82,4 +83,10 @@ test('a scoped candidate run fails closed when the trunk run is red, has no comb
 });
 test('a full green candidate run needs no trunk look-up', () => {
   assert.equal(guard({ parent: null, runs: { cand: [['1', 'https://x/runs/1']] }, verdicts: { 1: 'yes' } }), 'https://x/runs/1');
+});
+test('a two-member candidate: the member merge has no run, so the trunk under it decides (both ways)', () => {
+  const runs = { cand: [['1', 'https://x/runs/1']] as [string, string][], member: [] as [string, string][], base: [['2', 'https://x/runs/2']] as [string, string][] };
+  assert.equal(guard({ parent: 'base', between: true, runs, verdicts: { 1: 'scoped', 2: 'yes' } }), 'https://x/runs/1');
+  assert.equal(guard({ parent: 'base', between: true, runs, verdicts: { 1: 'scoped', 2: 'no' } }), '');
+  assert.equal(guard({ parent: 'base', between: true, runs: { ...runs, base: [] }, verdicts: { 1: 'scoped' } }), '');
 });
