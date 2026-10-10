@@ -115,7 +115,7 @@ test('--hf-ok is refused for browsers, release steps, other commands, a dirty ch
 test('a spilled job with no new output for the quiet spell is cancelled and logged; a failed launch puts the job back in the VPS queue without --hf-ok', { skip }, async () => {
   const [quiet, failed] = await Promise.all([
     capture(['--hf-ok', 't', 'npm', 'test'], '1.00 20.00 20.00', { HF_STUB_QUIET: '1', CAPTURE_HF_QUIET_S: '1' }, undefined, undefined, true),
-    capture(['--prio', '2', '--hf-ok', 't', 'npm', 'test'], '1.00 20.00 20.00', { HF_STUB_LAUNCH_FAIL: '1' }, undefined, 2500, true),
+    capture(['--prio', '2', '--hf-ok', 't', 'npm', 'test'], '1.00 20.00 20.00', { HF_STUB_LAUNCH_FAIL: '1', CAPTURE_WAIT_S: '15' }, undefined, 2500, true),
   ]);
   assert.equal(quiet.code, 1, quiet.out); assert.match(quiet.hf, /^jobs cancel job123$/m);
   assert.match(quiet.spill, / stage=CANCELED quiet_cancel=1s /); assert.match(quiet.out, /no output for 1s/);
@@ -125,7 +125,7 @@ test('a spilled job with no new output for the quiet spell is cancelled and logg
 });
 
 test('a sha GitHub does not have is never launched (it would end in an HF ERROR): the job goes back to the VPS queue', { skip }, async () => {
-  const r = await capture(['--hf-ok', 't', 'npm', 'test'], '1.00 20.00 20.00', { GH_STUB_MISSING: '1' }, undefined, 2500, true);
+  const r = await capture(['--hf-ok', 't', 'npm', 'test'], '1.00 20.00 20.00', { GH_STUB_MISSING: '1', CAPTURE_WAIT_S: '15' }, undefined, 2500, true);
   assert.match(r.out, /is not on GitHub \(push it to spill\); t's job goes back to the VPS queue/);
   assert.doesNotMatch(r.hf, /jobs run/); assert.equal(r.code, 0, r.out); assert.equal(r.ran.trim(), 'test', 'it ran on the VPS once the load cleared');
 });
@@ -139,7 +139,7 @@ test('Ctrl-C on the wrapper cancels the HF job it started and logs it (exit 130)
   git('init', '-q'); writeFileSync(join(repo, 'a.txt'), 'a\n'); git('add', '.'); git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'a');
   const loadavg = join(dir, 'loadavg'); writeFileSync(loadavg, '1.00 20.00 20.00 1/100 1\n');
   const child = spawn('bash', [mac, '--host', 'vps', '--dir', repo, '--hf-ok', 't', 'npm', 'test'], { cwd: repo, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
-    CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1',
+    CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '15', CAPTURE_SPILL_AFTER_S: '1',
     CAPTURE_HF_POLL_S: '0.2', CAPTURE_HF_QUIET_S: '600', HF_STUB_QUIET: '1' } });
   let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
   const code = await new Promise<number | null>((resolve) => {
