@@ -43,11 +43,11 @@ try {
       if (attempt) { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return [x.x, x.z]; }, target.id); await page.evaluate(([x, zz]) => window.originsPreview.place(x, zz - 1.4, 0), m); await page.waitForTimeout(1500); await page.evaluate((i) => window.originsPreview.tapMob(i), target.id); }
       for (let k = 0; k < 32 && (await hp()) === null; k++) await page.waitForTimeout(250);
     }
-    let first = null, shot = false;
+    let first = null, shot = false, seen = false;   // seen: the creature has been in the loop's fighters; once it is gone from them it is down (the engine drops a corpse from the list)
     for (let t = 0; t < (KILL ? 80 : 90) && !shot; t++) {
       await page.evaluate(() => window.originsPreview.press('light'));
       if (PROBE) { for (let k = 0; k < 40 && !shot; k++) { const r = await page.evaluate((i) => { const c = window.originsPreview.combat(), m = window.originsPreview.mobs().mobs.find((x) => x.id === i), p = (c.fxProbe ?? []).find((q) => q.foe === i); return m && p && p.visible && p.victim === 1 ? { sparks: p.at, mob: [m.x, m.z], struck: p.struck ?? null } : null; }, target.id); if (r) { z.probe = { ...r, dist: +Math.hypot(r.sparks[0] - r.mob[0], r.sparks[2] - r.mob[1]).toFixed(2), distAtContact: r.struck ? +Math.hypot(r.sparks[0] - r.struck[0], r.sparks[2] - r.struck[1]).toFixed(2) : null }; shot = true; } else await page.waitForTimeout(30); } continue; }
-      if (KILL) { for (let k = 0; k < 40 && !shot; k++) { if (await down()) { await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, `zone${id}-kill.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); shot = true; } else await page.waitForTimeout(40); } continue; }   // poll fast so the fall's frame is caught before the body is released
+      if (KILL) { for (let k = 0; k < 40 && !shot; k++) { const left = await hp(); if (left !== null) seen = true; if ((await down()) || (seen && left === null)) { await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, `zone${id}-kill.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); shot = true; } else await page.waitForTimeout(40); } continue; }   // poll fast so the fall's frame is caught before the body is released
       await page.waitForTimeout(400);
       const h = await hp(); first ??= h;
       if (h !== null && first !== null && h < first) { await page.screenshot({ path: path.join(out, `zone${id}-hit.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); shot = true; }
