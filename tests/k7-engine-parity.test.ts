@@ -158,8 +158,9 @@ test('K7 camera row: nothing under origins/ places the camera (camera.position /
 test('K7 camera limits row: createFollowCamera in origins/preview/main.ts is called with zone data, not literals', () => {
   const call = (src: string) => /createFollowCamera\(camera,\s*\{[^;]*\}\)/.exec(src)?.[0] ?? '';
   const main = readFileSync('origins/preview/main.ts', 'utf8');
-  assert.ok(call(main), 'the page builds the follow camera'); assert.ok(!/\d/.test(call(main).replace(/camera\.passage/g, '')), `no number in the call: ${call(main)}`);
-  assert.ok(/createFollowCamera\(camera,\s*\{[^;]*\d/.test('createFollowCamera(camera, { passage: { back: 3.4 } });'), 'a literal in the call is seen (mutation)');
+  assert.ok(call(main), 'the page builds the follow camera'); const literal = /(?<![\w.\[])\d+(\.\d+)?/;   // a number literal (not an index like [1])
+  assert.ok(!literal.test(call(main)), `no number in the call: ${call(main)}`);
+  assert.ok(literal.test(call('createFollowCamera(camera, { open: { back: 3.4 } });')), 'a literal in the call is seen (mutation)'); assert.ok(!literal.test(call('createFollowCamera(camera, { open: pick(/[?&]camera=([a-z])\\b/.exec(location.search)?.[1]) });')), 'an index is not a number literal');
 });
 
 // Strategy's donor verdict (2026-10-10): MAX_ATTACKERS is never exceeded, and no other cap can alias it. The cap lives in src/fight/attackers.ts (a leaf, so the node-safe door's closure does not pull the world loop).
