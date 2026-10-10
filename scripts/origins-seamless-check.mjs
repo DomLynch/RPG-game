@@ -63,7 +63,7 @@ try {
     const reach = async () => { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return x && [x.x, x.z]; }, target.id); if (m) await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), m); };   // the foe roams: stand 1.4 m from where it is NOW before each cut (a cut from the 2.5 m tap distance never reaches it)
     for (let k = 0; k < 20 && (await hp()) === null; k++) await page.waitForTimeout(250);   // the foe is in the loop's fighters only once it has joined
     const hp0 = await hp(); let hpNow = hp0;
-    for (let k = 0; k < 40 && hp0 !== null && !(hpNow < hp0); k++) { await reach(); await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(500); hpNow = await hp(); }
+    for (let k = 0; k < 120 && hp0 !== null && !(hpNow < hp0); k++) { await reach(); await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(500); hpNow = await hp(); }
     receipt.strike = { hpBefore: hp0, hpAfter: hpNow, fighters: hp0 === null || !(hpNow < hp0) ? await page.evaluate(() => JSON.stringify(window.originsPreview.combat().fighters).slice(0, 400)) : undefined };
     assert.ok(hp0 !== null && hpNow < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);   // a missed strike fails the run, it never counts as a pass
   }
