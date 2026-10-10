@@ -10,7 +10,7 @@ import ts from 'typescript';
 // checks: they join only once they are split into pure-data files. The catalogue rows are split (src/fight/catalogue-data.ts; the code that reads them stays in catalogue-rows.ts),
 // and a new or changed legend citation in them goes to the Auditor (catalogueCitations below).
 export const DATA_PATHS = [
-  /^origins\/zones\/zone\d+\/(zone|spawns|kit|look)\.ts$/,
+  /^origins\/zones\/zone\d+\/(zone|spawns|kit|look|mob-looks|place)\.ts$/,   // mob-looks and place are the optional zone files (gen-zones OPTIONAL); zoneProblems checks mobLooks, tests/zone-place.test.ts checks place
   /^origins\/zones\/biomes-data\.ts$/,   // the biome presets once World splits them out of biomes.ts as a literal-only module (biomes.ts itself stays code)
   /^src\/assets\/source\/loot\/loot\.json$/,
   /^src\/fight\/catalogue-data\.ts$/,   // the character catalogue's rows: one literal const (Characters 2026-10-10; the legends rule below applies)
@@ -70,15 +70,26 @@ export function moduleValue(file, text) {
 // Legends (Lead 2026-10-09): a spawns row that brings a legend id trunk does not have, or changes the source citation of one it has, is legends
 // content, and the legends rule is the Auditor's judgement, so the PR is not data-only. A row reusing an existing id with the same citation stays data.
 // `rows` = spawns.rows; a legend is a row whose id is a `character:` id with a `source` (the citation). Returns { id: JSON(source) }.
-export const legendCitations = rows => Object.fromEntries((Array.isArray(rows) ? rows : []).filter(r => r && typeof r.id === 'string' && r.id.startsWith('character:') && r.source)
-  .map(r => [r.id, JSON.stringify(r.source)]));
+const legendEntries = rows => (Array.isArray(rows) ? rows : []).filter(r => r && typeof r.id === 'string' && r.id.startsWith('character:') && r.source)
+  .map(r => [r.id, JSON.stringify(r.source)]);
+export const legendCitations = rows => Object.fromEntries(legendEntries(rows));
 // The catalogue's citations (same rule, Auditor 2026-10-10): `rows` = CATALOGUE_ROWS. A row's legend keys on its legendId, or `work:<work>` with none; a null or `{ pending }` legend
 // contributes nothing; a Pit rank keys on `<rowId>#rank<i>` with its source text, so a new row that brings rank sources is new keys (the Auditor, deliberately conservative).
-export const catalogueCitations = rows => Object.fromEntries((Array.isArray(rows) ? rows : []).flatMap(r => {
+const catalogueEntries = rows => (Array.isArray(rows) ? rows : []).flatMap(r => {
   if (!r || typeof r.id !== 'string') return [];
   const l = r.legend, own = l && typeof l === 'object' && !('pending' in l) ? [[typeof l.legendId === 'string' ? l.legendId : `work:${l.work}`, JSON.stringify(l)]] : [];
   return [...own, ...(Array.isArray(r.ranks) ? r.ranks : []).map((k, i) => [`${r.id}#rank${i}`, JSON.stringify(k?.source)])];
-}));
+});
+export const catalogueCitations = rows => Object.fromEntries(catalogueEntries(rows));
+// One legend cited twice in the head with different values (Auditor 2026-10-10): the citation map keeps only the last one, so the first would never be compared with
+// trunk. Either copy may be the wrong one, so it is the Auditor's call (exit 1). `kind` picks the rows' shape: 'spawns' (spawns.rows) or 'catalogue' (CATALOGUE_ROWS).
+export function citationClashes(rows, kind) {
+  const seen = new Map();
+  return (kind === 'catalogue' ? catalogueEntries(rows) : legendEntries(rows)).flatMap(([id, source]) => {
+    if (seen.has(id) && seen.get(id) !== source) return [`${id} is cited twice with different values: the legends rule needs the Auditor`];
+    seen.set(id, source); return [];
+  });
+}
 export function legendProblems(head, base) {
   return Object.entries(head).flatMap(([id, source]) => !(id in base) ? [`${id} is a new legend: the legends rule needs the Auditor`]
     : base[id] !== source ? [`${id}'s source citation changed: the legends rule needs the Auditor`] : []);

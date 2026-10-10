@@ -1,15 +1,16 @@
 // Data-only PRs (scripts/lib/data-only.mjs): which files may skip the Auditor, and the proof that a zone module is data, not code.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { catalogueCitations, classify, dataProblems, legendCitations, legendProblems, moduleValue, onDataPath } from '../scripts/lib/data-only.mjs';
-import { verdict } from '../scripts/data-only-check.mjs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { catalogueCitations, citationClashes, classify, dataProblems, legendCitations, legendProblems, moduleValue, onDataPath } from '../scripts/lib/data-only.mjs';
+import { ZONE_CHECK, verdict } from '../scripts/data-only-check.mjs';
 
 const zoneFiles = readdirSync('origins/zones', { withFileTypes: true }).filter(d => d.isDirectory() && /^zone\d+$/.test(d.name))
-  .flatMap(d => ['zone', 'spawns', 'kit', 'look'].map(f => `origins/zones/${d.name}/${f}.ts`));
+  .flatMap(d => ['zone', 'spawns', 'kit', 'look', 'mob-looks', 'place'].map(f => `origins/zones/${d.name}/${f}.ts`)).filter(f => existsSync(f));   // mob-looks and place are optional
 
 test('every zone module on trunk is pure data, and the loot table is JSON', () => {
-  assert.ok(zoneFiles.length >= 8, 'zone1 and zone2 at least');
+  assert.ok(zoneFiles.length >= 10, 'zone1 and zone2 at least, with zone2\'s mob-looks and place');
   for (const f of [...zoneFiles, 'src/assets/source/loot/loot.json']) {
     assert.ok(onDataPath(f), f);
     assert.deepEqual(dataProblems(f, readFileSync(f, 'utf8')), [], f);
@@ -17,7 +18,7 @@ test('every zone module on trunk is pure data, and the loot table is JSON', () =
 });
 
 test('the path list is strict: engine code, loaders, biomes, catalogue rows, legends and tests are never data', () => {
-  for (const f of ['origins/zones/loader.ts', 'origins/zones/biomes.ts', 'origins/zones/zone1/place.ts', 'origins/zones/zone1/zone.test.ts', 'src/fight/catalogue-rows.ts',
+  for (const f of ['origins/zones/loader.ts', 'origins/zones/biomes.ts', 'origins/zones/place.ts', 'origins/zones/zone1/place.test.ts', 'origins/zones/zone1/zone.test.ts', 'origins/zones/zone1/places.ts', 'src/fight/catalogue-rows.ts',
     'docs/research/legends-fame.md', 'src/loot.ts', 'origins/zones/biomes.ts.data', 'origins/zones/zone1/biomes-data.ts', 'origins/zones/zone1/zone.ts.bak', 'origins/zones/zone1/../loader.ts']) assert.equal(onDataPath(f), false, f);
 });
 
@@ -96,4 +97,23 @@ test('the verdict on catalogue-data.ts: code in the file is exit 2, a new legend
   assert.equal(at(text.replace(/legend: \{ work: "([^"]+)"/, 'legend: { work: "New $1"')).code, 1);
   assert.equal(at(text.replace(/(legend: \{ work: "[^"]+", author: "[^"]+", year: )\d+/, '$11')).code, 1);
   assert.equal(verdict([{ file: CAT, status: 'modified' }, { file: 'src/fight/catalogue-rows.ts', status: 'modified' }], () => text, 'HEAD' as never).code, 1, 'the reader beside the data is a normal PR');
+});
+
+test('the zone check runs every zone AND every biome row through the schema, so a bad field in a preset no zone uses is still caught', () => {
+  assert.match(ZONE_CHECK, /for \(const b of Object\.keys\(BIOMES\)\) \{ try \{ bad\.push\(\.\.\.resolveSpec\(\{ biome: b \}\)\.problems/);
+  assert.match(ZONE_CHECK, /catch \(e\) \{ bad\.push\('biome ' \+ b \+ ': ' \+ e\.message\)/, 'a throw in one biome is named, not the whole check lost');
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', ZONE_CHECK], { encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
+  assert.equal(r.status, 0, r.stderr); assert.deepEqual(JSON.parse(r.stdout.trim().split('\n').pop()!), [], 'trunk: every zone and biome is valid');
+});
+
+test('a legend cited twice in the head with different values is the Auditor\'s (exit 1); the same citation twice is fine', () => {
+  assert.deepEqual(citationClashes([{ id: 'character:a', source: { w: 1 } }, { id: 'character:a', source: { w: 1 } }], 'spawns'), []);
+  assert.match(citationClashes([{ id: 'character:a', source: { w: 1 } }, { id: 'character:a', source: { w: 2 } }], 'spawns').join(), /character:a is cited twice/);
+  assert.match(citationClashes([{ id: 'x', legend: { legendId: 'legend:k', year: 1 }, ranks: [] }, { id: 'y', legend: { legendId: 'legend:k', year: 2 }, ranks: [] }], 'catalogue').join(), /legend:k is cited twice/);
+  const text = readFileSync(CAT, 'utf8'), rows = moduleValue(CAT, text) as { legend?: unknown }[];
+  assert.deepEqual(citationClashes(rows, 'catalogue'), [], 'trunk\'s catalogue cites each legend once');
+  const withWork = rows.find(r => r.legend && typeof r.legend === 'object' && 'work' in r.legend && !('legendId' in r.legend)) as { legend: { work: string } };
+  const twin = `{ id: "clash-row", legend: { work: ${JSON.stringify(withWork.legend.work)}, author: "Someone Else", year: 1 }, ranks: [] },`;
+  const v = verdict([{ file: CAT, status: 'modified' }], () => text.replace(/(=\s*\[)/, `$1\n  ${twin}`), 'HEAD' as never);
+  assert.equal(v.code, 1); assert.match(v.problems.join(), /cited twice/);
 });
