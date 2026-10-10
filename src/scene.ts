@@ -34,7 +34,7 @@ import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './fight/finisher-blood.ts';
-import { phoneTier, pixelCap } from './quality.ts';
+import { phoneTier, pixelCap } from './fight/quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fight/fatigue-tune.ts';
 import { fatigueReadFrom } from './fight/fatigue-read.ts';
@@ -58,7 +58,7 @@ import './signature-nightborn.ts';   // Nightborn A: Blood Recall
 import './signature-goblin.ts';   // Goblin A: Hooked Wound
 import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
-import { settleWithin } from './warm-gate.ts';
+import { settleWithin } from './fight/warm-gate.ts';
 const COMPILE_BOUND_MS = 6000;   // a compile (warm-up only) that has not settled by then is given up on: a lost context never settles it, and the walk must not wait
 const SIDES = [0, 1] as const;   // the two fighters, for the per-frame loops: one shared tuple, not a new array every frame (armfeel is on for everyone now)
 

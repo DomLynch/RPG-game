@@ -51,7 +51,7 @@ import { createServerGear } from './gear-server.ts';
 import { openCharacter } from './fight/open.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
+import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
 import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';

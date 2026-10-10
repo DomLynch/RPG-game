@@ -6,7 +6,7 @@ import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildWarriors, readRankLook } from '../src/fight/characters.ts';
-import { resetPhoneTierForTests } from '../src/quality.ts';
+import { resetPhoneTierForTests } from '../src/fight/quality.ts';
 import { openWaist } from '../src/fight/opened.ts';
 import { initialPractice, type Practice } from '../src/fight/combat.ts';
 import { LOADOUT_FROM, OPPONENTS } from '../src/fight/moves.ts';

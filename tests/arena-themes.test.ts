@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { ARENA_THEMES, ARENA_PICK, arenaBand, arenaFor } from '../src/arena-themes.ts';
 import { buildArena, CAMERA_CLAMP, PLAY_RADIUS } from '../src/arena.ts';
-import { resetPhoneTierForTests } from '../src/quality.ts';
+import { resetPhoneTierForTests } from '../src/fight/quality.ts';
 import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
 import { generateHeavyTextures } from '../src/assets/arena/texture-worker.ts';
 import { luminance, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal } from '../src/assets/arena/textures.ts';
