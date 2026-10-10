@@ -100,7 +100,8 @@ test('the verdict on catalogue-data.ts: code in the file is exit 2, a new legend
 });
 
 test('the zone check runs every zone AND every biome row through the schema, so a bad field in a preset no zone uses is still caught', () => {
-  assert.match(ZONE_CHECK, /for \(const b of Object\.keys\(BIOMES\)\) bad\.push\(\.\.\.resolveSpec\(\{ biome: b \}\)\.problems\)/);
+  assert.match(ZONE_CHECK, /for \(const b of Object\.keys\(BIOMES\)\) \{ try \{ bad\.push\(\.\.\.resolveSpec\(\{ biome: b \}\)\.problems/);
+  assert.match(ZONE_CHECK, /catch \(e\) \{ bad\.push\('biome ' \+ b \+ ': ' \+ e\.message\)/, 'a throw in one biome is named, not the whole check lost');
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', ZONE_CHECK], { encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
   assert.equal(r.status, 0, r.stderr); assert.deepEqual(JSON.parse(r.stdout.trim().split('\n').pop()!), [], 'trunk: every zone and biome is valid');
 });

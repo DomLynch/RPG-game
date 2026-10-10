@@ -30,7 +30,7 @@ export const ZONE_CHECK = `import { loadZone, zoneIds, zoneProblems } from './or
 import { BIOMES } from './origins/zones/biomes.ts';
 import { resolveSpec } from './origins/zones/resolve.ts';
 const bad = zoneIds().flatMap((id) => { try { return zoneProblems(loadZone(id)).map((p) => 'zone ' + id + ': ' + p); } catch (e) { return ['zone ' + id + ': ' + e.message]; } });
-for (const b of Object.keys(BIOMES)) bad.push(...resolveSpec({ biome: b }).problems);
+for (const b of Object.keys(BIOMES)) { try { bad.push(...resolveSpec({ biome: b }).problems.map((p) => p.startsWith('biome ' + b + ':') ? p : 'biome ' + b + ': ' + p)); } catch (e) { bad.push('biome ' + b + ': ' + e.message); } }
 console.log(JSON.stringify(bad));`;
 
 // Every legend citation in the zone spawns files at `base` (trunk): git show, so the working tree (the PR) is not read.
