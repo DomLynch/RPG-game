@@ -1,13 +1,16 @@
 // The 2-zone smoke for the shared meters (src/fight/hud.ts createMeters): boots Zone 1's page and the Pit's page at 375x812, reports uncaught page errors, checks the meters mounted
 // (and the old zone bars are gone, the Pit's bars hidden on the zone page), reads the Pit's bars, and saves stills. A diagnostic, not a release row. The zone still paints the bars the way
 // createMeters would (driving a real fight needs a creature in reach). Needs the built pages: `vite build --config origins/preview/vite.config.mjs` and `vite build --outDir artifacts/pit-build`.
-//   node scripts/meters-smoke.mjs [zone dist=artifacts/origins-preview] [pit dist=artifacts/pit-build] [out=artifacts/meters-smoke]
+//   node scripts/meters-smoke.mjs [--build] [zone dist=artifacts/origins-preview] [pit dist=artifacts/pit-build] [out=artifacts/meters-smoke]
+// --build makes both pages first (what a gpu-run job needs: its build step is the Pit's, not the zone's).
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
-const [zoneDist = 'artifacts/origins-preview', pitDist = 'artifacts/pit-build', out = 'artifacts/meters-smoke'] = process.argv.slice(2), root = process.cwd();
+const argv = process.argv.slice(2), build = argv.includes('--build'), [zoneDist = 'artifacts/origins-preview', pitDist = 'artifacts/pit-build', out = 'artifacts/meters-smoke'] = argv.filter((a) => a !== '--build'), root = process.cwd();
+if (build) for (const args of [['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], ['vite', 'build', '--outDir', 'artifacts/pit-build']]) { const r = spawnSync('npx', args, { stdio: 'ignore', timeout: 900_000 }); if (r.status !== 0) { console.error(`meters-smoke: ${args.join(' ')} failed (${r.status})`); process.exit(2); } }
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
 const serve = (roots, fallback) => new Promise((resolve) => {
