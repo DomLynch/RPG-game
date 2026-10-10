@@ -516,6 +516,17 @@ try {
     eq([off.status, off.json.code], [422, 'rule'], 'gear_unequip with a full pack is refused by the inventory (the piece stays worn)');
     eq(count(`and loc_kind = 'equipped'`), String(dolls.length), 'gear_unequip: the refused piece stays worn');
   }
+  {
+    // A migrated piece that is later retired keeps its unique mint_key (items are never deleted): the next import calls it alreadyHeld and imports only what is new, it does not fail (Auditor, #1984).
+    const ids = [...LOOT_IDS].sort(), made3 = await call('create_character', 'td', { name: 'Burner' }), cd = made3.json.result.id;
+    const gd = body => call('gear_import', 'td', { character: cd, ...body });
+    eq((await gd({ owned: ids.slice(0, 5), equipped: {} })).json.result?.imported.length, 5, 'gear_import: five pieces imported');
+    const gone = psql(`select id from public.origins_items where loc_owner = '${cd}' order by id limit 1`);
+    psql(`update public.origins_items set loc_kind = null, loc_owner = null, loc_index = null, loc_slot = null, retired_at = now(), retire_reason = 'burn' where id = '${gone}'`);
+    const next = await gd({ owned: ids.slice(0, 6), equipped: {} });
+    eq([next.status, next.json.result?.imported, next.json.result?.alreadyHeld.length], [200, [ids[5]], 5], 'gear_import: a retired migrated piece is alreadyHeld, the one new piece is imported, nothing 500s');
+    eq((await gd({ owned: ids.slice(0, 6), equipped: {} })).json.result?.imported.length, 0, 'gear_import: and a replay after that imports nothing');
+  }
   // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
   const pre = await call('create_character', 'tb', { name: 'Brin' });
   eq(pre.status, 200, 'without 0009: create_character still creates');

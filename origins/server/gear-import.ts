@@ -92,8 +92,11 @@ export function gearImportHandler(content: Content): Handler {
     if (typeof character !== 'string' || character.length > 80) throw new BadRequest('character: a character id');
     const input = { owned: listOf(body.owned), equipped: mapOf(body.equipped, 'equipped'), tiers: mapOf(body.tiers, 'tiers') };
     const { inventory, snap } = await openHoldingsWith(db, account, character, content);
-    // every legacy mint key this ACCOUNT holds (any of its characters): a piece is migrated once per account
+    // every legacy mint key this ACCOUNT ever minted (any of its characters; live, retired or traded away): mint_key is unique across ALL rows and items are never deleted, so a migrated piece
+    // is migrated once per account for good. The live view alone missed a retired or traded piece, which then hit the unique key on every later import (Auditor, #1984). `owned` is the client's claim (cap 200).
     const heldKeys = new Set((snap.items as { mint_key: string }[]).map((r) => r.mint_key));
+    const candidates = [...new Set([...input.owned, ...Object.values(input.equipped).filter((v): v is string => typeof v === 'string')])].filter(isLootId).map((id) => legacyUnlockMintKey(inventory.account, id));
+    if (candidates.length) { const ever = await store.mintKeysHeld(db, account, candidates); if (ever !== 'absent') for (const k of ever) heldKeys.add(k); }
     const at = new Date().toISOString();
     const { mint, receipt } = planImport(inventory, heldKeys, input, lookup, at);
     if (!mint.length) return receipt;

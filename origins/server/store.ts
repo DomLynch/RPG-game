@@ -58,6 +58,13 @@ export const shopStock = async (db: Db, account: string, shop: string, item: str
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 
+// Which of these legacy mint keys of this account exist in origins_items in ANY state (migration 202610100018): 'absent' on a database without it, so gear_import falls back to the live view.
+const HAS_MINT_KEYS = `select to_regprocedure('public.origins_mint_keys_held(uuid,text[])') is not null as mintkeys \\gset\n`;
+export const mintKeysHeld = async (db: Db, account: string, keys: readonly string[]): Promise<string[] | 'absent'> => {
+  const out = await gated(db, 'mint_keys_held', HAS_MINT_KEYS, 'mintkeys', `select to_jsonb(public.origins_mint_keys_held(:'a'::uuid, (select coalesce(array_agg(k), '{}'::text[]) from jsonb_array_elements_text(:'k'::jsonb) k)))::text;`, { a: acct(account), k: JSON.stringify(keys) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
 // One stored event of this account, or null (another account's id, an unknown id, an account that is not open: migration 202610060002).
 export const event = async (db: Db, account: string, id: string): Promise<Json | null> =>
   JSON.parse((await db.run(`select coalesce(public.origins_event(:'a'::uuid, :'e')::text, 'null');`, { a: acct(account), e: id })) || 'null');
