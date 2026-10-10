@@ -7,7 +7,10 @@ prelaunched_cpu() {
   local file="${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${1}.cpu"
   [[ -s "$file" ]] || return 1
   find "$file" -mmin "-$(( ${PRELAUNCH_MAX_AGE_S:-14400} / 60 ))" 2>/dev/null | grep -q . || return 1
-  cat "$file"
+  # Only the exact "jobid;rows" shape counts (deploy.sh splits on the first ';'): a truncated or garbled file relaunches the CPU job instead of suppressing it (Auditor LOW on #2128).
+  local line; line=$(cat "$file")
+  [[ "$line" =~ ^[A-Za-z0-9]+\;[0-9]+(,[0-9]+)*$ ]] || return 1
+  printf '%s' "$line"
 }
 
 vps_receipts_apply() {
