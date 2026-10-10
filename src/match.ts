@@ -11,9 +11,9 @@
 //              back this side's view; no recorder here (the rollback session keeps both streams) and nothing awarded (src/net/rewards.ts).
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './fight/combat.ts';
-import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
-import { recordSpecials } from './replay.ts';
-import type { PickedStance } from './stance.ts';
+import { createRecorder, quantizeIntent, type FightRecord } from './fight/record.ts';
+import { recordSpecials } from './fight/replay.ts';
+import type { PickedStance } from './fight/stance.ts';
 // Phase two: class B from Veteran and all boss tiers are enabled in valid PvE fights. A record carries its own flag
 // (version 21), so links made either way replay as they were fought.
 const LIVE_SPECIALS = true;
@@ -26,7 +26,7 @@ import { readOpponent } from './fight/ai.ts';
 import { idleIntent, roundPose, type Duel, type DuelPose } from './fight/duel.ts';
 import { nextArena, nextOpponent, passKey, won } from './ladder.ts';
 import type { ArenaKey } from './arena-themes.ts';
-import type { RecordArena } from './record.ts';
+import type { RecordArena } from './fight/record.ts';
 import { defeat, type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import { createFirstLoss, type LessonId } from './first-loss.ts';
@@ -71,8 +71,8 @@ export class Match {
   startPose: DuelPose | undefined = undefined;   // seamless step 3 (RV38): the open world's hero/foe positions and hero facing, arena-local metres; the NEXT career/practice/sparring begin() takes it (one shot, so a rematch starts at the pit marks) and the record carries it as v38
   fightPose: DuelPose | undefined = undefined;   // the pose THIS fight began from (float32-rounded), or undefined: a sparring Match keeps no recorder, so the page that records it (origins/preview/world-record.ts) passes this to createRecorder as `pose`
   stancePref: PickedStance | undefined = undefined;   // the stance preview's pick (src/stance-panel.ts, ?stances=): a live career/practice fight takes it at begin(); undefined = no stances, every live fight today
-  stances: PickedStance | undefined = undefined;   // the player's stance pick (src/stance.ts, RV34): undefined = a fight without stances, which is every live fight until a flag turns them on; a replay takes its record's own
-  gambit = false;   // the Gambit (RV33, src/gambit.ts): off in every live fight until a flag turns it on; a replay takes its record's own
+  stances: PickedStance | undefined = undefined;   // the player's stance pick (src/fight/stance.ts, RV34): undefined = a fight without stances, which is every live fight until a flag turns them on; a replay takes its record's own
+  gambit = false;   // the Gambit (RV33, src/fight/gambit.ts): off in every live fight until a flag turns it on; a replay takes its record's own
   specials = LIVE_SPECIALS;   // PvE default; begin excludes PvP and preserves a replay's own flag
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–50 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;

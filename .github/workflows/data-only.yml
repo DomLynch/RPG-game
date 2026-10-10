@@ -1,0 +1,53 @@
+# Data-only PRs (Dom via Lead 2026-10-09): a PR that touches ONLY content data (scripts/lib/data-only.mjs DATA_PATHS, proven pure data, the zone
+# schema clean, no new legend) gets the `data-only` label, and the merge rule reads "an Auditor PASS OR the data-only label on the CURRENT head, plus
+# green CI". Every push re-runs this, so one non-data file drops the label on the next push. scripts/data-only-check.mjs exits 0 = data-only
+# (label on), 1 = a normal PR (label off, the Auditor reviews it), 2 = data-path files with bad data (label off and this job fails).
+name: data-only
+on:
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+    types: [opened, synchronize, reopened]
+concurrency:
+  group: data-only-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The gate is the BASE's copy (Lead 2026-10-10): a PR that edits the classifier or the package files would otherwise be judged by its own
+      # edited copy. Restored into the working tree only, so `git diff BASE...HEAD` still lists them and the PR stays a normal one (exit 1).
+      # A gate file missing on base (the PR that adds the gate) means no label.
+      - name: restore the gate from base
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          for f in scripts/data-only-check.mjs scripts/lib/data-only.mjs package.json package-lock.json; do
+            if git cat-file -e "$BASE:$f" 2>/dev/null; then git checkout "$BASE" -- "$f"; else echo "GATE_MISSING=$f" >> "$GITHUB_ENV"; fi
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: classify and label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          set +e
+          node scripts/data-only-check.mjs "$BASE"; rc=$?
+          set -e
+          if [ -n "$GATE_MISSING" ] && [ $rc -eq 0 ]; then echo "$GATE_MISSING is not on base: no label"; rc=1; fi
+          if [ "$FORK" = true ]; then echo "fork PR: no label (the Auditor reviews it)"; [ $rc -ne 2 ]; exit; fi
+          gh label create data-only --color 0e8a16 --description "Only content data; schema-checked; skips the Auditor" --force >/dev/null
+          if [ $rc -eq 0 ]; then gh pr edit "$PR" --add-label data-only; else gh pr edit "$PR" --remove-label data-only || true; fi
+          [ $rc -ne 2 ]

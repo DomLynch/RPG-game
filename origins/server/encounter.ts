@@ -9,8 +9,8 @@
 // Fail closed: with no deps (the flag off, or no verifier installed) every op answers 503 "encounter verify not installed"; an unknown mob layer or a non-empty `swaps` (Combat's swap hook is not
 // shipped) is refused rather than guessed; a database without the migration answers 503.
 import { randomBytes, randomInt } from 'node:crypto';
-import { decodeRecord } from '../../src/record.ts';
-import type { TwistFlag } from '../../src/twist.ts';
+import { decodeRecord } from '../../src/fight/record.ts';
+import type { TwistFlag } from '../../src/fight/twist.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';

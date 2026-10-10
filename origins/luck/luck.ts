@@ -5,7 +5,7 @@
 
 // Where a fight happens. Dom's ruling (2026-10-07): damage rolls apply ONLY to Origins world mobs outside the Pit, in both directions
 // (player -> mob and mob -> player). The Pit (legends and arena AI), PvP and the ladder never roll.
-import { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult } from '../../src/gambit.ts';
+import { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult } from '../../src/fight/gambit.ts';
 import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../../src/roll.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
 
 export type FightKind = 'world-mob' | 'pit' | 'pvp' | 'ladder';
@@ -39,7 +39,7 @@ export function hitDamage(kind: FightKind, flags: LuckFlags, base: number, seed:
 
 // The Gambit: a chosen version of the heavy (a second heavy press after the chamber), everywhere including PvP, with the flag on.
 // Odds are ONE constant: about 1 in 2 for about 2x (Dom-approved 2026-10-07); EV slightly under a heavy once the self-stagger is counted.
-export { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult };   // src/gambit.ts: the one definition the duel also applies
+export { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult };   // src/fight/gambit.ts: the one definition the duel also applies
 export const gambitApply = (flags: LuckFlags): boolean => flags.gambit;
 // HUD text, behind the same flag (the view only places it). A shown roll reads "+7%", "−3%" or "±0%"; the odds read "1 in 2".
 export const rollLabel = (r: DamageRoll): string => (r.percent > 0 ? `+${r.percent}%` : r.percent < 0 ? `−${-r.percent}%` : '±0%');

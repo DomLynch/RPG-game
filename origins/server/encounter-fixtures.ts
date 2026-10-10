@@ -2,8 +2,8 @@
 import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../../src/fight/moves.ts';
 import { gzipSync } from 'node:zlib';
-import { createRecorder, packRecord, RECORD_VERSION, toBase64Url, type FightRecord } from '../../src/record.ts';
-import { recordSpecials } from '../../src/replay.ts';
+import { createRecorder, packRecord, RECORD_VERSION, toBase64Url, type FightRecord } from '../../src/fight/record.ts';
+import { recordSpecials } from '../../src/fight/replay.ts';
 import { DbError, type Db } from './db.ts';
 import type { EncounterDeps } from './encounter.ts';
 import { kitBuild } from '../mobs/kit-version.ts';

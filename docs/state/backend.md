@@ -354,7 +354,7 @@ Nothing else for Backend in beta unless phone validation (item 6) finds an accou
 ## Gotchas
 
 - **The record is opaque to Postgres; the version check is client code the server runs.** `scripts/verify-daily.mjs` imports
-  `decodeRecord` from `src/record.ts`, and `deploy.sh` rsyncs `src/**/*.ts` to the verifier host — so one accept-list, two readers.
+  `decodeRecord` from `src/fight/record.ts`, and `deploy.sh` rsyncs `src/**/*.ts` to the verifier host — so one accept-list, two readers.
   Grepping `supabase/` for `RECORD_VERSION` and finding nothing means "no second list", not "no server check".
 - **A refused daily row does not self-heal**: `checked_at` takes it off the sweep's page. After any accept-list widening, run
   `verify-daily.mjs --recheck` if rows exist. Ship accept-list widenings one deploy **before** the encoder writes the new version.
@@ -442,7 +442,7 @@ code, 0005 at #348's. All are additive: the live client is unaffected by an earl
 | id text pk | `^[A-Za-z0-9_-]{8}$`, client-chosen; a collision is a 23505 the client must retry |
 | user_id uuid → auth.users cascade | owner; never readable by a client |
 | opponent text | 1–32 chars |
-| record text | ≤ 16 KB, base64url alphabet (src/record.ts encoding) |
+| record text | ≤ 16 KB, base64url alphabet (src/fight/record.ts encoding) |
 | created_at | default now(); never readable by a client |
 Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authenticated using (true)` (a shared link is public by intent —
 the row, not every column); insert `to authenticated` with check `auth.uid() = user_id and public.fight_records_recent() < 30`.

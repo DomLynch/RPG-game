@@ -42,7 +42,7 @@ export function prepare(h: Hunt, spec: MobSpec): Result<{ setup: FightSetup; see
   return { ok: true, value: { setup: setup.value, seed: fightSeed(setup.value.seedKey, setup.value.opponent.character, attempt), fight, attempt } };
 }
 
-const nameOf = (h: Hunt, id: string) => h.content.region.registry.items.get(id as never)?.name ?? id;
+export const nameOf = (h: Hunt, id: string) => h.content.region.registry.items.get(id as never)?.name ?? id;
 const line = (n: number, name: string) => (n > 1 ? `${name} ×${n}` : name);
 
 // Settle a finished duel. `bountyOpen(encounter)`: the player holds that Bounty (talked to its giver, quest at "posted"), so a win pays it.

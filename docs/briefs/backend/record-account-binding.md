@@ -6,7 +6,7 @@ in `docs/state/backend.md` (2026-09-23): *records carry no account binding*, so 
 
 ## The hole today (trunk f95ccdd7, live a60d94a2)
 
-- A fight record is `build, opponent, weapon, skill, level, seed, ticks, outcome, intents` (`src/record.ts`). Nothing in it names an
+- A fight record is `build, opponent, weapon, skill, level, seed, ticks, outcome, intents` (`src/fight/record.ts`). Nothing in it names an
   account, and nothing on the server says which account was fighting when.
 - **Ladder loot claims** (`loot_claims`): since #1211 (F2, live), one *fight* is one claim, and a fight first shared by someone else is
   refused. What is still open: **a stolen record never shared** (copied from a screen recording, a support paste, a leaked replay) can

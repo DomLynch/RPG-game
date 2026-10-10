@@ -8,7 +8,7 @@ import { BLOOD, makeRng, spawnBlood } from '../src/fight/blood-style.ts';
 import { ARMFEEL, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
 import { createBurstPool } from '../src/armfeel-fx.ts';
 import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';
-import { createRecorder, packRecord } from '../src/record.ts';
+import { createRecorder, packRecord } from '../src/fight/record.ts';
 import { opponentAt, profileAt } from '../src/fight/moves.ts';
 import { idleIntent, legal, type CombatEvent } from '../src/fight/duel.ts';
 
@@ -114,5 +114,5 @@ test('records and replays are byte-identical with the feel driven or not', () =>
 });
 test('the simulation never reads armfeel: no sim file imports it', () => {
   for (const file of ['duel', 'moves', 'ai', 'sim', 'record', 'blade', 'blade-paths', 'roster', 'finishers', 'detmath', 'combat', 'match', 'replay'])
-    assert.doesNotMatch(readFileSync(new URL(`../src/${['finishers', 'duel', 'moves', 'ai', 'sim', 'combat'].includes(file) ? 'fight/' : ''}${file}.ts`, import.meta.url), 'utf8'), /armfeel/, `${file}.ts must not import armfeel`);
+    assert.doesNotMatch(readFileSync(new URL(`../src/${['finishers', 'duel', 'moves', 'ai', 'sim', 'combat', 'record', 'replay'].includes(file) ? 'fight/' : ''}${file}.ts`, import.meta.url), 'utf8'), /armfeel/, `${file}.ts must not import armfeel`);
 });

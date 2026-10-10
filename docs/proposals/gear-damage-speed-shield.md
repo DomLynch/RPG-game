@@ -115,7 +115,7 @@ where that is true), the cleaver a chopper, the scythe and trident spacing weapo
 ## §3 The Attack multiplier — one cap for all
 
 **Proposal: Attack 1.00 → 1.15 applies identically to every weapon, scaled only by the weapon piece's tier (`SLOT_WEIGHT` in
-`src/gear-stats.ts`, #488). No per-grip cap.**
+`src/fight/gear-stats.ts`, #488). No per-grip cap.**
 
 Three reasons, in order of weight.
 

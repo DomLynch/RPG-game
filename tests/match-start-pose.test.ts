@@ -9,7 +9,7 @@ import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { idleIntent, roundPose } from '../src/fight/duel.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
-import { createRecorder, packRecord, unpackRecord, RECORD_VERSION } from '../src/record.ts';
+import { createRecorder, packRecord, unpackRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { playScaleFor, setPlayScale, setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 

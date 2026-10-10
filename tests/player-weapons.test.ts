@@ -10,9 +10,9 @@ import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/fight/moves.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
-import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, arena, battery, k, kt } from './strategies.ts';
 
 test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the draw beat for a taken weapon too, on the hero rig, with that weapon\'s tables', () => {

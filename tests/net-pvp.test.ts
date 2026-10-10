@@ -14,7 +14,7 @@ import { verifyDuel } from '../src/net/verify-duel.ts';
 import { readFileSync } from 'node:fs';
 import { viewAs } from '../src/net/view.ts';
 import { loadProfile } from '../src/profile.ts';
-import { quantizeIntent, RECORD_VERSION } from '../src/record.ts';
+import { quantizeIntent, RECORD_VERSION } from '../src/fight/record.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 
