@@ -91,6 +91,9 @@ test('a bad row is refused BEFORE anything is written: a level key, unknown key,
     assert.throws(() => newZone({ n: 2, row: { ...ok, id: '3' }, dir: d }), /id 3 is not zone 2/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, name: '' }, dir: d }), /name is empty/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, biome: 'moon' }, dir: d }), /unknown biome moon/);
+    const { kit, ...noKit } = ok, { looks, ...noLooks } = ok; void kit; void looks;
+    assert.throws(() => newZone({ n: 2, row: noKit, dir: d }), /"kit" is required/);
+    assert.throws(() => newZone({ n: 2, row: noLooks, dir: d }), /"looks" is required/);
     assert.deepEqual(readdirSync(scratch), [], 'nothing was written by any refused row');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });

@@ -9,7 +9,7 @@ import { zoneProblems } from '../origins/zones/loader.ts';
 const ZONES_DIR = fileURLToPath(new URL('../origins/zones/', import.meta.url));
 
 // One data ROW (a JSON object with the zone's fields: name, names, world, biome, spawns, kit, looks, and optionally mobLooks and place) writes the whole folder. The row is checked by the loader's own
-// zoneProblems BEFORE anything is written, so a bad row leaves nothing behind. Every file is pure literal data (one typed const + export default), so a zone row ships as a data-only PR.
+// zoneProblems BEFORE anything is written, so a bad row leaves nothing behind. Every file is one typed literal const + export default. zone/spawns/kit/look are on the data-only path list; mob-looks and place are pure literals too but are not on it yet (the Auditor adds them), so a row that has them is reviewed until then.
 const lit = (v) => JSON.stringify(v, null, 2);
 function rowFiles(n, row) {
   const own = (k) => (row[k] === undefined ? [] : [k]);
@@ -24,6 +24,7 @@ function rowFiles(n, row) {
   };
   if (own('mobLooks').length) files['mob-looks.ts'] = `// Zone ${n}'s creature looks, from its row.\nimport type { Zone } from '../loader.ts';\n\nconst mobLooks: NonNullable<Zone['mobLooks']> = ${lit(row.mobLooks)};\nexport default mobLooks;\n`;
   if (own('place').length) files['place.ts'] = `// Zone ${n} on the Region 1 map, from its row.\nimport type { Place } from '../place.ts';\n\nconst place: Place = ${lit(row.place)};\nexport default place;\n`;
+  for (const k of ['kit', 'looks']) if (row[k] === undefined) throw new Error(`row for zone ${n}: "${k}" is required`);   // zoneProblems would throw a TypeError on a missing kit; say it plainly instead
   const probe = { ...head, spawns: row.spawns ?? { openers: {}, rows: [] }, kit: row.kit, looks: row.looks, ...(row.mobLooks ? { mobLooks: row.mobLooks } : {}), ...(row.place ? { place: row.place } : {}) };
   const bad = zoneProblems(probe);
   if (bad.length) throw new Error(`row for zone ${n} is invalid: ${bad.join('; ')}`);
