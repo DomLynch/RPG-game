@@ -28,7 +28,7 @@ while IFS= read -r name; do
   elif (( n < others )); then kept+=("$sub/$name"); n=$((n + 1))
   else drop+=("$sub/$name"); fi
 done < <(ls -1t "$sub")
-all_k=$(du -sk --exclude=current "$sub" | cut -f1)
+all_k=$(du -skc "${kept[@]}" ${drop[@]+"${drop[@]}"} | tail -n 1 | cut -f1)  # portable (BSD du has no --exclude); ${drop[@]+..}: empty array under set -u on bash 3.2
 kept_k=$(du -skc "${kept[@]}" | tail -n 1 | cut -f1)
 echo "prune: ${#kept[@]} kept (current + previous + newest others, KEEP=$keep), ${#drop[@]} to remove, frees ~$(( (all_k - kept_k) / 1024 )) MiB of $(( all_k / 1024 )) MiB"
 (( ${#drop[@]} )) || exit 0
