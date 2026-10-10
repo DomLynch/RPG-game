@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createCleaverSet } from '../src/special-fx-pitborn.ts';
-import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/special-timing.ts';
+import { createCleaverSet } from '../src/fight/special-fx-pitborn.ts';
+import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/fight/special-timing.ts';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
 const fighters = [{ special: 0 }, { special: 0, skill: 'cleave' }] as unknown as readonly [Fighter, Fighter];

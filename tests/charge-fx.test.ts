@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { CAST_MARGIN, LAND_AT, type Cast } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
+import { CAST_MARGIN, LAND_AT, type Cast } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
 import { BACK_PACE, charge, chargeGait, CUE_AT, CUE_LEAD, DISSOLVE, GATHER, isCharge, RACE, RACE_FROM, RIDE, RUN_PACE, SETTLE, slideAt, STUCK_AT } from '../src/charge-timing.ts';
 import { createChargeFx } from '../src/charge-fx.ts';
 
@@ -106,12 +106,12 @@ test('the Centurion is drawn at the head of the dust, not planted: eased back be
 });
 
 test('the Charge is ONE registry entry (special-modes.ts) and a ?special= row; the scene names no special id', async () => {
-  const { SPECIAL_MODES } = await import('../src/special-modes.ts');
+  const { SPECIAL_MODES } = await import('../src/fight/special-modes.ts');
   const mode = SPECIAL_MODES.centurion!;
   assert.ok(mode && mode.at === 'feet', 'a ground effect: it reads the feet');
   const player = new THREE.Object3D(), opponent = new THREE.Object3D();
   assert.deepEqual(mode.extra!({ player: { boneWorld: () => null, anchor: player }, opponent: { boneWorld: () => null, anchor: opponent } }), [[player, opponent]], 'the anchors reach render as its seventh argument');
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
   assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /charge-fx|centurion/, 'scene.ts has no per-special branch');
 });
 
@@ -124,7 +124,7 @@ test('the body and its gait run on ONE clock: back while he gathers, running ove
   for (let age = 0; age < LAND_AT + 40; age++) assert.equal(chargeGait(age) !== undefined, slideAt(age, 2) > 0 || (age >= RACE_FROM - GATHER && age < RACE_FROM + RIDE), `gait and slide agree at ${age}`);
   assert.equal(chargeGait(RACE_FROM - 5), BACK_PACE); assert.equal(chargeGait(RACE_FROM + 3), RUN_PACE); assert.equal(chargeGait(RACE_FROM + RIDE), undefined);
   assert.ok(RUN_PACE > 3.2, "above #1224's ArmedRun threshold");
-  const { SPECIAL_MODES } = await import('../src/special-modes.ts');
+  const { SPECIAL_MODES } = await import('../src/fight/special-modes.ts');
   const travel = SPECIAL_MODES.centurion!.travel!, fighters = (special: number, who = 1) => [{ health: 1, special: 0 }, { health: 1, specialShare: 0.3, special, skillCooldown: 0 }].map((f, i) => (i === who ? f : { health: 1, special: 0 })) as unknown as readonly [Fighter, Fighter];
   const during = (age: number) => travel(1, fighters(RULES.special.windup - age));
   assert.equal(during(RACE_FROM - 5), BACK_PACE); assert.equal(during(RACE_FROM + 4), RUN_PACE); assert.equal(during(RACE_FROM + RIDE + 1), undefined);

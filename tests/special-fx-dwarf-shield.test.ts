@@ -4,10 +4,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { BOSS_TAIL, CAST_MARGIN, DISSOLVE_TICKS, LAND_AT, advanceCast, bossClock, type Cast } from '../src/special-timing.ts';
-import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, NIGHT_CAP, NIGHT_CAP_OF, NIGHT_IRON, NIGHT_SAND, SAND, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
+import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { BOSS_TAIL, CAST_MARGIN, DISSOLVE_TICKS, LAND_AT, advanceCast, bossClock, type Cast } from '../src/fight/special-timing.ts';
+import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, NIGHT_CAP, NIGHT_CAP_OF, NIGHT_IRON, NIGHT_SAND, SAND, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/fight/special-fx-dwarf-shield.ts';
 
 // The Dwarf's and the Shieldmaiden's boss specials, ranks 8-10 (special-fx-dwarf-shield.ts; preview only, `?special=dwarf8..shield10`): which page draws what, a pure
 // timeline off the cast clock, the hard timeout, no Math.random, sprites only, one registry entry each.
@@ -36,7 +36,7 @@ test('the six pages name their opponent at level 5*(rank-1)+1 with the same 3 s 
 });
 
 test('the boss modules ship lazily: reached only through the registry, nothing imports them statically', () => {
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-dwarf-shield\.ts'\)/);
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-dwarf-shield\.ts'\)/);
   assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && f !== 'special-modes.ts' && /from\s+['"]\.\/special-fx-dwarf-shield\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8').replace(/^import type .*$/gm, ''))), 'nothing imports it statically');
   assert.ok(!/special-fx-dwarf-shield/.test(readFileSync('src/scene.ts', 'utf8')), 'the scene names no boss module');
 });
@@ -91,12 +91,12 @@ test('cover is the wrong lever: dust never passes 0.7 (The Ring 0.4) so both fig
   assert.ok(gritNear(-20, g.cx + g.dx * 0.8, g.cz + g.dz * 0.8, 1.2) > 0 && gritNear(-20, g.tx, g.tz, 0.9) === 0, "blow one: grit at the dwarf's feet-front, none at the target yet");
   assert.ok(gritNear(1, g.tx, g.tz, 1.5) >= 10, "the third blow, on the landing tick, throws its grit at the TARGET's feet");
   fillBoss('dwarf9', f, 6, g); const third = lit(f.grit); fillBoss('dwarf9', f, -22, g); assert.ok(third > lit(f.grit), 'the third is bigger');
-  const src = readFileSync('src/special-fx-dwarf-shield.ts', 'utf8');
+  const src = readFileSync('src/fight/special-fx-dwarf-shield.ts', 'utf8');
   assert.doesNotMatch(src, /AdditiveBlending|emissive/i, 'no glow');
 });
 
 test('the boss module never calls Math.random and builds only sprites (no props, no meshes)', () => {
-  assert.doesNotMatch(readFileSync('src/special-fx-dwarf-shield.ts', 'utf8').replace(/\/\/.*$/gm, ''), /Math\.random/);
+  assert.doesNotMatch(readFileSync('src/fight/special-fx-dwarf-shield.ts', 'utf8').replace(/\/\/.*$/gm, ''), /Math\.random/);
   const scene = new THREE.Scene(), fx = createBossFx(scene, 'dwarf', 'dwarf10'), root = scene.getObjectByName('boss special fx')!;
   const random = Math.random; let draws = 0; Math.random = () => { draws++; return random(); };
   try {
@@ -141,7 +141,7 @@ test('Three Blows steps in: each blow lands nearer the player, the third in fron
   assert.ok(one.n && two.n && three.n);
   assert.ok(one.along < two.along && two.along < three.along, `the strike point advances toward the player (${one.along.toFixed(2)} ${two.along.toFixed(2)} ${three.along.toFixed(2)} m)`);
   assert.ok(three.along > g.dist, `the third lands past the player on the camera side (${three.along.toFixed(2)} m along the line, he stands at ${g.dist.toFixed(2)})`);
-  const src = readFileSync('src/special-fx-dwarf-shield.ts', 'utf8');
+  const src = readFileSync('src/fight/special-fx-dwarf-shield.ts', 'utf8');
   assert.match(src, /IRON = lerp3\(\['#1c1b1a'/, 'darker iron grit');
 });
 
@@ -161,7 +161,7 @@ test('Rim Shake has no falling sheets: shock rings from his feet through the bui
   assert.ok(ringAt(10, 36, 52) > 8, 'the landing stamp runs a ring out from him');
   fillBoss('dwarf10', f, -12, g); let rim = 0; for (let i = 60; i < 72; i++) { const o = i * STRIDE; if (f.dust[o + 6] > 0.004 && Math.hypot(f.dust[o], f.dust[o + 2]) > 8) rim++; }
   assert.ok(rim > 2, 'sand jumps around the rim');
-  assert.doesNotMatch(readFileSync('src/special-fx-dwarf-shield.ts', 'utf8'), /falling sheets? \(|drift = 1 - 0.18/, 'the faint falling sheets are gone');
+  assert.doesNotMatch(readFileSync('src/fight/special-fx-dwarf-shield.ts', 'utf8'), /falling sheets? \(|drift = 1 - 0.18/, 'the faint falling sheets are gone');
 });
 
 // Strategy's day verdicts on 25c1a1e1: a pale wash over the hero fails. The three failed moves keep their dust low and dark (below the hero's torso / knees, grey-brown, at most 0.7), and

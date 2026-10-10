@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
-import { SIGNATURES, createSignatureMarks } from '../src/signature.ts';
-import { WAKE, wakeState } from '../src/signature-pitborn.ts';
+import { SIGNATURES, createSignatureMarks } from '../src/fight/signature.ts';
+import { WAKE, wakeState } from '../src/fight/signature-pitborn.ts';
 
 const hit = (actor: 0 | 1, move: string): CombatEvent => ({ tick: 1, type: 'Hit', actor, target: actor ? 0 : 1, move: move as CombatEvent['move'], location: 'torso', direction: 'right', heading: Math.PI });
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];

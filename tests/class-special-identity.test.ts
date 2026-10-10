@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classSpecialFor } from '../src/class-special-identity.ts';
+import { classSpecialFor } from '../src/fight/class-special-identity.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 
 test('the six approved Weapons identities follow ranks 1–3 and 4–7, never boss ranks', () => {

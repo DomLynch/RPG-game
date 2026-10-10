@@ -1,6 +1,6 @@
 // Independent admin test selections; neither changes fighter identity or the saved kit.
 import { LEVELS, LEVEL_ANCHORS, PLAYER_WEAPONS, type SkillId, type WeaponId } from './fight/moves.ts';
-import { SPECIAL_TESTS, specialParam, type SpecialTest } from './special-look.ts';
+import { SPECIAL_TESTS, specialParam, type SpecialTest } from './fight/special-look.ts';
 import { SPARRING_SKILLS, sparringAsked, sparringParam, type SparringKit, type SparringLevel } from './sparring.ts';
 import { isOpponentId } from './roster.ts';
 import { SUPPORTED_PLAYER_SPECIALS, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';

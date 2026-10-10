@@ -1,6 +1,6 @@
-import { RULES, SKILL_MOVE } from './fight/moves.ts';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
+import { RULES, SKILL_MOVE } from './moves.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
 import { SPECIAL_RECOVER } from './special-look.ts';   // Combat's: the caster's return to stance runs on the same 45 ticks
 
 // Hades' Shadow, the presentation timeline (Finishers with Combat, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md). Three-free,

@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { createLegionSpecial } from '../src/special-fx-legion.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { LAND_AT } from '../src/special-timing.ts';
+import { createLegionSpecial } from '../src/fight/special-fx-legion.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { LAND_AT } from '../src/fight/special-timing.ts';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
 // Accepted Stand Fast preview; Combat owns the levels 16-35 class selector.
@@ -45,6 +45,6 @@ for (const night of [false, true]) test(`Stand Fast ${night ? 'Pit' : 'day'}: re
 });
 
 test('Stand Fast loads lazily, through the registry only', () => {
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-legion\.ts'\)/);
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-legion\.ts'\)/);
   assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-fx-legion\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), 'nothing imports it statically');
 });
