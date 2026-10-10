@@ -48,3 +48,8 @@ test('every script a gated job runs, plus everything it imports with a relative 
 test('the plan lists a renamed file under its old path too', () => {
   assert.match(jobBlock('plan'), /\.filename, \(\.previous_filename \/\/ empty\)/);
 });
+
+test('a trunk push never cancels the run in progress; a pull request still cancels its superseded run (a batch head\'s run must finish)', () => {
+  assert.match(text, /\nconcurrency:\n(?:  #[^\n]*\n)*  group: [^\n]*\n(?:  #[^\n]*\n)*  cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/);
+  assert.doesNotMatch(text, /cancel-in-progress: true/);
+});

@@ -37,7 +37,9 @@ on:
 concurrency:
   # A non-retarget `edited` run (title/body) gets its own group: it skips every job and must not cancel the real run.
   group: quality-${{ github.event.pull_request.number || github.ref }}${{ (github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) && '-edit' || '' }}
-  cancel-in-progress: true
+  # A trunk push never cancels the run in progress (Lead 2026-10-10: each merge of a batch cancelled and restarted trunk's quality run, so the
+  # batch head's run never finished; deploy.sh needs that run green on the exact sha). Pull-request groups still cancel a superseded run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   plan:
     # Which heavy jobs does this change need? (Lead 2026-10-10, after trunk's run for S sat queued 13 min behind 12 other runs: 15 jobs a PR
