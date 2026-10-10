@@ -267,13 +267,13 @@ esac
 });
 
 test('release_triggers: a new row joins the rules its paths already hit, never a new first rule that steals them (first match wins)', () => {
-  // #865 put a double-tap rule FIRST for src/main.ts, src/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
+  // #865 put a double-tap rule FIRST for src/main.ts, src/fight/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
   // and lost its earlier rows on every PR. Each file keeps its earlier rows plus double-tap-browser-check.
   const rowsFor = (file: string) => (JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', file], { encoding: 'utf8' })) as { name: string }[]).map((r) => r.name).sort();
   const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
   const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
-  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
-    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/input.ts' ? [] : ['next-fight-black-check'])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
+  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/fight/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/fight/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/fight/input.ts' ? [] : ['next-fight-black-check'])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);

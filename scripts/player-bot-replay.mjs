@@ -1,4 +1,4 @@
-// Headless replay of a recorded bot fight: the recorded key edges become sim intents the way src/input.ts builds them,
+// Headless replay of a recorded bot fight: the recorded key edges become sim intents the way src/fight/input.ts builds them,
 // stepped through the real stepPractice. Per tick: legal (legal(player, action)), requested (a key press), passed (accepts() at
 // the press, what the page forwards), accepted (the player's own Started event). Divergence from the recorded events is reported.
 import { readFileSync, writeFileSync } from 'node:fs';

@@ -2,8 +2,8 @@
 // joystick, folded into one intent per tick for the simulation. At most one edge-triggered action per tick plus the held guard level;
 // the simulation owns legality and buffering. Everything the layer touches is injected — the DOM lookup, window, clock, media
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
-import { accepts, type Action, type CombatEvent, type Practice } from './fight/combat.ts';
-import type { Direction } from './fight/moves.ts';
+import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
+import type { Direction } from './moves.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {

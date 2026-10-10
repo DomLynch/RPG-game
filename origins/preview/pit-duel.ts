@@ -1,7 +1,7 @@
 // The Pit duel, the arena game's own combat inside the Origins greybox. Loaded on demand (main.ts `import('./pit-duel.ts')`), so it is its own
 // chunk of the greybox build and the walk never pays for it; nothing here is part of the live game's build.
 // Read-only reuse of src/: the scene (src/fight/scene.ts: rigs, arena, effects and the LIVE locked camera rig, untouched), the input layer
-// (src/input.ts), the combat HUD (src/hud.ts) and the match session (src/fight/match.ts) in its sparring mode, which records, awards and writes
+// (src/fight/input.ts), the combat HUD (src/hud.ts) and the match session (src/fight/match.ts) in its sparring mode, which records, awards and writes
 // nothing (its ports here are in memory, never the game's localStorage). The simulation is the live one: stepPractice at 60 Hz on the
 // career level's opponent and AI profile. What a finished duel pays is origins/pit/pit.ts's (award()), decided by the page, not here.
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
