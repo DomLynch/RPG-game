@@ -2,7 +2,7 @@
 // built once when the flag is on and not at all otherwise; nothing here allocates per hit (the pool, the colour and the transform helpers are made up front).
 import * as THREE from 'three';
 import { newParticle, tickParticle, type Feel, type Particle } from './armfeel.ts';
-import { BLOOD, bloodCount, makeRng, spawnBlood } from './blood-style.ts';
+import { BLOOD, bloodCount, makeRng, spawnBlood } from './fight/blood-style.ts';
 
 // One shared 112-slot InstancedMesh, no shadows, one draw call. `burst` fills the next slots of the ring; `update` moves, shrinks and dims them.
 export function createBurstPool(scene: THREE.Scene) {

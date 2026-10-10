@@ -1,10 +1,10 @@
 import type { TitheLight } from './special-lighting.ts';
 import type * as THREE from 'three';
 import type { GoblinSpecial } from './special-fx-goblin.ts';
-import { RULES } from './moves.ts';
-import type { CombatEvent, Fighter } from './duel.ts';
+import { RULES } from './fight/moves.ts';
+import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
-import { actorPose, attackSpecs } from './combat.ts';
+import { actorPose, attackSpecs } from './fight/combat.ts';
 import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.ts';
 import { CUTS, CUT_GAP, cutAt, SLAM_AT } from './special-timing.ts';
 import { chargeGait } from './charge-timing.ts';

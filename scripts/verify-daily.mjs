@@ -1,5 +1,5 @@
 // Server-side replay verifier for the daily warden (beta plan brief 4; migration 202609210003). A fighter's daily result is posted by
-// the client with `verified = false`; this sweep, run on the VPS on a timer, replays each record headless through src/replay.ts
+// the client with `verified = false`; this sweep, run on the VPS on a timer, replays each record headless through src/fight/replay.ts
 // `verifyRecord` — the same steps the live game took — and sets `verified = true` only when the record's meta matches the row and the
 // day's seed, and the replay ends where the record says. Rows that fail stay grey (verified = false, never deleted), get `checked_at`
 // stamped so the next sweep moves on to new rows, and are reported in the receipt; `--recheck` sweeps refused rows again (a rules
@@ -9,9 +9,9 @@
 // SUPABASE_SERVICE_ROLE_KEY (PostgREST). Exit 0 with a JSON receipt; exit 1 only when the database cannot be reached.
 // `node scripts/verify-daily.mjs --dry` replays without writing; `--recheck` includes rows already refused.
 import { spawnSync } from 'node:child_process';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { DAILY_LEVEL } from '../src/match.ts';
-import { decodeRecord } from '../src/record.ts';
+import { decodeRecord } from '../src/fight/record.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
 const DAY = /^\d{4}-\d{2}-\d{2}$/, UUID = /^[0-9a-f-]{36}$/i;

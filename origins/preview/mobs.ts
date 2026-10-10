@@ -5,7 +5,7 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
-import { SPEEDS } from './speeds.ts';
+import { SPEEDS } from '../../src/fight/speeds.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import type { MobRow } from '../mobs/row.ts';
 import { loadZone } from '../zones/loader.ts';
@@ -213,3 +213,6 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   }
   return null;
 }
+
+/** The highest a name tag may sit on screen, in NDC: its centre stays `half` px below `floorPx` (the HUD stack and the player's bars), so no tag draws over them. */
+export const labelCeilingNdc = (floorPx: number, heightPx: number, half = 12): number => 1 - (2 * (floorPx + half)) / Math.max(1, heightPx);

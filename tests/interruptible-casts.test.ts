@@ -2,10 +2,10 @@
 // RULES.special.interruptAt of max health. Constructed fights, real blows from the foe, no AI.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepDuel, withSpecials, type Action, type CombatEvent, type Duel } from '../src/duel.ts';
-import { OPPONENTS, RULES, SPECIAL_ROWS } from '../src/moves.ts';
-import { clarityOf } from '../src/combat.ts';
-import { RECORD_VERSION, READABLE_VERSIONS, packRecord, unpackRecord } from '../src/record.ts';
+import { stepDuel, withSpecials, type Action, type CombatEvent, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS, RULES, SPECIAL_ROWS } from '../src/fight/moves.ts';
+import { clarityOf } from '../src/fight/combat.ts';
+import { RECORD_VERSION, READABLE_VERSIONS, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { act, arena, idle } from './strategies.ts';
 
@@ -115,5 +115,5 @@ test('record: a specials fight packs and unpacks at the bumped version', () => {
   const back = unpackRecord(packRecord(rec.finish('abandoned')));
   assert.equal(back.specials, true);
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(back.v) && back.v <= RECORD_VERSION);
-  assert.equal(RECORD_VERSION, 39);   // N attackers on one creature (39; the header gains a group flag and one byte, only a group stream writes it) stacks on the start pose (38; the header gains a pose flag and five float32, only a posed fight writes it) stacks on the Cinder Bear (37; a new held opponent, no codec change) stacks on the Tusked Boar (36; a new held opponent, no codec change) stacks on the Ash Wolf (35; a new held opponent, no codec change) stacks on stances (34; only a stances fight writes it) stack on the Gambit (33), on patron perks (32; a no-patron fight still writes 31) stack on RV31 (the early spammer read) stacks on RV30 (the three own rows), which stacks on RV29 (the rule batch), which stacks on #1507's 28
+  assert.equal(RECORD_VERSION, 40);   // the wall as a parameter (40, K1: Duel.radius, a pure refactor) stacks on N attackers on one creature (39; on one creature (39; the header gains a group flag and one byte, only a group stream writes it) stacks on the start pose (38; the header gains a pose flag and five float32, only a posed fight writes it) stacks on the Cinder Bear (37; a new held opponent, no codec change) stacks on the Tusked Boar (36; a new held opponent, no codec change) stacks on the Ash Wolf (35; a new held opponent, no codec change) stacks on stances (34; only a stances fight writes it) stack on the Gambit (33), on patron perks (32; a no-patron fight still writes 31) stack on RV31 (the early spammer read) stacks on RV30 (the three own rows), which stacks on RV29 (the rule batch), which stacks on #1507's 28
 });

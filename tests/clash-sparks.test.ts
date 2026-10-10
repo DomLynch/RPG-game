@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { blockDust, clashStrength, createClashSparks } from '../src/clash-sparks.ts';
-import { WEAPONS } from '../src/moves.ts';
-import type { CombatEvent } from '../src/duel.ts';
+import { WEAPONS } from '../src/fight/moves.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 
 // Metal sparks (presentation): only a blade-on-blade block or parry throws them, and they behave like metal — thrown, falling, one bounce,
 // out within 0.45 s — never covering a pose for long, never moving while paused.

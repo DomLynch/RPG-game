@@ -37,7 +37,7 @@ export function rowsFor(files) {
 const CORE = ['roster-browser-check', 'record-replay-check', 'finisher-preview:first', 'account-browser-check', 'viewport-check'];
 const AREAS = [
   { paths: ['supabase/**', 'src/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
-  { paths: ['src/ai.ts', 'src/moves.ts', 'src/sim.ts', 'src/record.ts', 'src/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
+  { paths: ['src/fight/ai.ts', 'src/fight/moves.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
   { paths: ['src/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
   { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
   { paths: ['src/arena*.ts', 'src/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
@@ -45,9 +45,9 @@ const AREAS = [
   // files and main.ts, which builds #arena-select (Lead 2026-10-06: 17ab81e9 needed it and the picker had no mapping for it).
   { paths: ['src/arena*.ts', 'src/sparring*.ts', 'src/stage-hide.ts', 'src/main.ts', 'public/arena/**'], rows: ['sparring-browser-check'] },
   { paths: ['src/audio/**', 'src/assets/audio/**'], rows: ['audio-preview', 'arena-audio-check'] },
-  { paths: ['src/blade*.ts', 'src/characters.ts', 'src/shields.ts', 'src/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
-  { paths: ['src/finishers.ts', 'src/gore.ts', 'src/finisher-blood.ts', 'src/opened.ts', 'src/severed-head.ts', 'src/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
-  { paths: ['src/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
+  { paths: ['src/blade*.ts', 'src/fight/characters.ts', 'src/shields.ts', 'src/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
+  { paths: ['src/fight/finishers.ts', 'src/fight/gore.ts', 'src/fight/finisher-blood.ts', 'src/opened.ts', 'src/fight/severed-head.ts', 'src/fight/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
+  { paths: ['src/hud.ts', 'src/fight/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
   { paths: ['src/lessons*.ts', 'src/first-loss*.ts', 'src/main.ts'], rows: ['first-loss-browser-check'] },   // a fresh visitor's first minute (Lead 2026-10-06): no other row boots with an empty profile
   // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).

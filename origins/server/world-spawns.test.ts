@@ -5,8 +5,9 @@ import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { mobBatch } from './mob-rewards.ts';
-import { OPPONENTS, opponentAt } from '../../src/moves.ts';
-import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../combat/duel-open.ts';
+import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
+import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../../src/fight/duel.ts';
+import { OPEN_RADIUS } from '../../src/fight/play-radius.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
@@ -26,7 +27,7 @@ function stub(answers: Record<string, unknown>, opts: { absent?: boolean } = {})
   const kills: { m: string; r: string; b: Json[]; g: Json }[] = [];
   const db: Db = { async run(sql, v = {}) {
     if (/origins_spawn_/.test(sql) && opts.absent) return 'absent';
-    const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? '')?.[1];
+    const fn = /public\.(origins_spawn_\w+)\(/.exec(sql.split('\\if :spawns')[1] ?? sql)?.[1];   // after the psql guard; the bare call once the probe is cached (store.ts gated)
     if (fn === 'origins_spawn_kill') { kills.push({ m: v.m!, r: v.r!, b: JSON.parse(v.b!), g: JSON.parse(v.g!) }); }
     if (fn) { const a = answers[fn]; if (a instanceof Error) throw a; return a === undefined ? 'null' : JSON.stringify(a); }
     if (/origins_metal_of/.test(sql)) return 'absent';
@@ -52,9 +53,9 @@ test('the floors are bounds from the Pit kit: at least one hit, monotone in heal
   assert.ok(withinReach(spec, { x: 9, z: 0 })); assert.ok(!withinReach(spec, { x: 20, z: 0 }));
 });
 
-// The Auditor's pin (#1880): the duel Zone 1 actually runs (duel-open stepDuel, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
+// The Auditor's pin (#1880): the duel Zone 1 actually runs (src/fight/duel.ts stepDuel on a duel with radius OPEN_RADIUS, the hero's longsword against the creature's Pit level row) never kills faster, or in fewer landed blows,
 // than the floors. The attacker's best case: a creature that never moves, guards or swings, and a hero who presses one attack every tick it is legal.
-test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (duel-open, best case for the attacker)', () => {
+test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (the open-world duel, best case for the attacker)', () => {
   const kinds = [...new Set([...spawns.values()].map((s) => s.spec.body))];
   assert.ok(kinds.length > 0);
   for (const kind of kinds) for (const level of [1, 2, 3]) {
@@ -62,7 +63,7 @@ test('an honest Pit-kit kill of every Zone 1 kind at L1-3 clears both floors (du
     let fastest = Infinity;
     for (const action of ['light', 'heavy', 'thrust'] as const) {
       const hero = createFighter({ x: 0, z: -0.8, heading: 0, distance: 0 }, 'ready', 'longsword'), foe = opponentFighter(o, { x: 0, z: 0.8, heading: Math.PI, distance: 0 }, 'ready');
-      let duel: Duel = { tick: 0, fighters: [hero, foe], finish: null, events: [] }, hits = 0;
+      let duel: Duel = { tick: 0, fighters: [hero, foe], finish: null, events: [], radius: OPEN_RADIUS }, hits = 0;
       for (let t = 0; t < 60 * 120 && duel.finish === null && duel.fighters[1].health > 0; t++) {
         duel = stepDuel(duel, [{ ...idleIntent(), action }, idleIntent()]);
         hits += duel.events.filter((e) => e.actor === 0 && e.target === 1 && (e.type === 'Hit' || e.type === 'GuardBroken')).length;
@@ -173,4 +174,29 @@ test('zoneId: the engage names its zone (Zone 1 when absent, a loader zone or 40
   const priced = (level: number) => mobBatch({ account: UID, character: PC, token: TOKEN, fight: z2wolf.fight, seed: 7, enemy: z2wolf.spec.body, level, twist: null }, { career: row(), inventory: emptyPack(), metal: 'absent' }, content, '2026-10-08T10:01:00.000Z', { level }).batch;
   assert.deepEqual(ok.kills[0]!.b.slice(1), priced(z2wolf.spec.level), `paid exactly what a level-${z2wolf.spec.level} (Zone 2) kill pays`);
   assert.notDeepEqual(ok.kills[0]!.b.slice(1), priced(1), 'not what a level-1 (Zone 1) kill pays');
+});
+
+test('zone keys: a zone is `z<N>:` with N one or more digits and no leading zero (no ceiling); a key that starts like a zone and does not parse is null, never Zone 1', () => {
+  for (const [key, zone] of [['wolves-1', '1'], ['opener-ash-reach-1', '1'], ['zebra-1', '1'], ['z2:wolves-1', '2'], ['z10:x', '10'], ['z700:wolves-1', '700'], ['z1000:wolves-1', '1000'], ['z123456:x', '123456']] as const) assert.equal(zoneOfKey(key), zone, key);
+  for (const key of ['z0:wolves-1', 'z01:wolves-1', 'z2wolves-1', 'z2', 'z:x', 'z1x:y']) assert.equal(zoneOfKey(key), /^z[0-9]/.test(key) ? null : '1', key);
+  assert.equal(zoneOfKey('z0:wolves-1'), null); assert.equal(zoneOfKey('z01:wolves-1'), null); assert.equal(zoneOfKey('z2wolves-1'), null);
+});
+
+test('engage refuses a key that starts like a zone but does not parse (400), instead of reading it as Zone 1', async () => {
+  const ops = worldSpawnOps({ content, spawns }), { db } = stub({});
+  for (const instance of ['z01:wolves-1', 'z0:wolves-1', 'z2wolves-1']) await assert.rejects(async () => ops.engage!(ctx(db), { character: PC, instance }), (e: unknown) => e instanceof BadRequest, instance);
+});
+
+test('kill_report refuses an engage whose stored key has an unparsable zone prefix (409), never prices it as Zone 1', async () => {
+  const bad = { ...open, instance: 'z01:wolves-1' };
+  const { db, kills } = stub({ origins_spawn_engage_get: bad });
+  await assert.rejects(async () => worldSpawnOps({ content, spawns }).kill_report!(ctx(db), { token: TOKEN, hits: 5 }), (e: unknown) => e instanceof Refused && e.status === 409);
+  assert.equal(kills.length, 0, 'nothing was written');
+});
+
+test('the registry obeys the key rule the database column reads (zoneKeyProblems is empty): the writer refuses to start otherwise', async () => {
+  const { zoneKeyProblems } = await import('./world-spawns.ts');
+  const { zoneIds } = await import('../zones/loader.ts');
+  assert.ok(zoneIds().includes('1') && zoneIds().length >= 2, 'the registry has Zone 1 and at least one more');
+  assert.deepEqual(zoneKeyProblems(), []);
 });

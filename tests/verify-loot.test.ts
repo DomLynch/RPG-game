@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import type { Intent } from '../src/duel.ts';
-import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import type { Intent } from '../src/fight/duel.ts';
+import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -1,6 +1,6 @@
-import { selectFinisher, type FinisherId } from './finishers.ts';
-import type { Finish } from './duel.ts';
-import type { WeaponId } from './moves.ts';
+import { selectFinisher, type FinisherId } from './fight/finishers.ts';
+import type { Finish } from './fight/duel.ts';
+import type { WeaponId } from './fight/moves.ts';
 import type { OpponentId } from './roster.ts';
 import { HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, poseOf as hamstrungPoseOf } from './hamstrung.ts';
 

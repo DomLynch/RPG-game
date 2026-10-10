@@ -1,11 +1,11 @@
-// Zone 1's combat (origins/combat/zone1.ts): every fight rule is the Pit's, run through the verbatim copies (duel-open / ai-open / sim-open, whose tick-for-tick parity is duel-open.test.ts), so these tests pin the
+// Zone 1's combat (src/fight/world.ts): every fight rule is the Pit's, run through the Pit's own duel / ai / sim (no copies; the one departure, no ring wall, is open-world.test.ts), so these tests pin the
 // WORLD layer and the adapter: who fights whom, the chase to the hold ring, the leash and heal-home, a pack taking turns, gear / levels / stances / specials / skill reaching the duel, and the player-vs-player rules.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/moves.ts';
-import { CAPS } from '../../src/gear-stats.ts';
-import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../preview/speeds.ts';
-import { AGGRO_M, ENGAGE_M, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from './zone1.ts';
+import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/fight/moves.ts';
+import { CAPS } from '../../src/fight/gear-stats.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../../src/fight/speeds.ts';
+import { AGGRO_M, ENGAGE_M, duelFor, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from '../../src/fight/world.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
 const get = (w: World, id: string): Fighter => w.fighters.find((f) => f.id === id)!;
@@ -131,6 +131,40 @@ test('stances: the Pit table applies in the open - aggressive deals more than Ba
   assert.equal(mk('neutral'), mk(), 'Balanced is byte for byte the stance-less fight');
 });
 
+test('stab: a thrust press plays the Pit\'s thrust row, not the slash (the page used to fold STAB into SLASH)', () => {
+  const hit = (attack: 'light' | 'thrust') => {   // against an idle player, so nothing interrupts the cut
+    const a = player('a', 0, 0, 0, undefined, 10), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+    const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack } : STILL, b: STILL }));
+    return of(r.events, 'Hit', 'a')[0] as Extract<Event, { type: 'Hit' }> | undefined;
+  };
+  const stab = hit('thrust'), slash = hit('light');
+  assert.ok(stab && slash, 'both land at 1.2 m');
+  assert.equal(stab.move, 'thrust');
+  assert.notEqual(stab.move, slash.move);
+});
+
+test('raw Pit events: every Zone 1 event carries the Pit\'s CombatEvent (a Hit keeps its location and weapon), and a Pit event with no summary (a roll) comes through as type Pit', () => {
+  const a = player('a', 0, 0, 0, undefined, 10), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+  const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack: 'thrust' } : STILL, b: t === 90 ? { x: 0, z: 0, roll: { x: 1, z: 0 } } : STILL }));
+  const hit = of(r.events, 'Hit', 'a')[0]!;
+  assert.equal(hit.pit?.type, 'Hit');
+  assert.ok(hit.pit?.location, 'the Pit\'s hit location rides along');
+  assert.ok(hit.pit?.weapon, 'and the weapon');
+  assert.ok(r.events.filter((e) => !['Aggressed', 'FightStarted', 'Evaded'].includes(e.type)).every((e) => e.pit), 'every Pit-sourced event has its original (the loop\'s own Aggressed / FightStarted / Evaded have none)');
+  assert.ok(r.events.some((e) => e.type === 'Pit' && e.pit?.action === 'roll'), 'the roll is not dropped');
+});
+
+test('pairs: every fight is exposed as the Pit\'s own duel - the nearest foe primary, the joiners after, nothing when alone', () => {
+  assert.deepEqual(pairs(run(newWorld([player('p', 0, 0)]), 1).world), [], 'alone: no pairs');
+  const w = run(newWorld([player('p', 0, 0), creature('c1', 'wolf', 0, 3), creature('c2', 'wolf', 3, 0), creature('c3', 'wolf', -3, 0), creature('c4', 'wolf', 0, -3)]), 3, undefined, (x) => pairs(x).length >= 3).world;
+  const ps = pairs(w);
+  assert.equal(ps.length, 3, 'MAX_ATTACKERS = 3 duels on one player');
+  assert.equal(ps.filter((x) => x.primary).length, 1);
+  assert.equal(new Set(ps.map((x) => x.foe)).size, 3, 'each on its own creature');
+  assert.ok(ps.every((x) => x.player === 'p' && x.duel.fighters.length === 2 && typeof x.duel.fighters[1].phase === 'string'), 'a real Pit duel');
+  const before = JSON.stringify(w); pairs(w); assert.equal(JSON.stringify(w), before, 'reading it changes nothing');
+});
+
 test('creature mood: the Pit\'s moodOf draw - about half the home stance, the rest spread over the other three; same rand = same stance', () => {
   let seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
   const count: Record<string, number> = {};
@@ -172,7 +206,7 @@ test('pvp: in the wild a player\'s cut lands on another player on the Pit duel (
   assert.ok(get(world, 'b').health < RULES.health, 'b was hurt');
   assert.deepEqual(of(events, 'Aggressed'), [{ type: 'Aggressed', attacker: 'a', victim: 'b', first: true }]);
   const w = duo(); get(w, 'b').health = 1;
-  assert.deepEqual(of(swing(w).events, 'Died'), [{ type: 'Died', id: 'b', by: 'a' }]);
+  assert.deepEqual(of(swing(w).events, 'Died').map(({ pit, ...e }) => e), [{ type: 'Died', id: 'b', by: 'a' }]);   // the Pit original rides on `pit` (the raw-events test)
 });
 
 test('pvp: a safe-town volume (pvp false on either side) means no fight, no Aggressed', () => {
@@ -285,4 +319,13 @@ test('#1936 c(a): FightStarted is once per creature per engage - a joiner that b
   const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature), died = r.events.filter((e) => e.type === 'Died' && e.id === 'a').length;
   assert.equal(died, 1, 'he killed one'); assert.equal(started.filter((id) => id === 'a').length, 1); assert.ok(started.filter((id) => id === 'b').length <= 2 && started.filter((id) => id === 'c').length <= 2, `no churn: ${started}`);
   assert.equal(started.slice(0, 3).sort().join(), 'a,b,c', 'the first three are the pack');
+});
+
+test('duelFor: the duel a creature is in when it is a primary or joined foe, null when it is not (wandering, or not in the world)', () => {
+  const w = run(newWorld([player('p', 0, 0), creature('c1', 'wolf', 0, 3), creature('far', 'wolf', 0, 60)]), 3, undefined, (x) => pairs(x).length >= 1).world;
+  const d = duelFor(w, 'c1');
+  assert.ok(d, 'the engaged wolf has its duel');
+  assert.equal(d, pairs(w).find((p) => p.foe === 'c1')!.duel, 'it is the pair\'s own duel');
+  assert.equal(duelFor(w, 'far'), null, 'a creature that is not on him has none');
+  assert.equal(duelFor(w, 'nobody'), null, 'an id not in the world has none');
 });

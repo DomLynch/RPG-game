@@ -7,15 +7,15 @@
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
-import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/duel.ts';
-import { creaturesLook } from '../../src/audio/creature.ts';
-import { createFeedback } from '../../src/feedback.ts';
+import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
+import { creaturesLook } from '../../src/fight/sound/creature.ts';
+import { createFeedback } from '../../src/fight/sound/feedback.ts';
 import { createHud } from '../../src/hud.ts';
-import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/combat.ts';
+import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
 import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';
 import { Match } from '../../src/match.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/moves.ts';
+import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
 import { bareName } from '../../src/roster.ts';
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
@@ -24,19 +24,19 @@ import { createScene, type WorldMount } from '../../src/scene.ts';
 import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
-import { STEP, wrapAngle } from '../../src/sim.ts';
+import { STEP, wrapAngle } from '../../src/fight/index.ts';
 import { loadTrial } from '../../src/trial.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { recordWorldFight, worldRecord } from './world-record.ts';
-import type { FightRecord } from '../../src/record.ts';
-import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
+import type { FightRecord } from '../../src/fight/index.ts';
+import { noTwist, stepTwist, type Twist, type TwistFlag, type TwistOutcome } from '../../src/fight/index.ts';
 import liveStyle from '../../src/style.css?inline';
 import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
@@ -116,7 +116,7 @@ function bind(leave: () => void) {
   element('journal-button').addEventListener('click', () => { controls!.clear(); element<HTMLInputElement>('journal-tab-settings').checked = true; journal!.showModal(); });
   element('close-journal').addEventListener('click', () => journal!.close());
   element('nav-arena').addEventListener('click', () => journal!.close());
-  addLeaveEntry(element('app-nav'), () => journal!.close(), leave);   // the game's own nav no longer carries The Pit (the Pit room was removed): the Origins duel adds its exit
+  addLeaveEntry(element('app-nav'), () => journal!.close(), leave, hostBack?.back, hostBack?.text);   // the game's own nav no longer carries The Pit (the Pit room was removed): the Origins duel adds its exit
   addArenaEntry(element('app-nav'), () => location.assign('/arena/'));   // first in the nav (prepended after the exit): the arena and its 50-level ladder at their stable path
   journal.addEventListener('close', () => { controls!.clear(); accumulator = 0; });
   window.addEventListener('blur', () => controls!.clear());
@@ -224,7 +224,9 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
 }
 
 /** The walk uses the kit: bind it, switch the game's stylesheet on, and hand back the controls' intent each frame (a press is consumed when read). */
-export function enterWorld(leave: () => void) { world = true; liveLook(true); if (!controls) bind(leave); controls!.clear(); }
+let hostBack: { back: string; text: string } | undefined;   // the zone's own exit (leave-entry.ts exitFace: the full "Back to <zone>" and the short button text), set by enterWorld before the menu binds
+export function enterWorld(leave: () => void, host?: { back: string; text: string }) { world = true; hostBack = host; if (host) element('nav-gear').textContent = 'Gear';   // a zone hosts the sheet: its words, never the Pit's (Lead 2026-10-09)
+  liveLook(true); if (!controls) bind(leave); controls!.clear(); }
 // ROLL and GUARD in the open world are the Pit's own: a private practice (the same sim, the same stamina, the same roll distance and guard rules) is stepped at
 // 60 Hz beside the walk. Its fighter is held at the arena's centre between rolls and its foe frozen 6 m ahead, so only what the sim DOES to the hero comes
 // back: the ground a roll or backstep covers, and the phase (roll / backstep / guard) the page plays the rig's clip for. Attack presses are not sent here:
@@ -314,7 +316,7 @@ function frame(now: number) {
   frameId = requestAnimationFrame(frame);
 }
 
-// An encounter's twist state (src/twist.ts): read by encounter-duel.ts when the fight ends.
+// An encounter's twist state (src/fight/twist.ts): read by encounter-duel.ts when the fight ends.
 export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.

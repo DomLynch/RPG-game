@@ -17,12 +17,16 @@
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
 import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
+import { placedSpawns, placedWaypoints } from '../zones/place.ts';
+import { zonePlaces } from '../zones/loader.ts';
 
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
 const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
+// The goblin's six armour pieces are generated (origins/inventory/loot-catalogue.ts: item:loot.goblin.<Slot>); only the loot entry lives here.
+const goblinEntry = (slot: string) => ({ item: `item:loot.goblin.${slot}`, chance: 25, quantity: 1, levelMin: null, levelMax: null });
 const table = (id: string, presentation: 'take-one' | 'collect', rolls: unknown[], currency: { min: number; max: number } | null) => ({
   kind: 'loot-table', schemaVersion: 1, id, presentation, distribution: 'personal', rolls, currency, fallback: null, // crafting is out
 });
@@ -59,6 +63,8 @@ export const LOOT_TABLES = [
     independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
     independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
   ], { min: 3, max: 12 }),
+  // The Pit goblin camp's table (Zone 1, Dom's loot/inventory test; Backend 2026-10-09): each of his six armour pieces rolls on its own at 25 %, a level-1 kill may drop gear (levelMin null), bronze 2-6.
+  table('loottable:pit-goblin', 'collect', [independent(100, ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map(goblinEntry))], { min: 2, max: 6 }),
   table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
   // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
   table('loottable:ash-wolf', 'collect', [
@@ -122,6 +128,8 @@ export const FOES = [
     ], 'court-thrall'),
   figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
     null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'cinder-scavenger'),
+  figure('character:pit-goblin', 'Pit goblin', ORIGINAL, 'A goblin of the Pit in the armour the Pit gave him, camped at the edge of the Frontier where a fighter can find him.',
+    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'pit-goblin'),
   figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
     null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ash-wolf'),
   figure('character:ember-wolf', 'Ember wolf', ORIGINAL, 'Its coat has burned down to the colour of a banked fire, and it hunts the Reach in a pack of two or three.',
@@ -235,9 +243,9 @@ export const REGIONS = [
       'road-gate', 'ash-pits', 'shrine', 'hold-road',
       'landing-shore', 'reed-bank', 'mere-hollow', 'causeway', 'causeway-foot',
       'causeway-end', 'ruin-jetty', 'ruin-gate', 'crypt',
-      'reach-turn', 'reach-gate', 'reach-cairn', 'reach-ruin',
       'hold-gate', 'hold-centre', 'hold-hall', 'hold-forge', 'hold-fence', 'hold-jail',
       'end-gate', 'end-centre', 'end-hall', 'end-healer', 'end-jail',
+      ...placedWaypoints(zonePlaces()),   // each zone folder's own landmarks (zone<N>/place.ts)
     ],
     portals: [{ id: 'to-exchange', at: 'exchange-gate', to: 'region:concord-exchange', toPortal: 'to-frontier' }],
     landmarks: [
@@ -264,8 +272,8 @@ export const REGIONS = [
       spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
       spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
       spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
-      spawn('reach-wolves', 'reach-cairn', null, ['character:ember-wolf']),   // Zone 2's (origins/zones/zone2): only a Zone 2 page has the Ash Reach in its plan
-      spawn('reach-scavengers', 'reach-ruin', null, ['character:cinder-scavenger']),
+      spawn('pit-goblins', 'watchtower', null, ['character:pit-goblin']),   // the Pit goblin camp by the start path (east road), Zone 1 (Dom 10-09: goblin camp added); the row's size is data (zone1/spawns.ts campSize)
+      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone folder's spawn groups (zone<N>/place.ts), after Region 1's own so their seeds keep
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
@@ -352,6 +360,7 @@ export const KILL_ROWS: Record<string, string> = {
   'character:court-thrall': 'elite',
   'character:rift-spawn': 'elite',
   'character:cinder-scavenger': 'mob',
+  'character:pit-goblin': 'mob',
   'character:mere-brood': 'mob',
   'character:ash-wolf': 'mob',
   'character:ember-wolf': 'mob',
@@ -371,6 +380,7 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 // Which encounter each creature table is rolled from in the open world (no encounter: a plain kill).
 export const CREATURE_LOOT: Record<string, string> = {
   'character:cinder-scavenger': 'loottable:cinder-scavenger',
+  'character:pit-goblin': 'loottable:pit-goblin',
   'character:ruin-ghoul': 'loottable:ruin-ghoul',
   'character:mere-brood': 'loottable:mere-brood',
   'character:ash-wolf': 'loottable:ash-wolf',

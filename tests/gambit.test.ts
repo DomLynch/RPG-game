@@ -1,18 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mirror, stepDuel, withGambit, type Duel } from '../src/duel.ts';
-import { GAMBIT_KILL_FLOOR, GAMBIT_ODDS, gambitMean, gambitUnit, resolveGambit } from '../src/gambit.ts';
+import { mirror, stepDuel, withGambit, type Duel } from '../src/fight/duel.ts';
+import { GAMBIT_KILL_FLOOR, GAMBIT_ODDS, gambitMean, gambitUnit, resolveGambit } from '../src/fight/gambit.ts';
 import * as luck from '../origins/luck/luck.ts';
-import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { packRecord, unpackRecord } from '../src/record.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { packRecord, unpackRecord } from '../src/fight/record.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { hashDuel } from '../src/net/rollback.ts';
 import { act, arena, idle, W } from './strategies.ts';
 
 // The Gambit (RV33, docs/specs/origins/combat-study.md): a second heavy press after the chamber arms the swing; an open body draws once (about 1 in 2 lands for 2x), else the thrower staggers.
-// Defined once in src/gambit.ts; origins/luck re-exports it, so this is an identity test.
+// Defined once in src/fight/gambit.ts; origins/luck re-exports it, so this is an identity test.
 test('origins/luck and the duel share the one Gambit definition', () => {
   assert.equal(luck.resolveGambit, resolveGambit); assert.equal(luck.GAMBIT_ODDS, GAMBIT_ODDS); assert.equal(luck.GAMBIT_KILL_FLOOR, GAMBIT_KILL_FLOOR); assert.equal(luck.gambitMean, gambitMean);
 });

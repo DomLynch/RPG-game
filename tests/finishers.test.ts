@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/finishers.ts';
-import type { Finish } from '../src/duel.ts';
+import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/fight/finishers.ts';
+import type { Finish } from '../src/fight/duel.ts';
 import type { HitLocation } from '../src/blade.ts';
-import type { MoveId, WeaponId } from '../src/moves.ts';
+import type { MoveId, WeaponId } from '../src/fight/moves.ts';
 
 // Finishers & gore v1 (owner-authorized 2026-09-17; blade-kill rule owner-decided 2026-09-18 on PR #112 and broadened the
 // same day after the owner's live playtest; two-finisher rotation owner-decided 2026-09-18, grown to four with Run Through

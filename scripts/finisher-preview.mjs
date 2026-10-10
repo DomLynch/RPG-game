@@ -34,9 +34,9 @@ const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
 <body><canvas id="world"></canvas><script type="module">
 import { createScene } from '/src/scene.ts';
-import { initialPractice, stepPractice } from '/src/combat.ts';
-import { selectFinisher } from '/src/finishers.ts';
-import { OPPONENTS } from '/src/moves.ts';
+import { initialPractice, stepPractice } from '/src/fight/combat.ts';
+import { selectFinisher } from '/src/fight/finishers.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
 import { Box3, Vector3, Raycaster } from 'three';
 const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
@@ -398,7 +398,7 @@ try {
   }
   // Finisher-complete durations (Lead brief 2026-09-22, Web's loot panel). Each requested outcome is played frame by frame on
   // the production path and we record where src/scene.ts's own `finishPhase().complete` first fires, counted from the Killed
-  // event. This is the measurement behind the FINISHER_SECONDS table in src/finishers.ts — one number per finisher, measured,
+  // event. This is the measurement behind the FINISHER_SECONDS table in src/fight/finishers.ts — one number per finisher, measured,
   // never one constant for all of them, and never a guessed delay. The runtime keys on the event; the table exists so Web can
   // budget its layout against a real figure and so a drift in the ceremony shows up here as a changed number.
   if (option('durations')) {

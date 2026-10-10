@@ -12,7 +12,10 @@ source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
-trap 'rm -f "$DEPLOY_LOCK"; hf_wall_rows_cancel; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+# Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
+# "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
+hf_cleanup() { node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
+trap 'rm -f "$DEPLOY_LOCK"; hf_cleanup; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
 node scripts/check-account-config.mjs
@@ -21,8 +24,35 @@ node scripts/check-glb-compression.mjs --hosted-csp
 node --input-type=module -e 'import { loadEnv } from "vite"; import { readFileSync } from "node:fs"; const dsn = process.env.VITE_SENTRY_DSN || loadEnv("production", process.cwd()).VITE_SENTRY_DSN; if (!dsn || new URL(dsn).protocol !== "https:" || !readFileSync("deploy/frankendom.com.conf", "utf8").includes(new URL(dsn).origin)) throw new Error("Configure VITE_SENTRY_DSN and its CSP origin before deployment");'
 revision=$(git rev-parse HEAD)
 export VITE_SENTRY_RELEASE="$revision"
-# The T4 wall-row job starts now and overlaps the quality gate; its receipts are read at the release-rows step (scripts/lib/deploy-hf.sh).
+# Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
+# revision run here, about 5. The full 50 run when DEPLOY_SCOPE=full, when the last full run is over 24 h old or unknown, or
+# when the live revision is not an ancestor of this one. Any doubt in the lookup means a full run, as before.
+deploy_scope_apply() {
+  [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
+  local age live skip
+  age=$(node scripts/release-rows-for.mjs --full-age . || true)
+  [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
+  if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
+  live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
+  if [[ -z "$live" ]] || ! git merge-base --is-ancestor "$live" "$revision" 2>/dev/null; then
+    echo "release scope: full (live revision ${live:-unknown} is not an ancestor of $revision)"; return 0
+  fi
+  skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip --base "$live") || { echo "release scope: full (row selection failed)"; return 0; }
+  out_of_scope="$skip"
+  echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
+}
+# The waterfall (Dom 2026-10-09: "max out the VPS, the HF CPU and the T4"): every row a remote box may vouch for is launched NOW, so it overlaps the
+# quality gate, minus the rows CI already proved and the rows out of this release's scope. T4 wall rows: scripts/hf-wall-rows.mjs (one t4-medium job, its
+# GPU guard); CPU rows: launch.mjs cpu (cpu-upgrade shards, 20 m each). The Mac runs the Mac-only list (scripts/lib/row-placement.mjs) and every row no
+# receipt proves for this tree. No switch: the list is the only config. The first line says where every row goes.
+out_of_scope=""
+deploy_scope_apply
+early_trusted=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+placed_skip="${early_trusted:+$early_trusted,}$out_of_scope"
 hf_wall_rows_launch
+cpu_out=$(node scripts/vps-shadow/launch.mjs cpu "$revision" "$placed_skip" || true); hf_cpu_rows=""
+if [[ "$cpu_out" == *";"* ]]; then hf_cpu_rows="${cpu_out#*;}"; DEPLOY_HF_ROWS_JOBS="${DEPLOY_HF_ROWS_JOBS:+$DEPLOY_HF_ROWS_JOBS,}${cpu_out%%;*}"; fi
+node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows"
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
 deploy_step "merged-on-trunk"
 node scripts/merged-on-trunk.mjs
@@ -52,14 +82,16 @@ if [[ -z "$ci_green" ]]; then
   fi
 fi
 deploy_step "quality gate"
-vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: DEPLOY_VPS_RECEIPTS=on and a tree-bound unit-suite receipt
-if [[ "$vps_unit" == ok ]]; then
+vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
+if [[ -n "$ci_green" ]]; then
+  # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
+  # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
+  echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
+  npm run build
+elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
-  npm run quality:deploy
-elif [[ -n "$ci_green" ]]; then
-  echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
 elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
   # Change-scoped release (Dom 2026-10-05: a release in about 5 minutes): the fast unit suite instead of test:all; the slow
@@ -81,26 +113,9 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
-vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree (DEPLOY_VPS_RECEIPTS=on)
+vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree
 hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
-# Change-scoped rows (Dom 2026-10-05): only the rows scripts/release-rows-for.mjs picks for the files changed since the live
-# revision run here, about 5. The full 50 run when DEPLOY_SCOPE=full, when the last full run is over 24 h old or unknown, or
-# when the live revision is not an ancestor of this one. Any doubt in the lookup means a full run, as before.
-deploy_scope_apply() {
-  [[ "${DEPLOY_SCOPE:-changed}" != full ]] || { echo "release scope: full (DEPLOY_SCOPE=full)"; return 0; }
-  local age live skip
-  age=$(node scripts/release-rows-for.mjs --full-age . || true)
-  [[ "$age" =~ ^-?[0-9]+$ ]] || age=-1
-  if (( age < 0 || age > 86400 )); then echo "release scope: full (last full run ${age}s ago; over 24 h or none)"; return 0; fi
-  live=$(curl --fail --silent --show-error https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
-  if [[ -z "$live" ]] || ! git merge-base --is-ancestor "$live" "$revision" 2>/dev/null; then
-    echo "release scope: full (live revision ${live:-unknown} is not an ancestor of $revision)"; return 0
-  fi
-  skip=$(git diff --name-only "$live" "$revision" | node scripts/release-rows-for.mjs --deploy-skip --base "$live") || { echo "release scope: full (row selection failed)"; return 0; }
-  out_of_scope="$skip"
-  echo "release scope: changed files $live..$revision, last full run ${age}s ago; rows out of scope: ${skip:-none}"
-}
 out_of_scope=""
 deploy_scope_apply
 RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs
@@ -158,7 +173,8 @@ previews_ok=1
 # this revision now (the checkout is the live revision after the cmp checks above), then require that /zone1/ serves the bundle just built.
 # Same rule as above: record the failure, raise it at the end, never skip the verifier install.
 if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
-  scripts/publish-origins-preview.sh || previews_ok=0
+  rm -rf artifacts/origins-preview   # a leftover build must never satisfy the bundle compare below (Release I: the publish step failed and a stale build "matched")
+  bash scripts/publish-origins-preview.sh || previews_ok=0
   built_bundle=$(ls artifacts/origins-preview/assets 2>/dev/null | grep -m1 '^index-.*\.js$' || true)
   live_bundle=$(curl --fail --silent https://frankendom.com/zone1/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -n 1 | sed 's#^assets/##' || true)
   if [[ -z "$built_bundle" || "$built_bundle" != "$live_bundle" ]]; then
@@ -168,6 +184,9 @@ if [[ "${DEPLOY_ORIGINS_PREVIEW:-on}" != off ]]; then
     echo "origins preview: /zone1/ serves $live_bundle (built from $revision)"
   fi
 fi
+# The vhost is installed by scripts/provision.sh, never by this script: Release I's /zone/ alias sat uninstalled until someone curled it. Say so loudly.
+nginx_drift=$(bash scripts/provision.sh --dry-run 2>&1 || true)
+if [[ -n "$nginx_drift" ]]; then echo "nginx: the installed conf differs from deploy/frankendom.com.conf (run scripts/provision.sh):" >&2; printf '%s\n' "$nginx_drift" | head -n 20 >&2; previews_ok=0; fi
 curl --fail --silent --show-error --output /dev/null https://frankendom.com/preview/origins/ || previews_ok=0
 # The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
 # deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from

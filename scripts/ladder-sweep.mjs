@@ -15,11 +15,11 @@
 // precise nor as bad as `masher`. Read a win rate as "what this strategy can do", never as how the fight feels (phone playtests own that).
 import console from 'node:console';
 import process from 'node:process';
-import { OPPONENTS, MOVES, canStrike, initialPractice, stepPractice } from '../src/combat.ts';
-import { RULES, opponentAt, profileAt } from '../src/moves.ts';
-import { mirror, movesOf, timing } from '../src/duel.ts';
+import { OPPONENTS, MOVES, canStrike, initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { mirror, movesOf, timing } from '../src/fight/duel.ts';
 import { isHeld } from '../src/roster.ts';
-import { setLateNotice } from '../src/play-radius.ts';
+import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 setStab(true);   // ... and the Goblin's stab (stab-rule.ts), likewise an era flag
 setLateNotice(true);   // the sweep fights live: this build's late notice is on (a headless run is otherwise the pre-ramp era, play-radius.ts)

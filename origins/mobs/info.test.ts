@@ -17,7 +17,7 @@ test('the danger band is the payout ladder: every gap lands on the band whose pe
 });
 
 test('how common comes from the row weight against the zone rows; named is unique', () => {
-  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Uncommon', 'Uncommon', 'Uncommon', 'Rare', 'Rare', 'Uncommon'], 'six kinds now (the Ash Wolf is live): the three equal kinds and the wolf are each about a sixth of the draw (Uncommon); the single Cinder Bear (weight .3) and the Ash Boar (weight 3) are the rare ones');
+  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Uncommon', 'Uncommon', 'Uncommon', 'Rare', 'Rare', 'Uncommon', 'Uncommon'], 'seven kinds now (the Pit goblin camp is the seventh, Characters 2026-10-09): the three equal kinds, the wolf and the Pit goblin are each about a sixth of the draw (Uncommon); the single Cinder Bear (weight .3) and the Ash Boar (weight 3) are the rare ones');
   const rows = [row({ id: 'a', weight: 80 }), row({ id: 'b', weight: 15 }), row({ id: 'c', weight: 5 })];
   assert.deepEqual(rows.map((r) => commonOf(r, rows)), ['Common', 'Uncommon', 'Rare']);
   assert.equal(commonOf(row({ named: true }), rows), 'Unique'); assert.equal(commonOf(undefined, rows), 'Unique');
@@ -25,7 +25,7 @@ test('how common comes from the row weight against the zone rows; named is uniqu
 });
 
 test('the group is the row camp size, never a constant', () => {
-  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3', 'Alone', 'Alone', 'Packs of 2 to 3']);
+  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3', 'Alone', 'Alone', 'Packs of 2 to 3', 'Packs of 2']);
   assert.equal(groupOf(row({ behaviour: { campSize: [2, 3] } })), 'Packs of 2 to 3'); assert.equal(groupOf(row({ behaviour: { campSize: [1, 1] } })), 'Alone');
   assert.equal(groupOf(row()), 'Packs of 2 to 3', 'the row default'); assert.equal(groupOf(row({ named: true })), 'Alone'); assert.equal(groupOf(undefined), 'Alone');
 });
@@ -43,4 +43,18 @@ test('while the card is up the creature\'s own name label is hidden (no overlap 
   const read = (f: string) => readFileSync(new URL(`../preview/${f}`, import.meta.url), 'utf8');
   assert.match(read('main.ts'), /mobs\.update\(dt, state, cardId\)[\s\S]*cardId = creatureCard\.update\(/, 'main hands the card\'s creature to the view');
   assert.match(read('mobs-view.ts'), /v\.label\.visible = s\.id !== hideLabel/, 'the view hides that creature\'s label only');
+});
+
+test('#1936 c(a): a pack of three joined on one player - the card names one creature at a time (the nearest), moves to the next as each falls, and stays three short lines at 375', async () => {
+  const hero = { x: 0, z: 0 }, pack = [{ id: 'a', x: 0, z: 2, mode: 'aggro' }, { id: 'b', x: 0, z: 3, mode: 'aggro' }, { id: 'c', x: 0, z: 4, mode: 'aggro' }];
+  const order: string[] = []; let seen = pack;
+  while (seen.length) { order.push(nearestNoticing(seen, hero)!.id); seen = seen.filter((m) => m.id !== order.at(-1)); }
+  assert.deepEqual(order, ['a', 'b', 'c'], 'one card at a time, the nearest first; each fall hands it to the next');
+  assert.equal(nearestNoticing([...pack].reverse(), hero)?.id, 'a', 'the card follows distance, not list order');
+  const lines = cardLines(creatureInfo({ name: 'Cinder scavenger', level: 12 }, FRONTIER_ROWS[0], 16, FRONTIER_ROWS));
+  assert.equal(lines.length, 3); for (const l of lines) assert.ok(l.length <= 32, `a card line fits a 375-wide card: "${l}"`);
+  // the view draws one tag per kind (the nearest of that name), so three of one kind show one tag, and the card's own creature shows none
+  const { readFileSync } = await import('node:fs'), view = readFileSync(new URL('../preview/mobs-view.ts', import.meta.url), 'utf8');
+  assert.match(view, /nearestOf\.get\(s\.name\) === i/, 'one tag per kind of creature');
+  assert.match(view, /v\.label\.visible = s\.id !== hideLabel/, 'the card\'s creature draws no tag');
 });

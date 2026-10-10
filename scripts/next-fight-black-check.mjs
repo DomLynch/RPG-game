@@ -16,12 +16,12 @@ const outDir = 'artifacts/next-fight/build', out = 'artifacts/next-fight';
 await fs.mkdir(out, { recursive: true });
 const LIVE = process.env.NEXT_FIGHT_URL;   // measure another build (e.g. https://frankendom.com) instead of this tree's: the live-vs-head comparison, never the release row
 if (!LIVE && !process.env.NEXT_FIGHT_CHILD) await build({ logLevel: 'error', build: { outDir } });
-// Up to three attempts, passing on the first that passes (Lead 2026-10-08): a loaded Mac can hold one capture past the limit (a 637 ms gap was read under load), while a real 2 s regression fails every attempt.
+// Up to three attempts (each capped at 150 s, so the worst case, 450 s, fits the 10-minute row cap), passing on the first that passes (Lead 2026-10-08): a loaded Mac can hold one capture past the limit (a 637 ms gap was read under load), while a real 2 s regression fails every attempt.
 // The build is made once; each attempt is this script again with NEXT_FIGHT_CHILD set, and its line names the attempt and its max gap. NEXT_FIGHT_MAX lowers the limit (the mutation receipt: at 1 ms all three attempts fail).
 if (!process.env.NEXT_FIGHT_CHILD) {
   const { spawnSync } = await import('node:child_process');
   for (let attempt = 1; attempt <= 3; attempt++) {
-    if (spawnSync(process.execPath, [process.argv[1]], { stdio: 'inherit', timeout: 600_000, env: { ...process.env, NEXT_FIGHT_CHILD: '1', NEXT_FIGHT_ATTEMPT: String(attempt) } }).status === 0) process.exit(0);
+    if (spawnSync(process.execPath, [process.argv[1]], { stdio: 'inherit', timeout: 150_000, env: { ...process.env, NEXT_FIGHT_CHILD: '1', NEXT_FIGHT_ATTEMPT: String(attempt) } }).status === 0) process.exit(0);
   }
   console.error('next-fight-black-check FAIL: all 3 attempts over the limit'); process.exit(1);
 }

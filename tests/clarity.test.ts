@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clarityOf, initialPractice, stepPractice } from '../src/combat.ts';
-import { cuesFor, EFFORT_VOICE } from '../src/audio/cues.ts';
-import { idleIntent, timing, type CombatEvent, type Duel } from '../src/duel.ts';
+import { clarityOf, initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { cuesFor, EFFORT_VOICE } from '../src/fight/sound/cues.ts';
+import { idleIntent, timing, type CombatEvent, type Duel } from '../src/fight/duel.ts';
 
 const base = (): Duel => initialPractice().duel;
 const swing = (d: Duel, side: 0 | 1, age: number, landed = false): Duel => {

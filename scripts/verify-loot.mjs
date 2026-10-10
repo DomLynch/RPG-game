@@ -1,7 +1,7 @@
 // Server-side sweep for ladder-win loot claims (brief 19 deliverable 3; migration 202609230001), the loot twin of verify-daily.mjs.
 // The client posts a claim for every ladder win with `verified = false`; this sweep, run on the VPS on a timer as frankendom_verifier,
 // settles each one exactly once:
-//   - the WIN: the record decodes, names the claim's opponent, says 'killed', and replays headless (src/replay.ts verifyRecord) to that
+//   - the WIN: the record decodes, names the claim's opponent, says 'killed', and replays headless (src/fight/replay.ts verifyRecord) to that
 //     finish. A win is a mark: `verified = true`. Anything else is refused with a note, never skipped — an unchecked claim would hold
 //     up every later claim from its account (below), so every claim leaves the sweep with `checked_at` set, whatever throws.
 //   - the PIECE: src/awards.ts awardFor at the account's server standing before this claim (standing_of, claims earlier by
@@ -37,9 +37,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { gunzipSync } from 'node:zlib';
-import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/record.ts';
+import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
 const LIMIT = 200;
@@ -54,7 +54,7 @@ const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot
 // The fight a record string carries, as bytes two encodings of one fight share (F2): the gzip wrapper is not canonical (header, level,
 // block split) and `build` is a label the replay never reads. Decoded, the build blanked, packed again (flags re-derived, so unread flag
 // bits drop too); every readable version shares the layout, so an older record packs as this build's and gets its own version byte back.
-// Here, not in src/record.ts, which is sim-digested (record-version-guard): no bump for a verifier key. A record this build cannot unpack
+// Here, not in src/fight/record.ts, which is sim-digested (record-version-guard): no bump for a verifier key. A record this build cannot unpack
 // (a reach-refused older version) falls back to its gunzipped bytes, one that is not gzip to its own text. Never throws.
 export async function fightBytes(record) {
   let raw;

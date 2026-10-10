@@ -3,7 +3,7 @@
 // so its local Y runs along the shaft, and `extras.contact = { from, to }` (metres along Y) marks the striking segment the bake
 // samples — the trident's tines, never the shaft. Clips are authored offline on the rig with build-warrior's two-bone reach, as
 // Heavy, Riposte and Kick were: the body comes from the CC0 loops (Armed, ArmedWalk, Strafe*, Hit, Death), both arms are re-solved
-// onto the shaft every key. Timings are data (src/moves.ts WEAPONS.trident); a clip only fixes where the contact key sits (.34 / .48).
+// onto the shaft every key. Timings are data (src/fight/moves.ts WEAPONS.trident); a clip only fixes where the contact key sits (.34 / .48).
 //   build-warrior.mjs, WARRIOR_WEAPON=trident|cleaver [WEAPON_VARIANT=…]   the fighter carries that weapon (and its clips, if it has any)
 //   node scripts/build-weapon.mjs <weapon> [variant]                        writes the part alone to src/assets/weapons/<weapon>/<weapon>.glb
 // Weapons: the trident (own clip set, two-handed) and the Pitborn's CLEAVER (the longsword's clip family — same length — with its own
@@ -710,7 +710,7 @@ export function warhammer({ T: three = T, withAoUv = g => g, leather, variant = 
 }
 
 // ── The maul (the Knight's; Brief 17, Dom 2026-09-22: "a masked heavy opponent wielding the maul, two-hand"). SILHOUETTE STAGE:
-// the part and its contact segment only — no rig, no clips, no loadout, and `src/moves.ts` is untouched because WEAPONS.maul is
+// the part and its contact segment only — no rig, no clips, no loadout, and `src/fight/moves.ts` is untouched because WEAPONS.maul is
 // already the data this needs (the cleaver spread, `grip: 'two-hand'`, thrust `stepIn .3` / `reach 1.4`, `guard: 'shaft'`,
 // `material: 'wood'`, `fight.thrustShare` .1). No maul mesh exists in the repo to start from: the Minotaur's geometry is inside the
 // HELD `minotaur.glb`, so nothing is copied from it — only its material vocabulary (MaulAshHaft / MaulLeather / WeatheredStone /

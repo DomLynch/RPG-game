@@ -6,7 +6,7 @@
 //   band   0 fresh · 1 winded (level >= .5: stamina under half, or the ceiling cut hard) · 2 tired (>= .75: stamina under a quarter) · 3 gassed (exhausted)
 //   gassed 0..1  smoothed `exhausted` (hands on thighs / tip down); second  1..0 for ~1.5 s after he recovers: the visible second-wind straighten.
 // Bodies tune their own look (Goblin quick and shallow, Executioner slow and deep) from these; the thresholds live here, once.
-import type { Fighter } from './duel.ts';
+import type { Fighter } from './fight/duel.ts';
 
 export type Fatigue = { level: number; band: 0 | 1 | 2 | 3; gassed: number; second: number };
 export const FRESH: Fatigue = { level: 0, band: 0, gassed: 0, second: 0 };

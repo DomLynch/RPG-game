@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { MAX_STEPS, ME, createWorldCombat, kindOf } from './world-combat.ts';
-import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
+import { MAX_STEPS, ME, createWorldCombat, kindOf } from '../../src/fight/index.ts';
+import { OPPONENTS, RULES, WEAPONS } from '../../src/fight/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
+import { NAKED } from '../../src/fight/gear-stats.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
-  const driven = new Map<string, MobDrive>(), fell: string[] = [];
-  const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id) } as unknown as Mobs;
-  return { mobs, driven, fell };
+  const driven = new Map<string, MobDrive>(), fell: string[] = [], played: string[] = [];
+  const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id), play: (id: string, role: string) => { played.push(`${id}:${role}`); return role === 'death' ? 2.4 : 0.5; } } as unknown as Mobs;
+  return { mobs, driven, fell, played };
 }
 const run = (wc: ReturnType<typeof createWorldCombat>, hero: { x: number; z: number; facing: number }, seconds: number, dt = 1 / 30) => { for (let t = 0; t < seconds; t += dt) wc.update(dt, hero); };
 
@@ -56,13 +57,19 @@ test('Evaded: a creature that gave up and is home and healed is released at once
   assert.ok(!wc.debug().some((x) => x.id === 'wolf-1'), 'gone from the world after Evaded');
 });
 
-test('call-site pin: the page reaches combat only through zone1.ts stepCombat (so a lone creature always takes the copied duel/ai, a pack the legacy rows, as zone1.ts routes them)', () => {
+test('call-site pin: the loop (src/fight/world-combat.ts) reaches combat only through the engine world.ts stepCombat, and no page file under origins/preview imports world.ts itself', () => {
   const dir = new URL('.', import.meta.url), src = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
-  const users = src.filter((f) => /from '\.\.\/combat\//.test(readFileSync(new URL(f, dir), 'utf8')));
-  assert.deepEqual(users, ['world-combat.ts'], 'only world-combat.ts imports origins/combat');
-  const text = readFileSync(new URL('world-combat.ts', dir), 'utf8');
-  assert.deepEqual([...text.matchAll(/from '(\.\.\/combat\/[^']+)'/g)].map((m) => m[1]), ['../combat/zone1.ts'], 'and only zone1.ts');
+  assert.deepEqual(src.filter((f) => /src\/fight\/world\.ts'/.test(readFileSync(new URL(f, dir), 'utf8'))), [], 'the page goes through src/fight/index.ts');
+  const text = readFileSync(new URL('../../src/fight/world-combat.ts', import.meta.url), 'utf8');
+  assert.deepEqual([...text.matchAll(/from '(\.\/world\.ts)'/g)].map((m) => m[1]), ['./world.ts'], 'one door into the world loop');
   assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
+});
+
+test('a creature that is struck down falls, is released and killed once (the engine\'s actor plays its Death from the duel)', () => {
+  const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: number[] = []; let t = 0;   // level 1 and auto-aim, as the kill test above: a level-11 wolf outlasts the test under the Pit-copied engine
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(t); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let k = 0; k < 15; k++) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); t += 1 / 30; } }
+  assert.equal(kills.length, 1, 'then it is released and killed once');
 });
 
 test('a hitch catches up to 0.25 s of fight time instead of dropping everything past 100 ms, and what it still drops is counted', () => {
@@ -88,4 +95,46 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
   for (let frame = 0; frame < 80; frame++) { hits = 0; wc.update(0.25, { x: 0, z: 0, facing: 0 }); worst = Math.max(worst, hits); total += hits; }
   assert.ok(total >= 1, 'the wolf did land blows');
   assert.ok(worst <= 1, `at most one blow per 0.25 s catch-up frame, saw ${worst}`);
+});
+
+// Proof 3 on the page: joins need no page code of their own, they happen inside stepCombat (#1943) for every creature the loop holds. A pack of four around an idle hero: three attack him (each telegraphs its own blow), the fourth holds off.
+test('a pack of four around the hero: three join and telegraph their own blows, the fourth waits', () => {
+  const f = fakeMobs(['w1', 'w2', 'w3', 'w4'].map((id, i) => ({ spec: { ...spec(id, 'wolf'), level: 1 }, x: Math.sin(i * 1.6) * 4, z: Math.cos(i * 1.6) * 4 })));
+  const tells = new Set<string>(), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: (id) => void tells.add(id) });
+  run(wc, { x: 0, z: 0, facing: 0 }, 3);
+  assert.equal(wc.debug().filter((x) => x.hunting).length, 4, 'all four hunt him');
+  assert.deepEqual([...tells].sort(), ['w1', 'w2', 'w4'], 'three attack, each from its own duel: the fourth (w3, the farthest) waits its turn');
+});
+
+test('three joined: each joiner is driven with its own windup (one actor per creature)', () => {
+  const f = fakeMobs([['w1', 1.2], ['w2', 2.4], ['w3', 3.2]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+  const lunged = new Set<string>(), real = f.mobs.drive; f.mobs.drive = ((id: string, p: MobDrive | null) => { if (p?.duel?.fighters[1].phase === 'attack') lunged.add(id); real(id, p); }) as typeof real;
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  run(wc, { x: 0, z: 0, facing: 0 }, 4);
+  assert.ok(lunged.size >= 3, `each of the three had its own windup/lunge: ${[...lunged]}`);
+});
+
+test('the card names the primary pair\'s foe (the nearest of the pack), whatever the list order', () => {
+  const pack = [['w3', 3.2], ['w2', 2.4], ['w1', 1.2]], card = (list: typeof pack) => {
+    const f = fakeMobs(list.map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+    const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+    run(wc, { x: 0, z: 0, facing: 0 }, 1); return wc.target()?.name;
+  };
+  assert.equal(card(pack), 'w1'); assert.equal(card([...pack].reverse()), 'w1');
+});
+
+test('the card hands on: with a hero given the health to outlast two wolves one joiner falls first, and the card then names the next foe', () => {
+  const f = fakeMobs([['w1', 1.2], ['w2', 2.4]].map(([id, d]) => ({ spec: { ...spec(id as string, 'wolf'), level: 1 }, x: 0, z: d as number })));
+  const kills: string[] = [], names: string[] = [];
+  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, hero: () => ({ gear: NAKED, level: 1, health: 2000 }) });
+  for (let i = 0; i < 600 && kills.length < 2; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.hp > 0)[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); const n = wc.target()?.name; if (n && names.at(-1) !== n) names.push(n); } if (wc.hero().dead) break; }
+  console.log('DBG', JSON.stringify({ kills, names, dead: wc.hero().dead }));
+  assert.equal(kills[0], 'w1', 'the nearest fell first'); assert.deepEqual(names.slice(0, 2), ['w1', 'w2'], 'the card named w1, then w2 after it fell');
+});
+
+test('a frame that runs no step (dt 0: the clock\'s first frame, or a very short one) asks the page to move the hero nowhere: the loop\'s body only follows the page after its first step', () => {
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 90, z: 90 }]), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: () => {} });
+  const hero = { x: -70, z: -110, facing: 0 };
+  assert.deepEqual(wc.update(0, hero), { dx: 0, dz: 0 }, 'live Zone 2 teleported the hero to (0, 0) on this frame (3 loads in 8)');
+  assert.deepEqual(wc.update(1 / 60, hero), { dx: 0, dz: 0 }, 'and a normal frame after it still moves him nowhere');
 });

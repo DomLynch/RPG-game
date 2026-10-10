@@ -2,7 +2,7 @@
 
 - Spec author: analyst-expansion (clean-room spec, ruling 8), 2026-10-07. Implementers build from this file alone and must not open any donor tree.
 - Status: proposal for the Expansion lane to build in section order. Every number is a PARAMETER with a stated default and range; Combat and World tune the ones they own on a running build.
-- Our side read (it is ours): `origins/preview/mobs.ts` (on `origin/expansion/mob-fight`, not yet on trunk), `origins/preview/hunt.ts`, `origins/encounters/encounters.ts` (`fightSetup`, `resolveFight`, `rollLoot`, `intoBackpack`), `origins/progression/model.ts` (`falloffPermille`), `docs/specs/origins/region1-ash-frontier.md`, `eqemu-loot.md`, `gothic-routines.md`, `combat-study.md`, `src/moves.ts` (`AiProfile`).
+- Our side read (it is ours): `origins/preview/mobs.ts` (on `origin/expansion/mob-fight`, not yet on trunk), `origins/preview/hunt.ts`, `origins/encounters/encounters.ts` (`fightSetup`, `resolveFight`, `rollLoot`, `intoBackpack`), `origins/progression/model.ts` (`falloffPermille`), `docs/specs/origins/region1-ash-frontier.md`, `eqemu-loot.md`, `gothic-routines.md`, `combat-study.md`, `src/fight/moves.ts` (`AiProfile`).
 - Donors (read-only on the VPS at `/opt/frankendom-shadow/work/expansion-donors`, except world-of-claudecraft, now on Dom's Mac at `~/Developer/donors/world-of-claudecraft`): see the per-donor table. Skyrim was never read; the "alert beat" is our own design.
 - Units: metres, seconds, degrees. Fixed 60 Hz simulation time where a tick is named. Creature logic is presentation-and-world logic: it never touches `src/` (duel sim, `RECORD_VERSION`, RV, fingerprint). The duel itself is Combat's `startEncounterDuel`.
 
@@ -544,7 +544,7 @@ Tapping a creature starts Combat's duel; the creature's **kind** decides how it 
 
 The table below is only the **world approach and flavour** each style leans on; the duel behaviour is whatever `styleOpponent` points at.
 
-UO-style roles (ModernUO `Mobiles/AI/*`, GPL-behaviour-only, behaviour in our words) mapped onto what our duel can express today. The "move" and "knob" columns name **existing** `MoveId` values and `AiProfile` fields from `src/moves.ts` (ours); Combat decides the values.
+UO-style roles (ModernUO `Mobiles/AI/*`, GPL-behaviour-only, behaviour in our words) mapped onto what our duel can express today. The "move" and "knob" columns name **existing** `MoveId` values and `AiProfile` fields from `src/fight/moves.ts` (ours); Combat decides the values.
 
 | Kind | World approach (in-world, before and after the duel) | Opening | Leans on (existing `AiProfile` knobs) | Leans on (existing moves) | Flees at low health | Source |
 |---|---|---|---|---|---|---|

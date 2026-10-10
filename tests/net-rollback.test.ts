@@ -3,11 +3,11 @@
 // sessions must confirm the same fight: the same intent log on both sides, and fingerprints equal to a plain stepDuel over that log.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { decide, initialAi, type AiState } from '../src/ai.ts';
-import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/duel.ts';
-import { PROFILES } from '../src/moves.ts';
+import { decide, initialAi, type AiState } from '../src/fight/ai.ts';
+import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/fight/duel.ts';
+import { PROFILES } from '../src/fight/moves.ts';
 import { delayFor, hashDuel, NET, playable, pvpDuel, quantile, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
-import { quantizeIntent } from '../src/record.ts';
+import { quantizeIntent } from '../src/fight/record.ts';
 
 const FRAME_MS = 1000 / 60;
 const rng = (seed: number) => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };

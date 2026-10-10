@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { initialPractice, stepPractice } from '../../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/moves.ts';
-import { createRecorder, type FightRecord } from '../../src/record.ts';
+import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt, LEVELS } from '../../src/fight/moves.ts';
+import { createRecorder, type FightRecord } from '../../src/fight/record.ts';
 import { liveRecorder } from '../../tests/lib/live-recorder.ts';
-import { recordSpecials } from '../../src/replay.ts';
-import { noTwist, stepTwist, type TwistFlag } from '../../src/twist.ts';
+import { recordSpecials } from '../../src/fight/replay.ts';
+import { noTwist, stepTwist, type TwistFlag } from '../../src/fight/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
 import { kitBuild } from '../mobs/kit-version.ts';
-import { PICKS, type PickedStance } from '../../src/stance.ts';
+import { PICKS, type PickedStance } from '../../src/fight/stance.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
 const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32; };
@@ -116,7 +116,7 @@ test('kit mismatch: a record played on another mob kit is refused as a kit misma
   assert.equal(verifyEncounter({ ...bare, build: 'whatever' }, params(plain)).ok, true, 'a fight with no mob layer has no kit to disagree about');
 });
 
-// Stances ON for all (TOP10 row 7): a world fight played with a stance pick (RV34, src/record.ts) replays with that pick, as src/replay.ts does, and is paid like any other.
+// Stances ON for all (TOP10 row 7): a world fight played with a stance pick (RV34, src/fight/record.ts) replays with that pick, as src/fight/replay.ts does, and is paid like any other.
 // A stance record is a LIVE-era record (createRecorder refuses one in an older era), so it is recorded with tests/lib/live-recorder.ts, which sets this build's live
 // circle, late notice and stab globally: kept LAST in this file so no earlier test sees those globals.
 test('a stances record verifies with its pick (v34), win or loss, for every pick', () => {

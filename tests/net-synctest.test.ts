@@ -9,11 +9,11 @@
 // Any sim change that breaks re-sim determinism (state that survives a step, a clock, an unrestored field) fails here, not in a live duel.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { decide, initialAi, type AiState } from '../src/ai.ts';
-import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/duel.ts';
-import { PROFILES, PLAYER_WEAPONS } from '../src/moves.ts';
+import { decide, initialAi, type AiState } from '../src/fight/ai.ts';
+import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/fight/duel.ts';
+import { PROFILES, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
-import { quantizeIntent } from '../src/record.ts';
+import { quantizeIntent } from '../src/fight/record.ts';
 
 const kit = (fight: number) => {
   const w = PLAYER_WEAPONS;

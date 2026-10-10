@@ -3,11 +3,13 @@
 // different people at 375 wide. Pure data: no three.js, no DOM. The mob view reads it; Characters owns it (Expansion owns content.ts, which is not edited).
 //   tint     the colour the body's CLOTH is multiplied toward (0xRRGGBB, 0xffffff = untouched); metal keeps its grade
 //   scale    the body's height multiplier on top of the roster's own (1 = the roster body as it is)
-//   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/moves.ts); absent = the body's own
+//   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/fight/moves.ts); absent = the body's own
 //   dressing the Ash Frontier on him: soot = dark ash worked into the cloth and low on the body, 0..1; burnt = scorched, ragged cloth edges, 0..1
-import { BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE } from '../../src/beast-scale.ts';
-import type { WeaponId } from '../../src/moves.ts';
+import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
+
+/** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
+const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
 export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
 
@@ -22,16 +24,18 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   'character:court-thrall': { opponent: 'pitborn', tint: 0x8c2f2f, scale: 1, dressing: { soot: .35, burnt: .5 } },
   // Small, quick, iron bits: the Goblin in ash brown, its own knife.
   'character:cinder-scavenger': { opponent: 'goblin', tint: 0x6b5a48, scale: .9, dressing: { soot: .7, burnt: .3 } },
+  // The Zone 1 goblin camp (Lead 2026-10-09, for Dom's loot/inventory test): the engine goblin as he fights, level-1 armour and all, on the generated world body (public/world/goblin.glb, 8k tris, scripts/character/world_body.py from src/assets/goblin.glb): no tint, no soot, native height.
+  'character:pit-goblin': { opponent: 'goblin', tint: 0xffffff, scale: 1, dressing: { soot: 0, burnt: 0 } },
   // The mere's spawn: smaller still, reed green, no soot (it is wet, not burnt).
   'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
   // Starved servant of the ruin: tall for a goblin, grey and ragged.
   'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
   // The Ash Wolf (preview only, ?wolf): the wolf rig's own body, ash grey and sooted, at twice its size (Dom, 2026-10-07 23:08: "very small").
-  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: WOLF_RENDER_SCALE, dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (src/beast-scale.ts)
-  // The Cinder Bear: the bear rig's own body, soot-dark brown, at the duel's scale (src/beast-scale.ts BEAR_RENDER_SCALE: walking == fighting).
-  'character:cinder-bear': { opponent: 'bear', tint: 0x6f655a, scale: BEAR_RENDER_SCALE, dressing: { soot: .5, burnt: .1 } },
-  // The Ash Boar: the boar rig's own body, earth brown with ash, at the duel's scale (src/beast-scale.ts BOAR_RENDER_SCALE via sizeBeast): walking == fighting.
-  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, scale: BOAR_RENDER_SCALE, dressing: { soot: .35, burnt: 0 } },
+  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: bodyScale('wolf'), dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (its catalogue row's render.scale)
+  // The Cinder Bear: the bear rig's own body, soot-dark brown, at the duel's scale (its catalogue row's render.scale: walking == fighting).
+  'character:cinder-bear': { opponent: 'bear', tint: 0x6f655a, scale: bodyScale('bear'), dressing: { soot: .5, burnt: .1 } },
+  // The Ash Boar: the boar rig's own body, earth brown with ash, at the duel's scale (its catalogue row's render.scale): walking == fighting.
+  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, scale: bodyScale('boar'), dressing: { soot: .35, burnt: 0 } },
   // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
   'character:lambton-worm': { opponent: 'minotaur', tint: 0x5a4a3a, scale: 1.2, dressing: { soot: .8, burnt: .4 }, later: true },
   'character:rift-spawn': { opponent: 'goblin', tint: 0x7a5f8c, scale: 1, dressing: { soot: .2, burnt: .1 }, later: true },

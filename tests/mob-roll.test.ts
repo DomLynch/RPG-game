@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepDuel, withRoll, type Duel } from '../src/duel.ts';
+import { stepDuel, withRoll, type Duel } from '../src/fight/duel.ts';
 import { ROLL_BAND, percentOf, rollPercent, rolledDamage, rollUnit } from '../src/roll.ts';
 import { hashDuel } from '../src/net/rollback.ts';
 import { rollDamage, seededSource } from '../origins/luck/luck.ts';

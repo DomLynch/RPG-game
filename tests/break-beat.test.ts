@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { cuesFor } from '../src/audio/cues.ts';
-import type { CombatEvent } from '../src/combat.ts';
+import { cuesFor } from '../src/fight/sound/cues.ts';
+import type { CombatEvent } from '../src/fight/combat.ts';
 
 // Strategy's ruling 2026-10-07 (Dom delegated): the posture-break beat ships as ?look=breakbeat150 did, flag removed. Re-pinned from 120 ms and no thud.
 test('a PostureBroken holds the frame 150 ms (was 120)', () => {

@@ -1,4 +1,4 @@
-// Seamless Zone 1 combat gates (#1758 / TOP10 "Row 1 - seamless Zone 1 combat"), on the built origins preview with ?region=1&worldfight:
+// Seamless Zone 1 combat gates (#1758 / TOP10 "Row 1 - seamless Zone 1 combat"), on the built origins preview, ?region=1&zone=N (SEAMLESS_ZONE, default 1), through the engine's own combat loop (the plain engage: a tap on a creature, no Pit duel):
 //   no swap at engage: one canvas before and after the tap, the page's canvas stays shown, body.infight is set
 //   world live during the fight: the creatures other than the foe keep moving while the duel draws
 //   engage hitch budget (4x the walk's median on software GL, PROVISIONAL until the Mac Metal / real-device reading; a real GPU gets the 200 ms floor): the worst frame gap from the tap on is at most max(200 ms, 4x the walk's median gap) in the first 5 s after the tap: a first number to tighten (software GL runs ~3 fps, so the floor alone could never hold there)
@@ -29,11 +29,12 @@ const receipt = { origin, physicalPhone: false, errors: [] };
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
-  await page.goto(`${origin}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
+  const zone = process.env.SEAMLESS_ZONE || '1';   // the zone page to run (the pageZoneId ?zone=N fallback): Zone 2 is data, so the same gate must pass on it
+  await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}`, { waitUntil: 'load' });
   const want = process.env.SEAMLESS_TARGET || '';   // a creature id to engage (default: the first drawn one), e.g. bounty-shrine-1 or wolves-1
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
   const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.find((m) => (id ? m.id === id : m.drawn && m.body)), want);
-  assert.ok(target, `no creature ${want}`); receipt.target = { id: target.id, body: target.body };
+  assert.ok(target, `no creature ${want}`); receipt.zone = zone; receipt.target = { id: target.id, body: target.body };
   const moved = async (ms) => {
     const read = () => page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => ({ id: m.id, x: m.x, z: m.z })));
     const a = await read(); await page.waitForTimeout(ms); const c = await read();
@@ -42,7 +43,7 @@ try {
   await page.waitForTimeout(8000);   // let the walk settle before the control reading
   receipt.walkMoved = await moved(10000);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
-  await page.waitForTimeout(25000);   // the walk: the stage of the nearest creature is built meanwhile (pit-duel warmStage)
+  await page.waitForTimeout(25000);   // the walk: the creatures near him settle and the zone warms up meanwhile
   await page.evaluate(() => { window.__gaps = []; let last = performance.now(); const tick = (t) => { window.__gaps.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
   await page.waitForTimeout(6000);
   const walkGaps = (await page.evaluate(() => window.__gaps.slice())).slice(0, -1);
@@ -51,13 +52,17 @@ try {
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });   // a regression that breaks zone-ready must fail the row, never skip it
   const namesBefore = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsBeforeTap = namesBefore.length;
+  // The target roams while the walk and [zone ready] run (31 s+): put the hero 2.5 m from where it is NOW, so the tap is in reach (Zone 1 refuses a tap past 3.5 m).
+  { const at = await page.evaluate((id) => { const m = window.originsPreview.mobs().mobs.find((x) => x.id === id); return m && [m.x, m.z]; }, target.id); assert.ok(at, `${target.id} is gone before the tap`); await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), at); }
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
-  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
+  // The engage: the engine's own combat loop sets body.infight the frame it is in combat (main.ts, wc.inCombat()). Read the engage THEN, bounded at 15 s; a miss fails below on infight, with the receipt.
+  await page.waitForFunction(() => document.body.classList.contains('infight'), null, { timeout: 15000 }).catch(() => {});
+  const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
+  receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
   { const keys = await page.evaluate(() => window.originsPreview.renderInfo().programKeys); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, keys[n]])); }   // WHICH programs compile at the engage (each one is a stall)
-  receipt.fightMoved = await moved(10000);
-  const after = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight'), gaps: window.__gaps.slice() }));
+  const after = { ...engaged, gaps: await page.evaluate(() => window.__gaps.slice()) };
   const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0;
   let clock = 0; const engageGaps = after.gaps.slice(0, -1).filter((g) => (clock += g) <= 5000), worst = Math.max(...engageGaps, 0);   // the engage is the first 5 s after the tap; later long frames are the fight, not the engage
   receipt.noSwap = { canvasesBefore, canvasesAfter: after.canvases, canvasShown: after.shown, infight: after.infight };

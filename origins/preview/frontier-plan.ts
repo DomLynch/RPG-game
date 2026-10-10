@@ -13,7 +13,7 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
-import { loadZone } from '../zones/loader.ts';
+import { loadZone, zoneNames } from '../zones/loader.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
@@ -34,12 +34,8 @@ export type Frontier = {
   data: Region1;
 };
 
-// Display names for the zones: the region data names towns and a few landmarks, not zones (open: a zone `name` field).
-export const ZONE_NAMES: Record<string, string> = {
-  'pit-yard': 'The Pit', exchange: 'The Concord Exchange', 'exchange-quarter': 'The Exchange Quarter',
-  'east-road': 'The East Road', 'ferry-landing': 'The Grey Ferry', 'cinder-fields': 'The Cinder Fields', 'black-mere': 'The Black Mere',
-  'blood-ruin': 'The Blood Ruin', 'ash-reach': 'The Ash Reach', 'cinder-hold': 'Cinder Hold', 'mere-end': 'Mere End',
-};
+// Display names for the zones: the Exchange's own here; every Frontier zone's name lives in its zone package (origins/zones/zone<N>/zone.ts `names`), so a new zone adds none here.
+export const ZONE_NAMES: Record<string, string> = { 'pit-yard': 'The Pit', exchange: 'The Concord Exchange', 'exchange-quarter': 'The Exchange Quarter', ...zoneNames() };
 export const FRONTIER = 'region:ash-frontier' as RegionId;   // the branded id: compare against this, never the plain literal (TS2367)
 const EXCHANGE = CONCORD_REGION as RegionId;
 // The Bounty this slice offers, and who posts it: the warden of the town beside the Bounty's ground.

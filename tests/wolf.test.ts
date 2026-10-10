@@ -3,14 +3,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { decide, initialAi } from '../src/ai.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { WEAPON_CLIPS } from '../src/characters.ts';
-import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS, PROFILES, WEAPONS, opponentAt, type AiProfile, type Opponent } from '../src/moves.ts';
+import { WEAPON_CLIPS } from '../src/fight/characters.ts';
+import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS, PROFILES, WEAPONS, opponentAt, type AiProfile, type Opponent } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
-import { TARGET } from '../src/sim.ts';
-import { noTwist, stepTwist } from '../src/twist.ts';
+import { TARGET } from '../src/fight/sim.ts';
+import { noTwist, stepTwist } from '../src/fight/twist.ts';
 
 const wolf = OPPONENTS.wolf;
 

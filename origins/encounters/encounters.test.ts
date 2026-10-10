@@ -69,7 +69,7 @@ test('Peg Powler: caught inside the window is a kill; escaped forfeits that atte
   assert.deepEqual(caught, { cleared: true, forfeit: false, kill: true, retry: false, payout: { metal: 50, killRow: 'named', lootTable: null, bossLoot: false } });
   const escaped = value(resolve({ fight: 'encounter:bounty-peg-powler', twistOutcome: 'escaped', bountyWinsToday: 0 }));
   assert.deepEqual(escaped, { cleared: false, forfeit: true, kill: false, retry: true, payout: { metal: 0, killRow: null, lootTable: null, bossLoot: false } });
-  // a killing blow from above 30% is an ordinary kill (src/twist.ts: no flight), and a flight with a catch window never ends 'fled'
+  // a killing blow from above 30% is an ordinary kill (src/fight/twist.ts: no flight), and a flight with a catch window never ends 'fled'
   assert.equal(value(resolve({ fight: 'encounter:bounty-peg-powler', bountyWinsToday: 0 })).kill, true);
   refused(resolve({ fight: 'encounter:bounty-peg-powler', twistOutcome: 'fled', bountyWinsToday: 0 }), 'rule-violation', 'twistOutcome');
   refused(resolve({ fight: 'encounter:bounty-peg-powler', result: 'lost', twistOutcome: 'caught' }), 'rule-violation', 'result');
@@ -134,6 +134,20 @@ test('loot is deterministic: the same table and seed give the same drops; take-o
   assert.notEqual(fightSeed(key, PC, 0), fightSeed(key, PC, 1));
   // the level gate: gear entries need a level-11 foe
   for (let seed = 0; seed < 200; seed++) assert.deepEqual(value(rollLoot('loottable:court-thrall', seed, content, { foeLevel: 10 })).items, []);
+});
+
+test('the Pit goblin camp\'s table: only his six armour pieces (the Pit\'s own LootIds), each ~25 % on its own, a level-1 kill may drop gear, bronze 2-6, deterministic', () => {
+  const six = ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map((s) => `item:loot.goblin.${s}`), count = new Map<string, number>(), N = 2000;
+  for (let seed = 0; seed < N; seed++) {
+    const r = value(rollLoot('loottable:pit-goblin', seed, content, { foeLevel: 1 }));
+    assert.deepEqual(value(rollLoot('loottable:pit-goblin', seed, content, { foeLevel: 1 })), r, 'deterministic');
+    assert.ok(r.metal >= 2 && r.metal <= 6, `bronze ${r.metal}`);
+    for (const d of r.items) { assert.ok(six.includes(d.item), `${d.item} is one of his six`); assert.equal(d.quantity, 1); count.set(d.item, (count.get(d.item) ?? 0) + 1); }
+  }
+  for (const id of six) { const f = (count.get(id) ?? 0) / N; assert.ok(f > 0.2 && f < 0.3, `${id} dropped ${(f * 100).toFixed(1)} %`); }
+  const lookup = lookupOf(content);
+  for (const id of six) { const d = lookup(id as ItemId)!; assert.ok(d, `${id} is a registered item`); assert.equal(d.category, 'gear'); assert.equal(d.slot, id.split('.').pop()); }
+  assert.equal(lookup('item:loot.goblin.Helmet' as ItemId)!.name, "The Goblin's helmet");
 });
 
 test('no weapon drops in Region 1 (ruling 6): no table can award a weapon, over many seeds', () => {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_LEVEL, TITLES, awardMark, dialLevel, fightLevel, levelOf, marksOf, rankFor, shownMarks, turnDial, type Dial } from '../src/career.ts';
-import { LEVELS } from '../src/moves.ts';
+import { LEVELS } from '../src/fight/moves.ts';
 import type { Profile } from '../src/profile.ts';
 
 const at = (marks: number) => { const r = rankFor(marks); return `${[r.title, r.numeral].filter(Boolean).join(' ')} L${r.level}`; };

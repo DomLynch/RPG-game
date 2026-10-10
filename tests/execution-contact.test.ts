@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {readFileSync} from 'node:fs';
 import {AnimationClip,Box3,Group,SkinnedMesh,Vector3} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {buildWarriors} from '../src/characters.ts';
+import {buildWarriors} from '../src/fight/characters.ts';
 import {EXECUTION_BEATS,EXECUTION_SOURCE_PELVIS,EXECUTION_FLOOR_MARKS} from '../src/execution.ts';
 const clip=(file:string)=>()=>AnimationClip.parse(JSON.parse(readFileSync(new URL(`../src/assets/${file}.json`,import.meta.url),'utf8')));
 const killer=clip('execution-killer'),victimClip=clip('execution-victim-hero');

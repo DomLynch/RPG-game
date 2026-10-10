@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aim, distance, idleIntent, initialDuel, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS } from '../src/moves.ts';
-import { RADIUS } from '../src/sim.ts';
+import { aim, distance, idleIntent, initialDuel, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
+import { RADIUS } from '../src/fight/sim.ts';
 import { THREAT_MAX, addThreat, dropThreat, emptyThreat, joinThreat, nextBout, packFoe, packLeft, setThreatState, startPack, walkInBody } from '../src/pack.ts';
 
 test('threat: the first joiner is the victim; a repeat join and an 8th joiner change nothing', () => {

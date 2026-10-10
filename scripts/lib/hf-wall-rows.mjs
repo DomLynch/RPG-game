@@ -10,11 +10,12 @@ export const T4_MEDIUM_USD_PER_HOUR = 0.60;   // Hugging Face list price, 2026-0
 // ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30). A hold is a one-line edit here.
 export const HELD_ROWS = [];
 
-// The 1-based indices of the rows the job runs: timing-sensitive (wall clock) browser rows (rows-lib timingOf), never a WebKit row
-// (Linux WebKit is not Mac Safari) and never a held one. Virtual-clock and no-browser rows stay on the Mac with test:all and publish.
+// The 1-based indices of the rows the job runs: every browser row, because anything that draws goes to the T4 (Dom 2026-10-09; Lead 2026-10-10 after
+// R's CPU job 6ac9806a died on its 20 m timeout drawing at load 250+): wall-clock AND virtual-clock rows (rows-lib timingOf), never a WebKit row
+// (Linux WebKit is not Mac Safari) and never a held one. Rows that open no browser stay on the CPU shard / Mac. The name is kept: callers import it.
 export function selectWallRows(commands, readSource, held = HELD_ROWS) {
   return rowSet(commands, readSource)
-    .filter(row => row.timing === 'wall' && !isWebKitRow(row.command) && !held.some(name => row.name.startsWith(name)))
+    .filter(row => row.timing !== 'none' && !isWebKitRow(row.command) && !held.some(name => row.name.startsWith(name)))
     .map(row => row.index);
 }
 
@@ -45,6 +46,15 @@ export function parseJobLog(text) {
   for (const m of text.matchAll(/^=== RECEIPT (\{.*\}) ===$/gm)) { try { const r = JSON.parse(m[1]); if (Number.isInteger(r.index)) receipts.push(r); } catch { /* not a receipt */ } }
   const cost = /^=== COST seconds=(\d+)/m.exec(text), blocker = /^=== BLOCKER (.*?) ===$/m.exec(text);
   return { sha: head?.[1] ?? null, tree: head?.[2] ?? null, receipts, seconds: cost ? Number(cost[1]) : null, ...(blocker ? { blocker: blocker[1] } : {}) };
+}
+
+// The T4 leg as N parallel jobs (Dom 2026-10-09: "max out the GPU, it's cheap"): longest-first onto the least-loaded job, so the jobs finish together.
+// weight(row) = the row's expected seconds (row-placement.mjs ON_T4 measurements; others a flat guess). Never more jobs than rows; empty jobs are dropped.
+/** @param {number[]} rows @param {number} n @param {(row: number) => number} [weight] @returns {number[][]} */
+export function splitRows(rows, n, weight = () => 1) {
+  const jobs = Array.from({ length: Math.max(1, Math.min(n, rows.length)) }, () => ({ rows: [], load: 0 }));
+  for (const row of [...rows].sort((a, b) => weight(b) - weight(a) || a - b)) { const j = jobs.reduce((min, x) => (x.load < min.load ? x : min)); j.rows.push(row); j.load += weight(row); }
+  return jobs.filter(j => j.rows.length).map(j => j.rows.sort((a, b) => a - b));
 }
 
 export const costLine = (seconds, jobId, flavor = 't4-medium', rate = T4_MEDIUM_USD_PER_HOUR) =>

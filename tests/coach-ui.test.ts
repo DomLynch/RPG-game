@@ -3,9 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COACH_KEY, coachKilled, createCoachSession, loadCoachPref, type CoachEvent } from '../src/coach-ui.ts';
-import { initialPractice } from '../src/combat.ts';
-import { idleIntent } from '../src/duel.ts';
-import { OPPONENTS, opponentAt } from '../src/moves.ts';
+import { initialPractice } from '../src/fight/combat.ts';
+import { idleIntent } from '../src/fight/duel.ts';
+import { OPPONENTS, opponentAt } from '../src/fight/moves.ts';
 
 const store = (init: Record<string, string> = {}) => { const m = new Map(Object.entries(init)); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m }; };
 const duel = () => initialPractice(7, opponentAt(OPPONENTS.veteran, 6), 'longsword', null).duel;

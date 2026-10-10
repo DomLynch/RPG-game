@@ -4,15 +4,16 @@ import test from 'node:test';
 import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
-import { JOIN_M } from '../preview/world-combat.ts';
+import { JOIN_M } from '../../src/fight/index.ts';
+import { AGGRO_M } from '../../src/fight/world.ts';
 import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
 const clone = (z: Zone): Mut<Zone> => JSON.parse(JSON.stringify(z));
 
-test('Zone 1 loads: level 1, six rows of [1, 2], every opener a row, the kit and looks valid', () => {
+test('Zone 1 loads: level 1, seven rows of [1, 2], every opener a row, the kit and looks valid', () => {
   const z = loadZone();
-  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 6);
+  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 7);
   assert.deepEqual(zoneProblems(z), []);
   assert.equal(loadZone('1'), z, 'cached: the same package');
   assert.throws(() => loadZone('99'), /no zone 99/);
@@ -22,6 +23,8 @@ test('the validator names each way a package can be wrong', () => {
   const z = loadZone(), edit = (f: (c: Mut<Zone>) => void) => { const c = clone(z); f(c); return zoneProblems(c as unknown as Zone).join('|'); };
   assert.match(edit((c) => { c.spawns.rows[1]!.id = c.spawns.rows[0]!.id; }), /duplicate row/);
   assert.match(edit((c) => { c.spawns.rows[0]!.level = [2, 3]; }), /not the zone rule 1-2/);
+  assert.equal(edit((c) => { c.spawns.rows[0]!.level = [1, 1]; }), '', 'a row may be narrower than the zone band (the level-1 Pit goblin camp)');
+  assert.match(edit((c) => { c.spawns.rows[0]!.level = [1, 3]; }), /not the zone rule 1-2/);
   assert.match(edit((c) => { c.spawns.openers['x'] = 'character:nobody'; }), /not a row/);
   assert.match(edit((c) => { c.kit.kinds[0]!.nodes = ['no_such_node']; }), /not a kit node/);
   assert.match(edit((c) => { c.kit.landmarks.push(c.kit.nodes[0]!); }), /both a node and a landmark/);
@@ -85,11 +88,21 @@ test('Zone 1 world is pinned: the same pieces and solids as before Zone 2', () =
   assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [170, 'acc9e948fd235ae5', 57, '70bce4a238048f1c']);
 });
 
+// Zone 2 is byte-identical to what it was before its map entry moved into zone2/place.ts (hashes recorded from trunk 5719c9f36, equal on the place.ts branch): pieces, solids, creature homes, the plan's zones.
+test('Zone 2 world is pinned: the same pieces, solids, creature homes and plan zones as before place.ts', () => {
+  const plan = frontierPlan(false, '2'), b = frontierBuild(plan), specs = mobSpecs(plan, b, loadZone('2').spawns.rows);
+  const h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids), specs.length, h(specs.map((m) => ({ id: m.id, zone: m.zone, home: m.home, spawn: m.spawn, body: m.body }))), h([plan.zones])],
+    [8, 'd508458ff6597cb4', 2, 'a4b3343a082ce465', 8, '2a866f58fd2353d1', '3fc4d31cf1bf4c5e']);
+});
+
 // Proof 3 needs a camp where three can really join one player (#1943: up to 3). A creature's home is walkable by construction (mobSpecs places it with stand()), so standing at one is a real spot.
 test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a walkable spot, and the pack is four wolves', () => {
   const plan = frontierPlan(false, '2'), specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
   const crowd = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= JOIN_M).length));
   assert.ok(crowd >= 3, `most creatures within JOIN_M of one home: ${crowd}`);
+  const hunt = Math.max(...specs.map((a) => specs.filter((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= AGGRO_M).length));
+  assert.ok(hunt >= 4, `a hero at one home has all four wolves inside AGGRO_M (they hunt only inside it, so all can join): ${hunt}`);
   assert.equal(specs.filter((m) => m.spawn === 'reach-wolves').length, 4, 'the wolf pack is four');
   assert.ok(specs.filter((m) => m.spawn === 'reach-wolves').every((m) => m.id.startsWith('z2:')));
 });

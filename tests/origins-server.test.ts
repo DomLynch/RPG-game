@@ -8,7 +8,7 @@ import { Refused } from '../origins/server/errors.ts';
 import { BadRequest, handlers, openAccount, type Ctx, type Handler } from '../origins/server/handlers.ts';
 import { pitBatch } from '../origins/server/career.ts';
 import type { CareerRow, PitClaim, Snapshot } from '../origins/server/store.ts';
-import { creditFromMarks, legendKey, levelOfCredit } from '../origins/progression/model.ts';
+import { legendKey, levelOfCredit } from '../origins/progression/model.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const row = (over: Partial<CareerRow> = {}): CareerRow => ({ seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3, ...over });
@@ -30,6 +30,7 @@ function script(replies: { open: () => Snapshot[]; pending?: PitClaim[]; snapsho
         else if (fn === 'origins_pit_pending') answers.push(JSON.stringify((replies.pending ?? []).slice(0, Number(vars.n ?? Infinity))));
         else if (fn === 'origins_commit') answers.push(JSON.stringify(replies.commit ? replies.commit(JSON.parse(vars.b)) : []));
         else if (fn === 'origins_create_character') answers.push('pc:abc');
+        else if (fn === 'origins_metal_of') { if (!answers.length) answers.push('absent'); }   // open's bronze read: metals (0004) not installed; its probe and select both name the function, one answer
         else if (fn === 'origins_set_active') continue;   // create_character's second statement: psql prints only the created id (\gset pair)
         else throw Error(`unscripted ${fn}`);
       }
@@ -114,25 +115,23 @@ test('create_character name rules', async () => {
   for (const name of ['A', 'x'.repeat(32), 'Æthelflæd', '名前']) assert.deepEqual(await handlers.create_character(ctx, { name }), { id: 'pc:abc' }, name);
 });
 
-test('pitBatch: a first win is an event plus a career_set at the row\'s version; a repeat is a cp 0 event only', () => {
-  const level = levelOfCredit(5000);
+test('pitBatch: a Pit win pays Pit ranks only: one cp 0 event (the claim is settled once), no career_set, so zone credit is byte-unchanged', () => {
+  const level = levelOfCredit(5000), before = JSON.stringify(row());
   const won = pitBatch(A, row(), claim(7));
-  assert.equal(won.reason, 'ok');
-  assert.equal(won.batch.length, 2);
-  assert.deepEqual(won.batch[0], { op: 'event', event_id: 'pit:7', kind: 'pit', account: A, payload: { cp: won.cp, legend: legendKey('knight', level), reason: 'ok' } });
-  assert.ok(won.cp > 0);
-  assert.equal(won.batch[1].op, 'career_set');
-  assert.equal(won.batch[1].expected_version, 3);
-  assert.deepEqual(won.batch[1].beaten, [legendKey('knight', level)]);
+  assert.equal(won.cp, 0);
+  assert.deepEqual(won.batch, [{ op: 'event', event_id: 'pit:7', kind: 'pit', account: A, payload: { cp: 0, legend: legendKey('knight', level), reason: 'pit-ranks-only' } }]);
+  assert.ok(!won.batch.some(o => o.op === 'career_set'), 'no career column is written');
+  assert.equal(JSON.stringify(row()), before);
+  // a repeat of the same opponent is the same: one cp 0 event
   const again = pitBatch(A, row({ beaten: [legendKey('knight', level)] }), claim(8));
-  assert.deepEqual([again.reason, again.cp, again.batch.map(o => o.op)], ['already-beaten', 0, ['event']]);
+  assert.deepEqual([again.cp, again.batch.map(o => o.op)], [0, ['event']]);
 });
 
-test('openAccount: the first open snapshots once from the marks, a moved-marks refusal re-reads, a lost race is swallowed', async () => {
+test('openAccount: the first open snapshots once (the marks recorded, credit 0: Pit marks do not seed zone level), a moved-marks refusal re-reads, a lost race is swallowed', async () => {
   const first = script({ open: () => [snap(null, 4), snap(row())] });
   await openAccount({ db: first.db, account: A });
   const snaps = first.calls.filter(c => c.fn === 'origins_snapshot');
-  assert.deepEqual(snaps.map(c => [c.vars.m, c.vars.c]), [['4', String(creditFromMarks(4))]]);
+  assert.deepEqual(snaps.map(c => [c.vars.m, c.vars.c]), [['4', '0']]);
   const settled = script({ open: () => [snap(row())] });
   await openAccount({ db: settled.db, account: A });
   assert.equal(settled.calls.filter(c => c.fn === 'origins_snapshot').length, 0, 'a snapshotted account is never snapshotted again');

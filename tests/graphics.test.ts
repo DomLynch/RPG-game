@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
-import * as feedback from '../src/feedback.ts';
+import * as feedback from '../src/fight/sound/feedback.ts';
 import * as hitImpact from '../src/hit-impact.ts';
 import * as pvpHold from '../src/pvp-hold.ts';
 import * as armfeelModule from '../src/armfeel.ts';
@@ -12,9 +12,9 @@ import * as chunkRecoverModule from '../src/chunk-recover.ts';
 import * as kickCloseModule from '../src/kick-close.ts';
 import * as victoryHeadlineModule from '../src/victory-headline.ts';
 import * as fatiguePreviewModule from '../src/fatigue-preview.ts';
-import * as sim from '../src/sim.ts';
-import * as combat from '../src/combat.ts';
-import * as moves from '../src/moves.ts';
+import * as sim from '../src/fight/sim.ts';
+import * as combat from '../src/fight/combat.ts';
+import * as moves from '../src/fight/moves.ts';
 const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
 import * as ladder from '../src/ladder.ts';
@@ -24,7 +24,7 @@ import * as hamstrungAssets from '../src/hamstrung-assets.ts';
 import * as execution from '../src/execution.ts';   // Execution's pure resolution, read beside Hamstrung's for the audio's finisher
 import * as hamstrung from '../src/hamstrung.ts';   // the pure Hamstrung resolution main.ts reads for the audio's finisher
 import * as trial from '../src/trial.ts';
-import * as record from '../src/record.ts';
+import * as record from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 import * as loot from '../src/loot.ts';
 import * as grades from '../src/grades.ts';
@@ -32,17 +32,17 @@ import * as lootPanel from '../src/loot-panel.ts';
 import * as quality from '../src/quality.ts';   // ?dpr= parsing (urlDpr): pure, the real module
 import * as perfBeacon from '../src/perf-beacon.ts';   // the per-fight beacon (#1035): pure payload + send, the real module
 import * as rankLook from '../src/rank-look.ts';   // the rematch's rank-look reload decision (#961): pure, the real module   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
-import * as replay from '../src/replay.ts';
+import * as replay from '../src/fight/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as clip from '../src/clip.ts';
 import * as detmath from '../src/detmath.ts';
-import * as ai from '../src/ai.ts';
+import * as ai from '../src/fight/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/special-look.ts';
 import * as sparringSpecials from '../src/sparring-specials.ts';
 import * as sparringSpecialRuntime from '../src/sparring-special-runtime.ts';
-import * as specialAudio from '../src/audio/special.ts';
+import * as specialAudio from '../src/fight/sound/special.ts';
 import * as specialIdentity from '../src/special-identity.ts';
 import * as classSpecialIdentity from '../src/class-special-identity.ts';
 // The build's API is stubbed per test: the harness has no network and no env.
@@ -57,9 +57,9 @@ import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as lessons from '../src/lessons.ts';
-import * as breathAudio from '../src/audio/breath.ts';
+import * as breathAudio from '../src/fight/sound/breath.ts';
 import * as powerWords from '../src/power-words.ts';
-import * as powerWordSynth from '../src/audio/power-word.ts';
+import * as powerWordSynth from '../src/fight/sound/power-word.ts';
 import * as touchRouter from '../src/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
 import * as zoomGuard from '../src/zoom-guard.ts';   // the page-zoom lock main.ts calls at boot (#1749): the real module, it only adds document listeners
@@ -67,6 +67,9 @@ import * as tutorialUi from '../src/tutorial-ui.ts';
 import * as match from '../src/match.ts';
 import * as stancePanel from '../src/stance-panel.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
+import * as gearLedger from '../src/gear-ledger.ts';
+import * as gearServer from '../src/gear-server.ts';
+import * as fightOpen from '../src/fight/open.ts';
 import * as coachUi from '../src/coach-ui.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
@@ -75,7 +78,8 @@ import * as legends from '../src/legends.ts';
 // Every `./x.ts` main.ts requires that no test registered in `modules` (boot below): a stub of `{}`, so an import that main.ts reads at
 // boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
 const unstubbed = new Set<string>();
-const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const transpile = (file: string) => ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const code = transpile('../src/main.ts'), gearSheetCode = transpile('../src/gear-sheet.ts');   // main.ts imports the gear sheet's wiring: it runs in the same fake page as main, so its document is the fake one
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
@@ -113,8 +117,11 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './stance-panel.ts': stancePanel, './coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './fight/sound/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './fight/sound/feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './fight/sim.ts': sim, './fight/combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './fight/record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './fight/replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './fight/ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './stance-panel.ts': stancePanel, './coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './fight/moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./execution.ts'] = execution; modules['./hamstrung.ts'] = hamstrung; modules['./hamstrung-assets.ts'] = hamstrungAssets;
+  modules['./fight/open.ts'] = fightOpen;   // the page's one writer `open` (no session in the harness: it asks nothing)
+  modules['./gear-server.ts'] = gearServer;   // a signed-in character's gear is the server's ledger (no session in the harness: it stays local)
+  modules['./gear-ledger.ts'] = gearLedger;   // the gear sheet's pure ledger half (gear-sheet.ts imports it)
   modules['./zone1-hop.ts'] = zone1Hop;   // Play -> Zone 1 (off until World's default is live: the harness stays on the arena)
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./chunk-recover.ts'] = chunkRecoverModule;   // the stale-chunk bar (its install is guarded: the harness window has no real listeners)
@@ -123,8 +130,8 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
-  modules['./audio/power-word.ts'] = powerWordSynth;
-  modules['./audio/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
+  modules['./fight/sound/power-word.ts'] = powerWordSynth;
+  modules['./fight/sound/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./tutorial-ui.ts'] = tutorialUi;
   modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
@@ -142,6 +149,9 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   };
   Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
+  const gearSheetExports: Record<string, unknown> = {};
+  runInNewContext(gearSheetCode, { require: context.require, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
+  modules['./gear-sheet.ts'] = gearSheetExports;
   runInNewContext(code, context);   // main.ts's globalThis is this object:
   element('welcome').hidden = true;
   return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
@@ -1030,7 +1040,7 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A headless record is stamped with an older era (play-radius.ts: no circle, no late notice, no stab), and every pre-29 version is refused (REACH[29]): stamp this one as a live fight is.
-  const pr = await import('../src/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
+  const pr = await import('../src/fight/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
   const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('goblin', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);
   const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
