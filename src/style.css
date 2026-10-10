@@ -2153,7 +2153,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 @media (max-width: 900px), (pointer: coarse) { .cue { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 226px + 56px); font-size: 20px; } }
 @media (prefers-reduced-motion: reduce) { .cue { transition: none; } }
 
-/* The kill screen's Take-one panel (src/loot-panel.ts). Docked in the top band under the autopsy (never over the fallen body), NOT in
+/* The kill screen's Take-one panel (src/fight/loot-panel.ts). Docked in the top band under the autopsy (never over the fallen body), NOT in
    the :root.endgame-fade group, so the arena-cam tour does not fade it: it stays until a take, Leave, Rematch or Next.
    E2 (Dom's pick, 2026-09-26, via Strategy): a bone card, semi-transparent so the arena reads through, with the default offer drawn big
    (the rung it was won at, its name, its render) over THE ROW THAT IS THE PICK: every piece and his move, one big tile each, five to a

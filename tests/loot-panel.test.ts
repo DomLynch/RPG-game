@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAP_GUARD_MS, createLootPanel, tileLabel } from '../src/loot-panel.ts';
+import { TAP_GUARD_MS, createLootPanel, tileLabel } from '../src/fight/loot-panel.ts';
 import { LOOT, lootName } from '../src/fight/loot.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 

@@ -53,7 +53,7 @@ test('the paperdoll renders each slot once', () => {
   assert.equal([...html.matchAll(/class="slot(?: on)?" id="slot-/g)].length, Object.keys(PAPERDOLL).length, 'one row per paperdoll key, no extras');
 });
 
-// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and
+// The kill screen's Take-one panel (src/fight/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and
 // the old drop line + Wear/Store row gone (one loot UI).
 test('the Take-one panel is in the HUD under the rank line and the old drop line is gone', () => {
   const html = read('index.html'), css = read('src/style.css');
