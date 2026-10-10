@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { idleIntent } from '../src/fight/duel.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { FIRST_GROUP_VERSION, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord, type RecordMeta } from '../src/fight/record.ts';
 
 // RV39 (Strategy's number, Combat 2026-10-08): a stream of a shared-health group names its group in the header.

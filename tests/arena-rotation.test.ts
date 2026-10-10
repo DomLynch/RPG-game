@@ -8,7 +8,7 @@ import { loadProfile } from '../src/profile.ts';
 import { ARENAS, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { LADDER } from '../src/ladder.ts';
 
 // A record minted by trunk's v25 codec (ad8f517f), before the arena byte existed: goblin, level 18, seed 731, 12 ticks.

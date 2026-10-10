@@ -123,7 +123,7 @@ test('the warden reasons with its own weapon\'s reach: carrying a longer weapon 
 // ── The trident (weapons lane, 2026-09-16): its rig, clips, contact segment and the fight it gives.
 import { AnimationMixer, Quaternion, Vector3, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { swingProgress } from '../src/blade.ts';
+import { swingProgress } from '../src/fight/blade.ts';
 import { TRIDENT, TRIDENT_PATHS, total } from '../src/fight/moves.ts';
 
 const TRIDENT_GLB = 'src/assets/veteran.glb';   // the shipped Veteran carries the trident (built with WARRIOR_WEAPON=trident, the veteran default)
