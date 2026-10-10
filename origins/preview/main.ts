@@ -585,7 +585,7 @@ async function creatureFell(spec: MobSpec) {
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
-const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY });
+const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const wc = createWorldCombat({
   onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
@@ -602,7 +602,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
-  mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
+  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
