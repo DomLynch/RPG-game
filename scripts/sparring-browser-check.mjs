@@ -38,17 +38,21 @@ async function simWait(page, fn, arg, { timeout = 30000, ...rest } = {}) {
     catch (e) { if (!/Timeout/.test(String(e))) throw e; const now = await tick(); if (now === null || now === seen || Date.now() >= ceiling) throw e; seen = now; arm(); }
   }
 }
-// A tap that lands while the hero is staggered or still drawing is dropped by the game. Fast boxes tap before the foe's first hit (tick ~270); slow ones tap after it
-// and the idle hero then dies (row 44, 2026-10-10). So tap only when ready, and tap again until a cast actually starts.
+// A tap that lands while the hero is staggered is dropped by the game. Fast boxes tap before the foe's first hit (tick ~270); slow ones tap after it and the idle
+// hero dies (row 44, 2026-10-10). So retry ONLY when a foe hit landed on the hero after the ready check; a tap dropped while the hero stayed ready is a real bug and throws.
 async function castTap(page) {
-  const before = await page.evaluate(() => globalThis.__special().events.filter(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'SpecialStarted')).length);
-  for (let tries = 0; tries < 6; tries++) {
-    await simWait(page, () => ['ready', 'guard'].includes(globalThis.__special().fighters[0].phase), null, { timeout: 15000 });
+  const casts = () => globalThis.__special().events.filter(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'SpecialStarted')).length;
+  const before = await page.evaluate(casts);
+  for (let tries = 1; ; tries++) {
+    const ready = await simWait(page, () => ['ready', 'guard'].includes(globalThis.__special().fighters[0].phase) ? globalThis.__special().tick : false, null, { timeout: 15000 });
+    const readyTick = await ready.jsonValue();
     await page.locator('#skill-button').tap();
+    receipt.castTries = tries;
     try { await simWait(page, (n) => globalThis.__special().events.filter(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'SpecialStarted')).length > n, before, { timeout: 2000 }); return; }
     catch (e) { if (!/Timeout/.test(String(e))) throw e; }
+    const hit = await page.evaluate((t) => globalThis.__special().events.some(e => e.type === 'Hit' && e.target === 0 && e.tick >= t), readyTick);
+    if (!hit || tries >= 6) throw new Error(`skill tap dropped after step "${lastStep}" (try ${tries}, ${hit ? 'foe hits kept landing' : 'no foe hit since ready: hero was ready and the tap did not cast'})`);
   }
-  throw new Error('skill tap never started a cast after 6 taps');
 }
 async function check() {
   if (source) {
