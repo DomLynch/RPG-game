@@ -137,3 +137,24 @@ test('K7 EXIT: nothing is pinned, every parity row reaches the engine through sr
   assert.deepEqual(KNOWN, [], `${KNOWN.length} direct engine imports left`);
   assert.deepEqual(KNOWN_COPIES, [], `${KNOWN_COPIES.length} zone-own copies left`);
 });
+
+test('the node-safe door src/fight/server.ts is for server-run code only, and its whole closure is renderer-free', () => {
+  const door = (f: string) => violations((p) => (p === f ? "import { x } from '../../src/fight/server.ts';\n" : ''), [f]);
+  assert.deepEqual(door('origins/server/a.ts').bad, [], 'server code may take the node door');
+  assert.deepEqual(door('origins/preview/a.ts').unclassified, ['origins/preview/a.ts -> server'], 'a page may not');
+  const closure = (start: string, read: (f: string) => string): { files: string[]; bare: string[] } => {
+    const seen = new Set<string>(), bare = new Set<string>();
+    const walk = (f: string): void => {
+      if (seen.has(f)) return; seen.add(f);
+      for (const m of read(f).matchAll(IMPORT)) { const spec = m[1]!; if (!spec.startsWith('.')) { bare.add(spec); continue; } walk(join(f, '..', spec)); }
+    };
+    walk(start); return { files: [...seen], bare: [...bare] };
+  };
+  const RENDERER = /\/(hud|world-combat|world|open|scene|quality|audio|sound)[/.]/;
+  const bad = (c: { files: string[]; bare: string[] }) => [...c.bare.filter((s) => !s.startsWith('node:')), ...c.files.filter((f) => RENDERER.test(f))];
+  assert.deepEqual(bad(closure('src/fight/server.ts', (f) => readFileSync(f, 'utf8'))), [], 'the node door pulls no package (three.js), HUD, world loop or audio');
+  const mutant = (add: string) => bad(closure('src/fight/server.ts', (f) => readFileSync(f, 'utf8') + (f === 'src/fight/server.ts' ? `\n${add}\n` : '')));
+  assert.notDeepEqual(mutant("export * from './hud.ts';"), [], 'the check fails when the door re-exports the HUD');
+  assert.notDeepEqual(mutant("export * from './world.ts';"), [], 'the check fails when the door re-exports the world loop');
+  assert.notDeepEqual(mutant("import * as T from 'three';"), [], 'the check fails when the door pulls three');
+});
