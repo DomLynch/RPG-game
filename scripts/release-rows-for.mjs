@@ -9,11 +9,19 @@ import { readFileSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, matchesGlob } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import { existsSync } from 'node:fs';
+import { SERVER_ENTRIES, writerClosure } from './writer-closure.mjs';
 import process from 'node:process';
 import console from 'node:console';
 
+// The files the box's node services load at runtime, read from the checkout this runs in (the release sha at deploy). A changed file in it
+// can break the writer's boot, so it triggers the boot-check row; unreadable means unknown, which counts as in.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const serverFiles = () => { try { const set = new Set(); for (const e of SERVER_ENTRIES) writerClosure(f => readFileSync(join(ROOT, f), 'utf8'), f => existsSync(join(ROOT, f)), e).files.forEach(f => set.add(f)); return set; } catch { return null; } };
+const BOOT_ROW = 'origins-writer-boot-check';
+
 const gate = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8'));
-export const rowName = command => (command.find(a => a.endsWith('.mjs')) || command[0]).replace(/^(scripts|artifacts)\//, '').replace(/\.mjs$/, '').replace(/[^\w.-]+/g, '_').slice(0, 40);
+export const rowName = command => (command.find(a => a.endsWith('.mjs') || a.endsWith('.sh')) || command[0]).replace(/^(scripts|artifacts)\//, '').replace(/\.(mjs|sh)$/, '').replace(/[^\w.-]+/g, '_').slice(0, 40);
 export const rows = gate.release_commands.map((command, i) => ({ index: i + 1, name: rowName(command), argv: JSON.stringify(command) }));
 
 export function rowsFor(files) {
@@ -27,6 +35,8 @@ export function rowsFor(files) {
       for (const r of mode === 'first' ? hits.slice(0, 1) : hits) wanted.add(r.index);
     }
   }
+  const server = serverFiles();
+  if (files.some(file => server?.has(file))) rows.filter(r => r.name === BOOT_ROW).forEach(r => wanted.add(r.index));
   return rows.filter(r => wanted.has(r.index));
 }
 
@@ -56,6 +66,7 @@ const AREAS = [
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
   { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
   { paths: ['src/first-frame.ts', 'src/fight/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
+  { paths: ['scripts/origins-writer.mjs', 'scripts/origins-writer-boot-check.sh', 'origins/**', 'src/fight/index.ts'], rows: ['origins-writer-boot-check'] },   // the writer boots on a box with no `three` (AA crash-looped on src/fight/index.ts, 2026-10-10); the rest of its src files come from the closure walk below
 ];
 // The build: a change here can break any row, so it runs all of them (Auditor B1 on #1381). deploy.sh and the two release
 // scripts are not here: they build no part of the game and their unit tests cover them. The gate's own row list is handled
@@ -91,6 +102,8 @@ export function deployRowsFor(files, previousCommands) {
     for (const area of AREAS) if (area.paths.some(glob => matchesGlob(file, glob))) area.rows.forEach(add);
     rows.filter(r => `scripts/${r.name}.mjs` === file).forEach(r => wanted.add(r.index));
   }
+  const server = serverFiles();
+  if (files.some(file => !isDoc(file) && (!server || server.has(file)))) add(BOOT_ROW);
   return rows.filter(r => wanted.has(r.index));
 }
 // Seconds since the last release run that ran every row (artifacts/last-full-release.json, written by release-checks.mjs;
