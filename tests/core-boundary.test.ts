@@ -62,7 +62,7 @@ test('C1: modes reach the core only through src/core/index.ts, server code only 
 test('C1 mutation: a deep core import from the Pit, the zone page or a server module is flagged; the door is not', () => {
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/profile.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/preview/save.ts', "import { call } from '../../src/core/writer-call.ts';"), FILES).length, 1);
-  assert.equal(c1(withFile('origins/mobs/mobs.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
+  assert.equal(c1(withFile('origins/mobs/info.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
   assert.equal(c1(withFile('src/main.ts', "import { x } from './core/server.ts';"), FILES).length, 1, 'a page may not take the server door');
