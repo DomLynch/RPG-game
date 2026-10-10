@@ -55,7 +55,7 @@ export function livePs(hf = 'hf') {
 
 // Returns { ok: true, slot, queuedS, value } (value = what launch() returned) or { ok: false, used, limit, queuedS }.
 // An hf that cannot list jobs (null) fails OPEN: a cap is a courtesy to the pool, never a reason to lose a job.
-export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now, idOf = null, cancel = null }) {
+export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now, idOf = /** @type {any} */ (null), cancel = /** @type {any} */ (null) }) {
   const t0 = now();
   for (;;) {
     if (!lock(Math.max(5_000, maxWaitS * 1000))) return { ok: false, used: -1, limit: -1, queuedS: (now() - t0) / 1000 };
