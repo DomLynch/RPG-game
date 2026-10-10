@@ -6,8 +6,8 @@ import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
 import { CAST_MARGIN, LAND_AT, type Cast } from '../src/fight/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
-import { BACK_PACE, charge, chargeGait, CUE_AT, CUE_LEAD, DISSOLVE, GATHER, isCharge, RACE, RACE_FROM, RIDE, RUN_PACE, SETTLE, slideAt, STUCK_AT } from '../src/charge-timing.ts';
-import { createChargeFx } from '../src/charge-fx.ts';
+import { BACK_PACE, charge, chargeGait, CUE_AT, CUE_LEAD, DISSOLVE, GATHER, isCharge, RACE, RACE_FROM, RIDE, RUN_PACE, SETTLE, slideAt, STUCK_AT } from '../src/fight/charge-timing.ts';
+import { createChargeFx } from '../src/fight/charge-fx.ts';
 
 // The Centurion's Charge (charge-timing.ts, charge-fx.ts): a line of dust races the last RACE ticks of the windup, reaches the target on the landing
 // tick, then settles. Presentation only: it follows Combat's special events and ships in its own lazy chunk.
@@ -111,7 +111,7 @@ test('the Charge is ONE registry entry (special-modes.ts) and a ?special= row; t
   assert.ok(mode && mode.at === 'feet', 'a ground effect: it reads the feet');
   const player = new THREE.Object3D(), opponent = new THREE.Object3D();
   assert.deepEqual(mode.extra!({ player: { boneWorld: () => null, anchor: player }, opponent: { boneWorld: () => null, anchor: opponent } }), [[player, opponent]], 'the anchors reach render as its seventh argument');
-  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
   assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /charge-fx|centurion/, 'scene.ts has no per-special branch');
 });
 

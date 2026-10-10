@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { RULES } from './fight/moves.ts';
-import type { Fighter } from './fight/duel.ts';
+import { RULES } from './moves.ts';
+import type { Fighter } from './duel.ts';
 
 // Ground telegraph for a rank 8-10 boss special (brief #1507 item 2; a ?telegraph=1 look-test, renderer only). While the boss winds up, a ring fills on the floor
 // under the hero: where the blow will land, so a roll is the answer without any text. Read off the sim's own windup ticks (specialStage's source), never written back.

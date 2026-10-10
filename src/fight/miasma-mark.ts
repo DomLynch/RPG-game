@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
 
 // LOOK TEST behind `?look=marks` (Lead's ruling 2026-10-07, Strategy brief #1507 item 7): v1 is MIASMA ONLY. A landed Plague Doctor skill_miasma blow leaves a small poison
 // icon over the victim's head and a soft green wash on his body for MARK.seconds. Presentation only, driven by the Hit event alone (the skill-impact.ts pattern): the sim has no
