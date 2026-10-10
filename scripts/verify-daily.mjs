@@ -10,7 +10,7 @@
 // `node scripts/verify-daily.mjs --dry` replays without writing; `--recheck` includes rows already refused.
 import { spawnSync } from 'node:child_process';
 import { verifyRecord } from '../src/fight/replay.ts';
-import { DAILY_LEVEL } from '../src/match.ts';
+import { DAILY_LEVEL } from '../src/fight/match.ts';
 import { decodeRecord } from '../src/fight/record.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest

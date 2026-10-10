@@ -437,7 +437,7 @@
         "scripts/difficulty-persist-check.mjs",
         "scripts/sparring-browser-check.mjs",
         "src/sparring.ts",
-        "src/match.ts",
+        "src/fight/match.ts",
         "src/fight/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
@@ -463,7 +463,7 @@
     {
       "paths": [
         "scripts/equip-fallback-check.mjs",
-        "src/match.ts",
+        "src/fight/match.ts",
         "src/main.ts",
         "src/scene.ts",
         "src/fight/characters.ts"

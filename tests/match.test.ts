@@ -1,9 +1,9 @@
-// The match session (src/match.ts): every mode driven through the production start / step / end code, no browser. The reward rule
+// The match session (src/fight/match.ts): every mode driven through the production start / step / end code, no browser. The reward rule
 // the journey test could not reach while it lived in main.ts (Lead, 2026-09-22): only a career fight touches the trial line, the
 // scorecard and the career mark; practice and replay write nothing; a late loader cannot overwrite a newer match.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match, equipNotice, nextSeed } from '../src/match.ts';
+import { Match, equipNotice, nextSeed } from '../src/fight/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/fight/loot.ts';
 import { initialPractice } from '../src/fight/combat.ts';
