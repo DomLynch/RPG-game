@@ -707,3 +707,8 @@ the server, never from the client, and nothing competitive may hang off it (Stra
   guard reads as broken. The daily/loot block now opens with `set time zone 'UTC';`. Reproduced independently: the pre-fix check run
   under `TZ=Asia/Dubai` failed with "Authenticated cannot fetch today's daily seed"; the fixed check (lead/loot-data `d5b0a89`) passes
   under the same `TZ`.
+
+## PAUSE 2026-10-10 evening (Dom via Strategy: all lanes pause until Sunday morning)
+- Live writer a2125a8f (release AU), rollback 7f1e89ba; AV 99e3f10bc needs no reinstall. Release watch stopped; re-arm on resume. Releases AE..AU are not itemised here yet.
+- Core slice 1b: (1) #1984 gear_import head 9e85a2325, writer-check 192/192, HELD (Lead GO + Auditor re-review, migration 202610100018 unapplied). (2) one kill path: draft #2163, head 138a27412. (3) one bank/currency and (4) core-boundary row C5: not started.
+- Owed: status to the new Lead (AV no reinstall); flag the dormant encounter_start/settle client for Dom. Do not touch /opt/frankendom-origins by hand, work-k7, work-backend, work-proof3, bn-trunk. Never run origins_beta_wipe().
