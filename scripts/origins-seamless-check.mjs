@@ -83,7 +83,7 @@ try {
   // Frame gaps mean nothing on software GL (SwiftShader runs ~3 fps and a loaded runner adds 600-3000 ms): the 200 ms bar is measured on Mac Metal with scripts/origins-engage-warmup.mjs (#1927). Here, on software GL, the row asserts what does not depend on speed: the engage compiles no program once [zone ready] has fired.
   receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; });
   receipt.zoneReady = await page.evaluate(() => window.__zoneReady ?? null);
-  receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer);
+  receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer) && !process.env.SEAMLESS_PROGRAMS;   // SEAMLESS_PROGRAMS=1: assert the program rule on any renderer (a real GPU compiles fast, so the hitch bar alone would hide a late link)
   if (receipt.hitch.enforced) assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
   else assert.deepEqual(receipt.newPrograms, [], 'engage compiled programs after [zone ready]');
   assert.deepEqual(receipt.errors, []);
