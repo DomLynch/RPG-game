@@ -163,7 +163,7 @@ test('MAX_ATTACKERS is never exceeded: N creatures on one hero put at most MAX_A
 });
 
 test('no second attacker cap constant exists outside src/fight/attackers.ts (a numeric constant named *ATTACKER* or *TOKEN*)', () => {
-  const CAP = /\b(?:const|let|var)\s+([A-Za-z_]*(?:ATTACKER|TOKEN)S?[A-Za-z_]*)\s*(?::[^=\n]+)?=\s*-?\d/g;
+  const CAP = /\b(?:const|let|var)\s+([A-Za-z_]*(?:ATTACKER|TOKEN)S?[A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*-?\d/g;
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(join(dir, e.name))) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.ts$/.test(e.name) ? [join(dir, e.name)] : []);
   const hits = (read: (f: string) => string) => ['src', 'origins'].flatMap(walk).flatMap((f) => [...read(f).matchAll(CAP)].map((m) => `${f}: ${m[1]}`)).filter((h) => !h.startsWith('src/fight/attackers.ts'));
   assert.deepEqual(hits((f) => readFileSync(f, 'utf8')), [], 'one attacker cap: src/fight/attackers.ts MAX_ATTACKERS');
