@@ -56,7 +56,7 @@ test('a zone name with quotes is written as a valid string', async () => {
 });
 
 // --- one data row writes the whole folder (track B, Lead 2026-10-10): the row of today's Zone 2 regenerates Zone 2 ---
-const rowOf = (id: string) => { const z = loadZone(id); return { name: z.name, names: z.names, world: z.world, level: z.level, spawns: z.spawns, kit: z.kit, looks: z.looks, ...(z.mobLooks ? { mobLooks: z.mobLooks } : {}), ...(z.place ? { place: z.place } : {}) }; };
+const rowOf = (id: string) => { const z = loadZone(id); return { name: z.name, names: z.names, world: z.world, spawns: z.spawns, kit: z.kit, looks: z.looks, ...(z.mobLooks ? { mobLooks: z.mobLooks } : {}), ...(z.place ? { place: z.place } : {}) }; };
 const modules = ['zone', 'spawns', 'kit', 'look', 'mob-looks', 'place'];
 
 test('the data row of Zone 2 regenerates a folder that loads to exactly Zone 2 (values, not bytes: JSON has no 0x hex and no comments)', async () => {
@@ -82,11 +82,11 @@ test('a row whose creatures are not at the zone\'s level band is refused (the zo
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
-test('a bad row is refused BEFORE anything is written: wrong creature level, unknown key, id mismatch, missing name, unknown biome', () => {
+test('a bad row is refused BEFORE anything is written: a level key, unknown key, id mismatch, missing name, unknown biome', () => {
   const scratch = mkdtempSync(`${tmpdir()}/newzone-rowbad-`);
   try {
     const d = `${scratch}/`, ok = rowOf('2');
-    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /invalid/, 'zone level 5 but its creatures are level 2-3');
+    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /unknown key "level"/, 'the zone number IS its level: a row cannot set another');
     assert.throws(() => newZone({ n: 2, row: { ...ok, hp: 9 }, dir: d }), /unknown key "hp"/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, id: '3' }, dir: d }), /id 3 is not zone 2/);
     assert.throws(() => newZone({ n: 2, row: { ...ok, name: '' }, dir: d }), /name is empty/);

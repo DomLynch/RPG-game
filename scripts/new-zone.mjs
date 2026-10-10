@@ -13,9 +13,9 @@ const ZONES_DIR = fileURLToPath(new URL('../origins/zones/', import.meta.url));
 const lit = (v) => JSON.stringify(v, null, 2);
 function rowFiles(n, row) {
   const own = (k) => (row[k] === undefined ? [] : [k]);
-  for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'level', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place'].includes(k)) throw new Error(`row: unknown key "${k}"`);
+  for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place'].includes(k)) throw new Error(`row: unknown key "${k}"`);
   if (row.id !== undefined && String(row.id) !== String(n)) throw new Error(`row: id ${row.id} is not zone ${n}`);
-  const head = { id: String(n), level: row.level ?? n, name: row.name, names: row.names ?? {}, world: row.world ?? [], ...(row.biome && row.biome !== DEFAULT_BIOME ? { biome: row.biome } : {}) };
+  const head = { id: String(n), level: n, name: row.name, names: row.names ?? {}, world: row.world ?? [], ...(row.biome && row.biome !== DEFAULT_BIOME ? { biome: row.biome } : {}) };
   const files = {
     'zone.ts': `// Zone ${n} (${row.name}): the zone's own facts, from its data row (scripts/new-zone.mjs --from). \`level\` is the zone number = its base level (Dom 2026-10-08).\nconst zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = ${lit(head)};\nexport default zone;\n`,
     'spawns.ts': `// Zone ${n}'s creatures as data, from its row. A row's level must be ${n}-${n + 1}; every opener must name a row (loadZone checks both).\nimport type { MobRow } from '../../mobs/row.ts';\n\nconst spawns: { openers: Record<string, string>; rows: MobRow[] } = ${lit(row.spawns ?? { openers: {}, rows: [] })};\nexport default spawns;\n`,
@@ -30,7 +30,7 @@ function rowFiles(n, row) {
   return files;
 }
 
-export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ZONES_DIR, row = undefined }) {
+export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ZONES_DIR, row = /** @type {Record<string, any> | undefined} */ (undefined) }) {
   if (!Number.isInteger(n) || n < 1) throw new Error(`zone number must be a positive integer, got ${n}`);
   if (row) biome = row.biome ?? DEFAULT_BIOME;
   if (!Object.hasOwn(BIOMES, biome)) throw new Error(`unknown biome ${biome} (known: ${Object.keys(BIOMES).join(', ')})`);
