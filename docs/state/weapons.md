@@ -656,7 +656,7 @@ Shelf status for the lead's (b): all six equip files ship complete as wieldable 
 every one has a hero bake pinned by `tests/blade-rig.test.ts`. No family is missing; what gates each weapon is the runtime equip + fairness.
 
 ## Flat blade table dropped — `bladePathsByRig` is the only export (weapons lane, 2026-09-22)
-The seam PR landed (`src/fight/blade.ts` reads `bladePathsByRig[rig][weapon]`, `tests/blade-rig.test.ts` pins every pair), so
+The seam PR landed (`src/blade.ts` reads `bladePathsByRig[rig][weapon]`, `tests/blade-rig.test.ts` pins every pair), so
 `bake-blades.mjs` no longer writes the transitional flat `bladePaths[weapon]` (the first manifest entry per weapon) — `src/blade-paths.ts`
 496 KB → 270 KB, `bladePathsByRig` byte-identical. The last readers were tests: repointed to the rig each one means (hero for
 longsword/trident/cleaver/scythe, goblin.knife, nightborn.estoc, minotaur.maul, wraith.reaper); the manifest test now checks every bake
