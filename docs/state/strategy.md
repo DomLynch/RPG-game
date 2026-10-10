@@ -4,6 +4,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-10 06:5x (+04, `date`) — WEEDS RULING (Dom): queue cut to the two tracks
+24 open at 06:5x. SHIP (A/B): #2016 #2021 #2026 #2041 #2042 #2053 #2054 #2055 (+#1984 held to K7, #2043 if green by Sat night). MERGE TODAY docs: #1802 #1834 #2031 #2000. PARK (close, branch kept, reopen Mon): #1692 #1751 #1760 #1832 #1840 #1897 #1898 #1996 #2040. PIPELINE dated Sat 22:00 or park: #2050 (Backend) #2052 (Auditor). Targets ≤12 open Sat 22:00, ≤10 Sun 22:00; drafts >48 h and red-CI untouched 24 h close; nothing new outside A/B/one pipeline item without Lead. Lead executes and sends counts; COO counts every sweep, escalates Lead → Strategy, lines to me 12:00 and 22:00. VPS: first lane "Frankendom - Characters (VPS)" up (memory vps-lane-launch-recipe), first job Zone 2 before-stills; Characters moves fully at the Sun-morning catalogue PR.
+
 ## 2026-10-10 06:4x (+04, `date`) — RULING: two tracks in parallel; Zone 2 from data by Sun 10-11 night
 Live 968f996f (R) at 06:27; C2 exit grep 0 (core move complete). Dom's goal restated: engine centralised, Zone 1 + 2 on it, Pit a client, Zone 2 pure data so ~700 zones generate. Ruling to Lead (agreed 06:3x): (A) Combat moves effects/sound/specials/HUD/gear into src/fight (#2021 rebase, #2053 P3a); (B) World, now: #2042 + #2054 schema wiring → #2016 K7 one-door gate → Zone 2 from one data row, zero combat code; new-zone.mjs #2047 already live (folder only). Characters owns the catalogue creature-row migration, pulled AHEAD of #1897/#1898 because B needs it. Pipeline work one owner at a time: Deploy (overnight fixes, deploy.sh split), Auditor (#2052 held), Backend (#2050 T4 receipts only), Hooks Dev (VPS lanes; /root locked o-rx by Strategy after lanes could read secrets, memory vps-root-locked-2026-10-10). Donor library + cleanup rows parked until B lands. Waiting: World's dated plan for B (Lead forwards within the hour).
 
