@@ -10,7 +10,8 @@ const zone: { id: string; level: number; name: string; names: Record<string, str
     "ash-reach"
   ],
   "camera": {
-    "presets": {"a":{"back":3.6,"up":2.1,"side":0.8,"ahead":4,"lookY":1.5},"b":{"back":6.4,"up":3.5,"side":0,"ahead":2,"lookY":1.1}}
+    "presets": {"a":{"back":3.6,"up":2.1,"side":0.8,"ahead":4,"lookY":1.5},"b":{"back":6.4,"up":3.5,"side":0,"ahead":2,"lookY":1.1}},
+    "preset": "b"
   }
 };
 export default zone;
