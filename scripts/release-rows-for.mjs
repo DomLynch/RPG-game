@@ -36,7 +36,7 @@ export function rowsFor(files) {
     }
   }
   const server = serverFiles();
-  if (files.some(file => server?.has(file))) rows.filter(r => r.name === BOOT_ROW).forEach(r => wanted.add(r.index));
+  if (files.some(file => !isDoc(file) && (!server || server.has(file)))) rows.filter(r => r.name === BOOT_ROW).forEach(r => wanted.add(r.index));
   return rows.filter(r => wanted.has(r.index));
 }
 
