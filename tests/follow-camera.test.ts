@@ -30,3 +30,10 @@ test('the camera eases to the eye and snap() restarts at it; the stick pitch low
   f.snap(); f.update(0.5, { ...S, x: 13 }); assert.ok(Math.abs(c.position.x - (13 - 5.2)) < 1e-9, 'snap puts it on the eye');
   const p = cam(); createFollowCamera(p).update(1 / 60, { ...S, pitch: 1 }); assert.ok(Math.abs(p.position.y - (3.1 - 0.9)) < 1e-9);
 });
+
+test('Zone 1 carries the passage Zone 1 had in code (PASSAGE.to - 1.5, 3.4 / 2.1); Zone 2 carries none', async () => {
+  const { loadZone } = await import('../origins/zones/loader.ts'), { PASSAGE } = await import('../origins/preview/exchange.ts');
+  const one = loadZone('1'), two = loadZone('2'), p = one.fields!['camera.passage'] as { zMax: number; zMin: number; halfWidth: number; back: number; up: number };
+  assert.ok(one.set?.includes('camera.passage') && Math.abs(p.zMin - (PASSAGE.to - 1.5)) < 1e-9 && p.zMax === -9 && p.halfWidth === 20 && p.back === 3.4 && p.up === 2.1);
+  assert.ok(!two.set?.includes('camera.passage'), 'Zone 2 sets none');
+});

@@ -153,3 +153,11 @@ test('K7 camera row: nothing under origins/ places the camera (camera.position /
   assert.ok(CAMERA_PLACED.test('camera.position.set(0, 2, 5)'), 'and a set');
   assert.ok(!CAMERA_PLACED.test('followCam.update(dt, state)'), 'and passes the engine call');
 });
+
+// Camera limits come only from the zone row: the page passes `loadZone().fields['camera.passage']` and holds no camera number itself (Zone 2 sets none).
+test('K7 camera limits row: createFollowCamera in origins/preview/main.ts is called with zone data, not literals', () => {
+  const call = (src: string) => /createFollowCamera\(camera,\s*\{[^;]*\}\)/.exec(src)?.[0] ?? '';
+  const main = readFileSync('origins/preview/main.ts', 'utf8');
+  assert.ok(call(main), 'the page builds the follow camera'); assert.ok(!/\d/.test(call(main).replace(/camera\.passage/g, '')), `no number in the call: ${call(main)}`);
+  assert.ok(/createFollowCamera\(camera,\s*\{[^;]*\d/.test('createFollowCamera(camera, { passage: { back: 3.4 } });'), 'a literal in the call is seen (mutation)');
+});
