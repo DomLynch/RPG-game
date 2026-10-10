@@ -1,7 +1,7 @@
 // The HF half of the work waterfall: caps counted from `hf jobs ps`, one CPU slot reserved for the deploy lane, the T4 for graphics only, a tier line on every launch.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';

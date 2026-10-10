@@ -24,7 +24,7 @@ export function slotDecision(flavor, jobs, generic) {
   return { ok: used < limit, used, limit, slot: used + 1 };
 }
 
-const sleepMs = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const sleepMs = ms => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 const LOCK = process.env.HF_SLOT_LOCK || join(tmpdir(), 'frankendom-hf-slots.lock');
 // mkdir is atomic; a lock older than 120 s belongs to a dead launcher and is broken.
 function lock(maxMs) {
