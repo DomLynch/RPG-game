@@ -41,10 +41,10 @@
 // The Plague Doctor's costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
-import type { Practice } from './fight/combat.ts';
-import { offFlag } from './off-flag.ts';
-import type { Phase } from './fight/duel.ts';
-import type { FinisherId } from './fight/finishers.ts';
+import type { Practice } from './combat.ts';
+import { offFlag } from '../off-flag.ts';
+import type { Phase } from './duel.ts';
+import type { FinisherId } from './finishers.ts';
 
 const FLAG = /^\/looks\/[A-Za-z0-9_@.-]+\.glb$/;
 export function rankLookFlag(search: string): string | undefined {

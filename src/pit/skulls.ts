@@ -1,7 +1,7 @@
 // What the Pit's walls hang (docs/briefs/pit-walls/BRIEF.md sections 1 and 2): pure data, no three, no DOM. KILLS: one per win, computer or real
 // player, newest first, at most 30 (the skull wall's 6 x 5 niches). RECORD: the totals carved on the board. Both come from Backend's read-only
 // RPCs (pit_recent_kills, pit_record) for a signed-in fighter; a guest, an offline fighter or a missing migration falls back to loot.
-import type { Loot } from '../loot.ts';
+import type { Loot } from '../fight/loot.ts';
 
 export type Kill = { kind: 'ai' | 'duel'; key: string; name: string; level: number; gear: Record<string, string>; at: string | null; opponent?: string; rank?: number | null };
 export type Kills = Kill[];

@@ -8,7 +8,7 @@
 //
 // Every file ships pinned by sha256 in tests/weapon-shapes.test.ts. The dev flag `?shapes=maul-crafted,estoc-cane-ornate` names band files
 // present under /weapons/shapes/ (a local drop), over the table.
-import type { WeaponId } from './fight/moves.ts';
+import type { WeaponId } from './moves.ts';
 
 export type Band = 'plain' | 'crafted' | 'ornate';
 export const BANDS: readonly Band[] = ['plain', 'crafted', 'ornate'];

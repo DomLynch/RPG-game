@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, RETIRED_LOOT, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, RETIRED_LOOT, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/fight/loot.ts';
 import { WEAPON_CLIPS } from '../src/fight/characters.ts';
 import { PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
@@ -50,7 +50,7 @@ test('loot: a shared draw is exported once and every opponent that wears it reso
 
 test('loot: the armour piece list is exactly the draws of loot.glb, every piece names its opponent and a known slot, and every slot maps to one paperdoll key', { skip: !existsSync('src/assets/loot.glb') && 'src/assets/loot.glb is not on this checkout' }, () => {
   const draws = lootDraws();
-  assert.deepEqual([...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), [...new Set(draws.map(d => d.id))].sort(), 'src/loot.ts LOOT must list exactly the file\'s armour pieces (weapons are equip files, not draws)');
+  assert.deepEqual([...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), [...new Set(draws.map(d => d.id))].sort(), 'src/fight/loot.ts LOOT must list exactly the file\'s armour pieces (weapons are equip files, not draws)');
   for (const draw of draws) { assert.equal(draw.id, `${draw.opponent}.${draw.slot}`, `${draw.id}: name and userData agree`); assert.ok(['replace', 'over'].includes(draw.layer), `${draw.id}: layer`); assert.ok(paperdollOf(slotOf(draw.id as never)), `${draw.id}: a paperdoll slot`); }
   for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'crest', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
   assert.equal(PACK.open, 2); assert.equal(PACK.total, 5);   // the pack under WORN replaced the brief-5 lockers (2026-09-24)

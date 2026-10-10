@@ -7,13 +7,13 @@
 // A claim with no piece (the take declined) is still a mark.
 import { DIAL_TRAIL, FIRST_FIFTY_VERSION, OLD_MAX_LEVEL, levelOf as rankLevel } from './career.ts';
 import { TIERS, levelOf, tierAt, type Tier } from './grades.ts';
-import { LOOT, WORN_FROM, isLootId, type LootId, type WornFrom } from './loot.ts';
+import { LOOT, WORN_FROM, isLootId, type LootId, type WornFrom } from './fight/loot.ts';
 import type { OpponentId } from './roster.ts';
 
 export type Claim = { opponent: string; piece: string | null };
 export type Standing = { marks: number; owned: readonly string[] };
 export type Award = { piece: string; tier: number };
-// The kit floor is src/loot.ts WORN_FROM (empty in beta: every piece worn from Recruit). `wornFrom` is only for tests to inject a floor.
+// The kit floor is src/fight/loot.ts WORN_FROM (empty in beta: every piece worn from Recruit). `wornFrom` is only for tests to inject a floor.
 
 export const kitAt = (opponent: string, tier: Tier, wornFrom: WornFrom = WORN_FROM): readonly LootId[] =>
   (LOOT[opponent as OpponentId] ?? []).filter(id => levelOf(wornFrom[id] ?? TIERS[0]) <= levelOf(tier));

@@ -76,7 +76,7 @@ client update and delete (202610010001), and the `awards-database-check` emulate
 
 - `src/match.ts`: a signed-in **career ladder** fight awaits `start_fight(opponent, level)` and uses the returned seed instead of
   731/`nextSeed`. Prefetch the next start while the end-of-fight screen is up, so a rematch has no visible wait.
-- `src/loot-claims.ts` (the outbox, #1209): the claim body carries `fight_start`, and the outbox entry keeps it across reloads.
+- `src/fight/loot-claims.ts` (the outbox, #1209): the claim body carries `fight_start`, and the outbox entry keeps it across reloads.
 - **Fallbacks (RULED, Strategy 2026-10-01):** a guest, offline, or failed `start_fight` keeps today's local seed (731, then `nextSeed`),
   and the fight is **practice**: it plays normally but never becomes a claim. The end-of-fight screen says, in one line, **"Practice: sign
   in to count"**. Sparring and replay are unchanged.

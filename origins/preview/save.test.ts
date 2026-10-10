@@ -1,7 +1,7 @@
 // The preview's read of the saved career (save.ts): the mapping onto the progression model, and every way the writer can fail -> offline.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/loot-claims.ts';
+import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/fight/loot-claims.ts';
 import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
 import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, openedAccount, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';

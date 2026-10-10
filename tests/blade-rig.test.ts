@@ -2,7 +2,7 @@
 // moves need, and the lookup never serves another rig's sweep. A pair missing here is a fight that would throw in play (src/fight/blade.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { bladeFrames, bladePose } from '../src/fight/blade.ts';
 import { createFighter, opponentFighter } from '../src/fight/duel.ts';
 import { OPPONENTS, PLAYER_WEAPONS, WEAPONS, type WeaponId } from '../src/fight/moves.ts';

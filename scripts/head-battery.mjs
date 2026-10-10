@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises';
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { bladeImpact } from '../src/fight/blade.ts';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { createFighter, opponentFighter, stepDuel } from '../src/fight/duel.ts';
 import { OPPONENTS, PATHS, PROFILES, WEAPONS } from '../src/fight/moves.ts';
 import { TARGET } from '../src/fight/sim.ts';

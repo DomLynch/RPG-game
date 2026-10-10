@@ -26,12 +26,12 @@ import * as hamstrung from '../src/fight/hamstrung.ts';   // the pure Hamstrung 
 import * as trial from '../src/trial.ts';
 import * as record from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
-import * as loot from '../src/loot.ts';
+import * as loot from '../src/fight/loot.ts';
 import * as grades from '../src/grades.ts';
-import * as lootPanel from '../src/loot-panel.ts';
+import * as lootPanel from '../src/fight/loot-panel.ts';
 import * as quality from '../src/fight/quality.ts';   // ?dpr= parsing (urlDpr): pure, the real module
 import * as perfBeacon from '../src/perf-beacon.ts';   // the per-fight beacon (#1035): pure payload + send, the real module
-import * as rankLook from '../src/rank-look.ts';   // the rematch's rank-look reload decision (#961): pure, the real module   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
+import * as rankLook from '../src/fight/rank-look.ts';   // the rematch's rank-look reload decision (#961): pure, the real module   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
 import * as replay from '../src/fight/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as clip from '../src/clip.ts';
@@ -51,7 +51,7 @@ const clipModule: Record<string, unknown> = { ...clip };
 let shareNavigator: unknown;   // main.ts reads `navigator` for the share sheet; undefined (no share sheet) unless a test sets one
 const shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
-import * as lootClaims from '../src/loot-claims.ts';
+import * as lootClaims from '../src/fight/loot-claims.ts';
 import * as fightResults from '../src/fight-results.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
@@ -67,8 +67,8 @@ import * as tutorialUi from '../src/fight/tutorial-ui.ts';
 import * as match from '../src/match.ts';
 import * as stancePanel from '../src/fight/stance-panel.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
-import * as gearLedger from '../src/gear-ledger.ts';
-import * as gearServer from '../src/gear-server.ts';
+import * as gearLedger from '../src/fight/gear-ledger.ts';
+import * as gearServer from '../src/fight/gear-server.ts';
 import * as fightOpen from '../src/fight/open.ts';
 import * as coachUi from '../src/fight/coach-ui.ts';
 import * as input from '../src/input.ts';
@@ -79,7 +79,7 @@ import * as legends from '../src/legends.ts';
 // boot is `undefined` there. The last test in this file pins the list; a new import fails it with the name to add (three PRs broke on this on 2026-10-06).
 const unstubbed = new Set<string>();
 const transpile = (file: string) => ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-const code = transpile('../src/main.ts'), gearSheetCode = transpile('../src/gear-sheet.ts');   // main.ts imports the gear sheet's wiring: it runs in the same fake page as main, so its document is the fake one
+const code = transpile('../src/main.ts'), gearSheetCode = transpile('../src/fight/gear-sheet.ts');   // main.ts imports the gear sheet's wiring: it runs in the same fake page as main, so its document is the fake one
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
@@ -117,11 +117,11 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './fight/quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './fight/detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './fight/special-look.ts': specialLook, './fight/sound/special.ts': specialAudio, './fight/special-identity.ts': specialIdentity, './fight/class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './fight/sound/feedback.ts': feedbackModule, './fight/hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './fight/sim.ts': sim, './fight/combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './fight/record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './fight/replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './fight/ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './fight/hud.ts': hud, './match.ts': matchModule, './fight/stance-panel.ts': stancePanel, './fight/coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './fight/moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './fight/quality.ts': quality, './perf-beacon.ts': perfBeacon, './fight/rank-look.ts': rankLook, './clip.ts': clipModule, './fight/detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './fight/special-look.ts': specialLook, './fight/sound/special.ts': specialAudio, './fight/special-identity.ts': specialIdentity, './fight/class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './fight/sound/feedback.ts': feedbackModule, './fight/hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './fight/sim.ts': sim, './fight/combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './fight/record.ts': record, './fight/loot.ts': loot, './grades.ts': grades, './fight/loot-panel.ts': lootPanel, './fight/replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './fight/loot-claims.ts': lootClaims, './fight/ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './fight/hud.ts': hud, './match.ts': matchModule, './fight/stance-panel.ts': stancePanel, './fight/coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './fight/moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './fight/gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./fight/execution.ts'] = execution; modules['./fight/hamstrung.ts'] = hamstrung; modules['./fight/hamstrung-assets.ts'] = hamstrungAssets;
   modules['./fight/open.ts'] = fightOpen;   // the page's one writer `open` (no session in the harness: it asks nothing)
-  modules['./gear-server.ts'] = gearServer;   // a signed-in character's gear is the server's ledger (no session in the harness: it stays local)
-  modules['./gear-ledger.ts'] = gearLedger;   // the gear sheet's pure ledger half (gear-sheet.ts imports it)
+  modules['./fight/gear-server.ts'] = gearServer;   // a signed-in character's gear is the server's ledger (no session in the harness: it stays local)
+  modules['./fight/gear-ledger.ts'] = gearLedger;   // the gear sheet's pure ledger half (gear-sheet.ts imports it)
   modules['./zone1-hop.ts'] = zone1Hop;   // Play -> Zone 1 (off until World's default is live: the harness stays on the arena)
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./chunk-recover.ts'] = chunkRecoverModule;   // the stale-chunk bar (its install is guarded: the harness window has no real listeners)
@@ -150,8 +150,9 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   };
   Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
   const gearSheetExports: Record<string, unknown> = {};
-  runInNewContext(gearSheetCode, { require: context.require, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
-  modules['./gear-sheet.ts'] = gearSheetExports;
+  const gearRequire = (id: string) => context.require(id.startsWith('../') ? './' + id.slice(3) : id.startsWith('./') ? './fight/' + id.slice(2) : id);   // gear-sheet.ts now lives in src/fight: its specifiers are rewritten into the harness's src-relative keys
+  runInNewContext(gearSheetCode, { require: gearRequire, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
+  modules['./fight/gear-sheet.ts'] = gearSheetExports;
   runInNewContext(code, context);   // main.ts's globalThis is this object:
   element('welcome').hidden = true;
   return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,

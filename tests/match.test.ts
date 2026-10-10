@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match, equipNotice, nextSeed } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
-import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot.ts';
+import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/fight/loot.ts';
 import { initialPractice } from '../src/fight/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/fight/record.ts';
 import { LADDER } from '../src/ladder.ts';
