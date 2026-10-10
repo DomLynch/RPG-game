@@ -1,8 +1,8 @@
-// The engine's gear screen in Zone 1: the SAME sheet the Pit mounts (src/gear-sheet.ts), over Zone 1's cut of the Pit's ☰ menu (index.html carries the whole #journal dialog and
+// The engine's gear screen in Zone 1: the SAME sheet the Pit mounts (src/fight/gear-sheet.ts), over Zone 1's cut of the Pit's ☰ menu (index.html carries the whole #journal dialog and
 // its Profile pane; only the page's hide rule keeps the pane away until `gearing`), with the hero dressed in-zone (gear-stage.ts) and the server's ledger behind it (gear-server.ts).
 // A guest keeps the device's own profile ledger, exactly as the Pit does.
 import type * as THREE from 'three';
-import { createGearSheet } from '../../src/gear-sheet.ts';
+import { createGearSheet } from '../../src/fight/gear-sheet.ts';
 import { loadProfile, saveProfile } from '../../src/profile.ts';
 import { createServerGear } from '../../src/fight/gear-server.ts';
 import { createZone1GearStage } from './gear-stage.ts';

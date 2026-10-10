@@ -120,7 +120,7 @@ const save = async (file, data) => { const buf = Buffer.from(data.webp, 'base64'
 await mkdir(join(OUT, 'loot'), { recursive: true });
 let base;
 for (const [id, png] of shots) { const data = await save(id ? join(OUT, 'loot', `${id}.webp`) : join(OUT, 'fighter.webp'), await crop(png)); if (!id) base = data; }
-// Thumbnails for the kill screen's Take-one panel (src/loot-panel.ts): the piece alone, cropped to its own bounds, squared. 192 px: the
+// Thumbnails for the kill screen's Take-one panel (src/fight/loot-panel.ts): the piece alone, cropped to its own bounds, squared. 192 px: the
 // E2 take screen (2026-09-26) draws a tile at 54 px and the card's offer at 104 px, on 2x phones.
 // A PAIR (arms, gloves, greaves, boots: one piece worn on both sides) is cropped side by side: each side to its own bounds, the two set
 // close together, so the tile shows the pair large instead of two specks a body-width apart (Dom counted them as extra tiles).
