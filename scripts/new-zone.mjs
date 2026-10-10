@@ -18,7 +18,7 @@ const lit = (v, d = 0) => {
   const e = Object.entries(v);
   return e.length ? `{\n${e.map(([k, x]) => `${pad}${JSON.stringify(k)}: ${lit(x, d + 1)}`).join(',\n')}\n${end}}` : '{}';
 };
-const hdr = (row, key, dflt) => `${(row.notes?.[key] ?? dflt).split('\n').map((l) => `// ${l}`.trimEnd()).join('\n')}\n`;   // row.notes[file] carries a file's header comment (a row is JSON: it cannot hold comments itself)
+const hdr = (row, key, dflt) => `${(row.notes?.[key] ?? dflt).split(/\r\n|[\n\r\u2028\u2029]/).map((l) => `// ${l}`.trimEnd()).join('\n')}\n`;   // row.notes[file] carries a file's header comment (a row is JSON: it cannot hold comments itself)
 function rowFiles(n, row) {
   const own = (k) => (row[k] === undefined ? [] : [k]);
   for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place', 'notes'].includes(k)) throw new Error(`row: unknown key "${k}"`);
