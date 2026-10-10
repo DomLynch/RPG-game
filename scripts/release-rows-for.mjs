@@ -13,7 +13,7 @@ import process from 'node:process';
 import console from 'node:console';
 
 const gate = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8'));
-export const rowName = command => (command.find(a => a.endsWith('.mjs')) || command[0]).replace(/^(scripts|artifacts)\//, '').replace(/\.mjs$/, '').replace(/[^\w.-]+/g, '_').slice(0, 40);
+export const rowName = command => (command.find(a => a.endsWith('.mjs') || a.endsWith('.sh')) || command[0]).replace(/^(scripts|artifacts)\//, '').replace(/\.(mjs|sh)$/, '').replace(/[^\w.-]+/g, '_').slice(0, 40);
 export const rows = gate.release_commands.map((command, i) => ({ index: i + 1, name: rowName(command), argv: JSON.stringify(command) }));
 
 export function rowsFor(files) {
@@ -53,6 +53,7 @@ const AREAS = [
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
   { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
   { paths: ['src/first-frame.ts', 'src/fight/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
+  { paths: ['scripts/origins-writer.mjs', 'scripts/origins-writer-boot-check.sh', 'origins/**', 'src/fight/server.ts', 'src/fight/index.ts', 'src/fight/speeds.ts', 'src/career.ts', 'src/grades.ts', 'src/legends.ts', 'src/roster.ts'], rows: ['origins-writer-boot-check'] },   // the writer boots on a box with no `three` (AA crash-looped on src/fight/index.ts, 2026-10-10). Its door files only: the rest of its src walk is pinned by tests/origins-writer-closure.test.ts in the unit gate
 ];
 // The build: a change here can break any row, so it runs all of them (Auditor B1 on #1381). deploy.sh and the two release
 // scripts are not here: they build no part of the game and their unit tests cover them. The gate's own row list is handled

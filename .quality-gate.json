@@ -352,9 +352,23 @@
     [
       "node",
       "scripts/next-fight-black-check.mjs"
+    ],
+    [
+      "bash",
+      "scripts/origins-writer-boot-check.sh"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "scripts/origins-writer.mjs",
+        "scripts/origins-writer-boot-check.sh",
+        "origins/**"
+      ],
+      "rows": [
+        "origins-writer-boot-check"
+      ]
+    },
     {
       "paths": [
         "docs/**",
