@@ -58,6 +58,11 @@ try {
   // The engage: the engine's own combat loop sets body.infight the frame it is in combat (main.ts, wc.inCombat()). Read the engage THEN, bounded at 15 s; a miss fails below on infight, with the receipt.
   await page.waitForFunction(() => document.body.classList.contains('infight'), null, { timeout: 15000 }).catch(() => {});
   const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
+  if (process.env.SEAMLESS_STRIKE) {   // SEAMLESS_STRIKE=1: cut the foe inside the engage window, so a hit's effects (sparks, blood splat) are drawn for the first time THERE unless the zone warm covered them (the check passes by luck of timing without it)
+    const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id), hp0 = await hp();
+    for (let k = 0; k < 12; k++) { await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(400); if ((await hp()) < hp0) break; }
+    receipt.strike = { hpBefore: hp0, hpAfter: await hp() }; assert.ok(receipt.strike.hpAfter < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);
+  }
   receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
