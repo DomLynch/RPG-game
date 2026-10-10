@@ -3,7 +3,7 @@ import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
 import { DRAG_FROM, STEP_BEATS, walkLateral, walkOffset, type ClassSpecial } from './special-class-timing.ts';
-import { clamp01, hash, noise, smooth } from './fx-math.ts';
+import { clamp01, hash, noise, smooth } from './fight/fx-math.ts';
 
 // The class specials of the Witch, the Plague Doctor and the Knight, ranks 1-3 (slot A) and 4-7 (slot B), GREY-BOX PREVIEWS (Weapons lane; Dom picked the six ★ takes on
 // 2026-10-01: docs/briefs/specials/class-specials-witch-pd-knight-2026-10-01.md). Same seam as Red Wind and the Shield Quake (special-timing.ts): it reads the sim's special events,

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { newParticle, type Feel } from '../src/armfeel.ts';
-import { createBurstPool } from '../src/armfeel-fx.ts';
+import { newParticle, type Feel } from '../src/fight/armfeel.ts';
+import { createBurstPool } from '../src/fight/armfeel-fx.ts';
 import { BLOOD, bloodCount, bloodGrow, foeBurstPull, makeRng, spawnBlood } from '../src/fight/blood-style.ts';
 
 // The one blood: Dom's b4 (thin spray + a few drops, stretched into strands, darker red). These pin its numbers.

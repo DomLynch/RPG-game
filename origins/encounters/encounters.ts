@@ -14,10 +14,8 @@ import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts'
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../luck/luck.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
-import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
+import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { TIERS, type Tier } from '../../src/grades.ts';
-import type { OpponentId } from '../../src/roster.ts';
-import { oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/twist.ts';
 
 // ---- the twist flags Combat reads: imported from src/fight/twist.ts (PR #1626, on trunk), not mirrored ------------------------------------
 export { oneBarHealth };

@@ -5,7 +5,7 @@ import test from 'node:test';
 import { TITLES } from '../src/career.ts';
 import { ROSTER } from '../src/roster.ts';
 import { Color, MeshStandardMaterial } from 'three';
-import { tinted } from '../src/rank-tint.ts';
+import { tinted } from '../src/fight/rank-tint.ts';
 import { CLASS_OF, GRADES, TIERS, WEAPON_METAL, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
 
 const draws = (() => {

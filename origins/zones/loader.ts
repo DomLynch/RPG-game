@@ -4,7 +4,7 @@
 import type { MobRow } from '../mobs/row.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
-import { ROSTER } from '../../src/roster.ts';
+import { ROSTER } from '../../src/fight/server.ts';
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';

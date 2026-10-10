@@ -4,7 +4,7 @@
 // verifier refuses a different one as "kit mismatch", which is not a loss (settle answers 422 'kit-mismatch', the token is left to the sweep, nothing is paid).
 // The tag is a hash of the kit DATA (the tables below) plus KIT_LOGIC_VERSION: a hash of data cannot see a code change, so a change in behaviour with the tables untouched must bump
 // KIT_LOGIC_VERSION. tests/kit-version.test.ts pins the TEXT of the two files that code lives in, so a change there fails until someone decides and re-pins.
-import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../../src/mobkit.ts';
+import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../../src/fight/server.ts';
 import { CHAINS, KITS, MODE } from './kits.ts';
 
 // Bump when the kit CODE changes behaviour: src/mobkit.ts (kitIntent, holds, validateChains) or origins/mobs/kits.ts (mobLayer, mobProfile). (Combat owns those; the pin test below calls them out.)

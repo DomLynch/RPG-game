@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {AnimationClip,Group,Vector3,Mesh,MeshStandardMaterial,Box3,SkinnedMesh} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {buildWarriors} from '../src/fight/characters.ts';
-import {HAMSTRUNG_BEATS,HAMSTRUNG_SOURCE_PELVIS} from '../src/hamstrung.ts';
+import {HAMSTRUNG_BEATS,HAMSTRUNG_SOURCE_PELVIS} from '../src/fight/hamstrung.ts';
 const clip=(file:string)=>()=>AnimationClip.parse(JSON.parse(readFileSync(new URL(`../src/assets/${file}.json`,import.meta.url),'utf8')));
 const killer=clip('hamstrung-killer'),victimClip=clip('hamstrung-victim-hero');
 async function load(id:string){

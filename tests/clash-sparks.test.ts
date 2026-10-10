@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { blockDust, clashStrength, createClashSparks } from '../src/clash-sparks.ts';
+import { blockDust, clashStrength, createClashSparks } from '../src/fight/clash-sparks.ts';
 import { WEAPONS } from '../src/fight/moves.ts';
 import type { CombatEvent } from '../src/fight/duel.ts';
 

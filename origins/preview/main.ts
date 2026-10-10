@@ -34,7 +34,8 @@ import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createWorldCombat, createWoundFx, woundSpec } from '../../src/fight/index.ts';
+import { ME, createMeters, createWorldCombat, createWoundFx, woundSpec } from '../../src/fight/index.ts';
+import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
@@ -550,19 +551,10 @@ function engage(spec: MobSpec, x: number, z: number) {
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
 // Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
-const wcBars = document.createElement('div'); wcBars.id = 'wc-bars'; wcBars.hidden = true;
-wcBars.style.cssText = 'position:fixed;left:12px;top:max(12px,env(safe-area-inset-top));z-index:4;width:150px;pointer-events:none;font:600 11px/1.2 Georgia,serif;color:#efe6d2';
-wcBars.innerHTML = '<div id="wc-name" style="min-height:13px;text-shadow:0 1px 2px #000"></div><div style="height:7px;background:rgba(0,0,0,.55);margin:2px 0"><div id="wc-foe" style="height:100%;width:0;background:#b4452e"></div></div><div style="height:9px;background:rgba(0,0,0,.55);margin:6px 0 2px"><div id="wc-hp" style="height:100%;width:100%;background:#5aa05a"></div></div><div style="height:5px;background:rgba(0,0,0,.55)"><div id="wc-st" style="height:100%;width:100%;background:#c9b24a"></div></div>';
-document.body.append(wcBars);
-const wcFlash = document.createElement('div'); wcFlash.style.cssText = 'position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(transparent 40%,rgba(190,30,20,.55));opacity:0;transition:opacity .25s'; document.body.append(wcFlash);
+const meters = createMeters(document.body);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
 function updateBars() {
   const h = wc.hero(), t = wc.target(), full = h.health >= h.max - 0.5 && h.stamina >= h.maxStamina - 0.5;
-  wcBars.hidden = full && !t && !wc.inCombat();
-  if (wcBars.hidden) return;
-  (document.getElementById('wc-hp') as HTMLElement).style.width = `${Math.max(0, h.health / h.max) * 100}%`;
-  (document.getElementById('wc-st') as HTMLElement).style.width = `${Math.max(0, h.stamina / h.maxStamina) * 100}%`;
-  (document.getElementById('wc-name') as HTMLElement).textContent = t ? `${t.name}` : '';
-  (document.getElementById('wc-foe') as HTMLElement).style.width = t ? `${Math.max(0, t.health / t.max) * 100}%` : '0';
+  meters.update({ hp: h.health, maxHp: h.max, stamina: h.stamina, maxStamina: h.maxStamina, foe: t ? { name: t.name, hp: t.health, max: t.max } : null }, !(full && !t && !wc.inCombat()));
 }
 function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
@@ -591,7 +583,7 @@ const wc = createWorldCombat({
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
-  onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },
+  onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {

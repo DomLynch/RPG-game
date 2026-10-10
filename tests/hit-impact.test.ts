@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { IMPACT, KICK, KNOCK_SETTLE, ROLL_TUMBLE, impactShove, impactStopMs, impactTier, landedKick } from '../src/hit-impact.ts';
-import { shoveFor } from '../src/camera-kick.ts';
+import { IMPACT, KICK, KNOCK_SETTLE, ROLL_TUMBLE, impactShove, impactStopMs, impactTier, landedKick } from '../src/fight/hit-impact.ts';
+import { shoveFor } from '../src/fight/camera-kick.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt, type MoveId } from '../src/fight/moves.ts';
 import { createRecorder, encodeRecord } from '../src/fight/record.ts';
