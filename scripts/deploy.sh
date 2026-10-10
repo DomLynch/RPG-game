@@ -50,7 +50,7 @@ deploy_scope_apply
 early_trusted=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 placed_skip="${early_trusted:+$early_trusted,}$out_of_scope"
 hf_wall_rows_launch
-cpu_out=$(node scripts/vps-shadow/launch.mjs cpu "$revision" "$placed_skip" || true); hf_cpu_rows=""
+cpu_out=$(prelaunched_cpu "$revision" || node scripts/vps-shadow/launch.mjs cpu "$revision" "$placed_skip" || true); hf_cpu_rows=""
 if [[ "$cpu_out" == *";"* ]]; then hf_cpu_rows="${cpu_out#*;}"; DEPLOY_HF_ROWS_JOBS="${DEPLOY_HF_ROWS_JOBS:+$DEPLOY_HF_ROWS_JOBS,}${cpu_out%%;*}"; fi
 node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows"
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
