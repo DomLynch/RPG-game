@@ -77,7 +77,7 @@ const KNOWN_COPIES: readonly string[] = [
 ];
 
 // Row 7: a zone draws a creature from the engine's pose (actorPose of the duel, `fall` progress); it must not keep its own windup / hit-pulse / fall timers (src/fight/world-combat.ts owns hurtT, fallT, windupT, swingT).
-const ownCreatureTiming = (text: string): boolean => /\b(hurtT|fallT|windupT|windupMs|swingT|PULSE_S|FALL_S)\b/.test(text);
+const ownCreatureTiming = (text: string): boolean => /\b\w*(lunge|pulse|hurt|fall|windup|swing|death|dying)\w*(T|Ms|_S|_MS|Timer|Time)\b/i.test(text);
 
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(join(dir, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.(ts|mjs)$/.test(e.name) ? [join(dir, e.name)] : []);
@@ -130,6 +130,8 @@ test('the row 7 detector flags a zone-own creature timer and passes the engine-d
   assert.equal(ownCreatureTiming(real), false, 'mobs-view.ts takes its pose from the engine');
   assert.equal(ownCreatureTiming(real + '\nlet fallT = 0; fallT += dt;'), true, 'a pasted fall timer is flagged');
   assert.equal(ownCreatureTiming(real + '\nconst windupMs = 400;'), true, 'a pasted windup timer is flagged');
+  assert.equal(ownCreatureTiming(real + '\nlet lungeT = 0;'), true, 'a renamed lunge timer is flagged');
+  assert.equal(ownCreatureTiming(real + '\nlet deathTimer = 0;'), true, 'a renamed death timer is flagged');
 });
 
 test('the checker sees static, re-export and dynamic imports, and passes the door', () => {
