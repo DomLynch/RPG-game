@@ -2,11 +2,11 @@
 // the same screen: every wear / stow / try-on decision is made here and nowhere else. The page hands in what it owns (profile, scene, names) as `d`.
 import { captureException } from '@sentry/browser';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
-import { TIERS, type Tier } from './grades.ts';
-import { isLegendOpponent, legendAt } from './legends.ts';
+import { TIERS, type Tier } from '../grades.ts';
+import { isLegendOpponent, legendAt } from '../legends.ts';
 import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
-import { shortLink } from './share-store.ts';
+import { shortLink } from '../share-store.ts';
 
 export const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
 type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; gearStage?: () => Parameters<typeof enterGearRoom>[0] };

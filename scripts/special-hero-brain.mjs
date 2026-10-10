@@ -9,7 +9,7 @@ import { decide, initialAi } from '../src/fight/ai.ts';
 import { stepDuel, withSpecials } from '../src/fight/duel.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PROFILES, opponentAt, profileAt, RULES } from '../src/fight/moves.ts';
-import { skillOf } from '../src/loot.ts';
+import { skillOf } from '../src/fight/loot.ts';
 import { arena } from '../tests/strategies.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };

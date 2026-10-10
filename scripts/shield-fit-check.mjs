@@ -16,7 +16,7 @@ import { gzipSync } from 'node:zlib';
 import { Vector3 } from 'three';
 import { measure } from './weapon-fit-check.mjs';
 
-// Bands follow the weapon shapes (src/weapon-shapes.ts bandOf): plain = ranks 1-3 (the Centurion 2-3), crafted 4-7, ornate 8-10.
+// Bands follow the weapon shapes (src/fight/weapon-shapes.ts bandOf): plain = ranks 1-3 (the Centurion 2-3), crafted 4-7, ornate 8-10.
 export const ENVELOPE = {
   veteran:      { plain: { w: .60, h: .60 }, crafted: { w: .70, h: .70 }, ornate: { w: .60, h: .88, tall: true } },   // the Centurion: round, round richer, tower
   shieldmaiden: { plain: { w: .60, h: .60 }, crafted: { w: .70, h: .70 }, ornate: { w: .60, h: .75, tall: true } },   // round, round richer, kite

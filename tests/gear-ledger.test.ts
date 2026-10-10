@@ -1,9 +1,9 @@
-// The engine's gear screen over the ONE item ledger (src/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
+// The engine's gear screen over the ONE item ledger (src/fight/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/gear-ledger.ts';
-import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/loot.ts';
+import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/fight/gear-ledger.ts';
+import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/fight/loot.ts';
 
 const piece = (id: string, lootId: string | null, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
   ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, ...over });
@@ -45,7 +45,7 @@ test('one decision point: a local op is exactly the ledger function it names; a 
   assert.deepEqual(stepsFor(pack, { kind: 'unwear', key: 'chest' }), stepsToStow(pack, 'chest')); assert.deepEqual(stepsFor(pack, { kind: 'stow', key: 'chest' }), stepsToStow(pack, 'chest'));
 });
 test('the gear sheet decides nothing itself: every wear / stow click goes through its one `act`, and the sheet imports no ledger function that could bypass it', () => {
-  const sheet = readFileSync(new URL('../src/gear-sheet.ts', import.meta.url), 'utf8');
+  const sheet = readFileSync(new URL('../src/fight/gear-sheet.ts', import.meta.url), 'utf8');
   assert.equal((sheet.match(/\bact\(\{ kind:|\bact\(isWorn/g) ?? []).length >= 4, true, 'the rack button, Wear this, Store, and each slot\'s Store go through act'); assert.match(sheet, /d\.act\?\.\(op\)/, 'a signed-in character\'s op goes to the server first');
   assert.doesNotMatch(sheet, /import \{[^}]*\b(wear|unwear|stow|wearFromPack)\b[^}]*\} from '\.\/loot\.ts'/, 'no direct ledger call in the sheet');
   assert.match(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), /createGearSheet\(/, 'the Pit mounts the sheet');

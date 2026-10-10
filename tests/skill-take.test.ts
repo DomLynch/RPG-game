@@ -2,7 +2,7 @@
 // survives a reload and a cloud round trip, and the next duel's fighter carries it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SKILLS, cleanLoot, isSkillId, mergeLoot, skillOf, type Loot } from '../src/loot.ts';
+import { SKILLS, cleanLoot, isSkillId, mergeLoot, skillOf, type Loot } from '../src/fight/loot.ts';
 import { loadProfile, saveProfile } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 import { Match } from '../src/match.ts';

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { LOOT, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/loot.ts';
+import { LOOT, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/fight/loot.ts';
 
 const root = new URL('../', import.meta.url), read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 // Armour only: weapon ids (Weapons' PAPERDOLL.main slots) have no loot.glb draw; their visual is the equip file, a separate render path.
@@ -53,7 +53,7 @@ test('the paperdoll renders each slot once', () => {
   assert.equal([...html.matchAll(/class="slot(?: on)?" id="slot-/g)].length, Object.keys(PAPERDOLL).length, 'one row per paperdoll key, no extras');
 });
 
-// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and
+// The kill screen's Take-one panel (src/fight/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and
 // the old drop line + Wear/Store row gone (one loot UI).
 test('the Take-one panel is in the HUD under the rank line and the old drop line is gone', () => {
   const html = read('index.html'), css = read('src/style.css');
@@ -78,7 +78,7 @@ test('the Take-one panel is in the HUD under the rank line and the old drop line
 // Decline (the lead's shape, 2026-09-22): a refused offer is the kill recorded with no piece, newest last and capped, and it survives a
 // round trip through the stored profile.
 test('a declined offer is recorded as a kill with no piece, capped and round-tripped', async () => {
-  const { DECLINED_KEPT, cleanLoot, decline, emptyLoot } = await import('../src/loot.ts');
+  const { DECLINED_KEPT, cleanLoot, decline, emptyLoot } = await import('../src/fight/loot.ts');
   const kill = { opponent: 'veteran' as const, attempt: 3, healthLeft: 12, recordId: null, day: '2026-09-22' };
   let loot = decline(emptyLoot(), kill);
   assert.deepEqual(loot.declined, [kill]);

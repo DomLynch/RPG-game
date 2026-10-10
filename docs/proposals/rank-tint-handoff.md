@@ -38,7 +38,7 @@ the rung it was taken at (`Provenance.tier`; absent = Recruit), an opponent's ki
 - Status: committed; see the ruling and sheet v3 below.
 
 ## Crest (agreed with the Veteran lane)
-The crest is Heraldry, i.e. cloth, and never tints; the rung signal is its presence (none at Recruit, `src/loot.ts:87`). Veteran's new
+The crest is Heraldry, i.e. cloth, and never tints; the rung signal is its presence (none at Recruit, `src/fight/loot.ts:87`). Veteran's new
 crest material is named `HorsehairCloth`, which classOf's `<Word>Cloth` regex makes 'cloth' with no CLASS_OF edit. A plume that tints
 per rung would be a CLASS_OF 'trim' entry, and that is Dom's call. The hero-crest follow-up is Armour's.
 
