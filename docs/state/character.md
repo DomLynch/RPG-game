@@ -1,5 +1,12 @@
 # Character — project state
 
+## BATCH RULES (Dom, via Lead, 2026-10-10; from batch Z on). Read before opening any PR.
+1. No edits to a candidate PR after it opens, title or body (Y lost 20 min to a retitle).
+2. The Auditor reviews the CANDIDATE once. A PASS on a PR's head carries through Deploy's union merge (only deleted KNOWN lines in `tests/k7-engine-parity.test.ts` + added `export ... from` lines in `src/fight/index.ts`). Pure moves with CI green get their PASS from the candidate review; logic changes need a PASS on their own head.
+3. One owner per problem: two lanes on one slice, Lead picks one the same hour.
+4. No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
+(Also in lane memory: `batch-rules`.)
+
 ## 2026-10-10 11:40 (+04) — Characters (VPS) is now the SOLE Characters lane (Dom; the Mac "Characters & Art" session is archived). READ FIRST; it supersedes the handoff entry below where they differ. Facts from gh/curl this session; relays say "relays".
 1. **LIVE:** release.json `ef916e70f` (curl 11:0x) carries **#2061** (catalogue rows as data, MERGED 06:32Z). #2052, #1897 and #1898 are MERGED; gpu-run.mjs is on trunk (#2050). The stale items 1, 3 and 5 below are closed.
 2. **OPEN PRs (mine):**
