@@ -83,7 +83,7 @@ test('the Published summary counts where rows ACTUALLY ran: a refused or failed 
   const detail = Array.from({ length: 52 }, (_, i) => ({ index: i + 1, seconds: 1, retried: false, ...(i + 1 <= 36 ? { trusted: 'src' } : {}), ...(i + 1 === 52 ? { out_of_scope: true, seconds: 0 } : {}) }));
   const p = actualPlacement(detail, { ci: '1,2,3', vps: '3,30,31', hf: '4,5,6,40' });   // 40 is not a trusted row in this receipt: never counted as proven
   assert.deepEqual([p.ci.length, p.vps.length, p.hf.length, p.mac.length, p.outOfScope, p.other.length], [3, 2, 3, 15, 1, 28], 'ci 3, vps 2 (3 is counted under CI), hf 3 (40 is on the Mac, not trusted), other 28, mac 15, out of scope 1');
-  assert.match(summaryLine(p, '12 min since the merge commit', 9), /52 total = 3 CI \+ 2 VPS \+ 4 HF\/T4 \+ 27 other trusted \+ 1 out of scope \+ 15 on the Mac \(37,38,/);
+  assert.match(summaryLine(p, '12 min since the merge commit', 9), /52 total = 3 CI \+ 2 VPS \+ 3 HF\/T4 \+ 28 other trusted \+ 1 out of scope \+ 15 on the Mac \(37,38,/);
 });
 
 test('rows are combined across shards when no single shard holds them all', () => {
