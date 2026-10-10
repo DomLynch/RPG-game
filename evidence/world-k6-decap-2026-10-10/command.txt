@@ -1,0 +1,5 @@
+k6 head c3a89f4e6 (stacked on #2053 92d55cf96 + K5 8f58dab24), vite build origins/preview, VPS Chromium software GL, 375x812, Zone 2 ?lone vs the Ember wolf z2:reach-wolves-1
+natural/: the engine pick (Combat rotation hash) was plainDeath on this kill -> no head cut, as designed
+forced/: FORCE_FIN=decapitation via a VPS-local probe in finishOf (globalThis.__forceFin, built on the VPS only, not committed) so the head cut can be seen; finisher logged "decapitation"
+command: timeout 900 capture --prio 3 world env HOME=/home/lanes ZONE=2 LONE=1 [FORCE_FIN=decapitation] TAGS_TARGET=z2:reach-wolves node scripts/kill-pair.mjs artifacts/origins-preview <out>
+result: kill true, errors 0, hits at foe hp 40/26/12 in both
