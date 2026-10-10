@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, CUTS, cutAt, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, smooth } from './fx-math.ts';
+import { clamp01, hash, smooth } from './fight/fx-math.ts';
 import { lerp, paintSheet, surface, type SandLook } from './special-fx-wind.ts';
 
 // Seven Cuts, the Nightborn's ranks 4-7 class special (Nightborn lane; Dom's pick via Lead 2026-10-01, with his rule for every special: nothing pale or glowing

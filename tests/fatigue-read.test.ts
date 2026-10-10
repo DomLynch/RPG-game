@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { breathe, fatigueLayer } from '../src/fatigue-layer.ts';
-import { fatigueRead, fatigueReadFrom, readRate, readWeight } from '../src/fatigue-read.ts';
+import { breathe, fatigueLayer } from '../src/fight/fatigue-layer.ts';
+import { fatigueRead, fatigueReadFrom, readRate, readWeight } from '../src/fight/fatigue-read.ts';
 
 // The live layer, copied verbatim from before ?look=fatigue-read existed: the flag-off output must equal it for every band.
 function liveLayer(f: { level: number; gassed: number; second: number }, phase: number, calm: number, t?: { rate?: number; depth?: number; sag?: number }) {

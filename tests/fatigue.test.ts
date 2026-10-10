@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bandOf, fatigueTarget, FRESH, stepFatigue, TIRED, WINDED } from '../src/fatigue.ts';
+import { bandOf, fatigueTarget, FRESH, stepFatigue, TIRED, WINDED } from '../src/fight/fatigue.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { idleIntent } from '../src/fight/duel.ts';
 

@@ -2,7 +2,7 @@
 // Serves a built dist (vite build --outDir <dir>) with the live server's /assets cache header, loads the Pit page once cold, then reloads it N times
 // (the "Next fight" press is a reload) and, per reload, reads: navigation timing, first paint, the longest requestAnimationFrame gap before ready (the
 // stretch a screenshot, and a player, sees no new frame), the time spent inside WebGL compile/link/info-log/texture-upload calls, inside OffscreenCanvas
-// getImageData (src/rank-tint.ts), and when the page reports ready. Medians over the reloads are printed; the raw rows go to artifacts/boot-trace/webkit.json.
+// getImageData (src/fight/rank-tint.ts), and when the page reports ready. Medians over the reloads are printed; the raw rows go to artifacts/boot-trace/webkit.json.
 //   node scripts/boot-trace-webkit.mjs <dist dir> [reloads=5]
 import { webkit } from 'playwright';
 import http from 'node:http';

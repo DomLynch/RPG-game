@@ -22,25 +22,25 @@ import { actorPose, initialPractice, type CombatEvent, type Practice } from './f
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
 import { type FinisherId } from './fight/finishers.ts';
-import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './hamstrung.ts';
-import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
-import { createHamstrungAssets } from './hamstrung-assets.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
+import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './fight/execution.ts';
+import { createHamstrungAssets } from './fight/hamstrung-assets.ts';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
 import { buildArena, type Arena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
-import { createFootDust, dustToneFor } from './foot-dust.ts';
+import { createFootDust, dustToneFor } from './fight/foot-dust.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './fight/finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
-import { FOE_TUNE } from './fatigue-tune.ts';
-import { fatigueReadFrom } from './fatigue-read.ts';
-import { stanceFrom } from './stance-pose.ts';
-import { armfeelFrom, Flinch } from './armfeel.ts';
-import { createBurstPool } from './armfeel-fx.ts';
+import { FOE_TUNE } from './fight/fatigue-tune.ts';
+import { fatigueReadFrom } from './fight/fatigue-read.ts';
+import { stanceFrom } from './fight/stance-pose.ts';
+import { armfeelFrom, Flinch } from './fight/armfeel.ts';
+import { createBurstPool } from './fight/armfeel-fx.ts';
 import { createBloodEdge } from './fight/blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig, framingLow, framingTall } from './camera.ts';
@@ -455,7 +455,7 @@ export function createScene(
   let openedReach = 0;   // Opened: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
   let severHead: SeveredHead | null = null;
-  // Fetched on demand (src/hamstrung-assets.ts), never in loadFighters: the killer's clip, the victim's clip and his weapon-drop bake.
+  // Fetched on demand (src/fight/hamstrung-assets.ts), never in loadFighters: the killer's clip, the victim's clip and his weapon-drop bake.
   const hamstrungAssets = createHamstrungAssets(
     async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]); return { killer, victim }; },
     (loaded: NonNullable<typeof warriors>, { killer, victim }) => {
@@ -471,7 +471,7 @@ export function createScene(
   // The kill picks its finisher (once Hamstrung is in the rotation), so the clips are fetched in the background once the fight is ready, on idle. Silent on failure: hamstrungPick keeps the plain death.
   const prefetchHamstrung = () => { const start = () => { wantHamstrung(true); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 4000 }); else setTimeout(start, 1500); };
   const wantHamstrung = (prefetch = false) => { if ((prefetch || finisherOverride === 'hamstrung') && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
-  // Execution (src/execution.ts) loads on the picker's choice only (no idle prefetch: it re-skins 12 poses), never as part of ready, and a failure is the plain death.
+  // Execution (src/fight/execution.ts) loads on the picker's choice only (no idle prefetch: it re-skins 12 poses), never as part of ready, and a failure is the plain death.
   const executionAssets = createHamstrungAssets(
     async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/execution-killer.json'), import('./assets/execution-victim-hero.json')]); return { killer, victim }; },
     (loaded: NonNullable<typeof warriors>, { killer, victim }) => {

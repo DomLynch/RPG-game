@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, shadowPhase, castPhase, isBloodTithe, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, smooth } from './fx-math.ts';
+import { clamp01, hash, smooth } from './fight/fx-math.ts';
 
 // Accepted Centurion class B: Stand Fast, ranks 4-7 (levels 16-35), previewed at level 21.
 // Combat owns the shared class selector; this effect observes Scutum Shove events only.

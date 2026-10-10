@@ -4,14 +4,14 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as feedback from '../src/fight/sound/feedback.ts';
-import * as hitImpact from '../src/hit-impact.ts';
+import * as hitImpact from '../src/fight/hit-impact.ts';
 import * as pvpHold from '../src/pvp-hold.ts';
-import * as armfeelModule from '../src/armfeel.ts';
-import * as defenceGradeModule from '../src/defence-grade.ts';
+import * as armfeelModule from '../src/fight/armfeel.ts';
+import * as defenceGradeModule from '../src/fight/defence-grade.ts';
 import * as chunkRecoverModule from '../src/chunk-recover.ts';
-import * as kickCloseModule from '../src/kick-close.ts';
+import * as kickCloseModule from '../src/fight/kick-close.ts';
 import * as victoryHeadlineModule from '../src/victory-headline.ts';
-import * as fatiguePreviewModule from '../src/fatigue-preview.ts';
+import * as fatiguePreviewModule from '../src/fight/fatigue-preview.ts';
 import * as sim from '../src/fight/sim.ts';
 import * as combat from '../src/fight/combat.ts';
 import * as moves from '../src/fight/moves.ts';
@@ -20,9 +20,9 @@ import * as profile from '../src/profile.ts';
 import * as ladder from '../src/ladder.ts';
 import * as arenaThemes from '../src/arena-themes.ts';
 import * as roster from '../src/roster.ts';
-import * as hamstrungAssets from '../src/hamstrung-assets.ts';
-import * as execution from '../src/execution.ts';   // Execution's pure resolution, read beside Hamstrung's for the audio's finisher
-import * as hamstrung from '../src/hamstrung.ts';   // the pure Hamstrung resolution main.ts reads for the audio's finisher
+import * as hamstrungAssets from '../src/fight/hamstrung-assets.ts';
+import * as execution from '../src/fight/execution.ts';   // Execution's pure resolution, read beside Hamstrung's for the audio's finisher
+import * as hamstrung from '../src/fight/hamstrung.ts';   // the pure Hamstrung resolution main.ts reads for the audio's finisher
 import * as trial from '../src/trial.ts';
 import * as record from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';

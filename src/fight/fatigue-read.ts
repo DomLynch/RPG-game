@@ -6,7 +6,7 @@
 // (the second wind straightens it), via the `tired` value characters.ts already holds (fed by scene.ts from practice.fatigue[side]).
 import type { Fatigue } from './fatigue.ts';
 import type { FatigueTune } from './fatigue-layer.ts';
-import { offFlag } from './off-flag.ts';
+import { offFlag } from '../off-flag.ts';
 
 export const fatigueReadFrom = (search: string): boolean => !offFlag(search, 'fatigue-read');
 
