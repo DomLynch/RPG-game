@@ -1,0 +1,5 @@
+target: z2:reach-wolves-1
+infight: true
+hero: {"health":150,"max":150,"stamina":55.66666666666667,"maxStamina":100,"phase":"recover","facing":-0.331624783479286,"posture":0,"exhausted":false,"dead":false}
+kill: false foe hp seen 54 hero: {"health":40,"max":150,"stamina":5.933333333333426,"maxStamina":100,"phase":"active","facing":1.6247287345441463,"postur
+errors: 0 []

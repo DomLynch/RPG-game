@@ -1,0 +1,8 @@
+capture: char holds slot 1 of 2 from 04:02:21Z (nice 15, ionice idle)
+target: z2:reach-wolves-1
+infight: true
+hero: {"health":140,"max":150,"stamina":55.66666666666667,"maxStamina":100,"phase":"recover","facing":-0.3089336416783087,"posture":10.600000000000012,"exhausted":false,"dead":false}
+kill: false foe hp seen 54 hero: {"health":0,"max":150,"stamina":15.466666666666713,"maxStamina":100,"phase":"dead","facing":0.6685304422433586,"posture"
+errors: 0 []
+Terminated
+capture: released at 04:03:58Z, exit 0
