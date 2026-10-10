@@ -1,12 +1,12 @@
 // The data-only gate (scripts/lib/data-only.mjs is the path list and the pure-data proof). Run by .github/workflows/data-only.yml on every PR push:
 //   node scripts/data-only-check.mjs <base sha>     the files changed since the merge base with <base>, then the verdict
 // Prints one JSON line { dataOnly, problems } and exits 0 = data-only (the label goes on), 1 = not data-only (a normal PR: the Auditor reviews it),
-// 2 = every file is on the data path but the data is wrong (CI red: unknown field, a bad level, a stale registry, a failing loot test).
+// 2 = every file is on the data path but the data is wrong (CI red: unknown field, a bad level, a stale registry, a failing loot or catalogue test).
 // The schema checks are the repo's own: gen-zones (the registry must be exactly what the folders generate), loadZone + zoneProblems on EVERY zone,
 // and the loot tests when the loot table changed.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { classify, legendCitations, legendProblems, moduleValue, onDataPath } from './lib/data-only.mjs';
+import { catalogueCitations, classify, legendCitations, legendProblems, moduleValue, onDataPath } from './lib/data-only.mjs';
 
 const REGISTRY = 'origins/zones/registry.ts';
 const sh = (cmd, args, timeoutMs = 300_000) => spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs, killSignal: 'SIGKILL' });   // bounded (tests/child-process-bounds.test.ts)
@@ -36,6 +36,13 @@ export function baseCitations(base) {
   return Object.assign({}, ...files.map(f => { const t = sh('git', ['show', `${base}:${f}`], 60_000); try { return legendCitations(moduleValue(f, t.stdout)?.rows); } catch { return {}; } }));
 }
 
+// Every catalogue citation in src/fight/catalogue-data.ts at `base` (an empty map when the file is not there yet: every legend then counts as new).
+const CATALOGUE_DATA = 'src/fight/catalogue-data.ts';
+export function baseCatalogueCitations(base) {
+  const t = sh('git', ['show', `${base}:${CATALOGUE_DATA}`], 60_000);
+  try { return t.status === 0 ? catalogueCitations(moduleValue(CATALOGUE_DATA, t.stdout)) : {}; } catch { return {}; }
+}
+
 export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base = null) {
   const data = changed.filter(c => c.file !== REGISTRY), first = classify(data, readText);
   if (!first.dataOnly) return { dataOnly: false, code: first.problems.some(p => p.includes('not on the data-only path list')) || !data.length ? 1 : 2, problems: first.problems };
@@ -43,6 +50,11 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
   const spawns = data.filter(c => c.status !== 'removed' && c.file.endsWith('/spawns.ts'));
   if (spawns.length && base) {
     const known = baseCitations(base), legends = spawns.flatMap(c => legendProblems(legendCitations(moduleValue(c.file, readText(c.file))?.rows), known));
+    if (legends.length) return { dataOnly: false, code: 1, problems: legends };
+  }
+  const catalogue = data.filter(c => c.status !== 'removed' && c.file === CATALOGUE_DATA);
+  if (catalogue.length && base) {
+    const legends = legendProblems(catalogueCitations(moduleValue(CATALOGUE_DATA, readText(CATALOGUE_DATA))), baseCatalogueCitations(base));
     if (legends.length) return { dataOnly: false, code: 1, problems: legends };
   }
   const problems = [];
@@ -54,6 +66,10 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
   if (data.some(c => c.file.startsWith('src/assets/source/loot/'))) {
     const t = sh(process.execPath, ['--test', 'tests/loot.test.ts', 'tests/loot-unscale-tables.test.ts']);
     if (t.status !== 0) problems.push(`the loot tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
+  }
+  if (data.some(c => c.file === CATALOGUE_DATA)) {   // a malformed row turns CI red (exit 2) instead of getting the label
+    const t = sh(process.execPath, ['--test', 'tests/catalogue.test.ts', 'tests/catalogue-data.test.ts', 'tests/catalogue-wounds.test.ts', 'tests/catalogue-look.test.ts', 'tests/creature-gore.test.ts', 'tests/world-bodies.test.ts']);
+    if (t.status !== 0) problems.push(`the catalogue tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
   return { dataOnly: problems.length === 0, code: problems.length ? 2 : 0, problems };
 }

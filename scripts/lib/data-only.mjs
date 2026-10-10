@@ -6,12 +6,14 @@
 // unknown fields refused) runs on top of this; this file only decides "is it data at all".
 import ts from 'typescript';
 
-// v1, strict. Catalogue rows (src/fight/catalogue-rows.ts) and biome presets (origins/zones/biomes.ts) still mix code with data, and legends text
-// carries the legends rule (sources, living religions), which no parser checks: they join only once they are split into pure-data files.
+// v1, strict. Biome presets (origins/zones/biomes.ts) still mix code with data, and legends text carries the legends rule (sources, living religions), which no parser
+// checks: they join only once they are split into pure-data files. The catalogue rows are split (src/fight/catalogue-data.ts; the code that reads them stays in catalogue-rows.ts),
+// and a new or changed legend citation in them goes to the Auditor (catalogueCitations below).
 export const DATA_PATHS = [
   /^origins\/zones\/zone\d+\/(zone|spawns|kit|look)\.ts$/,
   /^origins\/zones\/biomes-data\.ts$/,   // the biome presets once World splits them out of biomes.ts as a literal-only module (biomes.ts itself stays code)
   /^src\/assets\/source\/loot\/loot\.json$/,
+  /^src\/fight\/catalogue-data\.ts$/,   // the character catalogue's rows: one literal const (Characters 2026-10-10; the legends rule below applies)
 ];
 export const onDataPath = file => DATA_PATHS.some(re => re.test(file));
 
@@ -70,6 +72,13 @@ export function moduleValue(file, text) {
 // `rows` = spawns.rows; a legend is a row whose id is a `character:` id with a `source` (the citation). Returns { id: JSON(source) }.
 export const legendCitations = rows => Object.fromEntries((Array.isArray(rows) ? rows : []).filter(r => r && typeof r.id === 'string' && r.id.startsWith('character:') && r.source)
   .map(r => [r.id, JSON.stringify(r.source)]));
+// The catalogue's citations (same rule, Auditor 2026-10-10): `rows` = CATALOGUE_ROWS. A row's legend keys on its legendId, or `work:<work>` with none; a null or `{ pending }` legend
+// contributes nothing; a Pit rank keys on `<rowId>#rank<i>` with its source text, so a new row that brings rank sources is new keys (the Auditor, deliberately conservative).
+export const catalogueCitations = rows => Object.fromEntries((Array.isArray(rows) ? rows : []).flatMap(r => {
+  if (!r || typeof r.id !== 'string') return [];
+  const l = r.legend, own = l && typeof l === 'object' && !('pending' in l) ? [[typeof l.legendId === 'string' ? l.legendId : `work:${l.work}`, JSON.stringify(l)]] : [];
+  return [...own, ...(Array.isArray(r.ranks) ? r.ranks : []).map((k, i) => [`${r.id}#rank${i}`, JSON.stringify(k?.source)])];
+}));
 export function legendProblems(head, base) {
   return Object.entries(head).flatMap(([id, source]) => !(id in base) ? [`${id} is a new legend: the legends rule needs the Auditor`]
     : base[id] !== source ? [`${id}'s source citation changed: the legends rule needs the Auditor`] : []);
