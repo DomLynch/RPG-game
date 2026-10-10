@@ -185,6 +185,13 @@ test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on t
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
+test('?lone makes every camp one creature and nothing else changes: the same spawns, one member each', () => {
+  const lone = mobSpecs(F, B, previewRows('?lone')), spawns = new Set(SPECS.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`));
+  assert.deepEqual([...new Set(lone.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`))].sort(), [...spawns].sort(), 'every spawn is still there');
+  for (const sp of spawns) assert.equal(lone.filter((s) => `${s.zone}/${s.spawn}` === sp).length, 1, `${sp} is one creature`);
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1')), SPECS, 'no ?lone, no change');
+});
+
 test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {
   assert.equal(hiddenInFight('wolves-1', 'wolves-1'), true, 'the duel draws the foe');
   assert.equal(hiddenInFight('wolves-2', 'wolves-1'), false, 'a packmate beside the hero stays visible');
