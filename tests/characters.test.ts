@@ -7,7 +7,7 @@ import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedM
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/fight/combat.ts';
-import { equipNotice } from '../src/match.ts';
+import { equipNotice } from '../src/fight/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/fight/moves.ts';
 import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { BEAST_RENDER_SCALE, BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE, beastRenderScale } from '../src/fight/beast-scale.ts';

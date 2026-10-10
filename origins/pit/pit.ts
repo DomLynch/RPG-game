@@ -30,7 +30,7 @@ export function nextFight(session: PitSession, opponents: readonly string[], key
   const opponent = asked ?? open ?? opponents[(key >>> 0) % opponents.length]!;
   return { id: `pit-preview:${n}`, opponent, level, seed: fightSeed(key, n), legend: !session.career.beaten.includes(legendKey(opponent, level)) };
 }
-// The duel's seed: deterministic from the key and the fight's number, never 0 (src/match.ts nextSeed is the same LCG).
+// The duel's seed: deterministic from the key and the fight's number, never 0 (src/fight/match.ts nextSeed is the same LCG).
 export const fightSeed = (key: number, n: number): number => ((Math.imul((key ^ Math.imul(n, 0x9e3779b1)) >>> 0, 1664525) + 1013904223) >>> 0) || 731;
 // Starting a fight counts it, so the next one has a new id and seed.
 export const started = (session: PitSession): PitSession => ({ ...session, fights: session.fights + 1 });

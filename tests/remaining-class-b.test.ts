@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';
 import { idleIntent, stepDuel, type Duel, type CombatEvent } from '../src/fight/duel.ts';
 import { loadProfile } from '../src/profile.ts';

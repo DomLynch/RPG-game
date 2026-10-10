@@ -71,7 +71,7 @@ export type CrowdEvent =
   | { kind: 'won' } | { kind: 'lost' };
 export type Step = { state: CrowdState; events: CrowdEvent[] };
 
-// The director's own LCG (the same constants as pit.ts fightSeed / src/match.ts nextSeed), never 0.
+// The director's own LCG (the same constants as pit.ts fightSeed / src/fight/match.ts nextSeed), never 0.
 const lcg = (s: number): number => ((Math.imul(s >>> 0, 1664525) + 1013904223) >>> 0) || 731;
 const unit = (s: number): number => s / 0x1_0000_0000;
 // Each enemy's own AI seed: from the encounter seed and his slot, never 0.

@@ -2,7 +2,7 @@
 // nothing (a sparring fight: no record, reward or stored row), and presentation never changes the fight it draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match } from '../src/match.ts';
+import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { actorPose, initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { stepDuel, withSpecials } from '../src/fight/duel.ts';

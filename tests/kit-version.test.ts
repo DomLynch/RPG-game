@@ -9,7 +9,7 @@ import { CHAINS, KITS, MODE } from '../origins/mobs/kits.ts';
 import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } from '../origins/mobs/kit-version.ts';
 
 // sha-256 of the text of src/fight/mobkit.ts + origins/mobs/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
-const KIT_CODE_DIGEST = 'ff0ce4874d8954c6b29f6738fc0535b39673ed1947ce3c98858c09b8be78947d';
+const KIT_CODE_DIGEST = 'c8edc9196174ac569a407e13ce3b8ea501f38a8ef8ae049fe1360a1e84e9af80';
 
 test('the kit code is pinned: a change in src/fight/mobkit.ts or origins/mobs/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
   const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../origins/mobs/kits.ts', import.meta.url))).digest('hex');

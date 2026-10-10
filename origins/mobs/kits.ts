@@ -30,7 +30,7 @@ export const MODE: Readonly<Record<Mode, Partial<Record<Knob, number>>>> = {
   ambusher: { dash: 0.4, lapse: -0.1, interrupt: 0.2 },
 };
 
-// The layer a mob of this style fights under (src/fight/combat.ts stepPractice's `layer`, src/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
+// The layer a mob of this style fights under (src/fight/combat.ts stepPractice's `layer`, src/fight/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
 export function mobLayer(style: MobStyle): (duel: Duel, warden: Intent) => Intent {
   const rows = KITS[style], chains = CHAINS[style]; let state = initialKit(rows);
   return (duel, warden) => { if (duel.tick === 0) state = initialKit(rows); const r = kitIntent(duel, 1, warden, rows, state, chains); state = r.state; return r.intent; };

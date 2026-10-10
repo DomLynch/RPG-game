@@ -23,7 +23,7 @@ export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => 
 
 export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer than 15 minutes is not a fight
 
-// Special Moves are on for a warden from the Veteran rung up (src/match.ts CLASS_B_FROM with LIVE_SPECIALS on): the server dictates it, the record's flag must agree.
+// Special Moves are on for a warden from the Veteran rung up (src/fight/match.ts CLASS_B_FROM with LIVE_SPECIALS on): the server dictates it, the record's flag must agree.
 const SPECIALS_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');
 export const liveSpecials = (level: number): boolean => Number.isInteger(level) && level >= SPECIALS_FROM && level <= LEVELS;
 
