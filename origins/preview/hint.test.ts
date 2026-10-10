@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), html = readFileSync(new URL('./index.html', import.meta.url), 'utf8'), meters = readFileSync(new URL('../../src/fight/meters.css', import.meta.url), 'utf8');
 
 test('the first-load hint card: gone after the first thumb move, hidden while the Journal is open, back after it if unspent (Lead 2026-10-07)', () => {
   assert.match(main, /if \(forward \|\| turn \|\| strafe \|\| pitch\) \{ hint\.hidden = true; hintMoved = true; \}/, 'any move, look or tilt spends the hint');
@@ -16,6 +16,6 @@ test('the preview header is one short line at 375: the controls live in the hint
 
 test('the health and stamina bars sit under the hint and creature card, never over their text (Lead 2026-10-07, 375 wide)', () => {
   assert.match(main, /setProperty\('--hud-bottom'/, 'main.ts measures the HUD stack');
-  assert.match(html, /#duel\.world \.combat-hud \{ top: max\([^;]*var\(--hud-bottom/, 'the bars start below that measure');
+  assert.match(meters, /\.fm-meters \{[^}]*top: max\([^;]*var\(--hud-bottom/, 'the shared meters start below that measure (the Pit combat-hud is hidden in the zone: one-bars.test.ts)');
 });
 

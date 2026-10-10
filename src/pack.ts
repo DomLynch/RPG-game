@@ -6,7 +6,7 @@
 //     by 110 %, casters 130 %; a list cap of 7; suppressed targets are used only when no online one is left). Deterministic: a pure function of the join order and the damage stream, ties go to the earlier joiner.
 import type { Practice } from './fight/combat.ts';
 import { idleIntent, opponentFighter, stepDuel, type Duel, type Intent } from './fight/duel.ts';
-import { M } from './detmath.ts';
+import { M } from './fight/detmath.ts';
 import type { Opponent } from './fight/moves.ts';
 import type { RecordGroup } from './fight/record.ts';
 import { RADIUS, type State } from './fight/sim.ts';

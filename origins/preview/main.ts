@@ -34,7 +34,7 @@ import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createMeters, createWorldCombat } from '../../src/fight/index.ts';
+import { ME, createMeters, createWorldCombat, createZoneFx } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
@@ -164,9 +164,9 @@ let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars
 const measureHud = () => {
   const bottom = Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom);
   document.documentElement.style.setProperty('--hud-bottom', `${bottom}px`);
-  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));
+  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.fm-meters')?.getBoundingClientRect().bottom ?? 0));   // the shared meters sit under the HUD stack (meters.css)
 };
-const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!); const barsEl = document.querySelector('.combat-hud'); if (barsEl) hudWatch.observe(barsEl);
+const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, loadZone().spawns.rows, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
@@ -307,7 +307,7 @@ function step(dt: number) {
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
-  if (mobs) { mobs.update(dt, state, cardId); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
+  if (mobs) { mobs.update(dt, state, cardId); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -551,7 +551,7 @@ function engage(spec: MobSpec, x: number, z: number) {
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
 // Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
-const meters = createMeters(document.body);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
+const meters = createMeters(document.body); hudWatch.observe(document.querySelector('.fm-meters')!);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
 function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
   veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
@@ -572,13 +572,14 @@ async function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
+const zoneFx = createZoneFx({ scene, camera });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const wc = createWorldCombat({
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
-  combat: () => ({ hero: wc.hero(), target: wc.target(), fighters: wc.debug() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
+  combat: () => ({ hero: wc.hero(), target: wc.target(), fighters: wc.debug(), fx: zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.

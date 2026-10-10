@@ -13,7 +13,7 @@ import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import { OPPONENTS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
-import { ROLL_BAND } from '../../src/roll.ts';
+import { ROLL_BAND } from '../../src/fight/roll.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';

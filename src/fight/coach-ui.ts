@@ -1,9 +1,9 @@
 // The Coach on the page (TOP10 row 8, Web): the on/off toggle, the take-over on any fight press, the "Coached" tag and marker. Presentation and input routing only:
 // the brain, the spans and the build string are src/coach.ts (Combat); no sim file reads anything here. ON by default as a feature; `?coach=off` is the kill switch only (Dom 2026-10-08, "keep everything ON").
 // The toggle is saved per DEVICE (localStorage), the same pattern as the camera-lock chip (Lead ruling 2026-10-08); the single bit is "Coach plays", and a take-over turns it off so the chip tells the truth.
-import { coachBuild, createCoachDriver, type CoachDriver, type CoachSpan, type CoachStopReason } from './coach.ts';
-import { idleIntent, type Duel, type Intent } from './fight/duel.ts';
-import type { PickedStance } from './fight/stance.ts';
+import { coachBuild, createCoachDriver, type CoachDriver, type CoachSpan, type CoachStopReason } from '../coach.ts';
+import { idleIntent, type Duel, type Intent } from './duel.ts';
+import type { PickedStance } from './stance.ts';
 
 export const COACH_KEY = 'frankendom.coach';
 export const coachKilled = (search: string): boolean => /[?&]coach=off(?:&|$)/.test(search);

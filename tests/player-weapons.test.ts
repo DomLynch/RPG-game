@@ -9,7 +9,7 @@ import { NO_HIP_DRAW, clipFor, drawRole } from '../src/fight/characters.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/fight/moves.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
