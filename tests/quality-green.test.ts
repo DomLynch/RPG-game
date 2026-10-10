@@ -36,21 +36,22 @@ test('the first green run wins when several are green', () => {
 // The job-conclusion rule itself, run through the real jq on a gh-shaped jobs list (the tests above mock the verdict).
 const jq = deploy.match(/^quality_green_jq='(.*)'$/m)![1];
 const verdict = (jobs: [string, string][]) => spawnSync('jq', ['-r', jq], { input: JSON.stringify({ jobs: jobs.map(([name, conclusion]) => ({ name, conclusion })) }), encoding: 'utf8' }).stdout.trim();
+const noJq = spawnSync('jq', ['--version']).error ? 'jq is not installed here (the CI and the VPS run these)' : false;
 const SKIPPED = 'browser (${{ matrix.gate.name }})';
-test('quality + browser (combat) both success is green; a failed or missing quality is not', () => {
+test('quality + browser (combat) both success is green; a failed or missing quality is not', { skip: noJq }, () => {
   assert.equal(verdict([['quality', 'success'], ['browser (combat)', 'success']]), 'yes');
   assert.equal(verdict([['quality', 'success'], ['browser (combat)', 'failure']]), 'no');
   assert.equal(verdict([['quality', 'failure'], ['browser (combat)', 'success']]), 'no');
   assert.equal(verdict([['browser (combat)', 'success']]), 'no');
 });
-test('a skipped browser matrix is green only when quality and plan succeeded (release AI shape)', () => {
+test('a skipped browser matrix is green only when quality and plan succeeded (release AI shape)', { skip: noJq }, () => {
   assert.equal(verdict([['plan', 'success'], ['quality', 'success'], [SKIPPED, 'skipped']]), 'scoped');
   assert.equal(verdict([['plan', 'success'], ['quality', 'failure'], [SKIPPED, 'skipped']]), 'no');
   assert.equal(verdict([['plan', 'failure'], ['quality', 'success'], [SKIPPED, 'skipped']]), 'no');
   assert.equal(verdict([['plan', 'success'], ['quality', 'success']]), 'no');
   assert.equal(verdict([['plan', 'success'], ['quality', 'success'], [SKIPPED, 'success']]), 'no');
 });
-test('a real combat job beats the skipped-matrix rule: a failed combat run stays red even beside a skipped template job', () => {
+test('a real combat job beats the skipped-matrix rule: a failed combat run stays red even beside a skipped template job', { skip: noJq }, () => {
   assert.equal(verdict([['plan', 'success'], ['quality', 'success'], ['browser (combat)', 'failure'], [SKIPPED, 'skipped']]), 'no');
 });
 
