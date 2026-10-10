@@ -12,9 +12,27 @@
 hf_state="${HF_WALL_ROWS_STATE:-artifacts/hf-wall-rows/state}"   # the launcher's state file; its receipt is ${hf_state}.json
 
 
+# scripts/pre-launch.sh starts these jobs at candidate open: the same sha, so the same tree. Taken only when the state file names THIS revision and is under
+# PRELAUNCH_MAX_AGE_S (default 4 h) old; anything else launches below as before. Trust is still decided per row from each receipt vs the deployed tree.
+hf_wall_rows_prelaunched() {
+  local file="${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.wall"
+  [[ -s "$file" ]] || return 1
+  local ids
+  ids=$(node -e 'try{const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const ok=s.sha===process.argv[2]&&Date.now()-s.launchedAt<Number(process.argv[3])*1000&&s.jobId;process.stdout.write(ok?String(s.jobId):"")}catch{}' "$file" "$revision" "${PRELAUNCH_MAX_AGE_S:-14400}") || return 1
+  [[ -n "$ids" ]] || return 1
+  mkdir -p "$(dirname "$hf_state")"; rm -f "${hf_state}.json"; cp "$file" "$hf_state"
+  hf_job="$ids"
+  echo "hf-wall-rows: reusing the pre-launched job(s) $hf_job for $revision"
+}
+
 hf_wall_rows_launch() {
   hf_job=""
   command -v hf >/dev/null 2>&1 || { echo 'hf-wall-rows: no hf CLI on this Mac; every row runs on the Mac'; return 0; }
+  if hf_wall_rows_prelaunched; then
+    hf_wall_planned=$(node -e 'try{process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).rows.join(","))}catch{}' "$hf_state" || true)
+    echo "hf-wall-rows: job $hf_job launched at candidate open for $revision (rows ${hf_wall_planned:-none})"
+    return 0
+  fi
   hf_job=$(node scripts/hf-wall-rows.mjs launch "$revision" --skip "${placed_skip:-}") || { hf_job=""; echo 'hf-wall-rows: launch failed; every row runs on the Mac'; return 0; }
   hf_wall_planned=$(node -e 'try{process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).rows.join(","))}catch{}' "$hf_state" || true)
   echo "hf-wall-rows: job $hf_job launched for $revision (rows ${hf_wall_planned:-none})"
