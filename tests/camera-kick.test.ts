@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shoveFor } from '../src/camera-kick.ts';
+import { shoveFor } from '../src/fight/camera-kick.ts';
 import type { CombatEvent } from '../src/fight/duel.ts';
 
 // The camera shove table (presentation): every contact stays within a few centimetres and settles within a quarter second; a heavy lands

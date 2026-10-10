@@ -6,7 +6,7 @@ This branch (`char/rank-tint`) and its retune pass to Armour. **No PR until Dom 
 ## What the branch does (e6a23dd4, WIP)
 The grades.ts rank finishes shown as a tint that keeps the texture maps: metal, trim and leather only, never cloth. A worn piece shows
 the rung it was taken at (`Provenance.tier`; absent = Recruit), an opponent's kit the rung he is met at. No sim, record or RV changes.
-- `src/rank-tint.ts`: `tinted(material, tier)`, a cached clone per (material, tier) that shares textures. After `color_fragment` the
+- `src/fight/rank-tint.ts`: `tinted(material, tier)`, a cached clone per (material, tier) that shares textures. After `color_fragment` the
   albedo keeps its luminance and takes the grade's hue: rgb = mix(rgb, chroma(grade)·L·gain, TINT.strength), gain clamped [.35, 2.5].
   One program for every rung (`customProgramCacheKey` 'rank-tint'). Tunables in `TINT`.
 - `src/characters.ts` wear(pieces, failed, tierOf?), `src/scene.ts` (opponent `() => tier`, player `wornTier[id] ?? 'Recruit'`),

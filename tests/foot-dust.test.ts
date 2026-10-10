@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createFootDust, dustToneFor } from '../src/foot-dust.ts';
+import { createFootDust, dustToneFor } from '../src/fight/foot-dust.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 // The sand puff a heavy landing kicks off a planted foot (presentation): a handful of grains from the pool at that foot, rising and drifting

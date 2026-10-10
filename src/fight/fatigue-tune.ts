@@ -1,7 +1,7 @@
 // Per-body fatigue tuning (Lead's brief B: Goblin quick and shallow, Executioner slow and deep). Render only; scales fatigue.ts's `breathe` rate,
 // the chest depth and posture, and the sword arm's sag. An id not listed breathes at the default (1, 1, 1).
 import type { FatigueTune } from './fatigue-layer.ts';
-import type { OpponentId } from './roster.ts';
+import type { OpponentId } from '../roster.ts';
 
 export const FOE_TUNE: Partial<Record<OpponentId, FatigueTune>> = {
   goblin: { rate: 1.5, depth: .55, sag: .8 },          // small lungs: quick, shallow

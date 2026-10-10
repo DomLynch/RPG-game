@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, RIPPLE, SLAM_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, noise, smooth } from './fx-math.ts';
+import { clamp01, hash, noise, smooth } from './fight/fx-math.ts';
 
 // Red Wind's painted-stroke helpers (Nightborn lane, special-fx-wind.ts on #1220), copied here so this preview stacks on #1120 alone, not on Red Wind.
 // SandLook: what the strokes are painted with, a dark core and a pale rim, both linear working-space colours.

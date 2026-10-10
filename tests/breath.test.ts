@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { breathLook, breathPlan, bodyOf, createBreath } from '../src/fight/sound/breath.ts';
-import { FRESH, type Fatigue } from '../src/fatigue.ts';
+import { FRESH, type Fatigue } from '../src/fight/fatigue.ts';
 
 const at = (level: number, band: Fatigue['band'], extra: Partial<Fatigue> = {}): Fatigue => ({ level, band, gassed: band === 3 ? 1 : 0, second: 0, ...extra });
 

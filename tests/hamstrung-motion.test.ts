@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {AnimationMixer,Box3,LoopOnce,Quaternion,SkinnedMesh,Vector3} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {hamstrungClips} from '../scripts/build-hamstrung.mjs';
-import {HAMSTRUNG_BEATS} from '../src/hamstrung.ts';
+import {HAMSTRUNG_BEATS} from '../src/fight/hamstrung.ts';
 
 test('Hamstrung authored motion: low cut, grounded knee buckle and folded held back strike on the hero rig and both victims',async()=>{
  for(const id of ['warrior','minotaur','wraith']) {

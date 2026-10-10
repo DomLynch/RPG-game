@@ -21,7 +21,7 @@ async function serveDist(dir) {
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-// Stance poses (?look=stances, src/stance-pose.ts): the hero in ready idle at the fight camera (375x812), one still per stance, from the same sim frame.
+// Stance poses (?look=stances, src/fight/stance-pose.ts): the hero in ready idle at the fight camera (375x812), one still per stance, from the same sim frame.
 //   node scripts/stance-stills.mjs --dist dist --out artifacts/stances
 await fs.mkdir(OUT, { recursive: true });
 const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
