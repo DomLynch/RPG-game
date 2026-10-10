@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice } from '../../src/combat.ts';
-import { OPPONENTS } from '../../src/moves.ts';
+import { initialPractice } from '../../src/fight/combat.ts';
+import { OPPONENTS } from '../../src/fight/moves.ts';
 import { endOf, standingEnd } from './encounter-duel.ts';
 import { withBar } from '../shared/with-bar.ts';
 

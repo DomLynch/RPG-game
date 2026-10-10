@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { levelOf } from '../../src/career.ts';
-import { CAPS, NAKED, loadoutFor } from '../../src/gear-stats.ts';
+import { CAPS, NAKED, loadoutFor } from '../../src/fight/gear-stats.ts';
 import { ARMOUR_SLOTS } from '../../src/loot.ts';
 import type { Issue, Result } from './core.ts';
 import * as F from './fixtures.ts';
@@ -308,7 +308,7 @@ test('resolveLoadout: the fixed spine — a full Origin set lands exactly on the
   const common = new Map([...defs].map(([id, d]) => [id, { ...d, rarity: 'common' as const }]));
   assert.deepEqual(resolveLoadout(PC, instances, (id) => common.get(id)), full, 'rarity is not power');
   assert.deepEqual(resolveLoadout(OTHER, instances, (id) => defs.get(id)), { ok: true, value: NAKED });
-  // A Gladiator helmet resolves exactly as src/gear-stats.ts prices it today; +1 level prices it as a Veteran helmet; it clamps at Origin.
+  // A Gladiator helmet resolves exactly as src/fight/gear-stats.ts prices it today; +1 level prices it as a Veteran helmet; it clamps at Origin.
   const helmet = def(F.helmetDef()), h = inst(F.helmetInstance());
   assert.deepEqual(resolveLoadout(PC, [h], () => helmet), { ok: true, value: loadoutFor({ Helmet: 'Gladiator' }) });
   assert.deepEqual(resolveLoadout(PC, [{ ...h, upgradeLevel: 1 }], () => helmet), { ok: true, value: loadoutFor({ Helmet: 'Veteran' }) });

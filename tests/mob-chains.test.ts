@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
-import { stepDuel, type Duel } from '../src/duel.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { stepDuel, type Duel } from '../src/fight/duel.ts';
 import { CHAIN_CAP, initialKit, kitIntent, validateChains, type ChainRow } from '../src/mobkit.ts';
-import { OPPONENTS, profileAt } from '../src/moves.ts';
+import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
 import { CHAINS, KITS } from '../origins/mobs/kits.ts';
 import { MOB_STYLE, MOB_STYLES, type MobStyle } from '../origins/mobs/styles.ts';
 import { hashDuel } from '../src/net/rollback.ts';

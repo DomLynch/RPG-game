@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Box3, Quaternion, SkinnedMesh, Vector3, type Matrix4, type Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { armWarriors, buildWarriors, lootPiecesOf, lootWorn, SHIELD_CARRIERS, withShieldCarry } from '../src/characters.ts';
-import type { WeaponId } from '../src/moves.ts';
+import { armWarriors, buildWarriors, lootPiecesOf, lootWorn, SHIELD_CARRIERS, withShieldCarry } from '../src/fight/characters.ts';
+import type { WeaponId } from '../src/fight/moves.ts';
 
 // Parse a shipped GLB in Node, as tests/loot-wear.test.ts does (images dropped: decoding is the browser's).
 async function parse(file: string) {

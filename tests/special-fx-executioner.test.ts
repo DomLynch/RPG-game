@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { crowdWave } from '../src/arena.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';

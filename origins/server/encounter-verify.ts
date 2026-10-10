@@ -1,4 +1,4 @@
-// World creature fights, verified server side (docs/specs/origins/server-save-schema.md ruling 6). The Pit's verifier pattern (src/replay.ts verifyRecord: initialPractice, then
+// World creature fights, verified server side (docs/specs/origins/server-save-schema.md ruling 6). The Pit's verifier pattern (src/fight/replay.ts verifyRecord: initialPractice, then
 // stepPractice per recorded intent) re-simulates the record, but with the parameters the SERVER holds for the encounter (origins_encounter_runs: seed, enemy, level, bar, twist
 // flags, mob layer), never the ones the record claims: a client cannot name its own foe, level, seed, pool or twist. The preview host (origins/preview/pit-duel.ts) adds exactly two
 // things on top of the sim, and this file repeats them in the same order with the same pure functions, so a verified record means what the client played:
@@ -7,15 +7,15 @@
 // tests/world-fight-determinism.test.ts pins that a sparring Match (what the client runs) and initialPractice + stepPractice are the same fight tick for tick.
 // A mob layer (src/mobkit.ts via origins/mobs/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
 // build cannot step. A refusal is a normal loss, never a reward.
-import { initialPractice, stepPractice } from '../../src/combat.ts';
+import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
 import { RANK_STEPS, TITLES } from '../../src/career.ts';
 import { underRecord } from '../../src/detmath.ts';
-import { LEVELS, OPPONENTS, opponentAt, profileAt } from '../../src/moves.ts';
-import type { FightRecord } from '../../src/record.ts';
-import { recordSpecials } from '../../src/replay.ts';
-import { STEP } from '../../src/sim.ts';
-import type { DuelPose } from '../../src/duel.ts';
-import { noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/twist.ts';
+import { LEVELS, OPPONENTS, opponentAt, profileAt } from '../../src/fight/moves.ts';
+import type { FightRecord } from '../../src/fight/record.ts';
+import { recordSpecials } from '../../src/fight/replay.ts';
+import { STEP } from '../../src/fight/sim.ts';
+import type { DuelPose } from '../../src/fight/duel.ts';
+import { noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/twist.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import { kitOfBuild, kitTag } from '../mobs/kit-version.ts';
 import { MOB_STYLES, type MobStyle } from '../mobs/styles.ts';
@@ -59,7 +59,7 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   const opponent = OPPONENTS[record.opponent];
   if (!opponent || !Number.isInteger(p.level) || p.level < 1 || p.level > LEVELS) return refuse('unknown opponent or warden level');
   const profile = profileAt(opponent, p.level), flags = p.flags;
-  let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? p.seed : undefined, record.stances, p.pose ?? undefined);   // the SERVER's issued pose (equal to the record's, checked above); the record's own Gambit and stance pick, as src/replay.ts (RV34: stances ON for all)
+  let practice = initialPractice(p.seed, opponentAt(opponent, p.level), record.weapon, record.skill ?? null, recordSpecials(record), record.gambit ? p.seed : undefined, record.stances, p.pose ?? undefined);   // the SERVER's issued pose (equal to the record's, checked above); the record's own Gambit and stance pick, as src/fight/replay.ts (RV34: stances ON for all)
   if (p.bar !== null && flags.some((f) => f.kind === 'one-health-bar')) practice = withBar(practice, p.bar);
   const layer = p.layer === null ? undefined : mobLayer(p.layer as MobStyle);   // fresh per fight: its state resets on tick 0, as the client's does
   let twist = noTwist(), endedAt = 0;

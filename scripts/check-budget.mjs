@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { LEVELS, OPPONENTS, opponentAt } from '../src/moves.ts';
+import { LEVELS, OPPONENTS, opponentAt } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LEGEND_OPPONENTS } from '../src/legends.ts';
 import { PHONE_LOOKS } from '../src/rank-look.ts';

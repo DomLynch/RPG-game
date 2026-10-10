@@ -1,6 +1,6 @@
 # Frankendom — Combat Reference (as live on frankendom.com, 2026-09-16)
 
-Everything below is read from the shipped code (`src/moves.ts`, `src/duel.ts`, `src/ai.ts`, `src/combat.ts`, `src/main.ts`). Times are in simulation ticks at 60 Hz (1 tick = 16.7 ms); a millisecond value follows where it matters. Distances are metres.
+Everything below is read from the shipped code (`src/fight/moves.ts`, `src/fight/duel.ts`, `src/fight/ai.ts`, `src/fight/combat.ts`, `src/main.ts`). Times are in simulation ticks at 60 Hz (1 tick = 16.7 ms); a millisecond value follows where it matters. Distances are metres.
 
 ## 1. Architecture in one paragraph
 
@@ -92,7 +92,7 @@ Measured AI-vs-AI (24 seeds): easy median 36 s / 7 hits · normal 28 s / 6 hits 
 
 ## 9b. Weapons (the slot)
 
-A fighter carries a `weapon` (`src/moves.ts` `WEAPONS`): its move table, its baked blade paths (from `scripts/blade-manifest.json`, one entry per weapon: rig, node, contact segment in metres along the node's Y — `extras.contact` on the node overrides), the kind of guard it makes (`blade` / `shaft`), its material (audio cues) and the reach the warden reasons with. Every lookup in the simulation, the AI and the HUD goes through the fighter's weapon. Hit / Blocked / Parried / GuardBroken events carry `weapon` and `material`.
+A fighter carries a `weapon` (`src/fight/moves.ts` `WEAPONS`): its move table, its baked blade paths (from `scripts/blade-manifest.json`, one entry per weapon: rig, node, contact segment in metres along the node's Y — `extras.contact` on the node overrides), the kind of guard it makes (`blade` / `shaft`), its material (audio cues) and the reach the warden reasons with. Every lookup in the simulation, the AI and the HUD goes through the fighter's weapon. Hit / Blocked / Parried / GuardBroken events carry `weapon` and `material`.
 
 The player carries the **longsword**; the Veteran carries the **trident** (slice V, 2026-09-16 — `initialDuel` gives side 1 `'trident'`; the renderer plays each rig's clips by role from `characters.ts` `WEAPON_CLIPS`). The trident's fight, all data in `TRIDENT_MOVES` / `TRIDENT_PATHS`:
 

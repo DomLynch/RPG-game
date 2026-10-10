@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { RULES } from '../src/moves.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
+import { RULES } from '../src/fight/moves.ts';
 import { advanceCast, shadowPhase, CAST_MARGIN, DROP_TICKS, FALL_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
 import { CLOUD_HIGH, CLOUD_LOW, createSpecialFx } from '../src/special-fx.ts';
 

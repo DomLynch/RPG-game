@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Box3, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors } from '../src/characters.ts';
+import { buildWarriors } from '../src/fight/characters.ts';
 import { finisherSidePose } from '../src/camera.ts';
 import { resolveFinisher, ROSTER } from '../src/roster.ts';
 import { selectFinisher } from '../src/fight/finishers.ts';
-import type { Finish } from '../src/duel.ts';
+import type { Finish } from '../src/fight/duel.ts';
 
 const finish: Finish = { victim:1, location:'torso', move:'light_right', heading:0, draw:false };
 test('creature picker and Auto share an eligibility-checked presentation decision for scene and audio', () => {

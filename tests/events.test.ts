@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blowsTaken, struck } from '../src/events.ts';
-import type { CombatEvent } from '../src/duel.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 
 const e = (fields: Partial<CombatEvent> & { type: CombatEvent['type'] }): CombatEvent => ({ tick: 1, actor: 0, ...fields });
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LADDER, opponentFor, won, nextOpponent, passKey } from '../src/ladder.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 
 test('the ladder is the encounter order minus the held recipes: the four creatures wait for after beta, the five men keep their order', () => {

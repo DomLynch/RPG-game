@@ -1,10 +1,10 @@
 // The autopsy (beta plan brief 2): at most two plain lines under a death, computed from what the warden already counted — its Habits and
-// Reads (src/ai.ts) — and from the fight's own event log. Pure: no DOM, no renderer, no opponent names, nothing tuned per opponent.
+// Reads (src/fight/ai.ts) — and from the fight's own event log. Pure: no DOM, no renderer, no opponent names, nothing tuned per opponent.
 // The warden's action comes first (how the player died, from events), the player's habit second (the read, with its numbers). Numbers
 // over adjectives; no advice; nothing confident to say → nothing said.
-import type { Habits, Reads } from './ai.ts';
-import type { CombatEvent, Duel } from './duel.ts';
-import { RULES, type MoveId } from './moves.ts';
+import type { Habits, Reads } from './fight/ai.ts';
+import type { CombatEvent, Duel } from './fight/duel.ts';
+import { RULES, type MoveId } from './fight/moves.ts';
 
 const BLOW: Record<MoveId, string> = { light_right: 'cut', light_left: 'cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', slash_riposte: 'riposte', heavy_riposte: 'riposte', heavy_counter: 'counter', critical: 'critical', kick: 'kick', skill_witchfire: 'Witch-fire', skill_pommel: 'Pommel Strike', skill_lunge: 'Estoc Lunge', skill_reaping: 'Reaping Blow', skill_shove: 'Scutum Shove', skill_jab: 'Dirty Jab', skill_cleave: 'Butcher\'s Cleave', skill_stomp: 'Anvil Stomp', skill_miasma: 'Miasma', skill_ironrush: 'Iron Rush', skill_hewer: 'Shield-Hewer' };
 const WINDOW = RULES.posture.stun + 60;   // a break (guard or posture) is the cause of a death that follows within its stun plus the killing swing's wind-up
@@ -27,7 +27,7 @@ export function cause(log: CombatEvent[], duel: Duel): string | null {
 
 // The player's habit: the one read the warden made, with the count that made it a read. One line; the reads are checked in the order
 // the warden's answers are most visible (a waited-for cut, a kicked guard) so a player with two habits hears the louder one. A line names
-// the warden's answer only where every warden gives it (src/ai.ts decide: anticipation, the kick and charge at a guard, baits and feints
+// the warden's answer only where every warden gives it (src/fight/ai.ts decide: anticipation, the kick and charge at a guard, baits and feints
 // at a parry, the swing into a roll's tail); the answers that hang on a profile knob (a kicker's kick at a stepper, a guardless fighter's
 // respect for the point or the kick, a committing parrier's wariness of the park) stay unsaid, and the numbers stand alone.
 export function habit(h: Habits, reads: Reads): string | null {

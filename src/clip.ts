@@ -2,7 +2,7 @@
 // re-plays the fight's last seconds from its record on the arena canvas, records them at 720x1280 with the game audio and hands the
 // file to the phone's share sheet. Nothing is drawn over the fight: the WebGL canvas never holds the HUD (that is DOM), so the clip
 // has none. Zero dependencies: canvas.captureStream + MediaRecorder, MP4 where the browser records it, WebM elsewhere.
-import { STEP } from './sim.ts';
+import { STEP } from './fight/sim.ts';
 
 export const CLIP_SECONDS = 10;   // the countdown's nominal length (5 s lead + a finisher + the 1 s tail); the clip itself runs until the finish has played
 // Seconds of fight before the killing tick. 5, was 9 (Lead B4 part 1, 2026-09-30): the clip records in real time, so the lead-in is the

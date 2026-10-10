@@ -357,7 +357,7 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return ROWS - skip.size; };
   assert.equal(kept('src/main.ts'), 8, 'any code change: the five core rows plus the first-loss row, the Stage picker row and the next-fight black row (the page the reload loads; the Pit exit guard covered it; Auditor 2026-10-08)');
   assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the kills-board data module triggers no row of its own (the Pit exit row was removed with the room)');
-  assert.equal(kept('src/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
+  assert.equal(kept('src/fight/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
   assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
   for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])

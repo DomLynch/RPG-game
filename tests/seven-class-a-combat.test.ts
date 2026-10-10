@@ -5,7 +5,7 @@ import * as legion from '../src/special-fx-legion.ts';
 import * as executioner from '../src/special-fx-executioner.ts';
 import * as nightborn from '../src/special-fx-nightborn.ts';
 import { disposeSpecialGroup } from '../src/special-presentation.ts';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import type { OpponentId } from '../src/roster.ts';
 import type { SpecialFx } from '../src/special-modes.ts';
 

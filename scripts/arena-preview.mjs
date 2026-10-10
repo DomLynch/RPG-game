@@ -24,10 +24,10 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, PLAY_RADIUS, CAMERA_CLAMP } from '/src/arena.ts';
 import { cameraPose } from '/src/camera.ts';
 import { createFootDust } from '/src/foot-dust.ts';
-import { loadWarriors } from '/src/characters.ts';
-import { actorPose, initialPractice } from '/src/combat.ts';
-import { OPPONENTS } from '/src/moves.ts';
-import { TARGET, initialState } from '/src/sim.ts';
+import { loadWarriors } from '/src/fight/characters.ts';
+import { actorPose, initialPractice } from '/src/fight/combat.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
+import { TARGET, initialState } from '/src/fight/sim.ts';
 const status = t => document.getElementById('status').textContent = t;
 const canvas = document.getElementById('world'), GAME_RATIO = 1.5, TICK = 1 / 60;
 // Game renderer settings (src/scene.ts createScene): the lead's, frozen here.

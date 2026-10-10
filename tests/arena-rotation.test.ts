@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import { ARENA_ROTATION, arenaFor, isRotationArena, type ArenaKey } from '../src/arena-themes.ts';
 import { nextArena, passKey } from '../src/ladder.ts';
 import { loadProfile } from '../src/profile.ts';
-import { ARENAS, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { ARENAS, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
-import { setLateNotice } from '../src/play-radius.ts';
+import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { LADDER } from '../src/ladder.ts';
 

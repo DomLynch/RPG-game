@@ -20,10 +20,10 @@ const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
 <body><canvas id="world"></canvas><script type="module">
 import { createScene } from '/src/scene.ts';
-import { PROFILES, initialPractice, project, stepPractice } from '/src/combat.ts';
-import { OPPONENTS } from '/src/moves.ts';
-import { TARGET } from '/src/sim.ts';
-import { mirror, movesOf } from '/src/duel.ts';
+import { PROFILES, initialPractice, project, stepPractice } from '/src/fight/combat.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
+import { TARGET } from '/src/fight/sim.ts';
+import { mirror, movesOf } from '/src/fight/duel.ts';
 const TICK = 1 / 60, HIT_STOP = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, Killed: 220 }, HEAVY = new Set(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const idle = () => ({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }), act = (action, extra = {}) => ({ ...idle(), action, ...extra });
 const guard = s => { const w = s?.duel.fighters[1]; return { ...idle(), guard: true, guardDirection: w && w.phase === 'attack' && w.move ? mirror(movesOf(w)[w.move].direction) : undefined }; },   // the directional guard follows the blow (tests/ai.test.ts hold)

@@ -1,4 +1,4 @@
-// Release check: kill links stay true. A shared fight record (src/record.ts) replays the exact fight on the build under test,
+// Release check: kill links stay true. A shared fight record (src/fight/record.ts) replays the exact fight on the build under test,
 // so the rules must reproduce the reference fights in tests/fixtures/fight-records.json: same final tick, same outcome, same
 // Killed tick. Pure simulation, no browser, well under a second.
 //
@@ -16,11 +16,11 @@
 // test); deploy.sh runs it on the Mac, CI runs the soft gate, and the release is unaffected.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent, legal } from '../src/duel.ts';
-import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent, legal } from '../src/fight/duel.ts';
+import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/fight/record.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 

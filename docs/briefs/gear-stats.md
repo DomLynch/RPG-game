@@ -35,7 +35,7 @@ pins stay closest to what is measured today. The Crest carries nothing (it is a 
 
 ## Design rules (fixed)
 - **One seam, pure sim.** A `Loadout` (the two multipliers, already resolved) is an input to `stepDuel`, applied where the hit resolves
-  (`wound()` and chip on block) in `src/duel.ts`; posture (`shake`) is untouched. The sim reads nothing from the profile. Determinism and the arm64/x64 digest rule
+  (`wound()` and chip on block) in `src/fight/duel.ts`; posture (`shake`) is untouched. The sim reads nothing from the profile. Determinism and the arm64/x64 digest rule
   are untouched.
 - **Opponents wear theirs.** Every opponent from Legionary up already wears its full six; it fights with that tier's stats. The ladder gets
   steeper by kit as well as by AI. Ladder retune per rung is part of deliverable 5, not a follow-up.
@@ -60,7 +60,7 @@ pins stay closest to what is measured today. The Crest carries nothing (it is a 
    Backend reviews, Deploy applies at its deploy. Receipt: an award written by the server, none by the client.
 4. **Bracketed battery + paperdoll numbers** — the battery script gains the three brackets and the snapshot test; Web design shows Attack
    and RES on the paperdoll and the kill-screen delta (Web owns the copy and skin, Stats supplies the numbers).
-5. **The seam + the ladder** — multipliers at the hit in `src/duel.ts`, opponents wear their tier, daily duel fixed kit, ladder retune per
+5. **The seam + the ladder** — multipliers at the hit in `src/fight/duel.ts`, opponents wear their tier, daily duel fixed kit, ladder retune per
    rung until every bracket clears every cap, all fight-length pins green, honest before/after seed traces in the body. Lands after the
    shield. This is the PR that turns stats on.
 
@@ -91,7 +91,7 @@ on armour. Defence is RES, not a character stat. The `Loadout` the sim takes mus
 ## Addendum B (2026-09-22 23:10) — proposal owed by the Stats lane, due 2026-09-23 morning
 A docs PR, no code, to Lead with Strategy copied. Dom decides on his phone; the decisions become Addendum C.
 
-1. **Damage by weapon, by grip.** Read out of the live tables in `src/moves.ts` (per-weapon move defs: damage, windup / active /
+1. **Damage by weapon, by grip.** Read out of the live tables in `src/fight/moves.ts` (per-weapon move defs: damage, windup / active /
    recovery ticks, reach, stamina, stagger, chip; grip per weapon, trident two-hand after #472). One page: weapon × grip ×
    light / heavy / thrust damage × speed (ticks and ms) × reach × stamina. State the pattern the numbers already follow (1h faster,
    lighter, cheaper; 2h slower, heavier, more posture) and where a weapon breaks it. Propose how the Attack tier multiplier sits on
@@ -107,7 +107,7 @@ Format: tables, then one paragraph per decision with the number and the reason.
 
 ## Addendum C (2026-09-23 00:45) — Dom's decisions on the proposal (PR #491)
 1. **One Attack multiplier for every weapon**, scaled by tier: nothing at Recruit, one step per tier, the cap at Origin. Dom's intent
-   "better tiers give more, by Origin the most" is this ramp. Grip is not a balance axis (`src/moves.ts` declares the grip field data-only
+   "better tiers give more, by Origin the most" is this ramp. Grip is not a balance axis (`src/fight/moves.ts` declares the grip field data-only
    and the live tables do not sort by it). Displayed as whole points: an Origin weapon reads `+15 ATK`; a full Origin armour set reads
    `20 RES`, each piece its slot's share. Dom floated `+10 / +10`; Strategy keeps 15 / 20 (the brackets are built on them, and 10 is
    barely felt on a 150-health fight); changing either is two edits that must agree, `CAPS` and the matching integer coefficient in `multipliers()` (kept as literals so the

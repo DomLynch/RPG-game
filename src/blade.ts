@@ -1,5 +1,5 @@
 import { bladePathsByRig } from './blade-paths.ts';
-import type { State } from './sim.ts';
+import type { State } from './fight/sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Preserve the authored contact pose while sharpening the release through contact.

@@ -7,8 +7,8 @@ import { BACKS, BACK_PACES, classTravel, STEP_BEATS, STEP_WINDOW, walkOffset, ty
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { LAND_AT, advanceCast } from '../src/special-timing.ts';
-import { RULES } from '../src/moves.ts';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import { RULES } from '../src/fight/moves.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
 // The Witch's, the Plague Doctor's and the Knight's class specials (special-fx-class.ts): six previews, picked by Dom 2026-10-01, ground marks darker than the floor.
 const KINDS: Record<ClassSpecial, { opponent: 'witch' | 'plaguedoctor' | 'knight'; level: number }> = {

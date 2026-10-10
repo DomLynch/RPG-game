@@ -1,4 +1,4 @@
-import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
+import { ROSTER, supportsFinishers, resolveFinisher } from './roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
 import { resolveSparringPreview } from './sparring-specials.ts';
@@ -10,46 +10,42 @@ import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
-import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
+import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './fight/characters.ts';
+import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
-import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
 import { type FinisherId } from './fight/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
 import { createHamstrungAssets } from './hamstrung-assets.ts';
-import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
 import { buildArena, type Arena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
-import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
-import { shoveFor } from './camera-kick.ts';
-import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './fight/finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { FOE_TUNE } from './fatigue-tune.ts';
 import { fatigueReadFrom } from './fatigue-read.ts';
 import { stanceFrom } from './stance-pose.ts';
-import { armfeelFrom, Flinch, FLINCH_GAIN, isFleshHit } from './armfeel.ts';
+import { armfeelFrom, Flinch } from './armfeel.ts';
 import { createBurstPool } from './armfeel-fx.ts';
-import { bloodGrow, foeBurstPull } from './fight/blood-style.ts';
 import { createBloodEdge } from './fight/blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig, framingLow, framingTall } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './fight/severed-head.ts';
-import { createBladeBlood, createBodyWounds, createSplatPool } from './fight/gore.ts';
+import { createFightFx } from './fight/fx.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
 import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
@@ -200,7 +196,6 @@ export function createScene(
   }
   const arena = world ? worldArena() : buildArena(scene, theme),
     footDust = createFootDust(scene, dustToneFor(theme)),
-    clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene),
     miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
@@ -284,7 +279,7 @@ export function createScene(
       void shapes.get(url)!.then((mesh) => { if (warriors === loaded && urls()[who] === url) { actor.reshape(mesh); ((globalThis as { __weaponShapes?: Record<string, string | undefined> }).__weaponShapes ??= {})[who] = mesh ? url : undefined; } });   // the stills and phone check read what went on
     }
   }
-  const shieldsOn = SHIPPING_SHIELDS.has(opponentId) || (typeof location !== 'undefined' && shieldsFlag(location.search)), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
+  const shieldsOn = SHIPPING_SHIELDS.has(opponentId), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
@@ -447,28 +442,9 @@ export function createScene(
   const finisherBlood = createFinisherBlood(splatTexture);
   scene.add(finisherBlood.group);
   let bloodSources: ReturnType<typeof finisherBloodSources> = [];
-  const sparkPositions = new Float32Array(12 * 3),
-    sparkGeometry = new THREE.BufferGeometry();
-  sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
-  const sparkMaterial = new THREE.PointsMaterial({
-    color: '#ffe4af',
-    map: dropTexture,
-    alphaTest: 0.02,
-    size: 0.045,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const sparks = new THREE.Points(sparkGeometry, sparkMaterial);
-  sparks.frustumCulled = false;
-  sparks.visible = false;
-  scene.add(sparks);
-  const splats = createSplatPool(scene, splatTexture);
-  let bloodMode: 'red' | 'dark' | 'off' = 'red',
-    impactDuration = 0.18,
-    impactHeading = 0,
-    flesh = false,
-    killSpray = false;
+  const fx = createFightFx({ scene, dropTexture, splatTexture });   // moving the Pit's contact effects into src/fight/fx.ts
+  const { clash, sparks, splats, bodyWounds, blade } = fx;
+  let bloodMode: 'red' | 'dark' | 'off' = 'red';
   let finisherOverride: FinisherId | null = null; // dev/test pick (owner 2026-09-19): swap which finisher plays on a ceremonial kill; null = the spec's selection
   // Rotation memory (owner 2026-09-20: never the same ceremony twice in a row). `lastFinisher` is the ceremony the previous
   // fight showed and feeds this fight's pick; `fightFinisher` is this fight's, rolled into `lastFinisher` when the next
@@ -477,12 +453,8 @@ export function createScene(
   let bakeFallback: FinisherId | false | null = null;   // the finisher this finish plays instead (bakeSafeFinisher), false for none, null undecided
   let fallen: { victim: 0 | 1; draw: boolean } | null = null;   // the finish drawn last frame, for fallenRect() between frames
   let openedReach = 0;   // Opened: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
-  let impact = 0,
-    lastHealth: number = RULES.health,
-    lastPlayerHealth: number = RULES.health;
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
-  let severHead: SeveredHead | null = null,
-    killHeading = 0;
+  let severHead: SeveredHead | null = null;
   // Fetched on demand (src/hamstrung-assets.ts), never in loadFighters: the killer's clip, the victim's clip and his weapon-drop bake.
   const hamstrungAssets = createHamstrungAssets(
     async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]); return { killer, victim }; },
@@ -536,8 +508,6 @@ export function createScene(
   const bossTelegraph = typeof location !== 'undefined' && telegraphFlag(location.search) ? createBossTelegraph(scene) : null;   // ?telegraph=1 look-test (boss-telegraph.ts)
   const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
-  const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
-  const blade = createBladeBlood();
   let heading = Math.PI;
   const standoffOn = typeof location !== 'undefined' && standoffFlag(location.search);   // on by default, ?standoff=0 off (standoff.ts)
   const standoff = standoffClock();   // ms of frame time since the versus card lifted (frame dt, so a stepped harness clock plays it too); -1 before
@@ -694,8 +664,8 @@ export function createScene(
       bloodMode = mode;
       finisherBlood.group.visible = mode !== 'off' && bloodSources.length > 0;
       splats.clear(true);
-      if (flesh) {
-        impact = 0;
+      if (fx.state.flesh) {
+        fx.state.impact = 0;
         sparks.visible = false;
       }
       if (mode === 'off') blade.set(false, warriors, mode);
@@ -873,12 +843,12 @@ export function createScene(
       if (
         practice.health === practice.enemyMaxHealth &&
         practice.playerHealth === practice.maxHealth &&
-        (lastHealth < practice.enemyMaxHealth || lastPlayerHealth < practice.maxHealth)
+        (fx.state.lastHealth < practice.enemyMaxHealth || fx.state.lastPlayerHealth < practice.maxHealth)
       ) {
         finisherBlood.reset();
         bloodEdge.reset();
         bloodSources = [];
-        impact = 0;
+        fx.state.impact = 0;
         splats.clear(false);
         bodyWounds.clear();
         signatures.clear();
@@ -897,146 +867,9 @@ export function createScene(
         if (hamstrungOk()) warriors?.opponent.prepareHamstrung();
         if (executionOk()) warriors?.opponent.prepareExecution();
       } // a fresh match: both bars full again
-      // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
-      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
-      // Every contact goes through hit-impact.ts first: a landed blow or a block knocks the camera away from it, a parry jolts it toward the attacker.
-      const blowDirection = (e: CombatEvent) => { const by = attackerOf(e); return e.move && by !== undefined ? weaponOf(practice.duel.fighters[by].weapon).moves[e.move]?.direction : undefined; };
-      const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && (impactShove(shoveEvent, blowDirection(shoveEvent)) ?? shoveFor(shoveEvent));
-      if (shoveEvent && shove && dt > 0) {
-        // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
-        rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
-      }
-      // The player's roll tumbles the frame the way of the roll (hit-impact.ts ROLL_TUMBLE; Dom's pick C, 2026-09-30).
-      if (dt > 0 && events.some((e) => e.type === 'ActionStarted' && e.action === 'roll' && e.actor === 0)) {
-        const heading = practice.duel.fighters[0].body.heading, right = new THREE.Vector3().setFromMatrixColumn(rig.camera.matrixWorld, 0);
-        const way = Math.sign(Math.sin(heading) * right.x + Math.cos(heading) * right.z) || 1;   // +1: the roll goes to screen right
-        rig.tilt(-way * ROLL_TUMBLE.angle, ROLL_TUMBLE.seconds, way * ROLL_TUMBLE.shift, ROLL_TUMBLE.dip);   // lean INTO the roll: right tips clockwise
-      }
-      if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
-      if (killed && dt > 0) dip = DIP_FRAMES;
-      // Sand off the defender's feet (blockDust, clash-sparks.ts). Feet are last frame's world positions (a frame old, a centimetre); a
-      // fighter who is not on his feet moves none.
-      const sand = shoveEvent && dt > 0 ? blockDust(shoveEvent) : null;
-      if (shoveEvent && sand && dustFeet.length === 4) {
-        const defender = blow ? shoveEvent.target! : shoveEvent.actor, attackerAt = defender ? state : practice.enemy;
-        const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
-        const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
-        for (const foot of sand.feet === 'both' ? feet : rear ? [rear] : []) if (foot.y < 0.25) footDust.puff(foot, sand.strength);
-      }
-      if (contact && dt > 0) {
-        const enemyHurt = blow?.target === 1,
-          hurt = !!blow;
-        const kick = blow?.move === 'kick';
-        flesh = hurt && (!enemyHurt || hasBlood(opponentId)) && !kick && bloodMode !== 'off';
-        impactDuration = flesh && killed ? 0.55 : flesh ? 0.34 : 0.18;
-        impact = impactDuration;
-        impactHeading = blow?.heading ?? state.heading;
-        killSpray = !!(killed && flesh); // a kill sprays a cone along the strike heading, not the radial puff
-        if (killed && flesh) killHeading = blow?.heading ?? state.heading; // the decapitation pop flies the way the blow did
-        const site = enemyHurt ? practice.enemyWoundSite : practice.woundSite;
-        const target = enemyHurt ? practice.enemy : state;
-        // ?look=armfeel (armfeel.ts): the struck body flinches and bursts at the contact. The hero keeps FLINCH_GAIN.hero of the flinch (it is the biggest
-        // thing on the screen); the opponent, seen end-on, is pushed to the side the blow arrives from so the lean is seen.
-        if (flinches && burstPool && blow && isFleshHit(blow) && blow.target !== undefined && feel) {
-          const victim = blow.target, heading = blow.heading ?? state.heading, bx = Math.sin(heading), bz = Math.cos(heading), dead = !!killed && killed.target === victim;
-          let px = bx, pz = bz;
-          const along = blowDirection(blow);
-          if (victim === 1 && (along === 'left' || along === 'right')) {   // the arrival side, as hit-impact.ts reads it: a blow on the opponent named 'right' arrives from screen right
-            right.setFromMatrixColumn(rig.camera.matrixWorld, 0);
-            const away = along === 'right' ? -1 : 1, mag = Math.hypot(bx * 0.6 + right.x * away, bz * 0.6 + right.z * away) || 1;
-            px = (bx * 0.6 + right.x * away) / mag; pz = (bz * 0.6 + right.z * away) / mag;
-          }
-          flinches[victim].hit(px, pz, dead, victim === 0 ? FLINCH_GAIN.hero : FLINCH_GAIN.opponent);
-          const scale = victim === 1 ? OPPONENTS[opponentId].scale : 1, y = (blow.location === 'head' ? 1.5 : blow.location === 'legs' ? 0.55 : 1.15) * scale;
-          // The same blood on both bodies (Dom: it showed when he was hit, rarely when he hit): the foe is 2-3x further from the camera, so its drops are scaled up
-          // to cover about the hero burst's screen size, and the spawn is pulled toward the camera (blood-style.ts foeBurstPull), clear of the hero's torso that covers the contact.
-          const cam = rig.camera.position, reach = (px: number, pz: number, py: number) => Math.hypot(cam.x - px, cam.y - py, cam.z - pz);
-          let sx = target.x - bx * 0.3, sz = target.z - bz * 0.3, sy = y, grow = 1;
-          if (victim === 1) {
-            const far = reach(target.x, target.z, y), near = reach(state.x, state.z, 1.15), pull = foeBurstPull(far, near);   // close up the hero covers the contact: bring the spawn toward the camera, same screen spot
-            sy += 0.1 * scale;
-            const dx = cam.x - sx, dy = cam.y - sy, dz = cam.z - sz, len = Math.hypot(dx, dy, dz) || 1;
-            sx += dx / len * pull; sy += dy / len * pull; sz += dz / len * pull;
-            grow = bloodGrow(reach(sx, sz, sy), near);
-          }
-          burstPool.burst(feel, sx, sy, sz, bx, bz, dead, grow);
-        }
-        // A landed blade blow marks the struck body where the simulation says it landed, from the side the move came from.
-        if (blow?.type === 'Hit' && blow.location && blow.move && !kick && (!enemyHurt || hasBlood(opponentId)) && warriors)
-          bodyWounds.hit(enemyHurt ? 1 : 0, (enemyHurt ? warriors.opponent : warriors.player).anchor,
-            { location: blow.location, direction: weaponOf(practice.duel.fighters[blow.actor].weapon).moves[blow.move].direction, heading: target.heading },
-            enemyHurt ? OPPONENTS[opponentId].scale : 1);
-        // Steel on steel: a block or parry of a metal blade by a blade guard throws metal sparks from the attacker's blade (clash-sparks.ts);
-        // the generic contact dots stay for everything else (a shaft catching a blade, a kick, a fist).
-        const clashEvent = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-        const strength = clashEvent ? clashStrength(clashEvent, weaponOf(practice.duel.fighters[clashEvent.actor].weapon)) : 0;
-        if (clashEvent && strength > 0 && clashEvent.target !== undefined) {
-          const attacker = clashEvent.target,
-            rig = attacker ? warriors?.opponent : warriors?.player,
-            weapon = rig?.anchor.getObjectByName('WeaponDrawn') ?? rig?.anchor.getObjectByName('SwordDrawn'),
-            contactRange = weapon?.userData.contact as { from: number; to: number } | undefined;
-          // Struck off the attacking blade itself (owner 2026-09-20): the outer part of its contact zone as the rig draws it this frame,
-          // with a fallback segment at the defender's guard when a rig is not loaded.
-          const defenderBody = attacker ? state : practice.enemy, guard = new THREE.Vector3(defenderBody.x, 1.15, defenderBody.z);
-          let a: THREE.Vector3, b: THREE.Vector3;
-          if (weapon && contactRange) {
-            // The rig's contact pose already drives the blade into the defender; sparks belong on the visible length, so the zone ends
-            // where the blade enters his body (0.3 m off his axis) and runs 0.4 m back toward the attacker's hand.
-            const hand = weapon.localToWorld(new THREE.Vector3(0, 0, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)), length = hand.distanceTo(tip) || 1;   // the grip to the tip: the whole visible length
-            let entry = 1;
-            for (let t = 0; t <= 1; t += 0.05) { const q = hand.clone().lerp(tip, t); if (Math.hypot(q.x - guard.x, q.z - guard.z) < 0.3) { entry = t; break; } }
-            b = hand.clone().lerp(tip, Math.max(0.25, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(0.4, length * 0.35) / length));
-          } else { const towardAttacker = new THREE.Vector3(attacker ? practice.enemy.x : state.x, 0, attacker ? practice.enemy.z : state.z).sub(new THREE.Vector3(guard.x, 0, guard.z)).normalize(); a = guard.clone().addScaledVector(towardAttacker, 0.2); b = guard.clone().addScaledVector(towardAttacker, 0.6); }
-          clash.burst(a, b, attacker ? practice.enemy.heading : state.heading, strength);
-          impact = 0; // the dedicated sparks replace the generic dots for this contact
-        }
-        sparks.position.set(
-          hurt ? target.x : (state.x + practice.enemy.x) / 2,
-          hurt ? (site === 'head' ? 1.55 : site === 'legs' ? 0.6 : 1.15) : 1.2,
-          hurt ? target.z : (state.z + practice.enemy.z) / 2,
-        );
-        sparkMaterial.color.set(
-          flesh ? (bloodMode === 'dark' ? '#3e2527' : '#a32b27') : kick || hurt ? '#b1a28a' : '#ffe4af',
-        );
-        sparkMaterial.blending = flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending;
-        sparkMaterial.size = flesh ? 0.095 : 0.045;
-        if (finisher === 'opened' && enemyHurt && warriors) {
-          const hip = warriors.opponent.boneWorld('pelvis'),
-            spine = warriors.opponent.boneWorld('spine_01');
-          if (hip && spine) sparks.position.copy(hip.lerp(spine, 0.6));
-        }
-        if (flesh && !(killed && detailedBlood)) splats.splash(target, bloodMode);
-        if (killed && flesh && !detailedBlood) {
-          // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
-          splats.pool(target, bloodMode);
-          blade.set(true, warriors, bloodMode, killed.actor as 0 | 1);
-        }
-        if (killed && flesh && detailedBlood) {
-          impact = 0;
-          blade.set(true, warriors, bloodMode, killed.actor as 0 | 1);
-        }
-      }
-      lastHealth = practice.health;
-      lastPlayerHealth = practice.playerHealth;
-      clash.update(dt); // contact effects run on the frame's dt through a hit-stop, like the generic sparks and the camera kick
-      impact = Math.max(0, impact - dt);
-      sparks.visible = impact > 0;
-      if (impact > 0) {
-        const t = impactDuration - impact;
-        sparkMaterial.opacity = impact / impactDuration;
-        const spread = killSpray ? 0.9 : 2,
-          drive = killSpray ? 2.8 : 1.5; // a kill: a tight cone driven along the heading
-        for (let i = 0; i < 12; i++) {
-          sparkPositions[i * 3] =
-            (Math.sin(i * 2.4) * spread + (flesh ? Math.sin(impactHeading) * drive : 0)) * t;
-          sparkPositions[i * 3 + 1] = Math.cos(i * 1.7) * t * 2 - t * t * 4;
-          sparkPositions[i * 3 + 2] =
-            (Math.cos(i * 2.4) * spread + (flesh ? Math.cos(impactHeading) * drive : 0)) * t;
-        }
-        sparkGeometry.attributes.position.needsUpdate = true;
-      }
-      splats.update(dt);
+      fx.onContact({ events, practice, state, dt, blow, contact, killed, finisher, detailedBlood, camera: rig.camera, kick: rig, blockHeavy, warriors, dustFeet, dustPositions, footDust, flinches, burstPool, feel, right, opponentId, bloodMode,
+        DIP_FRAMES, setDip: (frames) => { dip = frames; } });   // the camera kick, the sand, the sparks, the wounds, the splats and the blade blood: src/fight/fx.ts
+      fx.update(dt);   // moving the Pit's contact effects into src/fight/fx.ts: the clash sparks, the generic sparks, the splats
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
@@ -1188,7 +1021,7 @@ export function createScene(
             0,
             practice.enemy.z - state.z,
           ).normalize();
-          severHead = launchSeveredHead(built.group, built.radius, axis, killHeading);
+          severHead = launchSeveredHead(built.group, built.radius, axis, fx.state.killHeading);
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');

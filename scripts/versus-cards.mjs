@@ -16,10 +16,10 @@ const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
 <body><canvas id="world"></canvas><script type="module">
 import { createScene } from '/src/scene.ts';
-import { initialPractice, project } from '/src/combat.ts';
-import { OPPONENTS } from '/src/moves.ts';
+import { initialPractice, project } from '/src/fight/combat.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
 import { LADDER } from '/src/ladder.ts';
-import { TARGET } from '/src/sim.ts';
+import { TARGET } from '/src/fight/sim.ts';
 const id = new URLSearchParams(location.search).get('opponent'), TICK = 1 / 60;
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, id);
 // Both fighters armed and facing, the hero \`gap\` metres from the target (tests/combat.test.ts, scripts/impact-preview.mjs).

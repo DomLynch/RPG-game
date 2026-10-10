@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { moodOf } from '../src/stance.ts';
+import { moodOf } from '../src/fight/stance.ts';
 import { stanceFlag, stanceLabel, stanceReveal } from '../src/stance-panel.ts';
 
 // The stance preview (?stances=): off unless the URL asks, every live fight is as it was.

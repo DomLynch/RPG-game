@@ -1,5 +1,5 @@
 // Bake licensed/authored blade trajectories as pure numeric simulation data; run after building a rig or changing a weapon.
-// One table per weapon and per (clip, timing) in that weapon's PATHS (src/moves.ts WEAPONS): the simulation sweeps these; renderer bones
+// One table per weapon and per (clip, timing) in that weapon's PATHS (src/fight/moves.ts WEAPONS): the simulation sweeps these; renderer bones
 // never own hits. Which rig, node and contact segment each weapon bakes from is scripts/blade-manifest.json (the weapons lane adds entries).
 // A table belongs to the rig it was baked on (`rig`: the model identity that carries the scale; 'hero' = the man/player skeleton): the
 // same knife sweeps 0.82 m elsewhere in the Goblin's hand than in the player's (measured 2026-09-21). `bladePathsByRig[rig][weapon]`
@@ -10,7 +10,7 @@ import fs from 'node:fs/promises';
 import { AnimationMixer, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { swingProgress } from '../src/blade.ts';
-import { WEAPONS, total } from '../src/moves.ts';
+import { WEAPONS, total } from '../src/fight/moves.ts';
 globalThis.ProgressEvent=class {constructor(_,fields){Object.assign(this,fields)}};
 const manifest=JSON.parse(await fs.readFile('scripts/blade-manifest.json','utf8'));
 const byRig={};
