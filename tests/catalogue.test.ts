@@ -1,4 +1,4 @@
-// The character catalogue (src/fight/catalogue.ts + catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
+// The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
 // named, and the engine reads a row by id with no per-character code (a new character is one row).
 import test from 'node:test';
 import assert from 'node:assert/strict';

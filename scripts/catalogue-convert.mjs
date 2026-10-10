@@ -1,6 +1,6 @@
 // Scripted conversion of the roster into catalogue rows (src/fight/catalogue.ts): one row per ROSTER character, the ten Pit ranks' legends inside the row. Pure data out, no rig code:
 // every value is READ from the existing sources (src/roster.ts, src/legends.ts, src/loot.ts, the GLBs), none is typed here except the small override tables below, which are the facts
-// no source holds yet (blood colour/amount, a beast's finisher picks, the world assets that exist). Writes src/fight/catalogue-rows.ts; the file is the source of truth after this run.
+// no source holds yet (blood colour/amount, a beast's finisher picks, the world assets that exist). Writes src/fight/catalogue-data.ts; the file is the source of truth after this run.
 //   node scripts/catalogue-convert.mjs            (Node 24 strips the .ts imports)
 import fs from 'node:fs';
 import { ROSTER } from '../src/roster.ts';
@@ -78,15 +78,9 @@ const ts = (v, pad = '') => {   // TS literal: bare identifier keys, JSON string
   if (v && typeof v === 'object') return `{ ${Object.entries(v).map(([k, x]) => `${/^[A-Za-z_]\w*$/.test(k) ? k : JSON.stringify(k)}: ${ts(x, next)}`).join(', ')} }`;
   return JSON.stringify(v);
 };
-const out = `// The character catalogue's rows (src/fight/catalogue.ts): one per roster character; the ten Pit ranks' legends live inside the row. GENERATED once by scripts/catalogue-convert.mjs from
-// src/roster.ts, src/legends.ts, src/loot.ts and the GLBs (measured tri counts, clips, joints); this file is the source of truth from here on. A new character is one row. World assets are
-// generated from the engine asset by scripts/character/world_body.py; a row with world null has none yet, so no zone may draw it. The goblin is row #1 of the camp (Lead 2026-10-09).
-import type { CatalogueRow } from './catalogue.ts';
-
-export const CATALOGUE: readonly CatalogueRow[] = ${ts(rows)};
-export const catalogueRow = (id: string): CatalogueRow | null => CATALOGUE.find((r) => r.id === id) ?? null;
-`;
-fs.writeFileSync('src/fight/catalogue-rows.ts', out);
+// The rows are PURE DATA in src/fight/catalogue-data.ts (one const of literals, type-only imports: the data-only path carries it); src/fight/catalogue-rows.ts is the code that reads them and is NOT regenerated.
+const head = fs.readFileSync('src/fight/catalogue-data.ts', 'utf8').split('export const CATALOGUE_ROWS')[0];
+fs.writeFileSync('src/fight/catalogue-data.ts', `${head}export const CATALOGUE_ROWS: readonly CatalogueRow[] = ${ts(rows)};\n`);
 // The bodytype and species tables the wounds rows read (src/fight/body-tables.ts). The quadruped parts are built from the beasts' own skin joints (the cut bones above, read from the GLBs); every
 // beast that uses the table must have the same bones and the trunk joint, or this refuses.
 const beasts = rows.filter((r) => r.wounds), cut0 = beasts[0].finisher.cut;
