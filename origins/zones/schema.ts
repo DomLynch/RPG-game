@@ -33,6 +33,8 @@ export const FIELDS: readonly Field[] = [
   look('look.water.level', 'number', null, { nullable: true }), look('look.props.kit', 'string', ''), look('look.props.density', 'number', 1, { min: 0, max: 4 }), look('look.landmarks', 'list', [], { donor: 'EQEmu object' }),
   look('look.weather.preset', 'string', 'clear', { donor: 'EQEmu zone.rain_*/snow_* (by reference)' }), look('look.weather.intensity', 'number', 1, { min: 0, max: 2 }), look('look.weather.probability', 'number', 1, { min: 0, max: 1 }),
   look('look.post', 'list', []),
+  // The walk camera's limits (src/fight/follow-camera.ts): where it tightens under a vault. null = none (Zone 2). {zMax, zMin, halfWidth?, back, up}; the page passes this and holds no camera number itself.
+  look('camera.passage', 'map', null, { nullable: true, wired: true }),
   // SOUND (World, sound)
   sound('sound.ambience', 'string', ''), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
   sound('sound.footsteps', 'string', 'dirt'), sound('sound.cries', 'string', 'default'), sound('sound.reverb', 'string', 'open'),

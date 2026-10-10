@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall } from '../src/camera.ts';
+import { SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall } from '../src/fight/camera.ts';
 import { createHash } from 'node:crypto';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { initialState, RADIUS, TARGET } from '../src/fight/sim.ts';
@@ -67,7 +67,7 @@ test('finisher side view exposes both fighters at every arena edge and phone asp
 
 // The rig: camera state across frames. A PerspectiveCamera is plain maths in node, so every rule the scene used to hold inline is
 // checked here — snap then settle, orbit/recenter, the kick and its removal, the finisher push-in, the side-view reveal, reduced motion.
-import { createCameraRig, type CameraFinish } from '../src/camera.ts';
+import { createCameraRig, type CameraFinish } from '../src/fight/camera.ts';
 const rigAt = (x = 3, z = 4, still = false, aspect = 393 / 852) => {
   const camera = new PerspectiveCamera(51, aspect, 0.1, 180), rig = createCameraRig(camera, still);
   const state = { ...initialState(), x, z, heading: 1 }, enemy = { x: 0, z: 0, heading: 0 };
