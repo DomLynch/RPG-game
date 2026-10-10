@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
 import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/fight/moves.ts';
 import { TARGET } from '../src/fight/sim.ts';

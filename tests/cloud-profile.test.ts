@@ -98,7 +98,7 @@ test('an older device never lowers the account: what it writes carries the highe
 });
 
 test('a refresh keeps the declined-loot history on both sides (merged, deduplicated, capped oldest-first)', async () => {
-  const { DECLINED_KEPT } = await import('../src/loot.ts');
+  const { DECLINED_KEPT } = await import('../src/fight/loot.ts');
   const kill = (attempt: number, day: string) => ({ opponent: 'goblin' as const, attempt, healthLeft: 40, recordId: null, day });
   const cloud: CloudProfile = { display_name: 'Aldren', encounter: 'goblin', revision: 3, victory_marks: 5, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(1, '2026-09-20')] } };
   const device: Profile = { version: 1, id: 'd', name: 'Aldren', encounter: 'goblin', career: { victoryMarks: 5 }, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(1, '2026-09-20'), kill(2, '2026-09-23')] } };

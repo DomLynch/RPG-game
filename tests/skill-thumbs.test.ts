@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { SKILLS } from '../src/loot.ts';
+import { SKILLS } from '../src/fight/loot.ts';
 
 const thumb = (id: string) => new URL(`../public/game/img/loot/${id}.thumb.svg`, import.meta.url);
 const SCOPE8 = ['lunge', 'reaping', 'shove', 'jab', 'cleave', 'stomp', 'miasma', 'ironrush', 'hewer'];   // Lead's fixed SkillIds

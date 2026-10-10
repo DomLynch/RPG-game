@@ -424,7 +424,7 @@
     },
     {
       "paths": [
-        "src/loot.ts",
+        "src/fight/loot.ts",
         "src/loot-panel.ts",
         "src/loot-data.ts",
         "src/profile.ts",

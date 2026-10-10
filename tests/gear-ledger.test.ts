@@ -1,9 +1,9 @@
-// The engine's gear screen over the ONE item ledger (src/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
+// The engine's gear screen over the ONE item ledger (src/fight/gear-ledger.ts): a gear_open reply reads into the Loot the sheet draws, and wear / stow become the server's calls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/gear-ledger.ts';
-import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/loot.ts';
+import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/fight/gear-ledger.ts';
+import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/fight/loot.ts';
 
 const piece = (id: string, lootId: string | null, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
   ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, ...over });

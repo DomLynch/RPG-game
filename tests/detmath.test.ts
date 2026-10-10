@@ -9,7 +9,7 @@ import { FIRST_DETMATH_VERSION, LEGACY_TABLE_IS_NATIVE, M, atan2, cos, hypot, ma
 import { RECORD_VERSION, READABLE_VERSIONS } from '../src/fight/record.ts';
 
 // Every file the sim steps through. SIM_FILES in tests/record-version-guard.test.ts plus combat.ts (stepPractice) and detmath.ts itself.
-const SIM = ['src/fight/duel.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/fight/combat.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];
+const SIM = ['src/fight/duel.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/fight/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/fight/combat.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];
 const BANNED = /\bMath\.(sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot)\b|[\w)\]]\s*\*\*\s*[\w(]/;
 const code = (line: string) => line.replace(/\/\/.*$/, '');   // line comments may name them
 

@@ -120,7 +120,7 @@ SIM_FILES *trunk* (`tests/record-version-guard.test.ts:19`): duel, moves, ai, si
 | `src/fight/moves.ts` | `skill_witchfire` MoveDef, the per-weapon `skill` modifier rows from (c) (reach, arc, direction, knockback, chain), and the `Skill` role in the move/role maps. |
 | `src/fight/duel.ts` | `Action` gains `'skill'`; `Fighter` gains `skill` (the equipped skill id or null) and `skillCooldown`; `legal()` checks that a skill is equipped, the cooldown is 0 and stamina is ≥ 40; the cooldown is spent at commitment and decrements in the per-tick map. |
 | `src/fight/record.ts` | The intent encoding carries the new action; the record header carries the equipped `skill`, as it carries `weapon`. **RECORD_VERSION 10 → 11.** |
-| `src/blade-paths.ts` | 4 new tables: trident, scythe, warhammer, maul (hero rig). The palm casts, the estoc's jet included, need none. |
+| `src/fight/blade-paths.ts` | 4 new tables: trident, scythe, warhammer, maul (hero rig). The palm casts, the estoc's jet included, need none. |
 | `src/fight/ai.ts` | The warden reads the green windup as a heavy-class tell: guard or parry decisions only. **No warden casts in V1.** |
 | `src/fight/sim.ts`, `blade.ts`, `roster.ts`, `finishers.ts` | No change expected. The skill may land the kill, but only as a **plain death** (ruling 3), so `finishers.ts` does not change. |
 

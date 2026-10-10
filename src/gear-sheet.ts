@@ -4,8 +4,8 @@ import { captureException } from '@sentry/browser';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { TIERS, type Tier } from './grades.ts';
 import { isLegendOpponent, legendAt } from './legends.ts';
-import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
-import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
+import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './fight/loot.ts';
+import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './fight/gear-ledger.ts';
 import { shortLink } from './share-store.ts';
 
 export const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
