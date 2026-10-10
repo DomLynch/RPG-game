@@ -35,20 +35,26 @@ export function genericJobArgs(argv) {
   if (dd < 0 || dd === argv.length - 1) throw new Error('usage: launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <command…>');
   const [sha, ...flags] = argv.slice(0, dd), cmd = argv.slice(dd + 1);
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
-  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600 };
+  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600, env: [] };
   for (let i = 0; i < flags.length; i++) {
     const f = flags[i];
     if (f === '--gfx') opts.gfx = true;
     else if (f === '--lane') opts.lane = String(flags[++i] ?? '');
     else if (f === '--timeout') opts.timeout = String(flags[++i] ?? '');
     else if (f === '--max-wait-s') opts.maxWaitS = Number(flags[++i]);
+    else if (f === '--env') opts.env.push(String(flags[++i] ?? ''));
     else throw new Error(`unknown flag ${f}`);
+  }
+  for (const kv of opts.env) {   // repeatable; values are NOT secret (hf shows a job's env), so no tokens here
+    const m = /^([A-Z_][A-Z0-9_]*)=(.*)$/s.exec(kv);
+    if (!m) throw new Error(`--env needs KEY=VALUE with an upper-case key, got "${kv}"`);
+    if (['SHA', 'LANE', 'JOB_ARGV_B64'].includes(m[1]) || /TOKEN|SECRET|PASSWORD|KEY/.test(m[1])) throw new Error(`--env ${m[1]} is reserved or looks like a secret`);
   }
   if (!/^\d+[mh]$/.test(opts.timeout)) throw new Error('--timeout must look like 40m or 2h');
   if (!/^[\w.-]{1,40}$/.test(opts.lane)) throw new Error('--lane must be a short word');
   if (!Number.isFinite(opts.maxWaitS) || opts.maxWaitS < 0 || opts.maxWaitS > 3600) throw new Error('--max-wait-s must be 0-3600');
   const flavor = opts.gfx ? 't4-medium' : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
-  const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, JOB_IMAGE, bash, dashC, script];
+  const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, ...opts.env.flatMap(kv => ['-e', kv]), JOB_IMAGE, bash, dashC, script];
   return { args, flavor, opts, sha };
 }
 // The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
@@ -109,7 +115,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {
         // Work waterfall: a slot under the shared HF caps (scripts/lib/hf-slots.mjs); a lane's job keeps off the slot reserved for the deploy lane's unit/rows jobs.
-        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : 300, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }) });
+        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : 300, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }), idOf: r => /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1] ?? null, cancel: id => spawnSync(hfBin, ['jobs', 'cancel', id], { encoding: 'utf8', timeout: 60_000 }) });
         if (!slot.ok) { console.error(`launch: no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s; run it on the VPS queue instead`); process.exit(75); }
         const r = slot.value; process.stdout.write(`${tierLine(flavor, slot.slot, slot.queuedS)}\n${r.stdout || ''}`); process.stderr.write(r.stderr || '');
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];

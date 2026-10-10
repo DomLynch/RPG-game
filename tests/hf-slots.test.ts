@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 process.env.HF_SLOT_LOCK = join(mkdtempSync(join(tmpdir(), 'hf-slots-lock-')), 'lock');
-const { CAPS, slotDecision, tierLine, tierOf, withSlot } = await import('../scripts/lib/hf-slots.mjs');
+const { CAPS, rankOf, slotDecision, tierLine, tierOf, withSlot } = await import('../scripts/lib/hf-slots.mjs');
 const { genericJobArgs } = await import('../scripts/vps-shadow/launch.mjs');
 
 const live = (flavor: string, n: number, stage = 'RUNNING') => Array.from({ length: n }, () => ({ flavor, status: { stage } }));
@@ -78,4 +78,33 @@ test('CLI: a lane job prints the tier line and the job id and goes in the lane l
   assert.equal(unit.code, 0, unit.err); assert.match(unit.out, /^tier=hf-cpu slot=4 queued=0s/);
   const gfx = cli(['job', sha, '--gfx', '--', 'node', 'still.mjs'], [...live('cpu-upgrade', 4), ...live('t4-medium', 2)]);
   assert.equal(gfx.code, 0, gfx.err); assert.match(gfx.out, /^tier=hf-t4 slot=3 queued=0s/);
+});
+
+test('across hosts: a launcher whose job ranks beyond its limit after the launch cancels it and queues again (the youngest excess job backs off)', () => {
+  const at = (n: number) => `2026-10-10T05:00:0${n}Z`;
+  const job = (id: string, n: number) => ({ id, created_at: at(n), flavor: 'cpu-upgrade', status: { stage: 'RUNNING' } });
+  assert.equal(rankOf('cpu-upgrade', [job('b', 2), job('a', 1), job('c', 3)], 'c'), 3);
+  assert.equal(rankOf('cpu-upgrade', [job('a', 1)], 'zzz'), 0, 'not listed yet: rank 0');
+  // two lane jobs already live; ours (id "mine", the 3rd) is fine, but another host raced us and got in first -> ours is 4th beyond the generic limit of 3
+  let t = 0; const cancelled: string[] = []; let call = 0;
+  const ps = () => {
+    call++;
+    if (call === 1) return [job('x', 1), job('y', 2)];                                  // before: 2 live, a slot looks free
+    if (call === 2) return [job('x', 1), job('y', 2), job('other', 3), job('mine', 4)];   // after launch: the other host's job ranks 3rd, ours 4th > 3
+    return [job('x', 1), job('y', 2), job('other', 3)];                                 // retry: no slot
+  };
+  const r = withSlot({ flavor: 'cpu-upgrade', generic: true, maxWaitS: 20, pollS: 15, launch: () => 'mine', ps, idOf: v => v as string, cancel: id => { cancelled.push(id); }, now: () => t, sleep: ms => { t += ms; } });
+  assert.deepEqual(cancelled, ['mine']); assert.equal(r.ok, false);
+  // and when we rank within the limit nothing is cancelled
+  t = 0; const kept: string[] = []; let n = 0;
+  const ok = withSlot({ flavor: 'cpu-upgrade', generic: true, launch: () => 'mine', ps: () => (++n === 1 ? [job('x', 1)] : [job('x', 1), job('mine', 2)]), idOf: v => v as string, cancel: id => { kept.push(id); }, now: () => t, sleep: ms => { t += ms; } });
+  assert.deepEqual([ok.ok, ok.ok && ok.slot, kept.length], [true, 2, 0]);
+});
+
+test('launch.mjs job --env K=V is repeatable, reaches the job as -e K=V, and refuses reserved or secret-looking keys', () => {
+  const j = genericJobArgs([sha, '--env', 'FOO=1', '--env', 'BAR=two words', '--', 'x']);
+  assert.ok(j.args.join('\u0000').includes('-e\u0000FOO=1\u0000-e\u0000BAR=two words'));
+  assert.throws(() => genericJobArgs([sha, '--env', 'foo=1', '--', 'x']), /upper-case key/);
+  assert.throws(() => genericJobArgs([sha, '--env', 'HF_TOKEN=abc', '--', 'x']), /reserved or looks like a secret/);
+  assert.throws(() => genericJobArgs([sha, '--env', 'SHA=x', '--', 'x']), /reserved/);
 });

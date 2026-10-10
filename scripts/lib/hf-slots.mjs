@@ -3,6 +3,9 @@
 //   hf-cpu (cpu-upgrade): at most 4 live jobs in all; a lane's generic job stops at 3, so one slot is always free for the deploy lane's unit/rows jobs
 //                         (the release is what waits on them).
 //   hf-t4  (t4-medium)  : at most 4 live jobs; graphics work only (stills, clips, Blender, browser rows); CPU work never gets a T4.
+// `hf jobs ps` is the ONLY source of truth, so the same code works from the Mac and from the VPS lane runner. The mkdir lock below only serialises launchers on ONE host;
+// across hosts a rank check after the launch settles a race: the live jobs of the flavor sorted by (created_at, id), and a launcher whose own job ranks beyond its limit cancels it
+// and queues again (the youngest excess job backs off, so two simultaneous launchers cannot both keep the last slot).
 // A launcher calls withSlot(): it waits (polling) for a slot, runs `launch()` while holding the lock (so two lanes cannot both take the last slot), and the caller
 // prints tierLine(). No slot within maxWaitS => withSlot returns { ok: false } and the caller exits 75 (the submit path requeues to the VPS).
 import { mkdirSync, rmSync, statSync } from 'node:fs';
@@ -38,6 +41,13 @@ function lock(maxMs) {
 }
 const unlock = () => { try { rmSync(LOCK, { recursive: true, force: true }); } catch { /* already gone */ } };
 
+// Rank (1-based) of job `id` among the live jobs of `flavor`, oldest first; 0 when it is not in the list yet.
+export function rankOf(flavor, jobs, id) {
+  const live = (Array.isArray(jobs) ? jobs : []).filter(j => j?.flavor === flavor && LIVE.test(String(j?.status?.stage ?? j?.status ?? '')))
+    .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)) || String(x.id).localeCompare(String(y.id)));
+  return live.findIndex(j => j.id === id) + 1;
+}
+
 export function livePs(hf = 'hf') {
   const r = spawnSync(hf, ['jobs', 'ps', '--format', 'json'], { encoding: 'utf8', timeout: 60_000 });
   try { const parsed = JSON.parse(r.stdout || '[]'); return r.status === 0 && Array.isArray(parsed) ? parsed : null; } catch { return null; }
@@ -45,14 +55,19 @@ export function livePs(hf = 'hf') {
 
 // Returns { ok: true, slot, queuedS, value } (value = what launch() returned) or { ok: false, used, limit, queuedS }.
 // An hf that cannot list jobs (null) fails OPEN: a cap is a courtesy to the pool, never a reason to lose a job.
-export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now }) {
+export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now, idOf = null, cancel = null }) {
   const t0 = now();
   for (;;) {
     if (!lock(Math.max(5_000, maxWaitS * 1000))) return { ok: false, used: -1, limit: -1, queuedS: (now() - t0) / 1000 };
     try {
       const jobs = ps(hf), d = jobs === null ? { ok: true, used: 0, limit: 0, slot: 1 } : slotDecision(flavor, jobs, generic);
-      if (d.ok) return { ok: true, slot: d.slot, queuedS: (now() - t0) / 1000, value: launch() };
-      if ((now() - t0) / 1000 >= maxWaitS) return { ok: false, used: d.used, limit: d.limit, queuedS: (now() - t0) / 1000 };
+      if (d.ok) {
+        const value = launch(), id = idOf ? idOf(value) : null;
+        const after = id && cancel ? ps(hf) : null, rank = after ? rankOf(flavor, after, id) : 0;
+        if (!rank || rank <= d.limit || d.limit === 0) return { ok: true, slot: rank || d.slot, queuedS: (now() - t0) / 1000, value };
+        cancel(id);   // another host took the slot first: this job is the youngest beyond the cap, so it backs off and queues again
+        if ((now() - t0) / 1000 >= maxWaitS) return { ok: false, used: rank - 1, limit: d.limit, queuedS: (now() - t0) / 1000 };
+      } else if ((now() - t0) / 1000 >= maxWaitS) return { ok: false, used: d.used, limit: d.limit, queuedS: (now() - t0) / 1000 };
     } finally { unlock(); }
     sleep(pollS * 1000);
   }
