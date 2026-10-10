@@ -3,6 +3,7 @@
 // documented shape) is an answer ({ offline }), never a throw, so the sheet keeps what it was showing. The pure half (the reply as the sheet's Loot, an op as the calls that make it) is src/core/gear-ledger.ts.
 import { stepsFor, viewOf, type GearOp, type GearView } from './gear-ledger.ts';
 import { call, type Offline } from './writer-call.ts';
+import type { Loot } from './loot.ts';
 
 type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
 export const isOffline = (r: GearView | Offline): r is Offline => 'offline' in r;
@@ -22,3 +23,16 @@ export async function runOp(token: string | null, character: string, view: GearV
   }
   return { view: now, refused: false };
 }
+// The ONE-TIME migration of this device's local ledger (gear_import, origins/server/gear-import.ts): everything it owns (worn, pack, bank), the paperdoll it wore and the rung each piece was taken at.
+// The server mints one copy per piece per account, ever, so asking again adds only the difference and removes nothing.
+export type ImportBody = { owned: string[]; equipped: Record<string, string>; tiers: Record<string, number> };
+export type ImportReceipt = { imported: string[]; alreadyHeld: string[]; skipped: unknown[]; worn: string[]; bank: string[]; unworn: unknown[]; replayed: boolean };
+export function importBodyOf(loot: Loot | undefined): ImportBody | null {
+  if (!loot || (!loot.owned.length && !Object.keys(loot.equipped).length)) return null;
+  const tiers: Record<string, number> = {}, equipped: Record<string, string> = {};
+  for (const [id, p] of Object.entries(loot.taken ?? {})) if (typeof p?.tier === 'number') tiers[id] = p.tier;
+  for (const [doll, id] of Object.entries(loot.equipped)) if (typeof id === 'string') equipped[doll] = id;
+  return { owned: [...new Set<string>([...loot.owned, ...(loot.pack ?? [])])].slice(0, 200), equipped, tiers };
+}
+const receiptOf = (r: unknown): ImportReceipt | null => (r && typeof r === 'object' && Array.isArray((r as ImportReceipt).imported) && Array.isArray((r as ImportReceipt).alreadyHeld) ? (r as ImportReceipt) : null);
+export const importGear = (token: string | null, character: string, body: ImportBody, opts: Opts = {}) => call('gear_import', { character, ...body }, token, receiptOf, opts);

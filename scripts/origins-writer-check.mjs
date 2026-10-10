@@ -12,12 +12,13 @@ import { storyOps, withContent } from '../origins/server/handlers.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
+import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
 import * as F from '../origins/contracts/fixtures.ts';
 import { cumulative } from '../origins/progression/model.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
-import { openCharacter } from '../src/core/server.ts';
+import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { zoneAt } from '../origins/presence/zones.ts';
@@ -69,6 +70,7 @@ try {
     { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } },
     { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } },
     { ...F.helmetDef(), id: 'item:loot.veteran.Arms', slot: 'Arms', name: "The Centurion's vambraces", appearance: { asset: 'loot.glb/veteran.Arms' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+  for (const raw of LOOT_ITEMS) { const d = parseItemDefinition(raw); if (!d.ok) throw Error(`catalogue ${raw.id}`); defs.set(d.value.id, d.value); }   // the one item ledger's catalogue (gear ops)
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'), 30_000, 3),   /* the production path: pooled sessions */ verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
     lookup: id => defs.get(id),
@@ -486,6 +488,48 @@ try {
   psql(down);
   eq(objects(), '0|0', 'down: all gone');
 
+  // The ONE item ledger (gear_import / gear_open / gear_equip / gear_unequip): the whole legacy roster lands in the REAL tables (equipped mint with a slot, pack/bank triggers, the
+  // 'mint' event, the derived legacy mint key), idempotent per piece, and the moved piece is a versioned put. B is a fresh account so the earlier sections' rows do not interfere.
+  {
+    const ids = [...LOOT_IDS].sort(), dolls = Object.keys(PAPERDOLL);
+    const worn = Object.fromEntries(dolls.map(d => [d, ids.find(id => paperdollOf(slotOf(id)) === d)]));
+    const made2 = await call('create_character', 'tb', { name: 'Gearer' });
+    const gc = made2.json.result.id;
+    const gi = body => call('gear_import', 'tb', { character: gc, ...body });
+    const count = where => psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and item like 'item:loot.%' and retired_at is null ${where}`);
+    const imp = await gi({ owned: ids, equipped: worn, tiers: Object.fromEntries(ids.map((id, i) => [id, (i % 10) + 1])) });
+    eq([imp.status, imp.json.result?.imported.length, imp.json.result?.skipped.length], [200, ids.length, 0], 'gear_import: the whole roster is imported, nothing skipped');
+    const packN = Number(count(`and loc_kind = 'pack'`)), bankN = Number(count(`and loc_kind = 'bank'`)), wornN = Number(count(`and loc_kind = 'equipped'`));
+    eq([wornN, packN + bankN + wornN, packN, bankN], [dolls.length, ids.length, 64, ids.length - dolls.length - 64], 'gear_import: worn on the paperdoll (counting toward neither grid), the pack full at 64, the overflow in the bank');
+    eq(psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and provenance ->> 'kind' = 'legacy-unlock' and mint_key like 'legacy:%'`), String(ids.length), 'gear_import: every piece carries the derived legacy mint key and the legacy-unlock provenance');
+    eq(psql(`select count(*) from public.origins_events where account = '${B}' and kind = 'mint' and character = '${gc}'`), '1', 'gear_import: one audit event');
+    const before = psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`);
+    const again = await gi({ owned: ids, equipped: worn });
+    eq([again.status, again.json.result?.imported.length, again.json.result?.alreadyHeld.length], [200, 0, ids.length], 'gear_import: a replay imports nothing');
+    eq(psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`), before, 'gear_import: a replay writes nothing');
+    eq((await gi({ owned: ['nobody.Helmet'], equipped: {} })).json.result?.skipped.map(x => x.lootId), ['nobody.Helmet'], 'gear_import: an unknown LootId is skipped and reported, not fatal');
+    const op = await call('gear_open', 'tb', { character: gc });
+    eq([op.json.result.pieces.length, Object.keys(op.json.result.worn).length], [ids.length, dolls.length], 'gear_open: every piece, the worn map');
+    const head = op.json.result.worn.head;
+    const off = await call('gear_unequip', 'tb', { character: gc, id: head });
+    eq([off.status, off.json.code], [422, 'rule'], 'gear_unequip with a full pack is refused by the inventory (the piece stays worn)');
+    eq(count(`and loc_kind = 'equipped'`), String(dolls.length), 'gear_unequip: the refused piece stays worn');
+  }
+  {
+    // A migrated piece that is later retired keeps its unique mint_key (items are never deleted): the next import calls it alreadyHeld and imports only what is new, it does not fail (Auditor, #1984).
+    psql(`insert into public.origins_access(account) values ('${D}') on conflict do nothing;`);   // an earlier section took D off the allowlist
+    const ids = [...LOOT_IDS].sort(), made3 = await call('create_character', 'td', { name: 'Burner' });
+    eq(made3.status, 200, `a fresh account D makes a character (${JSON.stringify(made3.json)})`);
+    const cd = made3.json.result.id;
+    const gd = body => call('gear_import', 'td', { character: cd, ...body });
+    eq((await gd({ owned: ids.slice(0, 5), equipped: {} })).json.result?.imported.length, 5, 'gear_import: five pieces imported');
+    const gone = psql(`select id from public.origins_items where loc_owner = '${cd}' order by id limit 1`);
+    const ver = psql(`select version from public.origins_items where id = '${gone}'`);
+    psql(`select public.origins_commit('${D}', '[{"op":"burn","id":"${gone}","count":1,"expected_version":${ver}}]'::jsonb);`);   // the real burn: the row stays, retired, its mint_key still unique
+    const next = await gd({ owned: ids.slice(0, 6), equipped: {} });
+    eq([next.status, next.json.result?.imported, next.json.result?.alreadyHeld.length], [200, [ids[5]], 5], 'gear_import: a retired migrated piece is alreadyHeld, the one new piece is imported, nothing 500s');
+    eq((await gd({ owned: ids.slice(0, 6), equipped: {} })).json.result?.imported.length, 0, 'gear_import: and a replay after that imports nothing');
+  }
   // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
   const pre = await call('create_character', 'tb', { name: 'Brin' });
   eq(pre.status, 200, 'without 0009: create_character still creates');
