@@ -330,7 +330,7 @@ charge 1.2 s (cavalry hooves on sand quickening over 0.95 s, arrival at 0.95 s, 
 −24 / −23 / −25 LUFS-M, under the gate's −19 because each sits under a hit. 4.5–11 kB opus, 6.8–19.7 kB m4a. `src/fight/sound/special.ts`:
 `loadSpecial(cue, context)` and `playSpecial` (the gate's player, same fade on a skip).
 Nightborn specials (2026-10-01, Strategy): `redwind` (Set, L8), `hades` (L9), `nyx` (L10) in the same folder and script. All three run on the one
-cast clock (`src/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
+cast clock (`src/fight/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
 1.983 s (119 ticks); the cue then carries the 0.75 s recovery. Phone-band −25 LUFS-M each, original synthesis, no licence to carry.
 Goblin (Reynard's `fistful`, Hermes' `gone`, Loki's `liars`) and Pitborn (Antaeus' `cracking`, Surtr's `ashfall`, Typhon's `windwall`), the ★ picks of
 `docs/briefs/specials/boss-specials-proposals-2026-10-01.md`: same clock and shape, one cue per move from the cast to the tail (2.4–3.3 s,
@@ -775,7 +775,7 @@ blade table by rig. Loot weapons start armed (owner, 2026-09-21: the opening dra
 
 Blade tables by rig: `scripts/blade-manifest.json` entries carry `rig` (the model a table is baked on; `hero` = the player skeleton)
 and may carry `attach` (an equip file worn by the rig in `glb`; the bake wears it the way the runtime does, replacing same-named
-clips). `bake-blades.mjs` writes `bladePathsByRig[rig][weapon][kind]`, the only export: `src/blade.ts` looks a sweep up by (rig,
+clips). `bake-blades.mjs` writes `bladePathsByRig[rig][weapon][kind]`, the only export: `src/fight/blade.ts` looks a sweep up by (rig,
 weapon) and never falls through to another rig (the flat `bladePaths[weapon]` it carried during the seam's landing is gone, 2026-09-22;
 `tests/blade-rig.test.ts` pins every opponent pair and every player weapon on the hero). Measured in the player's hand: cleaver, warhammer, trident and scythe bake identically to
 their shipped hero-rig tables (max |Δ| 0.0000 m); the knife's shipped table is the Goblin's rig (max |Δ| 0.816 m in the player's

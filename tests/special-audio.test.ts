@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { SPECIAL_CUES, SPECIAL_CUE_OF, loadSpecial } from '../src/fight/sound/special.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 
 const dir = new URL('../src/assets/special-audio/', import.meta.url);
 test('each special cue ships in both formats, tiny, inside the lane budget', () => {

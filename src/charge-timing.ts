@@ -1,5 +1,5 @@
-import { CAST_MARGIN, LAND_AT, type Cast } from './special-timing.ts';
-import { SPECIAL_RECOVER } from './special-look.ts';
+import { CAST_MARGIN, LAND_AT, type Cast } from './fight/special-timing.ts';
+import { SPECIAL_RECOVER } from './fight/special-look.ts';
 import { smooth } from './fight/fx-math.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the presentation timeline (World, 2026-10-01; Strategy's brief

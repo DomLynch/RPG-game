@@ -1,5 +1,5 @@
 // Zone 2's creature looks, as data: the Ember Wolf, the wolf body (public/world/wolf.glb, already in Zone 1's download: no new mesh) dressed ember red-brown instead of ash grey.
-// scale = WOLF_RENDER_SCALE (2) x 1.1, a pack leader; a literal because zone data files hold one literal and `import type` only (the rule is src/beast-scale.ts WOLF_RENDER_SCALE).
+// scale = WOLF_RENDER_SCALE (2) x 1.1, a pack leader; a literal because zone data files hold one literal and `import type` only (the rule is src/fight/beast-scale.ts WOLF_RENDER_SCALE).
 import type { Zone } from '../loader.ts';
 
 const mobLooks: NonNullable<Zone['mobLooks']> = {

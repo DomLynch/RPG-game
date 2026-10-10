@@ -20,7 +20,7 @@ import { RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { mirror, movesOf, timing } from '../src/fight/duel.ts';
 import { isHeld } from '../src/roster.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 setStab(true);   // ... and the Goblin's stab (stab-rule.ts), likewise an era flag
 setLateNotice(true);   // the sweep fights live: this build's late notice is on (a headless run is otherwise the pre-ramp era, play-radius.ts)
 

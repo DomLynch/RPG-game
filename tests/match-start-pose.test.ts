@@ -11,7 +11,7 @@ import { idleIntent, roundPose } from '../src/fight/duel.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { createRecorder, packRecord, unpackRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { playScaleFor, setPlayScale, setLateNotice } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 
 const mk = () => {
   const storage = { getItem: () => null, setItem: () => undefined };

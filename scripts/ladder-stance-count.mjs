@@ -10,7 +10,7 @@ import { OPPONENTS } from '../src/fight/combat.ts';
 import { isHeld } from '../src/roster.ts';
 import { PICKS } from '../src/fight/stance.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 setStab(true); setLateNotice(true);
 const arg = (name, fallback) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;
 const list = (name, fallback) => arg(name, fallback).split(',').filter(Boolean);
