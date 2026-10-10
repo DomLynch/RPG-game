@@ -53,10 +53,6 @@ const KNOWN: readonly string[] = [
   "5 | K2 | origins/preview/pit-duel.ts -> input",
   "5 | K2 | origins/preview/sticks.ts -> input",
   "6 | K2 | origins/preview/play.ts -> warrior",
-  "7 | K11 | origins/preview/mobs-view.ts -> goblin",
-  "7 | K11 | origins/preview/mobs-view.ts -> knight",
-  "7 | K11 | origins/preview/mobs-view.ts -> pitborn",
-  "7 | K11 | origins/preview/mobs-view.ts -> witch",
   "10 | P1/P2 | origins/preview/pit-duel.ts -> scene",
   "12 | P1/P2 | origins/preview/creature-voice.ts -> creature",
   "12 | P1/P2 | origins/preview/creature-voice.ts -> feedback",
@@ -68,9 +64,6 @@ const KNOWN: readonly string[] = [
   "16 | P1/P2 | origins/preview/main.ts -> warm-gate",
   "16 | P1/P2 | origins/preview/mobs-view.ts -> quality",
   "16 | P1/P2 | origins/preview/mobs-view.ts -> warm-gate",
-  "20 | K12 | origins/preview/main.ts -> legends",
-  "20 | K12 | origins/preview/pit-duel.ts -> legends",
-  "20 | K12 | origins/preview/pit-duel.ts -> roster",
 ];
 const KNOWN_COPIES: readonly string[] = [
   "14 | P1/P2 | origins/preview/main.ts defines updateBars",
