@@ -54,7 +54,7 @@ test('the parts agree with the finisher cuts and the species with the row blood'
     assert.ok(w.tiers.length >= 2 && w.bleedRate > 0, `${id}: it bleeds in tiers`);
   }
   assert.deepEqual(beasts.map((id) => catalogueRow(id)!.wounds!.size), [0.7, 1, 1.4]);
-  for (const row of CATALOGUE) if (!beasts.includes(row.id)) assert.equal(row.wounds, null, `${row.id}: the Pit's own gore as today`);
+  for (const row of CATALOGUE) if (!beasts.includes(row.body ?? row.id)) assert.equal(row.wounds, null, `${row.id}: the Pit's own gore as today`);
 });
 
 test('each wounds fault is named', () => {
