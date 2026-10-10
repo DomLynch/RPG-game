@@ -397,6 +397,23 @@ test('deploy scope: a public asset runs the rows of its folder, never all 51; th
   assert.doesNotMatch(picked('src/fight/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
 });
 
+test('deploy.sh runs the Mac rows one at a time unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-10)', () => {
+  const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
+  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-1\}" RELEASE_CHECKS_SKIP=/, 'the Mac invocation defaults the width to 1 and keeps the caller\'s value');
+});
+
+test('deploy scope: a loot thumbnail or a deploy-pipeline library is not a full run (Strategy 2026-10-10: Y and Z each ran all 52 rows for two .webp files and for scripts/lib/data-only.mjs)', () => {
+  const pick = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' });
+  const kept = (...files: string[]) => ROWS - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
+  assert.ok(kept('public/game/img/loot/witch.Helmet.webp', 'public/game/img/loot/witch.Helmet.thumb.webp') < 12, 'loot images run the gear rows and the core five, not every row');
+  assert.match(pick('public/game/img/loot/witch.Helmet.webp').stderr, /\b36 loot-smoke-check\b/, 'a loot image runs the loot smoke row');
+  for (const lib of ['data-only.mjs', 'row-placement.mjs', 'vps-receipts.mjs', 'hf-slots.mjs', 'hf-wall-rows.mjs', 'published-summary.mjs', 'deploy-hf.sh', 'prune-releases.sh', 'glb-stats.mjs'])
+    assert.equal(kept(`scripts/lib/${lib}`), 5, `scripts/lib/${lib} builds no part of the game: the core five only`);
+  assert.match(pick('scripts/lib/thumb-row.mjs').stderr, /\bendgame-hud-check\b/, 'a library one row imports runs that row');
+  for (const file of ['scripts/lib/harness.mjs', 'scripts/lib/harness-clock.mjs', 'scripts/lib/a-library-nobody-listed.mjs'])
+    assert.equal(kept(file), ROWS, `${file}: the harness and any unlisted library stay a full run`);
+});
+
 test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', async () => {
   // Lead 2026-10-06: a row-list edit ran all 51 rows. The row diff is fed in directly (deployRowsFor's second argument), so the test
   // does not depend on the runner's git history: CI's shallow clone cannot `git show` an old trunk revision, and every row is then right.
