@@ -3,6 +3,15 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-10 12:00 (+04) — FOUR BATCH RULES (Dom's order via Lead; memory `world_batch_rules_2026-10-10.md`). READ FIRST, with the progress line below
+
+1. **No edits to a candidate PR after it opens, title or body** (Y lost 20 min to a retitle): changes go in a comment or a new commit.
+2. **The Auditor reviews the CANDIDATE once, from batch Z on.** A PASS on a PR's head carries through Deploy's union merge (only deleted KNOWN lines in tests/k7-engine-parity.test.ts and added `export ... from` lines in src/fight/index.ts). Pure moves with CI green get their PASS from the candidate review; logic changes need a PASS on their own head.
+3. **One owner per problem:** two lanes on one slice, Lead picks one the same hour. K8 sound = Combat; my `world/k8-zone1-sound` branch is closed (kept as a donor, no PR).
+4. **No batch waits for a slice:** READY at the cut goes, the rest rolls to the next batch.
+
+Progress at 12:00 (by my own commands this session): #2078 (Zone 2 from one data row) is LIVE in X (release.json 4a815ecc8) and my live check passed (lone-wolf kill, 0 page errors, evidence branch `evidence/world-zone2-live`); #2016 and #2069 are live in V. Mine in flight: **#2085** K5 wounds (branch `world/k5-wounds` @117056a7a, draft, CI running, READY promised 12:30; Auditor asked); **K6** finishers by row (READY promised 17:00, based on Combat's #2053 head once undrafted; they own finishOf/fall/pose, I own the decap cut, species finisher blood, the zone call). Zone 2 balance (pack vs level-1 hero) is Lead/Strategy's, not mine. No full suites on the VPS (Lead's rule): GitHub CI is the receipt.
+
 ## 2026-10-10 (+04, Mac clock) — HANDOFF #29 before /clear (Dom: "save your work now, I will /clear"). READ FIRST, then HANDOFF #28 below, then memory `world_2026-10-10_handoff29.md`
 
 1. **LIVE** 968f996f3 by my curl of frankendom.com/release.json at save time (phase 0B-swordplay). No Deploy lock checked.
