@@ -13,9 +13,9 @@ test('the ladder is the encounter order minus the held recipes: the four creatur
   for (const held of ['minotaur', 'wolf', 'boar', 'bear', 'wraith', 'werewolf', 'skeleton'] as const) assert.equal(opponentFor(held), OPPONENTS.veteran, `${held} saved before the hold`);
   assert.equal(opponentFor('executioner'), OPPONENTS.executioner);
   // Held GLBs are out of the beta bundle: scene.ts's glob (a literal, so it cannot read the roster) must exclude exactly the held bodies. The Ash Wolf is held from the ladder but its GLB is NOT excluded: the open world dresses it as the duel foe, and the glob is ?url so it only emits a lazily fetched file, never JS bundle weight.
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
-  for (const { id } of ENCOUNTERS.filter(o => o.hold && o.id !== 'wolf' && o.id !== 'boar' && o.id !== 'bear')) assert.ok(scene.includes(`'!./assets/${ROSTER[id].body}.glb'`), `scene.ts excludes ${id}'s GLB from the bundle`);
-  for (const { id } of LADDER) assert.ok(!scene.includes(`'!./assets/${ROSTER[id].body}.glb'`), `scene.ts must not exclude a live rung (${id})`);
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
+  for (const { id } of ENCOUNTERS.filter(o => o.hold && o.id !== 'wolf' && o.id !== 'boar' && o.id !== 'bear')) assert.ok(scene.includes(`'!../assets/${ROSTER[id].body}.glb'`), `scene.ts excludes ${id}'s GLB from the bundle`);
+  for (const { id } of LADDER) assert.ok(!scene.includes(`'!../assets/${ROSTER[id].body}.glb'`), `scene.ts must not exclude a live rung (${id})`);
 });
 
 // The order (Dom via Strategy 2026-09-27): fight 1 the Centurion, then random picks from the pass's unbeaten; all ten beaten = a new pass.

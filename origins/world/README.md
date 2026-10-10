@@ -58,7 +58,7 @@ in 0..1 of its zone.
 Ids (presets, biomes, landmarks, zones) are lowercase `a-z0-9-` and start with a letter. Regions are `region:` ids (`origins/contracts/ids.ts`).
 
 **Camera: read-only.** Dom froze the camera. `CAMERA` exposes today's framing as frozen constants: fov 51°, near 0.1 and far 180
-(`src/scene.ts`), the walker's follow camera (back 5.2, height 2.7, look 3 m ahead at 1.5 m) and the passage camera (back 3.4, height 2.1,
+(`src/fight/scene.ts`), the walker's follow camera (back 5.2, height 2.7, look 3 m ahead at 1.5 m) and the passage camera (back 3.4, height 2.1,
 `src/camera.ts` GATE_CAM). No world data can change them. `view.drawDistance` and `view.backdropRadius` are capped by the far plane.
 
 ## Layering

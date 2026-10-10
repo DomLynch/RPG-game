@@ -43,7 +43,7 @@ if (process.argv.includes('--simulation-only')) {
     page.on('console', message => { if (message.type() === 'error' && /shader|WebGL|THREE/.test(message.text())) receipt.errors.push(message.text()); });
     await page.route('**/*sentry.io/**', route => route.abort());
     await page.route(`${origin}/impact-harness*`, route => route.fulfill({ contentType: 'text/html', body: `<style>body{margin:0}canvas{width:100vw;height:100vh}</style><canvas id="world"></canvas><script type="module">
-      import {createScene} from '/src/scene.ts';
+      import {createScene} from '/src/fight/scene.ts';
       const view=createScene(document.querySelector('canvas'),()=>{},new URL(location.href).searchParams.get('opponent') || 'skeleton');
       const render=view.renderer.render.bind(view.renderer);
       view.renderer.render=(scene,camera)=>{window.scene=scene;if(window.present!==false)render(scene,camera)};

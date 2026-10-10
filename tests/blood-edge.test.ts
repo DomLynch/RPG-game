@@ -77,7 +77,7 @@ test('a new fight starts the rotation over even when its ticks do not go backwar
 });
 
 test('scene.ts calls bloodEdge.reset() where it clears the previous fight (both health bars full again)', () => {
-  const scene = readFileSync('src/scene.ts', 'utf8');
+  const scene = readFileSync('src/fight/scene.ts', 'utf8');
   assert.match(scene, /finisherBlood\.reset\(\);\s*bloodEdge\.reset\(\);/);
 });
 

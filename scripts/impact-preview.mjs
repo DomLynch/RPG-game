@@ -19,7 +19,7 @@ const label = option('label') || commit, full = args.includes('--full'), viewpor
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom impact preview</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
 <body><canvas id="world"></canvas><script type="module">
-import { createScene } from '/src/scene.ts';
+import { createScene } from '/src/fight/scene.ts';
 import { PROFILES, initialPractice, project, stepPractice } from '/src/fight/combat.ts';
 import { OPPONENTS } from '/src/fight/moves.ts';
 import { TARGET } from '/src/fight/sim.ts';

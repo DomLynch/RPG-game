@@ -68,5 +68,5 @@ test('the crowd lean is set by the Harvest Sweep alone, only while the sweep run
   createExecutionerSpecial(new THREE.Scene(), 'executioner', 'reaper', bossLook('reaper', 1));
   assert.equal(crowdWave.lean as unknown, null, 'idle: unregistered (the hook is only set while the sweep runs)');
   assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-executioner\.ts'\)/);
-  assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /special-fx-executioner/, 'the scene names none of it');
+  assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /special-fx-executioner/, 'the scene names none of it');
 });

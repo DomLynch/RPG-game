@@ -11,7 +11,7 @@ import { createSpecialFx } from '../src/fight/special-fx.ts';
 import type { SpecialFx } from '../src/fight/special-modes.ts';
 
 // The actual scene's loading/reset blocks with real scene containers and effect resources.
-const source = readFileSync('src/scene.ts', 'utf8');
+const source = readFileSync('src/fight/scene.ts', 'utf8');
 const reset = source.slice(source.indexOf('      if (specialId && (previewEpoch'), source.indexOf('      const blow = events.find'));
 const load = source.slice(source.indexOf('      if (specialId && !previewBlocked'), source.indexOf('      if (specialFx)'));
 function harness() {

@@ -112,7 +112,7 @@ test('the Charge is ONE registry entry (special-modes.ts) and a ?special= row; t
   const player = new THREE.Object3D(), opponent = new THREE.Object3D();
   assert.deepEqual(mode.extra!({ player: { boneWorld: () => null, anchor: player }, opponent: { boneWorld: () => null, anchor: opponent } }), [[player, opponent]], 'the anchors reach render as its seventh argument');
   assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
-  assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /charge-fx|centurion/, 'scene.ts has no per-special branch');
+  assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /charge-fx|centurion/, 'scene.ts has no per-special branch');
 });
 
 test('the body and its gait run on ONE clock: back while he gathers, running over the ride, the sim\'s again for the blow', async () => {

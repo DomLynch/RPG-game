@@ -67,7 +67,7 @@ test('The Price: the canvas drains to grey through the build-up and gets its col
 
 test('the boss art ships lazily: only the registry imports it, dynamically; the scene names none of these ids', () => {
   assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-boss\.ts'\)/);
-  assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /special-fx-boss/);
+  assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /special-fx-boss/);
 });
 
 test('the Sling turns the caster one circle through the build-up and the cast leaves him exactly as he was', () => {

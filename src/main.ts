@@ -42,7 +42,7 @@ import { POWER_WORD_LOOK_GAIN } from './fight/sound/power-word.ts';
 import { breathLook } from './fight/sound/breath.ts';
 import { bossSpecialFor, bossSpecialId } from './fight/special-identity.ts';
 import { classSpecialFor } from './fight/class-special-identity.ts';
-import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { CARRIED_WEAPONS, createScene } from './fight/scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './fight/special-look.ts';
 import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { createGearSheet, lootThumb } from './fight/gear-sheet.ts';
