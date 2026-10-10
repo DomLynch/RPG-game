@@ -40,11 +40,11 @@ test('comment markers inside the other comment kind or a string do not hide impo
     'b.ts': "/* a // b */\nimport { z } from './d.ts';\n",
     'c.ts': "const s = '/* not a comment';\nimport { w } from './e.ts';\n// */\n",
     'd.ts': "/* import { gone } from './gone.ts'; */\n// import { gone2 } from './gone.ts';\n",
-    'e.ts': "const re = /a\\/*b/;\nconst q = x.replace(/'/g, '') / 2;\nimport { v } from './f.ts';\n// */\n",
-    'f.ts': '', 'gone.ts': '',
+    'e.ts': "const re = /a\\/*b/;\nconst q = x.replace(/'/g, '') / 2;\nlet n = i++ / 2; import { u } from './g.ts'; let m = j-- / 3 + 4 / 2;\nimport { v } from './f.ts';\n// */\n",
+    'f.ts': '', 'g.ts': '', 'gone.ts': '',
   };
   const got = writerClosure((f: string) => files[f], (f: string) => f in files, 'a.ts').files;
-  assert.deepEqual(got, ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'], 'both imports after the tricky comments are kept; the commented-out imports are not');
+  assert.deepEqual(got, ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts', 'g.ts'], 'both imports after the tricky comments are kept; the commented-out imports are not');
   assert.equal(stripComments('a // x /* y\nb /* z // w */ c').replace(/ +/g, ' '), 'a \nb c'.replace(/ +/g, ' '));
 });
 

@@ -14,7 +14,7 @@ const resolve = (from, rel, has) => {
 };
 
 // Blanks comments (keeping newlines) without being fooled by a comment marker inside a string or inside the other comment kind: a line comment holding slash-star-star is one line comment, a block comment holding two slashes is one block.
-const regexAllowed = (out) => { const t = out.trimEnd(); return t === '' || /[(,=:[!&|?{};+\-*%<>~^]$/.test(t) || /(?:^|[^\w$.])(?:return|typeof|case|in|of|void|delete|throw|new|else|do)$/.test(t); };
+const regexAllowed = (out) => { const t = out.trimEnd(); if (/(?:\+\+|--)$/.test(t)) return false; return t === '' || /[(,=:[!&|?{};+\-*%<>~^]$/.test(t) || /(?:^|[^\w$.])(?:return|typeof|case|in|of|void|delete|throw|new|else|do)$/.test(t); };
 export function stripComments(src) {
   let out = '', i = 0;
   while (i < src.length) {
