@@ -7,7 +7,7 @@ For Combat to implement against. No code here. Goal: ~700 zones, zero per-creatu
 ## Engine code this drives (Lead, 2026-10-09)
 The Pit already draws blood and gore for goblins and men. `src/gore.ts`, `blood-edge.ts`, `blood-style.ts`, `finisher-blood.ts`, `finishers.ts` and `severed-head.ts` move into `src/fight/` in K5, and this schema only feeds them per creature: **no new renderer**. Humanoid rows (goblin, men) MUST reproduce today's Pit look exactly, so the Pit golden is unchanged: the `humanoid` species is today's `BLOOD` (`blood-style.ts`: start `#690f0d`, end `#200504`, hit 15 / kill 25 particles) with `spray` 1 and `size` 1, and the goblin does NOT take #1967's guessed `#5a1410` / 0.6. The new value is the wolf, boar and bear rows (the beast numbers below are #1967's starting point for Dom's eye).
 
-## What exists (Characters' #1967, `src/creature-gore.ts`, stacked on #1966; check its head at merge)
+## What existed (Characters' #1967, `src/creature-gore.ts`: deleted in K5, the catalogue row replaces it)
 One `CREATURE_GORE` row per roster id (`wolf`, `boar`, `bear`, `goblin`): `shape`, `glb`, `cut {head, neck, limbs}` (bone names), `blood {start, end, amount}`, `finishers`. It works, but body, blood and finishers are fused in one row, so a second goblin-shaped creature copies the bones. This schema splits it into three tables and keeps its test (the test re-reads each GLB's skin joints, so a renamed bone fails in CI, not in a cut).
 
 ## The three tables
