@@ -58,6 +58,15 @@ try {
   // The engage: the engine's own combat loop sets body.infight the frame it is in combat (main.ts, wc.inCombat()). Read the engage THEN, bounded at 15 s; a miss fails below on infight, with the receipt.
   await page.waitForFunction(() => document.body.classList.contains('infight'), null, { timeout: 15000 }).catch(() => {});
   const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
+  if (process.env.SEAMLESS_STRIKE) {   // SEAMLESS_STRIKE=1: cut the foe inside the engage window, so a hit's effects (sparks, blood splat) are drawn for the first time THERE unless the zone warm covered them (the check passes by luck of timing without it)
+    const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id);
+    const reach = async () => { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return x && [x.x, x.z]; }, target.id); if (m) await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), m); };   // the foe roams: stand 1.4 m from where it is NOW before each cut (a cut from the 2.5 m tap distance never reaches it)
+    for (let k = 0; k < 20 && (await hp()) === null; k++) await page.waitForTimeout(250);   // the foe is in the loop's fighters only once it has joined
+    const hp0 = await hp(); let hpNow = hp0;
+    for (let k = 0; k < 120 && hp0 !== null && !(hpNow < hp0); k++) { await reach(); await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(500); hpNow = await hp(); }
+    receipt.strike = { hpBefore: hp0, hpAfter: hpNow, fighters: hp0 === null || !(hpNow < hp0) ? await page.evaluate(() => JSON.stringify(window.originsPreview.combat().fighters).slice(0, 400)) : undefined };
+    assert.ok(hp0 !== null && hpNow < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);   // a missed strike fails the run, it never counts as a pass
+  }
   receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
@@ -74,7 +83,7 @@ try {
   // Frame gaps mean nothing on software GL (SwiftShader runs ~3 fps and a loaded runner adds 600-3000 ms): the 200 ms bar is measured on Mac Metal with scripts/origins-engage-warmup.mjs (#1927). Here, on software GL, the row asserts what does not depend on speed: the engage compiles no program once [zone ready] has fired.
   receipt.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; });
   receipt.zoneReady = await page.evaluate(() => window.__zoneReady ?? null);
-  receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer);
+  receipt.hitch.enforced = !/swiftshader|llvmpipe|software/i.test(receipt.renderer) && !process.env.SEAMLESS_PROGRAMS;   // SEAMLESS_PROGRAMS=1: assert the program rule on any renderer (a real GPU compiles fast, so the hitch bar alone would hide a late link)
   if (receipt.hitch.enforced) assert.ok(worst <= receipt.hitch.budgetMs, `engage hitch: worst frame gap ${Math.round(worst)} ms over the budget ${receipt.hitch.budgetMs} ms`);
   else assert.deepEqual(receipt.newPrograms, [], 'engage compiled programs after [zone ready]');
   assert.deepEqual(receipt.errors, []);
