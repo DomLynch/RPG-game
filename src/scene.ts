@@ -45,7 +45,7 @@ import { createBloodEdge } from './fight/blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig, framingLow, framingTall } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './fight/severed-head.ts';
-import { createFightFx } from './fight/fx.ts';
+import { createFightFx, impactTexture } from './fight/fx.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
 import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
@@ -398,45 +398,6 @@ export function createScene(
     return loading;
   }
   const ready = loadFighters();
-  // Two original alpha sprites, generated once; all impacts reuse the same GPU resources.
-  function impactTexture(splash: boolean) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 128;
-    const ctx = canvas.getContext('2d')!;
-    const fill = ctx.createRadialGradient(64, 64, 8, 64, 64, 58);
-    fill.addColorStop(0, '#ffffffff');
-    fill.addColorStop(0.75, '#ffffffcc');
-    fill.addColorStop(1, '#ffffff00');
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    for (let i = 0; i <= 64; i++) {
-      const angle = (i / 64) * Math.PI * 2,
-        r = splash ? 33 + Math.sin(angle * 2 + 1) * 5 + Math.cos(angle * 3 + 2) * 4 + Math.sin(angle * 5 + 0.5) * 2 : 48;   // low, out-of-phase lobes: a lopsided blot, never a star
-      const x = 64 + Math.cos(angle) * r,
-        y = 64 + Math.sin(angle) * r * (splash ? 1 : 0.65);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    if (splash)
-      for (let i = 0; i < 17; i++) {
-        const a = i * 2.4,
-          r = 42 + (i % 4) * 4;
-        ctx.beginPath();
-        ctx.ellipse(
-          64 + Math.cos(a) * r,
-          64 + Math.sin(a) * r,
-          1.5 + (i % 3),
-          1 + (i % 2),
-          a,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
-      }
-    return new THREE.CanvasTexture(canvas);
-  }
   const dropTexture = impactTexture(false),
     splatTexture = impactTexture(true);
   const finisherBlood = createFinisherBlood(splatTexture);
