@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { SIGNATURES, SIGNATURE_CAPS, createSignatureMarks } from '../src/signature.ts';
 import { SPLINTER, rimOf, signatureState } from '../src/signature-shieldmaiden.ts';
 

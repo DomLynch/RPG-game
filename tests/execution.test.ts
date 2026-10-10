@@ -8,8 +8,8 @@ import { HAMSTRUNG_VICTIMS, resolveHamstrung } from '../src/hamstrung.ts';
 import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
 import { cuesFor, type DeathPresentation } from '../src/fight/sound/cues.ts';
 import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
-import type { CombatEvent } from '../src/combat.ts';
-import type { Finish } from '../src/duel.ts';
+import type { CombatEvent } from '../src/fight/combat.ts';
+import type { Finish } from '../src/fight/duel.ts';
 
 const finish: Finish = { victim: 1, location: 'torso', move: 'critical', heading: 0, draw: false };
 const swords = ['longsword', 'longsword'] as const;

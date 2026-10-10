@@ -9,7 +9,7 @@ these are the hero's takes. This file is the spec the rows PR is reviewed agains
 
 path null (a cone of `reach` × `RULES.kickArc`), chainPath/chained/chain null, vsGuard null, feintUntil 0, chamber null,
 charges false, parryable true, stamina 40, breaksGuard false, chip .4 unless the row says otherwise. There is one shared MoveDef per
-skill on every weapon (`OPPONENT_SKILLS` in src/moves.ts), the way the kick and the Witch-fire are shared.
+skill on every weapon (`OPPONENT_SKILLS` in src/fight/moves.ts), the way the kick and the Witch-fire are shared.
 
 ## The caps, as duel.ts applies them (accepted by Strategy as THE caps)
 

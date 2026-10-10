@@ -3,7 +3,7 @@
 // (main.ts) are pinned by the browser rows.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { initialPractice, practiceHint } from '../src/combat.ts';
+import { initialPractice, practiceHint } from '../src/fight/combat.ts';
 import { LEGEND_OPPONENTS, LEGENDS } from '../src/legends.ts';
 import { LOOT, lootName, slotOf } from '../src/loot.ts';
 

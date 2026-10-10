@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setLateNotice, ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/play-radius.ts';
+import { setLateNotice, ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
-import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
 
 test('the scaled opponents are exactly the ladder rungs that fight in Arena 1', () => {
   const arenaOne = LADDER.filter((_, i) => ARENA_PICK[arenaBand(i + 1)] === '1').map(o => o.id);
@@ -35,7 +35,7 @@ test('underRecord steps a record in its own circle and puts the live one back', 
 });
 
 test('fighters start inside the smaller circle, shrunk with it but never closer than half of the old start', async () => {
-  const { initialState, initialTarget } = await import('../src/sim.ts');
+  const { initialState, initialTarget } = await import('../src/fight/sim.ts');
   setPlayScale(1); assert.deepEqual([initialState().z, initialTarget().z], [4, -2.5]);
   setPlayScale(ARENA_ONE_SCALE);
   const [p, t] = [initialState(), initialTarget()];

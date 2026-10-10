@@ -20,6 +20,7 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
+import { applyServerKill, killToast } from './kill-apply.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -30,6 +31,7 @@ import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/warm-gate.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
+import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { ME, createWorldCombat } from '../../src/fight/index.ts';
@@ -407,7 +409,7 @@ const duelLayer = document.getElementById('duel')!, career = document.getElement
 if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then((m) => {
-    duel = m; m.enterWorld(leaveFight, { back: zoneExit() }); kit = true; releaseSticks(); document.body.classList.add('kit');
+    duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit');
     hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
@@ -495,14 +497,14 @@ function settleFight(finish: Finished) {
   const after = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins);
   return { next: after?.legend && duel ? duel.legendName(after.opponent, after.level) : undefined };
 }
-const zoneExit = () => { const z = loadZone(); return `Back to ${z.name}`; };   // the host's words for the gear screen's exit (Lead 2026-10-09)
+const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   lateOpen.settle();   // a saved career that arrived during the fight is adopted now (late-open.ts)
-  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, { back: zoneExit() }); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
+  if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, zoneExit()); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);
 }
 if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
@@ -569,13 +571,15 @@ function heroDeathSequence() {
 }
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
-  void spawnNet.killed(spec.id);   // the server's verified kill (beta ledger); the page's own loot and toast below run whatever it answers
+  const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
+  let local = `${spec.name} is down.`;
   try {
     huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
     const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
-    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) play.bountyPaid(quest, out.bounty.encounter); worldToast(out.text.replace(/\n+/g, ' ')); return; }
+    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
   } catch (error) { console.warn('the kill could not be settled', error); }
-  worldToast(`${spec.name} is down.`);
+  const k = await answer;   // the toast shows the server's answer when signed in (its numbers, its loot), the page's own only for a guest or offline page, labelled preview
+  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id));
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });

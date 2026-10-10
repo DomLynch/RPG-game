@@ -3,13 +3,13 @@
 // the stagger that is the point of it, the day-one default and the one-slot swap, and the fairness caps against every opponent.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aim, createFighter, idleIntent, initialDuel, legal, opponentFighter, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/moves.ts';
+import { aim, createFighter, idleIntent, initialDuel, legal, opponentFighter, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/fight/moves.ts';
 import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, skillOf } from '../src/loot.ts';
 import { loadProfile } from '../src/profile.ts';
 import { absorbCloud, type CloudProfile } from '../src/cloud-profile.ts';
 import { POMMEL, act, battery, ready } from './strategies.ts';
-import { actorPose, attackSpecs, initialPractice } from '../src/combat.ts';
+import { actorPose, attackSpecs, initialPractice } from '../src/fight/combat.ts';
 
 const M = MOVES.skill_pommel;
 // The striker (side 0, pommel equipped) and `foe` (side 1) a metre apart, facing each other, both ready: inside the 1.3 m cone.

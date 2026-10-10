@@ -1,15 +1,15 @@
 // Packs and the threat list (Combat, docs/specs/combat/threat-list.md and docs/specs/origins/mob-fights-proposal.md (b); Dom: "nothing less, nothing more", ONE engine).
-// Two pure pieces, both OUTSIDE SIM_FILES like src/mobkit.ts and src/twist.ts: they read a Duel and build the next one from existing exports, they write nothing back into the sim, so no RECORD_VERSION.
+// Two pure pieces, both OUTSIDE SIM_FILES like src/mobkit.ts and src/fight/twist.ts: they read a Duel and build the next one from existing exports, they write nothing back into the sim, so no RECORD_VERSION.
 //  1. A camp is a SEQUENCE of ordinary Pit bouts against the same player (`startPack`, `nextBout`): the player's fighter (health, stamina, posture, wound, cooldowns) carries over untouched, the next member walks in
 //     from the play circle's far edge, the leader enters last. Waiting members are presentation only, not in the sim.
 //  2. The creature's THREAT LIST (`ThreatList`): who the creature turns on when several players hit it. Donor: AzerothCore ThreatManager (damage adds threat; the current victim changes only when another beats it
 //     by 110 %, casters 130 %; a list cap of 7; suppressed targets are used only when no online one is left). Deterministic: a pure function of the join order and the damage stream, ties go to the earlier joiner.
-import type { Practice } from './combat.ts';
-import { idleIntent, opponentFighter, stepDuel, type Duel, type Intent } from './duel.ts';
+import type { Practice } from './fight/combat.ts';
+import { idleIntent, opponentFighter, stepDuel, type Duel, type Intent } from './fight/duel.ts';
 import { M } from './detmath.ts';
-import type { Opponent } from './moves.ts';
-import type { RecordGroup } from './record.ts';
-import { RADIUS, type State } from './sim.ts';
+import type { Opponent } from './fight/moves.ts';
+import type { RecordGroup } from './fight/record.ts';
+import { RADIUS, type State } from './fight/sim.ts';
 
 export const THREAT_MAX = 7;
 export const SWITCH_MELEE = 1.1, SWITCH_CASTER = 1.3;
@@ -118,7 +118,7 @@ export function groupKill(group: StreamGroup): number | null {
   return null;
 }
 
-// ---- replaying ONE stream from its own record (src/replay.ts) ----------------------------------------------------------------------------
+// ---- replaying ONE stream from its own record (src/fight/replay.ts) ----------------------------------------------------------------------------
 const incomingMaps = new WeakMap<RecordGroup, { incoming: Map<number, number> }>();
 const incomingOf = (g: RecordGroup): Map<number, number> => { let m = incomingMaps.get(g); if (!m) incomingMaps.set(g, m = { incoming: new Map(g.incoming) }); return m.incoming; };
 export const withIncoming = (practice: Practice, g: RecordGroup, tick: number): Practice => {

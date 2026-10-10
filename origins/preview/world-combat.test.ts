@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { MAX_STEPS, ME, createWorldCombat, kindOf } from '../../src/fight/index.ts';
-import { OPPONENTS, RULES, WEAPONS } from '../../src/moves.ts';
+import { OPPONENTS, RULES, WEAPONS } from '../../src/fight/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
-import { NAKED } from '../../src/gear-stats.ts';
+import { NAKED } from '../../src/fight/gear-stats.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
@@ -130,4 +130,11 @@ test('the card hands on: with a hero given the health to outlast two wolves one 
   for (let i = 0; i < 600 && kills.length < 2; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().filter((x) => x.hunting && x.hp > 0)[0]; wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); const n = wc.target()?.name; if (n && names.at(-1) !== n) names.push(n); } if (wc.hero().dead) break; }
   console.log('DBG', JSON.stringify({ kills, names, dead: wc.hero().dead }));
   assert.equal(kills[0], 'w1', 'the nearest fell first'); assert.deepEqual(names.slice(0, 2), ['w1', 'w2'], 'the card named w1, then w2 after it fell');
+});
+
+test('a frame that runs no step (dt 0: the clock\'s first frame, or a very short one) asks the page to move the hero nowhere: the loop\'s body only follows the page after its first step', () => {
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 90, z: 90 }]), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: () => {} });
+  const hero = { x: -70, z: -110, facing: 0 };
+  assert.deepEqual(wc.update(0, hero), { dx: 0, dz: 0 }, 'live Zone 2 teleported the hero to (0, 0) on this frame (3 loads in 8)');
+  assert.deepEqual(wc.update(1 / 60, hero), { dx: 0, dz: 0 }, 'and a normal frame after it still moves him nowhere');
 });

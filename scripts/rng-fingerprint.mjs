@@ -8,11 +8,11 @@
 //   node scripts/rng-fingerprint.mjs --update   rewrites tests/fixtures/rng-fingerprint.json at the current RECORD_VERSION (npm run fingerprint:update)
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent } from '../src/duel.ts';
-import { LEVELS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent } from '../src/fight/duel.ts';
+import { LEVELS, OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { hashDuel } from '../src/net/rollback.ts';
-import { NO_PATRON_VERSION } from '../src/record.ts';
+import { NO_PATRON_VERSION } from '../src/fight/record.ts';
 
 export const FIXTURE = new URL('../tests/fixtures/rng-fingerprint.json', import.meta.url);
 export const LEVEL_SET = [1, 6, 11, 12, 18, 30, 46];

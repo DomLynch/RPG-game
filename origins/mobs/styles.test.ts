@@ -1,7 +1,7 @@
 // Mob styles: each resolves to a real roster opponent with real AI profile rows, and only the beast flees, below its threshold.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { OPPONENTS, opponentAt } from '../../src/moves.ts';
+import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { MOB_STYLE, MOB_STYLES, fleesNow, styleOpponent } from './styles.ts';
 

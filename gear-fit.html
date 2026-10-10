@@ -6,7 +6,7 @@
 // (did wear throw, is every draw skinned to the hero's skeleton, does its box sit on the hero's body). scripts/gear-fit-stills.mjs drives it.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { loadWarriors, loadLoot, lootIds } from '/src/characters.ts';
+import { loadWarriors, loadLoot, lootIds } from '/src/fight/characters.ts';
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(innerWidth, innerHeight); renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.append(renderer.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3430);

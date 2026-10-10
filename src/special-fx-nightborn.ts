@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './duel.ts';
+import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, CUTS, cutAt, LAND_AT, type Cast } from './special-timing.ts';
 import { clamp01, hash, smooth } from './fx-math.ts';

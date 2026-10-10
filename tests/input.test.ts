@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, cutSideOf, guardSide } from '../src/input.ts';
-import type { Direction } from '../src/moves.ts';
+import type { Direction } from '../src/fight/moves.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');

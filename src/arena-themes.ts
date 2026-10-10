@@ -3,7 +3,7 @@
 // knows which arena it is in. A theme is presentation only: its own floor material and wall masonry (the same generators with other
 // parameters), its sky, fog and light, its wall-top cloth, and its crowd's density and dress.
 // Pure data, no three.js: the texture worker imports the texture half of it.
-import type { OpponentId } from './moves.ts';
+import type { OpponentId } from './fight/moves.ts';
 import { LADDER } from './ladder.ts';
 
 type RGB = [number, number, number];

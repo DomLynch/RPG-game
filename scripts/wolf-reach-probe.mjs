@@ -1,9 +1,9 @@
 // How far from the wolf a bite lands: for each of the three strikes, the largest starting gap at which the wolf's bite connects with a standing, idle man, and the
 // height it connects at (head / torso / legs). The AI's `reach` for a move is an estimate; this is the measured number it should be near (the Goblin's knife: slash 1.2 / stab 1.45 / hack 1.55).
 //   node scripts/wolf-reach-probe.mjs [opponent=wolf]
-import { createFighter, idleIntent, opponentFighter, stepDuel } from '../src/duel.ts';
-import { OPPONENTS } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { createFighter, idleIntent, opponentFighter, stepDuel } from '../src/fight/duel.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 const id = process.argv[2] ?? 'wolf', o = OPPONENTS[id];
 const mk = (gap) => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), opponentFighter(o, { x: TARGET.x, z: TARGET.z, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });

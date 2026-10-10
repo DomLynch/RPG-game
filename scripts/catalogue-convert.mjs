@@ -8,7 +8,7 @@ import { LEGENDS } from '../src/legends.ts';
 import { LOOT } from '../src/loot.ts';
 import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/fight/finishers.ts';
 import { beastRenderScale } from '../src/beast-scale.ts';
-import { homePick } from '../src/stance.ts';
+import { homePick } from '../src/fight/stance.ts';
 import { THROATS } from '../src/fight/sound/creature.ts';
 import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
@@ -40,9 +40,9 @@ const CREATURE_CITATION = { goblin: { work: 'Historia Ecclesiastica (the demon S
 // The bones a finisher may cut, found by NAME in the engine asset's own skin joints (the hero family: neck_01/Head/upperarm_*/thigh_*; the beast family: neck/head/front_up_*/hind_up_*); null if the rig names none.
 function cutOf(joints) {
   const has = (...n) => n.filter((x) => joints.has(x));
-  const head = has('Head', 'head', 'jaw'), neck = has('neck_01', 'neck');
+  const head = has('Head', 'head', 'jaw'), neck = has('neck_01', 'neck'), spine = has('spine_02', 'spine3');   // the upper spine: the hero family's spine_02 (what Actor.sever() reads), the beasts' spine3
   const limbs = Object.fromEntries(Object.entries({ armL: ['upperarm_l', 'front_up_L'], armR: ['upperarm_r', 'front_up_R'], legL: ['thigh_l', 'hind_up_L'], legR: ['thigh_r', 'hind_up_R'] }).map(([k, c]) => [k, has(...c)]));
-  return head.length && neck.length && Object.values(limbs).every((l) => l.length) ? { head, neck, limbs } : null;
+  return head.length && neck.length && spine.length && Object.values(limbs).every((l) => l.length) ? { head, neck, spine, limbs } : null;
 }
 const beastLimbs = (cut) => cut && ({ ...cut, limbs: { foreL: cut.limbs.armL, foreR: cut.limbs.armR, hindL: cut.limbs.legL, hindR: cut.limbs.legR } });
 

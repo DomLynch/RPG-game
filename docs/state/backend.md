@@ -354,7 +354,7 @@ Nothing else for Backend in beta unless phone validation (item 6) finds an accou
 ## Gotchas
 
 - **The record is opaque to Postgres; the version check is client code the server runs.** `scripts/verify-daily.mjs` imports
-  `decodeRecord` from `src/record.ts`, and `deploy.sh` rsyncs `src/**/*.ts` to the verifier host — so one accept-list, two readers.
+  `decodeRecord` from `src/fight/record.ts`, and `deploy.sh` rsyncs `src/**/*.ts` to the verifier host — so one accept-list, two readers.
   Grepping `supabase/` for `RECORD_VERSION` and finding nothing means "no second list", not "no server check".
 - **A refused daily row does not self-heal**: `checked_at` takes it off the sweep's page. After any accept-list widening, run
   `verify-daily.mjs --recheck` if rows exist. Ship accept-list widenings one deploy **before** the encoder writes the new version.
@@ -442,7 +442,7 @@ code, 0005 at #348's. All are additive: the live client is unaffected by an earl
 | id text pk | `^[A-Za-z0-9_-]{8}$`, client-chosen; a collision is a 23505 the client must retry |
 | user_id uuid → auth.users cascade | owner; never readable by a client |
 | opponent text | 1–32 chars |
-| record text | ≤ 16 KB, base64url alphabet (src/record.ts encoding) |
+| record text | ≤ 16 KB, base64url alphabet (src/fight/record.ts encoding) |
 | created_at | default now(); never readable by a client |
 Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authenticated using (true)` (a shared link is public by intent —
 the row, not every column); insert `to authenticated` with check `auth.uid() = user_id and public.fight_records_recent() < 30`.
@@ -638,10 +638,10 @@ dormant). This lane verifies each addition after the fact (`select count(*) from
 
 ### Ghost storage (PvP as ghosts first — Strategy's "friend's echo")
 A ghost is a fighter another player can be thrown against: the look (rig, weapon, equipped loot) plus the warden's behaviour profile
-of that player. Behaviour, not rank: `Habits` (`src/ai.ts:11` — ticks, guard, parries, rolls, steps, lights, heavies, thrusts, kicks,
+of that player. Behaviour, not rank: `Habits` (`src/fight/ai.ts:11` — ticks, guard, parries, rolls, steps, lights, heavies, thrusts, kicks,
 attacks…) is exactly what the warden reads live, so a stored `Habits` drives the same `readOpponent` path with no new AI.
 - `public.ghosts (id text pk check '^[A-Za-z0-9_-]{8}$', user_id uuid unique → auth.users cascade, display_name text (1–24, same check
-  as fighter_profiles), rig text check in the roster's player rigs, weapon text check in PLAYER_WEAPONS (src/moves.ts:410), loot jsonb (same check as
+  as fighter_profiles), rig text check in the roster's player rigs, weapon text check in PLAYER_WEAPONS (src/fight/moves.ts:410), loot jsonb (same check as
   fighter_profiles.loot), habits jsonb check (pg_column_size ≤ 2048 and every key is a Habits field and every value a bounded integer
   — a jsonb check, not `pg_jsonschema`, so the local check needs no extension), fights integer default 0, revision bigint (the
   fighter_profiles trigger pattern), updated_at)`.

@@ -11,6 +11,8 @@
 // greybox pins still hold.
 import { CONCORD, CONCORD_REGION } from '../world/concord.ts';
 import { merge, type WorldData } from '../world/resolve.ts';
+import { applyZones } from '../zones/place.ts';
+import { zonePlaces } from '../zones/loader.ts';
 
 export const EXCHANGE_REGION = CONCORD_REGION; // 'region:concord-exchange'
 export const FRONTIER_REGION = 'region:ash-frontier';
@@ -66,13 +68,11 @@ const FRONTIER = {
         milestone: { u: 0.5, v: 0.3, facing: 0 },
         watchtower: { u: 0.82, v: 0.55, facing: -90 },
         'fields-turn': { u: 0, v: 0.7, facing: 90 },
-        'reach-turn': { u: 1, v: 0.2, facing: -90 },   // the track to the Ash Reach (Zone 2)
         crossroads: { u: 0.5, v: 1, facing: 0 },
       },
       connections: {
         ferry: { to: 'ferry-landing', kind: 'road', here: 'crossroads', there: 'road-end' },
         fields: { to: 'cinder-fields', kind: 'road', here: 'fields-turn', there: 'road-gate' },
-        reach: { to: 'ash-reach', kind: 'road', here: 'reach-turn', there: 'reach-gate' },
       },
       difficulty: { levelMin: 11, levelMax: 12 },
       ambience: { preset: 'frontier-haze' },
@@ -147,18 +147,6 @@ const FRONTIER = {
       difficulty: { levelMin: 13, levelMax: 14 },
       ambience: { preset: 'frontier-haze' },
     },
-    // The Ash Reach (Zone 2, zone-runtime step 4): one open zone off the east road, its entry gate and a cairn at the middle. Its creatures are origins/zones/zone2/spawns.ts.
-    'ash-reach': {
-      zoneSize: { width: 100, depth: 100 },
-      layout: {
-        'reach-gate': { u: 0, v: 0.5, facing: 90 },
-        'reach-cairn': { u: 0.4, v: 0.5, facing: 0 },
-        'reach-ruin': { u: 0.8, v: 0.75, facing: 0 },
-      },
-      connections: { road: { to: 'east-road', kind: 'road', here: 'reach-gate', there: 'reach-turn' } },
-      density: { creatures: 0.3 },
-      ambience: { preset: 'frontier-haze' },
-    },
     // Cinder Hold: a village (living-world §12) beside the Cinder Fields. No creatures inside the town.
     'cinder-hold': {
       zoneSize: { width: 60, depth: 60 },
@@ -193,4 +181,7 @@ const FRONTIER = {
   },
 };
 
-export const REGION1_WORLD = merge(CONCORD, { regions: { [EXCHANGE_REGION]: EXCHANGE_LAYER, [FRONTIER_REGION]: FRONTIER } }) as WorldData;
+// Every zone folder's place (origins/zones/zone<N>/place.ts) is added here: this file names no zone beyond Region 1's own.
+const FRONTIER_PLACED = { ...FRONTIER, zones: applyZones(FRONTIER.zones as never, zonePlaces()) };
+
+export const REGION1_WORLD = merge(CONCORD, { regions: { [EXCHANGE_REGION]: EXCHANGE_LAYER, [FRONTIER_REGION]: FRONTIER_PLACED } }) as WorldData;

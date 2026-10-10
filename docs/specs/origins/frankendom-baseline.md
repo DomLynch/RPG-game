@@ -9,37 +9,37 @@ from `git ls-files`, `wc` and `grep` on the pinned tree. Citations are `path:lin
 
 | What | Value | Source |
 | --- | --- | --- |
-| Trunk commit surveyed | Surveyed at `8a3cefb7`; the pins below were re-checked at `03cd0d61` (Merge PR #1426), 2026-10-06. **These numbers move with every sim change: read `src/record.ts` and `tests/record-version-guard.test.ts` on the commit you build on; never trust a number copied from here.** | `git rev-parse HEAD` |
+| Trunk commit surveyed | Surveyed at `8a3cefb7`; the pins below were re-checked at `03cd0d61` (Merge PR #1426), 2026-10-06. **These numbers move with every sim change: read `src/fight/record.ts` and `tests/record-version-guard.test.ts` on the commit you build on; never trust a number copied from here.** | `git rev-parse HEAD` |
 | Live deployed revision | `d05ba4adfa3fdde2bf19db0fd11341c4605fd066`, phase `0B-swordplay` (2026-10-06) | `curl -s https://frankendom.com/release.json` |
 | Live vs trunk | Live is an ancestor of trunk `03cd0d61`, 12 commits behind it at the re-check. | `git merge-base --is-ancestor`, `git log d05ba4ad..03cd0d61` |
-| Record format | `RECORD_VERSION = 25` at `03cd0d61` (was 24 at `8a3cefb7`; v25 adds the Goblin's stab, v24 the late notice) | `src/record.ts:17` |
+| Record format | `RECORD_VERSION = 25` at `03cd0d61` (was 24 at `8a3cefb7`; v25 adds the Goblin's stab, v24 the late notice) | `src/fight/record.ts:17` |
 | Sim digest pin | `SIM_DIGEST 6e389dbc…` for version 25 over **12** sim files (`src/stab-rule.ts` joined the list) | `tests/record-version-guard.test.ts:20-21` |
 
 ---
 
 ## 2. Contracts Origins must not break
 
-### 2.1 `src/duel.ts`: the 60 Hz two-fighter simulation
+### 2.1 `src/fight/duel.ts`: the 60 Hz two-fighter simulation
 
-- **What it is:** a symmetric 1v1 simulation. It is pure and fixed at 60 Hz, with "no renderer, clock, randomness or browser state" (`src/duel.ts:6-7`). The step is `STEP = 1/60` (`src/sim.ts:2`).
-- **Entry point:** `stepDuel(duel: Duel, intents: [Intent, Intent], R = RULES): Duel` (`src/duel.ts:149`). It returns a new `Duel` and never writes into its input. `tests/net-determinism.test.ts:49` freezes the input to prove this, and rollback depends on it (`src/net/rollback.ts:5`).
+- **What it is:** a symmetric 1v1 simulation. It is pure and fixed at 60 Hz, with "no renderer, clock, randomness or browser state" (`src/fight/duel.ts:6-7`). The step is `STEP = 1/60` (`src/fight/sim.ts:2`).
+- **Entry point:** `stepDuel(duel: Duel, intents: [Intent, Intent], R = RULES): Duel` (`src/fight/duel.ts:149`). It returns a new `Duel` and never writes into its input. `tests/net-determinism.test.ts:49` freezes the input to prove this, and rollback depends on it (`src/net/rollback.ts:5`).
 - **Inputs:**
-  - `Intent`: `move` (camera-relative stick: x, z, yaw, run), edge-triggered `action`, level `guard`/`held`/`lock`, optional `guardDirection` and `cancel` (`src/duel.ts:10-18`).
-  - `Action` (10 values) (`src/duel.ts:9`).
-  - Each fighter is built once by `createFighter(...)` from weapon, scale, poise, health, guard profile, regen, speed and rig (`src/duel.ts:64`). Opponents come from `opponentFighter(o: Opponent)` (`src/duel.ts:66`). The fight starts with `initialDuel(opponent, weapon, skill)` (`src/duel.ts:69`) and adds Special Moves with `withSpecials(...)` (`src/duel.ts:74`).
+  - `Intent`: `move` (camera-relative stick: x, z, yaw, run), edge-triggered `action`, level `guard`/`held`/`lock`, optional `guardDirection` and `cancel` (`src/fight/duel.ts:10-18`).
+  - `Action` (10 values) (`src/fight/duel.ts:9`).
+  - Each fighter is built once by `createFighter(...)` from weapon, scale, poise, health, guard profile, regen, speed and rig (`src/fight/duel.ts:64`). Opponents come from `opponentFighter(o: Opponent)` (`src/fight/duel.ts:66`). The fight starts with `initialDuel(opponent, weapon, skill)` (`src/fight/duel.ts:69`) and adds Special Moves with `withSpecials(...)` (`src/fight/duel.ts:74`).
 - **Outputs:**
-  - `Duel = { tick, fighters: [Fighter, Fighter], finish: Finish | null, events: CombatEvent[] }` (`src/duel.ts:56`).
-  - `Finish = { victim, location, move, heading, draw? }` (`src/duel.ts:48`).
-  - `CombatEvent` (Hit, Blocked, Parried, Killed, …) (`src/duel.ts:52`).
-  - The `Fighter` record carries health, stamina, posture, phase and the other fields (`src/duel.ts:20-46`). **There is no stat or loadout field on `Fighter`.** Health, poise, scale, regen and speed are the only body numbers, and all of them come from `moves.ts` data.
-- **Where randomness lives:** the duel has none. The opponent's AI decides from a seeded LCG inside `AiState` (`src/ai.ts:50`, `src/ai.ts:56`). Single-player is `Practice = duel + ai`, built by `initialPractice(seed, opponent, weapon, skill, specials)` and stepped by `stepPractice(practice, intent, profile)` (`src/combat.ts:112-114`).
+  - `Duel = { tick, fighters: [Fighter, Fighter], finish: Finish | null, events: CombatEvent[] }` (`src/fight/duel.ts:56`).
+  - `Finish = { victim, location, move, heading, draw? }` (`src/fight/duel.ts:48`).
+  - `CombatEvent` (Hit, Blocked, Parried, Killed, …) (`src/fight/duel.ts:52`).
+  - The `Fighter` record carries health, stamina, posture, phase and the other fields (`src/fight/duel.ts:20-46`). **There is no stat or loadout field on `Fighter`.** Health, poise, scale, regen and speed are the only body numbers, and all of them come from `moves.ts` data.
+- **Where randomness lives:** the duel has none. The opponent's AI decides from a seeded LCG inside `AiState` (`src/fight/ai.ts:50`, `src/fight/ai.ts:56`). Single-player is `Practice = duel + ai`, built by `initialPractice(seed, opponent, weapon, skill, specials)` and stepped by `stepPractice(practice, intent, profile)` (`src/fight/combat.ts:112-114`).
 - **Determinism guarantees (enforced, not just intended):**
   1. **Lint ban.** The `SIM` file list (`eslint.config.js:3`) bans `Math.random`, `Date.now`, `performance.now`, `window`, `document`, `localStorage` and `requestAnimationFrame` (`eslint.config.js:8`).
   2. **Import boundary.** Sim modules may import only each other (`tests/sim-boundary.test.ts:14`).
   3. **Cross-engine math.** `src/detmath.ts` gives fdlibm ports of sin, cos, atan2 and hypot built on + − × ÷ √ only (`src/detmath.ts:1-7`). The sim calls `M.*`, never `Math.<transcendental>` (`tests/detmath.test.ts:16`). Records before v20 replay on the frozen engine `Math` table, chosen only through `underRecord` (`src/detmath.ts:99-109`).
   4. **Version guard.** Any change to the sim files (12 at `03cd0d61`) without a `RECORD_VERSION` bump fails `tests/record-version-guard.test.ts:24`, which compares against the digest pin.
-  5. **Intent quantization.** Intents are quantized before both recording and netcode (`src/record.ts:107`).
-- **Hazard: module-level mutable sim state.** Three era flags plus the math table are globals: `PLAY_SCALE`/`RADIUS` and `LATE_NOTICE` (`src/play-radius.ts`), `STAB_ON` (`src/stab-rule.ts:6`, off by default when headless) and the detmath `table` (`src/detmath.ts`). They are set only through three doors: **live fights** through `match.ts` begin, which sets the circle, `setLateNotice(true)` and `setStab(true)` (`src/match.ts:112`); **replays** through `detmath.underRecord`, which wraps `underPlayScale` and `underStab` by the record's version (`src/detmath.ts:107-109`); and **PvP** through `pvpDuel`, which calls `setPlayScale(1)` (`src/net/rollback.ts`). Any new caller that steps a duel or a Practice (an Origins arena, server tooling) must enter through one of these doors. Otherwise it fights in the wrong circle, with no late notice and no Goblin stab, while still stamping the current record version.
+  5. **Intent quantization.** Intents are quantized before both recording and netcode (`src/fight/record.ts:107`).
+- **Hazard: module-level mutable sim state.** Three era flags plus the math table are globals: `PLAY_SCALE`/`RADIUS` and `LATE_NOTICE` (`src/fight/play-radius.ts`), `STAB_ON` (`src/stab-rule.ts:6`, off by default when headless) and the detmath `table` (`src/detmath.ts`). They are set only through three doors: **live fights** through `match.ts` begin, which sets the circle, `setLateNotice(true)` and `setStab(true)` (`src/match.ts:112`); **replays** through `detmath.underRecord`, which wraps `underPlayScale` and `underStab` by the record's version (`src/detmath.ts:107-109`); and **PvP** through `pvpDuel`, which calls `setPlayScale(1)` (`src/net/rollback.ts`). Any new caller that steps a duel or a Practice (an Origins arena, server tooling) must enter through one of these doors. Otherwise it fights in the wrong circle, with no late notice and no Goblin stab, while still stamping the current record version.
 - **Gear is not an input today.** `Loadout` is not consumed by `stepDuel`. The only `src/` importer of `gear-stats.ts` is a comment in `src/net/rollback.ts:18-21`, which says "pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel".
 
 > **Which rank scale?** Specs and proposals that touch rank must name their scale: **tier** (1–10, the title: Recruit … Origin) or **career level** (1 to the cap: 50, `MAX_LEVEL` at `src/career.ts:9`, live since RV27 per Dom's 2026-10-05 ruling). Gladiator is tier 3 = career level 11.
@@ -93,17 +93,17 @@ Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITL
 - **Tier = rank title.** `TIERS = TITLES` is the same array, not a copy (`src/grades.ts:15`), and `levelOf(tier)` returns 1–10 (`:18`).
 - **Tier comes from the fight, not the opponent.** `tierAt(marks) = rankFor(marks).title` (`src/grades.ts:46`). The legend rung for a fight at level L is `rungOf(L) = levelOf(tierAt(L-1))` (`src/legends.ts:149`).
 - **Grade materials.** `GRADES: Record<Tier, Grade>` holds colour, metalness and roughness for each tier. It is cosmetic only and never changes geometry (`src/grades.ts:1-4`, `:91-112`).
-- **Opponent combat stats** (`src/moves.ts`):
+- **Opponent combat stats** (`src/fight/moves.ts`):
   - `RULES.health = 150` for a man (`:167`).
   - The `Opponent` shape is `{ weapon, rig, scale, health, poise, profiles{easy,normal,hard}, guard?, regen?, speed? }` (`:568`). The per-archetype rows are in `ARCHETYPES` (`:570`), and `OPPONENTS` is derived from the roster (`:677`).
 - **The 50-level difficulty ladder** (line numbers below are from the 46-level revision except where stated; re-check before quoting):
-  - `LEVELS = 50` (`src/moves.ts:712`; 46 anchored the hard table, 47–50 are Origin II–V, the tail past hard). Anchors are still `{novice 1, easy 6, normal 18, hard 46}` (`:735`). AI knobs are blended linearly between anchors by `profileAt` (`:754`).
+  - `LEVELS = 50` (`src/fight/moves.ts:712`; 46 anchored the hard table, 47–50 are Origin II–V, the tail past hard). Anchors are still `{novice 1, easy 6, normal 18, hard 46}` (`:735`). AI knobs are blended linearly between anchors by `profileAt` (`:754`).
   - Body scaling: `NOVICE_BODY = {poise 0, health .7}` up to L6 (`:716`), `POISE_FULL_AT` (`:720`), and `opponentAt` (`:728`).
   - Level-gated loadouts: the Centurion carries the gladius and scutum from L6 (`LOADOUT_FROM`, `:726`).
   - Named specials on levels 36/41/46 (`SPECIAL_SETS`/`specialOf`, `:693-709`).
 - **Player stats:** none exist. The player always fights as `RULES` plus weapon tables. `docs/progression-direction.md:7` says Recruit → Origin teaches the fight "without rank-based stat bonuses".
 
-### 2.5 `src/gear-stats.ts`: the Attack cap and RES cap
+### 2.5 `src/fight/gear-stats.ts`: the Attack cap and RES cap
 
 - **Status: data only and not wired.** The header says "nothing here changes a fight yet" (`:1-2`). There is no runtime caller of `loadoutFor`/`kitFrom` in `src/`; only `tests/gear-stats.test.ts` imports it.
 - **Shape and caps:**
@@ -149,7 +149,7 @@ Gladiator check: the blueprint's "Gladiator is rank 3" holds. Gladiator is `TITL
   - Rank is derived from server marks by a pure function.
   - Fight result records are versioned (fight ID, season ID `season-1`, rules/content version, seed, verification source).
   - Future builds are a versioned loadout referencing stable item IDs plus an approved allocation, resolved once outside the sim ticks.
-- **Relation to the code:** gear-stats.ts already took the "gear = Attack + RES only" half of this (§2.5). No STR/DEX/VIG/END/POISE code exists. `Fighter.poise` (`src/duel.ts:37`) is an opponent body stat with a different meaning: a stagger threshold, 0 for a human.
+- **Relation to the code:** gear-stats.ts already took the "gear = Attack + RES only" half of this (§2.5). No STR/DEX/VIG/END/POISE code exists. `Fighter.poise` (`src/fight/duel.ts:37`) is an opponent body stat with a different meaning: a stagger threshold, 0 for a human.
 
 ---
 
@@ -195,7 +195,7 @@ RLS is enabled on every table that the migrations create. The default client gra
 **Server-verified, by replaying the record:**
 - **Ladder-win marks and loot awards.**
   - The verifier is `scripts/verify-loot.mjs`, run on a VPS timer as `frankendom_verifier` (`ops/frankendom-verify-loot.*`).
-  - It decodes the record, checks that it names the claim's opponent and says `killed`, and replays it with `verifyRecord` (`src/replay.ts:22`).
+  - It decodes the record, checks that it names the claim's opponent and says `killed`, and replays it with `verifyRecord` (`src/fight/replay.ts:22`).
   - It applies the dial floor (`src/awards.ts:33-37`) and the piece rule (`awardFor`, `src/awards.ts:22-27`), then writes `verified` + `awards` in one transaction.
   - One fight is one win, enforced by `fight_hash` (`scripts/verify-loot.mjs:1-20`; `202610010001:13`).
   - Server marks = `account_seed.marks + count(verified claims)`; server owned = `account_seed.owned ∪ awards` (`202609230001:2-4`).
@@ -244,7 +244,7 @@ The fixtures live in `tests/fixtures/` (48 KB). All four are gzip+base64 `FightR
 **For Origins regression gates:**
 - `browser-replay-records.json` is the best "frozen arena replay" seed: it covers the whole roster on one level and is already cross-engine.
 - `fight-records.json` is the strict digest gate.
-- Neither carries a loadout or stats, because `RecordMeta` is `{ build, opponent, weapon, skill?, level, seed, specials? }` (`src/record.ts:91`). A gear-neutral "NAKED replays byte-identical" fixture set is what `gear-stats.ts:29-31` asks deliverable 2 to prove.
+- Neither carries a loadout or stats, because `RecordMeta` is `{ build, opponent, weapon, skill?, level, seed, specials? }` (`src/fight/record.ts:91`). A gear-neutral "NAKED replays byte-identical" fixture set is what `gear-stats.ts:29-31` asks deliverable 2 to prove.
 
 **Test counts by area** (233 test files: 230 `*.test.ts` + 3 `*.test.mjs`; 1,625 `test(`/`it(` calls; 21 files carry `[slow]` cases). Files are bucketed by name, first match wins.
 
@@ -274,14 +274,14 @@ Run commands (`package.json`): `npm test` (skips `[slow]`), `npm run test:slow`,
 | Opponent (class) | `OpponentId` = key of `ROSTER`: `veteran, pitborn, goblin, nightborn, executioner, minotaur, wraith, werewolf, skeleton, dwarf, plaguedoctor, knight, witch, shieldmaiden` (14; 4 `hold`) | stable lowercase string, no separator; server regex `^[a-z]{1,32}$` | `src/roster.ts:11-45`, `:30-31`; `202609230001:25` |
 | Display name | `ROSTER[id].name` ("the Centurion" for `veteran`) | text, renameable; not a key | `src/roster.ts:12`, `:59-62` |
 | Legend | `(OpponentId, rung 1..10)`; external key `"<opponent>-<rung>"` | composite; array index | `src/legends.ts:146-160` |
-| Archetype | `ROSTER[id].archetype` string; several opponents share one | string key into `ARCHETYPES` | `src/moves.ts:570` |
-| Weapon | `WeaponId` (10: longsword, trident, cleaver, estoc, knife, gladius, scythe, maul, reaper, warhammer); 9 in `PLAYER_WEAPONS` | stable lowercase string | `src/moves.ts:254`, `:540-552` |
+| Archetype | `ROSTER[id].archetype` string; several opponents share one | string key into `ARCHETYPES` | `src/fight/moves.ts:570` |
+| Weapon | `WeaponId` (10: longsword, trident, cleaver, estoc, knife, gladius, scythe, maul, reaper, warhammer); 9 in `PLAYER_WEAPONS` | stable lowercase string | `src/fight/moves.ts:254`, `:540-552` |
 | Loot piece | `LootId` = `` `${OpponentId}.${LootSlot}` `` (for example `veteran.Helmet`, `dwarf.Warhammer`); 74 in `LOOT` + 1 `RETIRED_LOOT` | **definition id** (class + slot), no tier, no instance; server regex `^[a-z]{1,32}\.[A-Za-z]{1,32}$` | `src/loot.ts:26`, `:68-94`; `202609230001:27`, `:59` |
 | Slot | `ARMOUR_SLOTS` (8) + `WEAPON_SLOTS` (9, capitalised weapon names) → `PAPERDOLL` keys `head, crest, chest, arms, hands, legs, feet, main, off` | strings | `src/loot.ts:12-25` |
 | Tier | rank title string (`'Gladiator'`); level 1..10 via `levelOf` | derived from the fight's marks, never stored on the piece except as `Provenance.tier` / `awards.tier` | `src/grades.ts:15-18`, `:46`; `src/loot.ts:32` |
-| Skill | `SkillId` (11 strings), `SKILLS[id].opponent` | stable string | `src/moves.ts:8`; `src/loot.ts:46` |
-| Special | `SpecialName` strings per opponent × rank 8/9/10 | stable string | `src/moves.ts:693-709` |
-| Move | `MoveId` strings | stable string | `src/moves.ts:6` |
+| Skill | `SkillId` (11 strings), `SKILLS[id].opponent` | stable string | `src/fight/moves.ts:8`; `src/loot.ts:46` |
+| Special | `SpecialName` strings per opponent × rank 8/9/10 | stable string | `src/fight/moves.ts:693-709` |
+| Move | `MoveId` strings | stable string | `src/fight/moves.ts:6` |
 | Mesh draw | `"<opponent>.<slot>.<material>"` in `loot.glb`; shared meshes `~kit.Gloves` | asset naming | `src/loot.ts:1-2`, `:63-65`; `src/grades.ts:80-82` |
 | Fight | `fight_hash` (sha256 of the record's fight bytes); `loot_claims.id` bigint; share short id (base36) | server ids | `202610010001`, `202609220009` |
 
@@ -308,7 +308,7 @@ Loot = {
    - `dropFor` returns null if the piece is already owned (`:145-149`).
    - `awardFor` returns null for an owned piece (`src/awards.ts:26`).
    - So a player can hold **at most one of each `<opponent>.<slot>` across all tiers**. A Gladiator `veteran.Helmet` and an Origin `veteran.Helmet` cannot coexist.
-2. **Tier is keyed by definition.** `taken: Record<LootId, Provenance>` (`src/loot.ts:40`) holds one provenance (and so one tier) per LootId. The gear-stats `TierOf(piece: LootId)` (`src/gear-stats.ts:119`) has the same one-tier-per-definition assumption.
+2. **Tier is keyed by definition.** `taken: Record<LootId, Provenance>` (`src/loot.ts:40`) holds one provenance (and so one tier) per LootId. The gear-stats `TierOf(piece: LootId)` (`src/fight/gear-stats.ts:119`) has the same one-tier-per-definition assumption.
 3. **The paperdoll references definitions.** `equipped` and `pack` hold LootIds. Instance ids would need a new field or a migration in `cleanLoot`. `cleanLoot` silently drops anything that fails `isLootId` (`:152-156`), so **an older build would erase unknown instance ids** when it saves. `profileDiffers` re-merges from a newer device (`:38-39`), but only for known ids.
 4. **Server checks pin the `<opponent>.<Slot>` grammar.** `loot_claims.piece` and `awards.piece` CHECK regexes (`202609230001:27`, `:59`), `awards.tier smallint 1..10`, the one-award-per-claim primary key (`awards.claim_id`), and `account_seed.owned`/`standing_of().owned` as LootId arrays. Instance ids would need a migration on both tables plus a change to `verify-loot.mjs`.
 5. **Take-one-piece (Loot v2).**

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import type { CombatEvent } from './duel.ts';
-import type { Weapon } from './moves.ts';
+import type { CombatEvent } from './fight/duel.ts';
+import type { Weapon } from './fight/moves.ts';
 
 // Presentation only: metal sparks for a blade meeting a blade. A few thin fragments struck off the attacking blade itself, each its own
 // speed, angle, life, thickness and streak length (owner 2026-09-20, three times: nothing uniform, nothing yellow, nothing bright or thick

@@ -34,9 +34,9 @@ const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
 <body><canvas id="world"></canvas><script type="module">
 import { createScene } from '/src/scene.ts';
-import { initialPractice, stepPractice } from '/src/combat.ts';
+import { initialPractice, stepPractice } from '/src/fight/combat.ts';
 import { selectFinisher } from '/src/fight/finishers.ts';
-import { OPPONENTS } from '/src/moves.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
 import { Box3, Vector3, Raycaster } from 'three';
 const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };

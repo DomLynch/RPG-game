@@ -140,3 +140,11 @@ test('no fight id (a token from before the fight was carried): the hook pays not
   const hook = mobRewards(content, () => new Date(AT), () => {}), db = fakeOpen();
   assert.deepEqual(await hook(kill(creatures[0]!, droppingSeed(creatures[0]!), { fight: null }), db), []);
 });
+
+test('a zone kill leaves the Pit rank alone: it writes only events, the zone career and the pack, never the Pit\'s victory marks', () => {
+  const fight = creatures[0]!, paid = mobBatch(kill(fight, droppingSeed(fight)), { career: row(), inventory: pack() }, content, AT);
+  assert.ok(paid.batch.length > 0, 'the kill paid something');
+  assert.ok(paid.batch.every((o) => ['event', 'career_set', 'mint', 'metal'].includes(String(o.op))), `ops: ${paid.batch.map((o) => o.op).join(',')}`);
+  assert.ok(!JSON.stringify(paid.batch).includes('victory_marks') && !JSON.stringify(paid.batch).includes('fighter_profiles'), 'no write names the Pit\'s marks');
+  for (const o of paid.batch.filter((x) => x.op === 'career_set')) assert.ok(!('seed_credit' in o) && !('pit' in o) && !('pit_wins' in o), 'a zone kill moves world credit and the rested/heat/beaten columns only');
+});

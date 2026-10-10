@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import { STEP } from '../../src/sim.ts';
+import { STEP } from '../../src/fight/sim.ts';
 import { beginOnline, onlineWanted, type HeldFight, RETRY_AFTER_MS, TOUCH_EVERY_MS } from './encounter-online.ts';
 import { createWriter } from '../server/server.ts';
 import { encounterOps } from '../server/encounter.ts';

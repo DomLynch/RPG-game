@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs';
 import { AnimationMixer, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROSTER } from '../src/roster.ts';
-import { RULES, WEAPONS } from '../src/moves.ts';
+import { RULES, WEAPONS } from '../src/fight/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
 import { swingProgress } from '../src/blade.ts';
-import { createFighter, idleIntent, stepDuel, type Duel } from '../src/duel.ts';
-import { clipFor, ROLES } from '../src/characters.ts';
+import { createFighter, idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { clipFor, ROLES } from '../src/fight/characters.ts';
 
 async function rig(family: string) {
   const bytes = readFileSync(new URL(`../src/assets/${family}.glb`, import.meta.url)), n = bytes.readUInt32LE(12);
@@ -98,9 +98,9 @@ test('both creature shafts remain held by their reconstructed hands throughout c
 // The short unarmed package had no inner dead band. A long crescent must keep
 // the AI attacking from its real range and stepping/kicking when crowded.
 test('reaper AI closes, escapes the inner arc and finishes a passive opponent', async () => {
-  const { decide, initialAi } = await import('../src/ai.ts');
-  const { opponentFighter } = await import('../src/duel.ts');
-  const { OPPONENTS } = await import('../src/moves.ts');
+  const { decide, initialAi } = await import('../src/fight/ai.ts');
+  const { opponentFighter } = await import('../src/fight/duel.ts');
+  const { OPPONENTS } = await import('../src/fight/moves.ts');
   for(const gap of [1.05,1.8,3])for(const level of ['easy','normal','hard'] as const){
     let d:Duel={tick:0,fighters:[createFighter({x:0,z:gap,heading:Math.PI,distance:0},'ready'),opponentFighter(OPPONENTS.wraith,{x:0,z:0,heading:0,distance:0})],finish:null,events:[]}, ai=initialAi(731);
     for(let i=0;i<5400&&!d.finish;i++){const result=decide(d,1,ai,OPPONENTS.wraith.profiles[level]);ai=result.ai;d=stepDuel(d,[idleIntent(),result.intent]);}

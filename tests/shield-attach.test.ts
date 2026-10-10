@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Bone, BufferGeometry, Float32BufferAttribute, Matrix4, Quaternion, Skeleton, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { armWarriors, buildWarriors, gripFit, SHIELD_CARRIERS } from '../src/characters.ts';
+import { armWarriors, buildWarriors, gripFit, SHIELD_CARRIERS } from '../src/fight/characters.ts';
+import * as shields from '../src/shields.ts';
 import { shieldFor, SHIPPING_SHIELDS } from '../src/shields.ts';
 
 test('shieldFor: the band file per rank, the Centurion stem, no rank-1 Centurion shield, nothing without the flag or for another opponent', () => {
@@ -65,3 +66,10 @@ for (const [rig, stem] of [['shieldmaiden', 'shieldmaiden'], ['veteran', 'centur
     assert.ok(low > 0, `the board stays above the floor (lowest ${low.toFixed(3)} m)`);
   });
 }
+
+test('the ?shields=on link flag is gone and an old link still shows the shields: both carriers ship, so the flag decided nothing', () => {
+  assert.ok(!('shieldsFlag' in shields), 'no flag reader is exported');
+  for (const carrier of ['shieldmaiden', 'veteran']) assert.ok(SHIPPING_SHIELDS.has(carrier), `${carrier} ships its shield`);
+  assert.ok(shieldFor('shieldmaiden', 1, SHIPPING_SHIELDS.has('shieldmaiden'))!.startsWith('/shields/shieldmaiden-'), 'the shipped set, with or without the old flag in the link');
+  assert.ok(shieldFor('veteran', 2, true)!.startsWith('/shields/centurion-'));
+});

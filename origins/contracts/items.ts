@@ -1,6 +1,6 @@
 // Origins O1: items — ItemDefinition, ItemInstance (with its one canonical location) and LootTable.
 //
-// The fixed spine (docs/specs/origins/README.md, blueprint §7): gear carries Attack and RES only, resolved by src/gear-stats.ts before a
+// The fixed spine (docs/specs/origins/README.md, blueprint §7): gear carries Attack and RES only, resolved by src/fight/gear-stats.ts before a
 // fight, capped at 1.15 / 0.80, and no timing ever changes. This module adds NO number to that table. An item's power is "its slot's
 // weight in SLOT_WEIGHT, scaled by the tier the instance was won at" or nothing; resolution delegates to `loadoutFor`, so a full Origin
 // set through these contracts lands exactly on CAPS and cannot exceed it.
@@ -13,7 +13,7 @@
 // Dom's decisions (2026-10-06): Pit-won pieces are tradeable; every instance keeps its provenance (who won it, from which legend, at
 // what rank, when) through every trade, with an append-only history; one of each per player, bank included; trades only at the Concord
 // Exchange (economy.ts); wearing needs the piece's rank, a separate check from owning. A smith may add upgrade levels (economy.ts).
-import { CAPS, loadoutFor, pointsFor, type Kit, type Loadout } from '../../src/gear-stats.ts';
+import { CAPS, loadoutFor, pointsFor, type Kit, type Loadout } from '../../src/fight/gear-stats.ts';
 import { TIERS, isTier, levelOf as tierLevel, type Tier } from '../../src/grades.ts';
 import { PORTRAIT_KEYS } from '../../src/legends.ts';
 import { LOOT_SLOTS, PAPERDOLL, isLootId, paperdollOf, slotOf, type LootId, type LootSlot, type Paperdoll } from '../../src/loot.ts';
@@ -44,7 +44,7 @@ export const STORY = ['none', 'notable', 'story-critical'] as const;
 export type Story = (typeof STORY)[number];
 export const BINDINGS = ['none', 'on-acquire', 'on-equip'] as const;
 export type Binding = (typeof BINDINGS)[number];
-// The power budget. 'slot-weight': the slot's SLOT_WEIGHT × (tier level − 1), exactly as src/gear-stats.ts prices today's loot.
+// The power budget. 'slot-weight': the slot's SLOT_WEIGHT × (tier level − 1), exactly as src/fight/gear-stats.ts prices today's loot.
 export const POWERS = ['slot-weight', 'none'] as const;
 export type Power = (typeof POWERS)[number];
 export const MAX_STACK = 9999;
@@ -540,7 +540,7 @@ export function checkOneOfEach(instances: readonly ItemInstance[], lookup: (id: 
   return issues.list;
 }
 
-// The Loadout a character's equipped instances resolve to, through src/gear-stats.ts and nothing else, at each piece's effective tier.
+// The Loadout a character's equipped instances resolve to, through src/fight/gear-stats.ts and nothing else, at each piece's effective tier.
 // `lookup` returns the definition for an id (a registry); an equipped instance whose definition is unknown is an explicit failure.
 export function resolveLoadout(owner: CharacterInstanceId, instances: readonly ItemInstance[], lookup: (id: ItemId) => ItemDefinition | undefined): Result<Loadout> {
   const kit: Kit = {};
@@ -557,7 +557,7 @@ export function resolveLoadout(owner: CharacterInstanceId, instances: readonly I
   return ok(loadout);
 }
 
-// What one piece is worth on today's per-piece score scale (src/gear-stats.ts pointsFor), at its effective tier. 0 for no power.
+// What one piece is worth on today's per-piece score scale (src/fight/gear-stats.ts pointsFor), at its effective tier. 0 for no power.
 export function piecePoints(inst: Pick<ItemInstance, 'tier' | 'upgradeLevel'>, def: ItemDefinition): number {
   const tier = effectiveTier(inst);
   return def.power === 'slot-weight' && def.slot !== null && tier !== null ? pointsFor(tier, def.slot) : 0;

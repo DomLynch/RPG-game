@@ -8,7 +8,7 @@ import { classSpecialFor } from '../src/class-special-identity.ts';
 import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 import { specialCueFor } from '../src/sparring-special-runtime.ts';
 import type { OpponentId } from '../src/roster.ts';
-import { specialOf } from '../src/moves.ts';
+import { specialOf } from '../src/fight/moves.ts';
 import { createFeedback } from '../src/fight/sound/feedback.ts';
 
 // Execute main's actual accepted-event loop and lifecycle reset, without duplicating its routing.

@@ -88,6 +88,14 @@ test('Zone 1 world is pinned: the same pieces and solids as before Zone 2', () =
   assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [170, 'acc9e948fd235ae5', 57, '70bce4a238048f1c']);
 });
 
+// Zone 2 is byte-identical to what it was before its map entry moved into zone2/place.ts (hashes recorded from trunk 5719c9f36, equal on the place.ts branch): pieces, solids, creature homes, the plan's zones.
+test('Zone 2 world is pinned: the same pieces, solids, creature homes and plan zones as before place.ts', () => {
+  const plan = frontierPlan(false, '2'), b = frontierBuild(plan), specs = mobSpecs(plan, b, loadZone('2').spawns.rows);
+  const h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids), specs.length, h(specs.map((m) => ({ id: m.id, zone: m.zone, home: m.home, spawn: m.spawn, body: m.body }))), h([plan.zones])],
+    [8, 'd508458ff6597cb4', 2, 'a4b3343a082ce465', 8, '2a866f58fd2353d1', '3fc4d31cf1bf4c5e']);
+});
+
 // Proof 3 needs a camp where three can really join one player (#1943: up to 3). A creature's home is walkable by construction (mobSpecs places it with stand()), so standing at one is a real spot.
 test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a walkable spot, and the pack is four wolves', () => {
   const plan = frontierPlan(false, '2'), specs = mobSpecs(plan, frontierBuild(plan), loadZone('2').spawns.rows);
