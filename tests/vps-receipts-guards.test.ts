@@ -65,8 +65,8 @@ test('vps_unit_receipt_ok prints ok only when a unit job is named and the trust 
 test('deploy.sh calls both steps, before the gate and the rows they replace (each call found as a statement, no slack)', () => {
   const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
   const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
-  assert.ok(at(/^vps_unit=\$\(vps_unit_receipt_ok\)/) < at(/^if \[\[ "\$vps_unit" == ok \]\]/));
-  assert.ok(at(/^if \[\[ "\$vps_unit" == ok \]\]/) < at(/^\s+npm run quality$/));
+  assert.ok(at(/^vps_unit=\$\(vps_unit_receipt_ok\)/) < at(/^elif \[\[ "\$vps_unit" == ok \]\]/));
+  assert.ok(at(/^elif \[\[ "\$vps_unit" == ok \]\]/) < at(/^\s+npm run quality$/));
   assert.ok(at(/^trusted_checks=/) < at(/^vps_receipts_apply\b/));
   assert.ok(at(/^vps_receipts_apply\b/) < at(/^\s*(?:[A-Z_]+=\S*\s+)*node scripts\/release-checks\.mjs/));
 });
