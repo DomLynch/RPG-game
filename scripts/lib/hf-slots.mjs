@@ -60,7 +60,7 @@ export function livePs(hf = 'hf') {
 export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now, idOf = /** @type {any} */ (null), cancel = /** @type {any} */ (null) }) {
   const t0 = now();
   for (;;) {
-    if (!lock(Math.max(5_000, maxWaitS * 1000))) return { ok: false, used: -1, limit: -1, queuedS: (now() - t0) / 1000 };
+    if (!lock(Math.max(5_000, Math.min(60_000, maxWaitS * 1000 - (now() - t0))))) return { ok: false, used: -1, limit: -1, queuedS: (now() - t0) / 1000 };
     try {
       const jobs = ps(hf), d = jobs === null ? { ok: true, used: 0, limit: 0, slot: 1 } : slotDecision(flavor, jobs, generic);
       if (d.ok) {

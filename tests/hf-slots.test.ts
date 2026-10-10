@@ -110,7 +110,7 @@ test('launch.mjs job --env K=V is repeatable, reaches the job as -e K=V, and ref
 });
 
 test('the parent of a `rows` child outlives the child\'s whole budget (slot wait + hf call + rank check + cancel), and a stale lock is only broken after a live holder could not still hold it', async () => {
-  assert.ok(ROWS_CHILD_TIMEOUT_MS >= (RELEASE_SLOT_WAIT_S + 60 + 60) * 1000, `${ROWS_CHILD_TIMEOUT_MS} ms must cover ${RELEASE_SLOT_WAIT_S} s of waiting plus two 60 s hf calls`);
+  assert.ok(ROWS_CHILD_TIMEOUT_MS >= (RELEASE_SLOT_WAIT_S + 4 * 60) * 1000, `${ROWS_CHILD_TIMEOUT_MS} ms must cover ${RELEASE_SLOT_WAIT_S} s of waiting plus a lock wait, the hf call, the rank check and the cancel (60 s each)`);
   const src = (await import('node:fs')).readFileSync('scripts/vps-shadow/launch.mjs', 'utf8');
   assert.match(src, /timeout: ROWS_CHILD_TIMEOUT_MS/, 'the cpu launcher spawns the rows child with that timeout');
   assert.doesNotMatch(src, /timeout: 90_000/);
