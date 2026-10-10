@@ -65,6 +65,17 @@
     body.infight #hint, body.infight #creature-card { display: none; }   /* ?worldfight: at fight-camera distance they covered the foe from head to waist; the duel's own name line stays */
     body.kit #move-stick, body.kit #look-stick { display: none; }
     body.kit #walk-journal, body.kit #allegiance { display: none; }   /* the main screen is the combat HUD and the ☰ only: Journal is a button in the ☰'s Settings */
+    /* A phone on its side (Dom, 2026-10-10: ☰ on SKILL, the card across the fight, the bars under the stick): the header text is one short strip, the help line is gone, the card is one clipped line, and the ☰ steps in
+       from the right edge to sit clear of the SKILL column (which rises to the top on a short screen). Measured by scripts/landscape-check.mjs in portrait, landscape (812x375, 844x340) and iPad. */
+    @media (orientation: landscape) and (max-height: 520px) {
+      #hud { right: auto; width: min(40vw, 330px); padding: 4px max(var(--gap-m), env(safe-area-inset-left)); font-size: var(--fs-s); line-height: 1.2; }
+      #hud small { display: inline; margin-left: 8px; }
+      #hud #hint, #hud .walk-only { display: none; }
+      #creature-card { margin-top: 3px; padding: 2px var(--gap-s); font-size: var(--fs-s); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #duel.world header { right: calc(max(14px, env(safe-area-inset-right)) + 100px); }
+      .fm-meters { left: max(12px, env(safe-area-inset-left)); }
+    }
+    @media (min-width: 901px) { #hud { right: 220px; } }   /* the header's Sound and Journal text buttons own the top right on a wide screen */
   </style>
 </head>
 <body>
