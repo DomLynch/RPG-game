@@ -5,7 +5,7 @@ import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
 import { arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './defence-grade.ts';
-import { kickCloseFlag } from './fight/kick-close.ts';
+import { kickCloseFlag } from './kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fatigue-preview.ts';
 import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGapHistory, kickCloseFlag, KICK_CLOSE_GROWTH, KICK_CLOSE_TICKS } from '../src/fight/kick-close.ts';
+import { createGapHistory, kickCloseFlag, KICK_CLOSE_GROWTH, KICK_CLOSE_TICKS } from '../src/kick-close.ts';
 import { createHud, type HudView } from '../src/fight/hud.ts';
 import { OPPONENTS, initialPractice, project } from '../src/fight/combat.ts';
 

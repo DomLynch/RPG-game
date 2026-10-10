@@ -9,7 +9,7 @@ import * as pvpHold from '../src/pvp-hold.ts';
 import * as armfeelModule from '../src/armfeel.ts';
 import * as defenceGradeModule from '../src/defence-grade.ts';
 import * as chunkRecoverModule from '../src/chunk-recover.ts';
-import * as kickCloseModule from '../src/fight/kick-close.ts';
+import * as kickCloseModule from '../src/kick-close.ts';
 import * as victoryHeadlineModule from '../src/fight/victory-headline.ts';
 import * as fatiguePreviewModule from '../src/fatigue-preview.ts';
 import * as sim from '../src/fight/sim.ts';
@@ -126,7 +126,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
   modules['./chunk-recover.ts'] = chunkRecoverModule;   // the stale-chunk bar (its install is guarded: the harness window has no real listeners)
   modules['./defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
-  modules['./fight/kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
+  modules['./kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
   modules['./fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
   modules['./fight/victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
