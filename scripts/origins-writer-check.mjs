@@ -518,7 +518,9 @@ try {
   }
   {
     // A migrated piece that is later retired keeps its unique mint_key (items are never deleted): the next import calls it alreadyHeld and imports only what is new, it does not fail (Auditor, #1984).
-    const ids = [...LOOT_IDS].sort(), made3 = await call('create_character', 'td', { name: 'Burner' }), cd = made3.json.result.id;
+    const ids = [...LOOT_IDS].sort(), made3 = await call('create_character', 'td', { name: 'Burner' });
+    eq(made3.status, 200, `a fresh account D makes a character (${JSON.stringify(made3.json)})`);
+    const cd = made3.json.result.id;
     const gd = body => call('gear_import', 'td', { character: cd, ...body });
     eq((await gd({ owned: ids.slice(0, 5), equipped: {} })).json.result?.imported.length, 5, 'gear_import: five pieces imported');
     const gone = psql(`select id from public.origins_items where loc_owner = '${cd}' order by id limit 1`);

@@ -12,7 +12,7 @@ if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
 const UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', career = { seed_credit: 0, world_credit: 0, total_credit: 0, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 1 };
 type Row = Record<string, unknown>;
 // A stateful stub: origins_commit turns every `mint` op into a stored row, origins_open reads them back, so a second import sees the first.
-function world(initial: Row[] = [], pack = 64, bank = 1000) {
+function world(initial: Row[] = [], pack = 64, bank = 1000, gone: string[] = []) {   // gone: legacy mint keys of pieces that were retired or traded away (origins_items keeps them, unique)
   const rows: Row[] = [...initial], events = new Set<string>();
   const db: Db = { async run(sql, v = {}) {
     if (/origins_commit/.test(sql)) {
@@ -20,12 +20,13 @@ function world(initial: Row[] = [], pack = 64, bank = 1000) {
         if (op.op === 'event') { if (events.has(String(op.event_id))) throw Object.assign(new Error('dup'), { code: 'O0001' }); events.add(String(op.event_id)); }
         if (op.op === 'mint') {
           const it = op.item as Row, loc = it.loc as Row;
-          if (rows.some((r) => r.mint_key === it.mint_key)) throw new Error('duplicate mint key (the database refuses it)');
+          if (rows.some((r) => r.mint_key === it.mint_key) || gone.includes(String(it.mint_key))) throw new Error('duplicate mint key (the database refuses it)');
           rows.push({ id: it.id, item: it.item, version: 0, quantity: it.quantity, tier: it.tier, upgrade_level: 0, loc_kind: loc.kind, loc_owner: loc.owner, loc_index: loc.index ?? null, loc_slot: loc.slot ?? null, bound_to: null, mint_key: it.mint_key, provenance: it.provenance, history: [] });
         }
       }
       return '[]';
     }
+    if (/origins_mint_keys_held/.test(sql)) return JSON.stringify([...rows.map((r) => String(r.mint_key)), ...gone].filter((k) => (JSON.parse(v.k!) as string[]).includes(k)));
     return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: pack, bank_slots: bank }], items: rows, quests: [], journal: [], talk: [] });
   } };
   return { db, rows };
@@ -100,4 +101,13 @@ test('a full pack AND a full bank skips the rest with a reason (nothing lost sil
   const r = await run(tiny.db, { owned: ALL.slice(0, 7), equipped: {} });
   assert.deepEqual([r.imported.length, r.bank.length, r.skipped.length], [5, 3, 2]);
   assert.ok(r.skipped.every((s) => s.reason === 'pack and bank are full'));
+});
+
+test('a piece migrated once and later retired or traded away is alreadyHeld for good: its mint key is unique across all rows, so it is never planned again (Auditor, #1984)', async () => {
+  const gone = [`legacy:${UID}:${ALL[0]!.toLowerCase()}`], w = world([], 64, 1000, gone);
+  const r = await run(w.db, { owned: ALL.slice(0, 3), equipped: {} });
+  assert.deepEqual([r.alreadyHeld, r.imported.length], [[ALL[0]], 2]);
+  assert.equal(w.rows.length, 2, 'only the two new pieces were minted');
+  const without = world([], 64, 1000, []);   // a database without the function would answer the live view only: the stub's rows are the same, nothing else is known
+  assert.equal((await run(without.db, { owned: ALL.slice(0, 3), equipped: {} })).imported.length, 3);
 });
