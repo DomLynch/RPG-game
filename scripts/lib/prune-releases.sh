@@ -2,7 +2,7 @@
 # Keep KEEP releases under ROOT/releases: whatever `current` and `previous` point to always, then the newest others up to KEEP; remove the rest.
 # "Newest" is directory mtime (ls -t): rsync -a in deploy.sh stamps each release dir with dist/'s mtime (set while deploy.sh builds and stamps it), so order = deploy order.
 # Runs on the VPS: ssh host bash -s -- /var/www/frankendom 5 [--dry-run] < scripts/lib/prune-releases.sh
-# Writer installs: bash prune-releases.sh /opt/frankendom-origins 5 [--dry-run] origins -- the <8 hex> dirs sit directly under ROOT, `current` is the one symlink (no `previous`); same KEEP rule.
+# Writer installs: bash prune-releases.sh /opt/frankendom-origins 5 [--dry-run] origins -- the <8 hex> dirs sit directly under ROOT, `current` and `previous` are the symlinks beside them; same KEEP rule.
 # Releases share unchanged files by hardlink (deploy.sh --link-dest), so "frees" is du(all) - du(kept), not the sum of the pruned dirs.
 set -euo pipefail
 root=$(cd "$1" && pwd -P)

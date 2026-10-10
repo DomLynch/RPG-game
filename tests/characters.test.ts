@@ -1,7 +1,7 @@
 import { cutOf } from '../src/fight/zone-finisher.ts';
 import test from 'node:test';
 import {finisherBloodSources} from '../src/fight/finisher-blood.ts';
-import {finisherSidePose} from '../src/camera.ts';
+import {finisherSidePose} from '../src/fight/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle, Texture } from 'three';
