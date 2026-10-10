@@ -8,6 +8,7 @@ import { registrySource, ZONES_DIR } from '../scripts/gen-zones.mjs';
 import { newZone } from '../scripts/new-zone.mjs';
 import { zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
+import { resolveSpec } from '../origins/zones/resolve.ts';
 import biomesData from '../origins/zones/biomes-data.ts';
 
 const tree = (dir: string): string[] => readdirSync(dir, { recursive: true }).map(String).sort();
@@ -81,4 +82,8 @@ test('a copy that fails after the folder is made leaves no half-made folder behi
 test('the biome presets are the literal data file, and the default biome is one of them', () => {
   assert.equal(BIOMES, biomesData);
   assert.ok(Object.hasOwn(BIOMES, DEFAULT_BIOME));
+});
+
+test('every biome preset resolves clean (a biome no zone names is never validated by a zone, so it is checked here)', () => {
+  for (const b of Object.keys(BIOMES)) assert.deepEqual(resolveSpec({ biome: b }).problems, [], b);
 });
