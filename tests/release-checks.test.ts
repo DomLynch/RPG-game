@@ -286,7 +286,7 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   // for src/lessons*.ts and src/first-loss*.ts that carries src/**'s rows too (so it never steals them); its own script runs only itself.
   assert.deepEqual(rowsFor('scripts/first-loss-browser-check.mjs'), ['first-loss-browser-check']);
   for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'first-loss-browser-check'].sort(), file);
-  assert.ok(!rowsFor('src/hud.ts').includes('first-loss-browser-check'), 'other src files do not run the first-loss row');
+  assert.ok(!rowsFor('src/fight/hud.ts').includes('first-loss-browser-check'), 'other src files do not run the first-loss row');
 });
 
 test('ci-trusted-checks finds a run by TREE on a branch trunk never contains; a differing tree is never looked at', () => {
@@ -365,9 +365,9 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
   assert.equal(kept('src/lessons.ts'), 6, 'the first-loss row joins the core five for the lesson files');
   assert.equal(kept('src/first-loss.ts'), 6);
   assert.equal(kept('scripts/first-loss-browser-check.mjs'), 6, 'a changed check script runs its own row');
-  assert.equal(kept('src/hud.ts'), 7, 'files outside its trigger do not run it');
+  assert.equal(kept('src/fight/hud.ts'), 7, 'files outside its trigger do not run it');
   assert.equal(kept('src/audio/mix.ts'), 7, 'audio adds its two rows');
-  assert.equal(kept('src/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
+  assert.equal(kept('src/fight/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
 });
 
 test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the first-loss row, the row that boots to a fight from an empty profile', () => {
@@ -394,7 +394,7 @@ test('deploy scope: a public asset runs the rows of its folder, never all 51; th
   assert.equal(kept('public/weapons/estoc.glb'), ROWS, 'any other public folder (GLBs many rows load) still runs every row');
   for (const file of ['src/arena-themes.ts', 'src/arena.ts', 'src/sparring.ts', 'src/stage-hide.ts', 'src/main.ts'])
     assert.match(picked(file), /\b44 sparring-browser-check\b/, `${file} runs row 44, the Stage picker`);
-  assert.doesNotMatch(picked('src/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
+  assert.doesNotMatch(picked('src/fight/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
 });
 
 test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', async () => {
