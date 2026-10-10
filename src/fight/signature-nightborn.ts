@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { weaponOf } from './fight/moves.ts';
-import { surfaceHit, woundSite } from './fight/gore.ts';
+import { weaponOf } from './moves.ts';
+import { surfaceHit, woundSite } from './gore.ts';
 import { hitBy, OPPONENT_SIDE, registerSignature, type SignatureFrame } from './signature.ts';
-import type { CombatEvent } from './fight/duel.ts';
+import type { CombatEvent } from './duel.ts';
 
 // Nightborn, variant A: Blood Recall (docs/briefs/signature-effects.md row 4). A wound he opens throws a few droplets that stop and hang
 // for a beat, then fly back up his blade and are gone into it. Feeding, visual only: nothing is healed, nothing is drawn from a bar.

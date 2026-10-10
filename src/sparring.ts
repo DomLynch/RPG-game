@@ -7,7 +7,7 @@ import { decide } from './fight/ai.ts';
 import { project, type Practice } from './fight/combat.ts';
 import { stepDuel, type Action, type Intent } from './fight/duel.ts';
 import { LEVELS, PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type SkillId, type WeaponId } from './fight/moves.ts';
-import type { SpecialTest } from './special-look.ts';
+import type { SpecialTest } from './fight/special-look.ts';
 
 // One flag opens Sparring to every player later; until then it shows with the admin test tools (account.ts showTools, or ?debug).
 export const SPARRING_FOR_ALL = false;

@@ -5,11 +5,11 @@ import { runInNewContext } from 'node:vm';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
+import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { createBloodTithe, TINTS, ARM_OUT } from '../src/fight/special-tithe.ts';
 import { actorPose, initialPractice, attackSpecs } from '../src/fight/combat.ts';
-import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/special-modes.ts';
+import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/fight/special-modes.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 
@@ -86,7 +86,7 @@ test("the light turns red on the arena's OWN lights, fog and sky (no page overla
 });
 
 test('no page overlay: the module never touches the document, so the HUD and buttons stay as they are', () => {
-  assert.ok(!/document\.|getElementById|\.body\b/.test(readFileSync('src/special-tithe.ts', 'utf8').replace(/\/\/.*$/gm, '')), 'no DOM access');
+  assert.ok(!/document\.|getElementById|\.body\b/.test(readFileSync('src/fight/special-tithe.ts', 'utf8').replace(/\/\/.*$/gm, '')), 'no DOM access');
 });
 
 // Lead's rule for caster-moving effects (2026-10-01): write ABSOLUTELY each frame. In a hit-stop the rig runs mixer.update(0), which does not rewrite upperarm_r when the pose is unchanged
@@ -147,7 +147,7 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
 test('special-tithe ships in its own lazy chunk: nothing imports it statically', () => {
   const statics = readdirSync('src').filter((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-tithe\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8')));
   assert.deepEqual(statics, []);
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
 });
 
 // Preview-only: Blood Tithe is the registry's `tithe` entry, reached only by `?special=tithe` (special-look.ts SPECIAL_TESTS, the Centurion at level 46); scene.ts names no special (specials.test.ts).

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { weaponOf } from './fight/moves.ts';
+import { weaponOf } from './moves.ts';
 import { heavyHitBy, registerSignature, type MarkLook, type MarkSite, type SignatureEffect } from './signature.ts';
 
 // The Dwarf's signature, A: Hammer Stamp (docs/briefs/signature-effects.md row 6). A clean heavy that lands stamps the hammer's angular
