@@ -36,42 +36,8 @@ test('the flow check sees static, re-export and dynamic imports', () => {
 });
 
 // K2c (Lead + Strategy, 2026-10-09): Zone 1 and every browser client reach the fight through ONE door, src/fight/index.ts. A non-test file under origins/ may not import an engine module
-// (duel, ai, sim, moves, combat, play-radius, record, gear-stats, gambit, stance, twist, replay) directly. The server and contract files below run in node without the renderer the index pulls in
-// (three.js); they are named debt, owner Duels & Backend (origins/server, origins/contracts, origins/luck) plus the three modules those server files import (mobs/kits.ts, encounters/encounters.ts, shared/with-bar.ts: the kit tag is pinned by tests/kit-version.test.ts and must not move), and a listed import that goes away must be deleted from the list.
-const ENGINE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'gear-stats', 'gambit', 'stance', 'twist', 'replay'];
-const ENGINE_DEBT: readonly string[] = [
-  'origins/contracts/economy.ts -> src/gear-stats.ts',
-  'origins/contracts/items.ts -> src/gear-stats.ts',
-  'origins/encounters/encounters.ts -> src/moves.ts',
-  'origins/encounters/encounters.ts -> src/twist.ts',
-  'origins/luck/luck.ts -> src/gambit.ts',
-  'origins/mobs/kits.ts -> src/duel.ts',
-  'origins/mobs/kits.ts -> src/moves.ts',
-  'origins/server/encounter-fixtures.ts -> src/combat.ts',
-  'origins/server/encounter-fixtures.ts -> src/duel.ts',
-  'origins/server/encounter-fixtures.ts -> src/moves.ts',
-  'origins/server/encounter-fixtures.ts -> src/play-radius.ts',
-  'origins/server/encounter-fixtures.ts -> src/record.ts',
-  'origins/server/encounter-fixtures.ts -> src/replay.ts',
-  'origins/server/encounter-pose.ts -> src/duel.ts',
-  'origins/server/encounter-pose.ts -> src/play-radius.ts',
-  'origins/server/encounter-pose.ts -> src/record.ts',
-  'origins/server/encounter-verify.ts -> src/combat.ts',
-  'origins/server/encounter-verify.ts -> src/duel.ts',
-  'origins/server/encounter-verify.ts -> src/moves.ts',
-  'origins/server/encounter-verify.ts -> src/record.ts',
-  'origins/server/encounter-verify.ts -> src/replay.ts',
-  'origins/server/encounter-verify.ts -> src/sim.ts',
-  'origins/server/encounter-verify.ts -> src/twist.ts',
-  'origins/server/encounter.ts -> src/duel.ts',
-  'origins/server/encounter.ts -> src/record.ts',
-  'origins/server/encounter.ts -> src/twist.ts',
-  'origins/server/mob-rewards.ts -> src/twist.ts',
-  'origins/server/world-spawns.ts -> src/gambit.ts',
-  'origins/server/world-spawns.ts -> src/gear-stats.ts',
-  'origins/server/world-spawns.ts -> src/moves.ts',
-  'origins/shared/with-bar.ts -> src/combat.ts',
-];
+// (duel, ai, sim, moves, combat, play-radius, record, gear-stats, gambit, stance, twist, replay) directly. Server-run code (node, no renderer) takes src/fight/server.ts, the renderer-free door (K7); the debt list is empty and stays so.
+const ENGINE_DEBT: readonly string[] = [];   // paid: server-run code takes the renderer-free door src/fight/server.ts (K7)
 const edgesOf = (file: string, text: string): string[] => [...new Set([...text.matchAll(IMPORT)].map((m) => m[1]!)
   .filter((s) => /(^|\/)src\/(fight\/)?[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
   .filter((name) => ENGINE.includes(name)))].map((name) => `${file} -> src/${name}.ts`);
