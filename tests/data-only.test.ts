@@ -91,9 +91,9 @@ test('catalogue legends: the same citation is data; a new legend, a changed cita
 });
 
 test('the verdict on catalogue-data.ts: code in the file is exit 2, a new legend or a changed citation is exit 1', () => {
-  const text = readFileSync(CAT, 'utf8'), changed = [{ file: CAT, status: 'modified' as const }], at = (t: string) => verdict(changed, () => t, 'HEAD');
+  const text = readFileSync(CAT, 'utf8'), changed = [{ file: CAT, status: 'modified' as const }], at = (t: string) => verdict(changed, () => t, 'HEAD' as never);
   assert.equal(at(text + '\nconsole.log(1);\n').code, 2, 'a call is code, not data');
   assert.equal(at(text.replace(/legend: \{ work: "([^"]+)"/, 'legend: { work: "New $1"')).code, 1);
   assert.equal(at(text.replace(/(legend: \{ work: "[^"]+", author: "[^"]+", year: )\d+/, '$11')).code, 1);
-  assert.equal(verdict([{ file: CAT, status: 'modified' }, { file: 'src/fight/catalogue-rows.ts', status: 'modified' }], () => text, 'HEAD').code, 1, 'the reader beside the data is a normal PR');
+  assert.equal(verdict([{ file: CAT, status: 'modified' }, { file: 'src/fight/catalogue-rows.ts', status: 'modified' }], () => text, 'HEAD' as never).code, 1, 'the reader beside the data is a normal PR');
 });
