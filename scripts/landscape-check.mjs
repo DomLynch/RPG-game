@@ -21,7 +21,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 // Landscape / portrait layout check of the shared zone page (Dom, 2026-10-10: the menus and the HUD overlap on an iPhone in landscape). For each viewport and state (walk, fight, menu open): a still, and the rects of every visible
 // interactive element; two of them overlapping fails the run (an element counts only when it is shown and has a real box). Usage: AB_DIST=<built origins-preview dir> OUT=<dir> node scripts/landscape-check.mjs
-const VIEWS = [['portrait', 375, 812], ['landscape', 812, 375], ['ipad', 1024, 768]];
+const VIEWS = [['portrait', 375, 812], ['landscape', 812, 375], ['short', 844, 340], ['ipad', 1024, 768]];
 const SEL = 'button, a[href], [role=button], .stick, #creature-card, #hud > span, #hud > small, #hint, #health-value, #player-health, #target-health, #posture, #stamina';
 const rects = (page) => page.evaluate((sel) => [...document.querySelectorAll(sel)].map((e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); let v = r.width > 4 && r.height > 4 && cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0; for (let p = e.parentElement; v && p; p = p.parentElement) { const c = getComputedStyle(p); if (c.display === 'none' || c.visibility === 'hidden') v = false; } return v ? { id: e.id || e.className || e.tagName, x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) } : null; }).filter(Boolean), SEL);
 const overlaps = (list, vw, vh) => { const bad = []; for (let i = 0; i < list.length; i++) { const a = list[i]; if (a.x < 0 || a.y < 0 || a.x + a.w > vw + 1 || a.y + a.h > vh + 1) bad.push(`${a.id} off screen`); for (let j = i + 1; j < list.length; j++) { const b = list[j], ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (ox > 2 && oy > 2) bad.push(`${a.id} x ${b.id} (${ox}x${oy})`); } } return bad; };
@@ -36,12 +36,15 @@ try {
     await page.waitForTimeout(4000);
     const snap = async (state) => { await page.screenshot({ path: path.join(out, `${name}-${state}.jpg`), type: 'jpeg', quality: 80, timeout: 240000 }); const list = await rects(page); v.states[state] = { count: list.length, bad: overlaps(list, w, h), list }; };
     await snap('walk');
+    const openMenu = async (state) => { const b = await page.$('#journal-button'); if (!b) return; await b.click({ force: true }).catch(() => {}); await page.waitForTimeout(1500); await snap(state); await page.keyboard.press('Escape'); await page.waitForTimeout(500); };
+    await openMenu('menu');
     const target = await page.evaluate(() => { const l = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); return l[0]; });
-    await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), [target.x, target.z]); await page.waitForTimeout(2500);
+    await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 3, 0), [target.x, target.z]); await page.waitForTimeout(2500);
+    await snap('card');
+    await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), [target.x, target.z]); await page.waitForTimeout(1500);
     await page.evaluate((i) => window.originsPreview.tapMob(i), target.id); await page.waitForTimeout(4000);
     await snap('fight');
-    const menu = await page.$('#menu-button, #journal-button, #walk-journal');
-    if (menu) { await menu.click({ force: true }).catch(() => {}); await page.waitForTimeout(1500); await snap('menu'); }
+    await openMenu('fight-menu');
     v.errors = errors; await page.context().close();
   }
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 2));
