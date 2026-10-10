@@ -2,7 +2,7 @@
    node scripts/gpu-run.mjs <sha> --blender -- blender -b -P scripts/gpu-run/armour-still.py -- src/assets/knight.glb artifacts/armour-still-gpu.png gpu
    blender-cpu -b -P scripts/gpu-run/armour-still.py -- src/assets/knight.glb artifacts/armour-still-cpu.png cpu
 The fighter on his Idle clip at frame 0, front-on at 375x812, one sun and a flat grey world, 128 samples, no denoiser (the same work on both devices).
-Prints RENDER seconds=<render only> device=<backend>."""
+Prints RENDER cold|warm seconds=<render call only> device=<backend>: cold includes kernel load, warm is the steady-state frame."""
 import sys
 import time
 
@@ -36,6 +36,8 @@ bpy.ops.object.light_add(type='SUN', rotation=(0.8, 0.2, 0.6)); bpy.context.obje
 bpy.ops.object.camera_add(location=(0, -3.7, .92), rotation=(1.5708, 0, 0))   # glTF +Z forward imports as Blender -Y: the camera stands in front
 sc.camera = bpy.context.object; sc.camera.data.lens = 50
 sc.render.filepath = out
-t = time.perf_counter()
-bpy.ops.render.render(write_still=True)
-print(f'RENDER seconds={time.perf_counter() - t:.1f} device={backend} file={out}')
+# Twice in one session: the first render carries the device's kernel load/compile (OptiX/CUDA on the T4), the second is the steady-state frame.
+for run in ('cold', 'warm'):
+    t = time.perf_counter()
+    bpy.ops.render.render(write_still=True)
+    print(f'RENDER {run} seconds={time.perf_counter() - t:.1f} device={backend} file={out}')
