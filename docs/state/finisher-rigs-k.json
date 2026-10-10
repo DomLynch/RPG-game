@@ -1,0 +1,31 @@
+{
+  "_note": "Characters lane, 2026-10-09, for Release K finishers. Read from the skin joints of the shipped GLBs on trunk codex/01a09a76/task-1 (no new art). Wolf and boar share ONE 31-bone beast skeleton.",
+  "wolf": {
+    "file": "public/world/wolf.glb", "shape": "quadruped", "bones": 31, "usableNeck": true,
+    "head": ["head", "jaw", "ear_L", "ear_R"], "neck": ["neck"],
+    "spine": ["spine0", "spine1", "spine2", "spine3", "spine4"],
+    "foreLimbs": {"L": ["front_up_L", "front_low_L", "front_pastern_L", "front_paw_L"], "R": ["front_up_R", "front_low_R", "front_pastern_R", "front_paw_R"]},
+    "hindLimbs": {"L": ["hind_up_L", "hind_low_L", "hind_pastern_L", "hind_paw_L"], "R": ["hind_up_R", "hind_low_R", "hind_pastern_R", "hind_paw_R"]},
+    "tail": ["tail0", "tail1", "tail2", "tail3"], "root": "root",
+    "clips": ["Bite", "Death", "Flee", "Hurt", "Idle", "Run", "Walk"]
+  },
+  "boar": {
+    "file": "public/beasts/boar.glb", "shape": "quadruped", "sameSkeletonAs": "wolf", "usableNeck": true,
+    "note": "bone names identical to wolf; the beast bear.glb is the same skeleton too. src/assets/source/creatures/beast-boar.glb is an unrigged mesh (no skin), not the world body.",
+    "clips": ["Idle", "Walk", "Run", "Flee", "Bite", "Hurt", "Death"]
+  },
+  "goblin": {
+    "file": "public/world/goblin.glb (src/assets/goblin.glb has the same 65 joints)", "shape": "biped", "bones": 65, "usableNeck": true,
+    "head": ["Head"], "neck": ["neck_01"], "spine": ["pelvis", "spine_01", "spine_02", "spine_03"],
+    "arms": {"L": ["clavicle_l", "upperarm_l", "lowerarm_l", "hand_l"], "R": ["clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"]},
+    "legs": {"L": ["thigh_l", "calf_l", "foot_l", "ball_l"], "R": ["thigh_r", "calf_r", "foot_r", "ball_r"]},
+    "fingers": "index/middle/pinky/ring/thumb 01..04 per hand (ignore for cuts)", "root": "root",
+    "note": "the humanoid hero skeleton (same names as werewolf/knight etc.); goblin.glb has 18 skins (one per level look), joints identical"
+  },
+  "flags": [
+    "No rig lacks a neck bone.",
+    "Beast head bone is lowercase 'head'; goblin/hero head is capitalised 'Head' (neck_01 vs neck): match case.",
+    "Beasts have no shoulder/clavicle bone: a foreleg cut is at front_up_*; a hind cut at hind_up_*.",
+    "Bone-name case differs between the two skeleton families; quadruped limb sides are _L/_R, biped _l/_r."
+  ]
+}
