@@ -34,7 +34,7 @@ export const ROWS: Record<string, readonly [number, Own]> = {
 // never a folder or a module wildcard; the post-K7 ledger unification revisits them. Combat stays strict: nothing from a combat module outside src/fight.
 const LEDGER_UI: readonly string[] = [];   // EMPTY since CORE 1a (the account/ledger modules live in src/core, behind src/core/index.ts and server.ts; tests/core-boundary.test.ts pins them): nothing may be added back
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
-const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
+const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'loot', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
 const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts)
 
