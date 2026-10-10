@@ -6,7 +6,7 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { registrySource, ZONES_DIR } from '../scripts/gen-zones.mjs';
 import { newZone } from '../scripts/new-zone.mjs';
-import { zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
+import { loadZone, zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 
 const tree = (dir: string): string[] => readdirSync(dir, { recursive: true }).map(String).sort();
 
@@ -52,5 +52,45 @@ test('a zone name with quotes is written as a valid string', async () => {
     const z = (await import(pathToFileURL(`${scratch}/zone7/zone.ts`).href) as { default: { name: string } }).default;
     assert.equal(z.name, 'The "Ash" Reach');
     assert.ok(readFileSync(`${scratch}/zone7/zone.ts`, 'utf8').includes('level: 7'));
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+// --- one data row writes the whole folder (track B, Lead 2026-10-10): the row of today's Zone 2 regenerates Zone 2 ---
+const rowOf = (id: string) => { const z = loadZone(id); return { name: z.name, names: z.names, world: z.world, level: z.level, spawns: z.spawns, kit: z.kit, looks: z.looks, ...(z.mobLooks ? { mobLooks: z.mobLooks } : {}), ...(z.place ? { place: z.place } : {}) }; };
+const modules = ['zone', 'spawns', 'kit', 'look', 'mob-looks', 'place'];
+
+test('the data row of Zone 2 regenerates a folder that loads to exactly Zone 2 (values, not bytes: JSON has no 0x hex and no comments)', async () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-row-`);
+  try {
+    newZone({ n: 2, row: rowOf('2'), dir: `${scratch}/` });
+    assert.deepEqual(readdirSync(`${scratch}/zone2`).sort(), modules.map((m) => `${m}.ts`).sort(), 'the same six files, no more');
+    for (const m of modules) {
+      const made = (await import(pathToFileURL(`${scratch}/zone2/${m}.ts`).href) as { default: unknown }).default;
+      const real = (await import(pathToFileURL(`${ZONES_DIR}zone2/${m}.ts`).href) as { default: unknown }).default;
+      assert.deepEqual(made, real, `${m}.ts`);
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('a row whose creatures are not at the zone\'s level band is refused (the zone number is its level), so a copied row must be re-levelled', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-row2-`);
+  try {
+    assert.throws(() => newZone({ n: 998, row: { ...rowOf('2'), name: 'Row Zone' }, dir: `${scratch}/` }), /level 2-3 is not the zone rule 998-999/);
+    assert.deepEqual(readdirSync(scratch), []);
+    const bare = newZone({ n: 998, row: { name: 'Row Zone', kit: rowOf('2').kit, looks: rowOf('2').looks }, dir: `${scratch}/` });
+    assert.ok(bare.endsWith('zone998/'), 'a row with no creatures is valid at any level');
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('a bad row is refused BEFORE anything is written: wrong creature level, unknown key, id mismatch, missing name, unknown biome', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-rowbad-`);
+  try {
+    const d = `${scratch}/`, ok = rowOf('2');
+    assert.throws(() => newZone({ n: 2, row: { ...ok, level: 5 }, dir: d }), /invalid/, 'zone level 5 but its creatures are level 2-3');
+    assert.throws(() => newZone({ n: 2, row: { ...ok, hp: 9 }, dir: d }), /unknown key "hp"/);
+    assert.throws(() => newZone({ n: 2, row: { ...ok, id: '3' }, dir: d }), /id 3 is not zone 2/);
+    assert.throws(() => newZone({ n: 2, row: { ...ok, name: '' }, dir: d }), /name is empty/);
+    assert.throws(() => newZone({ n: 2, row: { ...ok, biome: 'moon' }, dir: d }), /unknown biome moon/);
+    assert.deepEqual(readdirSync(scratch), [], 'nothing was written by any refused row');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
