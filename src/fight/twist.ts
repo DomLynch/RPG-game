@@ -5,8 +5,8 @@
 //     event, no finish. With catchSeconds there is a catch window: his death inside it ends it `caught` (the normal defeat), running out
 //     is `Escaped`. Without catchSeconds the fight ends at once, `fled`. The caller reads these events and decides cleared / forfeit.
 //   one-health-bar  v1 STUB: one foe whose bar is the sum of the foes' healths (`oneBarHealth`). Chained foes sharing a pool are v2.
-import type { Duel } from './fight/duel.ts';
-import { STEP } from './fight/sim.ts';
+import type { Duel } from './duel.ts';
+import { STEP } from './sim.ts';
 
 export type TwistFlag = { kind: 'flee-at'; percent: number; catchSeconds?: number } | { kind: 'one-health-bar' };
 export type TwistEvent =

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/fight/moves.ts';
-import { CAPS } from '../../src/gear-stats.ts';
+import { CAPS } from '../../src/fight/gear-stats.ts';
 import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../../src/fight/speeds.ts';
 import { AGGRO_M, ENGAGE_M, duelFor, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from '../../src/fight/world.ts';
 

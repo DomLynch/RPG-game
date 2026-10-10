@@ -36,7 +36,7 @@ import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };
@@ -316,7 +316,7 @@ function frame(now: number) {
   frameId = requestAnimationFrame(frame);
 }
 
-// An encounter's twist state (src/twist.ts): read by encounter-duel.ts when the fight ends.
+// An encounter's twist state (src/fight/twist.ts): read by encounter-duel.ts when the fight ends.
 export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.

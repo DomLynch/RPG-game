@@ -8,7 +8,7 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, jobCommand } from '../lib/vps-receipts.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
-import { MAC_ONLY, VPS_ROWS } from '../lib/row-placement.mjs';
+import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 
 // Rows that hit the 600 s per-row ceiling on cpu-upgrade even alone (Backend's width-1 probe, 2026-10-08), or cannot run in the container at all (13: initdb refuses root).
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
@@ -25,12 +25,12 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
   const [bash, dashC, script] = jobCommand(kind, sha);
   return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : slow.length ? '35m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), ...(slow.length ? ['-e', `RELEASE_CHECK_CEILING_S=${SLOW_CEILING_S}`] : []), JOB_IMAGE, bash, dashC, script];
 };
-// The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a VPS row, a T4 wall row
+// The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
 // (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, 4-wide, each under hfArgs' 20m --timeout.
 export const CPU_SHARD = 6;
 export function cpuShards(commands, readSource, skip = []) {
   const gaps = coverageGaps([], commands, readSource), wall = selectWallRows(commands, readSource);
-  const off = new Set([...skip, ...gaps.macOnly, ...gaps.t4Only, ...SLOW_ROWS, ...VPS_ROWS, ...MAC_ONLY.map(e => e.row), ...wall]);
+  const off = new Set([...skip, ...gaps.macOnly, ...gaps.t4Only, ...SLOW_ROWS, ...ON_T4.map(e => e.row), ...MAC_ONLY.map(e => e.row), ...wall]);
   const rows = commands.map((_, i) => i + 1).filter(i => !off.has(i));
   return Array.from({ length: Math.ceil(rows.length / CPU_SHARD) }, (_, i) => rows.slice(i * CPU_SHARD, (i + 1) * CPU_SHARD));
 }

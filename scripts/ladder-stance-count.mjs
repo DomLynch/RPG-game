@@ -8,7 +8,7 @@ import process from 'node:process';
 import { BOTS, fight } from './ladder-sweep.mjs';
 import { OPPONENTS } from '../src/fight/combat.ts';
 import { isHeld } from '../src/roster.ts';
-import { PICKS } from '../src/stance.ts';
+import { PICKS } from '../src/fight/stance.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 setStab(true); setLateNotice(true);

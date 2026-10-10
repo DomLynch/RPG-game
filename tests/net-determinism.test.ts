@@ -11,7 +11,7 @@ import { idleIntent, stepDuel, type Duel, type Intent } from '../src/fight/duel.
 import { PROFILES } from '../src/fight/moves.ts';
 import { fightChain } from '../src/net/fixture.ts';
 import { pvpDuel } from '../src/net/rollback.ts';
-import { quantizeIntent } from '../src/record.ts';
+import { quantizeIntent } from '../src/fight/record.ts';
 
 const ROOT = new URL('../', import.meta.url);
 const read = (file: string) => readFileSync(new URL(file, ROOT), 'utf8');

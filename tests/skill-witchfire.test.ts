@@ -8,9 +8,9 @@ import { readFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
 import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, opponentAt, profileAt, type SkillId } from '../src/fight/moves.ts';
-import { decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
 // The caster (side 0) and a longsword man (side 1) a metre apart, facing each other, both ready: inside the cast's 1.2 m cone.

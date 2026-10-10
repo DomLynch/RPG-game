@@ -69,7 +69,7 @@ test('Peg Powler: caught inside the window is a kill; escaped forfeits that atte
   assert.deepEqual(caught, { cleared: true, forfeit: false, kill: true, retry: false, payout: { metal: 50, killRow: 'named', lootTable: null, bossLoot: false } });
   const escaped = value(resolve({ fight: 'encounter:bounty-peg-powler', twistOutcome: 'escaped', bountyWinsToday: 0 }));
   assert.deepEqual(escaped, { cleared: false, forfeit: true, kill: false, retry: true, payout: { metal: 0, killRow: null, lootTable: null, bossLoot: false } });
-  // a killing blow from above 30% is an ordinary kill (src/twist.ts: no flight), and a flight with a catch window never ends 'fled'
+  // a killing blow from above 30% is an ordinary kill (src/fight/twist.ts: no flight), and a flight with a catch window never ends 'fled'
   assert.equal(value(resolve({ fight: 'encounter:bounty-peg-powler', bountyWinsToday: 0 })).kill, true);
   refused(resolve({ fight: 'encounter:bounty-peg-powler', twistOutcome: 'fled', bountyWinsToday: 0 }), 'rule-violation', 'twistOutcome');
   refused(resolve({ fight: 'encounter:bounty-peg-powler', result: 'lost', twistOutcome: 'caught' }), 'rule-violation', 'result');

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { decodeRecord } from '../src/record.ts';
+import { decodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { MAX_STORED_CHARS, SHORT_ID, dressFor, fetchSharedRecord, mintShare, publishRecord, sharedIdFrom, shortId, shortLink, shortParam } from '../src/share-store.ts';
 

@@ -3,13 +3,13 @@
 // fight ends where the record says it does; Share runs it headless before anything is published, and the release gate and a
 // server can run it the same way. `shareUrl` builds the link the game opens in replay mode: the opponent id rides in the URL as
 // its own parameter so the page boots the right rig synchronously, and the record itself follows as the `replay` parameter.
-import { initialPractice, stepPractice, type Practice } from './fight/combat.ts';
-import { LEVELS, OPPONENTS, opponentAt, profileAt } from './fight/moves.ts';
+import { initialPractice, stepPractice, type Practice } from './combat.ts';
+import { LEVELS, OPPONENTS, opponentAt, profileAt } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
-import { underRecord } from './detmath.ts';
-import { groupLayer, withIncoming } from './pack.ts';
-import { skillOf } from './loot.ts';
-import { specialOf, type SkillId, type SpecialName } from './fight/moves.ts';
+import { underRecord } from '../detmath.ts';
+import { groupLayer, withIncoming } from '../pack.ts';
+import { skillOf } from '../loot.ts';
+import { specialOf, type SkillId, type SpecialName } from './moves.ts';
 
 // The Special Moves a record's fight had (version 21's flag), as initialPractice takes them: every replay builds the fight through this one door.
 export const recordSpecials = (record: Pick<FightRecord, 'specials' | 'level' | 'opponent'>): { level: number; aiSkill: SkillId | null; name?: SpecialName } | undefined =>

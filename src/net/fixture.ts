@@ -5,7 +5,7 @@
 import { decide, initialAi, type AiState } from '../fight/ai.ts';
 import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../fight/duel.ts';
 import { PLAYER_WEAPONS, PROFILES } from '../fight/moves.ts';
-import { quantizeIntent } from '../record.ts';
+import { quantizeIntent } from '../fight/record.ts';
 import { fnv64, hashDuel, NET, pvpDuel } from './rollback.ts';
 
 export type Chain = { fight: number; tick: number; finish: string; chain: string };

@@ -7,7 +7,7 @@
 // The claim is what report_duel stored for the page: `side` (0 challenger, 1 guest), `won`, the checkpoint `hash`; `record` is that page's
 // PvpRecord or null when it uploaded none. No schema yet: the record column and the sweep's database adapter come with the migration.
 import { stepDuel, type Intent, type Side } from '../fight/duel.ts';
-import { MAX_RECORD_TICKS, RECORD_VERSION } from '../record.ts';
+import { MAX_RECORD_TICKS, RECORD_VERSION } from '../fight/record.ts';
 import { cleanKit, unpackIntents, type PvpRecord } from './pvp.ts';
 import { hashDuel, NET, pvpDuel, sameIntent, type Kit } from './rollback.ts';
 

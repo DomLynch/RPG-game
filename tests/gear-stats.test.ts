@@ -6,7 +6,7 @@
 // crossing a layer boundary rather than extending a table.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, kitFrom, loadoutFor, opponentOf, pointsFor, wholePoints, type Kit, type Loadout, type TierOf } from '../src/gear-stats.ts';
+import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, kitFrom, loadoutFor, opponentOf, pointsFor, wholePoints, type Kit, type Loadout, type TierOf } from '../src/fight/gear-stats.ts';
 import { TIERS, levelOf, type Tier } from '../src/grades.ts';
 import { ARMOUR_SLOTS, LOOT_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from '../src/loot.ts';
 

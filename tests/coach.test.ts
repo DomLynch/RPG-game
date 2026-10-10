@@ -6,11 +6,11 @@ import { createHash } from 'node:crypto';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { COACH_BRAINS, COACH_FIXED, coachProfile, createCoach } from '../src/coach.ts';
 import { OPPONENTS, PROFILES, opponentAt, profileAt, type Level } from '../src/fight/moves.ts';
-import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { underRecord } from '../src/detmath.ts';
-import { PICKS, type PickedStance } from '../src/stance.ts';
+import { PICKS, type PickedStance } from '../src/fight/stance.ts';
 
 const LEVELS: Level[] = ['easy', 'normal', 'hard'];
 

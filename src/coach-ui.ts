@@ -3,7 +3,7 @@
 // The toggle is saved per DEVICE (localStorage), the same pattern as the camera-lock chip (Lead ruling 2026-10-08); the single bit is "Coach plays", and a take-over turns it off so the chip tells the truth.
 import { coachBuild, createCoachDriver, type CoachDriver, type CoachSpan, type CoachStopReason } from './coach.ts';
 import { idleIntent, type Duel, type Intent } from './fight/duel.ts';
-import type { PickedStance } from './stance.ts';
+import type { PickedStance } from './fight/stance.ts';
 
 export const COACH_KEY = 'frankendom.coach';
 export const coachKilled = (search: string): boolean => /[?&]coach=off(?:&|$)/.test(search);

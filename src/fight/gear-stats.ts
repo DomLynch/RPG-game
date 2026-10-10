@@ -15,9 +15,9 @@
 // fighter can still beat every rung under its fairness cap. And **no stat changes the timing of any attack, parry, roll or wind-up** —
 // a longsword tell is a longsword tell at every tier — which is why every number here is a damage multiplier and none is a duration.
 // The caps below are the whole of that promise and `tests/gear-stats.test.ts` holds them exactly.
-import { levelOf, type Tier } from './grades.ts';
-import { ARMOUR_SLOTS, WEAPON_SLOTS, isWeaponSlot, slotOf, type Loot, type LootId, type LootSlot } from './loot.ts';
-import type { OpponentId } from './roster.ts';
+import { levelOf, type Tier } from '../grades.ts';
+import { ARMOUR_SLOTS, WEAPON_SLOTS, isWeaponSlot, slotOf, type Loot, type LootId, type LootSlot } from '../loot.ts';
+import type { OpponentId } from '../roster.ts';
 
 // The two multipliers a fight is fought with. Both scale damage — Attack what you deal, RES what you take, chip included — and
 // neither touches posture (`shake`) or any timing.

@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/fight/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/fight/moves.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
-import { NO_PATRON_VERSION, decodeRecord, encodeRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, decodeRecord, encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { recordSpecials, verifyRecord } from '../src/replay.ts';
+import { recordSpecials, verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
 const S = RULES.special;
