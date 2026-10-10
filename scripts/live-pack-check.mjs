@@ -25,6 +25,7 @@ try {
   const joined = new Set(); let peakEngaged = 0, samples = 0; const t0 = Date.now();
   while (Date.now() - t0 < 14000) {
     const f = (await page.evaluate(() => window.originsPreview.combat().fighters)).filter((x) => x.id !== 'me' && x.phase !== 'dead');
+    if (f.length && f.some((x) => typeof x.duel !== 'boolean')) throw new Error('this release has no fighters[].duel (world-combat debug): the receipt needs a release that carries it');
     f.forEach((x) => joined.add(x.id)); const engaged = f.filter((x) => x.duel).length; peakEngaged = Math.max(peakEngaged, engaged); samples++;
     assert.ok(engaged <= MAX_ATTACKERS, `${engaged} creatures in a duel with the hero at one sample (MAX_ATTACKERS ${MAX_ATTACKERS})`);
     await page.waitForTimeout(300);
