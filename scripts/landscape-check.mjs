@@ -1,12 +1,10 @@
 // Landscape / portrait layout check (see below)
-// PROBE=1 instead records, for the first landed hit, the contact sparks' world position against the struck creature's (xz distance) in the same frame: the placement receipt (receipt.json zones[].probe).
-// KILL=1 keeps cutting until the creature is down and photographs that frame (zoneN-kill.jpg) instead of the first health drop (zoneN-hit.jpg).
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const PROBE = !!process.env.PROBE, KILL = !!process.env.KILL, root = process.cwd(), built = process.env.AB_DIST || path.join(root, 'artifacts/origins-preview'), out = process.env.OUT || path.join(root, 'artifacts/zone-hit-stills');
+const root = process.cwd(), built = process.env.AB_DIST || path.join(root, 'artifacts/origins-preview'), out = process.env.OUT || path.join(root, 'artifacts/zone-hit-stills');
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${built}/` };
