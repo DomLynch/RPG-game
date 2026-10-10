@@ -93,11 +93,11 @@ test('across hosts: a launcher whose job ranks beyond its limit after the launch
     if (call === 2) return [job('x', 1), job('y', 2), job('other', 3), job('mine', 4)];   // after launch: the other host's job ranks 3rd, ours 4th > 3
     return [job('x', 1), job('y', 2), job('other', 3)];                                 // retry: no slot
   };
-  const r = withSlot({ flavor: 'cpu-upgrade', generic: true, maxWaitS: 20, pollS: 15, launch: () => 'mine', ps, idOf: v => v as string, cancel: id => { cancelled.push(id); }, now: () => t, sleep: ms => { t += ms; } });
+  const r = withSlot({ flavor: 'cpu-upgrade', generic: true, maxWaitS: 20, pollS: 15, launch: () => 'mine', ps, idOf: (v: unknown) => v as string, cancel: (id: string) => { cancelled.push(id); }, now: () => t, sleep: ms => { t += ms; } });
   assert.deepEqual(cancelled, ['mine']); assert.equal(r.ok, false);
   // and when we rank within the limit nothing is cancelled
   t = 0; const kept: string[] = []; let n = 0;
-  const ok = withSlot({ flavor: 'cpu-upgrade', generic: true, launch: () => 'mine', ps: () => (++n === 1 ? [job('x', 1)] : [job('x', 1), job('mine', 2)]), idOf: v => v as string, cancel: id => { kept.push(id); }, now: () => t, sleep: ms => { t += ms; } });
+  const ok = withSlot({ flavor: 'cpu-upgrade', generic: true, launch: () => 'mine', ps: () => (++n === 1 ? [job('x', 1)] : [job('x', 1), job('mine', 2)]), idOf: (v: unknown) => v as string, cancel: (id: string) => { kept.push(id); }, now: () => t, sleep: ms => { t += ms; } });
   assert.deepEqual([ok.ok, ok.ok && ok.slot, kept.length], [true, 2, 0]);
 });
 
