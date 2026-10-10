@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { actorPose, characterFor, loadWarriors, type Practice } from '../../src/fight/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
-import { LEGEND_OPPONENTS } from '../../src/legends.ts';
+import { LEGEND_OPPONENTS } from '../../src/fight/index.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/speeds.ts';

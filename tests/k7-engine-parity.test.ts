@@ -53,23 +53,18 @@ const KNOWN: readonly string[] = [
   "5 | K2 | origins/preview/pit-duel.ts -> input",
   "5 | K2 | origins/preview/sticks.ts -> input",
   "6 | K2 | origins/preview/play.ts -> warrior",
-  "7 | K11 | origins/preview/mobs-view.ts -> goblin",
-  "7 | K11 | origins/preview/mobs-view.ts -> knight",
-  "7 | K11 | origins/preview/mobs-view.ts -> pitborn",
-  "7 | K11 | origins/preview/mobs-view.ts -> witch",
   "10 | P1/P2 | origins/preview/pit-duel.ts -> scene",
   "12 | P1/P2 | origins/preview/creature-voice.ts -> creature",
   "12 | P1/P2 | origins/preview/creature-voice.ts -> feedback",
   "12 | P1/P2 | origins/preview/main.ts -> creature",
   "12 | P1/P2 | origins/preview/pit-duel.ts -> creature",
   "12 | P1/P2 | origins/preview/pit-duel.ts -> feedback",
-  "20 | K12 | origins/preview/main.ts -> legends",
-  "20 | K12 | origins/preview/pit-duel.ts -> legends",
-  "20 | K12 | origins/preview/pit-duel.ts -> roster",
 ];
 const KNOWN_COPIES: readonly string[] = [
-  "7 | P1/P2 | origins/preview/mobs-view.ts (the zone's own creature lunge / hit pulse / fall)",
 ];
+
+// Row 7: a zone draws a creature from the engine's pose (actorPose of the duel, `fall` progress); it must not keep its own windup / hit-pulse / fall timers (src/fight/world-combat.ts owns hurtT, fallT, windupT, swingT).
+const ownCreatureTiming = (text: string): boolean => /\b\w*(lunge|pulse|hurt|fall|windup|swing|death|dying)\w*(T|Ms|_S|_MS|Timer|Time)\b/i.test(text);
 
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(join(dir, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.(ts|mjs)$/.test(e.name) ? [join(dir, e.name)] : []);
@@ -100,7 +95,7 @@ test('no zone-own copy of engine code exists (the lists only shrink)', () => {
   const main = readFileSync('origins/preview/main.ts', 'utf8');
   const copies = [
     ...['wcBars', 'updateBars', 'wcFlash'].filter((id) => new RegExp(`\\b${id}\\b`).test(main)).map((id) => `14 | P1/P2 | origins/preview/main.ts defines ${id}`),
-    ...(existsSync('origins/preview/mobs-view.ts') ? ['7 | P1/P2 | origins/preview/mobs-view.ts (the zone\'s own creature lunge / hit pulse / fall)'] : []),
+    ...files('origins').filter((f) => ownCreatureTiming(readFileSync(f, 'utf8'))).map((f) => `7 | P1/P2 | ${f} defines its own creature lunge / hit pulse / fall timing`),
   ].sort();
   assert.deepEqual(copies.filter((c) => !KNOWN_COPIES.includes(c)), [], 'a new zone-own copy of engine behaviour');
   assert.deepEqual(KNOWN_COPIES.filter((c) => !copies.includes(c)), [], 'a listed copy is gone: delete its line');
@@ -115,6 +110,15 @@ test('Zone 2 and later zones are data: no src/ import, only `import type`, under
     assert.deepEqual(fs.filter((_, i) => /^\s*import\s+(?!type\b)[^'"]*from\s/m.test(text[i]!) && !/^\s*import\s+(?!type\b)[^'"]*from\s+'\.\.\/\.\.\/(mobs|preview)\/[a-z-]+\.ts'/m.test(text[i]!)), [], `${dir}: a zone's runtime imports are data helpers only`);
     assert.ok(text.join('\n').split('\n').length < 300, `${dir}: under 300 lines`);
   }
+});
+
+test('the row 7 detector flags a zone-own creature timer and passes the engine-driven view (mutation)', () => {
+  const real = readFileSync('origins/preview/mobs-view.ts', 'utf8');
+  assert.equal(ownCreatureTiming(real), false, 'mobs-view.ts takes its pose from the engine');
+  assert.equal(ownCreatureTiming(real + '\nlet fallT = 0; fallT += dt;'), true, 'a pasted fall timer is flagged');
+  assert.equal(ownCreatureTiming(real + '\nconst windupMs = 400;'), true, 'a pasted windup timer is flagged');
+  assert.equal(ownCreatureTiming(real + '\nlet lungeT = 0;'), true, 'a renamed lunge timer is flagged');
+  assert.equal(ownCreatureTiming(real + '\nlet deathTimer = 0;'), true, 'a renamed death timer is flagged');
 });
 
 test('the checker sees static, re-export and dynamic imports, and passes the door', () => {
