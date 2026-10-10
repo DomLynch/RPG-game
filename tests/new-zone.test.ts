@@ -7,6 +7,9 @@ import { pathToFileURL } from 'node:url';
 import { registrySource, ZONES_DIR } from '../scripts/gen-zones.mjs';
 import { newZone } from '../scripts/new-zone.mjs';
 import { loadZone, zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
+import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
+import { resolveSpec } from '../origins/zones/resolve.ts';
+import biomesData from '../origins/zones/biomes-data.ts';
 
 const tree = (dir: string): string[] => readdirSync(dir, { recursive: true }).map(String).sort();
 
@@ -72,6 +75,19 @@ test('the data row of Zone 2 regenerates a folder that loads to exactly Zone 2 (
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
+test('the copied kit and looks say whose they are (Zone N, a copy of Zone 2\'s), not "Zone 2\'s kit"', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-h-`);
+  try {
+    cpSync(`${ZONES_DIR}zone2`, `${scratch}/zone2`, { recursive: true });
+    newZone({ n: 31, dir: `${scratch}/` });
+    for (const f of ['kit.ts', 'look.ts']) {
+      const [first, ...rest] = readFileSync(`${scratch}/zone31/${f}`, 'utf8').split('\n');
+      assert.match(first!, /^\/\/ Zone 31's (kit|looks): a copy of Zone 2's/, f);
+      assert.equal(rest.join('\n'), readFileSync(`${scratch}/zone2/${f}`, 'utf8').split('\n').slice(1).join('\n'), `${f}: everything after the header is the template's`);
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
 test('a row whose creatures are not at the zone\'s level band is refused (the zone number is its level), so a copied row must be re-levelled', () => {
   const scratch = mkdtempSync(`${tmpdir()}/newzone-row2-`);
   try {
@@ -96,4 +112,21 @@ test('a bad row is refused BEFORE anything is written: a level key, unknown key,
     assert.throws(() => newZone({ n: 2, row: noLooks, dir: d }), /"looks" is required/);
     assert.deepEqual(readdirSync(scratch), [], 'nothing was written by any refused row');
   } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('a copy that fails after the folder is made leaves no half-made folder behind', () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-f-`);   // no zone2 here: reading the template throws after the folder exists
+  try {
+    assert.throws(() => newZone({ n: 5, dir: `${scratch}/` }), /ENOENT/);
+    assert.deepEqual(readdirSync(scratch), []);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('the biome presets are the literal data file, and the default biome is one of them', () => {
+  assert.equal(BIOMES, biomesData);
+  assert.ok(Object.hasOwn(BIOMES, DEFAULT_BIOME));
+});
+
+test('every biome preset resolves clean (a biome no zone names is never validated by a zone, so it is checked here)', () => {
+  for (const b of Object.keys(BIOMES)) assert.deepEqual(resolveSpec({ biome: b }).problems, [], b);
 });

@@ -22,13 +22,15 @@ test('nothing changes for an offline answer, an offline page (preview career), o
 import { killToast } from './kill-apply.ts';
 const name = (id: string) => (id === 'pelt' ? 'Wolf pelt' : id);
 const withLoot: Killed = { ...killed(20), loot: [{ item: 'pelt', quantity: 2 }] };
-test('signed in: the toast is the server\'s answer (cp, bronze, its loot), never the page\'s local numbers', () => {
-  assert.equal(killToast({ saved: career }, withLoot, 'Wolf is down. +9 bronze.', name), '+20 CP · +3 bronze · Wolf pelt ×2');
-  assert.equal(killToast({ saved: career }, { ...killed(0), bronze: 0 }, 'Wolf is down. +9 bronze.', name), 'Down. Nothing paid.');
+test('signed in: the toast names the creature and shows the server\'s answer (cp, bronze, its loot), never the page\'s local numbers', () => {
+  assert.equal(killToast({ saved: career }, withLoot, 'Wolf is down. +9 bronze.', name, 'Wolf'), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.');
+  assert.equal(killToast({ saved: career }, withLoot, 'x', name, 'Wolf', true), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done.', 'a taken step is Bounty done, even with bronze (it is loot bronze; the server pays no bounty bronze yet)');
+  assert.equal(killToast({ saved: career }, { ...killed(20), loot: [] }, 'x', name, 'Wolf', true), 'Wolf is down. +20 CP · +3 bronze. Bounty done.');
+  assert.equal(killToast({ saved: career }, { ...withLoot, bronze: 0 }, 'x', name, 'Wolf', true), 'Wolf is down. +20 CP · Wolf pelt ×2. Bounty done.', 'no bronze: still Bounty done');
+  assert.equal(killToast({ saved: career }, withLoot, 'x', name, 'Wolf', false), 'Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2.', 'a refused journal step says nothing about a bounty');
+  assert.equal(killToast({ saved: career }, { ...killed(0), bronze: 0 }, 'Wolf is down. +9 bronze.', name, 'Wolf'), 'Wolf is down. Nothing paid.');
 });
-test('signed out (a guest page): the local numbers, labelled preview', () => {
-  assert.equal(killToast({ offline: 'no-session' }, withLoot, 'Wolf is down. +9 bronze.', name), 'Wolf is down. +9 bronze. (preview)');
-});
-test('a dead writer (the ~8 s timeout answers offline): signed in or not, the local numbers, labelled preview', () => {
-  assert.equal(killToast({ saved: career }, { offline: 'timeout' }, 'Wolf is down. +9 bronze.', name), 'Wolf is down. +9 bronze. (preview)');
+test('guest or offline: the local numbers, labelled preview', () => {
+  assert.equal(killToast({ offline: 'no-session' }, withLoot, 'Wolf is down. +9 bronze.', name, 'Wolf'), 'Wolf is down. +9 bronze. (preview)');
+  assert.equal(killToast({ saved: career }, { offline: 'timeout' }, 'Wolf is down.', name, 'Wolf'), 'Wolf is down. (preview)');
 });
