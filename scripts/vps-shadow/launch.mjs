@@ -26,8 +26,9 @@ export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '')
   return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : slow.length ? '35m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), ...(slow.length ? ['-e', `RELEASE_CHECK_CEILING_S=${SLOW_CEILING_S}`] : []), JOB_IMAGE, bash, dashC, script];
 };
 // The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
-// (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, 4-wide, each under hfArgs' 20m --timeout.
+// (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, CPU_WIDTH wide, each under hfArgs' 20m --timeout.
 export const CPU_SHARD = 6;
+export const CPU_WIDTH = 2;   // R's 4-wide CPU job ran at load 250-320, hit page.goto timeouts and the 20m cap (job 6ac9806a); width 2 until the drawing rows move to the T4 (Lead 2026-10-10)
 export function cpuShards(commands, readSource, skip = []) {
   const gaps = coverageGaps([], commands, readSource), wall = selectWallRows(commands, readSource);
   const off = new Set([...skip, ...gaps.macOnly, ...gaps.t4Only, ...SLOW_ROWS, ...ON_T4.map(e => e.row), ...MAC_ONLY.map(e => e.row), ...wall]);
@@ -50,14 +51,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const ids = [], placed = [];
       for (const rows of cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger))) {
         if (process.env.LAUNCH_DRY) { placed.push(...rows); continue; }
-        const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), '4'], { encoding: 'utf8', timeout: 90_000 });
+        const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), String(CPU_WIDTH)], { encoding: 'utf8', timeout: 90_000 });
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
         if (id) { ids.push(id); placed.push(...rows); } else console.error(`launch: no job for CPU rows ${rows.join(',')}; they run on the Mac`);
       }
       process.stdout.write(placed.length ? `${ids.join(',')};${placed.join(',')}` : '');
     } else if (cmd === 'fetch') {
       const logs = spawnSync('hf', ['jobs', 'logs', a], { encoding: 'utf8', timeout: 120_000, maxBuffer: 64 << 20 });
-      if (logs.error || logs.status !== 0) throw new Error(`hf jobs logs ${a} failed`);
+      if (logs.error || logs.status !== 0) throw new Error(`hf jobs logs ${a} failed: ${logs.error?.message || String(logs.stderr || '').trim().slice(-300) || `exit ${logs.status}`}`);
       const unit = receiptFrom(logs.stdout, 'unit'), rows = receiptFrom(logs.stdout, 'rows'), receipt = unit || rows;
       if (!receipt || receipt.job !== a || receipt.sha !== b) throw new Error(`no RECEIPT line for job ${a} sha ${b} (a failed run prints none)`);
       const dir = `artifacts/vps-shadow/${b}`; mkdirSync(dir, { recursive: true });

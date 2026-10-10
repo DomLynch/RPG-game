@@ -14,7 +14,10 @@ vps_receipts_apply() {
     while stage=$(hf jobs inspect "$job" 2>/dev/null | node -e 'try{process.stdout.write(String([].concat(JSON.parse(require("fs").readFileSync(0,"utf8")))[0]?.status?.stage||""))}catch{}') && [[ "$stage" =~ ^(RUNNING|STARTING|PENDING|SCHEDULING)$ ]] && (( waited < ${DEPLOY_HF_JOB_WAIT_S:-900} )); do
       echo "vps-receipts: job $job is $stage; waiting ($waited s)"; sleep 20; waited=$((waited + 20))
     done
-    [[ "$stage" == COMPLETED ]] || echo "vps-receipts: job $job is '${stage:-unknown}' (not COMPLETED); its rows run here"
+    if [[ "$stage" != COMPLETED ]]; then   # the job's own status message ("Job timeout"), not just the stage
+      local why; why=$(hf jobs inspect "$job" 2>/dev/null | node -e 'try{process.stdout.write(String([].concat(JSON.parse(require("fs").readFileSync(0,"utf8")))[0]?.status?.message||""))}catch{}') || why=""
+      echo "vps-receipts: job $job is '${stage:-unknown}' (not COMPLETED), job message: ${why:-none}; its rows run here"
+    fi
     node scripts/vps-shadow/launch.mjs fetch "$job" "$receipt_sha" || echo "vps-receipts: no receipt from job $job; its rows run here"
   done
   local trust_err; trust_err=$(mktemp)
@@ -37,6 +40,13 @@ vps_unit_receipt_ok() {
   [[ "$receipt_sha" =~ ^[0-9a-f]{40}$ ]] || return 0
   rm -f "artifacts/vps-shadow/$receipt_sha/unit.json"   # fresh or nothing
   [[ -n "${DEPLOY_HF_UNIT_JOB:-}" ]] || return 0
-  node scripts/vps-shadow/launch.mjs fetch "$DEPLOY_HF_UNIT_JOB" "$receipt_sha" >/dev/null 2>&1 || true
+  # Release R lost its unit receipt to a fetch whose error was thrown away. Three tries with backoff, every error in the deploy log (stderr: stdout is the "ok" the caller reads).
+  local try err=""
+  for try in 1 2 3; do
+    err=$(node scripts/vps-shadow/launch.mjs fetch "$DEPLOY_HF_UNIT_JOB" "$receipt_sha" 2>&1 >/dev/null) && { err=""; break; }
+    echo "vps-receipts: unit receipt fetch $try/3 for job $DEPLOY_HF_UNIT_JOB failed: ${err:-no output}" >&2
+    if (( try < 3 )); then sleep $(( try * ${DEPLOY_HF_FETCH_BACKOFF_S:-5} )); fi
+  done
+  [[ -z "$err" ]] || echo "vps-receipts: unit receipt NOT fetched from job $DEPLOY_HF_UNIT_JOB after 3 tries (last error: $err); the Mac runs its own suite" >&2
   node scripts/vps-receipt-trust.mjs "$revision" --unit || true
 }
