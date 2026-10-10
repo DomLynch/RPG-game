@@ -20,7 +20,7 @@ import { bareName } from '../../src/roster.ts';
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
-import { createScene, type WorldMount } from '../../src/scene.ts';
+import { createScene, type WorldMount } from '../../src/fight/index.ts';
 import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
