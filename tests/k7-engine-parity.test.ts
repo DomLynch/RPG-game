@@ -44,7 +44,7 @@ const LEDGER_UI: readonly string[] = [
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
 const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'grades', 'loot', 'profile', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
-const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts'];
+const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts)
 
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
