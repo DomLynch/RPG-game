@@ -1,4 +1,4 @@
-// The writer (scripts/origins-writer.mjs) runs on the box under plain node with no `three` installed. Release AA crash-looped it because origins/preview/mobs.ts
+// The box's five node services (systemd ExecStart) run under plain node with no `three` installed. Release AA crash-looped it because origins/preview/mobs.ts
 // (loaded by origins/server/world-spawns.ts) took SPEEDS from the page door src/fight/index.ts, which re-exports characters.ts -> 'three'. The K7 test only guards
 // src/fight/server.ts's own closure; this walks the WRITER's RUNTIME imports (type-only imports are erased by node, so they do not load anything).
 import assert from 'node:assert/strict';
@@ -7,6 +7,8 @@ import { posix } from 'node:path';
 import test from 'node:test';
 
 const ENTRY = 'scripts/origins-writer.mjs';
+// ExecStart of frankendom-origins-writer, -presence, -duel-relay, -verify-daily, -verify-loot.
+const ENTRIES = [ENTRY, 'origins/presence/main.ts', 'scripts/duel-relay.mjs', 'scripts/verify-daily.mjs', 'scripts/verify-loot.mjs'];
 const TYPE_ONLY = /^\s*(?:import|export)\s+type\b/;
 const SPEC = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\(\s*)['"]([^'"]+)['"]/gm;
 const BANNED_FILES = ['src/fight/index.ts'];
@@ -35,11 +37,18 @@ export function writerClosure(read: (f: string) => string, has: (f: string) => b
 
 const disk = (f: string): string => readFileSync(f, 'utf8');
 
-test('the writer\'s runtime closure never reaches the page door src/fight/index.ts or the three package', () => {
-  const { files, packages } = writerClosure(disk, existsSync);
+test('no server entry\'s runtime closure reaches the page door src/fight/index.ts or the three package', () => {
+  for (const entry of ENTRIES) {
+    const { files, packages } = writerClosure(disk, existsSync, entry);
+    assert.ok(files.includes(entry), `${entry}: the walk did not start at the entry`);
+    assert.deepEqual(files.filter((f) => BANNED_FILES.includes(f)), [], `${entry} loads src/fight/index.ts: take src/fight/server.ts (re-exports only, no renderer)`);
+    assert.deepEqual(packages.filter((p) => BANNED_PACKAGES.test(p)), [], `${entry} loads three, which is not installed on the box`);
+  }
+});
+
+test('the writer walk reaches the files the AA crash came through', () => {
+  const { files } = writerClosure(disk, existsSync);
   for (const must of ['origins/server/world-spawns.ts', 'origins/preview/mobs.ts', 'src/fight/server.ts', 'src/fight/speeds.ts']) assert.ok(files.includes(must), `the walk no longer reaches ${must}: the entry or the import pattern broke`);
-  assert.deepEqual(files.filter((f) => BANNED_FILES.includes(f)), [], 'a writer-loaded file imports src/fight/index.ts: take src/fight/server.ts (re-exports only, no renderer)');
-  assert.deepEqual(packages.filter((p) => BANNED_PACKAGES.test(p)), [], 'a writer-loaded file imports three, which is not installed on the box');
 });
 
 test('the walk goes red on the AA mistake (mobs.ts taking the page door) and ignores type-only imports', () => {
