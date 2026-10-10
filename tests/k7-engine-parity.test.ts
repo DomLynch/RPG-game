@@ -117,8 +117,6 @@ const KNOWN: readonly string[] = [
 ];
 const KNOWN_COPIES: readonly string[] = [
   "14 | P1/P2 | origins/preview/main.ts defines updateBars",
-  "14 | P1/P2 | origins/preview/main.ts defines wcBars",
-  "14 | P1/P2 | origins/preview/main.ts defines wcFlash",
   "7 | P1/P2 | origins/preview/mobs-view.ts (the zone's own creature lunge / hit pulse / fall)",
 ];
 
