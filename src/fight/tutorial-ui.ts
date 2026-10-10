@@ -1,7 +1,7 @@
 // The tutorial start scene's instructions (`?tutorial=1`, Match 'tutorial'): ONE large word above the fight and a short "how" line under it, for the
 // step the foe is waiting on (src/tutorial.ts, Characters & Art, decides when a step is done; this file only says what to do). Words are the
 // phone buttons' own labels (index.html data-mobile). Presentation only: no sim, no record, no camera.
-import { TUTORIAL_STEPS, type TutorialStep } from './tutorial.ts';
+import { TUTORIAL_STEPS, type TutorialStep } from '../tutorial.ts';
 
 export type TutorialPrompt = { word: string; how: string; now?: boolean; ready?: boolean };
 
