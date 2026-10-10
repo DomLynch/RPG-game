@@ -42,7 +42,7 @@ test('comment markers inside the other comment kind or a string do not hide impo
     'd.ts': "/* import { gone } from './gone.ts'; */\n// import { gone2 } from './gone.ts';\n",
     'e.ts': '', 'gone.ts': '',
   };
-  const got = writerClosure((f) => files[f], (f) => f in files, 'a.ts').files;
+  const got = writerClosure((f: string) => files[f], (f: string) => f in files, 'a.ts').files;
   assert.deepEqual(got, ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts'], 'both imports after the tricky comments are kept; the commented-out imports are not');
   assert.equal(stripComments('a // x /* y\nb /* z // w */ c').replace(/ +/g, ' '), 'a \nb c'.replace(/ +/g, ' '));
 });
