@@ -42,8 +42,8 @@ test('nothing is trusted for another tree, a failed or dirty build, a failed row
   assert.ok(!trustedFromVps(edited, tree, commands, source, sums, JOBS, TREES).includes(base[0]));
 });
 
-test('the VPS receipt steps are opt-in (their order in deploy.sh and their behaviour: tests/vps-receipts-guards.test.ts)', () => {
-  assert.match(readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), /DEPLOY_VPS_RECEIPTS:-\}" == on/);
+test('the VPS receipt steps are always on: no switch reads them off (order and behaviour: tests/vps-receipts-guards.test.ts)', () => {
+  assert.doesNotMatch(readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), /DEPLOY_VPS_RECEIPTS/);
 });
 
 test('rows 2, 44, 45 and 52 (browser launched through an import, or webkit.launch + clock.resume) are not trusted; a missing script is not trusted', () => {
@@ -210,7 +210,6 @@ test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-
   assert.equal(trusts.length, 2);
   fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));
   assert.ok(!/vps-shadow-rows\.sh/.test(lib), 'the old ssh fetch is gone');
-  assert.match(lib, /DEPLOY_VPS_RECEIPTS:-\}" == on/);
 });
 
 test('launch.mjs runs a slow row alone: one row per job, width 1, cpu-upgrade, ceiling 1500 s and a 35m job timeout; it refuses them in a shared shard or on t4-medium', () => {
@@ -249,11 +248,10 @@ test('coverage: a shardable row no shard ran is UNASSIGNED; WebKit and real-cloc
   assert.equal(coverageGaps([], commands, source).unassigned.length, commands.length - full.macOnly.length - full.slow.length);
 });
 
-test('the launch waits for a RUNNING shard job and refuses unassigned rows', () => {
+test('the launch waits for a RUNNING shard job; unassigned rows are listed, never a refusal (deploy.sh launches the shards itself)', () => {
   const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
   assert.match(lib, /RUNNING\|STARTING\|PENDING\|SCHEDULING/);
-  assert.match(lib, /grep -q 'UNASSIGNED rows'/);
-  assert.match(lib, /DEPLOY_ALLOW_UNASSIGNED/);
+  assert.doesNotMatch(lib, /DEPLOY_ALLOW_UNASSIGNED|REFUSED/);
 });
 
 test('coverage: SLOW_ROWS are never shardable, so they are never UNASSIGNED (#1933 refuses to shard them; Release H would exit 1 otherwise)', () => {
@@ -278,4 +276,11 @@ test('run-rows.sh prints the last 50 lines of every FAILED or CEILING row into t
   const run = readFileSync('scripts/vps-shadow/run-rows.sh', 'utf8');
   assert.match(run, /grep -E 'FAILED\|CEILING' "\$run\/rows\.log"/);
   assert.match(run, /tail -n 50 "\$f"/);
+});
+
+test('the job command caps every setup step at 300 s so a wedged apt or fetch fails the job fast (S attempt 1: 15+ min in apt-get)', () => {
+  for (const kind of ['unit', 'rows']) {
+    const text = jobCommand(kind, sha)[2];
+    for (const step of ['apt-get update', 'apt-get install', 'git fetch']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
+  }
 });

@@ -335,7 +335,7 @@ contains it.
 
 ### Now
 Both of tonight's items are in PR #511. **Correction to my own first read of `docs/SCOPE.md`:** its "wall lash: guards removed"
-line is about the skinned meshes, not the mechanic — `WhipRaised` and `Whipped` are both on trunk `fe0d8e0` (`src/duel.ts:262`
+line is about the skinned meshes, not the mechanic — `WhipRaised` and `Whipped` are both on trunk `fe0d8e0` (`src/fight/duel.ts:262`
 and `:266`, carrying `lead` and `guard`), and World's `world/wall-silhouettes` is presentation only. A scope line that removes an
 asset does not remove the sim events that asset used to illustrate: check `git grep` on current trunk before calling a cue closed.
 Brief 13's whip split is therefore **done**, not closed.
@@ -376,7 +376,7 @@ Brief 13's whip split is therefore **done**, not closed.
 ### Now
 Nothing of the lane's own is open in CI. Next piece of work is Brief 13's remaining half: the whip split — a crack on Combat's
 `WhipRaised` (60 ticks before the first lash, 30 before repeats) and a lash on the existing `Whipped`, guard index 0–5 on both.
-Those events are not on trunk yet (`grep WhipRaised src/duel.ts` is empty); write against the names when Combat's PR lands.
+Those events are not on trunk yet (`grep WhipRaised src/fight/duel.ts` is empty); write against the names when Combat's PR lands.
 `#361`'s single crack is what ships until then. The wall-hugger jeer bed is already wired and live (below), so the whip split is
 the only Brief 13 audio item left.
 

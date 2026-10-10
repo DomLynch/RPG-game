@@ -4,7 +4,7 @@
 // Combat's half: the victim's flinch (a lean and a nudge on a visual pivot; the root and the collider never move) and the weapon's hit hold
 // (a short extra freeze at contact, capped so a hit never freezes longer than the heaviest hit already does). World adds the
 // burst pool and the layered sounds on top of this branch.
-import type { CombatEvent } from './duel.ts';
+import type { CombatEvent } from './fight/duel.ts';
 
 export type Feel = 'high' | 'low' | 'off';
 export const FEELS: readonly Feel[] = ['high', 'low', 'off'];

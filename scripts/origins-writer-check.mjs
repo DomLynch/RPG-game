@@ -13,7 +13,7 @@ import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
 import * as F from '../origins/contracts/fixtures.ts';
-import { creditFromMarks, cumulative } from '../origins/progression/model.ts';
+import { cumulative } from '../origins/progression/model.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
@@ -92,7 +92,7 @@ try {
   eq((await call('open', 'tc')).status, 403, 'on, but not on the allowlist');
 
   // open snapshots the Pit credit once, from the marks the database holds
-  const seed = creditFromMarks(4);
+  const seed = 0;   // Pit marks do not seed zone level (Strategy 2026-10-09): a zone career starts at credit 0
   const o1 = await call('open', 'ta');
   eq([o1.status, o1.json.result.marks, o1.json.result.career.seed_credit, o1.json.result.career.total_credit], [200, 4, seed, seed], 'open: the snapshot');
   psql(`update public.fighter_profiles set victory_marks = 40 where user_id = '${A}';`);
@@ -109,21 +109,22 @@ try {
 
   // Pit import: a win verified after the snapshot pays the legend row once, at the derived level, however many opens race
   const claim = n => psql(`insert into public.loot_claims(user_id, opponent, record, verified, checked_at, fight_hash) values ('${A}', 'knight', 'wrec${n}', true, now() + interval '1 minute', '${n.toString(16).padStart(64, '0')}') returning id;`).split('\n')[0];
+  const career = acct => psql(`select to_jsonb(c)::text from public.origins_career c where account = '${acct}'`), careerBefore = career(A);   // the whole row, every column
   const c1 = claim(1);
   const opens = await Promise.all([call('open', 'ta'), call('open', 'ta'), call('open', 'ta')]);
   eq(opens.map(o => o.status), [200, 200, 200], 'racing opens all answer');
   const total1 = (await call('open', 'ta')).json.result.career.total_credit;
   const [rows, cp] = psql(`select count(*) || '|' || coalesce(sum((payload->>'cp')::bigint), 0) from public.origins_events where account = '${A}' and kind = 'pit'`).split('|');
   eq(rows, '1', 'one pit event however many opens raced');
-  eq([total1, total1 > seed], [seed + Number(cp), true], 'total = seed + the pit event, and the win paid something');
-  eq((await call('open', 'ta')).json.result.career.beaten.length, 1, 'the legend is recorded as beaten');
+  eq([total1, Number(cp), career(A)], [seed, 0, careerBefore], 'a Pit win pays Pit ranks only: the event has cp 0 and the zone career row is byte-unchanged');
+  eq((await call('open', 'ta')).json.result.career.beaten.length, 0, 'no legend is recorded as beaten in the zone career');
   // the same opponent again at the same level pays nothing, but still leaves pending
   const c2 = claim(2);
   const after = (await call('open', 'ta')).json.result.career.total_credit;
   eq([after, psql(`select count(*) from public.origins_events where event_id in ('pit:${c1}', 'pit:${c2}')`)], [total1, '2'], 'a repeat win: cp 0, event written');
   eq(psql(`select count(*) from public.origins_pit_pending('${A}')`), '0', 'nothing left pending');
   // a client cannot name another account: the body is ignored, the token decides
-  eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, creditFromMarks(0), 'the account comes from the token alone');
+  eq((await call('open', 'tb', { account: A })).json.result.career.seed_credit, 0, 'the account comes from the token alone');
 
   // consume (a quest hand-in): ore minted into Aldren's pack and bank, burned through the writer, retried, conflicted, raced; conservation at every commit
   const pc = made.json.result.id;
@@ -304,11 +305,12 @@ try {
   eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
-  const seedD = creditFromMarks(10);
-  eq((await call('open', 'td')).json.result.career.seed_credit, seedD, 'Dara: open');
+  const seedD = cumulative(11);   // level 11, the story gate: granted by hand now that Pit marks do not seed zone level (a zone career starts at credit 0)
+  eq((await call('open', 'td')).json.result.career.seed_credit, 0, 'Dara: open (Pit marks seed nothing)');
+  psql(`update public.origins_career set world_credit = ${seedD}, version = version + 1 where account = '${D}'`);
   const dara = (await call('create_character', 'td', { name: 'Dara' })).json.result.id;
   const q = sql => psql(sql.replaceAll('$PC', dara));
-  const credit = () => psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number);
+  const credit = () => { const [w, t] = psql(`select world_credit || '|' || public.origins_total_credit('${D}') from public.origins_career where account = '${D}'`).split('|').map(Number); return [w - seedD, t]; };   // [credit earned since the grant, total]
   const hello = await call('talk_pick', 'td', { character: dara, npc: NPC, line: 'greet-first' });
   eq([hello.status, hello.json.result.cp], [200, 0], 'talk_pick greet-first');
   eq(q(`select array_to_string(told, ',') || '|' || flags::text from public.origins_talk where character = '$PC'`), `${NPC} greet-first|{"met-orla": true}`, 'the talk row records the once-line and its flag');

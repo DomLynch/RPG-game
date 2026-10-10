@@ -1,5 +1,5 @@
 // The T4 wall-row box, the I/O half (scripts/lib/hf-wall-rows.mjs is the rules). Sourced into the release by scripts/lib/deploy-hf.sh:
-//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3]   starts ONE hf job (t4-medium, 4-wide) for the wall rows; prints the job id
+//   node scripts/hf-wall-rows.mjs launch <full-sha> [--rows 1,3] [--skip 2,5]   starts ONE hf job (t4-medium, 4-wide) for the wall rows; prints the job id
 //   node scripts/hf-wall-rows.mjs collect                           waits for it, prints the trusted rows "1,3" (empty = trust nothing)
 //   node scripts/hf-wall-rows.mjs table                             the side-by-side after the Mac's rows (artifacts/release-checks.json)
 // The job clones the public repo at the sha and prints its own `git rev-parse HEAD` + tree, so a receipt binds to what it built, not to
@@ -14,7 +14,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { costLine, parseJobLog, selectWallRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
+import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
+import { ledger } from './vps-shadow/launch.mjs';
+import { MAC_ONLY, ON_T4, T4_JOBS } from './lib/row-placement.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || 'hf';
@@ -29,69 +31,91 @@ const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', time
 const sleep = s => { if (s > 0) spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }); };
 const PUBLIC_KEYS = ['VITE_SENTRY_DSN', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY'];
 
-function launch(sha, rowsArg) {
+function launch(sha, rowsArg, skipArg) {
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('launch needs a full 40-hex revision');
   const gate = JSON.parse(readFileSync(join(root, '.quality-gate.json'), 'utf8')), commands = gate.release_commands;
-  const rows = rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
-    : selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } });
+  // deploy.sh: the CI-trusted and out-of-scope rows (no box needs to run them) and the Mac-only list, which wins over the wall timing: rows 4 and 22 are
+  // wall rows whose scripts launch WebKit (selectWallRows reads the command only), and Linux WebKit is not Mac Safari.
+  const skipRows = [...String(skipArg || '').split(',').map(Number), ...(rowsArg ? [] : MAC_ONLY.map(entry => entry.row))];
+  const rows = (rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
+    : [...new Set([...selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } }), ...ON_T4.map(entry => entry.row)])].sort((a, b) => a - b)).filter(n => !skipRows.includes(n));   // + the rows measured fastest on the T4 (row-placement.mjs ON_T4)
   if (!rows.length) throw new Error('no wall rows to run');
-  const skip = commands.map((_, i) => i + 1).filter(i => !rows.includes(i));
+  // An explicit --rows (a benchmark, a test) is one job; the release's own selection is split across T4_JOBS parallel jobs, longest rows first.
+  const expected = new Map(ON_T4.map(entry => [entry.row, entry.t4_s ?? 60])), groups = rowsArg ? [rows] : splitRows(rows, T4_JOBS, row => expected.get(row) ?? 60);
   const job = readFileSync(join(root, 'scripts', 'hf-wall-rows', 'job.sh'));
-  const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`];
   let secrets = null;
   if (existsSync(envFile)) {
-    // Only the three public client keys, in a private temp file the CLI reads once; nothing else from the env file leaves the Mac.
+    // Only the three public client keys, in a private temp file the CLI reads once per job; nothing else from the env file leaves the Mac.
     const pairs = readFileSync(envFile, 'utf8').split('\n').map(line => line.trim()).filter(line => PUBLIC_KEYS.some(key => line.startsWith(`${key}=`)));
-    if (pairs.length) { secrets = join(mkdtempSync(join(tmpdir(), 'hf-wall-rows-')), 'secrets.env'); writeFileSync(secrets, pairs.join('\n') + '\n', { mode: 0o600 }); args.push('--secrets-file', secrets); }
+    if (pairs.length) { secrets = join(mkdtempSync(join(tmpdir(), 'hf-wall-rows-')), 'secrets.env'); writeFileSync(secrets, pairs.join('\n') + '\n', { mode: 0o600 }); }
   } else say(`no ${envFile}: the job builds without the public VITE_ keys`);
-  args.push('mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh');
-  const result = run(args);
-  if (secrets) rmSync(dirname(secrets), { recursive: true, force: true });
-  const id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
-  if (result.status !== 0 || !id) throw new Error(`hf jobs run failed: ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`);
+  const jobs = [];
+  try {
+    for (const group of groups) {
+      const skip = commands.map((_, i) => i + 1).filter(i => !group.includes(i));
+      const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`,
+        ...(secrets ? ['--secrets-file', secrets] : []), 'mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh'];
+      const result = run(args), id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
+      if (result.status !== 0 || !id) { say(`hf jobs run failed for rows [${group.join(',')}] (they run on the Mac): ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`); continue; }
+      ledger(id, sha, timeout);   // scripts/hf-cleanup.mjs cancels it on deploy.sh's EXIT if it is still running and counts its cost
+      jobs.push({ id, rows: group });
+    }
+  } finally { if (secrets) rmSync(dirname(secrets), { recursive: true, force: true }); }
+  if (!jobs.length) throw new Error('hf jobs run failed for every T4 job');
+  const placed = jobs.flatMap(j => j.rows).sort((x, y) => x - y), ids = jobs.map(j => j.id).join(',');
   mkdirSync(dirname(state), { recursive: true });
-  rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this job's (deploy-hf.sh's cancel checks for it)
-  writeFileSync(state, JSON.stringify({ jobId: id, sha, rows, flavor, width, launchedAt: Date.now() }) + '\n');
-  say(`job ${id} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: rows [${rows.join(',')}], the other ${skip.length} stay on the Mac`);
-  process.stdout.write(`${id}\n`);
+  rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this run's (deploy-hf.sh's cancel checks for it)
+  writeFileSync(state, JSON.stringify({ jobId: ids, jobs, sha, rows: placed, flavor, width, launchedAt: Date.now() }) + '\n');
+  say(`${jobs.length} job(s) ${ids} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: ${jobs.map(j => `[${j.rows.join(',')}]`).join(' ')}; the other ${commands.length - placed.length} rows are not on the T4`);
+  process.stdout.write(`${ids}\n`);
 }
 
 const stage = id => { const r = run(['jobs', 'inspect', id]); if (r.status !== 0) return 'UNKNOWN'; return /"stage":\s*"([A-Z_]+)"/.exec(r.stdout || '')?.[1] || 'UNKNOWN'; };
 const cancel = (id, why) => { say(`cancelling job ${id}: ${why}`); run(['jobs', 'cancel', id]); };
 
+const LIVE = ['SCHEDULING', 'PENDING', 'RUNNING', 'UNKNOWN'];
 function collect() {
-  const saved = JSON.parse(readFileSync(state, 'utf8')), { jobId, sha, rows } = saved;
-  const started = Date.now();
+  const saved = JSON.parse(readFileSync(state, 'utf8')), { sha } = saved, jobs = saved.jobs ?? [{ id: saved.jobId, rows: saved.rows }];
+  const started = Date.now(), errors = new Map(), stages = new Map(jobs.map(j => [j.id, stage(j.id)])), running = new Set();
   // The wait lives inside the deploy ceiling (Deploy's review of #1194): deploy-hf.sh passes the deploy's start and DEPLOY_CEILING_S.
   const budgetS = waitBudget({ ceilingS: Number(process.env.DEPLOY_CEILING_S), deployT0: Number(process.env.HF_WALL_ROWS_DEPLOY_T0), now: started / 1000, waitMaxS });
-  let stageNow = stage(jobId), scheduling = true;
-  if (budgetS <= 0 && ['SCHEDULING', 'PENDING', 'RUNNING', 'UNKNOWN'].includes(stageNow)) { cancel(jobId, 'no wait budget left in the deploy ceiling'); return finish(saved, null, 'no wait budget left in the deploy ceiling'); }
-  say(`waiting up to ${Math.round(budgetS)} s for job ${jobId} (${Math.round(Math.min(scheduleMaxS, budgetS))} s for hardware)`);
-  // SCHEDULING past the grace = no hardware today: cancel, trust nothing (the Mac runs the rows). RUNNING past the budget: the same.
-  while (['SCHEDULING', 'PENDING', 'RUNNING', 'UNKNOWN'].includes(stageNow)) {
+  const stop = (j, why) => { cancel(j.id, why); errors.set(j.id, why); };
+  if (budgetS <= 0) for (const j of jobs) if (LIVE.includes(stages.get(j.id))) stop(j, 'no wait budget left in the deploy ceiling');
+  if (budgetS > 0) say(`waiting up to ${Math.round(budgetS)} s for ${jobs.length} job(s) ${jobs.map(j => j.id).join(',')} (${Math.round(Math.min(scheduleMaxS, budgetS))} s for hardware)`);
+  // Per job: SCHEDULING past the grace = no hardware for it (cancel it, its rows run on the Mac); any job past the budget: the same. The others go on.
+  for (;;) {
+    const waiting = jobs.filter(j => !errors.has(j.id) && LIVE.includes(stages.get(j.id)));
+    if (!waiting.length) break;
     const elapsed = (Date.now() - started) / 1000;
-    if (stageNow === 'RUNNING') scheduling = false;
-    if (scheduling && elapsed >= Math.min(scheduleMaxS, budgetS)) { cancel(jobId, `no hardware after ${Math.round(elapsed)} s`); return finish(saved, null, `no hardware after ${Math.round(elapsed)} s`); }
-    if (elapsed >= budgetS) { cancel(jobId, `still ${stageNow} after ${Math.round(elapsed)} s (budget ${Math.round(budgetS)} s)`); return finish(saved, null, `still ${stageNow} after ${Math.round(elapsed)} s (budget ${Math.round(budgetS)} s)`); }
+    for (const j of waiting) {
+      if (stages.get(j.id) === 'RUNNING') running.add(j.id);
+      if (!running.has(j.id) && elapsed >= Math.min(scheduleMaxS, budgetS)) stop(j, `no hardware after ${Math.round(elapsed)} s`);
+      else if (elapsed >= budgetS) stop(j, `still ${stages.get(j.id)} after ${Math.round(elapsed)} s (budget ${Math.round(budgetS)} s)`);
+    }
+    if (!jobs.some(j => !errors.has(j.id) && LIVE.includes(stages.get(j.id)))) break;
     sleep(pollS);
-    stageNow = stage(jobId);
+    for (const j of jobs) if (!errors.has(j.id)) stages.set(j.id, stage(j.id));
   }
-  const logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 26, timeout: 300_000 });
-  const parsed = parseJobLog(logs.stdout || '');
-  if (parsed.seconds !== null) say(costLine(parsed.seconds, jobId, saved.flavor));
-  if (stageNow !== 'COMPLETED') return finish(saved, parsed, `job ended ${stageNow}`);
-  if (parsed.blocker) return finish(saved, parsed, `blocker: ${parsed.blocker}`);
-  if (parsed.sha !== sha) return finish(saved, parsed, `the job built ${parsed.sha ? parsed.sha.slice(0, 8) : 'nothing'}, not ${sha.slice(0, 8)}`);
-  return finish(saved, parsed, null);
+  const results = jobs.map(j => {
+    if (errors.has(j.id)) return { ...j, parsed: null, error: errors.get(j.id) };
+    const parsed = parseJobLog(run(['jobs', 'logs', j.id], { maxBuffer: 1 << 26, timeout: 300_000 }).stdout || '');
+    if (parsed.seconds !== null) say(costLine(parsed.seconds, j.id, saved.flavor));
+    const error = stages.get(j.id) !== 'COMPLETED' ? `job ended ${stages.get(j.id)}` : parsed.blocker ? `blocker: ${parsed.blocker}`
+      : parsed.sha !== sha ? `the job built ${parsed.sha ? parsed.sha.slice(0, 8) : 'nothing'}, not ${sha.slice(0, 8)}` : null;
+    return { ...j, parsed, error };
+  });
+  return finish(saved, results);
 }
-function finish(saved, parsed, error) {
-  const { rows, sha, jobId } = saved;
-  const tree = gitTree(sha);
-  const receipts = parsed?.receipts ?? [];
-  const trusted = error ? [] : trustedRows(receipts, tree, rows), untrusted = error ? Object.fromEntries(rows.map(i => [i, error])) : untrustedReasons(receipts, tree, rows);
-  writeFileSync(`${state}.json`, JSON.stringify({ jobId, sha, tree, jobTree: parsed?.tree ?? null, seconds: parsed?.seconds ?? null, receipts, trusted, untrusted, ...(error ? { error } : {}) }, null, 1) + '\n');
+// A job that failed trusts none of its own rows (they run on the Mac); the others still count. Each row is trusted only from its own job's receipt.
+function finish(saved, results) {
+  const { rows, sha, jobId } = saved, tree = gitTree(sha), ok = results.filter(r => !r.error);
+  const receipts = ok.flatMap(r => r.parsed.receipts.filter(x => r.rows.includes(Number(x.index))));
+  const okRows = ok.flatMap(r => r.rows), trusted = trustedRows(receipts, tree, okRows);
+  const untrusted = { ...untrustedReasons(receipts, tree, okRows), ...Object.fromEntries(results.filter(r => r.error).flatMap(r => r.rows.map(i => [i, r.error]))) };
+  const seconds = results.reduce((sum, r) => sum + (r.parsed?.seconds ?? 0), 0) || null, error = ok.length ? undefined : results[0]?.error;
+  writeFileSync(`${state}.json`, JSON.stringify({ jobId, sha, tree, jobTree: ok[0]?.parsed.tree ?? null, seconds, receipts, trusted, untrusted, ...(error ? { error } : {}) }, null, 1) + '\n');
   say(error ? `${error}; nothing trusted, rows [${rows.join(',')}] run on the Mac`
-    : `job ${jobId} tree ${parsed.tree.slice(0, 8)} vs deploy tree ${tree.slice(0, 8)}: trusting ${trusted.length} of ${rows.length} rows [${trusted.join(',')}]; on the Mac: [${Object.entries(untrusted).map(([i, why]) => `${i}:${why}`).join(' ') || 'none'}]`);
+    : `${ok.length} of ${results.length} job(s) vs deploy tree ${tree.slice(0, 8)}: trusting ${trusted.length} of ${rows.length} rows [${trusted.join(',')}]; on the Mac: [${Object.entries(untrusted).map(([i, why]) => `${i}:${why}`).join(' ') || 'none'}]`);
   process.stdout.write(trusted.join(','));
 }
 const gitTree = sha => { const r = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { cwd: root, encoding: 'utf8', timeout: 30_000 }); return r.status === 0 ? r.stdout.trim() : ''; };
@@ -113,10 +137,10 @@ function table() {
 
 try {
   const [command, ...rest] = process.argv.slice(2);
-  if (command === 'launch') launch(rest[0], rest.includes('--rows') ? rest[rest.indexOf('--rows') + 1] : undefined);
+  if (command === 'launch') launch(rest[0], rest.includes('--rows') ? rest[rest.indexOf('--rows') + 1] : undefined, rest.includes('--skip') ? rest[rest.indexOf('--skip') + 1] : undefined);
   else if (command === 'collect') collect();
   else if (command === 'table') table();
-  else throw new Error('usage: hf-wall-rows.mjs launch <sha> [--rows 1,3] | collect | table');
+  else throw new Error('usage: hf-wall-rows.mjs launch <sha> [--rows 1,3] [--skip 2,5] | collect | table');
 } catch (error) {
   say(`${error.message}`);
   process.exit(1);

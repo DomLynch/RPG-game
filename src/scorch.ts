@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './duel.ts';
-import { weaponOf } from './moves.ts';
+import type { CombatEvent, Fighter } from './fight/duel.ts';
+import { weaponOf } from './fight/moves.ts';
 import type { MarkLook, SignatureMarks } from './signature.ts';
 
 // Presentation only: the Witch-fire's scorch (Strategy via Lead, 2026-09-25: "the hit leaves a mark"). A Witch-fire that LANDS (a `Hit` of

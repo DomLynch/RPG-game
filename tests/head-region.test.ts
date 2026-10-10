@@ -7,14 +7,14 @@
 // earned (a thrust kill must stay torso → Run Through; only heavy cleaver blows may report head → Split Crown).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
 import { bladeImpact, type HitLocation } from '../src/blade.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS, PATHS, PROFILES, WEAPONS, type PathId, type WeaponId } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS, PATHS, PROFILES, WEAPONS, type PathId, type WeaponId } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
-// The duel's registering rule (src/duel.ts): only the move's ACTIVE window is swept, and the first sweep sample inside
+// The duel's registering rule (src/fight/duel.ts): only the move's ACTIVE window is swept, and the first sweep sample inside
 // the 0.31·k capsule decides — replicated here against a static pair so the classification is tested without AI noise.
 function registeringLocation(rig: string, weapon: string, kind: string, d: number, scale = 1): HitLocation | null {
   const spec = WEAPONS[weapon as WeaponId].paths[kind as PathId];

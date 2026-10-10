@@ -414,11 +414,11 @@ Executioner lane's Nord refusal (docs/state/executioner.md).
 
 ## Done — 2026-09-16 → 22
 
-- **#85 — the Nightborn ships (opponent 5).** `OPPONENTS.nightborn` at `src/moves.ts:489`: scale 1.03, `RULES.health`,
+- **#85 — the Nightborn ships (opponent 5).** `OPPONENTS.nightborn` at `src/fight/moves.ts:489`: scale 1.03, `RULES.health`,
   **poise 0**, and the committing guard `{ window: 16, recovery: 40, commits: true }` — the three per-opponent knobs that
-  keep him from being a reskin. `GuardProfile.commits` (`src/moves.ts`) is his: a parry that must run its window, no
+  keep him from being a reskin. `GuardProfile.commits` (`src/fight/moves.ts`) is his: a parry that must run its window, no
   action out of it, and one that met nothing always ends exposed, held or not — "a man's parry yields to any action; the
-  Nightborn's does not". The read side is in `src/ai.ts` (tell-reading estimate for a committing parrier, the `parker`
+  Nightborn's does not". The read side is in `src/fight/ai.ts` (tell-reading estimate for a committing parrier, the `parker`
   read); the two intended answers are pinned in `tests/opponents.test.ts` (`feintAndPunish`, `chargePast`). Corrections
   against the owner's draft, recorded so they are not reopened: no facial rig, so no fangs; the charged heavy IS
   parryable; `parryStun` 90 means a kick cannot interrupt the riposte.

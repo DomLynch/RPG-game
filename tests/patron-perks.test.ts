@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { idleIntent, initialDuel, stepDuel, withPerk, withPerks, createFighter, type Duel, type Intent, type Perk } from '../src/duel.ts';
-import { OPPONENTS, RULES } from '../src/moves.ts';
+import { idleIntent, initialDuel, stepDuel, withPerk, withPerks, createFighter, type Duel, type Intent, type Perk } from '../src/fight/duel.ts';
+import { OPPONENTS, RULES } from '../src/fight/moves.ts';
 import { hashDuel } from '../src/net/rollback.ts';
-import { initialState } from '../src/sim.ts';
+import { initialState } from '../src/fight/sim.ts';
 import { act, arena, guard, idle } from './strategies.ts';
 
 // Patron perks in the sim (docs/specs/origins/patron-perks-sim.md): a fight with no perk is the fight it always was; each template moves its own number.

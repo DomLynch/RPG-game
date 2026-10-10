@@ -59,7 +59,7 @@ here as requirements with their owners named, so nobody reads the brief as an in
 The brief said the burn reuses the existing four-second wound window with ember sprites in place of blood drips, "no new rule". Verified
 against the code rather than asserted, because a reuse that turns out to be a rewrite is the trap this brief exists to avoid:
 
-- **The timer is real and is exactly four seconds.** `RULES.wound = 240` ticks at a fixed 60 Hz (`src/moves.ts:122`, `:3`). Reusing the
+- **The timer is real and is exactly four seconds.** `RULES.wound = 240` ticks at a fixed 60 Hz (`src/fight/moves.ts:122`, `:3`). Reusing the
   *rule* costs nothing — that part of the instruction holds.
 - **The visual is not a sprite source and cannot be pointed elsewhere.** `createWoundDecals` (`src/gore.ts:84`) builds fixed geometry — a
   `PlaneGeometry` mark plus three `PlaneGeometry` drips on `MeshBasicMaterial` with `color: '#4a1213'` and a shared splat texture. There

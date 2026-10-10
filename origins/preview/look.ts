@@ -52,6 +52,28 @@ export function lookAlong(at: number, stops: readonly { at: number; preset: stri
 // A zone's own look from its resolved params: the preset row with the fog density scaled to the zone's view.fogFar (default = unchanged; a longer view = thinner fog).
 export const zoneLook = (p: LookParams): Look => { const l = lookOf(p.ambience.preset); return { ...l, fogDensity: l.fogDensity * (DEFAULT_FOG_FAR / p.view.fogFar) }; };
 
+// The zone's own look fields (zones/schema.ts look.*, dayNight.*) laid over a preset look. ONLY the fields the zone or its biome SET change anything (`set`), so a zone that sets none renders exactly
+// as before; the schema defaults are never applied here. Fog: density is "at the default fogFar", a longer `far` thins it (the same scale zoneLook uses).
+export type ZoneFields = { fields?: Readonly<Record<string, unknown>>; set?: readonly string[] };
+export function withZoneLook(base: Look, z: ZoneFields): Look {
+  const f = z.fields ?? {}, on = (p: string) => !!z.set?.includes(p), out: Look = { ...base };
+  if (on('look.fog.colour')) out.fog = f['look.fog.colour'] as string;
+  if (on('look.fog.density') || on('look.fog.far')) out.fogDensity = (on('look.fog.density') ? f['look.fog.density'] as number : base.fogDensity) * (DEFAULT_FOG_FAR / (on('look.fog.far') ? f['look.fog.far'] as number : DEFAULT_FOG_FAR));
+  if (on('look.sun.colour')) out.sunColor = f['look.sun.colour'] as string;
+  if (on('look.sun.intensity')) out.sunIntensity = f['look.sun.intensity'] as number;
+  if (on('look.sun.pos')) out.sunPos = f['look.sun.pos'] as [number, number, number];
+  if (on('look.ambient.sky')) out.hemiSky = f['look.ambient.sky'] as string;
+  if (on('look.ambient.ground')) out.hemiGround = f['look.ambient.ground'] as string;
+  if (on('look.ambient.intensity')) out.hemiIntensity = f['look.ambient.intensity'] as number;
+  if (on('look.exposure')) out.exposure = f['look.exposure'] as number;
+  if (on('look.ground.tint')) out.ground = f['look.ground.tint'] as [number, number, number];
+  return out;
+}
+/** A fixed hour of day when the zone says not to follow the clock (look.timeOfDay.follow false), else null. */
+export const zoneHour = (z: ZoneFields): number | null => z.set?.includes('look.timeOfDay.follow') && z.fields?.['look.timeOfDay.follow'] === false ? Number(z.fields['look.timeOfDay.hour'] ?? 12) : null;
+/** False when the zone turns the day/night cycle off (dayNight.on false). */
+export const zoneDayNight = (z: ZoneFields): boolean => !(z.set?.includes('dayNight.on') && z.fields?.['dayNight.on'] === false);
+
 // Put a look on the scene. `grounds` (optional) are the ground materials to tint: their first-seen base colour is kept in userData so a tint never compounds.
 export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, look: Look, grounds: readonly THREE.MeshStandardMaterial[] = [], stones: readonly THREE.MeshStandardMaterial[] = []): Look {
   (scene.background as THREE.Color).set(look.fog);

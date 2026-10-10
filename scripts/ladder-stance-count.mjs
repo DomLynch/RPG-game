@@ -6,10 +6,10 @@
 import console from 'node:console';
 import process from 'node:process';
 import { BOTS, fight } from './ladder-sweep.mjs';
-import { OPPONENTS } from '../src/combat.ts';
+import { OPPONENTS } from '../src/fight/combat.ts';
 import { isHeld } from '../src/roster.ts';
-import { PICKS } from '../src/stance.ts';
-import { setLateNotice } from '../src/play-radius.ts';
+import { PICKS } from '../src/fight/stance.ts';
+import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 setStab(true); setLateNotice(true);
 const arg = (name, fallback) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;

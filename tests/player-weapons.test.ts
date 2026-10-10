@@ -3,16 +3,16 @@
 // rung by the rung's own caps. The pin below runs the same 24-seed table as scripts/player-weapon-battery.mjs (Combat signed it) and derives the offered set from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent, initialDuel } from '../src/duel.ts';
-import { NO_HIP_DRAW, clipFor, drawRole } from '../src/characters.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent, initialDuel } from '../src/fight/duel.ts';
+import { NO_HIP_DRAW, clipFor, drawRole } from '../src/fight/characters.ts';
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
-import { setLateNotice } from '../src/play-radius.ts';
+import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/fight/moves.ts';
+import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
-import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, arena, battery, k, kt } from './strategies.ts';
 
 test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the draw beat for a taken weapon too, on the hero rig, with that weapon\'s tables', () => {
@@ -150,7 +150,7 @@ const KNOWN_UNFAIR: string[] = [
   // knife data. The cause, measured: a guardless warden reading a kicker held at `theirs.kick.reach + .3` (1.50), zeroing his forward
   // drive at 1.45 — but `next.next` is picked once, re-picked only when null, and cleared by being thrown, so with a `light` queued
   // (6599 of 6599 ready ticks) he stood at a gap his own plan could not reach and never attacked: 4-5 attack starts per 7200 ticks,
-  // 24/24 stalls. The hold now derives from the inReach margin of the move he has QUEUED (src/ai.ts), and the row goes 3/24 -> under
+  // 24/24 stalls. The hold now derives from the inReach margin of the move he has QUEUED (src/fight/ai.ts), and the row goes 3/24 -> under
   // its cap. Gated on `guardShare === 0`, which only the Goblin's three profiles set, so no other warden moved. The knife's two "thrust from range" rows DID leave, 2026-09-22, when its thrust recovery
   // went 15 -> 20 (see KNIFE_MOVES): Veteran 18/24 -> 5/24, Goblin 15/24 -> 6/24, with no other knife pairing moved. (21 would have read
   // 3/24 and 4/24, but it pushes the Goblin's own fight-length pin to a 48.5 s median, over the 45 s ceiling — hence 20.)
@@ -158,12 +158,12 @@ const KNOWN_UNFAIR: string[] = [
   // Veteran 19/24 -> 8/24, Goblin 16/24 -> 6/24. It now has no row at any rung, so the table itself puts it in PLAYER_WEAPONS_OFFERED.
   // The estoc's four rows (goblin ×3, dwarf hard) LEFT on 2026-09-23 when Weapons put its move table on its blade's real reach (+0.30 m,
   // #532) — every warden had misjudged its point. The Nightborn wields it, so the same reach made him swing himself out; his aggression
-  // (normal .6 → .55, hard .75 → .65, src/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
-  // cleaver/executioner LEFT on 2026-09-23: his normal profile is his own (anticipate 3, lapse .2, read .75; src/moves.ts), light spam 18/24 -> 8/24.
+  // (normal .6 → .55, hard .75 → .65, src/fight/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
+  // cleaver/executioner LEFT on 2026-09-23: his normal profile is his own (anticipate 3, lapse .2, read .75; src/fight/moves.ts), light spam 18/24 -> 8/24.
   // maul/executioner LEFT with the cleaver row (bump 8, 2026-09-23): same cause (the 22-tick tell), same fix (#550): light spam 18/24 -> 7/24.
   // The four beta characters (roster-v0) are on LADDER and measured here. Their placeholder profiles (base copies) produced two rows,
   // 'trident/scythe vs plaguedoctor normal: charged heavy only untouched 3/24' (limit 2). Signing them would have un-offered two shipped
-  // weapons, so the Plague Doctor took one forced retune instead (lapse .3 -> .2, src/moves.ts): at most 1 untouched, worst row 6/24.
+  // weapons, so the Plague Doctor took one forced retune instead (lapse .3 -> .2, src/fight/moves.ts): at most 1 untouched, worst row 6/24.
   // Watch: warhammer vs knight normal charged heavy only 12/24, on the cap.
 ];
 

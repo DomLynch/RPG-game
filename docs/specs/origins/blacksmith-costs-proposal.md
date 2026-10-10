@@ -6,7 +6,7 @@ Author: impl-o1-contracts, 2026-10-06. Ruling: Dom, 2026-10-06 (NPC services ins
 
 ## What a level buys (already fixed by the contract)
 
-- **One rung per level.** Each upgrade level makes the piece count one rung higher on its own slot's existing score: `SLOT_WEIGHT[slot] × (effective tier − 1)` in `src/gear-stats.ts`.
+- **One rung per level.** Each upgrade level makes the piece count one rung higher on its own slot's existing score: `SLOT_WEIGHT[slot] × (effective tier − 1)` in `src/fight/gear-stats.ts`.
 - **Clamped at Origin.** The effective tier never passes Origin. An upgrade that would add nothing is refused and never charged. That covers a Crest or Shield (weight 0) and a piece already worth Origin.
 - **Rank to wear.** A Gladiator-won helmet at +2 counts as a Champion helmet, and its wearer needs Champion rank (`equipItem`). The smith also refuses to sell a level whose rank the payer does not have.
 - **No pay-to-win past the caps.** The most an upgraded piece can be worth is what the same piece would be worth if won at the payer's own rank, and never more than an Origin piece. A full kit therefore stays inside Attack 1.15 / RES 0.80. Coin buys keeping a favourite or traded piece current, never power the Pit does not already hand out at your rank.

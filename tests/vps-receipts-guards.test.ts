@@ -27,25 +27,26 @@ const TREES = { [sha]: tree };
 const exe = (file: string, text: string) => { writeFileSync(file, text); chmodSync(file, 0o755); };
 
 // One deploy-vps.sh step in a scratch checkout: `launch.mjs fetch` exits `fetchExit` (1 = the job printed no RECEIPT line) and the trust CLI prints `trust`.
-const step = (call: string, { trust = '', fetchExit = 0, on = true, env = {} as Record<string, string> } = {}) => {
+const step = (call: string, { trust = '', fetchExit = 0, fetchErr = '', hf = '', env = {} as Record<string, string> } = {}) => {
   const dir = mkdtempSync(join(tmpdir(), 'vps-receipts-'));
   try {
     mkdirSync(join(dir, 'scripts/lib'), { recursive: true }); mkdirSync(join(dir, 'scripts/vps-shadow'));
     copyFileSync('scripts/lib/deploy-vps.sh', join(dir, 'scripts/lib/deploy-vps.sh'));
-    writeFileSync(join(dir, 'scripts/vps-shadow/launch.mjs'), `process.exit(${fetchExit});\n`);
+    writeFileSync(join(dir, 'scripts/vps-shadow/launch.mjs'), `process.stderr.write(${JSON.stringify(fetchErr)});\nprocess.exit(${fetchExit});\n`);
+    mkdirSync(join(dir, 'bin')); exe(join(dir, 'bin/hf'), `#!/bin/sh\n${hf ? `echo '${hf}'` : 'exit 1'}\n`);
     writeFileSync(join(dir, 'scripts/vps-receipt-trust.mjs'), `process.stdout.write(${JSON.stringify(trust)});\n`);
     const script = `set -euo pipefail\nsource scripts/lib/deploy-vps.sh\nrevision=${sha}\ntrusted_checks=1,5\ntrust_source=CI\n${call}\necho "END trusted=$trusted_checks source=$trust_source"\n`;
-    const r = spawnSync('bash', ['-c', script], { cwd: dir, encoding: 'utf8', timeout: 30_000, env: { ...process.env, DEPLOY_VPS_RECEIPTS: on ? 'on' : '', ...env } });
+    const r = spawnSync('bash', ['-c', script], { cwd: dir, encoding: 'utf8', timeout: 30_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, DEPLOY_VPS_RECEIPTS: '', DEPLOY_HF_UNIT_JOB: '', DEPLOY_HF_ROWS_JOBS: '', DEPLOY_HF_FETCH_BACKOFF_S: '0', ...env } });   // the job ids are cleared: the unit step must not read the launching deploy.sh's (S attempt 1 failed on that leak)
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /^END /m, 'the step must return to deploy.sh');
-    return r.stdout;
+    return r.stdout + r.stderr;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 };
 const unit = 'v=$(vps_unit_receipt_ok); echo "unit=[$v]"';
 
-test('vps_receipts_apply joins the HF rows to the trusted list (deduplicated) when on; off or nothing trusted changes nothing', () => {
+test('vps_receipts_apply joins the HF rows to the trusted list (deduplicated), with no switch to read it off; nothing trusted changes nothing', () => {
   assert.match(step('vps_receipts_apply', { trust: '5,7', env: { DEPLOY_HF_ROWS_JOBS: 'J1,J2' } }), /END trusted=1,5,7 source=CI \+ VPS receipts \(rows 5,7; tree-bound\)/);
-  assert.match(step('vps_receipts_apply', { trust: '5,7', on: false, env: { DEPLOY_HF_ROWS_JOBS: 'J1' } }), /END trusted=1,5 source=CI$/m);
+  assert.match(step('vps_receipts_apply', { trust: '5,7', env: { DEPLOY_HF_ROWS_JOBS: 'J1' } }), /END trusted=1,5,7 source=CI \+ VPS receipts/, 'an empty DEPLOY_VPS_RECEIPTS (the old off) is ignored');
   assert.match(step('vps_receipts_apply', { trust: '', env: { DEPLOY_HF_ROWS_JOBS: 'J1' } }), /END trusted=1,5 source=CI$/m);
 });
 
@@ -56,9 +57,24 @@ test('a failed fetch does not end deploy.sh under set -e: each job says so and i
   assert.match(step(unit, { trust: '', fetchExit: 1, env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[\]/);
 });
 
-test('vps_unit_receipt_ok prints ok only when on, a unit job is named and the trust CLI vouches for the tree', () => {
+test('a failed unit-receipt fetch is retried 3 times, prints each error and one final line, and the Mac runs its suite (R lost its receipt to a swallowed error)', () => {
+  const out = step(unit, { trust: '', fetchExit: 2, fetchErr: 'launch: hf jobs logs J1 failed: boom\n', env: { DEPLOY_HF_UNIT_JOB: 'J1' } });
+  for (const n of [1, 2, 3]) assert.match(out, new RegExp(`unit receipt fetch ${n}/3 for job J1 failed: launch: hf jobs logs J1 failed: boom`));
+  assert.match(out, /unit receipt NOT fetched from job J1 after 3 tries \(last error: launch: hf jobs logs J1 failed: boom\)/);
+  assert.match(out, /unit=\[\]/);
+  const silent = step(unit, { trust: '', fetchExit: 2, fetchErr: '', env: { DEPLOY_HF_UNIT_JOB: 'J1' } });   // R's case: the fetch fails and prints nothing
+  assert.match(silent, /unit receipt fetch 3\/3 for job J1 failed: no output/);
+  assert.match(silent, /unit receipt NOT fetched from job J1 after 3 tries \(last error: none printed\)/);
+  assert.doesNotMatch(step(unit, { trust: 'ok', env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /NOT fetched|fetch \d\/3/, 'a good fetch is silent');
+});
+
+test('a job that did not COMPLETE has its own status message in the deploy log ("Job timeout"), not just the stage', () => {
+  const out = step('vps_receipts_apply', { trust: '', fetchExit: 1, hf: '[{"status":{"stage":"ERROR","message":"Job timeout"}}]', env: { DEPLOY_HF_ROWS_JOBS: 'J1' } });
+  assert.match(out, /job J1 is 'ERROR' \(not COMPLETED\), job message: Job timeout; its rows run here/);
+});
+
+test('vps_unit_receipt_ok prints ok only when a unit job is named and the trust CLI vouches for the tree', () => {
   assert.match(step(unit, { trust: 'ok', env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[ok\]/);
-  assert.match(step(unit, { trust: 'ok', on: false, env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[\]/);
   assert.match(step(unit, { trust: 'ok' }), /unit=\[\]/, 'no DEPLOY_HF_UNIT_JOB: the Mac runs its suite');
   assert.match(step(unit, { trust: '', env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /unit=\[\]/);
 });
@@ -66,10 +82,33 @@ test('vps_unit_receipt_ok prints ok only when on, a unit job is named and the tr
 test('deploy.sh calls both steps, before the gate and the rows they replace (each call found as a statement, no slack)', () => {
   const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
   const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
-  assert.ok(at(/^vps_unit=\$\(vps_unit_receipt_ok\)/) < at(/^if \[\[ "\$vps_unit" == ok \]\]/));
-  assert.ok(at(/^if \[\[ "\$vps_unit" == ok \]\]/) < at(/^\s+npm run quality$/));
+  assert.ok(at(/^vps_unit=\$\(vps_unit_receipt_ok\)/) < at(/^elif \[\[ "\$vps_unit" == ok \]\]/));
+  assert.ok(at(/^elif \[\[ "\$vps_unit" == ok \]\]/) < at(/^\s+npm run quality$/));
   assert.ok(at(/^trusted_checks=/) < at(/^vps_receipts_apply\b/));
   assert.ok(at(/^vps_receipts_apply\b/) < at(/^\s*(?:[A-Z_]+=\S*\s+)*node scripts\/release-checks\.mjs/));
+});
+
+test('deploy.sh prints the Published summary right after the Published line, from the release-checks receipt (actual rows, not the plan)', () => {
+  const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
+  const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
+  const ci = at(/^ci_rows="\$trusted_checks"/), published = at(/^printf '\\nPublished %s\\n' "\$revision"/), summary = at(/^node scripts\/lib\/published-summary\.mjs artifacts\/release-checks\.json "\$ci_rows"/);
+  assert.ok(ci < published && published < summary && summary - published <= 6, 'summary follows the Published line');
+});
+
+test('the Published summary counts where rows ACTUALLY ran: a refused or failed receipt leaves its rows on the Mac (R planned 8 Mac rows and ran 16)', async () => {
+  const { actualPlacement, summaryLine } = await import('../scripts/lib/published-summary.mjs');
+  const detail = Array.from({ length: 52 }, (_, i) => ({ index: i + 1, seconds: 1, retried: false, ...(i + 1 <= 36 ? { trusted: 'src' } : {}), ...(i + 1 === 52 ? { out_of_scope: true, seconds: 0 } : {}) }));
+  const p = actualPlacement(detail, { ci: '1,2,3', vps: '3,30,31', hf: '4,5,6,40' });   // 40 is not a trusted row in this receipt: never counted as proven
+  assert.deepEqual([p.ci.length, p.vps.length, p.hf.length, p.mac.length, p.outOfScope, p.other.length], [3, 2, 3, 15, 1, 28], 'ci 3, vps 2 (3 is counted under CI), hf 3 (40 is on the Mac, not trusted), other 28, mac 15, out of scope 1');
+  assert.match(summaryLine(p, '12 min since the merge commit', 9), /52 total = 3 CI \+ 2 VPS \+ 3 HF\/T4 \+ 28 other trusted \+ 1 out of scope \+ 15 on the Mac \(37,38,/);
+});
+
+test('deploy.sh takes the quality gate from CI when CI is green for the tree: the Mac only builds dist, and the CI branch comes first (R lost 1 h 44 m here)', () => {
+  const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
+  const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
+  const ci = at(/^if \[\[ -n "\$ci_green" \]\]; then/), unitBranch = at(/^elif \[\[ "\$vps_unit" == ok \]\]; then/);
+  assert.ok(ci < unitBranch, 'the CI branch is tried before the VPS-unit branch');
+  assert.deepEqual(lines.slice(ci + 1, unitBranch).filter(l => /^\s+(npm|node) /.test(l)).map(l => l.trim()), ['npm run build'], 'with CI green the Mac runs the build only');
 });
 
 test('rows are combined across shards when no single shard holds them all', () => {

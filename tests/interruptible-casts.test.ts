@@ -2,10 +2,10 @@
 // RULES.special.interruptAt of max health. Constructed fights, real blows from the foe, no AI.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepDuel, withSpecials, type Action, type CombatEvent, type Duel } from '../src/duel.ts';
-import { OPPONENTS, RULES, SPECIAL_ROWS } from '../src/moves.ts';
-import { clarityOf } from '../src/combat.ts';
-import { RECORD_VERSION, READABLE_VERSIONS, packRecord, unpackRecord } from '../src/record.ts';
+import { stepDuel, withSpecials, type Action, type CombatEvent, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS, RULES, SPECIAL_ROWS } from '../src/fight/moves.ts';
+import { clarityOf } from '../src/fight/combat.ts';
+import { RECORD_VERSION, READABLE_VERSIONS, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { act, arena, idle } from './strategies.ts';
 

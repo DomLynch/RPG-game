@@ -2,7 +2,7 @@
 // upgrade service (caps never passed, no-effect refused, idempotent receipts, stale versions refused, priced from a data table).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CAPS } from '../../src/gear-stats.ts';
+import { CAPS } from '../../src/fight/gear-stats.ts';
 import type { Result } from './core.ts';
 import {
   CONCORD_EXCHANGE, MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,

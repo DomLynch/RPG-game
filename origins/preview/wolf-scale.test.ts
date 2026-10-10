@@ -17,3 +17,12 @@ test('walking == fighting: the walking Cinder Bear look is BEAR_RENDER_SCALE, th
   assert.equal(MOB_LOOKS['character:cinder-bear']!.scale, BEAR_RENDER_SCALE);
   assert.equal(MOB_LOOKS['character:cinder-bear']!.scale, BEAST_RENDER_SCALE.bear, 'the by-roster-id table the duel reads agrees');
 });
+
+test('every beast look takes its scale from the catalogue row, and the row is the size the duel draws it at', async () => {
+  const { catalogueRow } = await import('../../src/fight/catalogue-rows.ts'), { beastRenderScale } = await import('../../src/beast-scale.ts');
+  for (const [id, body] of [['character:ash-wolf', 'wolf'], ['character:ash-boar', 'boar'], ['character:cinder-bear', 'bear']] as const) {
+    const scale = catalogueRow(body)!.render.scale;
+    assert.equal(MOB_LOOKS[id]!.scale, scale, `${id}: the walking look reads the ${body} row`);
+    assert.equal(scale, beastRenderScale(body), `${id}: and the row is what the duel draws`);
+  }
+});

@@ -1,9 +1,9 @@
 // Human-like defenders (Strategy 2026-10-06): guard/parry only once the swing is R ticks old, wrong side `miss` of the time. The tick-0 `blocker` in
 // ladder-sweep.mjs is superhuman (right side on tick 0 of every swing), so a flat rung hides behind it; this is the yardstick the ladder gate uses.
 //   node scripts/ladder-human.mjs   env: IDS (default: every beta opponent), N (60), LEVELS (6,18,46), R (12), MISS (.2)
-import { OPPONENTS, MOVES, canStrike, initialPractice, stepPractice } from '../src/combat.ts';
-import { RULES, opponentAt, profileAt } from '../src/moves.ts';
-import { mirror, movesOf, timing } from '../src/duel.ts';
+import { OPPONENTS, MOVES, canStrike, initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { mirror, movesOf, timing } from '../src/fight/duel.ts';
 import { isHeld } from '../src/roster.ts';
 
 const mk = (z = 0, action = null, guard = false) => ({ move: { x: 0, z, yaw: 0, run: false }, action, guard, lock: true });

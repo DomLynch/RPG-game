@@ -1,5 +1,5 @@
 // Mob fight styles (Combat, 2026-10-07): the four a mob row may name by id. A style is a pointer to an EXISTING roster opponent, whose AI
-// profile rows (src/moves.ts) the mob fights with, plus the one world-side number Combat owns: the health share below which a beast leaves.
+// profile rows (src/fight/moves.ts) the mob fights with, plus the one world-side number Combat owns: the health share below which a beast leaves.
 // No new tuning table and no sim file touched: the duel never reads this, so there is no record bump. Expansion's mob rows reference `MobStyle`.
 import type { OpponentId } from '../../src/roster.ts';
 

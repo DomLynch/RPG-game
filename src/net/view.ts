@@ -2,7 +2,7 @@
 // player is side 0; the guest of a PvP duel is side 1. viewAs swaps the fighters and flips every event's sides and the finish's victim, so
 // the guest's page draws the same fight from its own chair with no change to any of them. Presentation only: the rollback session steps
 // the real duel, never this view. Positions stay world positions (each fighter keeps its own body), so both pages show one ring.
-import type { CombatEvent, Duel, Side } from '../duel.ts';
+import type { CombatEvent, Duel, Side } from '../fight/duel.ts';
 
 export const other = (side: Side): Side => (side === 0 ? 1 : 0);
 

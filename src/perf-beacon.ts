@@ -69,7 +69,7 @@ export function screenOf(width: number, height: number, ratio: number): string |
 // Our own automation sends nothing (Lead 2026-09-29: 257 of ~300 rows were the release checks): a WebDriver-driven browser, headless
 // Chrome, or a page opened with a dev/test parameter.
 export const automated = (nav: { webdriver?: boolean; userAgent?: string } | null, search: string): boolean =>
-  nav?.webdriver === true || /HeadlessChrome/.test(nav?.userAgent ?? '') || /[?&](debug|botSeed|tier|lookbake)\b/.test(search);
+  nav?.webdriver === true || /HeadlessChrome/.test(nav?.userAgent ?? '') || /[?&](debug|botSeed|tier|lookbake)\b/.test(search) || /[?&]off=(?:[^&]*,)?lookbake\b/.test(search);
 
 // One POST; resolves true when the server took it, false on anything else. Never rejects.
 export async function sendPerfBeacon(api: { url: string; key: string } | null, body: ReturnType<typeof beaconPayload>, fetchFn: typeof fetch): Promise<boolean> {

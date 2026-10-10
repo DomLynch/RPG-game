@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { PITBORN_KINDS, createPitbornSpecial, isPitbornSpecial, type PitbornKind } from '../src/special-fx-pitborn.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { LAND_AT, advanceCast } from '../src/special-timing.ts';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 // The Pitborn's rank 8-10 boss specials (special-fx-pitborn.ts): Antaeus Cracking Ground, Surtr Ash Fall, Typhon Wind Wall.

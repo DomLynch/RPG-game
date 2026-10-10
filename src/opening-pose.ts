@@ -1,6 +1,6 @@
 // The open stagger (Lead's brief item 2): a foe opened by a parry or a broken posture drops his guard and shield and leans off balance for
 // exactly as long as the sim's opening lasts (Practice.opening: `left` ticks of `of`). View only: radians added after the mixer, like the tired body.
-import type { Opening } from './combat.ts';
+import type { Opening } from './fight/combat.ts';
 
 const ramp = (v: number, a: number, b: number): number => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const IN = .12, OUT = .2;   // the share of the opening spent falling off balance, and recovering; the rest holds, so it ends with the opening, never after

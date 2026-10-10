@@ -2,12 +2,12 @@
 // resolves for every style; the battery shows what the kits do to the hero strategies the ladder is held to.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
-import { stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
 import { AFTER_HIT_TICKS, initialKit, kitIntent, type KitRow } from '../src/mobkit.ts';
-import { OPPONENTS, profileAt } from '../src/moves.ts';
+import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
 import { KITS, MODE, MODES, mobLayer, mobProfile } from '../origins/mobs/kits.ts';
-import { initialPractice, stepPractice, type Practice } from '../src/combat.ts';
+import { initialPractice, stepPractice, type Practice } from '../src/fight/combat.ts';
 import { MOB_STYLES, MOB_STYLE, styleOf } from '../origins/mobs/styles.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 

@@ -20,7 +20,7 @@ Written by the Executioner lane on Lead's assignment (22:00). **Brief only — n
 
 Trunk read: `f480728`. Live: `607126a`. Loaded: `CLAUDE.local.md`, `docs/state/multichar.md`, `docs/state/character.md`
 (Dwarf v2, Grade materials, Arena guard), `docs/state/combat.md` (the shield ruling), `src/roster.ts`, `src/career.ts`,
-`src/moves.ts` (grip/guard-override comments), plus this lane's memory.
+`src/fight/moves.ts` (grip/guard-override comments), plus this lane's memory.
 
 ## 1. What he is
 

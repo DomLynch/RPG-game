@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { SIGNATURES, createSignatureMarks } from '../src/signature.ts';
 import { WAKE, wakeState } from '../src/signature-pitborn.ts';
 

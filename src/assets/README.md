@@ -750,7 +750,7 @@ carrying it — the shelf record, the bake source in `scripts/blade-manifest.jso
 leather over the lower third, square striking face + back-spike, riveted langets). Built by `scripts/build-weapon.mjs` (`warhammer()`,
 variant A: 0.93 m butt to crown, head 0.705–0.815 m as the contact segment, the FACE on local +x — the side that leads the forehand
 swing — the spike on −x) and `warhammerClips()`: the 12-clip `Warhammer_*` family on the base humanoid rig via `twoHandFamily()`
-(the trident's clip machinery, extracted unchanged — the Veteran rebuilds byte-identical). `src/moves.ts WEAPONS.warhammer` is the
+(the trident's clip machinery, extracted unchanged — the Veteran rebuilds byte-identical). `src/fight/moves.ts WEAPONS.warhammer` is the
 maul's blunt set flagged `placeholder` on `Warhammer_Slash/Heavy/Thrust` paths (Combat sets the .78-fighter reach); `characters.ts
 WEAPON_CLIPS.warhammer` maps the maul's roles onto the family. The character lane integrates (`WARRIOR_WEAPON=warhammer` on the
 Dwarf donor, refit, roster flip). Provenance: original project work — Three.js primitives, the cleaver's pitted iron / the trident's

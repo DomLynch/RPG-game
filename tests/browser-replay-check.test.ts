@@ -5,11 +5,11 @@
 // command; the release row (scripts/browser-replay-check.mjs) then compares the browser against the same Node leg.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { decodeRecord, NO_PATRON_VERSION, RECORD_VERSION } from '../src/record.ts';
+import { decodeRecord, NO_PATRON_VERSION, RECORD_VERSION } from '../src/fight/record.ts';
 import { fixtureShapeError, loadFixture, REPROS, replayInNode, stateHash } from '../scripts/browser-replay-check.mjs';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent } from '../src/duel.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent } from '../src/fight/duel.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 
 const fixture = loadFixture() as { generated: { recordVersion: number }; records: { opponent: string; seed: number; level: number; encoded: string; label?: string; expect: { victim: number; draw: boolean; tick: number; killedTick: number }; hashes: Record<string, string> }[] };
 

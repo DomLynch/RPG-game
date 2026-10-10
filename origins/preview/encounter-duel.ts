@@ -1,5 +1,5 @@
 // The Frontier's fight entry and exit (Combat's side of the encounter → duel → result loop; Expansion owns the mob, resolveFight, loot and the
-// Bounty). The duel is the Pit's own (pit-duel.ts, loaded on demand); an encounter adds its twist flags (src/twist.ts, read each tick) and
+// Bounty). The duel is the Pit's own (pit-duel.ts, loaded on demand); an encounter adds its twist flags (src/fight/twist.ts, read each tick) and
 // reports the two fields resolveFight reads: `result` and `twistOutcome`. Preview only: the sim and the record are untouched.
 import type { Finished } from '../pit/pit.ts';
 import type { TwistOutcome } from '../../src/fight/index.ts';

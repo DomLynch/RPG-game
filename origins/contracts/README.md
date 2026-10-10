@@ -59,7 +59,7 @@ Last run: 80 tests, 80 pass. `tsc` strict is clean. `eslint origins/contracts` i
 
 ### The fixed spine
 
-Gear stays on Attack and RES, resolved before the fight by `src/gear-stats.ts`, with caps of 1.15 and 0.80. Nothing here changes timing. An item's power is either `slot-weight` (its slot's `SLOT_WEIGHT` × (effective tier level − 1), today's per-piece score) or `none`. `resolveLoadout` hands the kit to `loadoutFor`. The tests show:
+Gear stays on Attack and RES, resolved before the fight by `src/fight/gear-stats.ts`, with caps of 1.15 and 0.80. Nothing here changes timing. An item's power is either `slot-weight` (its slot's `SLOT_WEIGHT` × (effective tier level − 1), today's per-piece score) or `none`. `resolveLoadout` hands the kit to `loadoutFor`. The tests show:
 - a full Origin set lands exactly on `CAPS`;
 - nine upgrade levels on top of an Origin set change nothing;
 - rarity never changes the result.

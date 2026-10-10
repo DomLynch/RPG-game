@@ -3,9 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/match.ts';
-import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
-import { actorPose, initialPractice, stepPractice } from '../src/combat.ts';
-import { stepDuel, withSpecials } from '../src/duel.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { actorPose, initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { stepDuel, withSpecials } from '../src/fight/duel.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';

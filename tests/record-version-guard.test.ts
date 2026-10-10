@@ -3,7 +3,7 @@
 // replays a different fight and dies mid-play — which is what the viewer page's "Recorded on an older build" freeze exists to catch
 // after the fact. This test catches it before the merge: it hashes the CODE that decides how a fight plays (tests/lib/sim-digest.ts:
 // the top-level statements of the sim files, comments and import paths left out, as one sorted list) and pins the digest next to the
-// version. Change that code and this test fails; the fix is to bump RECORD_VERSION in src/record.ts (old links are then refused cleanly
+// version. Change that code and this test fails; the fix is to bump RECORD_VERSION in src/fight/record.ts (old links are then refused cleanly
 // at decode) and paste the digest the failure prints into SIM_DIGEST below. Moving code between sim files byte for byte (src/fight/,
 // Release K) keeps the digest, so it keeps the version and every live link (Lead, 2026-10-09).
 import test from 'node:test';
@@ -12,8 +12,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { NO_PATRON_VERSION, PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
-import { playScaleFor, setLateNotice, setPlayScale } from '../src/play-radius.ts';
+import { NO_PATRON_VERSION, PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/stab-rule.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { duplicateNames, simDigest } from './lib/sim-digest.ts';
@@ -24,7 +24,7 @@ import type { OpponentId } from '../src/roster.ts';
 // different camera does not change the fight.
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
-const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/detmath.ts', 'src/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/gambit.ts', 'src/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
+const SIM_FILES = ['src/fight/duel.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/detmath.ts', 'src/fight/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
 const SIM_DIGEST = '6945d756c883ea4048b99139f2f996721c926e65cc3f935385fab99b85484032';   // re-pinned 2026-10-09 for the content digest (tests/lib/sim-digest.ts), NO bump: the old path digest of these same files was f9f4f395... (RV40's pin), so the code is unchanged. RV40 (2026-10-09, K1: the wall is Duel.radius, duel.ts / sim.ts / ai.ts; absent = the Pit's live circle, every Pit duel and every v18-v39 record is byte for byte as before, tests/open-world + the replay rows)   // RV39 (2026-10-08, N attackers on one creature: duel.ts Duel.incoming / SharedHit, the group flag in record.ts; a duel without incoming and an ungrouped record are byte for byte as v38, tests/streams.test.ts and tests/record-group.test.ts)
 const PINNED_FOR_VERSION = 40;
 
@@ -34,7 +34,7 @@ test('a sim change without a RECORD_VERSION bump would break every live kill lin
   const digest = simDigest(simSources());
   assert.ok(RECORD_VERSION >= PINNED_FOR_VERSION, 'RECORD_VERSION went backwards');
   assert.ok(digest === SIM_DIGEST ? RECORD_VERSION === PINNED_FOR_VERSION : RECORD_VERSION > PINNED_FOR_VERSION,
-    `The sim files changed (digest ${digest}) but RECORD_VERSION is still ${RECORD_VERSION}. Bump RECORD_VERSION in src/record.ts so older links are refused at decode instead of replaying a different fight, then set SIM_DIGEST = '${digest}' and PINNED_FOR_VERSION = ${RECORD_VERSION + 1} here.`);
+    `The sim files changed (digest ${digest}) but RECORD_VERSION is still ${RECORD_VERSION}. Bump RECORD_VERSION in src/fight/record.ts so older links are refused at decode instead of replaying a different fight, then set SIM_DIGEST = '${digest}' and PINNED_FOR_VERSION = ${RECORD_VERSION + 1} here.`);
 });
 
 // The digest follows the code, not where it lives (Lead, 2026-10-09: Release K moves sim code into src/fight/ unchanged). Each case below starts
@@ -44,10 +44,10 @@ test('the digest is sound only while every top-level name lives in one sim file'
 });
 test('moving a function between sim files byte for byte (or a file split) keeps the digest, so it keeps RECORD_VERSION', () => {
   const real = simSources(), before = simDigest(real);
-  const fn = /^export function walled[\s\S]*?\n\}\n|^export const walled = [^\n]*\n/m.exec(real['src/duel.ts']!)?.[0];
+  const fn = /^export function walled[\s\S]*?\n\}\n|^export const walled = [^\n]*\n/m.exec(real['src/fight/duel.ts']!)?.[0];
   assert.ok(fn, 'the probe moves duel.ts walled(): it must exist');
-  const moved = { ...real, 'src/duel.ts': real['src/duel.ts']!.replace(fn, "import { walled } from './fight/walls.ts';\nexport { walled } from './fight/walls.ts';\n"), 'src/fight/walls.ts': `import { RULES } from '../moves.ts';\n// moved, unchanged\n${fn}` };
-  assert.notEqual(moved['src/duel.ts'], real['src/duel.ts']);
+  const moved = { ...real, 'src/fight/duel.ts': real['src/fight/duel.ts']!.replace(fn, "import { walled } from './fight/walls.ts';\nexport { walled } from './fight/walls.ts';\n"), 'src/fight/walls.ts': `import { RULES } from '../moves.ts';\n// moved, unchanged\n${fn}` };
+  assert.notEqual(moved['src/fight/duel.ts'], real['src/fight/duel.ts']);
   assert.equal(simDigest(moved), before, 'a byte-identical move changed the digest: it would force a bump and kill every live link for nothing');
   assert.deepEqual(duplicateNames(moved), []);
   const renamed = Object.fromEntries(Object.entries(real).map(([p, src]) => [p.replace('src/', 'src/fight/'), src]));
@@ -55,17 +55,17 @@ test('moving a function between sim files byte for byte (or a file split) keeps 
 });
 test('any real change still moves the digest (a constant, a number in a body, an aliased import, a data file); a comment does not', () => {
   const real = simSources(), before = simDigest(real), edit = (path: string, from: RegExp, to: string) => { const src = real[path]!.replace(from, to); assert.notEqual(src, real[path], `the probe edit applies to ${path}`); return simDigest({ ...real, [path]: src }); };
-  assert.notEqual(edit('src/play-radius.ts', /BASE_RADIUS = 8\.55/, 'BASE_RADIUS = 8.56'), before, 'a sim constant changed and the digest did not');
-  assert.notEqual(edit('src/duel.ts', /\.85 - 1e-8/, '.86 - 1e-8'), before, 'a number inside a function body changed and the digest did not');
-  assert.notEqual(simDigest({ ...real, 'src/ai.ts': real['src/ai.ts']!.replace(/import \{ aim,/, 'import { aim as aimOther, aim,') }), before, 'an aliased import is a rebinding: it must count');
+  assert.notEqual(edit('src/fight/play-radius.ts', /BASE_RADIUS = 8\.55/, 'BASE_RADIUS = 8.56'), before, 'a sim constant changed and the digest did not');
+  assert.notEqual(edit('src/fight/duel.ts', /\.85 - 1e-8/, '.86 - 1e-8'), before, 'a number inside a function body changed and the digest did not');
+  assert.notEqual(simDigest({ ...real, 'src/fight/ai.ts': real['src/fight/ai.ts']!.replace(/import \{ aim,/, 'import { aim as aimOther, aim,') }), before, 'an aliased import is a rebinding: it must count');
   assert.notEqual(simDigest({ ...real, 'src/blade-table.json': '{"a":1}' }), simDigest({ ...real, 'src/blade-table.json': '{"a":2}' }), 'a data file is hashed by its bytes');
-  assert.equal(edit('src/sim.ts', /\/\/ World coordinates only\./, '// World coordinates only, reworded.'), before, 'a comment is not the fight');
-  assert.deepEqual(duplicateNames({ ...real, 'src/stance.ts': `${real['src/stance.ts']}\nexport const walled = 1;\n` }), ['walled: src/duel.ts, src/stance.ts'], 'a second declaration of a sim name is reported');
+  assert.equal(edit('src/fight/sim.ts', /\/\/ World coordinates only\./, '// World coordinates only, reworded.'), before, 'a comment is not the fight');
+  assert.deepEqual(duplicateNames({ ...real, 'src/fight/stance.ts': `${real['src/fight/stance.ts']}\nexport const walled = 1;\n` }), ['walled: src/fight/duel.ts, src/fight/stance.ts'], 'a second declaration of a sim name is reported');
 });
 
 // The accept-list, pinned as data beside the digest above and for the same reason: which versions this build will READ is a decision
 // someone makes, not a value that drifts. The server reads this same list — scripts/verify-daily.mjs imports `decodeRecord` from
-// src/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
+// src/fight/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
   assert.deepEqual([...READABLE_VERSIONS], [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
@@ -105,18 +105,18 @@ test('an older record decodes only where no later bump reached its fight', () =>
   assert.throws(() => unpackRecord(at(17, 'goblin', 18)), /version 17 is not supported/, 'v17 is outside the window');
 });
 
-// The patron rule must survive the NEXT fight-logic bump (the Auditor's RV33 probe, 2026-10-07): a throwaway copy of src/record.ts with the ceiling at 33 (imports pointed back
-// at the real src/, so the one sim and the one set of era flags). Today the ceiling is 33 (RV33/RV34 stamp only a Gambit / stances fight; a patron-less fight writes 31, a patron fight 32); at 35 every
+// The patron rule must survive the NEXT fight-logic bump (the Auditor's RV33 probe, 2026-10-07): a throwaway copy of src/fight/record.ts with the ceiling at 33 (imports pointed back
+// at the real src/ and src/fight/, so the one sim and the one set of era flags). Today the ceiling is 33 (RV33/RV34 stamp only a Gambit / stances fight; a patron-less fight writes 31, a patron fight 32); at 35 every
 // live fight stamps the ceiling again (a patron byte of 0 for a patron-less one), the build must read its own fresh links, and only v32 refuses a zero patron.
 test('RV41 simulated: a patron-less fight stamps the new ceiling and round-trips; a patron fight too; a v32 record with no patron is still refused', async () => {
   assert.equal(NO_PATRON_VERSION, RECORD_VERSION <= 40 ? 31 : RECORD_VERSION); assert.equal(PATRON_VERSION, RECORD_VERSION <= 40 ? 32 : RECORD_VERSION);
-  const src = readFileSync(new URL('../src/record.ts', import.meta.url), 'utf8').replace(/from '\.\//g, `from '${new URL('../src/', import.meta.url).href}`);
+  const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\.\//g, `from '${new URL('../src/', import.meta.url).href}`).replace(/from '\.\//g, `from '${new URL('../src/fight/', import.meta.url).href}`);
   const bumped = src.replace('export const RECORD_VERSION = 40;', 'export const RECORD_VERSION = 41;').replace('38, 39, 40] as const', '38, 39, 40, 41] as const').replace('  40: [],', '  40: [],\n  41: [],');
   assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 41') && bumped.includes('40, 41] as const') && bumped.includes('41: [],'), 'the probe edits applied');
   const dir = mkdtempSync(join(tmpdir(), 'rv33-'));
   try {
     const file = join(dir, 'record33.ts'); writeFileSync(file, bumped);
-    const m = await import(pathToFileURL(file).href) as typeof import('../src/record.ts');
+    const m = await import(pathToFileURL(file).href) as typeof import('../src/fight/record.ts');
     assert.equal(m.RECORD_VERSION, 41); assert.equal(m.NO_PATRON_VERSION, 41); assert.equal(m.PATRON_VERSION, 41);
     setPlayScale(playScaleFor('goblin', 41)); setLateNotice(true); setStab(true);
     const fightOf = (patron?: number) => {

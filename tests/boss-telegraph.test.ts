@@ -1,7 +1,7 @@
 // The boss ground telegraph (boss-telegraph.ts, ?telegraph=1): a pure read of the sim's windup, boss specials only, never written back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RULES } from '../src/moves.ts';
+import { RULES } from '../src/fight/moves.ts';
 import { telegraphFlag, telegraphLook } from '../src/boss-telegraph.ts';
 
 test('the flag is explicit: only ?telegraph=1|on|ring turns it on', () => {

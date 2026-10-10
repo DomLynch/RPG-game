@@ -15,7 +15,9 @@ nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1 | head -2;
 say "SETUP"
 export DEBIAN_FRONTEND=noninteractive
 # jpegtran: the lossless texture plugin in vite.config.mjs; ffmpeg: arena-audio-check and the clip rows; the GL libs for the probe.
-apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git ffmpeg libvulkan1 libegl1 libjpeg-turbo-progs >/dev/null 2>&1; echo "apt exit $? jpegtran=$(command -v jpegtran || echo MISSING)"
+# postgresql: initdb for account-database-check (row 13), which refuses root, and this job runs the rows as pwuser.
+apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git ffmpeg libvulkan1 libegl1 libjpeg-turbo-progs postgresql >/dev/null 2>&1; echo "apt exit $? jpegtran=$(command -v jpegtran || echo MISSING)"
+pgbin=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1); echo "initdb=${pgbin:-MISSING}/initdb"
 id pwuser >/dev/null 2>&1 || useradd -m pwuser
 work=/home/pwuser/rows; mkdir -p "$work"; chown -R pwuser "$work"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}"
@@ -41,16 +43,19 @@ su pwuser -c "cd $work/repo && npm ci --no-audit --no-fund >/tmp/npm-ci.log 2>&1
 say "PROBE WebGL"
 cat > .gl-probe.mjs <<'EOF'
 import { chromium } from 'playwright';
-const b = await chromium.launch({ headless: true }), p = await b.newPage();
-console.log(await p.evaluate(() => { const c = document.createElement('canvas'), g = c.getContext('webgl2') || c.getContext('webgl'); if (!g) return 'NO WEBGL CONTEXT'; const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); }));
-await b.close();
+// Both binaries the rows launch: the headless shell (chromium.launch({ headless: true })) and the full Chromium (scripts/lib/harness.mjs
+// and most rows pass executablePath: chromium.executablePath()). A shell-only probe said NVIDIA while the rows drew in SwiftShader.
+const renderer = async (options) => { const b = await chromium.launch({ headless: true, ...options }), p = await b.newPage();
+  try { return await p.evaluate(() => { const c = document.createElement('canvas'), g = c.getContext('webgl2') || c.getContext('webgl'); if (!g) return 'NO WEBGL CONTEXT'; const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); }); } finally { await b.close(); } };
+console.log(`shell=${await renderer({})} | chrome=${await renderer({ executablePath: chromium.executablePath() })}`);
 EOF
 chown pwuser .gl-probe.mjs
 probe() { su pwuser -c "cd $work/repo && PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH timeout 90 node .gl-probe.mjs" 2>&1 | head -1; }
 chosen=""
-for flags in "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=vulkan --enable-features=Vulkan" "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=gl-egl" "--ignore-gpu-blocklist --enable-gpu --use-gl=egl"; do
+for flags in "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=vulkan --enable-features=Vulkan --disable-vulkan-surface" "--ignore-gpu-blocklist --enable-gpu --use-gl=angle --use-angle=gl-egl" "--ignore-gpu-blocklist --enable-gpu --use-gl=egl"; do
   wrap "$flags"; renderer=$(probe); echo "[$flags] -> $renderer"
-  if echo "$renderer" | grep -qiE 'nvidia|tesla|geforce|rtx| t4|l4|a10' && ! echo "$renderer" | grep -qiE 'swiftshader|llvmpipe|software'; then chosen="$flags"; break; fi
+  hardware() { echo "$1" | grep -qiE 'nvidia|tesla|geforce|rtx| t4|l4|a10' && ! echo "$1" | grep -qiE 'swiftshader|llvmpipe|software|no webgl'; }
+  if hardware "${renderer%% | chrome=*}" && hardware "${renderer##* | }"; then chosen="$flags"; break; fi   # both binaries, not either
 done
 rm -f .gl-probe.mjs
 [[ -n "$chosen" ]] || { say "BLOCKER no hardware WebGL (every flag set rendered in software)"; say "COST seconds=$(( $(date +%s) - t0 ))"; exit 11; }
@@ -65,7 +70,7 @@ echo "build exit $build in $(( $(date +%s) - b0 ))s"; [[ $build -eq 0 ]] || { ta
 
 say "ROWS (width ${WIDTH:-4}, on the Mac: $SKIP)"
 r0=$(date +%s)
-su pwuser -c "cd $work/repo && PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH RELEASE_CHECK_CONCURRENCY=${WIDTH:-4} RELEASE_CHECKS_SKIP=$SKIP RELEASE_CHECKS_SKIP_SOURCE=the-Mac node scripts/release-checks.mjs > /tmp/rows.log 2>&1"; rows=$?
+su pwuser -c "cd $work/repo && PATH=${pgbin:+$pgbin:}\$PATH PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH RELEASE_CHECK_CONCURRENCY=${WIDTH:-4} RELEASE_CHECKS_SKIP=$SKIP RELEASE_CHECKS_SKIP_SOURCE=the-Mac node scripts/release-checks.mjs > /tmp/rows.log 2>&1"; rows=$?
 wall=$(( $(date +%s) - r0 ))
 echo "rows exit $rows in ${wall}s"
 grep -E '(Release|Extended) check|Retrying|Not retrying' /tmp/rows.log
