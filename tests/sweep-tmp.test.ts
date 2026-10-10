@@ -15,16 +15,16 @@ function scratch() {
   const outside = join(base, 'outside');
   mkdirSync(root); mkdirSync(outside);
   writeFileSync(join(outside, 'keep.txt'), 'x');
-  for (const d of ['old-build', 'old-open', 'claude-1003', '.hidden', 'systemd-private-abc', 'mixed', 'fresh', 'old name with spaces']) {
+  for (const d of ['ci-trust-old', 'ci-trust-open', 'claude-1003', '.hidden', 'systemd-private-abc', 'ci-trust-mixed', 'ci-trust-fresh', 'ci-trust-old name with spaces', 'tmux-0', 'snap-private-tmp', 'old-unlisted']) {
     mkdirSync(join(root, d)); writeFileSync(join(root, d, 'f.txt'), 'x');
   }
   writeFileSync(join(root, 'plain-old-file.txt'), 'x');
   symlinkSync(outside, join(root, 'link-to-outside'));
-  writeFileSync(join(root, 'mixed', 'new.txt'), 'x');
-  sh(`find '${root}' -mindepth 1 -not -path '${root}/fresh*' -not -path '${root}/mixed/new.txt' -not -type l -exec touch -d '3 days ago' {} +`);
-  sh(`touch -d '3 days ago' '${root}/mixed'`);
+  writeFileSync(join(root, 'ci-trust-mixed', 'new.txt'), 'x');
+  sh(`find '${root}' -mindepth 1 -not -path '${root}/ci-trust-fresh*' -not -path '${root}/ci-trust-mixed/new.txt' -not -type l -exec touch -d '3 days ago' {} +`);
+  sh(`touch -d '3 days ago' '${root}/ci-trust-mixed'`);
   const lsof = join(base, 'lsof');
-  writeFileSync(lsof, '#!/bin/bash\n[[ "$*" == *old-open* ]] && printf "COMMAND PID\\nnode 1\\n"\nexit 0\n');
+  writeFileSync(lsof, '#!/bin/bash\nprintf "p1\\nn/etc/passwd\\nn%s/ci-trust-open/f.txt\\n" "$SWEEP_ROOT"\nexit 1\n');
   chmodSync(lsof, 0o755);
   return { base, root, outside, lsof };
 }
@@ -35,15 +35,26 @@ test('removes only old, unopened top-level dirs and logs df before/after and eac
   try {
     const r = run(s);
     assert.equal(r.status, 0, r.stderr);
-    assert.ok(!existsSync(join(s.root, 'old-build')), 'old dir removed');
-    assert.ok(!existsSync(join(s.root, 'old name with spaces')), 'old dir with spaces in its name removed');
-    for (const keep of ['old-open', 'claude-1003', '.hidden', 'systemd-private-abc', 'mixed', 'fresh', 'plain-old-file.txt', 'link-to-outside']) {
+    assert.ok(!existsSync(join(s.root, 'ci-trust-old')), 'old dir removed');
+    assert.ok(!existsSync(join(s.root, 'ci-trust-old name with spaces')), 'old dir with spaces in its name removed');
+    for (const keep of ['ci-trust-open', 'claude-1003', '.hidden', 'systemd-private-abc', 'ci-trust-mixed', 'ci-trust-fresh', 'tmux-0', 'snap-private-tmp', 'old-unlisted', 'plain-old-file.txt', 'link-to-outside']) {
       assert.ok(existsSync(join(s.root, keep)), `${keep} stays`);
     }
     assert.ok(existsSync(join(s.outside, 'keep.txt')), 'a symlink is never followed');
     assert.match(r.stdout, /df before:/); assert.match(r.stdout, /df after:/);
-    assert.match(r.stdout, /removed old-build/); assert.match(r.stdout, /keep old-open \(open handle\)/);
+    assert.match(r.stdout, /removed ci-trust-old/); assert.match(r.stdout, /keep ci-trust-open \(open handle\)/);
     assert.match(r.stdout, /2 dir\(s\) removed/);
+  } finally { rmSync(s.base, { recursive: true, force: true }); }
+});
+
+test('fails closed when lsof fails or prints nothing: nothing is removed', () => {
+  const s = scratch();
+  try {
+    for (const bad of ['/nonexistent/lsof', 'true']) {
+      const r = spawnSync('bash', [script], { encoding: 'utf8', env: { ...process.env, SWEEP_ROOT: s.root, LSOF: bad } });
+      assert.equal(r.status, 3, `${bad}: ${r.stdout}`);
+      assert.ok(existsSync(join(s.root, 'ci-trust-old')), 'nothing removed');
+    }
   } finally { rmSync(s.base, { recursive: true, force: true }); }
 });
 
@@ -52,8 +63,8 @@ test('--dry-run removes nothing', () => {
   try {
     const r = run(s, '--dry-run');
     assert.equal(r.status, 0, r.stderr);
-    assert.ok(existsSync(join(s.root, 'old-build')));
-    assert.match(r.stdout, /would remove old-build/);
+    assert.ok(existsSync(join(s.root, 'ci-trust-old')));
+    assert.match(r.stdout, /would remove ci-trust-old/);
   } finally { rmSync(s.base, { recursive: true, force: true }); }
 });
 
