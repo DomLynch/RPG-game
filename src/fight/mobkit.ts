@@ -2,9 +2,9 @@
 // The warden's own decide() still chooses WHEN to attack; this layer only chooses WHICH of the moves that already exist, the way sparring.ts takes attacks out of an intent after decide().
 // Outside SIM_FILES on purpose: it reads a Duel and returns an Intent, writes nothing back, and never runs in the ladder, so every Pit fight and every ladder record is unchanged by construction. A WORLD-fight record is not: the layer's swaps change what the mob throws, so replaying one needs this same kit (the kit is not yet versioned in the record: Backend's KIT_VERSION check, before ORIGINS_ENCOUNTERS goes on).
 // Deterministic: a trigger is a condition on the duel (no dice, no chance), a cooldown is ticks. Nothing here resolves a blow; the swapped move goes through the same legal() and the same stepDuel.
-import { legal, movesOf, type Action, type Duel, type Intent, type Side } from './fight/duel.ts';
-import type { MoveId, WeaponId } from './fight/moves.ts';
-import { rollUnit } from './fight/roll.ts';
+import { legal, movesOf, type Action, type Duel, type Intent, type Side } from './duel.ts';
+import type { MoveId, WeaponId } from './moves.ts';
+import { rollUnit } from './roll.ts';
 
 export type KitTrigger = 'opener' | 'afterHit' | 'heroGuarding' | 'heroExhausted' | 'selfBelow';
 export type KitMove = 'light' | 'heavy' | 'thrust' | 'skill';

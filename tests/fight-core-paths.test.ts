@@ -9,7 +9,7 @@ const CORE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', '
   'detmath', 'roll', 'stab-rule', 'blade', 'beast-scale',
   'class-special-identity', 'signature-dwarf', 'signature-executioner', 'signature-goblin', 'signature-knight', 'signature-nightborn', 'signature-pitborn', 'signature-plaguedoctor', 'signature-shieldmaiden', 'signature-veteran', 'signature-witch', 'signature', 'special-boss-timing', 'special-class-timing', 'special-fx-boss', 'special-fx-class', 'special-fx-dwarf-shield', 'special-fx-executioner', 'special-fx-goblin', 'special-fx-legion', 'special-fx-nightborn', 'special-fx-pitborn', 'special-fx-quake', 'special-fx-wind', 'special-fx', 'special-gust', 'special-identity', 'special-lighting', 'special-look', 'special-modes', 'special-presentation', 'special-timing', 'special-tithe',
   'loot', 'loot-claims', 'gear-server', 'gear-ledger', 'gear-net', 'weapon-shapes', 'blade-paths', 'shields', 'rank-look', 'night-armour',
-  'charge-fx', 'charge-timing', 'nightfall-fx', 'nightfall-timing', 'boss-telegraph', 'miasma-mark', 'witchfire', 'spell-school', 'power-words', 'sparring-special-runtime', 'sparring-specials', 'scorch', 'skill-impact'];
+  'charge-fx', 'charge-timing', 'nightfall-fx', 'nightfall-timing', 'boss-telegraph', 'miasma-mark', 'witchfire', 'spell-school', 'power-words', 'sparring-special-runtime', 'sparring-specials', 'scorch', 'skill-impact', 'mobkit', 'pack'];
 const ROOTS = ['src', 'tests', 'scripts', 'origins'];
 const SKIP = new Set(['node_modules', 'dist', 'artifacts', 'assets', 'public']);
 

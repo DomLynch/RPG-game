@@ -77,7 +77,7 @@ export class Match {
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–50 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
   recorder: Recorder | null = null;
-  layer: ((duel: Duel, warden: Intent) => Intent) | null = null;   // a world layer on the live warden (src/mobkit.ts, set by the creature encounter / a ?mob= spar); never set for a ladder fight or a replay
+  layer: ((duel: Duel, warden: Intent) => Intent) | null = null;   // a world layer on the live warden (src/fight/mobkit.ts, set by the creature encounter / a ?mob= spar); never set for a ladder fight or a replay
   recorded = false;
   private ended: Ended | null = null;   // end() once: a second call hands back the same result with nothing re-awarded
   activeMs = 0;   // real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count

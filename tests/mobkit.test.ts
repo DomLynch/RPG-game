@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
-import { AFTER_HIT_TICKS, initialKit, kitIntent, type KitRow } from '../src/mobkit.ts';
+import { AFTER_HIT_TICKS, initialKit, kitIntent, type KitRow } from '../src/fight/mobkit.ts';
 import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
 import { KITS, MODE, MODES, mobLayer, mobProfile } from '../origins/mobs/kits.ts';
 import { initialPractice, stepPractice, type Practice } from '../src/fight/combat.ts';
