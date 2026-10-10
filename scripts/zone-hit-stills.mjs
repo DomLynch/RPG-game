@@ -38,7 +38,10 @@ try {
     await page.evaluate((i) => window.originsPreview.tapMob(i), target.id);
     const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id);
     const down = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.phase === 'dead', target.id);
-    for (let k = 0; k < 60 && (await hp()) === null; k++) await page.waitForTimeout(250);   // the creature is in the loop's fighters only once it has joined; cutting before that reads no health
+    for (let attempt = 0; attempt < 4 && (await hp()) === null; attempt++) {   // the creature is in the loop's fighters only once it has joined; cutting before that reads no health, so walk up and tap again
+      if (attempt) { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return [x.x, x.z]; }, target.id); await page.evaluate(([x, zz]) => window.originsPreview.place(x, zz - 1.4, 0), m); await page.waitForTimeout(1500); await page.evaluate((i) => window.originsPreview.tapMob(i), target.id); }
+      for (let k = 0; k < 32 && (await hp()) === null; k++) await page.waitForTimeout(250);
+    }
     let first = null, shot = false;
     if (KILL) await page.evaluate(() => window.originsPreview.reset(40));   // a strong hero (test setup, memory only): the creature goes down in a few cuts, inside the run
     for (let t = 0; t < (KILL ? 80 : 90) && !shot; t++) {
