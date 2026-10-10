@@ -1,6 +1,7 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight) for STAB (#1957): ready idle, mid-fight (engaged), then a stab pressed (window.originsPreview.combat press('thrust')) and shot mid-swing.
 // Usage: node scripts/zone1-stab-stills.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
 //   ZONE=2 shoots another zone (?region=1&zone=2&worldfight, the way zone-hit-stills reaches it); TAGS_TARGET=<id or id prefix> picks the foe;
+//   LONE=1 adds &lone (one foe instead of the pack, so the hero is not overwhelmed and KILL=1 can land the kill);
 //   KILL=1 then cuts until the foe's health is 0 and adds kill.png. Defaults (Zone 1, no kill) are unchanged.
 import fs from 'node:fs';
 import http from 'node:http';
@@ -24,7 +25,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
-  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1${zone === '1' ? '' : `&zone=${zone}`}&worldfight`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1${zone === '1' ? '' : `&zone=${zone}`}&worldfight${process.env.LONE ? '&lone' : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
   await page.waitForTimeout(8000);
   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
@@ -32,7 +33,7 @@ try {
   const want = process.env.TAGS_TARGET || '';   // a creature id; default the first drawn one in id order, so before and after engage the same foe
   const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body).sort((a, b) => (a.id < b.id ? -1 : 1)).find((m) => !id || m.id.startsWith(id)), want);
   console.log('target:', target.id);
-  await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
+  await page.evaluate(([x, z, back]) => window.originsPreview.place(x, z - back, 0), [target.x, target.z, 2.5]);
   await page.waitForTimeout(zone === '1' ? 20000 : 2500);   // Zone 2's wolf pack aggros within seconds: a 20 s wait gets the hero mauled and respawned in the Pit
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate((w) => window.originsPreview.duel()?.ready || (w && document.body.classList.contains('infight')), zone !== '1')) break; }   // other zones: the engine loop runs in the walk, duel() stays null, so wait for the infight class
@@ -46,10 +47,10 @@ try {
   if (process.env.KILL) {   // cut until the foe's health is 0 (or its fighter is gone), then shoot the kill
     const read = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { foe: c.target?.health ?? null, st: c.hero?.stamina ?? 0, down: !!c.hero?.dead }; });
     let seen = null, dead = false;
-    for (let t = 0; t < 150 && !dead; t++) {
+    for (let t = 0; t < 400 && !dead; t++) {
       const { foe, st, down } = await read(); seen ??= foe; dead = !down && ((foe !== null && foe <= 0) || (foe === null && seen !== null)); if (dead || down) break;
-      if (st < 30) { await page.waitForTimeout(1500); continue; }   // out of stamina: let it come back, a cut at 0 lands nothing
-      await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(400);
+      if (st < 30) { await page.waitForTimeout(1200); continue; }   // out of stamina: let it come back, a cut at 0 lands nothing
+      await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(150);
     }
     console.log('kill:', dead, 'foe hp seen', seen, 'hero:', JSON.stringify(await page.evaluate(() => window.originsPreview.combat().hero)).slice(0, 120));
     await shot(dead ? 'kill' : 'no-kill');   // no-kill: the hero went down (or the cuts ran out) first; say so rather than call it a kill
