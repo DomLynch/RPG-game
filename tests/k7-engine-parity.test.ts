@@ -168,7 +168,7 @@ test('Zone 2 and later zones are data: no src/ import, only `import type`, under
 });
 
 test('the checker sees static, re-export and dynamic imports, and passes the door', () => {
-  const src: Record<string, string> = { 'origins/a.ts': "import { x } from '../src/duel.ts';\nexport { y } from '../src/fight/index.ts';\nconst z = await import('../src/audio/creature.ts');\nimport '../src/mystery.ts';\n" };
+  const src: Record<string, string> = { 'origins/a.ts': "import { x } from '../src/fight/duel.ts';\nexport { y } from '../src/fight/index.ts';\nconst z = await import('../src/audio/creature.ts');\nimport '../src/mystery.ts';\n" };
   const v = violations((f) => src[f]!, ['origins/a.ts']);
   assert.deepEqual(v.bad, ['1 | K2 | origins/a.ts -> duel', '12 | P1/P2 | origins/a.ts -> creature']);
   assert.deepEqual(v.unclassified, ['origins/a.ts -> mystery']);
