@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { TAP_ATTACK, battery } from './strategies.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an era flag, off in a headless run): the shipped warden is the one these rows judge
 
 test('level 1: a tap-attacking first-timer beats every ladder opponent in ≥ 44 / 48 fights [slow]', () => {

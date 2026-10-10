@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bladeContact, segmentDistance } from '../src/blade.ts';
+import { bladeContact, segmentDistance } from '../src/fight/blade.ts';
 import { SWORD, initialPractice, stepPractice, PROFILES, type Intent } from '../src/fight/combat.ts';
 import { createFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { MOVES, RULES } from '../src/fight/moves.ts';
