@@ -235,7 +235,7 @@ for (const el of [prompt, shade]) el.addEventListener('pointerdown', (e) => e.st
 prompt.addEventListener('click', tapNear);
 shade.addEventListener('click', (e) => { if (e.target === shade || (e.target as Element).id === 'shut') openPanel(null); });
 addEventListener('keydown', (e) => {
-  if (fighting) return;   // the duel's own keys (src/input.ts) own the keyboard while it is up
+  if (fighting) return;   // the duel's own keys (src/fight/input.ts) own the keyboard while it is up
   if (e.code === 'Escape') openPanel(null); else if (e.code === 'KeyE' && near && !open) tapNear();
 });
 
@@ -254,7 +254,7 @@ const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = 1.9, followCam 
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
   if (open) forward = turn = 0;
-  else if (kit) {   // the Pit's own controls (src/input.ts over the game's kit, pit-duel.ts world mode): stick walks, a button presses the nearest creature into a duel
+  else if (kit) {   // the Pit's own controls (src/fight/input.ts over the game's kit, pit-duel.ts world mode): stick walks, a button presses the nearest creature into a duel
     const i = duel!.worldIntent(), k = i.run ? 2 : 1;
     forward = Math.max(-0.6, Math.min(1, -i.z)) * k; strafe = Math.max(-1, Math.min(1, i.x)) * 0.7 * k; running = i.run;
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
@@ -402,7 +402,7 @@ let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null
 let source: Source = CHECKING;
 let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
-// ?region=1: the walk uses the Pit's controls exactly (Dom 2026-10-07). pit-duel.ts (its own chunk) binds the game's kit and src/input.ts in world mode; until
+// ?region=1: the walk uses the Pit's controls exactly (Dom 2026-10-07). pit-duel.ts (its own chunk) binds the game's kit and src/fight/input.ts in world mode; until
 // it has loaded the old floating sticks still work, and if it never loads they stay. The ☰ menu's "Camera locked" chip is the lock-on, saved in this page's own key.
 if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
