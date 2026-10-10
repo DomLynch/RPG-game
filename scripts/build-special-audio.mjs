@@ -83,7 +83,7 @@ function tithe() {
 }
 
 
-// The Nightborn bosses' rank 8-10 specials share one clock (src/special-timing.ts): the cast starts at SpecialStarted, the strike lands at LANDED = 119 ticks = 1.983 s,
+// The Nightborn bosses' rank 8-10 specials share one clock (src/fight/special-timing.ts): the cast starts at SpecialStarted, the strike lands at LANDED = 119 ticks = 1.983 s,
 // and the cast recovers over the next 0.75 s. Each cue below starts with the cast and its payoff sits on LANDED; the hit cue is the hit's own.
 const LANDED = 1.983;
 // Chamberlin state-variable filter with a moving cutoff (Hz as a function of time): the sweeps below need a filter that changes while it runs.

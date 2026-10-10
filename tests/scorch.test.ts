@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { createFighter, type CombatEvent } from '../src/fight/duel.ts';
 import { initialState } from '../src/fight/sim.ts';
 import { SCORCH, scorch, scorchLook, scorches } from '../src/scorch.ts';
-import { createSignatureMarks } from '../src/signature.ts';
+import { createSignatureMarks } from '../src/fight/signature.ts';
 
 const fighters = [createFighter(initialState(), 'attack'), createFighter({ ...initialState(), z: 0 }, 'hurt')] as const;
 const landed: CombatEvent = { tick: 120, type: 'Hit', actor: 0, target: 1, move: 'skill_witchfire', location: 'torso' };

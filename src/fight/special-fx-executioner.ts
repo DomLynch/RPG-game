@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
 import { advanceCast, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
-import { crowdWave } from './arena.ts';
-import { clamp01, hash, noise, smooth } from './fight/fx-math.ts';
+import { crowdWave } from '../arena.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // The Executioner's boss specials, rank 8, 9 and 10 (Executioner lane; Dom's picks via Strategy 2026-10-01). PREVIEW ONLY, behind ?special=<kind>, on the
 // seam of Hades' Shadow (special-timing.ts: the one 120-tick wind-up, SpecialStarted / Landed / Fizzled). Presentation only: it reads the sim's special

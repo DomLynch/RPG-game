@@ -1,7 +1,7 @@
 // Transient admin presets. No record, equipment, identity or global rule changes.
 import { RULES, specialOf } from './fight/moves.ts';
 import { skillOf } from './loot.ts';
-import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
+import { SPECIAL_TESTS, type SpecialTest } from './fight/special-look.ts';
 import { SPECIAL_CUE_OF, type SpecialCue } from './fight/sound/special.ts';
 import type { SparringKit } from './sparring.ts';
 import type { Duel, Fighter } from './fight/duel.ts';

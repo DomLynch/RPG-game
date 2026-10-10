@@ -1,5 +1,5 @@
-import { specialOf, type SpecialName } from './fight/moves.ts';
-import type { OpponentId } from './roster.ts';
+import { specialOf, type SpecialName } from './moves.ts';
+import type { OpponentId } from '../roster.ts';
 
 // Pure identity bridge: #1114 names to the accepted preview keys. FX and audio
 // resolve these keys outside the simulation; this module activates nothing.

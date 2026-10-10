@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SHIPPED, SIGNATURES, pickSignature } from '../src/signature.ts';
-import { STAMP, STAMP_B, STAMP_C } from '../src/signature-dwarf.ts';
+import { SHIPPED, SIGNATURES, pickSignature } from '../src/fight/signature.ts';
+import { STAMP, STAMP_B, STAMP_C } from '../src/fight/signature-dwarf.ts';
 
 test('the Dwarf has A and B; on still picks A, B picks the bruise at about twice the size', () => {
   assert.equal(pickSignature(SIGNATURES.dwarf, 'on')?.name, 'Hammer Stamp');
