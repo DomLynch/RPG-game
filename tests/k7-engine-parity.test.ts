@@ -86,7 +86,6 @@ const KNOWN: readonly string[] = [
   "5 | K2 | origins/preview/pit-duel.ts -> input",
   "5 | K2 | origins/preview/sticks.ts -> input",
   "6 | K2 | origins/preview/play.ts -> warrior",
-  "7 | K11 | origins/preview/mob-looks.ts -> beast-scale",
   "7 | K11 | origins/preview/mobs-view.ts -> goblin",
   "7 | K11 | origins/preview/mobs-view.ts -> knight",
   "7 | K11 | origins/preview/mobs-view.ts -> pitborn",
