@@ -19,7 +19,7 @@ const engine = walk('src/fight');
 const others = [...walk('src'), ...walk('origins')].filter((f) => !f.startsWith('src/fight/'));
 const SHARED_LINES = 10;
 // Debt, not a licence: a re-export shim another lane left (K10 step 1, e37ac574d). Its owner deletes src/hud.ts and imports src/fight/hud.ts; the next test fails when it is gone, so this list is emptied then.
-const KNOWN_SHIMS = ['src/hud.ts'];
+const KNOWN_SHIMS: string[] = [];
 test('every KNOWN_SHIMS entry still exists (delete the entry with the shim)', () => assert.deepEqual(KNOWN_SHIMS.filter((f) => !existsSync(join(root, f))), []));
 
 test('src/fight/ has files (the scan is not empty)', () => assert.ok(engine.length >= 10, `found ${engine.length}`));

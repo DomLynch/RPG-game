@@ -42,6 +42,7 @@
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
 import type { Practice } from './fight/combat.ts';
+import { offFlag } from './off-flag.ts';
 import type { Phase } from './fight/duel.ts';
 import type { FinisherId } from './fight/finishers.ts';
 
@@ -137,5 +138,8 @@ export const runThroughForced = (url: string | undefined): boolean => {
 };
 // Whether this fight's look takes a pre-swap waist-cut bake (characters.ts prepareLook): only for an opponent who can play opened (the Knight
 // and the Plague Doctor, plainDeath only, take none: their swap timing is unchanged, Lead on 151e50e8), never at a forced rank, never with
-// ?lookbake=off.
+// ?off=lookbake (the old ?lookbake=off still works).
 export const lookBakes = (opensWaist: boolean, url: string | undefined, bakeOff = false): boolean => opensWaist && !bakeOff && !runThroughForced(url);
+
+/** `?off=lookbake` (and the old `?lookbake=off`, kept so shared links work): no waist-cut bake for the look. Dev/gate only. */
+export const lookBakeOffFrom = (search: string): boolean => offFlag(search, 'lookbake') || new URLSearchParams(search).get('lookbake') === 'off';

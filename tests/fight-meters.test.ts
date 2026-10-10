@@ -20,6 +20,7 @@ test('fillMeter and paintMeter write the --fill percentage the style sheets draw
   paintMeter(m, 75, 150);
   assert.equal((m as never as El).max, 150); assert.equal((m as never as El).value, 75); assert.equal((m as never as El).props.get('--fill'), '50%');
   fillMeter(m, 25, 100); assert.equal((m as never as El).props.get('--fill'), '25%');
+  fillMeter(m, -2, 100); assert.equal((m as never as El).props.get('--fill'), '0%', 'a negative value never draws below an empty bar');
 });
 
 test('createMeters: hidden until shown, then health, stamina and the foe in reach are painted from plain numbers', () => {
