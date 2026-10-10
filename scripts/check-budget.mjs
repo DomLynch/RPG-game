@@ -109,7 +109,7 @@ const BEASTS_FILE = 2_200_000, BEASTS_SET = 8_000_000;
 // another zone never touches Zone 1's download. Zone 1 (the Ash Frontier) keeps 7.57 MB: its measured set today plus the boar and the bear (the two rows that will
 // join it) is about 6.7 MB gzip, so the cap only has to hold the full Zone 1 cast.
 const WORLD_ZONE1_SET = 7_570_000, WORLD_FILE = 1_300_000;
-export const ZONE1_BODIES = regionBodies(mobSpecs(frontierPlan(), frontierBuild(frontierPlan()), previewRows('?wolf')));
+export const ZONE1_BODIES = regionBodies(mobSpecs(frontierPlan(), frontierBuild(frontierPlan()), previewRows()));
 // Split the world files into Zone 1's set (a body its rows spawn) and the rest; the gate checks the set against its cap.
 export function worldZones(worldFiles, bodies = ZONE1_BODIES) {
   const zone1 = worldFiles.filter(f => bodies.includes(f.name.replace(/\.glb$/, ''))), rest = worldFiles.filter(f => !zone1.includes(f));

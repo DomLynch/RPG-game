@@ -59,7 +59,7 @@ export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): bo
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
 // The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
-export const previewRows = (_search: string): readonly MobRow[] => FRONTIER_ROWS;
+export const previewRows = (): readonly MobRow[] => FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const ID_PREFIX = f.zone === '1' ? '' : `z${f.zone}:`;   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)

@@ -12,7 +12,6 @@ export const DEBT = {
   'origins/combat/zone1.test.ts': { owner: 'Combat & Specials', codes: { '@typescript-eslint/no-unused-vars': 1 } },
   'origins/preview/gear-mount.ts': { owner: 'Web & UI', codes: { 'prefer-const': 1 } },
   'origins/preview/leave-entry.test.ts': { owner: 'Web & UI', codes: { '@typescript-eslint/no-unused-vars': 2 } },   // :46 and :72 (`made` used only as a type; the second came with #2034)
-  'origins/preview/mobs.ts': { owner: 'World, Pit & Audio', codes: { '@typescript-eslint/no-unused-vars': 1 } },
   'origins/server/db.ts': { owner: 'Duels & Backend', codes: { '@typescript-eslint/no-unused-expressions': 1 } },
   // Arrived with batch O's zone PRs (#2025/#2033): `_resolved` at :35 (Lead 2026-10-09: pin it, World removes it).
 };
