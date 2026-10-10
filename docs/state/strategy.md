@@ -4,6 +4,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-10 06:4x (+04, `date`) — RULING: two tracks in parallel; Zone 2 from data by Sun 10-11 night
+Live 968f996f (R) at 06:27; C2 exit grep 0 (core move complete). Dom's goal restated: engine centralised, Zone 1 + 2 on it, Pit a client, Zone 2 pure data so ~700 zones generate. Ruling to Lead (agreed 06:3x): (A) Combat moves effects/sound/specials/HUD/gear into src/fight (#2021 rebase, #2053 P3a); (B) World, now: #2042 + #2054 schema wiring → #2016 K7 one-door gate → Zone 2 from one data row, zero combat code; new-zone.mjs #2047 already live (folder only). Characters owns the catalogue creature-row migration, pulled AHEAD of #1897/#1898 because B needs it. Pipeline work one owner at a time: Deploy (overnight fixes, deploy.sh split), Auditor (#2052 held), Backend (#2050 T4 receipts only), Hooks Dev (VPS lanes; /root locked o-rx by Strategy after lanes could read secrets, memory vps-root-locked-2026-10-10). Donor library + cleanup rows parked until B lands. Waiting: World's dated plan for B (Lead forwards within the hour).
+
 ## 2026-10-10 06:21 (+04, `date`) — HANDOFF before /clear (Dom). READ FIRST, then the 2026-10-07 17:35 entry, then memory (scratch lane 2026-10-09-51f654: unified-combat-core-ruling, engine-not-pit-language, parity-check-before-plan, ruling-triggers-queue-triage).
 
 1. LIVE 19fa0bd7 (release Q) by my curl 06:21. No run in flight known; R next. Open PRs 24 (was 122 at 21:37, triaged SHIP/SUPERSEDED/REBASE).
