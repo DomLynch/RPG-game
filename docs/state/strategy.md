@@ -4,7 +4,7 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
-## 2026-10-10 06:21 (+04, `date`) — HANDOFF before /clear (Dom). READ FIRST, then the 2026-10-07 09:56 entry, then memory (scratch lane 2026-10-09-51f654: unified-combat-core-ruling, engine-not-pit-language, parity-check-before-plan, ruling-triggers-queue-triage).
+## 2026-10-10 06:21 (+04, `date`) — HANDOFF before /clear (Dom). READ FIRST, then the 2026-10-07 17:35 entry, then memory (scratch lane 2026-10-09-51f654: unified-combat-core-ruling, engine-not-pit-language, parity-check-before-plan, ruling-triggers-queue-triage).
 
 1. LIVE 19fa0bd7 (release Q) by my curl 06:21. No run in flight known; R next. Open PRs 24 (was 122 at 21:37, triaged SHIP/SUPERSEDED/REBASE).
 2. Went live 2026-10-09: J4a 15:42 (hero on engine animations), K 17:19 (Zone 1 fight loop on src/fight, copies deleted, goblin camp, catalogue, gear API, save chain), N 21:07, O 22:26 (hit effects into engine, zone careers level 1, zones place own contents), Q 23:14 (C1 core move: duel/ai/sim/moves/combat/play-radius into src/fight; #2045 waterfall: T4 + HF CPU rows always on, Mac = exception list). Dom's save test passed (2 wolf kills recorded, loot in pack).
