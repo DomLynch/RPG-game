@@ -14,12 +14,18 @@ const resolve = (from, rel, has) => {
 };
 
 // Blanks comments (keeping newlines) without being fooled by a comment marker inside a string or inside the other comment kind: a line comment holding slash-star-star is one line comment, a block comment holding two slashes is one block.
+const regexAllowed = (out) => { const t = out.trimEnd(); return t === '' || /[(,=:[!&|?{};+\-*%<>~^]$/.test(t) || /(?:^|[^\w$.])(?:return|typeof|case|in|of|void|delete|throw|new|else|do)$/.test(t); };
 export function stripComments(src) {
   let out = '', i = 0;
   while (i < src.length) {
     const c = src[i], d = src[i + 1];
     if (c === '/' && d === '/') { while (i < src.length && src[i] !== '\n') i++; }
     else if (c === '/' && d === '*') { const end = src.indexOf('*/', i + 2); const stop = end < 0 ? src.length : end + 2; out += src.slice(i, stop).replace(/[^\n]/g, ' '); i = stop; }
+    else if (c === '/' && regexAllowed(out)) {   // a regex literal: its `\/*`, quotes or `//` are not comments or strings
+      let j = i + 1, cls = false;
+      while (j < src.length && src[j] !== '\n' && (cls || src[j] !== '/')) { if (src[j] === '\\') j++; else if (src[j] === '[') cls = true; else if (src[j] === ']') cls = false; j++; }
+      out += src.slice(i, Math.min(j + 1, src.length)); i = j + 1;
+    }
     else if (c === '"' || c === "'" || c === '`') {
       let j = i + 1;
       while (j < src.length && src[j] !== c && (c === '`' || src[j] !== '\n')) j += src[j] === '\\' ? 2 : 1;   // ' and " end at a newline (a regex literal's stray quote cannot run on)
