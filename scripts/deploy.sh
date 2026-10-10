@@ -83,13 +83,15 @@ if [[ -z "$ci_green" ]]; then
 fi
 deploy_step "quality gate"
 vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
-if [[ "$vps_unit" == ok ]]; then
+if [[ -n "$ci_green" ]]; then
+  # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
+  # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
+  echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
+  npm run build
+elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
-  npm run quality:deploy
-elif [[ -n "$ci_green" ]]; then
-  echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
 elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
   # Change-scoped release (Dom 2026-10-05: a release in about 5 minutes): the fast unit suite instead of test:all; the slow
