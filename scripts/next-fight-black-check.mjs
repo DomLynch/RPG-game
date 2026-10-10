@@ -5,6 +5,9 @@
 // Row (WebKit, the nearest this Mac has to the phone's Safari): the dark time after the press is at most BLACK_MAX ms, and the next fight is ready.
 // Lead's ruling 2026-10-08 asked 300 ms; five runs here read 270, 312, 312, 0 and 0 (a ~0.25-0.3 s near-black frame at the document swap that WebKit's
 // screenshots catch only sometimes), so 600 keeps headroom against noise and still fails Dom's 2 s.
+// Two gates, two meanings (Lead 2026-10-10, boot trace in scripts/boot-trace-webkit.mjs): LUMINANCE (blackMs <= BLACK_MAX, 600) is what the player sees as black.
+// The CAPTURE GAP (no screenshot possible, a frozen main thread at the document swap) is a separate ceiling, GAP_MAX (1500): the gap is noisy (same tree, same Mac,
+// four runs 2026-10-10: 284, 433, 561, 1124 ms, the 1124 with 0 ms of black); the live site over the network reads 1.4-2.4 s (not this row). 1500 clears that noise and still fails a hang or Dom's 2 s.
 //   node scripts/next-fight-black-check.mjs        receipt: artifacts/next-fight/receipt.json
 import { webkit } from 'playwright';
 import { build, preview } from 'vite';
@@ -94,7 +97,7 @@ async function fightTo(opponent, win) {
 }
 
 
-const BLACK_MAX = Number(process.env.NEXT_FIGHT_MAX || 600), WINDOW = 12000, FLOOR = 12;   // FLOOR: mean luminance (0..255) under which a frame reads as black
+const BLACK_MAX = Number(process.env.NEXT_FIGHT_MAX || 600), GAP_MAX = Number(process.env.NEXT_FIGHT_GAP_MAX || 1500), WINDOW = 12000, FLOOR = 12;   // FLOOR: mean luminance (0..255) under which a frame reads as black
 try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);
@@ -138,7 +141,7 @@ try {
   // A stretch with no capture (a failed screenshot, a document that never paints) is not a bright frame: it is the longest gap between captures after the press, held to the same limit.
   const taken = frames.filter((f) => f.at >= 0).map((f) => f.at);
   const maxGapMs = Math.max(0, ...taken.slice(1).map((t, i) => t - taken[i]), taken.length ? taken[0] : WINDOW, taken.length ? WINDOW - taken[taken.length - 1] : 0);
-  Object.assign(receipt.exit, { maxGapMs, frames: frames.length, minLuma: Math.min(...frames.filter((f) => f.at >= 0).map((f) => f.luma)), floor: FLOOR, blackMs, longestMs: longest, blackMax: BLACK_MAX, navigatedMs: navigated === null ? null : navigated - t0, fightReadyMs: ready });
+  Object.assign(receipt.exit, { maxGapMs, frames: frames.length, minLuma: Math.min(...frames.filter((f) => f.at >= 0).map((f) => f.luma)), floor: FLOOR, blackMs, longestMs: longest, blackMax: BLACK_MAX, gapMax: GAP_MAX, navigatedMs: navigated === null ? null : navigated - t0, fightReadyMs: ready });
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
@@ -149,6 +152,6 @@ console.log(`next-fight-black attempt ${process.env.NEXT_FIGHT_ATTEMPT ?? '-'}/3
 assert.deepEqual(receipt.errors, [], 'no page errors');
 assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
 assert.ok(e.blackMs <= BLACK_MAX, `black after the press: ${e.blackMs} ms (max ${BLACK_MAX}; Dom's 2026-09-30 report was about 2 s)`);
-assert.ok(e.maxGapMs <= BLACK_MAX, `no capture for ${e.maxGapMs} ms after the press (max ${BLACK_MAX}): a stretch the screenshots could not see counts as dark`);
+assert.ok(e.maxGapMs <= GAP_MAX, `no capture for ${e.maxGapMs} ms after the press (max ${GAP_MAX}): a page frozen or between documents that long counts as dark`);
 assert.ok(e.fightReadyMs !== null, 'the next fight is ready within the window');
 console.log('next-fight-black-check PASS');
