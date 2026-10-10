@@ -147,8 +147,8 @@ test('Ctrl-C on the wrapper cancels the HF job it started and logs it (exit 130)
   let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
   const code = await new Promise<number | null>((resolve) => {
     const poll = setInterval(() => { if (/runs on Hugging Face job job123/.test(out)) { clearInterval(poll); child.kill('SIGINT'); } }, 100);
-    setTimeout(() => { clearInterval(poll); child.kill('SIGKILL'); }, 90000);
-    child.on('close', (c) => resolve(c));
+    const kill = setTimeout(() => { clearInterval(poll); child.kill('SIGKILL'); }, 90000);   // cleared on exit: a pending timer would hold the file open 90 s on every pass
+    child.on('close', (c) => { clearTimeout(kill); clearInterval(poll); resolve(c); });
   });
   const calls = readFileSync(join(dir, 'hf-calls'), 'utf8'), spill = readFileSync(join(home, 'capture.spill.log'), 'utf8');
   assert.equal(code, 130, out); assert.match(calls, /^jobs cancel job123$/m);
