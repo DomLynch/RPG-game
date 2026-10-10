@@ -4,6 +4,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 
 
+## 2026-10-10 11:12 (+04, `date`) — Restart done; Mac tier NOT built; Lead's dated pack accepted
+Live W ef916e70 at 11:11; X 4a815ecc (#2078 #2075 #2064 #2072) merged 11:01:34, gate 11:02:22 from the green candidate run (fix held), release checks waiting on the unit receipt job 6ac9e2e5 at 11:11. RULING: no Mac tier for lane jobs; Dom's written 10-08 rule beats the relayed 10:35 waterfall; reopens only on his direct yes to Hooks Dev (memory mac-tier-not-built-ruling). HF spill VERIFIED live (job 6ac9dfd2 COMPLETED cpu-upgrade, lanejob tier=hf-cpu). capture-mac.sh → launch.mjs job = Deploy's edit after Y; deploy_guard no-op off darwin = Hooks Dev today; Backend on VPS still gated on Dom. Lead's pack (lanes' own times): Y = #2021 P2 03f1bbe04 + #2083 M5 298985fe8 + #2081 capelet (+#2053 P3a if stills+PASS); P3a + M2 13:00; M4 Sat 18:00 (critical path, gates Web gear screen; Web fallback if not pushed by 16:00); M3 Sun 12:00; K8 Sun 18:00; K9 Mon 12:00; K7 pins + rebases Mon 18:00; Web PR-H 15:00, gear slice 3 19:00, row 16 Sun 12:00; World K5 #2085 15:00, K6 19:00 (on P3a, else plain death + blood Sun), stills 21:00; Characters 7 pins undated (due 12:00). Monday = reachable on three conditions (Auditor inside a batch, 30-min cadence, M4 by 18:00), Lead re-checks 22:00. Cron 8,28,48 re-armed.
+
 ## 2026-10-10 11:05 (+04, `date`) — HANDOFF before /clear (Dom). READ FIRST, then the 09:57 and 06:5x entries, then memory (scratch lane 2026-10-09-51f654: 9 files, see MEMORY.md there).
 
 1. LIVE W ef916e70 (curl 11:05). X candidate #2082 (M1 #2064, K7 door #2072, meters #2075, Zone 2 from data #2078) MERGED at 11:0x, release X launching/in flight; expect live ~11:20, Zone 2 generated from data goes live with it. Open PRs 9. Y this evening = #2021 P2 effects (needs Combat's rebase onto M1, DIRTY now) + #2053 P3a + #2071 M2 + #2081 capelet.
