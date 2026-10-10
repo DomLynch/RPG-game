@@ -67,14 +67,25 @@ node scripts/merged-on-trunk.mjs
 # which sorts first and is still queued, while the PULL REQUEST run that already proved the tree sits second (V's Mac then ran its own unit suite for 3 min).
 # A pull_request run whose plan put the browser gates out of scope skips the whole matrix (its job keeps the unexpanded template name), so no
 # "browser (combat)" job exists: that run is green when `quality` and `plan` succeeded (release AI, 2026-10-10: script-only, the Mac fell back to its own suite).
-quality_green_jq='def c(n): [.jobs[] | select(.name == n) | .conclusion]; if c("quality") == ["success"] and (if (c("browser (combat)") | length) > 0 then c("browser (combat)") == ["success"] else c("plan") == ["success"] and c("browser (${{ matrix.gate.name }})") == ["skipped"] end) then "yes" else "no" end'
-quality_green() {
-  local run_id run_url green
+quality_green_jq='def c(n): [.jobs[] | select(.name == n) | .conclusion]; if c("quality") == ["success"] and (if (c("browser (combat)") | length) > 0 then c("browser (combat)") == ["success"] else c("plan") == ["success"] and c("browser (${{ matrix.gate.name }})") == ["skipped"] end) then (if (c("browser (combat)") | length) > 0 then "yes" else "scoped" end) else "no" end'
+# The first run of "$1" whose verdict is `want` (yes = quality + browser (combat) both success; scoped = browser matrix skipped as out of scope).
+quality_run_with() {
+  local want="$1" run_id run_url verdict
   while read -r run_id run_url; do
     [[ -n "$run_id" ]] || continue
-    green=$(gh run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
-    if [[ "$green" == "yes" ]]; then echo "$run_url"; return 0; fi
-  done < <(gh run list --workflow quality.yml --commit "$1" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+    verdict=$(gh run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
+    if [[ "$verdict" == "$want" || "$verdict" == yes ]]; then echo "$run_url"; return 0; fi
+  done < <(gh run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+  return 0
+}
+# A scoped run proves only `quality`: the Mac then skips test:browser, so the trunk this candidate sits on (first parent) must have had browser (combat) green
+# itself (Auditor LOW on #2136). No parent, no run, or a red run: fail closed.
+quality_green() {
+  local url base
+  url=$(quality_run_with yes "$1"); if [[ -n "$url" ]]; then echo "$url"; return 0; fi
+  url=$(quality_run_with scoped "$1"); [[ -n "$url" ]] || return 0
+  base=$(git rev-parse -q --verify "$1^1" 2>/dev/null || true)
+  [[ -n "$base" && -n "$(quality_run_with yes "$base")" ]] && echo "$url"
   return 0
 }
 ci_green=$(quality_green "$revision")
