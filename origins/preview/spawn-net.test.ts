@@ -181,7 +181,7 @@ test('the page frame drives the tracker: main.ts calls spawnNet.tick() in the sa
   const frame = main.split('\n').find((l) => l.includes('wc.update(dt'));
   assert.ok(frame, 'the walk loop steps Zone 1 combat');
   assert.match(frame!, /spawnNet\.tick\(\)/, 'the same frame ticks the engage client');
-  assert.match(main, /onEvent: onCombatEvent\(spawnNet, ME\)/, 'combat events reach the tracker');
+  assert.match(main, /const spawnEvent = onCombatEvent\(spawnNet, ME\)[\s\S]*onEvent: \(ev\) => \{ spawnEvent\(ev\);/, 'combat events reach the tracker (and then the zone sound)');
 });
 
 test('a refused/offline engage is asked ONCE more on the player\'s own blow (Auditor\'s MEDIUM, #1960); a second refusal is not hammered; Evaded or a new FightStarted asks afresh; a kill still prices on the retried token', async () => {
