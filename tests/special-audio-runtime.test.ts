@@ -6,7 +6,7 @@ import ts from 'typescript';
 import { bossSpecialFor, bossSpecialId } from '../src/fight/special-identity.ts';
 import { classSpecialFor } from '../src/fight/class-special-identity.ts';
 import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
-import { specialCueFor } from '../src/sparring-special-runtime.ts';
+import { specialCueFor } from '../src/fight/sparring-special-runtime.ts';
 import type { OpponentId } from '../src/roster.ts';
 import { specialOf } from '../src/fight/moves.ts';
 import { createFeedback } from '../src/fight/sound/feedback.ts';

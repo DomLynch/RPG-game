@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { movesOf, type Fighter } from './fight/duel.ts';
-import { MOVES } from './fight/moves.ts';
+import { movesOf, type Fighter } from './duel.ts';
+import { MOVES } from './moves.ts';
 
 // Presentation only: the Witch-fire skill's fire (docs/briefs/skill-witch-arm.md (b); the green glow, the gout and the embers are Visuals &
 // World's). Read from the sim's own clock, never from events: a fighter in `attack` with `skill_witchfire` is at tick `age` of the move, so

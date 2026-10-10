@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { CombatEvent } from '../src/fight/duel.ts';
-import { MARK, markAlpha, marksFlag, miasmaOf } from '../src/miasma-mark.ts';
+import { MARK, markAlpha, marksFlag, miasmaOf } from '../src/fight/miasma-mark.ts';
 
 const hit = (over: Partial<CombatEvent>): CombatEvent => ({ tick: 1, type: 'Hit', actor: 1, target: 0, move: 'skill_miasma', ...over }) as CombatEvent;
 

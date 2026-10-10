@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { initialDuel, withSpecials, type CombatEvent, type Fighter } from '../src/fight/duel.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { createNightfallFx } from '../src/nightfall-fx.ts';
+import { createNightfallFx } from '../src/fight/nightfall-fx.ts';
 import { createBossSpecial } from '../src/fight/special-fx-boss.ts';
 import { createSpecialFx } from '../src/fight/special-fx.ts';
 import { casterPair, casterEvent, createSpecialPresentation, disposeSpecialGroup } from '../src/fight/special-presentation.ts';
@@ -209,7 +209,7 @@ test('manager Tithe matches authored solo arena transform and composes with real
   fx.clear(); presentation.clear(); const base = capture(managed);
   pair[0].specialShare = .15; pair[0].specialName = 'nyxnightfall'; pair[0].skill = 'lunge';
   presentation.prepare(2, [{ ...start(0), name: 'nyxnightfall' }, event], pair, 100, false);
-  await import('../src/nightfall-fx.ts'); await new Promise(resolve => setImmediate(resolve));
+  await import('../src/fight/nightfall-fx.ts'); await new Promise(resolve => setImmediate(resolve));
   presentation.render(0, pair, 100, bones, bones, undefined, false);
   presentation.render(0, pair, 205, bones, bones, undefined, false);
   assert.ok(presentation.exposure < 1); assert.ok(capture(managed).sun[1] < base.sun[1]);

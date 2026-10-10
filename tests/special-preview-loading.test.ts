@@ -6,7 +6,7 @@ import ts from 'typescript';
 import * as THREE from 'three';
 import { createTitheLighting } from '../src/fight/special-lighting.ts';
 import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
-import { createNightfallFx } from '../src/nightfall-fx.ts';
+import { createNightfallFx } from '../src/fight/nightfall-fx.ts';
 import { createSpecialFx } from '../src/fight/special-fx.ts';
 import type { SpecialFx } from '../src/fight/special-modes.ts';
 

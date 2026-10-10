@@ -10,8 +10,8 @@ import { loadScorecard } from '../src/scorecard.ts';
 import { classSpecialFor } from '../src/fight/class-special-identity.ts';
 import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { type SpecialTest } from '../src/fight/special-look.ts';
-import { specialCueFor } from '../src/sparring-special-runtime.ts';
-import { sparringSpecialOptions } from '../src/sparring-specials.ts';
+import { specialCueFor } from '../src/fight/sparring-special-runtime.ts';
+import { sparringSpecialOptions } from '../src/fight/sparring-specials.ts';
 import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 
 const cases = [

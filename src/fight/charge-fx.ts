@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
-import { advanceCast, type Cast } from './fight/special-timing.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
+import { advanceCast, type Cast } from './special-timing.ts';
 import { charge, CUE_AT, isCharge, RACE, RACE_FROM, slideAt } from './charge-timing.ts';
-import { hash, smooth } from './fight/fx-math.ts';
+import { hash, smooth } from './fx-math.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the in-game effect (World, 2026-10-01; Strategy's brief
 // docs/briefs/specials/centurion-l8-l10-2026-10-01.md, Dom's pick). Presentation only, like nightfall-fx.ts beside it: it reads the sim's special

@@ -35,7 +35,7 @@ import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './fight/detmath.ts';
 import { FIRST_STAB_VERSION, STAB_ON, setStab } from './fight/stab-rule.ts';
 import { FIRST_LATE_NOTICE_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor, setLateNotice, setPlayScale } from './fight/play-radius.ts';
-import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
+import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './fight/sparring-special-runtime.ts';
 import { bossSpecialFor } from './fight/special-identity.ts';
 import { classSpecialFor } from './fight/class-special-identity.ts';
 import type { SpecialTest } from './fight/special-look.ts';
