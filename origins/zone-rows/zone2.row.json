@@ -170,7 +170,7 @@
           "pull": 0,
           "campSize": [
             2,
-            4
+            2
           ]
         }
       }
@@ -451,6 +451,20 @@
       {
         "id": "reach-wolves",
         "at": "reach-cairn",
+        "characters": [
+          "character:ember-wolf"
+        ]
+      },
+      {
+        "id": "reach-pack-a",
+        "at": "reach-ruin",
+        "characters": [
+          "character:ember-wolf"
+        ]
+      },
+      {
+        "id": "reach-pack-b",
+        "at": "reach-ruin",
         "characters": [
           "character:ember-wolf"
         ]

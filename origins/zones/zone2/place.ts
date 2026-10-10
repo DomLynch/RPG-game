@@ -16,6 +16,8 @@ const place: Place = {
   ],
   "spawns": [
     {"id":"reach-wolves","at":"reach-cairn","characters":["character:ember-wolf"]},
+    {"id":"reach-pack-a","at":"reach-ruin","characters":["character:ember-wolf"]},
+    {"id":"reach-pack-b","at":"reach-ruin","characters":["character:ember-wolf"]},
     {"id":"reach-scavengers","at":"reach-ruin","characters":["character:cinder-scavenger"]}
   ]
 };
