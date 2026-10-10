@@ -40,8 +40,8 @@ import * as ai from '../src/fight/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/fight/special-look.ts';
-import * as sparringSpecials from '../src/sparring-specials.ts';
-import * as sparringSpecialRuntime from '../src/sparring-special-runtime.ts';
+import * as sparringSpecials from '../src/fight/sparring-specials.ts';
+import * as sparringSpecialRuntime from '../src/fight/sparring-special-runtime.ts';
 import * as specialAudio from '../src/fight/sound/special.ts';
 import * as specialIdentity from '../src/fight/special-identity.ts';
 import * as classSpecialIdentity from '../src/fight/class-special-identity.ts';
@@ -58,7 +58,7 @@ import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/fight/hud.ts';
 import * as lessons from '../src/lessons.ts';
 import * as breathAudio from '../src/fight/sound/breath.ts';
-import * as powerWords from '../src/power-words.ts';
+import * as powerWords from '../src/fight/power-words.ts';
 import * as powerWordSynth from '../src/fight/sound/power-word.ts';
 import * as touchRouter from '../src/fight/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
@@ -132,11 +132,11 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fight/armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
   modules['./fight/sound/power-word.ts'] = powerWordSynth;
   modules['./fight/sound/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
-  modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
+  modules['./fight/power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./fight/tutorial-ui.ts'] = tutorialUi;
   modules['./fight/touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
-  modules['./sparring-specials.ts'] = sparringSpecials;
-  modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
+  modules['./fight/sparring-specials.ts'] = sparringSpecials;
+  modules['./fight/sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
   Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });
   const sceneModule = modules['./fight/scene.ts'] as { createScene: (...args: unknown[]) => unknown };
   const makeScene = sceneModule.createScene;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createFighter, type CombatEvent } from '../src/fight/duel.ts';
 import { initialState } from '../src/fight/sim.ts';
-import { SCORCH, scorch, scorchLook, scorches } from '../src/scorch.ts';
+import { SCORCH, scorch, scorchLook, scorches } from '../src/fight/scorch.ts';
 import { createSignatureMarks } from '../src/fight/signature.ts';
 
 const fighters = [createFighter(initialState(), 'attack'), createFighter({ ...initialState(), z: 0 }, 'hurt')] as const;

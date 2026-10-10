@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { SCHOOLS, SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from '../src/spell-school.ts';
+import { SCHOOLS, SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from '../src/fight/spell-school.ts';
 import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 
 test('the flag is ?look=schools only, alone or in a list', () => {

@@ -11,7 +11,7 @@ import { loadScorecard } from '../src/scorecard.ts';
 import { classSpecialFor } from '../src/fight/class-special-identity.ts';
 import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
-import { resolveSparringPreview, sparringSpecialOptions, SPECIAL_LABELS } from '../src/sparring-specials.ts';
+import { resolveSparringPreview, sparringSpecialOptions, SPECIAL_LABELS } from '../src/fight/sparring-specials.ts';
 import { createSpecialPresentation } from '../src/fight/special-presentation.ts';
 import type { OpponentId } from '../src/roster.ts';
 

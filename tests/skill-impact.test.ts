@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Color, Scene } from 'three';
 import type { CombatEvent } from '../src/fight/duel.ts';
-import { IMPACT, IMPACT_DEFAULT, IMPACT_TINT, createSkillImpact, impactOf, impactPoint } from '../src/skill-impact.ts';
+import { IMPACT, IMPACT_DEFAULT, IMPACT_TINT, createSkillImpact, impactOf, impactPoint } from '../src/fight/skill-impact.ts';
 
 // The shared SKILL-IMPACT kit (Strategy via Lead, 2026-09-26): every skill move ships on it, keyed by its SkillId (move id = skill_<id>).
 const hit = (move: string, extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 10, type: 'Hit', actor: 0, target: 1, move, location: 'torso', ...extra } as CombatEvent);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
-import { advanceCast, type Cast } from './fight/special-timing.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
+import { advanceCast, type Cast } from './special-timing.ts';
 import { nightfall } from './nightfall-timing.ts';
 
 // Nyx's Nightfall, the in-game effect (World, 2026-09-30; Lead's brief, Dom GO). Presentation only, like special-fx.ts beside it: it reads the
