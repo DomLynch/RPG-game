@@ -1,7 +1,7 @@
 // New zone: `node scripts/new-zone.mjs <N> [--biome ash-wastes] [--name "The Name"] [--from row.json]` writes origins/zones/zone<N>/ and NOTHING else (Dom 2026-10-09, plug and play).
 // The registry is generated from the folders (`npm run zones`, which the vite build also runs), so the new folder is all a zone costs. Kit and looks start as Zone 2's (the node names are that kit's contract);
 // spawns start empty (a zone with no rows is valid) and `world` is empty until its place.ts and world data exist. Level = the zone number (Dom 2026-10-08).
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
 import { zoneProblems } from '../origins/zones/loader.ts';
@@ -30,7 +30,7 @@ function rowFiles(n, row) {
   return files;
 }
 
-export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ZONES_DIR, row }) {
+export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ZONES_DIR, row = undefined }) {
   if (!Number.isInteger(n) || n < 1) throw new Error(`zone number must be a positive integer, got ${n}`);
   if (row) biome = row.biome ?? DEFAULT_BIOME;
   if (!Object.hasOwn(BIOMES, biome)) throw new Error(`unknown biome ${biome} (known: ${Object.keys(BIOMES).join(', ')})`);
@@ -40,6 +40,7 @@ export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ZO
   const folder = `${dir}zone${n}/`;
   if (existsSync(folder)) throw new Error(`zone${n} already exists`);
   mkdirSync(folder);
+  if (fromRow) { try { for (const [f, text] of Object.entries(fromRow)) writeFileSync(`${folder}${f}`, text); } catch (e) { rmSync(folder, { recursive: true, force: true }); throw e; } return folder; }
   const biomeLine = biome === DEFAULT_BIOME ? '' : `, biome: ${JSON.stringify(biome)}`;
   writeFileSync(`${folder}zone.ts`, `// Zone ${n} (${name}): the zone's own facts. \`level\` is the zone number = its base level (Dom 2026-10-08: Zone N = level N). Made by scripts/new-zone.mjs.\n`
     + `const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = { id: '${n}', level: ${n}, name: ${JSON.stringify(name)}, names: {}, world: []${biomeLine} };\nexport default zone;\n`);
