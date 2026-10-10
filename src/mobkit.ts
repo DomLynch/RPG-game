@@ -4,7 +4,7 @@
 // Deterministic: a trigger is a condition on the duel (no dice, no chance), a cooldown is ticks. Nothing here resolves a blow; the swapped move goes through the same legal() and the same stepDuel.
 import { legal, movesOf, type Action, type Duel, type Intent, type Side } from './fight/duel.ts';
 import type { MoveId, WeaponId } from './fight/moves.ts';
-import { rollUnit } from './roll.ts';
+import { rollUnit } from './fight/roll.ts';
 
 export type KitTrigger = 'opener' | 'afterHit' | 'heroGuarding' | 'heroExhausted' | 'selfBelow';
 export type KitMove = 'light' | 'heavy' | 'thrust' | 'skill';
