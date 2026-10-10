@@ -1,16 +1,16 @@
 // The 2-zone smoke for the shared meters (src/fight/hud.ts createMeters): boots Zone 1's page and the Pit's page at 375x812, reports uncaught page errors, checks the meters mounted
 // (and the old zone bars are gone, the Pit's bars hidden on the zone page), reads the Pit's bars, and saves stills. A diagnostic, not a release row. The zone still paints the bars the way
-// createMeters would (driving a real fight needs a creature in reach). Needs the built pages: `vite build --config origins/preview/vite.config.mjs` and `vite build --outDir artifacts/pit-build`.
+// createMeters would (driving a real fight needs a creature in reach). Needs the built pages: `vite build --config origins/preview/vite.config.mjs` and `vite build --outDir smoke-build/pit`.
 //   node scripts/meters-smoke.mjs [--build] [zone dist=artifacts/origins-preview] [pit dist=artifacts/pit-build] [out=artifacts/meters-smoke]
-// --build makes both pages first (what a gpu-run job needs: its build step is the Pit's, not the zone's).
+// Stills are 375x812 CSS pixels (gpu-run returns only small files, ~2.5 MB in all). --build makes both pages first (what a gpu-run job needs: its build step is the Pit's, not the zone's).
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
-const argv = process.argv.slice(2), build = argv.includes('--build'), [zoneDist = 'artifacts/origins-preview', pitDist = 'artifacts/pit-build', out = 'artifacts/meters-smoke'] = argv.filter((a) => a !== '--build'), root = process.cwd();
-if (build) for (const args of [['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], ['vite', 'build', '--outDir', 'artifacts/pit-build']]) { const r = spawnSync('npx', args, { stdio: 'ignore', timeout: 900_000 }); if (r.status !== 0) { console.error(`meters-smoke: ${args.join(' ')} failed (${r.status})`); process.exit(2); } }
+const argv = process.argv.slice(2), build = argv.includes('--build'), [zoneDist = 'artifacts/origins-preview', pitDist = 'smoke-build/pit', out = 'artifacts/meters-smoke'] = argv.filter((a) => a !== '--build'), root = process.cwd();
+if (build) for (const args of [['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], ['vite', 'build', '--outDir', 'smoke-build/pit']]) { const r = spawnSync('npx', args, { stdio: 'ignore', timeout: 900_000 }); if (r.status !== 0) { console.error(`meters-smoke: ${args.join(' ')} failed (${r.status})`); process.exit(2); } }
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
 const serve = (roots, fallback) => new Promise((resolve) => {
@@ -48,9 +48,9 @@ try {
       root.querySelector('.fm-name').textContent = 'Goblin';
       for (const [cls, pct] of [['.fm-foe', 40], ['.fm-hp', 62], ['.fm-st', 80]]) root.querySelector(cls).style.setProperty('--fill', `${pct}%`);
     });
-    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'zone1-meters.png') });
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'zone1-meters.png'), scale: 'css' });
     await page.evaluate(() => { document.querySelector('.fm-flash').dataset.on = 'true'; });
-    await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, 'zone1-meters-flash.png') });
+    await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, 'zone1-meters-flash.png'), scale: 'css' });
     result.zone.errors = errors; result.zone.consoleWarnings = warnings.slice(0, 8);
   }
   // THE PIT
@@ -61,7 +61,7 @@ try {
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 240000 });
     await page.waitForTimeout(1500);
     result.pit = await page.evaluate(() => Object.fromEntries(['player-health', 'target-health', 'stamina'].map((id) => { const m = document.getElementById(id); return [id, { value: m.value, max: m.max, fill: m.style.getPropertyValue('--fill') }]; })));
-    await page.screenshot({ path: path.join(out, 'pit-ready.png') });
+    await page.screenshot({ path: path.join(out, 'pit-ready.png'), scale: 'css' });
     result.pit.errors = errors;
   }
 } finally { await browser.close(); zoneServer.close(); pitServer.close(); }
