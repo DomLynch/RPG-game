@@ -98,6 +98,18 @@ test('a row whose creatures are not at the zone\'s level band is refused (the zo
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
+test('a header note with \\r, U+2028 or U+2029 line breaks stays comment lines (no note can smuggle code into a zone file)', async () => {
+  const scratch = mkdtempSync(`${tmpdir()}/newzone-note-`);
+  try {
+    const row = { ...rowOf('2'), name: 'Note Zone', notes: { kit: 'one\rtwo\u2028three\u2029four\r\nfive' } };
+    delete (row as { spawns?: unknown }).spawns;
+    newZone({ n: 997, row, dir: `${scratch}/` });
+    const text = readFileSync(`${scratch}/zone997/kit.ts`, 'utf8'), head = text.split('\n').filter((l) => l.startsWith('//'));
+    assert.deepEqual(head, ['// one', '// two', '// three', '// four', '// five']);
+    assert.ok(!/[\r\u2028\u2029]/.test(text), 'no stray line break survives in the file');
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
 test('a bad row is refused BEFORE anything is written: a level key, unknown key, id mismatch, missing name, unknown biome', () => {
   const scratch = mkdtempSync(`${tmpdir()}/newzone-rowbad-`);
   try {

@@ -10,20 +10,28 @@ const ZONES_DIR = fileURLToPath(new URL('../origins/zones/', import.meta.url));
 
 // One data ROW (a JSON object with the zone's fields: name, names, world, biome, spawns, kit, looks, and optionally mobLooks and place) writes the whole folder. The row is checked by the loader's own
 // zoneProblems BEFORE anything is written, so a bad row leaves nothing behind. Every file is one typed literal const + export default. zone/spawns/kit/look are on the data-only path list; mob-looks and place are pure literals too but are not on it yet (the Auditor adds them), so a row that has them is reviewed until then.
-const lit = (v) => JSON.stringify(v, null, 2);
+// The top two levels one entry per line, everything deeper on its line (a creature row is one line), so a zone folder stays under the 300-line data budget (tests/k7-engine-parity.test.ts).
+const lit = (v, d = 0) => {
+  if (v === null || typeof v !== 'object' || d >= 2) return JSON.stringify(v);
+  const pad = '  '.repeat(d + 1), end = '  '.repeat(d);
+  if (Array.isArray(v)) return v.length ? `[\n${v.map((x) => pad + lit(x, d + 1)).join(',\n')}\n${end}]` : '[]';
+  const e = Object.entries(v);
+  return e.length ? `{\n${e.map(([k, x]) => `${pad}${JSON.stringify(k)}: ${lit(x, d + 1)}`).join(',\n')}\n${end}}` : '{}';
+};
+const hdr = (row, key, dflt) => `${(row.notes?.[key] ?? dflt).split(/\r\n|[\n\r\u2028\u2029]/).map((l) => `// ${l}`.trimEnd()).join('\n')}\n`;   // row.notes[file] carries a file's header comment (a row is JSON: it cannot hold comments itself)
 function rowFiles(n, row) {
   const own = (k) => (row[k] === undefined ? [] : [k]);
-  for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place'].includes(k)) throw new Error(`row: unknown key "${k}"`);
+  for (const k of Object.keys(row)) if (!['name', 'names', 'world', 'biome', 'id', 'spawns', 'kit', 'looks', 'mobLooks', 'place', 'notes'].includes(k)) throw new Error(`row: unknown key "${k}"`);
   if (row.id !== undefined && String(row.id) !== String(n)) throw new Error(`row: id ${row.id} is not zone ${n}`);
   const head = { id: String(n), level: n, name: row.name, names: row.names ?? {}, world: row.world ?? [], ...(row.biome && row.biome !== DEFAULT_BIOME ? { biome: row.biome } : {}) };
   const files = {
-    'zone.ts': `// Zone ${n} (${row.name}): the zone's own facts, from its data row (scripts/new-zone.mjs --from). \`level\` is the zone number = its base level (Dom 2026-10-08).\nconst zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = ${lit(head)};\nexport default zone;\n`,
-    'spawns.ts': `// Zone ${n}'s creatures as data, from its row. A row's level must be ${n}-${n + 1}; every opener must name a row (loadZone checks both).\nimport type { MobRow } from '../../mobs/row.ts';\n\nconst spawns: { openers: Record<string, string>; rows: MobRow[] } = ${lit(row.spawns ?? { openers: {}, rows: [] })};\nexport default spawns;\n`,
-    'kit.ts': `// Zone ${n}'s kit, from its row (the node names are the kit's contract).\nimport type { Zone } from '../loader.ts';\n\nconst kit: Zone['kit'] = ${lit(row.kit)};\nexport default kit;\n`,
-    'look.ts': `// Zone ${n}'s looks, from its row: the preset names the page asks for.\nimport type { Zone } from '../loader.ts';\n\nconst looks: Zone['looks'] = ${lit(row.looks)};\nexport default looks;\n`,
+    'zone.ts': `${hdr(row, 'zone', `Zone ${n} (${row.name}): the zone's own facts, from its data row (scripts/new-zone.mjs --from). \`level\` is the zone number = its base level (Dom 2026-10-08).`)}const zone: { id: string; level: number; name: string; names: Record<string, string>; world: string[]; biome?: string } = ${lit(head)};\nexport default zone;\n`,
+    'spawns.ts': `${hdr(row, 'spawns', `Zone ${n}'s creatures as data, from its row. A row's level must be ${n}-${n + 1}; every opener must name a row (loadZone checks both).`)}import type { MobRow } from '../../mobs/row.ts';\n\nconst spawns: { openers: Record<string, string>; rows: MobRow[] } = ${lit(row.spawns ?? { openers: {}, rows: [] })};\nexport default spawns;\n`,
+    'kit.ts': `${hdr(row, 'kit', `Zone ${n}'s kit, from its row (the node names are the kit's contract).`)}import type { Zone } from '../loader.ts';\n\nconst kit: Zone['kit'] = ${lit(row.kit)};\nexport default kit;\n`,
+    'look.ts': `${hdr(row, 'look', `Zone ${n}'s looks, from its row: the preset names the page asks for.`)}import type { Zone } from '../loader.ts';\n\nconst looks: Zone['looks'] = ${lit(row.looks)};\nexport default looks;\n`,
   };
-  if (own('mobLooks').length) files['mob-looks.ts'] = `// Zone ${n}'s creature looks, from its row.\nimport type { Zone } from '../loader.ts';\n\nconst mobLooks: NonNullable<Zone['mobLooks']> = ${lit(row.mobLooks)};\nexport default mobLooks;\n`;
-  if (own('place').length) files['place.ts'] = `// Zone ${n} on the Region 1 map, from its row.\nimport type { Place } from '../place.ts';\n\nconst place: Place = ${lit(row.place)};\nexport default place;\n`;
+  if (own('mobLooks').length) files['mob-looks.ts'] = `${hdr(row, 'mobLooks', `Zone ${n}'s creature looks, from its row.`)}import type { Zone } from '../loader.ts';\n\nconst mobLooks: NonNullable<Zone['mobLooks']> = ${lit(row.mobLooks)};\nexport default mobLooks;\n`;
+  if (own('place').length) files['place.ts'] = `${hdr(row, 'place', `Zone ${n} on the Region 1 map, from its row.`)}import type { Place } from '../place.ts';\n\nconst place: Place = ${lit(row.place)};\nexport default place;\n`;
   for (const k of ['kit', 'looks']) if (row[k] === undefined) throw new Error(`row for zone ${n}: "${k}" is required`);   // zoneProblems would throw a TypeError on a missing kit; say it plainly instead
   const probe = { ...head, spawns: row.spawns ?? { openers: {}, rows: [] }, kit: row.kit, looks: row.looks, ...(row.mobLooks ? { mobLooks: row.mobLooks } : {}), ...(row.place ? { place: row.place } : {}) };
   const bad = zoneProblems(probe);

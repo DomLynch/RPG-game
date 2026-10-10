@@ -7,7 +7,7 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { registrySource, ZONES_DIR } from '../scripts/gen-zones.mjs';
 import { applyZones, placeNames, placedSpawns, placedWaypoints, placesInOrder, type Place } from '../origins/zones/place.ts';
-import { zonePlaces } from '../origins/zones/loader.ts';
+import { loadZone, zonePlaces } from '../origins/zones/loader.ts';
 import { REGION1_WORLD, FRONTIER_REGION } from '../origins/region1/world.ts';
 
 const region1Sources = ['origins/region1/world.ts', 'origins/region1/content.ts'].map((f) => [f, readFileSync(f, 'utf8')] as const);
@@ -31,9 +31,10 @@ test('a throwaway zone3 folder appears on the map, in the waypoints and spawns, 
   const scratch = mkdtempSync(`${tmpdir()}/zones3-`);
   try {
     cpSync(`${ZONES_DIR}zone2`, `${scratch}/zone3`, { recursive: true });
-    const swap = (f: string, pairs: [string | RegExp, string][]) => { let s = readFileSync(`${scratch}/zone3/${f}`, 'utf8'); for (const [a, b] of pairs) s = s.replace(a, b); writeFileSync(`${scratch}/zone3/${f}`, s); };
-    swap('zone.ts', [["id: '2', level: 2, name: 'The Ash Reach', names: { 'ash-reach': 'The Ash Reach' }", "id: '3', level: 3, name: 'The Salt Flats', names: { 'salt-flats': 'The Salt Flats' }"], ["world: ['ash-reach']", "world: ['salt-flats']"]]);
-    swap('place.ts', [[/ash-reach/g, 'salt-flats'], [/reach-/g, 'flats-'], [/'reach'/g, "'flats'"], ['east-road\', landmark', 'east-road\', landmark']]);
+    // zone3's two files are written whole from Zone 2's LOADED data, not edited as text: Zone 2 is generated from its row, its formatting is the generator's.
+    const place = JSON.parse(JSON.stringify(loadZone('2').place).replace(/ash-reach/g, 'salt-flats').replace(/reach-/g, 'flats-').replace(/"reach"/g, '"flats"'));
+    writeFileSync(`${scratch}/zone3/zone.ts`, "const zone = { id: '3', level: 3, name: 'The Salt Flats', names: { 'salt-flats': 'The Salt Flats' }, world: ['salt-flats'] };\nexport default zone;\n");
+    writeFileSync(`${scratch}/zone3/place.ts`, `const place = ${JSON.stringify(place)};\nexport default place;\n`);
     const src = registrySource(`${scratch}/`);
     assert.match(src, /place: place3 \}/);
     writeFileSync(`${scratch}/registry.ts`, src);
