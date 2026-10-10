@@ -41,12 +41,12 @@ vps_unit_receipt_ok() {
   rm -f "artifacts/vps-shadow/$receipt_sha/unit.json"   # fresh or nothing
   [[ -n "${DEPLOY_HF_UNIT_JOB:-}" ]] || return 0
   # Release R lost its unit receipt to a fetch whose error was thrown away. Three tries with backoff, every error in the deploy log (stderr: stdout is the "ok" the caller reads).
-  local try err=""
+  local try err="" fetched=0
   for try in 1 2 3; do
-    err=$(node scripts/vps-shadow/launch.mjs fetch "$DEPLOY_HF_UNIT_JOB" "$receipt_sha" 2>&1 >/dev/null) && { err=""; break; }
+    err=$(node scripts/vps-shadow/launch.mjs fetch "$DEPLOY_HF_UNIT_JOB" "$receipt_sha" 2>&1 >/dev/null) && { fetched=1; break; }
     echo "vps-receipts: unit receipt fetch $try/3 for job $DEPLOY_HF_UNIT_JOB failed: ${err:-no output}" >&2
     if (( try < 3 )); then sleep $(( try * ${DEPLOY_HF_FETCH_BACKOFF_S:-5} )); fi
   done
-  [[ -z "$err" ]] || echo "vps-receipts: unit receipt NOT fetched from job $DEPLOY_HF_UNIT_JOB after 3 tries (last error: $err); the Mac runs its own suite" >&2
+  (( fetched )) || echo "vps-receipts: unit receipt NOT fetched from job $DEPLOY_HF_UNIT_JOB after 3 tries (last error: ${err:-none printed}); the Mac runs its own suite" >&2
   node scripts/vps-receipt-trust.mjs "$revision" --unit || true
 }

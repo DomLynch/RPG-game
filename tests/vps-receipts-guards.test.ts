@@ -62,6 +62,9 @@ test('a failed unit-receipt fetch is retried 3 times, prints each error and one 
   for (const n of [1, 2, 3]) assert.match(out, new RegExp(`unit receipt fetch ${n}/3 for job J1 failed: launch: hf jobs logs J1 failed: boom`));
   assert.match(out, /unit receipt NOT fetched from job J1 after 3 tries \(last error: launch: hf jobs logs J1 failed: boom\)/);
   assert.match(out, /unit=\[\]/);
+  const silent = step(unit, { trust: '', fetchExit: 2, fetchErr: '', env: { DEPLOY_HF_UNIT_JOB: 'J1' } });   // R's case: the fetch fails and prints nothing
+  assert.match(silent, /unit receipt fetch 3\/3 for job J1 failed: no output/);
+  assert.match(silent, /unit receipt NOT fetched from job J1 after 3 tries \(last error: none printed\)/);
   assert.doesNotMatch(step(unit, { trust: 'ok', env: { DEPLOY_HF_UNIT_JOB: 'J1' } }), /NOT fetched|fetch \d\/3/, 'a good fetch is silent');
 });
 
