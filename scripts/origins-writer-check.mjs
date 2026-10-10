@@ -518,6 +518,7 @@ try {
   }
   {
     // A migrated piece that is later retired keeps its unique mint_key (items are never deleted): the next import calls it alreadyHeld and imports only what is new, it does not fail (Auditor, #1984).
+    psql(`insert into public.origins_access(account) values ('${D}') on conflict do nothing;`);   // an earlier section took D off the allowlist
     const ids = [...LOOT_IDS].sort(), made3 = await call('create_character', 'td', { name: 'Burner' });
     eq(made3.status, 200, `a fresh account D makes a character (${JSON.stringify(made3.json)})`);
     const cd = made3.json.result.id;
