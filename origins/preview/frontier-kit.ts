@@ -9,7 +9,7 @@ import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } fr
 export type KitNode = string;   // a node name of the zone's kit (origins/zones/zone1/kit.ts, checked by the loader)
 export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
 export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
-const { kinds: KIND, landmarks: LANDMARK_NODES } = loadZone().kit;   // the zone's kit data, through the loader
+const { kinds: KIND, landmarks: LANDMARK_NODES } = loadZone().kit, DENSITY = Number(loadZone().fields?.['look.props.density'] ?? 1);   // look.props.density: a multiplier on every kind's per (1 = as the kit says)   // the zone's kit data, through the loader
 const LANDMARK_R = 3.5;   // footprint of a landmark, for the first-view margin and its solid
 
 
@@ -18,7 +18,7 @@ const segDist = (px: number, pz: number, ax: number, az: number, bx: number, bz:
   return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
 };
 
-export function frontierKit(f: Frontier, b: Build, d: Dress): Kit {
+export function frontierKit(f: Frontier, b: Build, d: Dress, density: number = DENSITY): Kit {
   const placements: KitPlacement[] = [], solids: Solid[] = [];
   for (const z of f.zones) {
     if (!z.region.includes('frontier')) continue;
@@ -30,7 +30,7 @@ export function frontierKit(f: Frontier, b: Build, d: Dress): Kit {
       && !marks.some((k) => Math.hypot(k.x - x, k.z - zz) < r + 6)
       && ![...b.solids, ...d.solids, ...taken].some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + 0.5);
     for (const kind of KIND) {
-      const want = Math.round((z.width * z.depth * kind.per) / 1000);
+      const want = Math.round((z.width * z.depth * kind.per * density) / 1000);
       for (let i = 0, made = 0; i < want * 6 && made < want; i++) {
         const p = toWorld({ x: between(-z.width / 2, z.width / 2), d: between(0, z.depth) }, z.mount), scale = between(...kind.scale);
         if (!free(p.x, p.z, kind.r * scale)) continue;

@@ -5,7 +5,7 @@ import { loadZone, zoneIds } from '../origins/zones/loader.ts';
 import { badValue, overlayProblem, resolveSpec, resolveZone, wiredReport, nearest } from '../origins/zones/resolve.ts';
 import { FIELDS, SCHEMA_VERSION, type Field } from '../origins/zones/schema.ts';
 
-const folderZone = (id: string) => { const { resolved: _r, ...own } = loadZone(id); return own as unknown as Record<string, unknown>; };
+const folderZone = (id: string) => { const { resolved: _r, fields: _f, set: _s, ...own } = loadZone(id); return own as unknown as Record<string, unknown>; };
 // A generated zone as new-zone.mjs will write it: a biome, a name, a level and nothing else.
 const zone999 = { level: 999, name: 'Zone 999', biome: 'ash-wastes' };
 
