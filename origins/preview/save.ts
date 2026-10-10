@@ -10,7 +10,7 @@ import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../p
 
 export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from '../../src/writer-call.ts';
 import { AUTH_KEY, storedToken } from '../../src/writer-call.ts';
-import { openAccount, type OpenDeps } from '../../src/fight/open.ts';
+import { openAccount, type OpenDeps } from '../../src/fight/index.ts';
 
 // Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
