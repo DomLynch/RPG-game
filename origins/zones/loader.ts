@@ -4,7 +4,7 @@
 import type { MobRow } from '../mobs/row.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
-import { ROSTER } from '../../src/roster.ts';
+import { ROSTER } from '../../src/fight/server.ts';
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
@@ -19,6 +19,8 @@ export type Zone = {
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
   kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
   looks: Readonly<Record<string, Look>>;
+  fields?: Readonly<Record<string, unknown>>;   // the same resolved values, flat by path ('look.fog.density'); `set` is the paths a biome or this zone set (readers act on those only)
+  set?: readonly string[];
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
   mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
@@ -32,7 +34,8 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export function zoneProblems(z: Zone): string[] {
   const bad: string[] = [], ids = new Set<string>();
   if (!z.name.trim()) bad.push('no display name');
-  const { resolved: _resolved, ...own } = z;   // `resolved` is what loadZone adds, not part of the spec
+  const own: Record<string, unknown> = { ...z };
+  delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
@@ -81,6 +84,6 @@ export function loadZone(id: string = pageZoneId()): Zone {
   const hit = loaded.get(id); if (hit) return hit;
   const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
-  const full = { ...z, resolved: resolveZone(id, z as unknown as Spec).tree };   // z is a package straight from the registry: it has no `resolved` yet
+  const r = resolveZone(id, z as unknown as Spec), full = { ...z, resolved: r.tree, fields: r.values, set: r.explicit };   // z is a package straight from the registry: it has no `resolved` yet
   loaded.set(id, full); return full;
 }

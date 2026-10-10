@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { breathe, fatigueLayer } from '../src/fatigue-layer.ts';
-import { FOE_TUNE, GUARD_DROP } from '../src/fatigue-tune.ts';
+import { breathe, fatigueLayer } from '../src/fight/fatigue-layer.ts';
+import { FOE_TUNE, GUARD_DROP } from '../src/fight/fatigue-tune.ts';
 
 const tired = { level: .95, gassed: 0, second: 0 };   // inside the last tenth, where the body shows (Dom 2026-10-07)
 

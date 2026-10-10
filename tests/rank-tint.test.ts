@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MeshStandardMaterial, Texture } from 'three';
 import { TIERS } from '../src/grades.ts';
-import { tinted } from '../src/rank-tint.ts';
+import { tinted } from '../src/fight/rank-tint.ts';
 
 test('rank tint: cloth, bone and authored art are never tinted — the source itself comes back', () => {
   for (const name of ['Gambeson_veteran', 'Heraldry', 'Bone', 'Ruby', 'Wood']) {

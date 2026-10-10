@@ -2,7 +2,7 @@ import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
-import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
+import { actorPose, characterFor, loadWarriors, type Practice } from '../../src/fight/index.ts';
 import { phoneTier, pixelCap } from '../../src/quality.ts';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
@@ -19,7 +19,6 @@ import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
-import { characterFor } from '../../src/fight/open.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { frontierDress } from './frontier-dress.ts';
@@ -35,16 +34,17 @@ import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createWorldCombat } from '../../src/fight/index.ts';
+import { ME, createMeters, createWorldCombat } from '../../src/fight/index.ts';
+import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
-import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/sound/creature.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
@@ -156,7 +156,7 @@ loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); h
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search)) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
@@ -242,8 +242,9 @@ addEventListener('keydown', (e) => {
 const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REGION || /[?&]look=zones\b/.test(location.search),
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
   LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : DUEL ? 'frontier-duel' : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
-const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
-const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if (DUEL && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel only: the Frontier's own dirt is what the look's ground tint reaches (it is inert on every other look, so they are unchanged)
+const ZONE_FIELDS = loadZone(), FIXED_HOUR = zoneHour(ZONE_FIELDS);   // the zone's own look/time fields (schema.ts): only what the zone or its biome SET changes anything
+const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search) && zoneDayNight(ZONE_FIELDS), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
+const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
 const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
@@ -279,8 +280,8 @@ function step(dt: number) {
   if (state.z < -5) arena.raiseGate(true);
   if (ZONE_LOOK) {
     let look = lookAlong(HAZE ? state.x : state.z, LOOK_STOPS);
-    if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
-    sunHome.set(...applyLook(scene, renderer, sun, hemi, look, GROUNDS, STONES).sunPos);
+    if (HAZE && DAYNIGHT) look = blendLook(look, lookOf('frontier-night'), nightness(FIXED_HOUR ?? gameHour(performance.now() - T0, undefined, START_HOUR)) * Math.min(1, Math.max(0, (-20 - state.x) / 40)));   // the Frontier's 100-minute day (daynight.ts); the Pit and the passage stay as they are
+    sunHome.set(...applyLook(scene, renderer, sun, hemi, withZoneLook(look, ZONE_FIELDS), GROUNDS, STONES).sunPos);
   }
   hero.position.set(state.x, groundY(state.x, state.z), state.z); hero.rotation.y = kit && (worldPhase === 'roll' || worldPhase === 'backstep') ? facing : heading;
   body.position.y = 0.88 + (forward ? Math.abs(Math.sin(performance.now() / 160)) * 0.04 : 0);
@@ -550,19 +551,10 @@ function engage(spec: MobSpec, x: number, z: number) {
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
 // Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
-const wcBars = document.createElement('div'); wcBars.id = 'wc-bars'; wcBars.hidden = true;
-wcBars.style.cssText = 'position:fixed;left:12px;top:max(12px,env(safe-area-inset-top));z-index:4;width:150px;pointer-events:none;font:600 11px/1.2 Georgia,serif;color:#efe6d2';
-wcBars.innerHTML = '<div id="wc-name" style="min-height:13px;text-shadow:0 1px 2px #000"></div><div style="height:7px;background:rgba(0,0,0,.55);margin:2px 0"><div id="wc-foe" style="height:100%;width:0;background:#b4452e"></div></div><div style="height:9px;background:rgba(0,0,0,.55);margin:6px 0 2px"><div id="wc-hp" style="height:100%;width:100%;background:#5aa05a"></div></div><div style="height:5px;background:rgba(0,0,0,.55)"><div id="wc-st" style="height:100%;width:100%;background:#c9b24a"></div></div>';
-document.body.append(wcBars);
-const wcFlash = document.createElement('div'); wcFlash.style.cssText = 'position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(transparent 40%,rgba(190,30,20,.55));opacity:0;transition:opacity .25s'; document.body.append(wcFlash);
+const meters = createMeters(document.body);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
 function updateBars() {
   const h = wc.hero(), t = wc.target(), full = h.health >= h.max - 0.5 && h.stamina >= h.maxStamina - 0.5;
-  wcBars.hidden = full && !t && !wc.inCombat();
-  if (wcBars.hidden) return;
-  (document.getElementById('wc-hp') as HTMLElement).style.width = `${Math.max(0, h.health / h.max) * 100}%`;
-  (document.getElementById('wc-st') as HTMLElement).style.width = `${Math.max(0, h.stamina / h.maxStamina) * 100}%`;
-  (document.getElementById('wc-name') as HTMLElement).textContent = t ? `${t.name}` : '';
-  (document.getElementById('wc-foe') as HTMLElement).style.width = t ? `${Math.max(0, t.health / t.max) * 100}%` : '0';
+  meters.update({ hp: h.health, maxHp: h.max, stamina: h.stamina, maxStamina: h.maxStamina, foe: t ? { name: t.name, hp: t.health, max: t.max } : null }, !(full && !t && !wc.inCombat()));
 }
 function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
@@ -573,20 +565,20 @@ function heroDeathSequence() {
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
   const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
-  let local = `${spec.name} is down.`;
+  let local = `${spec.name} is down.`, bountyTaken = false;   // bountyTaken: the journal step's own answer (play.bountyPaid): a refused step says no bounty line
   try {
     huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
     const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
-    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
+    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) bountyTaken = play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
   } catch (error) { console.warn('the kill could not be settled', error); }
   const k = await answer;   // the toast shows the server's answer when signed in (its numbers, its loot), the page's own only for a guest or offline page, labelled preview
-  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id));
+  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id, spec.name, bountyTaken));
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 const wc = createWorldCombat({
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
-  onHeroHit: () => { wcFlash.style.opacity = '1'; setTimeout(() => { wcFlash.style.opacity = '0'; }, 120); },
+  onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {

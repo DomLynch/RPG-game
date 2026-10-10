@@ -1,15 +1,9 @@
 // Shared by encounter.test.ts and origins/preview/encounter-net.test.ts: an in-memory stand-in for the encounter database, and a client that plays a fight on the issued seed.
-import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../../src/fight/moves.ts';
+import { initialPractice, stepPractice, OPPONENTS, opponentAt, profileAt, createRecorder, packRecord, RECORD_VERSION, toBase64Url, type FightRecord, recordSpecials, type DuelPose, LATE_NOTICE, setLateNotice, setStab, STAB_ON } from '../../src/fight/server.ts';
 import { gzipSync } from 'node:zlib';
-import { createRecorder, packRecord, RECORD_VERSION, toBase64Url, type FightRecord } from '../../src/fight/record.ts';
-import { recordSpecials } from '../../src/fight/replay.ts';
 import { DbError, type Db } from './db.ts';
 import type { EncounterDeps } from './encounter.ts';
 import { kitBuild } from '../mobs/kit-version.ts';
-import type { DuelPose } from '../../src/fight/duel.ts';
-import { LATE_NOTICE, setLateNotice } from '../../src/fight/play-radius.ts';
-import { setStab, STAB_ON } from '../../src/stab-rule.ts';
 import { liveSpecials, verifyEncounter } from './encounter-verify.ts';
 
 export const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';

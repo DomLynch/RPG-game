@@ -4,7 +4,7 @@ import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {writeExecutionKiller,writeExecutionVictim} from '../scripts/build-execution.mjs';
-import {EXECUTION_BEATS} from '../src/execution.ts';
+import {EXECUTION_BEATS} from '../src/fight/execution.ts';
 const unpack=(bytes:Buffer)=>{const n=bytes.readUInt32LE(12);return {json:JSON.parse(bytes.subarray(20,20+n).toString())};};
 
 test('the Execution clip JSON are what the build writes from the untouched warrior.glb, byte for byte, with no random uuid',async()=>{

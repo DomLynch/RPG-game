@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
+import { signedIn } from './save.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
@@ -179,10 +180,30 @@ test('the placed list is exactly what it was before the rows (origins/preview/mo
 });
 
 test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on their own body in the Cinder Fields', () => {
-  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf')), SPECS, '?wolf is accepted and does nothing');
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf', false)), SPECS, '?wolf is accepted and does nothing');
   const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
   assert.equal(wolves.length, 3, 'campSize 2..3: the camp is the row\'s upper size');
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
+});
+
+test('?lone makes every camp one creature and nothing else changes: the same spawns, one member each', () => {
+  const lone = mobSpecs(F, B, previewRows('?lone', false)), spawns = new Set(SPECS.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`));
+  assert.deepEqual([...new Set(lone.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`))].sort(), [...spawns].sort(), 'every spawn is still there');
+  for (const sp of spawns) assert.equal(lone.filter((s) => `${s.zone}/${s.spawn}` === sp).length, 1, `${sp} is one creature`);
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1', false)), SPECS, 'no ?lone, no change');
+});
+
+test('?lone is ignored when signed in: the server pays each kill, so a signed-in player cannot thin a pack', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?lone', true)), SPECS, 'signed in: the camps keep their size');
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&lone=1', true)), SPECS);
+  assert.ok(mobSpecs(F, B, previewRows('?lone', false)).length < SPECS.length, 'a guest still gets the lone camps');
+});
+
+test('signedIn: any stored sign-in counts, an unreadable store fails closed, no store is a guest', () => {
+  assert.equal(signedIn(null), false);
+  assert.equal(signedIn({ getItem: () => null }), false);
+  assert.equal(signedIn({ getItem: () => '{"access_token":"x","expires_at":1}' }), true, 'expired still counts');
+  assert.equal(signedIn({ getItem: () => { throw new Error('blocked'); } }), true);
 });
 
 test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {

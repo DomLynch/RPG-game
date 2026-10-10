@@ -1,4 +1,4 @@
-import type { CombatEvent } from './fight/duel.ts';
+import type { CombatEvent } from './duel.ts';
 
 // LOOK TEST behind `?look=defence` (default OFF; Lead 2026-10-07, Strategy's proposal): the player's four defence results read differently. Presentation only: no sim or record change,
 // driven by the events the sim already emits (duel.ts ~361-372): `Parried` and `Blocked` name the DEFENDER as `actor`, so the player's own defence is actor 0.

@@ -113,5 +113,5 @@ test('perf beacon: WebDriver, headless Chrome and dev/test parameters are automa
   assert.equal(automated(null, ''), false, 'no navigator: not provably automation');
   assert.equal(automated({ ...phone, webdriver: true }, ''), true);
   assert.equal(automated({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0 Safari/537.36' }, ''), true);
-  for (const q of ['?debug', '?debug=1', '?opponent=veteran&debug', '?botSeed=4', '?tier=L3', '?lookbake=off']) assert.equal(automated(phone, q), true, q);
+  for (const q of ['?debug', '?debug=1', '?opponent=veteran&debug', '?botSeed=4', '?tier=L3', '?lookbake=off', '?off=lookbake', '?off=fatigue-read,lookbake']) assert.equal(automated(phone, q), true, q);
 });

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, noise, smooth } from './fx-math.ts';
+import { clamp01, hash, noise, smooth } from './fight/fx-math.ts';
 
 // Set's Red Wind, the in-game effect (Nightborn lane; Dom's GO via Lead 2026-09-30, his pick of "A, the ground burst" 2026-10-01; the seam is Hades'
 // special-fx.ts and special-timing.ts). One idea, the arena floor itself hitting the TARGET: a ring of sand erupts outward at his feet in radial
