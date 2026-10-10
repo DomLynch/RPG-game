@@ -6,7 +6,8 @@ import { createMeters, fillMeter, paintMeter } from '../src/fight/hud.ts';
 class El {
   children: El[] = []; hidden = false; className = ''; textContent = ''; dataset: Record<string, string> = {}; value = 0; max = 1; attrs: Record<string, string> = {}; props = new Map<string, string>();
   style = { setProperty: (k: string, v: string) => { this.props.set(k, v); } };
-  constructor(public tag: string, public ownerDocument: { createElement(tag: string): El }) {}
+  tag: string; ownerDocument: { createElement(tag: string): El };
+  constructor(tag: string, ownerDocument: { createElement(tag: string): El }) { this.tag = tag; this.ownerDocument = ownerDocument; }   // no parameter properties: node's strip-only TypeScript refuses them
   setAttribute(k: string, v: string) { this.attrs[k] = v; }
   append(...kids: El[]) { this.children.push(...kids); }
 }
