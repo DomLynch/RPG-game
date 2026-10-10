@@ -63,14 +63,16 @@ node scripts/merged-on-trunk.mjs
 # Any doubt (gh unavailable, no green run, trees differ) falls back to the full gate.
 # Green means the REQUIRED quality.yml jobs (`quality`, `browser (combat)`) concluded success on the newest run for the
 # revision. Run-level success would wait for the optional counter gate (continue-on-error, often a ~16 min stall).
+# Any of the commit's quality.yml runs counts, not just the newest: a fast-forward of a pre-run candidate (release-V, 2026-10-10) starts a fresh PUSH run for the same sha,
+# which sorts first and is still queued, while the PULL REQUEST run that already proved the tree sits second (V's Mac then ran its own unit suite for 3 min).
 quality_green() {
-  gh run list --workflow quality.yml --commit "$1" --json databaseId,url --limit 3 --jq '.[0] | "\(.databaseId) \(.url)"' 2>/dev/null | {
-    read -r run_id run_url || exit 0
-    [[ -n "$run_id" ]] || exit 0
+  local run_id run_url green
+  while read -r run_id run_url; do
+    [[ -n "$run_id" ]] || continue
     green=$(gh run view "$run_id" --json jobs --jq '[.jobs[] | select(.name == "quality" or .name == "browser (combat)") | .conclusion] | if length == 2 and all(. == "success") then "yes" else "no" end' 2>/dev/null || true)
-    [[ "$green" == "yes" ]] && echo "$run_url"
-    exit 0
-  }
+    if [[ "$green" == "yes" ]]; then echo "$run_url"; return 0; fi
+  done < <(gh run list --workflow quality.yml --commit "$1" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+  return 0
 }
 ci_green=$(quality_green "$revision")
 ci_green_for="$revision"
