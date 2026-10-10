@@ -66,6 +66,10 @@ test('each fault is named', () => {
   const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => p.code).join(','); };
   assert.equal(edit(() => {}), '');
   assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'dragon'; }), 'id', 'a variant row whose body is not a roster id');
+  assert.equal(edit((r) => { r.body = r.id; }), 'id', 'a variant row cannot be its own body');
+  assert.equal(edit((r) => { r.summary = '  '; }), 'id', 'an empty summary');
   assert.equal(edit((r) => { r.world = { ...r.world!, tris: 62000, maxTris: 62000 }; }), 'budget');
   assert.equal(edit((r) => { r.world = { ...r.world!, asset: r.engine.asset }; }), 'asset');
   assert.equal(edit((r) => { (r.armour as string[]).push('goblin.Cape'); }), 'armour');
