@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { classify, dataProblems, legendCitations, legendProblems, moduleValue, onDataPath } from '../scripts/lib/data-only.mjs';
+import { verdict } from '../scripts/data-only-check.mjs';
 
 const zoneFiles = readdirSync('origins/zones', { withFileTypes: true }).filter(d => d.isDirectory() && /^zone\d+$/.test(d.name))
   .flatMap(d => ['zone', 'spawns', 'kit', 'look'].map(f => `origins/zones/${d.name}/${f}.ts`));
@@ -57,3 +58,13 @@ test('legends: a spawns row bringing a NEW legend id, or a changed source citati
   assert.deepEqual(legendCitations([{ id: 'character:x' }, { id: 'kind:wolf', source: {} }, null]), {}, 'a row without a citation, or not a character, is not a legend');
 });
 
+test('a PR that edits the gate is judged by the base copy and is a normal PR (exit 1): the workflow restores the gate from base before npm ci (Lead 2026-10-10)', () => {
+  const read = (f: string) => readFileSync(f, 'utf8');
+  for (const f of ['scripts/data-only-check.mjs', 'scripts/lib/data-only.mjs', 'package.json', 'package-lock.json', '.github/workflows/data-only.yml']) {
+    const v = verdict([{ file: 'origins/zones/zone1/spawns.ts', status: 'modified' }, { file: f, status: 'modified' }], read);
+    assert.equal(v.dataOnly, false, f); assert.equal(v.code, 1, f);
+  }
+  const wf = readFileSync('.github/workflows/data-only.yml', 'utf8'), restore = wf.indexOf('git checkout "$BASE" -- "$f"');
+  assert.ok(restore > 0 && restore < wf.indexOf('npm ci') && wf.indexOf('npm ci') < wf.indexOf('node scripts/data-only-check.mjs'), 'restore from base, then npm ci, then the check');
+  for (const f of ['scripts/data-only-check.mjs', 'scripts/lib/data-only.mjs', 'package.json', 'package-lock.json']) assert.ok(wf.includes(f), f);
+});
