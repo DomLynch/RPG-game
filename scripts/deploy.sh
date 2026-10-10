@@ -80,15 +80,16 @@ quality_run_with() {
 }
 # A scoped run proves only `quality`: the Mac then skips test:browser, so the trunk under this candidate must have had browser (combat) green itself (Auditor LOW on #2136).
 # Walk the first parents (<= 8): a member merge of a multi-member candidate has no CI run, the trunk commit under the candidate does; the first commit with a run decides.
-# No such commit, or its run is not green: fail closed.
+# No such commit, its run not green, or gh failing on the walk: fail closed.
 quality_green() {
-  local url n base
+  local url n base runs
   url=$(quality_run_with yes "$1"); if [[ -n "$url" ]]; then echo "$url"; return 0; fi
   url=$(quality_run_with scoped "$1"); [[ -n "$url" ]] || return 0
   for n in 1 2 3 4 5 6 7 8; do
     base=$(git rev-parse -q --verify "$1~$n" 2>/dev/null || true)
     [[ -n "$base" ]] || return 0
-    if [[ -n "$(gh run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null || true)" ]]; then
+    runs=$(gh run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
+    if [[ -n "$runs" ]]; then
       [[ -n "$(quality_run_with yes "$base")" ]] && echo "$url"
       return 0
     fi
