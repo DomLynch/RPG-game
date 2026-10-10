@@ -37,6 +37,7 @@ test('the flow check sees static, re-export and dynamic imports', () => {
 
 // K2c (Lead + Strategy, 2026-10-09): Zone 1 and every browser client reach the fight through ONE door, src/fight/index.ts. A non-test file under origins/ may not import an engine module
 // (duel, ai, sim, moves, combat, play-radius, record, gear-stats, gambit, stance, twist, replay) directly. Server-run code (node, no renderer) takes src/fight/server.ts, the renderer-free door (K7); the debt list is empty and stays so.
+const ENGINE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'gear-stats', 'gambit', 'stance', 'twist', 'replay'];
 const ENGINE_DEBT: readonly string[] = [];   // paid: server-run code takes the renderer-free door src/fight/server.ts (K7)
 const edgesOf = (file: string, text: string): string[] => [...new Set([...text.matchAll(IMPORT)].map((m) => m[1]!)
   .filter((s) => /(^|\/)src\/(fight\/)?[^/]+$/.test(s)).map((s) => s.replace(/\?.*$/, '').replace(/\.ts$/, '').split('/').pop()!)
