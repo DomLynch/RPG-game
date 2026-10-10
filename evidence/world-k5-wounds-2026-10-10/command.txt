@@ -1,0 +1,5 @@
+k5-wounds @ efc97e05d, vite build origins/preview, VPS Chromium software GL, 375x812, Zone 2 ?lone (Ember wolf z2:reach-wolves-1)
+timeout 900 capture --prio 3 world env HOME=/home/lanes ZONE=2 LONE=1 TAGS_TARGET=z2:reach-wolves node scripts/blood-stills.mjs artifacts/origins-preview <out>
+(blood-stills.mjs = #2065 stab-stills with a hit-triggered shot loop, VPS-local, not committed)
+result: infight true, hits at foe hp 40/26/12, kill true, errors 0; originsPreview.wounds(): bursts 2,3,4, marks 0,1,2
+blood-2.png: the red burst by the wolf at hp 12; software GL is slow, so most burst frames are over before a screenshot lands
