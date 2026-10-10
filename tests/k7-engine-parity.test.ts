@@ -158,9 +158,12 @@ test('K7 camera row: nothing under origins/ places the camera (camera.position /
 test('K7 camera limits row: createFollowCamera in origins/preview/main.ts is called with zone data, not literals', () => {
   const call = (src: string) => /createFollowCamera\(camera,\s*\{[^;]*\}\)/.exec(src)?.[0] ?? '';
   const main = readFileSync('origins/preview/main.ts', 'utf8');
-  assert.ok(call(main), 'the page builds the follow camera'); const literal = /(?<![\w.\[])\d+(\.\d+)?/;   // a number literal (not an index like [1])
-  assert.ok(!literal.test(call(main)), `no number in the call: ${call(main)}`);
-  assert.ok(literal.test(call('createFollowCamera(camera, { open: { back: 3.4 } });')), 'a literal in the call is seen (mutation)'); assert.ok(!literal.test(call('createFollowCamera(camera, { open: pick(/[?&]camera=([a-z])\\b/.exec(location.search)?.[1]) });')), 'an index is not a number literal');
+  assert.ok(call(main), 'the page builds the follow camera');
+  // Strip index accesses (`x[1]`, `?.[1]`: a [digit] right after a name, `)`, `]` or `.`) first; then ANY number left is a camera limit, `.5` and a lone `[5]` array literal included.
+  const literal = (src: string) => /(?<![\w$])\.?\d/.test(src.replace(/(?<=[\w)\].])\[\d+\]/g, ''));
+  assert.ok(!literal(call(main)), `no number in the call: ${call(main)}`);
+  for (const bad of ['{ open: { back: 3.4 } }', '{ open: { back: .5 } }', '{ open: [5] }', '{ open: x + [5] }']) assert.ok(literal(call(`createFollowCamera(camera, ${bad});`)), `a literal is seen (mutation): ${bad}`);
+  assert.ok(!literal(call('createFollowCamera(camera, { open: pick(/[?&]camera=([a-z])\\b/.exec(location.search)?.[1], zone[2]) });')), 'an index is not a number literal');
 });
 
 // Strategy's donor verdict (2026-10-10): MAX_ATTACKERS is never exceeded, and no other cap can alias it. The cap lives in src/fight/attackers.ts (a leaf, so the node-safe door's closure does not pull the world loop).
