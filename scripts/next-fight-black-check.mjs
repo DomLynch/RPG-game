@@ -6,8 +6,9 @@
 // Lead's ruling 2026-10-08 asked 300 ms; five runs here read 270, 312, 312, 0 and 0 (a ~0.25-0.3 s near-black frame at the document swap that WebKit's
 // screenshots catch only sometimes), so 600 keeps headroom against noise and still fails Dom's 2 s.
 // Two gates, two meanings (Lead 2026-10-10, boot trace in scripts/boot-trace-webkit.mjs): LUMINANCE (blackMs <= BLACK_MAX, 600) is what the player sees as black.
-// The CAPTURE GAP (no screenshot possible, a frozen main thread at the document swap) is a separate ceiling, GAP_MAX (1500): the gap is noisy (same tree, same Mac,
-// four runs 2026-10-10: 284, 433, 561, 1124 ms, the 1124 with 0 ms of black); the live site over the network reads 1.4-2.4 s (not this row). 1500 clears that noise and still fails a hang or Dom's 2 s.
+// The CAPTURE GAP (no screenshot possible, a frozen main thread at the document swap) is a separate ceiling, GAP_MAX (1200): the gap is noisy (same tree, same Mac,
+// four runs 2026-10-10: 284, 433, 561, 1124 ms, the 1124 with 0 ms of black), but the row passes on the first of its 3 attempts, so that noise and Deploy's loaded 530-570 ms clear 1200; at 1500 a 1.2-1.5 s freeze regression would pass.
+// The live site over the network reads 1.4-2.4 s (not this row). 1200 still fails a hang or Dom's 2 s.
 //   node scripts/next-fight-black-check.mjs        receipt: artifacts/next-fight/receipt.json
 import { webkit } from 'playwright';
 import { build, preview } from 'vite';
@@ -97,7 +98,7 @@ async function fightTo(opponent, win) {
 }
 
 
-const BLACK_MAX = Number(process.env.NEXT_FIGHT_MAX || 600), GAP_MAX = Number(process.env.NEXT_FIGHT_GAP_MAX || 1500), WINDOW = 12000, FLOOR = 12;   // FLOOR: mean luminance (0..255) under which a frame reads as black
+const BLACK_MAX = Number(process.env.NEXT_FIGHT_MAX || 600), GAP_MAX = Number(process.env.NEXT_FIGHT_GAP_MAX || 1200), WINDOW = 12000, FLOOR = 12;   // FLOOR: mean luminance (0..255) under which a frame reads as black
 try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);

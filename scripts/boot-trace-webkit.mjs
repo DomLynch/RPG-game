@@ -14,7 +14,8 @@ const [dist, count = '5'] = process.argv.slice(2), runs = Number(count);
 if (!dist) { console.error('usage: node scripts/boot-trace-webkit.mjs <dist dir> [reloads]'); process.exit(2); }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-b', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => {
-  const u = decodeURIComponent(req.url.split('?')[0]); let file = path.join(path.resolve(dist), u);
+  const root = path.resolve(dist), u = decodeURIComponent(req.url.split('?')[0]); let file = path.join(root, u);
+  if (!file.startsWith(root + path.sep) && file !== root) { res.writeHead(403); return res.end(); }   // never serve outside the dist dir (`..`)
   if (existsSync(file) && statSync(file).isDirectory()) file = path.join(file, 'index.html');
   if (!existsSync(file)) { res.writeHead(404); return res.end(); }
   const headers = { 'content-type': mime[path.extname(file)] ?? 'application/octet-stream' };
