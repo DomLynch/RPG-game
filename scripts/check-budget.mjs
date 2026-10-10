@@ -97,7 +97,7 @@ const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${
 // shieldmaiden 2.7 MB (plain + crafted + kite = 127,555 + 128,618 + 134,396 B gzip); centurion 2.7 MB (the Veteran rig's scutum: 133,122 + 136,407 + 156,763 B gzip).
 const SHIELDS = { shieldmaiden: 2_700_000, centurion: 2_700_000 }, SHIELD_FILE = 900_000;
 // Beast duel bodies (public/beasts/<id>.glb: the boar, the bear; Lead's ruling 2026-10-08, Dom's phone-first vision): each is a full duel rig (~1.8 MB gzip), so they are NOT in src/assets (the glob emits every
-// file there into every player's download and TOTAL) but fetched on demand by URL when the creature is near or the duel starts (src/beast-scale.ts beastBodyUrl; World's preload warms it). Their own storage line,
+// file there into every player's download and TOTAL) but fetched on demand by URL when the creature is near or the duel starts (src/fight/beast-scale.ts beastBodyUrl; World's preload warms it). Their own storage line,
 // out of TOTAL and out of every per-fight sum: per file and for the folder.
 const BEASTS_FILE = 2_200_000, BEASTS_SET = 8_000_000;
 // World bodies (public/world/<kind>.glb; Lead 2026-10-07, Dom's phone test: the Origins preview went black on an iPhone 15 with full duel GLBs): one

@@ -17,9 +17,9 @@ import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
-import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
+import { standoffClock, standoffFlag, standoffPose } from './fight/standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
-import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
+import { ON_DEMAND_BEASTS, beastBodyUrl } from './fight/beast-scale.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
 import { type FinisherId } from './fight/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
@@ -45,7 +45,7 @@ import { createBloodEdge } from './fight/blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig, framingLow, framingTall } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './fight/severed-head.ts';
-import { createFightFx } from './fight/fx.ts';
+import { createFightFx, impactTexture } from './fight/fx.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
 import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
@@ -242,7 +242,7 @@ export function createScene(
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
   const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
-  // The foe's rig file: a roster body from the glob, except the on-demand beasts (boar, bear), which are public/beasts/<id>.glb fetched by an absolute site-root URL (src/beast-scale.ts), like the world bodies' '/world/...': the Origins preview build has no publicDir, so a BASE_URL-relative path would 404 there.
+  // The foe's rig file: a roster body from the glob, except the on-demand beasts (boar, bear), which are public/beasts/<id>.glb fetched by an absolute site-root URL (src/fight/beast-scale.ts), like the world bodies' '/world/...': the Origins preview build has no publicDir, so a BASE_URL-relative path would 404 there.
   const foeUrl = (id: string): string => ON_DEMAND_BEASTS.has(id) ? beastBodyUrl(id) : fighterUrls[`./assets/${ROSTER[id as OpponentId].body}.glb`]!;
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
   // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
@@ -355,7 +355,7 @@ export function createScene(
   ])
     .then(async ([loaded]) => {
       warriors = loaded;
-      if (!peer) sizeBeast(loaded, opponentId);   // a beast is drawn at the size it is met walking (src/beast-scale.ts)
+      if (!peer) sizeBeast(loaded, opponentId);   // a beast is drawn at the size it is met walking (src/fight/beast-scale.ts)
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
@@ -398,45 +398,6 @@ export function createScene(
     return loading;
   }
   const ready = loadFighters();
-  // Two original alpha sprites, generated once; all impacts reuse the same GPU resources.
-  function impactTexture(splash: boolean) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 128;
-    const ctx = canvas.getContext('2d')!;
-    const fill = ctx.createRadialGradient(64, 64, 8, 64, 64, 58);
-    fill.addColorStop(0, '#ffffffff');
-    fill.addColorStop(0.75, '#ffffffcc');
-    fill.addColorStop(1, '#ffffff00');
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    for (let i = 0; i <= 64; i++) {
-      const angle = (i / 64) * Math.PI * 2,
-        r = splash ? 33 + Math.sin(angle * 2 + 1) * 5 + Math.cos(angle * 3 + 2) * 4 + Math.sin(angle * 5 + 0.5) * 2 : 48;   // low, out-of-phase lobes: a lopsided blot, never a star
-      const x = 64 + Math.cos(angle) * r,
-        y = 64 + Math.sin(angle) * r * (splash ? 1 : 0.65);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    if (splash)
-      for (let i = 0; i < 17; i++) {
-        const a = i * 2.4,
-          r = 42 + (i % 4) * 4;
-        ctx.beginPath();
-        ctx.ellipse(
-          64 + Math.cos(a) * r,
-          64 + Math.sin(a) * r,
-          1.5 + (i % 3),
-          1 + (i % 2),
-          a,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
-      }
-    return new THREE.CanvasTexture(canvas);
-  }
   const dropTexture = impactTexture(false),
     splatTexture = impactTexture(true);
   const finisherBlood = createFinisherBlood(splatTexture);

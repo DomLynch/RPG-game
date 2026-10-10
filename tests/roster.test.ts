@@ -1,4 +1,4 @@
-import { ON_DEMAND_BEASTS } from '../src/beast-scale.ts';
+import { ON_DEMAND_BEASTS } from '../src/fight/beast-scale.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';

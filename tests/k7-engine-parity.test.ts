@@ -63,13 +63,11 @@ const KNOWN: readonly string[] = [
   "12 | P1/P2 | origins/preview/main.ts -> creature",
   "12 | P1/P2 | origins/preview/pit-duel.ts -> creature",
   "12 | P1/P2 | origins/preview/pit-duel.ts -> feedback",
-  "14 | P1/P2 | origins/preview/pit-duel.ts -> hud",
   "20 | K12 | origins/preview/main.ts -> legends",
   "20 | K12 | origins/preview/pit-duel.ts -> legends",
   "20 | K12 | origins/preview/pit-duel.ts -> roster",
 ];
 const KNOWN_COPIES: readonly string[] = [
-  "14 | P1/P2 | origins/preview/main.ts defines updateBars",
   "7 | P1/P2 | origins/preview/mobs-view.ts (the zone's own creature lunge / hit pulse / fall)",
 ];
 

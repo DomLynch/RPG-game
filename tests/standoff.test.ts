@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { idleIntent, initialDuel, stepDuel } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
-import { STANDOFF_MS, standoffClock, standoffFlag, standoffPose } from '../src/standoff.ts';
+import { STANDOFF_MS, standoffClock, standoffFlag, standoffPose } from '../src/fight/standoff.ts';
 
 test('the standoff is on by default; ?standoff=0 or off turns it off', () => {
   assert.equal(standoffFlag(''), true);

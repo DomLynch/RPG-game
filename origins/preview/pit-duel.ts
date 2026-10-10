@@ -10,7 +10,7 @@
 import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
 import { creaturesLook } from '../../src/fight/sound/creature.ts';
 import { createFeedback } from '../../src/fight/sound/feedback.ts';
-import { createHud } from '../../src/fight/hud.ts';
+import { createHud } from '../../src/fight/index.ts';
 import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
 import { createInput, type ControlIntent } from '../../src/input.ts';
 import { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/legends.ts';

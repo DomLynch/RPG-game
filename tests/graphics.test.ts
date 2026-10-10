@@ -10,7 +10,7 @@ import * as armfeelModule from '../src/fight/armfeel.ts';
 import * as defenceGradeModule from '../src/fight/defence-grade.ts';
 import * as chunkRecoverModule from '../src/chunk-recover.ts';
 import * as kickCloseModule from '../src/fight/kick-close.ts';
-import * as victoryHeadlineModule from '../src/victory-headline.ts';
+import * as victoryHeadlineModule from '../src/fight/victory-headline.ts';
 import * as fatiguePreviewModule from '../src/fight/fatigue-preview.ts';
 import * as sim from '../src/fight/sim.ts';
 import * as combat from '../src/fight/combat.ts';
@@ -35,7 +35,7 @@ import * as rankLook from '../src/rank-look.ts';   // the rematch's rank-look re
 import * as replay from '../src/fight/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as clip from '../src/clip.ts';
-import * as detmath from '../src/detmath.ts';
+import * as detmath from '../src/fight/detmath.ts';
 import * as ai from '../src/fight/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
@@ -60,17 +60,17 @@ import * as lessons from '../src/lessons.ts';
 import * as breathAudio from '../src/fight/sound/breath.ts';
 import * as powerWords from '../src/power-words.ts';
 import * as powerWordSynth from '../src/fight/sound/power-word.ts';
-import * as touchRouter from '../src/touch-router.ts';
+import * as touchRouter from '../src/fight/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
 import * as zoomGuard from '../src/zoom-guard.ts';   // the page-zoom lock main.ts calls at boot (#1749): the real module, it only adds document listeners
-import * as tutorialUi from '../src/tutorial-ui.ts';
+import * as tutorialUi from '../src/fight/tutorial-ui.ts';
 import * as match from '../src/match.ts';
-import * as stancePanel from '../src/stance-panel.ts';
+import * as stancePanel from '../src/fight/stance-panel.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
 import * as gearLedger from '../src/gear-ledger.ts';
 import * as gearServer from '../src/gear-server.ts';
 import * as fightOpen from '../src/fight/open.ts';
-import * as coachUi from '../src/coach-ui.ts';
+import * as coachUi from '../src/fight/coach-ui.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
 
@@ -117,7 +117,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './fight/quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './fight/sound/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './fight/sound/feedback.ts': feedbackModule, './fight/hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './fight/sim.ts': sim, './fight/combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './fight/record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './fight/replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './fight/ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './fight/hud.ts': hud, './match.ts': matchModule, './stance-panel.ts': stancePanel, './coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './fight/moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './fight/quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './fight/detmath.ts': detmath, './fight-results.ts': fightResults, './sparring.ts': sparring, './special-look.ts': specialLook, './fight/sound/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './arena-themes.ts': arenaThemes, './fight/sound/feedback.ts': feedbackModule, './fight/hit-impact.ts': hitImpact, './pvp-hold.ts': pvpHold, './fight/sim.ts': sim, './fight/combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './fight/record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './fight/replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './fight/ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './fight/hud.ts': hud, './match.ts': matchModule, './fight/stance-panel.ts': stancePanel, './fight/coach-ui.ts': coachUi, './input.ts': input, './legends.ts': legends, './fight/moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full', pitGlowFrom: () => false, pitOpenLook: () => ({}), skullsDemoFrom: () => false }, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./fight/execution.ts'] = execution; modules['./fight/hamstrung.ts'] = hamstrung; modules['./fight/hamstrung-assets.ts'] = hamstrungAssets;
   modules['./fight/open.ts'] = fightOpen;   // the page's one writer `open` (no session in the harness: it asks nothing)
   modules['./gear-server.ts'] = gearServer;   // a signed-in character's gear is the server's ledger (no session in the harness: it stays local)
@@ -128,13 +128,13 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fight/defence-grade.ts'] = defenceGradeModule;   // ?look=defence's pure core (main.ts reads the flag; hud.ts names the grades)
   modules['./fight/kick-close.ts'] = kickCloseModule;   // ?look=kickclose's gap history (hud.ts uses it, main.ts reads the flag)
   modules['./fight/fatigue-preview.ts'] = fatiguePreviewModule;   // ?look=fatigue-preview's flag and the low-stamina test (hud.ts uses it, main.ts reads the flag)
-  modules['./victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
+  modules['./fight/victory-headline.ts'] = victoryHeadlineModule;   // ?look=headline's pure core (main.ts reads the flag and hands the line to the HUD)
   modules['./fight/armfeel.ts'] = armfeelModule;   // ?look=armfeel's pure core (main.ts reads the flag and the blade hold)
   modules['./fight/sound/power-word.ts'] = powerWordSynth;
   modules['./fight/sound/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
-  modules['./tutorial-ui.ts'] = tutorialUi;
-  modules['./touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
+  modules['./fight/tutorial-ui.ts'] = tutorialUi;
+  modules['./fight/touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
   modules['./sparring-specials.ts'] = sparringSpecials;
   modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
   Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });
@@ -1040,7 +1040,7 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A headless record is stamped with an older era (play-radius.ts: no circle, no late notice, no stab), and every pre-29 version is refused (REACH[29]): stamp this one as a live fight is.
-  const pr = await import('../src/fight/play-radius.ts'), { setStab } = await import('../src/stab-rule.ts');
+  const pr = await import('../src/fight/play-radius.ts'), { setStab } = await import('../src/fight/stab-rule.ts');
   const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('goblin', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);
   const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
