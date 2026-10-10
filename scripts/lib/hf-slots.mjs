@@ -8,7 +8,7 @@
 // and queues again (the youngest excess job backs off, so two simultaneous launchers cannot both keep the last slot).
 // A launcher calls withSlot(): it waits (polling) for a slot, runs `launch()` while holding the lock (so two lanes cannot both take the last slot), and the caller
 // prints tierLine(). No slot within maxWaitS => withSlot returns { ok: false } and the caller exits 75 (the submit path requeues to the VPS).
-import { mkdirSync, rmSync, statSync } from 'node:fs';
+import { mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,12 +29,14 @@ export function slotDecision(flavor, jobs, generic) {
 
 const sleepMs = ms => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 const LOCK = process.env.HF_SLOT_LOCK || join(tmpdir(), 'frankendom-hf-slots.lock');
-// mkdir is atomic; a lock older than 120 s belongs to a dead launcher and is broken.
+// mkdir is atomic; a lock older than STALE_MS (a live holder holds it for one hf call plus a rank check, ~2 min at worst) belongs to a dead launcher and is broken by RENAME
+// (atomic: of two launchers breaking the same stale lock only one succeeds, and neither can delete a fresh lock the other has just taken).
+export const STALE_MS = 300_000;
 function lock(maxMs) {
   const t0 = Date.now();
   for (;;) {
     try { mkdirSync(LOCK); return true; } catch { /* held */ }
-    try { if (Date.now() - statSync(LOCK).mtimeMs > 120_000) rmSync(LOCK, { recursive: true, force: true }); } catch { /* gone */ }
+    try { if (Date.now() - statSync(LOCK).mtimeMs > STALE_MS) { const dead = `${LOCK}.stale-${process.pid}-${Date.now()}`; renameSync(LOCK, dead); rmSync(dead, { recursive: true, force: true }); } } catch { /* gone, or another launcher broke it first */ }
     if (Date.now() - t0 > maxMs) return false;
     sleepMs(500);
   }

@@ -57,6 +57,10 @@ export function genericJobArgs(argv) {
   const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, ...opts.env.flatMap(kv => ['-e', kv]), JOB_IMAGE, bash, dashC, script];
   return { args, flavor, opts, sha };
 }
+// A release job (unit/rows) waits at most this long for a slot; the parent that spawns a `rows` child must outlive the child's WHOLE budget (slot wait + the hf call + the
+// post-launch rank check + the cancel), or it kills the child between `hf jobs run` and the id line and leaves a job nobody ledgered (Auditor on #2079).
+export const RELEASE_SLOT_WAIT_S = 300;
+export const ROWS_CHILD_TIMEOUT_MS = (RELEASE_SLOT_WAIT_S + 60 + 60 + 60) * 1000;
 // The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
 // (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, CPU_WIDTH wide, each under hfArgs' 20m --timeout.
 export const CPU_SHARD = 6;
@@ -94,7 +98,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const ids = [], placed = [];
       for (const rows of cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger))) {
         if (process.env.LAUNCH_DRY) { placed.push(...rows); continue; }
-        const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), String(CPU_WIDTH)], { encoding: 'utf8', timeout: 90_000 });
+        const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), String(CPU_WIDTH)], { encoding: 'utf8', timeout: ROWS_CHILD_TIMEOUT_MS });
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
         if (id) { ids.push(id); placed.push(...rows); } else console.error(`launch: no job for CPU rows ${rows.join(',')}; they run on the Mac`);
       }
@@ -115,7 +119,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {
         // Work waterfall: a slot under the shared HF caps (scripts/lib/hf-slots.mjs); a lane's job keeps off the slot reserved for the deploy lane's unit/rows jobs.
-        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : 300, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }), idOf: r => /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1] ?? null, cancel: id => spawnSync(hfBin, ['jobs', 'cancel', id], { encoding: 'utf8', timeout: 60_000 }) });
+        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : RELEASE_SLOT_WAIT_S, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }), idOf: r => /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1] ?? null, cancel: id => spawnSync(hfBin, ['jobs', 'cancel', id], { encoding: 'utf8', timeout: 60_000 }) });
         if (!slot.ok) { console.error(`launch: no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s; run it on the VPS queue instead`); process.exit(75); }
         const r = slot.value; process.stdout.write(`${tierLine(flavor, slot.slot, slot.queuedS)}\n${r.stdout || ''}`); process.stderr.write(r.stderr || '');
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];

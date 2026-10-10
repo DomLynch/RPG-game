@@ -7,8 +7,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 process.env.HF_SLOT_LOCK = join(mkdtempSync(join(tmpdir(), 'hf-slots-lock-')), 'lock');
-const { CAPS, rankOf, slotDecision, tierLine, tierOf, withSlot } = await import('../scripts/lib/hf-slots.mjs');
-const { genericJobArgs } = await import('../scripts/vps-shadow/launch.mjs');
+const { CAPS, STALE_MS, rankOf, slotDecision, tierLine, tierOf, withSlot } = await import('../scripts/lib/hf-slots.mjs');
+const { RELEASE_SLOT_WAIT_S, ROWS_CHILD_TIMEOUT_MS, genericJobArgs } = await import('../scripts/vps-shadow/launch.mjs');
 
 const live = (flavor: string, n: number, stage = 'RUNNING') => Array.from({ length: n }, () => ({ flavor, status: { stage } }));
 const sha = 'a'.repeat(40);
@@ -107,4 +107,14 @@ test('launch.mjs job --env K=V is repeatable, reaches the job as -e K=V, and ref
   assert.throws(() => genericJobArgs([sha, '--env', 'foo=1', '--', 'x']), /upper-case key/);
   assert.throws(() => genericJobArgs([sha, '--env', 'HF_TOKEN=abc', '--', 'x']), /reserved or looks like a secret/);
   assert.throws(() => genericJobArgs([sha, '--env', 'SHA=x', '--', 'x']), /reserved/);
+});
+
+test('the parent of a `rows` child outlives the child\'s whole budget (slot wait + hf call + rank check + cancel), and a stale lock is only broken after a live holder could not still hold it', async () => {
+  assert.ok(ROWS_CHILD_TIMEOUT_MS >= (RELEASE_SLOT_WAIT_S + 60 + 60) * 1000, `${ROWS_CHILD_TIMEOUT_MS} ms must cover ${RELEASE_SLOT_WAIT_S} s of waiting plus two 60 s hf calls`);
+  const src = (await import('node:fs')).readFileSync('scripts/vps-shadow/launch.mjs', 'utf8');
+  assert.match(src, /timeout: ROWS_CHILD_TIMEOUT_MS/, 'the cpu launcher spawns the rows child with that timeout');
+  assert.doesNotMatch(src, /timeout: 90_000/);
+  assert.ok(STALE_MS >= 300_000 && STALE_MS > 2 * 60_000, 'longer than a live holder (one hf call + a rank check) can hold the lock');
+  const slots = (await import('node:fs')).readFileSync('scripts/lib/hf-slots.mjs', 'utf8');
+  assert.match(slots, /renameSync\(LOCK, dead\)/, 'a stale lock is broken by rename, not stat-then-rm');
 });
