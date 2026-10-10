@@ -59,9 +59,13 @@ try {
   await page.waitForFunction(() => document.body.classList.contains('infight'), null, { timeout: 15000 }).catch(() => {});
   const engaged = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, shown: !document.querySelector('canvas')?.hidden, infight: document.body.classList.contains('infight') }));
   if (process.env.SEAMLESS_STRIKE) {   // SEAMLESS_STRIKE=1: cut the foe inside the engage window, so a hit's effects (sparks, blood splat) are drawn for the first time THERE unless the zone warm covered them (the check passes by luck of timing without it)
-    const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id), hp0 = await hp();
-    for (let k = 0; k < 12; k++) { await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(400); if ((await hp()) < hp0) break; }
-    receipt.strike = { hpBefore: hp0, hpAfter: await hp() }; assert.ok(receipt.strike.hpAfter < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);
+    const hp = () => page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.hp ?? null, target.id);
+    const reach = async () => { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return x && [x.x, x.z]; }, target.id); if (m) await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), m); };   // the foe roams: stand 1.4 m from where it is NOW before each cut (a cut from the 2.5 m tap distance never reaches it)
+    for (let k = 0; k < 20 && (await hp()) === null; k++) await page.waitForTimeout(250);   // the foe is in the loop's fighters only once it has joined
+    const hp0 = await hp(); let hpNow = hp0;
+    for (let k = 0; k < 40 && hp0 !== null && !(hpNow < hp0); k++) { await reach(); await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(500); hpNow = await hp(); }
+    receipt.strike = { hpBefore: hp0, hpAfter: hpNow, fighters: hp0 === null || !(hpNow < hp0) ? await page.evaluate(() => JSON.stringify(window.originsPreview.combat().fighters).slice(0, 400)) : undefined };
+    assert.ok(hp0 !== null && hpNow < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);   // a missed strike fails the run, it never counts as a pass
   }
   receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
