@@ -1,5 +1,13 @@
 # Code quality lane (Auditor)
 
+## 2026-10-10 ~12:1x (+04) — STANDING RULING: candidate review from Z (Strategy, Lead adopted the Auditor's conditions; Dom's "engine today"). READ FIRST, then memory `ruling_candidate_review_2026-10-10` and `frankendom_handoff_2026-10-10c`
+
+1. **From candidate Z onward the Auditor reviews the CANDIDATE once per batch** instead of re-passing each PR. A PR with an Auditor PASS on its head keeps it through Deploy's union merge. A **pure-move** PR (git mv + import rewrites, no logic change) with CI green on its head gets its PASS from the one candidate review. **A logic change still needs its own PASS on its own head first.**
+2. **Union rule (Deploy, at candidate merge):** only conflict hunks that are entirely deleted KNOWN/KNOWN_COPIES lines in `tests/k7-engine-parity.test.ts` and/or added `export … from` lines in `src/fight/index.ts`. A same-line export change from both sides becomes ONE line with every name. Any other conflicting hunk goes back to the lane.
+3. **Candidate gate:** the candidate's full CI (test:all, tsc, typecheck:tests, typecheck:origins, k7-engine-parity) is green; the union diff of those two files is posted on the candidate PR; the Auditor reads it and posts one PASS / NOT YET.
+4. **Engine PRs first and only** until the K7 boundary count is 0 (target ~19:30 2026-10-10); docs and non-engine PRs wait.
+5. **Why CI green on each head matters:** #2093 was billed as "import-only" yet broke 9 node test files (a barrel re-export of a module that calls `import.meta.glob` at load). Type checks did not see it; only running the tests did.
+
 ## 2026-10-07 ~22:4x (+04) — HANDOFF before self-clear (context 502k). READ FIRST, then memory `frankendom_handoff_2026-10-07r` (its appended lines carry the evening)
 
 1. **LIVE = 4931b343** (release.json, read ~22:0x). **Trunk = 1d9269c8** (fold: #1708 #1720 #1722 #1728 #1706 #1726 #1731 #1729), not yet audited: the audit cursor is still 4931b343. Next tick: check that each merge of `4931b343..1d9269c8` is a plain merge of the head PASSed here, plus a `git diff --name-only` vs SIM_FILES. Then the rotation slot `src/*.ts h-m`.
