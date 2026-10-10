@@ -36,7 +36,7 @@ const step = (call: string, { trust = '', fetchExit = 0, fetchErr = '', hf = '',
     mkdirSync(join(dir, 'bin')); exe(join(dir, 'bin/hf'), `#!/bin/sh\n${hf ? `echo '${hf}'` : 'exit 1'}\n`);
     writeFileSync(join(dir, 'scripts/vps-receipt-trust.mjs'), `process.stdout.write(${JSON.stringify(trust)});\n`);
     const script = `set -euo pipefail\nsource scripts/lib/deploy-vps.sh\nrevision=${sha}\ntrusted_checks=1,5\ntrust_source=CI\n${call}\necho "END trusted=$trusted_checks source=$trust_source"\n`;
-    const r = spawnSync('bash', ['-c', script], { cwd: dir, encoding: 'utf8', timeout: 30_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, DEPLOY_VPS_RECEIPTS: '', DEPLOY_HF_UNIT_JOB: '', DEPLOY_HF_ROWS_JOBS: '', DEPLOY_HF_FETCH_BACKOFF_S: '0', ...env }   // the unit step must not read the launching deploy.sh's job ids (S attempt 1 failed on that leak) });
+    const r = spawnSync('bash', ['-c', script], { cwd: dir, encoding: 'utf8', timeout: 30_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, DEPLOY_VPS_RECEIPTS: '', DEPLOY_HF_UNIT_JOB: '', DEPLOY_HF_ROWS_JOBS: '', DEPLOY_HF_FETCH_BACKOFF_S: '0', ...env } });   // the job ids are cleared: the unit step must not read the launching deploy.sh's (S attempt 1 failed on that leak)
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /^END /m, 'the step must return to deploy.sh');
     return r.stdout + r.stderr;
