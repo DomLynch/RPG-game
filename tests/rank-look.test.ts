@@ -300,7 +300,7 @@ test('rank look stream: the sim is untouched (tick reads a frozen practice and n
   const p = freeze(at(['ready', 'ready'])), before = JSON.stringify(p);
   stream.tick(p); await Promise.resolve(); await Promise.resolve(); stream.tick(p);
   assert.equal(stream.state(), 'on'); assert.equal(JSON.stringify(p), before);
-  for (const file of ['fight/combat.ts', 'fight/duel.ts', 'fight/sim.ts', 'match.ts', 'fight/ai.ts']) assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('rank-look'), `${file} never reads the look`);
+  for (const file of ['fight/combat.ts', 'fight/duel.ts', 'fight/sim.ts', 'fight/match.ts', 'fight/ai.ts']) assert.ok(!readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8').includes('rank-look'), `${file} never reads the look`);
 });
 
 test('rank look on the Goblin: his own look goes off as a set (carriers too), the look goes on his bones, the kept draws and the knife stay, and the head bake takes only what he shows', async () => {

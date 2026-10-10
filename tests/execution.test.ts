@@ -59,7 +59,7 @@ test('the held beat is half a second on the screen\'s own clock and the scene pa
   assert.match(scene, /executionFinish \? \(dt \* EXECUTION_BEATS\.speed\) \/ EXECUTION_BEATS\.duration/, 'the clock runs the clip at the spec\'s speed');
   const clock = scene.slice(scene.indexOf('if (!practice.finish) { finishClock = -1;'), scene.indexOf('const victimProgress'));
   assert.doesNotMatch(clock, /finishHold = EXECUTION|executionFinish && finishHold/, 'the held half-second is in the clips, never a hit-stop');
-  for (const file of ['scene.ts', 'main.ts']) assert.doesNotMatch(source(file), /finishHold\s*=\s*EXECUTION/);
+  for (const file of ['fight/scene.ts', 'main.ts']) assert.doesNotMatch(source(file), /finishHold\s*=\s*EXECUTION/);
 });
 
 const ev = (type: CombatEvent['type'], extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, actor: 0, ...extra, type });

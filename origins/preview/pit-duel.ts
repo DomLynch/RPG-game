@@ -19,7 +19,12 @@ import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/ind
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
-import { createScene, type WorldMount } from '../../src/fight/index.ts';
+import { loadScene, type WorldMount } from '../../src/fight/index.ts';
+type SceneModule = Awaited<ReturnType<typeof loadScene>>;
+let sceneModule: SceneModule | undefined;
+/** Resolves when the scene chunk is in: await it right after importing this module, before the first stage. */
+export const sceneReady: Promise<void> = loadScene().then((m) => { sceneModule = m; });
+const createScene = (...args: Parameters<SceneModule['createScene']>) => sceneModule!.createScene(...args);
 import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
@@ -51,7 +56,7 @@ const memory = (): StoragePort => { const m = new Map<string, string>(); return 
 const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as readonly string[]).includes(id);
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
-type View = ReturnType<typeof createScene>;
+type View = ReturnType<SceneModule['createScene']>;
 type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
