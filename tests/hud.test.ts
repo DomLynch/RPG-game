@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHud, HEAVY_MOVES, type HudView } from '../src/hud.ts';
+import { createHud, HEAVY_MOVES, type HudView } from '../src/fight/hud.ts';
 import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/fight/combat.ts';
 import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/fight/duel.ts';
 
@@ -178,7 +178,7 @@ test('KICK lights only where a kick lands on a guard-raised foe, within 0.15 m o
   const { createFighter, opponentFighter, stepDuel, idleIntent: idleI } = await import('../src/fight/duel.ts');
   const { OPPONENTS: ALL, PLAYER_WEAPONS } = await import('../src/fight/moves.ts');
   const { TARGET } = await import('../src/fight/sim.ts');
-  const { KICK_LANDS } = await import('../src/hud.ts');
+  const { KICK_LANDS } = await import('../src/fight/hud.ts');
   const idle = () => ({ ...idleI(), lock: false });
   const guard = (dir: 'left' | 'right') => ({ ...idle(), guard: true, guardDirection: dir, lock: true });
   const lands = (opp: (typeof ALL)[keyof typeof ALL], weapon: (typeof PLAYER_WEAPONS)[number], dir: 'left' | 'right', gap: number) => {

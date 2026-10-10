@@ -11,7 +11,7 @@ want_tree=$(git rev-parse "$full^{tree}"); [[ "$(git rev-parse HEAD^{tree})" == 
 run="$home/runs/$full"; mkdir -p "$run"
 lock_now=$(sha256sum package-lock.json | cut -c1-64)
 [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" == "$lock_now" ]] || { npm ci --no-audit --no-fund > "$run/unit-npm-ci.log" 2>&1 || { echo "npm ci failed"; exit 4; }; echo "$lock_now" > "$home/.lock-installed"; }
-t0=$(date +%s); npm run test:all > "$run/unit.log" 2>&1; rc=$?
+echo "LAP npm-ci-done $(date +%T)"; t0=$(date +%s); npm run test:all > "$run/unit.log" 2>&1; rc=$?
 [[ "$(git rev-parse HEAD^{tree})" == "$want_tree" && -z "$(git status --porcelain)" ]] || { echo "tree changed or dirty at end; no receipt"; exit 5; }
 [[ $rc -eq 0 ]] || { grep -E '^not ok' "$run/unit.log" | grep -v '# TODO' | head -20; echo "unit suite failed (exit $rc); no receipt"; exit "$rc"; }   # the failing tests name themselves in `hf jobs logs`
 node -e '
@@ -19,6 +19,7 @@ const fs = require("fs"), c = require("crypto"), log = fs.readFileSync(process.a
 const n = k => Number((new RegExp("^# " + k + " (\\d+)", "m").exec(log) || [])[1] ?? -1);
 fs.writeFileSync(process.argv[2], JSON.stringify({ kind: "vps-unit-suite", job: process.env.JOB_ID || null, sha: process.argv[3], tree: process.argv[4], node: process.version, pass: n("pass"), fail: n("fail"), exit: Number(process.argv[5]), seconds: Number(process.argv[6]), scripts: { "run-unit.sh": c.createHash("sha256").update(fs.readFileSync(process.argv[7])).digest("hex") } }, null, 1) + "\n");
 ' "$run/unit.log" "$run/unit.json" "$full" "$(git rev-parse HEAD^{tree})" "$rc" "$(( $(date +%s) - t0 ))" "$me"
+echo "LAP suite-done $(( $(date +%s) - t0 ))s"
 echo "unit suite sha=$full exit=$rc -> $run/unit.json"
 echo "RECEIPT unit $(tr -d '\n' < "$run/unit.json")"   # the deploy box reads this line back from the job logs (scripts/vps-shadow/launch.mjs fetch); the verifier still inspects the job itself
 exit "$rc"

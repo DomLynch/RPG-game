@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { NEVER_ON_HF, SLOW_ROWS, coverageGaps, jobCommand, jobEnvOk, trustedFromVps, trustedFromShards, unitReceiptOk, vpsSafeRow } from '../scripts/lib/vps-receipts.mjs';
-import { hfArgs, receiptFrom } from '../scripts/vps-shadow/launch.mjs';
+import { hfArgs, receiptFrom, unitShaRefusal } from '../scripts/vps-shadow/launch.mjs';
 import { rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -283,4 +283,19 @@ test('the job command caps every setup step at 300 s so a wedged apt or fetch fa
     const text = jobCommand(kind, sha)[2];
     for (const step of ['apt-get update', 'apt-get install', 'git fetch']) assert.match(text, new RegExp(`timeout 300 ${step}`), `${kind}: ${step}`);
   }
+});
+
+test('the job command prints a LAP line after each setup step, so a post-mortem shows where a slow job was (the HF log flushes only at the end)', () => {
+  for (const kind of ['unit', 'rows']) for (const step of ['apt-update', 'apt-install', 'git-fetch', 'checkout']) assert.match(jobCommand(kind, sha)[2], new RegExp(`lap ${step};`), `${kind}: ${step}`);
+  assert.match(readFileSync('scripts/vps-shadow/run-unit.sh', 'utf8'), /LAP suite-done/);
+});
+
+test('launch.mjs unit refuses a sha that is not on trunk and not this checkout HEAD (a unit receipt is tree-bound; PR-head unit jobs overloaded the HF host)', () => {
+  const head = 'a'.repeat(40), onTrunk = 'b'.repeat(40), pr = 'c'.repeat(40);
+  const git = (...args: string[]) => args[0] === 'rev-parse' ? { status: 0, stdout: `${head}\n` } : { status: args[2] === onTrunk ? 0 : 1, stdout: '' };
+  assert.equal(unitShaRefusal(head, git as never, 'trunk', false), null, 'this checkout HEAD');
+  assert.equal(unitShaRefusal(onTrunk, git as never, 'trunk', false), null, 'an ancestor of origin/trunk');
+  assert.match(String(unitShaRefusal(pr, git as never, 'trunk', false)), /not on origin\/trunk and not this checkout's HEAD/);
+  assert.match(String(unitShaRefusal('abc', git as never, 'trunk', false)), /full 40-hex sha/);
+  assert.equal(unitShaRefusal(pr, git as never, 'trunk', true), null, 'LAUNCH_UNIT_ANY=1 forces it');
 });
