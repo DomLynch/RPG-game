@@ -2,6 +2,36 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-10 20:15 — handoff: LIVE AU a2125a8fd (Core 1a), AV #2157 GO, camera B #2154, Web landscape #2159, Core 1b started
+Untracked restart handoff. Canonical Lead state = top entry of `docs/state/lead.md` on `origin/lead-catalogue/state-1008`. Memory (same key): `project_handoff_2026-10-10_2010.md`, `project_core_shape_2026-10-10.md`, `feedback_seamless_waiver_2026-10-10.md`.
+
+## Now
+- **LIVE = AU a2125a8fd** (Core slice 1a, #2152; my curl 20:05). Writer on a2125a8f, NRestarts 0 (my ssh). Core boundary + K7 = 20/0 on the live sha (my VPS run). Strategy has the count.
+- **Dom's priority #1 = CORE** (Engine / Core / Modes; plan accepted by Strategy). Next: slice 1b one ledger (Backend server + Web screens, Sun 10-11; REUSE Backend's #1984 gear_import stack, #1980 merged, #1982 closed; rebase onto src/core first), slice 2 one career + leaderboards (Mon 10-12), slice 3 world sim (World, Thu 10-15, after Proof 3; dormant encounter-online path DELETED per Strategy).
+- **Camera B = Dom's pick** ("for now; refine after the 120-games audit"). World #2154 @802472603 draft, data-only (zone1/zone.ts, zone2/zone.ts, zone2.row.json); stills running → READY → Auditor → AW, alone.
+- **Landscape (Web)**: #2159 @649ae2e6c draft = zone page; told to add the creature-card state + notch insets, then READY and ship alone. Second PR = Pit + ☰ screens + loot/kill, READY ~23:00, then the Mac WebKit row.
+- **Landscape fully responsive** (Dom's screenshot: menu over SKILL, creature card across the screen, joystick over the bars, oversized status text). Web owns it, ahead of the Zone 2 look. Proof = portrait/landscape/iPad stills with menus open + a no-overlap test + a Safari check.
+- AV = #2157 (rows child timeout 540→600) has GO (Auditor PASS @d6f4606f1, CI 8/0, my check 20:1x); confirm it live. Deploy owed next: owed .cpu validation, capture-mac→launch.mjs, sharding.
+- Core 1b plan SENT to Backend 20:1x (start tonight): (1) #1984 gear_import rebased onto src/core, draft tonight, READY Sun 12:00; (2) one kill path (retire hunt.ts page-memory loot, zone main ~L563–568); (3) one bank/currency (play.ts → server inventory/upgrade/shop ops); (4) boundary row C5. Drafts Sun 13:00, READY 17:00, live Sun ~20:00. Backend ACKED: (1) draft by 22:30 tonight.
+- Combat back on the Proof 3 shared crowd-control DR ladder (combat/cc-ladder @7f72446cb).
+
+## Done today (live, my curl)
+AI 67a8e429f 17:04 · AJ 71de8b5ea (#2129 cap) 17:23 · AK 4a178b0aa (#2135 controls into engine, Dom's #1) 17:37 · AL 9f0cd9116 (#2134+#2130) 17:50 · AM 007df1489 (#2138) 18:03 · AN e07699d33 (#2133) 18:16 · AO 855646c5a (#2140 camera presets) 18:28 · AQ 7f1e89ba4 (#2123 wolf warm) 18:54 · AR c7463389e (#2146 /tmp sweep) 19:20 · AS f7858e1f5 (#2148 carrying #2136) 19:32 · AT 63cfe5bba (#2151 writer-closure fix) 19:44 · AU a2125a8fd (#2152 Core 1a) 20:04.
+VPS disk 31G → 69G free; daily sweep timer installed (next 04:31). Camera look-test preview at /preview/camera/ kept alive by a watcher (/opt/frankendom-shadow/work/keep-camera-preview.sh, stops by itself ~00:05 10-11).
+
+## Open
+- Web: #74 knight warm program (SwiftShader only) parked on web/warm-points; 200 ms frame-gap bar (separate item); Zone 2 look proposal after landscape.
+- /root/work-backend stays (git dir for work-k7 and work-proof3).
+- Auditor LOW for later core slices: a new page entry must be added to C1's PAGE list.
+
+## Gotchas
+- zsh: write "${REV}:path"; `$VAR:path` is a modifier.
+- `gh pr view --json files` caps at 100 files; use `git diff --name-status trunk...head` for big PRs.
+- A required check can come back CANCELLED (not failed) after a draft→ready flip; re-run it (`gh run rerun <id>`) and make the PASS conditional on it.
+- Writer reinstall rule: any candidate touching origins/, src/fight/ or src/core/ = writer change (Backend reinstalls + boot check). The closure walker is fixed now (#2151, 136 files) but keep the rule.
+- Box-side "writer closure" (Backend's /root/backend-tools) counts type imports too, so it's a superset; the repo walker is the runtime set.
+- Lanes restart often: re-send assignments to the NEW session ref (ListAgents) after any clear.
+
 ## 2026-10-10 16:57 (+04) — HANDOFF before /clear. READ FIRST, then memory project_handoff_2026-10-10_1338 (foot) + project_donor_verdict_2026-10-10
 **LIVE = AH 7d565232b** (my curl 16:57). Today after AD (14:29): AE a92b23134 (K6 decap, 15:15) → AF 912466df2 (#2113 pipeline, #2116 boot row 53, #2119 coach, #2121 auto-prune; 15:31) → AG 0d4539a32 (Zone 2 pair #2117→#2118; 15:43) → AH 7d565232b (#2125 fail-closed, #2128 pre-launch, #2126 CAMERA INTO ENGINE; 16:31, 3-min deploy via pre-launch reuse). Writer on 7d565232 (my ssh 16:32, NRestarts 0; previous 0d4539a3). Boundary test on live 7d565232b: 9/0/0 incl. camera rows 8+9 (my VPS run).
 **IN FLIGHT: AI 67a8e429f (#2127 row-44 fix) — trunk ALREADY ff'd to it, NOT live.** deploy.sh stopped 16:51: quality_green() needs browser (combat) success, AI is script-only so it was skipped → Mac unit fallback → prune-releases.sh:31 GNU `du --exclude` fails on macOS. Ruling (16:5x, restated): relaunch AI as-is on CI receipt run 38052484113 (quality=success on 67a8e429f, my read) or the tree-bound HF unit job; no Mac fallback. Deploy owns the relaunch; CHECK release.json first thing.
