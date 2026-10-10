@@ -2,7 +2,7 @@ import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
 import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
-import { conformOver, heroGeometries, jointOf, necklaceRing, ringHull, surfaceAlong, triGrid } from './loot-fit.mjs';
+import { conformOver, heroGeometries, jointOf, necklaceRing, ringHull, skinAlong, surfaceAlong, triGrid, witchCapelet } from './loot-fit.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
 import fs from 'node:fs/promises';
@@ -683,18 +683,8 @@ if (fighter === 'nightborn' || LOOT) {
 }
 // Skinned by height across the spine (pelvis → spine_03, linear between the two joints a vertex sits between), the way the torso under
 // it bends: a torso piece rigid to one spine bone swings 5–8 cm through the belt in every armed pose (the Witch's bodice, the Knight's plate).
-// `chain` extends it up the neck for a piece that drapes from the head (the Witch's capelet: spine_02 → Head).
-const skinBySpine = (g, at, chain = ['pelvis', 'spine_01', 'spine_02', 'spine_03']) => {
-  const spine = chain.map(n => ({ i: boneIndex(n), y: at(n).y }));
-  g = g.index ? g.toNonIndexed() : g;
-  const p = g.getAttribute('position'), index = [], weight = [];
-  for (let k = 0; k < p.count; k++) {
-    const y = p.getY(k), j = Math.max(0, Math.min(spine.length - 2, spine.findLastIndex(b => b.y <= y))), f = Math.min(1, Math.max(0, (y - spine[j].y) / (spine[j + 1].y - spine[j].y)));
-    index.push(spine[j].i, spine[j + 1].i, 0, 0); weight.push(1 - f, f, 0, 0);
-  }
-  g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
-  return g;
-};
+// `chain` extends it up the neck for a piece that drapes from the head (the Witch's capelet: spine_02 → Head, loot-fit.mjs witchCapelet).
+const skinBySpine = (g, at, chain = ['pelvis', 'spine_01', 'spine_02', 'spine_03']) => skinAlong(g.index ? g.toNonIndexed() : g, at, boneIndex, chain);
 // The Witch's pieces (Phase R, Run 3): built shells, not cuts from her scan. Her TRELLIS cloth decimated to a hood floating in front of the
 // face and shards off the forearms (19:17 still), so the hood, bracers and boots are fitted by ray like everyone else's. Loot build only:
 // her own body wears the scan. Her Gloves are the shared pair. Body and Greaves are what she wears UNDER the robe (Dom 2026-09-23: "she can
@@ -737,25 +727,9 @@ if (LOOT) {
   }
   hood.geometry.setIndex(kept); hood.geometry.computeVertexNormals();
   add(hood.geometry, hoodCloth, 'Head');
-  // Capelet: from inside the hood's lower rim down over the shoulders to mid-chest, flaring, skinned up the neck (a head turn bends it,
-  // never tears it). 'outer': rays at shoulder height pass the deltoid and must land on the outside of the arm, not stop at the collar.
-  // Long and wide enough to break the shoulder line from behind and cover the upper arm to its middle (Strategy's PASS (a): no bare
-  // shoulder at 375; at spine_02 the fighting stance still showed both deltoids). Below the shoulder each vertex hands up to .9 of its weight to its own side's upper arm, by how far to that side it
-  // sits (.9 at the side), so a raised guard lifts the drape like a hanging sleeve instead of punching through it.
-  const capeTop = at('neck_01').add(new T.Vector3(0, .03, 0)), capeLow = at('spine_02').add(new T.Vector3(0, -.07, 0));   // mid-upper-arm (Lead): to spine_01 the bent elbow came through
-  const cape = ringHull(grid, capeLow, capeTop, { stations: [0, .15, .3, .45, .6, .75, .9, 1], azimuths: 32, gap: .04, pick: 'outer', far: .45, up: new T.Vector3(0, 0, 1), scale: t => 1.25 - .17 * t });
-  const capeG = skinBySpine(cape.geometry, at, ['spine_02', 'spine_03', 'neck_01', 'Head']);
-  { const lateral = at('upperarm_l').sub(at('upperarm_r')).setY(0).normalize(), shoulderY = (at('upperarm_l').y + at('upperarm_r').y) / 2, mid = at('spine_03');
-    const pos = capeG.getAttribute('position'), si = capeG.getAttribute('skinIndex'), sw = capeG.getAttribute('skinWeight');
-    for (let k = 0; k < pos.count; k++) {
-      const q = new T.Vector3().fromBufferAttribute(pos, k), off = q.clone().sub(mid).setY(0), lat = off.dot(lateral), side = Math.abs(lat) / Math.max(off.length(), 1e-6);
-      const band = Math.min(1, Math.max(0, (shoulderY + .04 - q.y) / .1)) * Math.min(1, Math.max(0, (q.y - (shoulderY - .2)) / .08));   // the rest pose is a T: a side vertex below the armpit that rode the arm swung into the ribs as it dropped
-      const w = .9 * band * Math.min(1, Math.max(0, (side - .72) / .2));   // only the ring OVER the arm: a partial arm share between arm and ribs swung into the ribs as the arm dropped (posed pass, Idle)
-      if (w <= 0) continue;
-      si.setXYZW(k, si.getX(k), si.getY(k), boneIndex(lat > 0 ? 'upperarm_l' : 'upperarm_r'), 0); sw.setXYZW(k, sw.getX(k) * (1 - w), sw.getY(k) * (1 - w), w, 0);
-    }
-  }
-  add(capeG, hoodCloth);
+  // Capelet: loot-fit.mjs witchCapelet (wider, down to the mid upper arm, Lead 2026-10-10; scripts/loot-refit-witch-capelet.mjs carried it onto the shipped loot.glb).
+  const cape = witchCapelet(grid, at, boneIndex);
+  add(cape.geometry.toNonIndexed(), hoodCloth);
   console.log(`  witch capelet: rings ${cape.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   console.log(`  witch hood: crown ${crown.toFixed(3)} m, rim radii ${hood.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
   // Body: a leather bodice, waist to under the chest, `over` the player's tunic; three brass lacing bands. SKINNED by height across the
