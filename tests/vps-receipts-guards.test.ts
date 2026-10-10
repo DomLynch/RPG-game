@@ -71,6 +71,14 @@ test('deploy.sh calls both steps, before the gate and the rows they replace (eac
   assert.ok(at(/^vps_receipts_apply\b/) < at(/^\s*(?:[A-Z_]+=\S*\s+)*node scripts\/release-checks\.mjs/));
 });
 
+test('deploy.sh takes the quality gate from CI when CI is green for the tree: the Mac only builds dist, and the CI branch comes first (R lost 1 h 44 m here)', () => {
+  const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
+  const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
+  const ci = at(/^if \[\[ -n "\$ci_green" \]\]; then/), unitBranch = at(/^elif \[\[ "\$vps_unit" == ok \]\]; then/);
+  assert.ok(ci < unitBranch, 'the CI branch is tried before the VPS-unit branch');
+  assert.deepEqual(lines.slice(ci + 1, unitBranch).filter(l => /^\s+(npm|node) /.test(l)).map(l => l.trim()), ['npm run build'], 'with CI green the Mac runs the build only');
+});
+
 test('rows are combined across shards when no single shard holds them all', () => {
   const all: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   assert.ok(all.length >= 3);
