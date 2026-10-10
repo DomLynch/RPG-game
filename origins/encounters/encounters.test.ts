@@ -2,7 +2,7 @@
 // the backpack through the inventory module, and only world-mob fights roll damage.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { WEAPON_SLOTS } from '../../src/loot.ts';
+import { WEAPON_SLOTS } from '../../src/fight/loot.ts';
 import type { Result } from '../contracts/core.ts';
 import type { CharacterInstanceId, EncounterId, ItemId, LootTableId } from '../contracts/ids.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';

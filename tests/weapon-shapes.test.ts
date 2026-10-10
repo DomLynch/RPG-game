@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { WeaponId } from '../src/fight/moves.ts';
-import { BANDS, bandOf, byBand, RANK_LEVELS, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
+import { BANDS, bandOf, byBand, RANK_LEVELS, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/fight/weapon-shapes.ts';
 
 test('bands follow the brief: PLAIN at rank levels 1–3, CRAFTED 4–7, ORNATE 8–10', () => {
   assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(bandOf), ['plain', 'plain', 'plain', 'crafted', 'crafted', 'crafted', 'crafted', 'ornate', 'ornate', 'ornate']);

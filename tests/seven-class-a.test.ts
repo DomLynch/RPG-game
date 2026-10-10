@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { Match } from '../src/match.ts';
 import { OPPONENTS, RULES, SKILL_MOVE } from '../src/fight/moves.ts';
-import { skillOf } from '../src/loot.ts';
+import { skillOf } from '../src/fight/loot.ts';
 import { idleIntent } from '../src/fight/duel.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadTrial } from '../src/trial.ts';

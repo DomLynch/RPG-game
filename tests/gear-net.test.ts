@@ -1,8 +1,8 @@
 // The engine's gear screen's network half (origins/preview/gear-net.ts) against a fake writer: the calls, their order, and that a refusal or a bad reply never throws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isOffline, openGear, runOp } from '../src/gear-net.ts';
-import type { GearPiece, GearView } from '../src/gear-ledger.ts';
+import { isOffline, openGear, runOp } from '../src/fight/gear-net.ts';
+import type { GearPiece, GearView } from '../src/fight/gear-ledger.ts';
 
 const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: null, version: 1 });
 const view = (pieces: GearPiece[], worn: Record<string, string>): GearView => ({ pieces, worn, packSize: 8, bankSize: 100 });

@@ -2,13 +2,13 @@
 // pictures). scripts/loot-layers.mjs renders the armour from loot.glb over the figure; a weapon has no loot.glb draw, its look is the
 // player's equip file (src/assets/weapons/player/<weapon>.glb, the WeaponDrawn part the hand holds). So: that part alone, laid on the
 // diagonal, under loot-layers' own lights and exposure, then loot-layers' thumbnail crop (alpha bounds, squared at 1.12, 96 px, webp .82)
-// to public/game/img/loot/<id>.thumb.webp for every weapon id in src/loot.ts LOOT. Run after an equip file changes:
+// to public/game/img/loot/<id>.thumb.webp for every weapon id in src/fight/loot.ts LOOT. Run after an equip file changes:
 // `node scripts/weapon-thumbs.mjs` (Playwright's Chromium, a few seconds).
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join } from 'node:path';
-import { LOOT, isWeaponLoot, weaponOf } from '../src/loot.ts';
+import { LOOT, isWeaponLoot, weaponOf } from '../src/fight/loot.ts';
 
 const ROOT = new URL('..', import.meta.url).pathname, OUT = join(ROOT, 'public/game/img/loot'), THUMB = 96, QUALITY = 0.82, SIZE = 512;
 const ids = Object.values(LOOT).flat().filter(isWeaponLoot).sort();

@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 const ROOT = new URL('..', import.meta.url).pathname, OUT = join(ROOT, 'public/game/img'), HEIGHT = 720, QUALITY = 0.82;
 // `loot.glb <sha256:12> warrior.glb <sha256:12>`: the inputs every layer is a function of (the fixed frame, lights and camera live in this file).
 export const renderedFrom = async () => (await Promise.all(['loot.glb', 'warrior.glb'].map(async (f) => `${f} ${createHash('sha256').update(await readFile(join(ROOT, 'src/assets', f))).digest('hex').slice(0, 12)}`))).join(' ');
-// The drawn half of src/loot.ts PAPERDOLL (main = weapons, a separate render path). An unmapped slot throws: it once wrote #slot-undefined.
+// The drawn half of src/fight/loot.ts PAPERDOLL (main = weapons, a separate render path). An unmapped slot throws: it once wrote #slot-undefined.
 const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], off: ['Shield'] };
 const keyOf = (slot) => Object.keys(PAPERDOLL).find((key) => PAPERDOLL[key].includes(slot)) ?? (() => { throw new Error(`loot-layers: no paperdoll key for slot ${slot}`); })();
 

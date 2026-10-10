@@ -3,8 +3,8 @@
 import { emptyLoot, type Loot } from './loot.ts';
 import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
 import { isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
-import { storedToken, writerBase } from './writer-call.ts';
-import { openCharacter } from './fight/open.ts';
+import { storedToken, writerBase } from '../writer-call.ts';
+import { openCharacter } from './open.ts';
 
 type Deps = { storage: { getItem(key: string): string | null } | null; search: string; now: () => number; fetch?: typeof fetch; getLoot: () => Loot | undefined; show: (loot: Loot) => void; refused?: () => void };
 export function createServerGear(d: Deps) {

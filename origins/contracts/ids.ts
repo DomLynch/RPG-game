@@ -8,14 +8,14 @@
 // embedding below, which keeps today's mixed-case `<opponent>.<Slot>` text byte for byte.
 //
 // Legacy ids are EMBEDDED, not re-minted (O0 baseline §5 item 9: "reuse it rather than mint a new one"):
-//   - a loot piece `veteran.Helmet` (src/loot.ts LootId, the server CHECK regex `^[a-z]{1,32}\.[A-Za-z]{1,32}$`) is the item DEFINITION
+//   - a loot piece `veteran.Helmet` (src/fight/loot.ts LootId, the server CHECK regex `^[a-z]{1,32}\.[A-Za-z]{1,32}$`) is the item DEFINITION
 //     `item:loot.veteran.Helmet`. It is a definition, never an instance: today's `owned` list is a set of collection unlocks.
 //   - a legend face key `veteran-3` (src/legends.ts PORTRAIT_KEYS, the skull wall, fight_results.opponent_key, the nginx og whitelist)
 //     is the character `character:legend.veteran-3`.
 //   - a roster opponent `veteran` (src/roster.ts OpponentId) is the character `character:opponent.veteran`.
 // Each mapping is a pure prefix, so it is reversible by stripping the prefix, and each reverse is checked against the live table it came
 // from (isLootId, PORTRAIT_KEYS, isOpponentId). Nothing persisted today changes; see README "Proposal: legacy loot ids → item instances".
-import { isLootId, type LootId } from '../../src/loot.ts';
+import { isLootId, type LootId } from '../../src/fight/loot.ts';
 import { PORTRAIT_KEYS, isOpponentId, type OpponentId } from '../../src/fight/server.ts';
 import { Issues, fail, join, ok, type Obj, type Result } from './core.ts';
 
@@ -108,7 +108,7 @@ export function readOptionalId<N extends Namespace>(issues: Issues, obj: Obj, ke
 
 // ---- legacy mappings (pure; nothing persisted changes) ---------------------------------------------------------------------------
 
-// `veteran.Helmet` → `item:loot.veteran.Helmet`. Retired pieces (src/loot.ts RETIRED_LOOT) map too: a roster change never deletes an item.
+// `veteran.Helmet` → `item:loot.veteran.Helmet`. Retired pieces (src/fight/loot.ts RETIRED_LOOT) map too: a roster change never deletes an item.
 export function itemIdFromLegacyLoot(lootId: unknown): Result<ItemId> {
   if (!isLootId(lootId)) return fail('legacy-unknown', '(lootId)', `${JSON.stringify(lootId)} is not a current or retired loot id`);
   return ok(`${LEGACY_LOOT_PREFIX}${lootId}` as ItemId);

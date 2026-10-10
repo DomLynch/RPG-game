@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { demoKills, fetchKills, killsFromLoot, killsFromRows, lootKills, splitKey, type Kill, type SkullDb } from '../src/pit/skulls.ts';
 import { skullsDemoFrom } from '../src/look-flag.ts';
-import type { Loot } from '../src/loot.ts';
+import type { Loot } from '../src/fight/loot.ts';
 
 const loot = (extra: object): Loot => ({ owned: [], equipped: {}, ...extra }) as Loot;
 const prov = (opponent: string, tier?: number, day = '2026-10-01') => ({ opponent, attempt: 1, healthLeft: 1, recordId: null, day, ...(tier ? { tier } : {}) });

@@ -76,7 +76,7 @@ Required by the owner's ruling of 2026-09-22 23:12, now in `docs/SCOPE.md`: ever
 pieces of its own** plus its weapon, each a `loot.glb` draw with tier materials, and **nothing on the body is rig
 dressing**. A brief names all six before it merges. **Naming is not authoring** — the build order stays Recruit-2 first,
 and these six are authored when his tier kit is, not before. Mapped onto the approved reference (#493, "the patched
-beak"), and onto the slot ids loot v1 already exports (`src/loot.ts`, `<opponent>.<slot>`):
+beak"), and onto the slot ids loot v1 already exports (`src/fight/loot.ts`, `<opponent>.<slot>`):
 
 | slot | his piece | reads in the silhouette as |
 |---|---|---|
