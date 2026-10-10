@@ -10,8 +10,8 @@ import { newZone } from '../scripts/new-zone.mjs';
 import { loadZone } from '../origins/zones/loader.ts';
 
 const ROW = JSON.parse(readFileSync(new URL('../origins/zone-rows/zone2.row.json', import.meta.url), 'utf8'));   // outside origins/zones/: that folder holds only zone<N>/ packages
-// sha256 of the loaded Zone 2 (the fields below, as JSON) from the hand-written folder at trunk 968f996f3, before it was generated from the row. Re-pinned 2026-10-10: ember-wolf campSize [2,4] -> [2,2] (pack balance, scripts/pack-battery.ts), the only change.
-const ZONE2_BEFORE_THE_SWAP = '62358aa4f49187670e69ca195074865133bef4aa88f80448071693de0d470e4c';
+// sha256 of the loaded Zone 2 (the fields below, as JSON) from the hand-written folder at trunk 968f996f3, before it was generated from the row. Re-pinned 2026-10-10: ember-wolf campSize [2,4] -> [2,2] and a four-wolf ruin camp (spawns reach-pack-a/b at reach-ruin) (pack balance, scripts/pack-battery.ts).
+const ZONE2_BEFORE_THE_SWAP = 'f2812659d4eaa140d83cc2b6c42918599b407bf05a1bea7101dcd758737e605c';
 
 test('regenerating Zone 2 from its row gives the committed files, byte for byte', () => {
   const scratch = mkdtempSync(`${tmpdir()}/zone2-row-`);
