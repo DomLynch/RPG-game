@@ -58,7 +58,7 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-// The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
+// The Ash Wolf is a live row (zones/zone1/spawns.ts); The preview rows are fixed; previewRows takes no argument (the old `?wolf` search did nothing).
 export const previewRows = (): readonly MobRow[] => FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
