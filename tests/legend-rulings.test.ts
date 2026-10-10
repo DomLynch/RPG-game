@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { LEGEND_OPPONENTS, LEGENDS } from '../src/legends.ts';
-import { SKILLS } from '../src/loot.ts';
+import { SKILLS } from '../src/fight/loot.ts';
 import { ROSTER } from '../src/roster.ts';
 
 const FRANCHISE_LEGENDS = ['thor', 'loki', 'heracles', 'hippolyta', 'pazuzu', 'imhotep', 'paimon', 'sun-wukong', 'cthulhu', 'ragnar-lothbrok', 'lagertha', 'henry-morgan'];

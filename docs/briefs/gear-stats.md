@@ -5,7 +5,7 @@ word ("yes for stats", "if we're going to do it, let's do it properly"); revised
 (owner decision 2026-09-19: Season 1 skill-first; at Origin five character stats STR/DEX/VIG/END/POISE at baseline 100 with +50 points;
 armour gives RES and heavier classes cost DEX/END). **This brief is the GEAR layer only: two stats, Attack and RES.** POISE, health,
 stamina, the allocation and the light/medium/heavy armour classes are the Origin character layer and are not built here. Supersedes the Brief 5 line "visual cosmetics only, no stats"
-(`src/loot.ts` header) once deliverable 5 lands; nothing before that changes a fight.
+(`src/fight/loot.ts` header) once deliverable 5 lands; nothing before that changes a fight.
 
 **Sequence.** Deliverables 1–4 start now and touch none of Combat's files. Deliverable 5 (the sim seam and the ladder retune) lands
 **after** Combat's queue — knife approach fix, Executioner profile, Nightborn retune, shield rule — and after Weapons has taken the flips

@@ -1,11 +1,11 @@
-// K11 slice 1: the catalogue resolves a character's look for one meeting, and says what the old tables say (origins/preview/mob-looks.ts scale, src/rank-look.ts look files).
+// K11 slice 1: the catalogue resolves a character's look for one meeting, and says what the old tables say (origins/preview/mob-looks.ts scale, src/fight/rank-look.ts look files).
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { test } from 'node:test';
 import { CATALOGUE } from '../src/fight/catalogue-rows.ts';
 import { catalogueLook } from '../src/fight/catalogue-look.ts';
 import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
-import { rankLookFor } from '../src/rank-look.ts';
+import { rankLookFor } from '../src/fight/rank-look.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 
 const file = (url: string) => new URL(`../public${url}`, import.meta.url);

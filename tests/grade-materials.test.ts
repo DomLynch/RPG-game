@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { Box3, Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { SOURCE_DYE, SOURCE_MAPPED, buildWarriors, lootId, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
-import { LOOT, cleanProvenance, isWeaponLoot, kitWorn } from '../src/loot.ts';
+import { LOOT, cleanProvenance, isWeaponLoot, kitWorn } from '../src/fight/loot.ts';
 import { OPPONENTS, WEAPONS, type OpponentId } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { splitLoot } from '../scripts/split-loot.mjs';

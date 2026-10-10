@@ -15,7 +15,7 @@
 // Exchange (economy.ts); wearing needs the piece's rank, a separate check from owning. A smith may add upgrade levels (economy.ts).
 import { CAPS, loadoutFor, pointsFor, type Kit, type Loadout, PORTRAIT_KEYS } from '../../src/fight/server.ts';
 import { TIERS, isTier, levelOf as tierLevel, type Tier } from '../../src/grades.ts';
-import { LOOT_SLOTS, PAPERDOLL, isLootId, paperdollOf, slotOf, type LootId, type LootSlot, type Paperdoll } from '../../src/loot.ts';
+import { LOOT_SLOTS, PAPERDOLL, isLootId, paperdollOf, slotOf, type LootId, type LootSlot, type Paperdoll } from '../../src/fight/loot.ts';
 import { MAX_LEVEL } from '../../src/career.ts';
 import {
   Issues, LOCAL_KEY, MINT_KEY_PATTERN, checkArray, fail, join, ok, readArray, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion, readString, readText,

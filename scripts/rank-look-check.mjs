@@ -1,4 +1,4 @@
-// Rank look stream gate (src/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
+// Rank look stream gate (src/fight/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
 // The real game in mobile Chromium at 375x812 against a vite dev server, the look served from public/looks/ (never committed).
 //   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist [--build]] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
 // --dist <dir>: a `vite build` output (meshopt-packed, as shipped) served gzipped like the host (Armour's look-load-ab.mjs server), with the
@@ -28,7 +28,7 @@ import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { decide, initialAi } from '../src/fight/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
-import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
+import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/fight/rank-look.ts';
 import { rowVerdict } from './rank-look-rows.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };

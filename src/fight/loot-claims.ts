@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { StoragePort } from './profile.ts';
-import { readStanding, type Standing } from './cloud-profile.ts';
+import type { StoragePort } from '../profile.ts';
+import { readStanding, type Standing } from '../cloud-profile.ts';
 import { isLootId } from './loot.ts';
 
 // The claims outbox (SCOPE 9(a), Backend's contract 2026-09-25): every signed-in ladder win posts one loot_claims row (migration

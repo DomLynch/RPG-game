@@ -1,5 +1,5 @@
 // One universal "your character exists" rule: the writer's `open` is asked in ONE place (src/fight/open.ts). No page entry (the Pit src/main.ts, the zone page origins/preview/main.ts) and no
-// screen (src/gear-server.ts) may POST `open` itself, or a first page could skip the door that makes the account's first character.
+// screen (src/fight/gear-server.ts) may POST `open` itself, or a first page could skip the door that makes the account's first character.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -15,6 +15,6 @@ test('only src/fight/open.ts calls the writer\'s open', () => {
 });
 
 test('the Pit, the zone page and the gear sheet all go through it', () => {
-  for (const f of ['src/main.ts', 'src/gear-server.ts']) assert.match(readFileSync(f, 'utf8'), /fight\/open\.ts/, `${f} imports src/fight/open.ts`);
+  for (const f of ['src/main.ts', 'src/fight/gear-server.ts']) assert.match(readFileSync(f, 'utf8'), /fight\/open\.ts/, `${f} imports src/fight/open.ts`);
   for (const f of ['origins/preview/save.ts', 'origins/preview/main.ts']) assert.match(readFileSync(f, 'utf8'), /src\/fight\/index\.ts/, `${f} reaches it through src/fight/index.ts (K7)`);
 });

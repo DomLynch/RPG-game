@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/loot.ts';
+import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/fight/loot.ts';
 import { loadProfile, saveProfile, type StoragePort } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 

@@ -11,7 +11,7 @@ import { openWaist } from '../src/fight/opened.ts';
 import { initialPractice, type Practice } from '../src/fight/combat.ts';
 import { LOADOUT_FROM, OPPONENTS } from '../src/fight/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
-import { bakeSafeFinisher, idleBeat, lookBakeOffFrom, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, lookBakeOffFrom, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/fight/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 import { supportsFinishers } from '../src/roster.ts';

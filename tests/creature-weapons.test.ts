@@ -5,7 +5,7 @@ import { AnimationMixer, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROSTER } from '../src/roster.ts';
 import { RULES, WEAPONS } from '../src/fight/moves.ts';
-import { bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { swingProgress } from '../src/fight/blade.ts';
 import { createFighter, idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { clipFor, ROLES } from '../src/fight/characters.ts';

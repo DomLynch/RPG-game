@@ -18,7 +18,7 @@
 // Cash-shop items, metal, shop consumables and every stackable stay untradeable.
 import { SLOT_WEIGHT } from '../../src/fight/server.ts';
 import { levelOf as tierLevel } from '../../src/grades.ts';
-import { isWeaponSlot } from '../../src/loot.ts';
+import { isWeaponSlot } from '../../src/fight/loot.ts';
 import {
   Issues, MINT_KEY_PATTERN, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readSchemaVersion, readString, readText,
   readTimestamp, type Issue, type Result,

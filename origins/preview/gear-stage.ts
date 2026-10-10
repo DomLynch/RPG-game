@@ -1,10 +1,10 @@
 // The Zone 1 gear sheet's mannequin: the engine's own player rig (src/fight loadWarriors, the warrior the Zone 1 hero is) in a small scene of its own, dressed with the engine's
-// own loot pieces (loadLoot -> actor.wear, the call src/scene.ts makes for the Pit's player). src/gear-room.ts draws it through the GearStage seam; it borrows only Zone 1's renderer, so the
+// own loot pieces (loadLoot -> actor.wear, the call src/scene.ts makes for the Pit's player). src/fight/gear-room.ts draws it through the GearStage seam; it borrows only Zone 1's renderer, so the
 // walk's scene is never touched. Presentation only: the rig and pieces load on the first open, and what was asked to be worn before they land goes on when they do.
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
-import type { GearStage } from '../../src/gear-room.ts';
+import type { GearStage } from '../../src/fight/gear-room.ts';
 import type { Tier } from '../../src/grades.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 

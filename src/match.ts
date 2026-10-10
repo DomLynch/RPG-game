@@ -27,7 +27,7 @@ import { idleIntent, roundPose, type Duel, type DuelPose } from './fight/duel.ts
 import { nextArena, nextOpponent, passKey, won } from './ladder.ts';
 import type { ArenaKey } from './arena-themes.ts';
 import type { RecordArena } from './fight/record.ts';
-import { defeat, type LootId } from './loot.ts';
+import { defeat, type LootId } from './fight/loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import { createFirstLoss, type LessonId } from './first-loss.ts';
 import { createTutorial, type TutorialStep } from './tutorial.ts';
@@ -84,7 +84,7 @@ export class Match {
   frameEvents: CombatEvent[] = [];   // this frame's events, for the renderer; main.ts empties it after each draw
   fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
   lastRecord: FightRecord | null = null;
-  lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
+  lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/fight/loot.ts Provenance)
   lastSkill: SkillId | null = null;   // the move this fight's take stored instead of a piece: the one take per win covers both
   replay: { record: FightRecord; cursor: number } | null = null;
   pvp: PvpDriver | null = null;
