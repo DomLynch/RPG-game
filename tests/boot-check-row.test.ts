@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const gate = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8')) as { release_commands: string[][] };
 const script = 'scripts/origins-writer-boot-check.sh';
@@ -23,4 +26,20 @@ test('the boot-check row is named by its script and picked for the writer\'s doo
     assert.match(pr(file), new RegExp(`^${index} origins-writer-boot-check$`, 'm'), `${file} runs it on the PR`);
   }
   assert.doesNotMatch(deploy('src/fight/hud.ts'), /origins-writer-boot-check/, 'an unrelated page file does not');
+});
+
+test('when the writer closure cannot be computed the boot-check row still runs, at deploy and on a PR (fail closed), but not for docs', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rows-failclosed-'));
+  try {
+    mkdirSync(join(dir, 'scripts'));
+    for (const f of ['scripts/release-rows-for.mjs', 'scripts/writer-closure.mjs', '.quality-gate.json']) copyFileSync(f, join(dir, f));
+    const run = (args: string[], input?: string) => spawnSync('node', ['scripts/release-rows-for.mjs', ...args], { cwd: dir, input, encoding: 'utf8' });
+    const want = new RegExp(`\\b${index} origins-writer-boot-check\\b`);
+    assert.match(run(['--deploy-skip'], 'src/fight/hud.ts').stderr, want, 'deploy runs it when the walk fails');
+    assert.match(run(['src/fight/hud.ts']).stdout, want, 'a PR runs it when the walk fails');
+    assert.doesNotMatch(run(['--deploy-skip'], 'docs/state/backend.md').stderr, /origins-writer-boot-check/, 'docs alone do not at deploy');
+    assert.doesNotMatch(run(['docs/state/backend.md']).stdout, /origins-writer-boot-check/, 'docs alone do not on a PR');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
