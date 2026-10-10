@@ -1,0 +1,3 @@
+pair 2 (Lead: shoot #2053 current head, log the finisher): #2053 head 92d55cf96 (stacked on K5 8f58dab24) vs trunk 64f0ce380; same script; finisher id read from a VPS-local one-line probe (globalThis.__fin = x.finisher in src/fight/world-combat.ts, built on the VPS only, not committed)
+result p3a: finisher "plainDeath", kill true, errors 0, hits at foe hp 40/26/12; wounds(): bursts 2,3,4 marks 0,1,2
+result trunk 64f0ce380: no finisher concept (probe null), kill true, errors 0
