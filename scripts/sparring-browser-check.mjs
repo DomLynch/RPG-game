@@ -27,6 +27,33 @@ const arm = () => { clearTimeout(stall); stall = setTimeout(() => stalled(new Er
 // Every page load is its own step (the rigs are ~13 MB and the load is the machine-dependent part), named by the URL it booted.
 const ready = async () => { await waitForGame(activePage, { art: true }); mark(`loaded ${new URL(activePage.url()).search.slice(0, 70)}`); };
 const mark = (step) => { const now = Date.now(); receipt.steps.push({ step: lastStep, ms: now - stepStart }); stepStart = now; lastStep = step; arm(); };
+// Every wait on the fight is on FIGHT time, and the page's sim runs at most 0.1 s of it per frame (main.ts frame()), so on a slow box (a loaded
+// runner, software GL) a 2 s windup or a 45-tick recovery stretches to many wall seconds and a fixed wall timeout fails a healthy run (rows 44
+// in releases Y, Z and AA: first attempt timed out on a 10 s wait, the retry passed). So a wait fails only when the sim stops: `timeout` is how long
+// the sim tick may go without moving, not how long the fight may take. A slow run that keeps ticking passes; a frozen one still fails fast.
+async function simWait(page, fn, arg, { timeout = 30000, ...rest } = {}) {
+  const tick = () => page.evaluate(() => globalThis.__special?.().tick ?? null), ceiling = Date.now() + 4 * timeout;   // 4x the old wall limit: a sim that ticks but never gets there still ends
+  for (let seen = await tick(); ;) {
+    try { return await page.waitForFunction(fn, arg, { ...rest, timeout: Math.min(timeout, Math.max(1000, ceiling - Date.now())) }); }
+    catch (e) { if (!/Timeout/.test(String(e))) throw e; const now = await tick(); if (now === null || now === seen || Date.now() >= ceiling) throw e; seen = now; arm(); }
+  }
+}
+// A tap that lands while the hero is staggered is dropped by the game. Fast boxes tap before the foe's first hit (tick ~270); slow ones tap after it and the idle
+// hero dies (row 44, 2026-10-10). So retry ONLY when a foe hit landed on the hero after the ready check; a tap dropped while the hero stayed ready is a real bug and throws.
+async function castTap(page) {
+  const casts = () => globalThis.__special().events.filter(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'SpecialStarted')).length;
+  const before = await page.evaluate(casts);
+  for (let tries = 1; ; tries++) {
+    const ready = await simWait(page, () => ['ready', 'guard'].includes(globalThis.__special().fighters[0].phase) ? globalThis.__special().tick : false, null, { timeout: 15000 });
+    const readyTick = await ready.jsonValue();
+    await page.locator('#skill-button').tap();
+    receipt.castTries = tries;
+    try { await simWait(page, (n) => globalThis.__special().events.filter(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'SpecialStarted')).length > n, before, { timeout: 2000 }); return; }
+    catch (e) { if (!/Timeout/.test(String(e))) throw e; }
+    const hit = await page.evaluate((t) => globalThis.__special().events.some(e => e.type === 'Hit' && e.target === 0 && e.tick >= t), readyTick);
+    if (!hit || tries >= 6) throw new Error(`skill tap dropped after step "${lastStep}" (try ${tries}, ${hit ? 'foe hits kept landing' : 'no foe hit since ready: hero was ready and the tap did not cast'})`);
+  }
+}
 async function check() {
   if (source) {
     const server = await createServer({ server: { host: '127.0.0.1', port: 0, strictPort: true, open: false } });
@@ -39,6 +66,7 @@ async function check() {
   await mkdir('artifacts/sparring-browser-check', { recursive: true });
   const { page } = await phonePage(browser, { viewport: { width: 375, height: 812 }, errors: receipt.errors, timeout: 30000 });
   activePage = page;
+  if (process.env.SPARRING_THROTTLE) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.SPARRING_THROTTLE) });   // a slow box on demand: the sim runs at most 0.1 s per frame, so slow frames stretch every wait on fight time
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
   await page.goto(new URL('/?debug=1', site.url).href); await ready();
@@ -164,10 +192,11 @@ async function check() {
   assert.equal(await page.locator('#arena-select').inputValue(), 'a');
   assert.equal(await page.locator('#finisher-select').inputValue(), 'opened');
   await page.locator('#attack-button').tap();
-  await page.waitForFunction(() => { const stage = globalThis.__special?.().stages[1]; return stage?.stage === 'windup' && stage.progress >= .5; }, null, { timeout: 30000, polling: 50 });
+  if (process.env.SPARRING_FREEZE) await page.evaluate(() => { globalThis.requestAnimationFrame = () => 0; });   // mutation proof: no more frames, so the sim tick stops; the wait below must fail at its old timeout, not hang
+  await simWait(page, () => { const stage = globalThis.__special?.().stages[1]; return stage?.stage === 'windup' && stage.progress >= .5; }, null, { timeout: 30000, polling: 50 });
   receipt.specialWindup = await page.evaluate(() => globalThis.__special()); mark('nyx windup');
   await page.screenshot({ path: 'artifacts/sparring-browser-check/nyx-windup-375.png' });
-  await page.waitForFunction(() => globalThis.__special?.().stages[1]?.stage === 'recover', null, { timeout: 10000, polling: 25 });
+  await simWait(page, () => globalThis.__special?.().stages[1]?.stage === 'recover', null, { timeout: 10000, polling: 25 });
   receipt.specialRecover = await page.evaluate(() => globalThis.__special()); mark('nyx recover');
   await page.screenshot({ path: 'artifacts/sparring-browser-check/nyx-recover-375.png' });
   assert.equal(await page.evaluate(() => globalThis.__special().fighters[0].skill), null, 'opponent-only boot has no player skill');
@@ -202,24 +231,24 @@ async function check() {
   let lastManual;
   async function manualSkill() {
     // Real draw and cooldown must finish; no debug setter or manufactured cast.
-    await page.waitForFunction(() => document.querySelector('#skill-button').getAttribute('aria-disabled') === 'false', null, { timeout: 15000 });
+    await simWait(page, () => document.querySelector('#skill-button').getAttribute('aria-disabled') === 'false', null, { timeout: 15000 });
     const origin = await page.evaluate(() => globalThis.__special().fighters[0]);
     const box = await page.locator('#joystick').boundingBox(); assert.ok(box, 'real movement joystick available');
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
     try {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 32);
-      await page.waitForFunction(([x, z]) => { const f = globalThis.__special().fighters[0]; return Math.hypot(f.x - x, f.z - z) >= .25; }, [origin.x, origin.z], { timeout: 5000 });
+      await simWait(page, ([x, z]) => { const f = globalThis.__special().fighters[0]; return Math.hypot(f.x - x, f.z - z) >= .25; }, [origin.x, origin.z], { timeout: 5000 });
     } finally { await page.mouse.up(); }
-    await page.waitForFunction(() => document.querySelector('#skill-button').getAttribute('aria-disabled') === 'false', null, { timeout: 15000 });
+    await simWait(page, () => document.querySelector('#skill-button').getAttribute('aria-disabled') === 'false', null, { timeout: 15000 });
     const before = await page.evaluate(() => globalThis.__special());
     receipt.manualMovement.push({ origin, after: before.fighters[0] }); lastManual = before;
     assert.equal(before.events.some(e => e.actor === 0 && e.type === 'SpecialStarted'), false, 'player preset never casts automatically');
     assert.equal(before.mode, 'sparring'); assert.equal(before.recorder, false); assert.equal(before.practiceOnly, true);
     receipt.preManual.push(before);
-    mark('manual cast'); await page.locator('#skill-button').tap();
+    mark('manual cast'); await castTap(page);
   }
   async function castLifecycle(label, requireLand = true) {
-    const finished = await page.waitForFunction(land => {
+    const finished = await simWait(page, land => {
       const state = globalThis.__special();
       return state.events.some(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!land && (e.type === 'SpecialFizzled' || e.type === 'SpecialInterrupted')))) ? state : false;
     }, requireLand, { timeout: 15000, polling: 25 });
@@ -234,7 +263,7 @@ async function check() {
       // Keep an already observed recovery; capture it before screenshot I/O can consume the short phase.
       if (terminal.stages[0]?.stage === 'recover') recovery = terminal;
       else {
-        const recovered = await page.waitForFunction(() => {
+        const recovered = await simWait(page, () => {
           const state = globalThis.__special();
           return state.stages[0]?.stage === 'recover' ? state : false;
         }, null, { timeout: 10000, polling: 25 });
@@ -245,7 +274,7 @@ async function check() {
       await page.screenshot({ path: `artifacts/sparring-browser-check/${label}-after-land-375.png` });
       await page.screenshot({ path: `artifacts/sparring-browser-check/${label}-after-recovery-375.png` });
     }
-    await page.waitForFunction(() => globalThis.__special().stages[0] === null, null, { timeout: 15000 });
+    await simWait(page, () => globalThis.__special().stages[0] === null, null, { timeout: 15000 });
     receipt[label] = { outcome: ended.type, terminal, recovery, cleared: await page.evaluate(() => globalThis.__special()), storageUnchanged: JSON.stringify(await storageSnapshot()) === JSON.stringify(beforeStartStorage) };
     mark(label);
     assert.equal(receipt[label].storageUnchanged, true, 'test cast writes no kit/progression/reward/record');
@@ -253,7 +282,7 @@ async function check() {
   await openForm();
   await page.selectOption('#spar-skill', 'miasma'); await page.selectOption('#spar-special', 'none');
   await startForm(); await manualSkill();
-  await page.waitForFunction(() => globalThis.__special().events.some(e => e.actor === 0 && e.type === 'AttackStarted' && e.move === 'skill_miasma'));
+  await simWait(page, () => globalThis.__special().events.some(e => e.actor === 0 && e.type === 'AttackStarted' && e.move === 'skill_miasma'));
   receipt.playerMiasma = await page.evaluate(() => globalThis.__special());
   assert.equal(receipt.playerMiasma.fighters[1].specialShare, undefined, 'player Miasma leaves foe special off');
   assert.equal(receipt.playerMiasma.events.some(e => e.actor === 1 && e.type === 'SpecialStarted'), false);
@@ -267,7 +296,7 @@ async function check() {
   // (SpecialStarted 194, SpecialInterrupted 258), so this lifecycle case runs against the dummy like its neighbours: it proves the cast LANDS, not that it survives pressure.
   await page.selectOption('#difficulty-select', 'dummy');   // the dummy's special-move select is disabled (it never casts)
   await startForm(); await manualSkill();
-  await page.waitForFunction(() => globalThis.__special().stages[0]?.stage === 'windup');
+  await simWait(page, () => globalThis.__special().stages[0]?.stage === 'windup');
   receipt.playerClass = await page.evaluate(() => globalThis.__special());
   assert.equal(receipt.playerClass.presets[0], 'wake'); assert.equal(receipt.playerClass.fighters[1].specialShare, undefined);
   assert.ok(receipt.playerClass.events.some(e => e.actor === 0 && e.type === 'SpecialStarted'));
@@ -277,7 +306,7 @@ async function check() {
   await openForm(); await page.selectOption('#spar-skill', 'special:price'); await page.selectOption('#difficulty-select', 'dummy');
   await page.selectOption('#spar-weapon', 'estoc');
   await startForm(); await manualSkill();
-  await page.waitForFunction(() => globalThis.__special().stages[0]?.stage === 'windup');
+  await simWait(page, () => globalThis.__special().stages[0]?.stage === 'windup');
   receipt.playerBoss = await page.evaluate(() => globalThis.__special());
   assert.deepEqual(receipt.playerBoss.presets, ['price', null]); assert.equal(receipt.playerBoss.fighters[0].weapon, 'estoc');
   await page.screenshot({ path: 'artifacts/sparring-browser-check/player-price-solo-375.png' });
@@ -285,12 +314,12 @@ async function check() {
 
   await openForm(); await page.selectOption('#spar-skill', 'special:price'); await page.selectOption('#spar-special', 'nyx');
   await startForm(); await manualSkill();
-  await page.waitForFunction(() => globalThis.__special().stages[0]?.stage === 'windup');
+  await simWait(page, () => globalThis.__special().stages[0]?.stage === 'windup');
   receipt.bothPlayerWindup = await page.evaluate(() => globalThis.__special());
   assert.deepEqual(receipt.bothPlayerWindup.presets, ['price', 'nyx']);
   await page.screenshot({ path: 'artifacts/sparring-browser-check/player-price-both-375.png' });
   await castLifecycle('bothPlayerLifecycle', false);
-  await page.waitForFunction(() => globalThis.__special().events.some(e => e.actor === 1 && e.type === 'SpecialStarted' && e.name === 'nyxnightfall'), null, { timeout: 30000 });
+  await simWait(page, () => globalThis.__special().events.some(e => e.actor === 1 && e.type === 'SpecialStarted' && e.name === 'nyxnightfall'), null, { timeout: 30000 });
   receipt.bothCasts = await page.evaluate(() => globalThis.__special());
   assert.ok(receipt.bothCasts.events.some(e => e.actor === 0 && e.type === 'SpecialStarted' && e.name === 'theprice'));
   assert.ok(receipt.bothCasts.events.some(e => e.actor === 1 && e.type === 'SpecialStarted' && e.name === 'nyxnightfall'));
@@ -325,7 +354,7 @@ try {
   await Promise.race([check(), stalling]);
   receipt.passed = true;
 } catch (e) {
-  receipt.failure = String(e?.stack || e); process.exitCode = 1;
+  receipt.failure = `[after step "${lastStep}"] ${String(e?.stack || e)}`; process.exitCode = 1;
   try {
     receipt.failureState = await activePage?.evaluate(() => ({ url: location.href, actual: globalThis.__special?.(), skillButton: document.querySelector('#skill-button')?.getAttribute('aria-disabled'), storage: Object.fromEntries(['frankendom.fighter.v1', 'frankendom.controls.v1', 'frankendom.scorecard.v1', 'frankendom.fight.v1'].map(key => [key, localStorage.getItem(key)])) }));
     await activePage?.screenshot({ path: 'artifacts/sparring-browser-check/failure-375.png' });
@@ -338,4 +367,4 @@ finally {
   if (failure) { receipt.passed = false; receipt.failure = String(failure.reason); process.exitCode = 1; }
 }
 await writeReceipt('artifacts/sparring-browser-check/receipt.json', receipt);
-console.log(JSON.stringify({ passed: receipt.passed, totalMs: receipt.totalMs, slowestStep: [...receipt.steps].sort((a, b) => b.ms - a.ms)[0], loadsBeforeStart: receipt.loadsBeforeStart, booted: receipt.booted, failure: receipt.failure?.split('\n')[0], errors: receipt.errors.slice(0, 3) }));
+console.log(JSON.stringify({ passed: receipt.passed, totalMs: receipt.totalMs, slowestStep: [...receipt.steps].sort((a, b) => b.ms - a.ms)[0], loadsBeforeStart: receipt.loadsBeforeStart, booted: receipt.booted, failure: receipt.failure?.split('\n')[0], failureDump: receipt.failureState?.actual && { tick: receipt.failureState.actual.tick, presets: receipt.failureState.actual.presets, foe: { share: receipt.failureState.actual.fighters[1]?.specialShare, name: receipt.failureState.actual.fighters[1]?.specialName, cd: receipt.failureState.actual.fighters[1]?.skillCooldown }, special: receipt.failureState.actual.events.filter(e => e.type.startsWith('Special')) }, errors: receipt.errors.slice(0, 3) }));
