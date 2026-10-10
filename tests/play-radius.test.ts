@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setLateNotice, ARENA_ONE_SCALE, BASE_RADIUS, BODY_RADIUS, FIRST_SCALED_VERSION, WALL_INNER, ARENA_ONE, PLAY_SCALE, RADIUS, playScaleFor, setPlayScale } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
-import { underRecord } from '../src/detmath.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
+import { underRecord } from '../src/fight/detmath.ts';
 import { LADDER } from '../src/ladder.ts';
 import { ARENA_PICK, arenaBand, arenaFor, ARENA_THEMES } from '../src/arena-themes.ts';
 import { NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';

@@ -6,7 +6,7 @@
 // π/2 in three parts, exact for the sim's angles (|x| far below 2^20·π/2). tests/detmath.test.ts pins accuracy against Math.* and bans
 // any Math transcendental inside the sim files.
 
-import { underPlayScale } from './fight/play-radius.ts';
+import { underPlayScale } from './play-radius.ts';
 import { underStab } from './stab-rule.ts';
 
 const S1 = -1.66666666666666324348e-01, S2 = 8.33333333332248946124e-03, S3 = -1.98412698298579493134e-04,

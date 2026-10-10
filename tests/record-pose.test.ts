@@ -4,7 +4,7 @@ import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { idleIntent, roundPose, type DuelPose } from '../src/fight/duel.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { FIRST_POSE_VERSION, NO_PATRON_VERSION, RECORD_VERSION, createRecorder, packRecord, unpackRecord, type RecordMeta } from '../src/fight/record.ts';
 
 // RV38 (Strategy's number, Combat 2026-10-08): the start pose in the record header. A headless recorder stamps an older era, so tests record as a live fight is fought.
