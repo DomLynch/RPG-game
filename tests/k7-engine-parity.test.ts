@@ -183,7 +183,7 @@ test('MAX_ATTACKERS is never exceeded: N creatures on one hero put at most MAX_A
 test('no second attacker cap exists outside src/fight/attackers.ts: no numeric constant, parameter default or field named *attackers* / *tokens* / *ATTACKER* / *TOKEN*', () => {
   const CAPS = [
     /\b(?:const|let|var)\s+([A-Za-z_]*(?:ATTACKER|TOKEN)S?[A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*-?\d/g,   // a constant, typed or renamed
-    /\b([a-z]\w*(?:attackers|tokens)\w*)\s*(?::\s*number\s*)?=\s*-?\d/gi,   // a parameter default (startStreams(duels, tokens = 4))
+    /\b(\w*(?:attackers|tokens)\w*)\s*(?::\s*number\s*)?=\s*-?\d/gi,   // a parameter default (startStreams(duels, tokens = 4))
     /\b((?:max)?(?:attackers|tokens))\s*:\s*-?\d/gi,   // an object field ({ tokens: 4 })
   ];
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(join(dir, e.name))) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.ts$/.test(e.name) ? [join(dir, e.name)] : []);
